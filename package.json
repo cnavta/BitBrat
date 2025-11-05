@@ -1,0 +1,37 @@
+{
+  "name": "bitbrat-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "dist/types/index.d.ts",
+  "scripts": {
+    "lint": "eslint . --ext .ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "run:local": "",
+    "deploy:cloud": "./infrastructure/deploy-cloud.sh --add-appropriate-command-line-args",
+    "deploy:local": ""
+  },
+  "keywords": [],
+  "author": "chris@ix-n.com",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.5",
+    "@types/jest": "^30.0.0",
+    "eslint": "^9.39.1",
+    "@typescript-eslint/parser": "^8.46.3",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "prettier": "^3.6.2",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "tsconfig-paths": "^4.2.0"
+  },
+  "lint-staged": {
+    "*.ts": "eslint --cache --fix"
+  }
+}

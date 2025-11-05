@@ -1,0 +1,158 @@
+name: BitBrat Platform
+description: The BitBrat Platform is an LLM powered event orchestration and execution engine aimed at Streamers. Uses Node/TypeScript, Twurple,
+  Firestore, OpenAI, oshuaalpuerto/mcp-agent. Deployed on Cloud Run.
+project:
+  name: BitBrat Platform
+  version: 0.1.0
+  description: |
+    A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to them.
+  owners:
+    - chris@ix-n.com
+llm_guidance:
+  default_system_prompt: >
+    You are an experienced Staff Engineer responsible fpr developing the BitBrat Platform.
+    Follow the architecture.yaml specs strictly. Justify any architectural deviation clearly.
+
+defaults: # Defaults for various entities. Individual entities may override these.
+  services: # Default settings for all services
+    implementation: cloud-run # What sort of cloud resource to use by default to provision for this service
+    runtime: # Default runtime to use for services
+      node: 24.x
+    region: us-central1 # Default region to use for services
+    network: bitbrat-prod-vpc # Default VPC to deploy services to
+    scaling: # Default scaling rules for services
+      min: 0
+      max: 3
+    observability:
+      log_export: cloud-logging
+      metrics: cloud-monitoring
+    port: 3000
+    health: # Default HTTP-based health check endpoint for services
+      - /healthz
+    topics:
+      publishes:
+        - internal.finalize.v1 # All services may finalize a message
+    security:
+      allowUnauthenticated: true # Allow unauthenticated traffic to the service
+    env: # Environment variables required by all services
+      - LOG_LEVEL
+      - MESSAGE_BUS_DRIVER
+      - NATS_URL
+      - BUS_PREFIX
+
+services:
+  oauth-flow:
+    description: "OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and broadcaster accounts."
+    entry: src/apps/oauth-service.ts
+    paths:
+      - /oauth/*
+    secrets:
+      - TWITCH_CLIENT_ID
+      - TWITCH_CLIENT_SECRET
+      - OAUTH_STATE_SECRET
+
+  ingress-egress:
+    description: "Bridges external event sources/sinks (e.g., Twitch EventSub/IRC) to internal topics;"
+    entry: src/apps/ingress-egress-service.ts
+    topics:
+      publishes:
+        - internal.ingress.v1
+      consumes:
+        - internal.egress.v1
+    paths:
+      - /_debug/twitch # Debug endpoint that displays the current state of the Twitch IRC and EventSub connections
+    scaling:
+      min: 1
+      max: 1
+    secrets:
+      - TWITCH_CLIENT_ID
+      - TWITCH_CLIENT_SECRET
+    env:
+      - TWITCH_BOT_USERNAME
+      - TWITCH_CHANNELS
+
+  auth:
+    description: "Authentication service that handles user authentication and authorization."
+    entry: src/apps/auth-service.ts
+    topics:
+      publishes:
+        - internal.auth.v1
+      consumes:
+        - internal.ingress.v1
+    secrets:
+      - TWITCH_CLIENT_ID
+      - TWITCH_CLIENT_SECRET
+
+  event-router:
+    description: "Internal event routing service that reads from ingress channel(s) and assigns routing slips."
+    entry: src/apps/event-router-service.ts
+    topics:
+      publishes:
+        - internal.llmbot.v1
+      consumes:
+        - internal.auth.v1
+
+  llm-bot:
+    description: "Headless LLM worker that consumes bot request subjects and produces responses."
+    entry: src/apps/llm-bot-service.ts
+    topics:
+      consumes:
+        - internal.llmbot.v1
+    secrets:
+      - OPENAI_API_KEY
+    env:
+      - OPENAI_MODEL
+      - OPENAI_TIMEOUT_MS
+      - OPENAI_MAX_RETRIES
+
+  finalizer:
+    description: "Finalizer service logs the final state of a message and makes sure any open requests are responded to."
+    entry: src/apps/finalizer-service.ts
+    topics:
+      consumes:
+        - internal.finalize.v1
+
+  infrastructure:
+    target: gcp
+    resources:
+      default-content-bucket:
+        type: object-store
+        implementation: cloud-storage
+        description: Static assets for the default website.
+        access_policy: private
+
+      main-load-balancer:
+        type: load-balancer
+        implementation: global-external-application-lb
+        name:  bitbrat-platform-lb
+        ip: bitbrat-platform-ip
+        description: Main external entry point and router for the application
+        routing:
+          default_bucket: default-content-bucket
+          default_domain: api.bitbrat.ai
+          rules:
+            # Static Assets Routing
+            - path_prefix: /assets
+              bucket: default-content-bucket
+
+            # OAuth Routing
+            - path_prefix: /oauth
+              service: oauth-service
+
+            # Debug Routes
+            - path_prefix: /_debug/ingress/twitch
+              rewrite_prefix: /_debug/twitch
+              service: ingress-egress
+
+
+deploymentDefaults:
+  maxConcurrentDeployments: 1
+  region: us-central1
+  cloud-run:
+    platform: managed
+    minInstances: 0
+    maxInstances: 100
+    cpu: '1'
+    memory: 512Mi
+  global-external-application-lb:
+    loadBalancingScheme: EXTERNAL_MANAGED

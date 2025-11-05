@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+
+# WARNING, PLEASE NOTE: This script is not intended for direct use. It is an example from a different project. Use it for structural and logic flow reference only.
+
+set -euo pipefail
+
+# Unified deployment entrypoint for BitBrat services and infra
+# Usage examples:
+#   ./infrastructure/deploy.sh --component router --env staging --project my-proj --region us-central1
+#   ./infrastructure/deploy.sh --component infra --env staging
+#   ./infrastructure/deploy.sh --all-services --env staging
+#   ./infrastructure/deploy.sh --all --env staging
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+print_help() {
+  cat <<'EOF'
+BitBrat Deploy Wrapper
+
+Required (one of):
+  --component <router|ingress|llm-bot|memory|schedulers|monitoring|infra>
+  --all-services                         Deploy all services (excludes infra)
+  --all | --everything                   Deploy infra first, then all services
+
+Optional:
+  --env <dev|staging|prod>               (default: staging)
+  --project <PROJECT_ID>                 (default: gcloud config get-value project)
+  --region <REGION>                      (default: us-central1)
+  --repo <ARTIFACT_REPO>                 (default: bitbrat)
+  --tag <TAG>                            (default: SHORT_SHA from Cloud Build or current git sha)
+  --env-file <path>                      (override _ENV_VARS_FILE)
+  --config <cloudbuild.yaml>             (override component->cloudbuild mapping)
+  --sub <k=v,k=v>                        (extra substitutions to pass through)
+  --strict                               (fail on missing configs/env files; default is skip with warning in batch)
+  --dry-run                              (echo commands without executing)
+  --print-config                         (print resolved config/substitutions and continue; in single mode exits)
+  -h|--help
+
+Examples:
+  ./infrastructure/deploy.sh --component router --env staging
+  ./infrastructure/deploy.sh --component llm-bot --env prod --tag v1.2.3
+  ./infrastructure/deploy.sh --component infra --env staging
+  ./infrastructure/deploy.sh --all-services --env staging
+  ./infrastructure/deploy.sh --all --env prod --tag r42
+EOF
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { echo "error: required command '$1' not found"; exit 1; }
+}
+
+# Defaults
+ENVIRONMENT="staging"
+REGION="us-central1"
+ART_REPO="bitbrat"
+PROJECT_ID=""
+COMPONENT=""
+TAG=""
+ENV_FILE_OVERRIDE=""
+CONFIG_OVERRIDE=""
+EXTRA_SUBS=""
+WRAP_DRY_RUN=0
+WRAP_PRINT_CONFIG=0
+DEPLOY_ALL_SERVICES=0
+DEPLOY_EVERYTHING=0
+STRICT_MODE=0
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --component) COMPONENT="$2"; shift 2 ;;
+    --all-services) DEPLOY_ALL_SERVICES=1; shift ;;
+    --all|--everything) DEPLOY_EVERYTHING=1; shift ;;
+    --env) ENVIRONMENT="$2"; shift 2 ;;
+    --project) PROJECT_ID="$2"; shift 2 ;;
+    --region) REGION="$2"; shift 2 ;;
+    --repo) ART_REPO="$2"; shift 2 ;;
+    --tag) TAG="$2"; shift 2 ;;
+    --env-file) ENV_FILE_OVERRIDE="$2"; shift 2 ;;
+    --config) CONFIG_OVERRIDE="$2"; shift 2 ;;
+    --sub) EXTRA_SUBS="$2"; shift 2 ;;
+    --strict) STRICT_MODE=1; shift ;;
+    --dry-run) WRAP_DRY_RUN=1; shift ;;
+    --print-config) WRAP_PRINT_CONFIG=1; shift ;;
+    -h|--help) print_help; exit 0 ;;
+    *) echo "Unknown argument: $1"; print_help; exit 1 ;;
+  esac
+done
+
+# Load .env if present (best effort)
+if [[ -f "$REPO_ROOT/.env" ]]; then
+  # shellcheck disable=SC1090
+  set +e
+  source "$REPO_ROOT/.env" >/dev/null 2>&1 || true
+  set -e
+fi
+
+if [[ $WRAP_DRY_RUN -eq 0 && $WRAP_PRINT_CONFIG -eq 0 ]]; then
+  require_cmd gcloud
+fi
+
+# Resolve project id if not provided
+if [[ -z "$PROJECT_ID" ]]; then
+  if [[ $WRAP_DRY_RUN -eq 0 && $WRAP_PRINT_CONFIG -eq 0 ]]; then
+    PROJECT_ID=$(gcloud config get-value project --quiet 2>/dev/null || true)
+  else
+    PROJECT_ID="dry-run"
+  fi
+fi
+if [[ -z "$PROJECT_ID" ]]; then
+  echo "error: PROJECT_ID not provided and no gcloud default set"; exit 1
+fi
+
+# Resolve TAG
+if [[ -z "$TAG" ]]; then
+  if [[ -n "${SHORT_SHA:-}" ]]; then
+    TAG="${SHORT_SHA}"
+  elif command -v git >/dev/null 2>&1; then
+    # Attempt to derive from git, but do not fail if not a git repo (e.g., Cloud Build source)
+    set +e
+    TAG_OUT=$(git rev-parse --short HEAD 2>/dev/null)
+    if [[ $? -eq 0 && -n "$TAG_OUT" ]]; then
+      TAG="$TAG_OUT"
+    else
+      TAG="manual"
+    fi
+    set -e
+  else
+    TAG="manual"
+  fi
+fi
+
+# Build component list
+SERVICES=(router ingress llm-bot memory schedulers monitoring)
+COMPONENTS=()
+if [[ $DEPLOY_EVERYTHING -eq 1 ]]; then
+  COMPONENTS=(infra "${SERVICES[@]}")
+elif [[ $DEPLOY_ALL_SERVICES -eq 1 ]]; then
+  COMPONENTS=("${SERVICES[@]}")
+else
+  if [[ -z "$COMPONENT" ]]; then
+    echo "error: must specify --component or --all-services or --all/--everything"; print_help; exit 1
+  fi
+  COMPONENTS=("$COMPONENT")
+fi
+
+# Determine batch mode
+BATCH_MODE=0
+if [[ ${#COMPONENTS[@]} -gt 1 ]]; then BATCH_MODE=1; fi
+
+# helpers to run per component
+run_component() {
+  local comp="$1"
+  case "$comp" in
+    router|ingress|llm-bot|memory|schedulers|monitoring|infra) ;;
+    *) echo "error: unsupported component: $comp"; return 2 ;;
+  esac
+
+  local config_file="$REPO_ROOT/cloudbuild.${comp}.yaml"
+  local image_name="bitbrat-${comp}"
+  local service_name="bitbrat-${comp}"
+  if [[ "$comp" == "router" ]]; then image_name="bitbrat-router"; service_name="bitbrat-router"; fi
+  if [[ "$comp" == "ingress" ]]; then image_name="bitbrat-ingress"; service_name="bitbrat-ingress"; fi
+  if [[ "$comp" == "llm-bot" ]]; then image_name="bitbrat-llm-bot"; service_name="bitbrat-llm-bot"; fi
+
+  if [[ -n "$CONFIG_OVERRIDE" ]]; then config_file="$CONFIG_OVERRIDE"; fi
+  if [[ ! -f "$config_file" ]]; then
+    if [[ $BATCH_MODE -eq 1 && $STRICT_MODE -eq 0 ]]; then
+      echo "[deploy][warn] Cloud Build config not found: $config_file (component: $comp). Skipping in batch mode."
+      return 0
+    else
+      echo "error: Cloud Build config not found: $config_file"; return 2
+    fi
+  fi
+
+  local env_vars_file
+  if [[ -n "$ENV_FILE_OVERRIDE" ]]; then
+    env_vars_file="$ENV_FILE_OVERRIDE"
+  else
+    env_vars_file="env/${ENVIRONMENT}.${comp}.yaml"
+  fi
+
+  if [[ ! -f "$REPO_ROOT/$env_vars_file" ]]; then
+    if [[ $BATCH_MODE -eq 1 && $STRICT_MODE -eq 0 ]]; then
+      echo "[deploy][warn] Env vars file missing: $env_vars_file (component: $comp). Proceeding; deploy may fail unless service does not require it."
+    else
+      echo "error: Env vars file not found: $env_vars_file"; return 3
+    fi
+  fi
+
+  local subs=(
+    "_REGION=${REGION}"
+    "_REPO=${ART_REPO}"
+    "_IMAGE=${image_name}"
+    "_TAG=${TAG}"
+    "_ENV_VARS_FILE=${env_vars_file}"
+    "_SERVICE=${service_name}"
+    "_ENV=${ENVIRONMENT}"
+    "_NODE_BUILDER_TAG=${NODE_BUILDER_TAG:-20}"
+  )
+
+  # For ingress, ensure GLB routing substitutions are present (can be overridden via --sub)
+  if [[ "$comp" == "ingress" || "$comp" == "infra" ]]; then
+    local HOST_API_DEFAULT="${HOST_API:-api.bitbrat.ai}"
+    subs+=("_APPLY_GLBE=${APPLY_GLBE:-true}")
+    subs+=("_URL_MAP=${URL_MAP:-bitbrat-lb}")
+    subs+=("_BACKEND_SVC_API=${BACKEND_SVC_API:-bitbrat-bot-backend}")
+    subs+=("_NEG_API=${NEG_API:-neg-api}")
+    subs+=("_HOST_API=${HOST_API:-$HOST_API_DEFAULT}")
+  fi
+
+  if [[ -n "$EXTRA_SUBS" ]]; then
+    IFS=',' read -r -a EXTRA_ARR <<< "$EXTRA_SUBS"
+    for kv in "${EXTRA_ARR[@]}"; do
+      subs+=("$kv")
+    done
+  fi
+
+  local substitutions
+  substitutions=$(IFS=','; echo "${subs[*]}")
+
+  local cmd=(gcloud builds submit "${REPO_ROOT}" --project "${PROJECT_ID}" --config "${config_file}" --substitutions "${substitutions}")
+
+  echo "[deploy] Project:    ${PROJECT_ID}"
+  echo "[deploy] Region:     ${REGION}"
+  echo "[deploy] Env:        ${ENVIRONMENT}"
+  echo "[deploy] Component:  ${comp}"
+  echo "[deploy] Config:     ${config_file}"
+  echo "[deploy] Substitutions: ${substitutions}"
+
+  if [[ $WRAP_PRINT_CONFIG -eq 1 ]]; then
+    return 0
+  fi
+
+  if [[ $WRAP_DRY_RUN -eq 1 ]]; then
+    echo "[deploy] DRY RUN: ${cmd[*]}"
+    return 0
+  fi
+
+  # Execute without exec to allow batch sequencing
+  "${cmd[@]}"
+  return $?
+}
+
+# Iterate components
+EXIT_AGG=0
+for c in "${COMPONENTS[@]}"; do
+  run_component "$c"
+  rc=$?
+  if [[ $rc -ne 0 ]]; then
+    echo "[deploy][error] Component '$c' failed with exit code $rc"
+    EXIT_AGG=1
+    # continue to try remaining components in batch
+  fi
+done
+
+exit $EXIT_AGG

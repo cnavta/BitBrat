@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Builds
+/dist/
+
+# Env files (never commit real secrets)
+.env
+.env.local
+
+# IDE
+.idea/
+*.iml

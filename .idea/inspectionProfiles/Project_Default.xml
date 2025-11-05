@@ -1,0 +1,10 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="ComposeErroneousRelation" enabled="false" level="INFORMATION" enabled_by_default="false" />
+    <inspection_tool class="ComposeMissingKeys" enabled="false" level="INFORMATION" enabled_by_default="false" />
+    <inspection_tool class="ComposeUnknownKeys" enabled="false" level="INFORMATION" enabled_by_default="false" />
+    <inspection_tool class="ComposeUnknownValues" enabled="false" level="INFORMATION" enabled_by_default="false" />
+    <inspection_tool class="ComposeUnquotedPorts" enabled="false" level="INFORMATION" enabled_by_default="false" />
+  </profile>
+</component>
