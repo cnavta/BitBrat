@@ -1,0 +1,69 @@
+
+services:
+  nats:
+    image: nats:2
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/varz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - nats-data:/data
+
+  nats-box:
+    image: natsio/nats-box:latest
+    depends_on:
+      - nats
+    environment:
+      - NATS_URL=nats://nats:4222
+    entrypoint: ["/bin/sh", "-c", "tail -f /dev/null"]
+
+  firebase-emulator:
+    image: node:20-bullseye
+    user: root
+    working_dir: /data
+    environment:
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-bitbrat-local}
+      - GCLOUD_PROJECT=${FIREBASE_PROJECT_ID:-bitbrat-local}
+      - GOOGLE_CLOUD_PROJECT=${FIREBASE_PROJECT_ID:-bitbrat-local}
+      - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+    command: >
+      bash -lc "set -euo pipefail;
+      apt-get update && apt-get install -y openjdk-17-jre-headless curl gnupg jq;
+      echo \"deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main\" > /etc/apt/sources.list.d/google-cloud-sdk.list;
+      curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg;
+      apt-get update && apt-get install -y google-cloud-cli;
+      # Pre-emulator bootstrap: ensure /data has firebase project artifacts
+      mkdir -p /data/export;
+      if [[ ! -f /data/.firebaserc ]]; then echo '{"projects":{"default":"${FIREBASE_PROJECT_ID:-bitbrat-local}"}}' > /data/.firebaserc; fi;
+      [[ -f /data/firebase.json ]] || cp /workspace/firebase.json /data/firebase.json;
+      [[ -f /data/firestore.rules ]] || cp /workspace/firestore.rules /data/firestore.rules;
+      # Keep full bootstrap script for idempotent setup and ADC auth
+      bash /workspace/infrastructure/docker-compose/firebase-emulator-bootstrap.sh;
+      npx --yes firebase-tools@13 emulators:start --config /data/firebase.json --only firestore,ui --project ${FIREBASE_PROJECT_ID:-bitbrat-local} --import=/data/export --export-on-exit=/data/export"
+    volumes:
+      - ../../:/workspace:ro
+      - firebase-data:/data
+      - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
+    ports:
+      - "4000:4000"
+      - "8085:8080"
+      - "4400:4400"
+      - "9150:9150"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4000"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    stop_signal: SIGINT
+    stop_grace_period: 1m
+
+volumes:
+  nats-data:
+    driver: local
+  firebase-data:
+    driver: local

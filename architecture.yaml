@@ -27,8 +27,10 @@ defaults: # Defaults for various entities. Individual entities may override thes
       log_export: cloud-logging
       metrics: cloud-monitoring
     port: 3000
-    health: # Default HTTP-based health check endpoint for services
+    health: # Default HTTP-based health check endpoints for services
       - /healthz
+      - /readyz
+      - /livez
     topics:
       publishes:
         - internal.finalize.v1 # All services may finalize a message
@@ -137,7 +139,7 @@ services:
 
             # OAuth Routing
             - path_prefix: /oauth
-              service: oauth-service
+              service: oauth-flow
 
             # Debug Routes
             - path_prefix: /_debug/ingress/twitch

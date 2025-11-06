@@ -583,3 +583,17 @@ Proceed as a professional software engineer would: make informed decisions, anno
   ### Deployment
   1. All executables should be packaged, deployed and run as containers.
   2. Even locally run apps should be run as a container.
+
+## Roles
+
+### Cloud Architect
+Designs and maintains the cloud infrastructure blueprint. Ensures scalability, security, and cost efficiency across environments. Defines standards for deployment, networking, and resilience.
+
+### Lead Architect
+Owns overall system architecture. Balances business goals, technical constraints, and developer experience. Approves major design decisions and enforces architectural integrity across all modules.
+
+### Lead Implementor
+Translates architecture into production-grade code. Coordinates feature implementation, reviews PRs, and ensures delivery aligns with design and quality standards. Acts as the bridge between architecture and execution.
+
+### Quality Lead
+Oversees testing strategy, CI/CD validation, and release readiness. Ensures reliability, performance, and maintainability through automated checks and rigorous verification before integration or deployment.

@@ -1,0 +1,39 @@
+sprint_id: sprint-1-9f3b2a
+role: cloud-architect
+started_at: 2025-11-05T11:15:00-00:00
+objective: >-
+  Bootstrap local deployment: `npm run local` starts NATS and Firestore Emulator via
+  Docker Compose and builds/runs an empty `oauth-flow` service container exposing
+  `GET /healthz` on port 3000.
+scope:
+  - Local infrastructure only (Docker Compose)
+  - Minimal `oauth-flow` service with health endpoint
+  - No real OAuth integrations or cloud deploys in this sprint
+artifacts:
+  planning:
+    - planning/sprint-1-9f3b2a/implementation-plan.md
+    - planning/sprint-1-9f3b2a/request-log.md
+    - planning/sprint-1-9f3b2a/sprint-manifest.yaml
+    - planning/sprint-1-9f3b2a/validate_deliverable.sh
+  infra:
+    - infrastructure/docker-compose/docker-compose.local.yaml
+references:
+  - architecture.yaml
+acceptance_criteria:
+  - 'docker compose up for local infra succeeds with healthy NATS and Firestore Emulator'
+  - 'oauth-flow container starts and responds 200 to GET /healthz on :3000'
+  - 'npm run local orchestrates infra + service start, prints helpful env overrides'
+  - 'basic Jest unit test exists and passes for health handler'
+dod:
+  - Code quality aligns with architecture.yaml
+  - Unit test included for new service endpoint
+  - Deployment artifacts/docs for local run
+  - Traceability to this sprint in planning docs
+publication_plan:
+  branch_name: feature/sprint-1-9f3b2a
+  pr_title: 'Sprint 1 Deliverables — Local Deployment Bootstrap'
+  pr_body_includes:
+    - implementation-plan.md
+    - verification-report.md
+    - retro.md
+status: completed

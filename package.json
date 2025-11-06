@@ -8,13 +8,17 @@
     "lint": "eslint . --ext .ts",
     "build": "tsc -p tsconfig.json",
     "test": "jest",
-    "run:local": "",
-    "deploy:cloud": "./infrastructure/deploy-cloud.sh --add-appropriate-command-line-args",
-    "deploy:local": ""
+    "local": "./infrastructure/deploy-local.sh",
+    "local:down": "./infrastructure/deploy-local.sh --down",
+    "deploy:cloud": "./infrastructure/deploy-cloud.sh --add-appropriate-command-line-args"
   },
   "keywords": [],
   "author": "chris@ix-n.com",
   "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0",
+    "firebase-admin": "^13.5.0"
+  },
   "devDependencies": {
     "@types/node": "^24.10.0",
     "ts-node": "^10.9.2",
@@ -29,7 +33,10 @@
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "js-yaml": "^4.1.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
   },
   "lint-staged": {
     "*.ts": "eslint --cache --fix"
