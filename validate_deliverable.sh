@@ -16,8 +16,13 @@ npm run build
 echo "🧪 Running tests..."
 npm test
 
+echo "🚀 Running local deployment..."
+npm run local
+
+echo "🚀 Shutting local deployment down..."
+npm run local:down
+
 echo "🚀 Running dry-run deployment..."
-./infrastructure/deploy-local.sh --dry-run
-./infrastructure/deploy-cloud.sh --dry-run
+npm run deploy:cloud -- --dry-run
 
 echo "✅ All validation steps passed."

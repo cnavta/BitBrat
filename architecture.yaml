@@ -22,7 +22,7 @@ defaults: # Defaults for various entities. Individual entities may override thes
     network: bitbrat-prod-vpc # Default VPC to deploy services to
     scaling: # Default scaling rules for services
       min: 0
-      max: 3
+      max: 2
     observability:
       log_export: cloud-logging
       metrics: cloud-monitoring

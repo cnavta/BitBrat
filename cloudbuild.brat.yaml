@@ -1,0 +1,46 @@
+# Draft Cloud Build config for building and publishing the brat CLI image
+# Phase 4 packaging (not used in current pipelines yet)
+#
+# Substitutions:
+#   _REGION: us-central1
+#   _PROJECT_ID: your-gcp-project
+#   _REPO: tools
+#   _IMAGE: brat
+#   _TAG: $SHORT_SHA or timestamp
+
+substitutions:
+  _REGION: us-central1
+  _PROJECT_ID: ${PROJECT_ID}
+  _REPO: tools
+  _IMAGE: brat
+  _TAG: ${SHORT_SHA}
+
+steps:
+  - id: Install dependencies
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+
+  - id: Build TypeScript
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'build']
+
+  - id: Run tests
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['test', '--', '--ci']
+
+  - id: Build brat image
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.brat'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE}:${_TAG}'
+      - '.'
+
+  - id: Push brat image
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE}:${_TAG}']
+
+images:
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE}:${_TAG}'
