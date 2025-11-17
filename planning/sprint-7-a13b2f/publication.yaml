@@ -1,0 +1,21 @@
+sprint_id: sprint-7-a13b2f
+branch: feature/sprint-7-a13b2f
+pull_request:
+  title: "Sprint 7 Deliverables — CDKTF Scaffolding and CI Wiring (Plan-only)"
+  url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-7-a13b2f?expand=1
+  status: pending
+  created_at: 2025-11-12T00:05:00Z
+  validated: true
+links:
+  implementation_plan: planning/sprint-7-a13b2f/implementation-plan.md
+  sprint_manifest: planning/sprint-7-a13b2f/sprint-manifest.yaml
+  request_log: planning/sprint-7-a13b2f/request-log.md
+  verification_report: planning/sprint-7-a13b2f/verification-report.md
+  retro: planning/sprint-7-a13b2f/retro.md
+validation:
+  validate_script: planning/sprint-7-a13b2f/validate_deliverable.sh
+  result: pass
+review:
+  approved_by: chris.navta
+  approval_date: 2025-11-13T13:40:00Z
+  notes: "Sprint closed per user signal; PR creation deferred, compare link present."

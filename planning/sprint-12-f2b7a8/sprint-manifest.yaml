@@ -1,0 +1,33 @@
+sprint_id: sprint-12-f2b7a8
+title: "Sprint 12 — Production Cutover and Hardening"
+owner: Lead Implementor
+date_started: 2025-11-15
+date_completed: 2025-11-15
+status: completed
+objectives:
+  - Roll out HTTPS Load Balancer to prod using use-existing IP and certificate
+  - Guarded URL Map import with YAML-first strategy
+  - DNS readiness checks and rollback plan
+  - Observability validation (logging) and optional Cloud Armor policy
+source_of_truth:
+  - architecture.yaml
+related_docs:
+  - planning/sprint-6-d7e4b0/network-and-lb-technical-architecture.md
+  - planning/sprint-6-d7e4b0/network-lb-implementation-plan.md
+branch: feature/sprint-12-f2b7a8
+pr_url: "https://github.com/cnavta/BitBrat/compare/main...feature/sprint-12-f2b7a8?expand=1"
+artifacts:
+  - planning/sprint-12-f2b7a8/execution-plan.md
+  - planning/sprint-12-f2b7a8/implementation-plan.md
+  - planning/sprint-12-f2b7a8/request-log.md
+  - planning/sprint-12-f2b7a8/validate_deliverable.sh
+  - planning/sprint-12-f2b7a8/verification-report.md
+  - planning/sprint-12-f2b7a8/retro.md
+  - planning/sprint-12-f2b7a8/publication.yaml
+publication:
+  branch: feature/sprint-12-f2b7a8
+  pull_request:
+    title: "Sprint 12 Deliverables — Production Cutover and Hardening"
+    url: "https://github.com/cnavta/BitBrat/compare/main...feature/sprint-12-f2b7a8?expand=1"
+    status: draft
+    validated: false

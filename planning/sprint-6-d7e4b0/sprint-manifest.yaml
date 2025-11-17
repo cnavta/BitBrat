@@ -1,0 +1,30 @@
+sprint_id: sprint-6-d7e4b0
+created_at: 2025-11-11T20:43:00Z
+author: Cloud Architect
+source_of_truth: architecture.yaml
+objective: "Lay out the technical architecture for CDKTF network stack (VPC, subnets, NAT/Router) and Load Balancer (front-end, URL map, backend services) for the brat (BitBrat Rapid Administration Tool)."
+scope:
+  - CDKTF Network Stack design (VPC, subnets, Cloud Router, Cloud NAT, firewall baseline)
+  - CDKTF Load Balancer design (Global External Managed HTTP(S), URL map strategy, backend services)
+  - URL Map advanced configuration approach using YAML-first workflow
+  - Integration boundaries with architecture.yaml and brat CLI (future automation)
+deliverables:
+  - planning/sprint-6-d7e4b0/network-and-lb-technical-architecture.md
+  - planning/sprint-6-d7e4b0/implementation-plan.md
+  - planning/sprint-6-d7e4b0/network-lb-implementation-plan.md
+  - planning/sprint-6-d7e4b0/request-log.md
+  - planning/sprint-6-d7e4b0/validate_deliverable.sh
+  - planning/sprint-6-d7e4b0/verification-report.md
+  - planning/sprint-6-d7e4b0/retro.md
+  - planning/sprint-6-d7e4b0/publication.yaml
+acceptance_criteria:
+  - Comprehensive technical architecture document aligning to architecture.yaml
+  - Clear mapping from architecture.yaml services to URL map backends/routes
+  - Documented CDKTF stack boundaries, inputs/outputs, and deployment flow
+  - Validation script exists and passes locally
+dependencies:
+  - GCP project and APIs (Compute, Cloud Run, Artifact Registry) — for implementation phase
+  - architecture.yaml — canonical service definitions
+status: completed
+notes:
+  - This sprint starts the IaC design; implementation will begin in subsequent phases.

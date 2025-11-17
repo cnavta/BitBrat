@@ -1,0 +1,23 @@
+sprint_id: sprint-16-e3f9a1
+started_at: 2025-11-16T20:09:00Z
+objective: "Fix infra-plan Cloud Build failure at 'brat doctor' and initialize Sprint 16."
+status: active
+deliverables:
+  - id: infra-plan-brat-doctor-fix
+    title: "Make brat doctor pass in Cloud Build npm image"
+    type: code
+    paths:
+      - tools/brat/src/cli/index.ts
+      - cloudbuild.infra-plan.yaml
+    acceptance_criteria:
+      - "Cloud Build step 'Brat doctor' no longer fails due to missing gcloud/terraform/docker."
+      - "brat doctor supports --ci flag and prints JSON output."
+  - id: sprint-initialization
+    title: "Create Sprint 16 planning scaffolding"
+    type: docs
+    paths:
+      - planning/sprint-16-e3f9a1/
+    acceptance_criteria:
+      - "sprint-manifest.yaml, implementation-plan.md, request-log.md, validate_deliverable.sh exist"
+links:
+  architecture: "../..//architecture.yaml"

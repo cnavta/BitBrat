@@ -1,0 +1,38 @@
+sprint_id: sprint-14-c1d2e3
+title: "Sprint 14 — CI Infra Plan Job + Root Validation Wiring"
+role: Lead Implementor
+source_of_truth: architecture.yaml
+related_design:
+  - planning/sprint-13-ace12f/technical-architecture.md
+related_plans:
+  - planning/sprint-13-ace12f/project-implementation-plan.md
+status: completed
+start_date: 2025-11-15
+end_date: 2025-11-15
+objective: |
+  Finalize and verify CI plan job that runs infra plan for network, connectors, and lb; add URL map dry-run import to CI. Extend root validate_deliverable.sh to run these checks locally/dry-run.
+deliverables:
+  - Verify and, if needed, adjust cloudbuild.infra-plan.yaml to run dry-run plan steps for network, connectors, and lb, plus URL map import.
+  - Document Cloud Build trigger usage so PRs use this config.
+  - Extend root validate_deliverable.sh to accept env/project parameters and execute the same plan steps in dry-run locally.
+acceptance_criteria:
+  - PRs show successful execution of cloudbuild.infra-plan.yaml with artifacts (logs, diffs) for target env.
+  - Local validate_deliverable.sh completes without applying resources.
+dependencies:
+  - Existing brat commands functional.
+validation:
+  script: planning/sprint-14-c1d2e3/validate_deliverable.sh
+  ci_config: cloudbuild.infra-plan.yaml
+  dry_run: true
+dod:
+  - CI path is green in a sample PR, and the root validator includes infra checks.
+traceability:
+  prompt_ids:
+    - req-2025-11-15-1904
+  notes: "Implements Sprint 14 from the Sprint Breakdown in planning/sprint-13-ace12f/project-implementation-plan.md"
+publication:
+  branch: feature/sprint-14-c1d2e3
+  pr_status: open
+  pr_url: "https://github.com/cnavta/BitBrat/compare/main...feature/sprint-14-c1d2e3?expand=1"
+  links:
+    - planning/sprint-14-c1d2e3/publication.yaml
