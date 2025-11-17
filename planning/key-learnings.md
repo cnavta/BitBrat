@@ -129,3 +129,14 @@ Date: 2025-11-15
 3. Publication artifacts (publication.yaml + manifest publication block) should be updated during closure to satisfy S11–S13 traceability rules.
 4. Include a minimal “doctor” step in CI to validate tooling presence (Terraform, gcloud) early and fail fast with actionable guidance.
 5. When external constraints prevent full validation (e.g., live project access), document deferrals clearly in verification-report.md and carry forward items explicitly.
+
+
+# Key Learnings — Sprint 16
+
+Date: 2025-11-16
+
+1. Introducing a CI-safe diagnostics mode (brat doctor --ci) unblocked pipelines without diluting local rigor; keep CI behavior explicit via flags, not heuristics.
+2. Encoding environment guardrails (prod defaults to use-existing IP/cert) directly in synth logic prevents risky production mutations while enabling dev flexibility.
+3. Overlay-driven LB inputs (services, ipMode/certMode) increase testability and parity; snapshot tests provide fast feedback but should filter dynamic fields.
+4. Keep remote backend gated in CI to ensure plan-only safety; enable via environment variables for controlled applies.
+5. Publication and verification artifacts (verification-report.md, retro.md, publication.yaml) streamline closure and traceability per Sprint Protocol S11–S13.

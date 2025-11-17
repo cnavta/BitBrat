@@ -59,14 +59,47 @@ export const NetworkSchema = z.object({
   remoteState: NetworkRemoteStateSchema.optional(),
 });
 
+// Load Balancer inputs (Sprint 16)
+export const LbIpModeEnum = z.enum(['create', 'use-existing']);
+export const LbCertModeEnum = z.enum(['managed', 'use-existing']);
+
+export const LbRunServiceRefSchema = z.object({
+  name: z.string(),
+  projectId: z.string().optional(),
+});
+
+export const LbServiceSpecSchema = z.object({
+  name: z.string(),
+  regions: z.array(z.string()).optional(),
+  runService: LbRunServiceRefSchema.optional(),
+});
+
+export const LoadBalancerSchema = z.object({
+  ipMode: LbIpModeEnum,
+  ipName: z.string().optional(),
+  certMode: LbCertModeEnum,
+  certRef: z.string().optional(),
+  services: z.array(LbServiceSpecSchema).default([]),
+}).superRefine((val, ctx) => {
+  if (val.certMode === 'use-existing' && !val.certRef) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'certRef is required when certMode is use-existing',
+      path: ['certRef'],
+    });
+  }
+});
+
 export const ArchitectureSchema = z.object({
   name: z.string().optional(),
   defaults: z.object({ services: DefaultsServicesSchema }).optional(),
   services: z.record(ServiceSchema).default({}),
   deploymentDefaults: DeploymentDefaultsSchema.optional(),
   network: NetworkSchema.optional(),
+  lb: LoadBalancerSchema.optional(),
 }).passthrough();
 
 export type Architecture = z.infer<typeof ArchitectureSchema>;
 export type Service = z.infer<typeof ServiceSchema>;
 export type Network = z.infer<typeof NetworkSchema>;
+export type LoadBalancer = z.infer<typeof LoadBalancerSchema>;

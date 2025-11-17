@@ -276,3 +276,20 @@ This index tracks sprint deliverables and links.
   - Branch: `feature/sprint-15-b4d9e6`
   - PR: pending
   - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-15-b4d9e6?expand=1
+
+
+## Sprint 16 — LB Backends: NEGs + Backend Services; ipMode/certMode Inputs (sprint-16-e3f9a1)
+- Objective: Implement per-service Serverless NEGs and Backend Services derived from architecture.yaml; add ipMode/certMode inputs and environment-aware behavior.
+- Artifacts:
+  - Planning:
+    - [sprint-execution-plan.md](sprint-16-e3f9a1/sprint-execution-plan.md)
+    - [backlog.md](sprint-16-e3f9a1/backlog.md)
+    - [request-log.md](sprint-16-e3f9a1/request-log.md)
+    - [verification-report.md](sprint-16-e3f9a1/verification-report.md)
+    - [retro.md](sprint-16-e3f9a1/retro.md)
+    - [sprint-manifest.yaml](sprint-16-e3f9a1/sprint-manifest.yaml)
+    - [publication.yaml](sprint-16-e3f9a1/publication.yaml)
+- Publication:
+  - Branch: `feature/sprint-16-e3f9a1`
+  - PR: open (compare view)
+  - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-16-e3f9a1?expand=1
