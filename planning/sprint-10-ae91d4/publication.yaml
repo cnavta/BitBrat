@@ -1,0 +1,17 @@
+sprint_id: sprint-10-ae91d4
+branch: feature/sprint-10-ae91d4
+pull_request:
+  title: "Sprint 10 Deliverables — Serverless VPC Connectors + brat Preflight Enforcement"
+  url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-10-ae91d4?expand=1
+  status: open
+  validated: true
+  validated_at: 2025-11-14T22:54:00Z
+  created_at: 2025-11-14T15:40:00Z
+review:
+  approved_by: null
+  approval_date: null
+validation:
+  scripts:
+    - planning/sprint-10-ae91d4/validate_deliverable.sh
+  status: passed
+  notes: "Planning artifacts and implementation merged locally; CI dry-run connectors plan added. PR creation remains manual (compare link provided)."

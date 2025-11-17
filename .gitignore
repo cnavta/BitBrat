@@ -7,10 +7,13 @@ node_modules/
 # Env files (never commit real secrets)
 .env
 .env.local
+.env.*
+!.env.example
 
 # IDE
 .idea/
 *.iml
+.vscode/
 
 # Local secure configuration storage. NEVER COMMIT THIS FILE
 .secure.local
@@ -25,6 +28,13 @@ node_modules/
 # Crash log files
 crash.log
 crash.*.log
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
 
 # Terraform variable files (potentially containing sensitive data)
 # Note: Consider including specific .tfvars if they are not sensitive and need to be versioned.
@@ -50,3 +60,28 @@ terraform.rc
 
 # macOS specific files
 .DS_Store
+Thumbs.db
+
+# TypeScript build/cache artifacts
+*.tsbuildinfo
+.ts-node/
+
+# Test coverage and Jest caches
+coverage/
+.nyc_output/
+.jest/
+.jest-cache/
+jest-stare/
+
+# Linting and tool caches
+.eslintcache
+.cache/
+
+# Firebase local emulator
+.firebase/
+firebase-debug.log*
+
+# CDKTF and generated infra output
+infrastructure/cdktf/out/
+cdktf.out/
+/infrastructure/cdktf/out/

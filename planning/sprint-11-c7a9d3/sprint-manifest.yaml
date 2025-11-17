@@ -1,0 +1,46 @@
+sprint_id: sprint-11-c7a9d3
+sprint_number: 11
+status: completed
+created_at: 2025-11-14T23:02:00Z
+updated_at: 2025-11-15T12:41:00Z
+completed_at: 2025-11-15T12:41:00Z
+owner_roles:
+  - Lead Implementor
+source_of_truth: architecture.yaml
+objective: "Advanced URL Map YAML Generation + Import Mechanics"
+scope:
+  - URL map YAML generator from architecture.yaml (hostRules, pathMatchers, routeRules, weighted backends)
+  - Guarded import flow: describe → diff → conditional import via gcloud
+  - Terraform URL map stub with lifecycle ignore_changes
+  - brat CLI wiring to run import post-apply; dry-run safe
+links:
+  technical_architecture: planning/sprint-6-d7e4b0/network-and-lb-technical-architecture.md
+  multi_sprint_plan: planning/sprint-6-d7e4b0/network-lb-implementation-plan.md
+  architecture_yaml: architecture.yaml
+artifacts:
+  - execution-plan.md
+  - implementation-plan.md
+  - request-log.md
+  - validate_deliverable.sh
+  - verification-report.md
+  - retro.md
+  - publication.yaml
+acceptance_criteria:
+  - Dev/staging URL maps imported; describe matches desired YAML; diffs clean in CI
+  - Guarded import implemented and idempotent (no-op when no drift)
+  - Terraform lifecycle ignore_changes applied to URL map stub
+  - Unit tests for renderer with fixtures; integration import test for non-prod
+dependencies:
+  - "Sprint 9 LB stack in place with backend services"
+validation:
+  root_validate_script: validate_deliverable.sh
+  ci_pipeline: cloudbuild.brat.yaml
+definition_of_done:
+  - Planning artifacts complete and validated
+  - Tests for any new code introduced during the sprint
+  - Deployment scripts are safe to run in dry-run
+  - Documentation updated and linked from planning/index.md
+publication:
+  branch: feature/sprint-11-c7a9d3
+  pr_status: open
+  pr_url: "https://github.com/cnavta/BitBrat/compare/main...feature/sprint-11-c7a9d3?expand=1"

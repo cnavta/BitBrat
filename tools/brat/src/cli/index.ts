@@ -8,10 +8,16 @@ import { deriveTag } from '../util/git';
 import { resolveSecretMappingToNumeric } from '../providers/gcp/secrets';
 import { submitBuild } from '../providers/gcp/cloudbuild';
 import { Queue } from '../orchestration/queue';
-import { terraformApply, terraformPlan } from '../providers/terraform';
+import { terraformApply, terraformPlan, terraformPlanGeneric, terraformApplyGeneric } from '../providers/terraform';
 import { execCmd } from '../orchestration/exec';
 import { ArchitectureSchema } from '../config/schema';
 import { BratError, ConfigurationError, DependencyError, exitCodeForError } from '../orchestration/errors';
+import { synthModule } from '../providers/cdktf-synth';
+import { createTrigger, updateTrigger, deleteTrigger } from '../providers/gcp/cloudbuild-triggers';
+import { assertVpcPreconditions } from '../providers/gcp/preflight';
+import { renderAndWrite } from '../lb/urlmap';
+import { importUrlMap } from '../lb/importer';
+import { enableApis, getRequiredApis } from '../providers/gcp/apis';
 
 const RUN_ID = deriveTag();
 const log = createLogger({ base: { runId: RUN_ID, component: 'brat' } });
@@ -23,9 +29,11 @@ interface GlobalFlags {
   dryRun: boolean;
   concurrency?: number;
   json?: boolean;
+  module?: string;
+  allowNoVpc?: boolean;
 }
 
-function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: string[] } {
+export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: string[] } {
   const args = argv.slice(2);
   const flags: GlobalFlags = { projectId: process.env.PROJECT_ID || 'twitch-452523', env: process.env.BITBRAT_ENV || 'prod', dryRun: false } as any;
   const cmd: string[] = [];
@@ -38,14 +46,24 @@ function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: s
     else if (a === '--dry-run') { flags.dryRun = true; }
     else if (a === '--concurrency') { flags.concurrency = Number(args[++i]); }
     else if (a === '--json') { flags.json = true; }
-    else if (a.startsWith('-')) { rest.push(a); }
+    else if (a === '--module') { flags.module = String(args[++i]); }
+    else if (a === '--allow-no-vpc') { (flags as any).allowNoVpc = true; }
+    else if (a.startsWith('-')) {
+      const next = args[i + 1];
+      if (next && !next.startsWith('-')) {
+        rest.push(`${a}=${next}`);
+        i++;
+      } else {
+        rest.push(a);
+      }
+    }
     else { cmd.push(a); }
   }
   return { cmd, flags, rest };
 }
 
 function printHelp() {
-  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N]\n  brat infra plan [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n`);
+  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
 }
 
 async function cmdDoctor(flags: GlobalFlags) {
@@ -114,6 +132,52 @@ async function cmdConfigValidate(flags: GlobalFlags) {
   process.exit(2);
 }
 
+function parseKeyValueFlags(rest: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of rest) {
+    if (!r.startsWith('-')) continue;
+    const [k, v] = r.split('=');
+    const key = k.replace(/^--?/, '');
+    if (v !== undefined) out[key] = v;
+    else out[key] = 'true';
+  }
+  return out;
+}
+
+export async function cmdTrigger(action: 'create' | 'update' | 'delete', flags: GlobalFlags, rest: string[]) {
+  const m = parseKeyValueFlags(rest);
+  const name = m['name'] || m['n'];
+  if (!name) {
+    console.error('Missing --name');
+    process.exit(2);
+  }
+  if (action === 'delete') {
+    const res = await deleteTrigger(flags.projectId, name, !!flags.dryRun);
+    if (flags.json) console.log(JSON.stringify(res)); else console.log(`${res.action}: ${name}`);
+    return;
+  }
+  const repo = m['repo'];
+  const branch = m['branch'] || '.*';
+  const config = m['config'] || m['build-config'] || 'cloudbuild.yaml';
+  if (!repo) {
+    console.error('Missing --repo <owner/repo>');
+    process.exit(2);
+  }
+  const spec = {
+    name,
+    configPath: config,
+    substitutions: {},
+    repoSource: { type: 'github' as const, repo, branchRegex: branch },
+  };
+  if (action === 'create') {
+    const res = await createTrigger(flags.projectId, spec, !!flags.dryRun);
+    if (flags.json) console.log(JSON.stringify(res)); else console.log(`${res.action}: ${name}`);
+  } else if (action === 'update') {
+    const res = await updateTrigger(flags.projectId, spec, !!flags.dryRun);
+    if (flags.json) console.log(JSON.stringify(res)); else console.log(`${res.action}: ${name}`);
+  }
+}
+
 async function cmdDeployServices(flags: GlobalFlags) {
   const root = process.cwd();
   const cfg = resolveConfig(root);
@@ -130,6 +194,18 @@ async function cmdDeployServices(flags: GlobalFlags) {
   }
 
   const tasks = services.map((svc) => async () => {
+    // Preflight enforcement: ensure VPC, subnet, router/NAT, and connector exist in target region/env
+    try {
+      await assertVpcPreconditions({
+        projectId: flags.projectId,
+        region: flags.region || (svc as any).region,
+        env: flags.env,
+        allowNoVpc: (flags as any).allowNoVpc,
+        dryRun: flags.dryRun,
+      });
+    } catch (e: any) {
+      throw new DependencyError(e?.message || String(e));
+    }
     const serviceLog = log.child({ service: svc.name, action: 'deploy.service' });
     const start = Date.now();
     serviceLog.info({ status: 'start' }, 'Starting build+deploy');
@@ -254,7 +330,7 @@ async function cmdInfra(action: 'plan' | 'apply', flags: GlobalFlags, envDir: st
 }
 
 async function main() {
-  const { cmd, flags } = parseArgs(process.argv);
+  const { cmd, flags, rest } = parseArgs(process.argv);
   if (cmd.length === 0) { printHelp(); return; }
   const [c1, c2] = cmd;
   if (c1 === 'doctor') {
@@ -273,19 +349,168 @@ async function main() {
     await cmdDeployServices(flags);
     return;
   }
+  if (c1 === 'apis' && c2 === 'enable') {
+    const apis = getRequiredApis(flags.env);
+    const res = await enableApis({ projectId: flags.projectId, env: flags.env, apis, dryRun: !!flags.dryRun });
+    if (flags.json) console.log(JSON.stringify(res, null, 2));
+    else {
+      console.log(`Enabling required APIs for project ${res.projectId} (${flags.env})`);
+      if (res.dryRun) {
+        console.log('[DRY-RUN] The following APIs would be enabled:');
+        res.attempted.forEach((a) => console.log(` - ${a}`));
+      } else {
+        const ok = res.ok ? 'SUCCESS' : 'FAILED';
+        console.log(`Result: ${ok}`);
+        const failures = res.results.filter((r) => !r.enabled);
+        if (failures.length) {
+          console.error('Failures:');
+          failures.forEach((f) => console.error(` - ${f.api}: ${f.error || f.stderr || 'unknown error'}`));
+          process.exit(1);
+        }
+      }
+    }
+    return;
+  }
+  if (c1 === 'lb' && c2 === 'urlmap') {
+    const c3 = cmd[2];
+    if (c3 === 'render') {
+      const m = parseKeyValueFlags(rest);
+      const out = m['out'];
+      const result = renderAndWrite({ rootDir: process.cwd(), env: flags.env as any, projectId: flags.projectId, outFile: out });
+      if (flags.json) console.log(JSON.stringify({ outFile: result.outFile }, null, 2));
+      else console.log(`Rendered URL map YAML → ${result.outFile}`);
+      return;
+    }
+    if (c3 === 'import') {
+      const outPath = require('path').join(process.cwd(), 'infrastructure', 'cdktf', 'lb', 'url-maps', flags.env, 'url-map.yaml');
+      const urlMapName = 'bitbrat-global-url-map';
+      const res = await importUrlMap({ projectId: flags.projectId, env: flags.env as any, urlMapName, sourceYamlPath: outPath, dryRun: !!flags.dryRun });
+      if (flags.json) console.log(JSON.stringify(res, null, 2)); else console.log(res.message);
+      if (res.changed && flags.dryRun) process.exit(0);
+      return;
+    }
+  }
   if (c1 === 'infra' && (c2 === 'plan' || c2 === 'apply')) {
-    // defaults per bash script
+    // Support both flag-based and positional module selection (network | lb)
+    const c3 = (cmd.length >= 3) ? cmd[2] : undefined;
+    let moduleName: 'network' | 'load-balancer' | 'connectors' | undefined = undefined;
+    if (c3 === 'network') moduleName = 'network';
+    if (c3 === 'lb' || c3 === 'load-balancer') moduleName = 'load-balancer';
+        if (c3 === 'connectors') moduleName = 'connectors';
+    const selectedModule = (flags.module as any) || moduleName;
+
+    if (selectedModule) {
+      const synthOut = synthModule(selectedModule as any, { rootDir: process.cwd(), env: flags.env, projectId: flags.projectId });
+      // Preflight for LB existing resources (IP and cert)
+      if (selectedModule === 'load-balancer') {
+        try {
+          const arch: any = loadArchitecture(process.cwd());
+          const lbNode: any = arch?.infrastructure?.resources?.['main-load-balancer'] || arch?.infrastructure?.['main-load-balancer'] || {};
+          const ipName = lbNode?.ip || (flags.env === 'dev' ? 'birtrat-ip' : 'bitbrat-global-ip');
+          const certName = lbNode?.cert || (flags.env === 'dev' ? 'bitbrat-dev-cert' : `bitbrat-cert-${flags.env}`);
+          const strict = (c2 === 'apply' && String(flags.env) === 'prod');
+          const { preflightLbExistingResources } = require('../providers/gcp/lb-preflight');
+          const pf = await preflightLbExistingResources({ projectId: flags.projectId, env: flags.env, ipName, certName, strict });
+          const details = `ip:${ipName} exists=${pf.ip.exists}${pf.ip.address ? ` addr=${pf.ip.address}` : ''}; cert:${certName} exists=${pf.cert.exists}${pf.cert.status ? ` status=${pf.cert.status}` : ''}`;
+          if (!pf.ok) {
+            if (strict) {
+              console.error(`[lb:preflight] FAILED (prod strict). ${details}`);
+              process.exit(2);
+            } else {
+              console.warn(`[lb:preflight] WARN (non-strict). ${details}`);
+            }
+          } else {
+            console.log(`[lb:preflight] OK. ${details}`);
+          }
+        } catch (e: any) {
+          if (c2 === 'apply' && String(flags.env) === 'prod') {
+            console.error(`[lb:preflight] Error during preflight in prod apply: ${e?.message || String(e)}`);
+            process.exit(2);
+          } else {
+            console.warn(`[lb:preflight] Non-fatal error during preflight: ${e?.message || String(e)}`);
+          }
+        }
+      }
+      if (c2 === 'plan' || flags.dryRun) {
+        await terraformPlanGeneric({ cwd: synthOut, envName: flags.env });
+      } else {
+        // Guard: never allow apply during CI or when --dry-run is set
+        const ci = String(process.env.CI || '').toLowerCase();
+        if (flags.dryRun || ci === 'true' || ci === '1') {
+          const outputsPath = path.join(synthOut, 'outputs.json');
+          const payload = {
+            error: 'apply-blocked',
+            message: 'Apply is not allowed in CI or with --dry-run. Please run apply manually outside CI without --dry-run.',
+            reasons: {
+              dryRunFlag: !!flags.dryRun,
+              ciEnv: ci === 'true' || ci === '1'
+            },
+            hints: [
+              'Unset CI in your local shell (e.g., `unset CI`).',
+              'Do not pass --dry-run when you intend to apply.',
+              'Re-run: npm run brat -- infra apply network --env=<env> --project-id <PROJECT>'
+            ]
+          };
+          try { fs.writeFileSync(outputsPath, JSON.stringify(payload, null, 2), 'utf8'); } catch {}
+          console.error('Apply is not allowed in CI or with --dry-run. Please run apply manually outside CI without --dry-run.');
+          process.exit(2);
+        }
+        const code = await terraformApplyGeneric({ cwd: synthOut, envName: flags.env });
+        try {
+          const outputsPath = path.join(synthOut, 'outputs.json');
+          if (fs.existsSync(outputsPath)) {
+            const data = fs.readFileSync(outputsPath, 'utf8');
+            if (flags.json) console.log(data); else console.log(`Terraform outputs written to ${outputsPath}`);
+          } else {
+            const payload = {
+              error: 'outputs-missing',
+              message: 'Expected outputs.json not found after apply. Check previous logs for terraform errors.',
+              hints: [
+                'Run `terraform output -json > outputs.json` inside the module directory to capture outputs manually.',
+                'Confirm that output blocks are present in main.tf.'
+              ]
+            };
+            try { fs.writeFileSync(outputsPath, JSON.stringify(payload, null, 2), 'utf8'); } catch {}
+          }
+        } catch {}
+        if (code !== 0) process.exit(code);
+        // Post-apply hook: URL map render + guarded import for LB in non-prod (dev/staging)
+        if (selectedModule === 'load-balancer') {
+          const envName = String(flags.env || 'dev');
+          if (envName !== 'prod') {
+            try {
+              const r = renderAndWrite({ rootDir: process.cwd(), env: envName as any, projectId: flags.projectId });
+              const res = await importUrlMap({ projectId: flags.projectId, env: envName as any, urlMapName: 'bitbrat-global-url-map', sourceYamlPath: r.outFile, dryRun: false });
+              console.log(`[lb:urlmap] ${res.message}`);
+            } catch (e: any) {
+              console.error(`[lb:urlmap] post-apply import failed: ${e?.message || String(e)}`);
+              process.exit(2);
+            }
+          } else {
+            console.log('[lb:urlmap] prod environment: import skipped (plan-only).');
+          }
+        }
+      }
+      return;
+    }
+    // Fallback to legacy envDir path used by bash script parity
     const envDir = process.env.ENV_DIR || path.join('infrastructure', 'gcp', 'prod');
     const serviceName = process.env.SERVICE_NAME || 'oauth-flow';
     const repoName = process.env.REPO_NAME || 'bitbrat-services';
     await cmdInfra(c2 as any, flags, envDir, serviceName, repoName);
     return;
   }
+  if (c1 === 'trigger' && (c2 === 'create' || c2 === 'update' || c2 === 'delete')) {
+    await cmdTrigger(c2 as any, flags, rest);
+    return;
+  }
   printHelp();
 }
 
-main().catch((err) => {
-  const code = exitCodeForError(err);
-  log.error({ err, code }, 'brat failed');
-  process.exit(code);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    const code = exitCodeForError(err);
+    log.error({ err, code }, 'brat failed');
+    process.exit(code);
+  });
+}

@@ -89,6 +89,85 @@ print_help() {
 
 log() { echo "[deploy-cloud] $*"; }
 
+# Helper: resolve Secret Manager versions to numeric (avoids API errors on ':latest' in gcloud run deploy)
+# Input: semicolon-delimited "ENV=SECRET:latest;..."
+# Output: semicolon-delimited "ENV=SECRET:<number>;..."
+resolve_secret_versions() {
+  local mapping="$1"
+  echo "[deploy-cloud][secrets] Resolving secret versions for mapping: $mapping\n"
+  local out=""
+  local had_missing=0
+  local rest="$mapping"
+  while IFS= read -r pair; do
+    # Trim whitespace (portable)
+    pair="${pair#${pair%%[![:space:]]*}}"
+    pair="${pair%${pair##*[![:space:]]}}"
+    [[ -z "$pair" ]] && continue
+    # Extract ENV and SECRET
+    local env_name="${pair%%=*}"
+    local rhs="${pair#*=}"
+    local secret="${rhs%%:*}"
+    local resolved_ver=""
+    echo "[deploy-cloud][secrets] Checking secret '$secret' for env '$env_name'\n"
+    if [[ -n "$secret" ]]; then
+      # Newest ENABLED version by createTime desc
+      resolved_ver="$(gcloud secrets versions list "$secret" --project "$PROJECT_ID" \
+        --filter="state=ENABLED" --sort-by="~createTime" --limit=1 --format="value(name)" || true)"
+    fi
+    if [[ -z "$resolved_ver" ]]; then
+      echo "[deploy-cloud][secrets] ERROR: No ENABLED versions found for secret '$secret' (required for '$env_name')." >&2
+      had_missing=1
+      continue
+    fi
+    echo "[deploy-cloud][secrets] Resolved '$secret' -> version $resolved_ver\n"
+    if [[ -n "$out" ]]; then out+=";"; fi
+    out+="${env_name}=${secret}:${resolved_ver}"
+  done < <(printf "%s" "$rest" | tr ';' '\n')
+  if [[ $had_missing -ne 0 ]]; then
+    return 1
+  fi
+  echo "[deploy-cloud][secrets] Resolved mapping: $out\n"
+  printf "%s" "$out"
+}
+
+# Helper: Filters KEY=VAL env pairs (semicolon-delimited) to remove any keys that are provided via secrets.
+# Args: $1 = env_kv (e.g., "LOG_LEVEL=info;FOO=bar"), $2 = secret_map (e.g., "TWITCH_CLIENT_ID=TWITCH_CLIENT_ID:5;...")
+filter_env_kv_excluding_secret_keys() {
+  local env_kv="$1"
+  local secret_map="$2"
+  # Build a newline list of secret keys
+  local secret_keys
+  secret_keys=$(printf "%s" "$secret_map" | tr ';' '\n' | awk -F'=' 'NF>=1 {print $1}')
+  # If no secrets, return original env_kv
+  if [[ -z "$secret_keys" ]]; then
+    printf "%s" "$env_kv"
+    return 0
+  fi
+  local out=""
+  local removed=()
+  # Iterate env pairs and keep those not in secret_keys
+  while IFS= read -r pair; do
+    [[ -z "$pair" ]] && continue
+    local k="${pair%%=*}"
+    # check membership
+    local is_secret=0
+    while IFS= read -r sk; do
+      [[ -z "$sk" ]] && continue
+      if [[ "$k" == "$sk" ]]; then is_secret=1; break; fi
+    done <<< "$secret_keys"
+    if [[ $is_secret -eq 0 ]]; then
+      if [[ -n "$out" ]]; then out+=";"; fi
+      out+="$pair"
+    else
+      removed+=("$k")
+    fi
+  done < <(printf "%s" "$env_kv" | tr ';' '\n')
+  if [[ ${#removed[@]} -gt 0 ]]; then
+    echo "[deploy-cloud][secrets] Removing plain env keys overridden by secrets: ${removed[*]}\n"
+  fi
+  printf "%s" "$out"
+}
+
 REGION_EXPLICIT=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -436,7 +515,7 @@ if [[ "$MULTI_MODE" == true ]]; then
       RESOLVED_SECRETS=""
       if RESOLVED_SECRETS="$(resolve_secret_versions "$SECRET_SET_ARG_LOCAL")"; then
         # Use the resolved numeric versions mapping
-        SECRET_SET_ARG_LOCAL="$SECRET_SET_ARG_LOCAL"
+        SECRET_SET_ARG_LOCAL="$RESOLVED_SECRETS"
         # Log which secret envs will be set (names only)
         KEYS_LIST=$(printf "%s" "$SECRET_SET_ARG_LOCAL" | tr ';' '\n' | awk -F'=' 'NF>=1 {print $1}' | paste -sd, -)
         echo "[deploy-cloud][$svc] using secret envs: $KEYS_LIST"

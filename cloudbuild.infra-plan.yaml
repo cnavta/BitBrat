@@ -1,0 +1,44 @@
+# Cloud Build configuration to run CDKTF synth/plan in dry-run for PRs
+# This pipeline does not apply infrastructure; it only verifies that synth/plan succeeds.
+
+steps:
+  - id: Install dependencies
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+
+  - id: Build TypeScript
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'build']
+
+  - id: Brat doctor (tooling check)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'doctor', '--json']
+
+  - id: Enable required APIs (dry-run)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'apis', 'enable', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']
+
+  # Note: These steps expect Terraform to be available in the build image.
+  # If not, replace with a custom image that includes Terraform or add a step to install it.
+  - id: Plan network (dry-run)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'infra', 'plan', 'network', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']
+
+  - id: Plan connectors (dry-run)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'infra', 'plan', 'connectors', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']
+
+  - id: Plan load balancer (dry-run)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'infra', 'plan', 'lb', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']
+
+  - id: URL map import (dry-run)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'lb', 'urlmap', 'import', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']
+
+substitutions:
+  _ENV: 'dev'
+  _PROJECT_ID: '${PROJECT_ID}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

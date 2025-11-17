@@ -114,37 +114,37 @@ services:
       consumes:
         - internal.finalize.v1
 
-  infrastructure:
-    target: gcp
-    resources:
-      default-content-bucket:
-        type: object-store
-        implementation: cloud-storage
-        description: Static assets for the default website.
-        access_policy: private
+infrastructure:
+  target: gcp
+  resources:
+    default-content-bucket:
+      type: object-store
+      implementation: cloud-storage
+      description: Static assets for the default website.
+      access_policy: private
 
-      main-load-balancer:
-        type: load-balancer
-        implementation: global-external-application-lb
-        name:  bitbrat-platform-lb
-        ip: bitbrat-platform-ip
-        description: Main external entry point and router for the application
-        routing:
-          default_bucket: default-content-bucket
-          default_domain: api.bitbrat.ai
-          rules:
-            # Static Assets Routing
-            - path_prefix: /assets
-              bucket: default-content-bucket
+    main-load-balancer:
+      type: load-balancer
+      implementation: global-external-application-lb
+      name:  bitbrat-platform-lb
+      ip: bitbrat-platform-ip
+      description: Main external entry point and router for the application
+      routing:
+        default_bucket: default-content-bucket
+        default_domain: api.bitbrat.ai
+        rules:
+          # Static Assets Routing
+          - path_prefix: /assets
+            bucket: default-content-bucket
 
-            # OAuth Routing
-            - path_prefix: /oauth
-              service: oauth-flow
+          # OAuth Routing
+          - path_prefix: /oauth
+            service: oauth-flow
 
-            # Debug Routes
-            - path_prefix: /_debug/ingress/twitch
-              rewrite_prefix: /_debug/twitch
-              service: ingress-egress
+          # Debug Routes
+          - path_prefix: /_debug/ingress/twitch
+            rewrite_prefix: /_debug/twitch
+            service: ingress-egress
 
 
 deploymentDefaults:

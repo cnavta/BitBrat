@@ -28,6 +28,29 @@ steps:
     name: 'gcr.io/cloud-builders/npm'
     args: ['test', '--', '--ci']
 
+  # Dry-run infra synth/plan checks for network and load balancer
+  # Note: These steps require Terraform to be present in the build image.
+  # If unavailable, use a custom image that includes Terraform or switch to cloudbuild.infra-plan.yaml.
+  - id: Infra plan (network)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'infra', 'plan', 'network', '--dry-run']
+
+  - id: Infra plan (lb)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'infra', 'plan', 'lb', '--dry-run']
+
+  - id: Infra plan (connectors)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'infra', 'plan', 'connectors', '--dry-run']
+
+  - id: Render URL map (dev)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'lb', 'urlmap', 'render', '--env', 'dev']
+
+  - id: Import URL map (dev, dry-run)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'lb', 'urlmap', 'import', '--env', 'dev', '--dry-run']
+
   - id: Build brat image
     name: 'gcr.io/cloud-builders/docker'
     args:

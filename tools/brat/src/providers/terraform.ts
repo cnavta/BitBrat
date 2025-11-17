@@ -76,3 +76,75 @@ export async function terraformApply(opts: TerraformOptions): Promise<number> {
   const res = await execCmd('terraform', args, { cwd: opts.cwd });
   return res.code;
 }
+
+async function trySelectWorkspace(cwd: string, envName?: string) {
+  if (!envName) return;
+  try {
+    let sel = await execCmd('terraform', ['workspace', 'select', envName], { cwd });
+    if (sel.code !== 0) {
+      await execCmd('terraform', ['workspace', 'new', envName], { cwd });
+    }
+  } catch {
+    // Ignore workspace errors; proceed on default workspace
+  }
+}
+
+export async function terraformPlanGeneric(opts: { cwd: string, envName?: string, projectId?: string, region?: string }): Promise<number> {
+  const relay = {
+    onStdout: (s: string) => { try { process.stdout.write(s); } catch {} },
+    onStderr: (s: string) => { try { process.stderr.write(s); } catch {} },
+  } as const;
+  await execCmd('terraform', ['init', '-input=false', '-no-color'], { cwd: opts.cwd, ...relay });
+  await trySelectWorkspace(opts.cwd, opts.envName);
+  await execCmd('terraform', ['validate', '-no-color'], { cwd: opts.cwd, ...relay });
+  const args = [
+    'plan', '-input=false', '-lock=false', '-no-color',
+    '-out', 'tfplan'
+  ];
+  const res = await execCmd('terraform', args, { cwd: opts.cwd, ...relay });
+  return res.code;
+}
+
+export async function terraformApplyGeneric(opts: { cwd: string, envName?: string }): Promise<number> {
+  const relay = {
+    onStdout: (s: string) => { try { process.stdout.write(s); } catch {} },
+    onStderr: (s: string) => { try { process.stderr.write(s); } catch {} },
+  } as const;
+  await execCmd('terraform', ['init', '-input=false', '-no-color'], { cwd: opts.cwd, ...relay });
+  await trySelectWorkspace(opts.cwd, opts.envName);
+  await execCmd('terraform', ['validate', '-no-color'], { cwd: opts.cwd, ...relay });
+  const res = await execCmd('terraform', ['apply', '-no-color', '-auto-approve'], { cwd: opts.cwd, ...relay });
+  const outputsPath = path.join(opts.cwd, 'outputs.json');
+  // Attempt to capture outputs regardless of apply status
+  try {
+    const out = await execCmd('terraform', ['output', '-json'], { cwd: opts.cwd });
+    if (out && typeof out.stdout === 'string' && out.stdout.trim().length) {
+      fs.writeFileSync(outputsPath, out.stdout, 'utf8');
+    } else {
+      const payload = {
+        error: 'outputs-unavailable',
+        message: 'Terraform returned no outputs. This can happen if the apply failed or no outputs are defined.',
+        applyExitCode: res.code,
+        hints: [
+          'Ensure apply was not blocked by CI or --dry-run.',
+          'Run terraform output -json manually in the module directory.',
+          'Verify outputs are defined in main.tf and that resources were created.'
+        ],
+      };
+      fs.writeFileSync(outputsPath, JSON.stringify(payload, null, 2), 'utf8');
+    }
+  } catch (e: any) {
+    const payload = {
+      error: 'outputs-capture-failed',
+      message: e?.message || String(e || ''),
+      applyExitCode: res.code,
+      hints: [
+        'If apply was blocked or failed, outputs may be unavailable.',
+        'Unset CI and remove --dry-run to allow local apply.',
+        'You can run: terraform output -json > outputs.json'
+      ],
+    };
+    try { fs.writeFileSync(outputsPath, JSON.stringify(payload, null, 2), 'utf8'); } catch {}
+  }
+  return res.code;
+}

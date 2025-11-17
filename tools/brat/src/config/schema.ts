@@ -41,12 +41,32 @@ export const DefaultsServicesSchema = z.object({
   env: z.array(z.string()).optional(),
 });
 
+// Network overlays schema (Sprint 15)
+export const NetworkSubnetSchema = z.object({
+  name: z.string().optional(),
+  cidr: z.string(),
+});
+
+export const NetworkRemoteStateSchema = z.object({
+  bucket: z.string(),
+  prefix: z.string(),
+});
+
+export const NetworkSchema = z.object({
+  regions: z.array(z.string()).nonempty().default(['us-central1']),
+  subnets: z.record(NetworkSubnetSchema).optional(),
+  enableFlowLogs: z.boolean().default(false),
+  remoteState: NetworkRemoteStateSchema.optional(),
+});
+
 export const ArchitectureSchema = z.object({
   name: z.string().optional(),
   defaults: z.object({ services: DefaultsServicesSchema }).optional(),
   services: z.record(ServiceSchema).default({}),
   deploymentDefaults: DeploymentDefaultsSchema.optional(),
-});
+  network: NetworkSchema.optional(),
+}).passthrough();
 
 export type Architecture = z.infer<typeof ArchitectureSchema>;
 export type Service = z.infer<typeof ServiceSchema>;
+export type Network = z.infer<typeof NetworkSchema>;

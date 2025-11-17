@@ -1,0 +1,57 @@
+sprint_id: sprint-5-f3c9a7
+created_at: 2025-11-11T19:06:00-05:00
+owner: Lead Implementor
+source_of_truth: architecture.yaml
+status: completed
+completed_at: 2025-11-11T20:28:00-05:00
+publication_file: planning/sprint-5-f3c9a7/publication.yaml
+objective: "Phase 3 — Introduce CDKTF for network (VPC, subnets, load balancer) and integrate with existing Terraform via the brat CLI, while carrying forward still-unimplemented Phase 2 deliverables."
+scope:
+  - Add CDKTF stacks for network primitives (VPC, subnets per region, NAT/Cloud Router as applicable)
+  - Prepare load balancer topology scaffolding (HTTP(S) LB, backend services for Cloud Run as applicable)
+  - Synthesize CDKTF output to Terraform and apply via Terraform adapter
+  - Ensure brat infra plan|apply drives the CDKTF-generated Terraform in dry-run and apply modes
+  - Carry forward Phase 2 items: SDK migration (Secret Manager, Cloud Build, Cloud Run) and trigger management commands
+  - Maintain packaging boundary: brat remains an out-of-band CLI (no bundling into service images)
+deliverables:
+  - planning/sprint-5-f3c9a7/implementation-plan.md
+  - CDKTF module design document and directory scaffolding under infrastructure/cdktf (deferred to implementation step)
+  - Jest unit tests for config loader → CDKTF input mapping (planned)
+  - Integration dry-run scripts and commands via brat (planned)
+  - planning/sprint-5-f3c9a7/validate_deliverable.sh
+acceptance_criteria:
+  - Plan approved before any coding begins (S7)
+  - CDKTF network design aligns with architecture.yaml parameters and environment overlays
+  - Dry-run (plan) succeeds end-to-end using validate_deliverable.sh
+  - Backlog from previous sprints explicitly tracked and either scheduled in Phase 3 or carried forward
+  - No brat sources included in any service/runtime images; distribution remains tools/brat image only
+  - All new or updated docs live under ./planning as per guidelines
+testing_strategy:
+  - Unit: schema validation for CDKTF input mapping; LB backend routing rules mapping tests
+  - Integration: brat infra plan (dry-run) for CDKTF-synthesized Terraform, comparing against golden outputs for a fixture env
+  - CI: Root validate_deliverable.sh executes npm ci, build, and tests
+deployment_approach:
+  - Continue using brat infra plan|apply as orchestration wrapper
+  - CDKTF synthesizes Terraform; Terraform adapter executes init/validate/plan/apply
+  - All destructive operations guarded by --dry-run in validation phase
+dependencies:
+  - Node.js 24, Terraform, CDKTF, gcloud auth, and GCP IAM permissions
+  - architecture.yaml and env overlays under env/**
+  - No automatic secret creation/import; only resolution and checks
+risks_and_mitigations:
+  - SDK parity gaps → retain gcloud fallback with strict parsing
+  - Infra drift during migration → parallel plan against current Terraform; no apply until verified
+  - LB complexity → start with scaffolding and clear interfaces; incremental rollout
+publication:
+  branch_naming: feature/sprint-5-f3c9a7
+  pr_title_template: "Sprint 5 Deliverables — IaC Orchestration CLI (Phase 3)"
+  pr_links:
+    - planning/sprint-5-f3c9a7/implementation-plan.md
+    - planning/sprint-5-f3c9a7/sprint-manifest.yaml
+    - planning/sprint-5-f3c9a7/verification-report.md
+definition_of_done:
+  - Code quality adheres to tsconfig and project standards
+  - Basic unit tests included for all new modules and behaviors
+  - Deployment artifacts (Dockerfile.brat and Cloud Build) remain valid; CDKTF synth and Terraform plan succeed in dry-run
+  - Documentation updated with rationale and traceability to this sprint
+  - Traceability via request-log.md entries and references to prompt IDs
