@@ -14,3 +14,39 @@ node_modules/
 
 # Local secure configuration storage. NEVER COMMIT THIS FILE
 .secure.local
+
+# Local .terraform directories
+.terraform
+
+# Terraform state files and backups
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Terraform variable files (potentially containing sensitive data)
+# Note: Consider including specific .tfvars if they are not sensitive and need to be versioned.
+*.tfvars
+*.tfvars.json
+
+# Terraform override files (often for local development and not meant for version control)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform plan files (output of terraform plan -out=tfplan)
+*tfplan*
+
+# Terraform CLI configuration files
+.terraformrc
+terraform.rc
+
+# Dependency lock file (should generally be committed for consistent provider versions)
+# Remove this line if you choose to commit .terraform.lock.hcl
+# .terraform.lock.hcl
+
+# macOS specific files
+.DS_Store
