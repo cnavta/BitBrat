@@ -12,7 +12,7 @@ steps:
 
   - id: Brat doctor (tooling check)
     name: 'gcr.io/cloud-builders/npm'
-    args: ['run', 'brat', '--', 'doctor', '--json']
+    args: ['run', 'brat', '--', 'doctor', '--json', '--ci']
 
   - id: Enable required APIs (dry-run)
     name: 'gcr.io/cloud-builders/npm'

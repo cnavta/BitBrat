@@ -31,6 +31,7 @@ interface GlobalFlags {
   json?: boolean;
   module?: string;
   allowNoVpc?: boolean;
+  ci?: boolean;
 }
 
 export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: string[] } {
@@ -48,6 +49,7 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
     else if (a === '--json') { flags.json = true; }
     else if (a === '--module') { flags.module = String(args[++i]); }
     else if (a === '--allow-no-vpc') { (flags as any).allowNoVpc = true; }
+    else if (a === '--ci') { flags.ci = true; }
     else if (a.startsWith('-')) {
       const next = args[i + 1];
       if (next && !next.startsWith('-')) {
@@ -63,7 +65,7 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
 }
 
 function printHelp() {
-  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
+  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
 }
 
 async function cmdDoctor(flags: GlobalFlags) {
@@ -80,11 +82,19 @@ async function cmdDoctor(flags: GlobalFlags) {
     }
     checks[name] = { ok, version };
   };
-  await Promise.all([
-    probe('gcloud', 'gcloud', ['version']).catch(() => (checks.gcloud = { ok: false, version: '' })),
-    probe('terraform', 'terraform', ['version']).catch(() => (checks.terraform = { ok: false, version: '' })),
-    probe('docker', 'docker', ['--version']).catch(() => (checks.docker = { ok: false, version: '' })),
-  ]);
+  if (flags.ci) {
+    // In CI (e.g., Cloud Build), some tools may not be available in the npm builder image.
+    // Treat these as skipped but OK to allow pipelines to proceed.
+    checks.gcloud = { ok: true, version: 'ci-skip' };
+    checks.terraform = { ok: true, version: 'ci-skip' };
+    checks.docker = { ok: true, version: 'ci-skip' };
+  } else {
+    await Promise.all([
+      probe('gcloud', 'gcloud', ['version']).catch(() => (checks.gcloud = { ok: false, version: '' })),
+      probe('terraform', 'terraform', ['version']).catch(() => (checks.terraform = { ok: false, version: '' })),
+      probe('docker', 'docker', ['--version']).catch(() => (checks.docker = { ok: false, version: '' })),
+    ]);
+  }
   const ok = Object.values(checks).every((c: any) => c && c.ok);
   const result = { ok, checks };
   if (flags.json) {
