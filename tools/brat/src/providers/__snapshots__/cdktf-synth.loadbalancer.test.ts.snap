@@ -1,0 +1,224 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`cdktf synth load-balancer — services/NEGs/backends and mode behavior snapshot — dev overlay (create IP + managed cert + services) 1`] = `
+"# Synthesized by brat CDKTF synth (module: load-balancer)
+# This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
+# module: load-balancer
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 5.0.0"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+variable "project_id" {
+  type    = string
+  default = "p-dev"
+}
+
+variable "region" {
+  type    = string
+  default = "us-central1"
+}
+
+variable "environment" {
+  type    = string
+  default = "dev"
+}
+
+resource "google_compute_global_address" "frontend_ip" {
+  name = "dev-ip"
+}
+
+resource "google_compute_managed_ssl_certificate" "managed_cert" {
+  name = "bitbrat-dev-cert"
+  managed {
+    domains = ["api.bitbrat.ai"]
+  }
+}
+
+resource "google_compute_region_network_endpoint_group" "neg-web-us-central1" {
+  name                 = "neg-web-us-central1"
+  network_endpoint_type = "SERVERLESS"
+  region               = "us-central1"
+  cloud_run {
+    service = "web-svc"
+  }
+}
+
+resource "google_compute_backend_service" "be-web" {
+  name                  = "be-web"
+  protocol              = "HTTP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  log_config { enable = true }
+  backend {
+    group = google_compute_region_network_endpoint_group.neg-web-us-central1.id
+  }
+}
+
+# URL Map (stub)
+resource "google_compute_url_map" "main" {
+  name = "bitbrat-global-url-map"
+  default_service = google_compute_backend_service.be-web.self_link
+  lifecycle {
+    ignore_changes = [
+      default_service,
+      host_rule,
+      path_matcher,
+      test,
+    ]
+  }
+}
+
+# Target HTTPS Proxy
+resource "google_compute_target_https_proxy" "https_proxy" {
+  name             = "bitbrat-https-proxy-dev"
+  url_map          = google_compute_url_map.main.self_link
+  ssl_certificates = [google_compute_managed_ssl_certificate.managed_cert.self_link]
+}
+
+# Global Forwarding Rule for 443
+resource "google_compute_global_forwarding_rule" "https_rule" {
+  name                  = "bitbrat-https-fr-dev"
+  ip_address            = google_compute_global_address.frontend_ip.address
+  port_range            = "443"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  target                = google_compute_target_https_proxy.https_proxy.self_link
+}
+
+# Outputs
+output "globalIpAddress" {
+  description = "Frontend global IP address"
+  value       = google_compute_global_address.frontend_ip.address
+}
+
+output "urlMapName" {
+  value = google_compute_url_map.main.name
+}
+
+output "certificateResourceNames" {
+  value = [google_compute_managed_ssl_certificate.managed_cert.name]
+}
+
+output "backendServiceNames" {
+  value = [google_compute_backend_service.be-web.name]
+}
+
+output "negNames" {
+  value = [google_compute_region_network_endpoint_group.neg-web-us-central1.name]
+}
+"
+`;
+
+exports[`cdktf synth load-balancer — services/NEGs/backends and mode behavior snapshot — prod overlay (use-existing IP/Cert; no services) 1`] = `
+"# Synthesized by brat CDKTF synth (module: load-balancer)
+# This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
+# module: load-balancer
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 5.0.0"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+variable "project_id" {
+  type    = string
+  default = "p-prod"
+}
+
+variable "region" {
+  type    = string
+  default = "us-central1"
+}
+
+variable "environment" {
+  type    = string
+  default = "prod"
+}
+
+data "google_compute_global_address" "frontend_ip" {
+  name = "prod-global-ip"
+}
+
+data "google_compute_ssl_certificate" "managed_cert" {
+  name = "prod-cert"
+}
+
+resource "google_compute_backend_service" "be-default" {
+  name                  = "be-default"
+  protocol              = "HTTP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  log_config { enable = true }
+}
+
+# URL Map (stub)
+resource "google_compute_url_map" "main" {
+  name = "bitbrat-global-url-map"
+  default_service = google_compute_backend_service.be-default.self_link
+  lifecycle {
+    ignore_changes = [
+      default_service,
+      host_rule,
+      path_matcher,
+      test,
+    ]
+  }
+}
+
+# Target HTTPS Proxy
+resource "google_compute_target_https_proxy" "https_proxy" {
+  name             = "bitbrat-https-proxy-prod"
+  url_map          = google_compute_url_map.main.self_link
+  ssl_certificates = [data.google_compute_ssl_certificate.managed_cert.self_link]
+}
+
+# Global Forwarding Rule for 443
+resource "google_compute_global_forwarding_rule" "https_rule" {
+  name                  = "bitbrat-https-fr-prod"
+  ip_address            = data.google_compute_global_address.frontend_ip.address
+  port_range            = "443"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  target                = google_compute_target_https_proxy.https_proxy.self_link
+}
+
+# Outputs
+output "globalIpAddress" {
+  description = "Frontend global IP address"
+  value       = data.google_compute_global_address.frontend_ip.address
+}
+
+output "urlMapName" {
+  value = google_compute_url_map.main.name
+}
+
+output "certificateResourceNames" {
+  value = [data.google_compute_ssl_certificate.managed_cert.name]
+}
+
+output "backendServiceNames" {
+  value = [google_compute_backend_service.be-default.name]
+}
+
+output "negNames" {
+  value = []
+}
+"
+`;

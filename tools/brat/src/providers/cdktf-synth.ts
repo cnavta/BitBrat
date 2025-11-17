@@ -201,34 +201,108 @@ output "natsByRegion" {
 }
 
 function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId: string | undefined): string {
-  let region = 'us-central1';
+  // Read inputs from new lb schema with backward-compat fallback to legacy infra node
+  let defaultRegion = 'us-central1';
+  let lb: any = undefined;
+  let legacyLbNode: any = {};
   let defaultDomain = 'api.bitbrat.ai';
-  let lbNode: any = {};
   try {
     const arch = loadArchitecture(rootDir) as any;
-    region = arch?.deploymentDefaults?.region || arch?.defaults?.services?.region || region;
-    lbNode = arch?.infrastructure?.resources?.['main-load-balancer'] || arch?.infrastructure?.['main-load-balancer'] || {};
-    defaultDomain = lbNode?.routing?.default_domain || defaultDomain;
+    defaultRegion = arch?.deploymentDefaults?.region || arch?.defaults?.services?.region || defaultRegion;
+    lb = arch?.lb;
+    legacyLbNode = arch?.infrastructure?.resources?.['main-load-balancer'] || arch?.infrastructure?.['main-load-balancer'] || {};
+    defaultDomain = legacyLbNode?.routing?.default_domain || defaultDomain;
   } catch {}
+
   const environment = env || 'dev';
   const project = projectId || 'placeholder-project';
-  const ipName = lbNode?.ip || (environment === 'dev' ? 'birtrat-ip' : 'bitbrat-global-ip');
-  const certName = lbNode?.cert || (environment === 'dev' ? 'bitbrat-dev-cert' : `bitbrat-cert-${environment}`);
+
+  // Resolve ip/cert modes with environment behavior
+  const ipMode: 'create' | 'use-existing' = lb?.ipMode || 'use-existing';
+  const ipName = lb?.ipName || legacyLbNode?.ip || (environment === 'dev' ? 'birtrat-ip' : 'bitbrat-global-ip');
+
+  const certMode: 'managed' | 'use-existing' = lb?.certMode || 'use-existing';
+  const certRefRaw: string | undefined = lb?.certRef || legacyLbNode?.cert || (environment === 'dev' ? 'bitbrat-dev-cert' : `bitbrat-cert-${environment}`);
+  const certName = certRefRaw ? String(certRefRaw).split('/').slice(-1)[0] : `bitbrat-cert-${environment}`;
+
   const urlMapName = 'bitbrat-global-url-map';
 
+  // Services and regions
+  const services: Array<{ name: string; regions?: string[]; runService?: { name: string; projectId?: string } }>
+    = Array.isArray(lb?.services) ? lb.services : [];
+
+  // Backend state in CI guarded like other modules
   const bucket = process.env.BITBRAT_TF_BACKEND_BUCKET;
   const ci = String(process.env.CI || '').toLowerCase();
   const includeBackend = !!bucket && ci !== 'true' && ci !== '1';
-
   const backendBlock = includeBackend
-    ? `  backend "gcs" {
-    bucket = "${bucket}"
-    prefix = "lb/${environment}"
-  }\n`
+    ? `  backend "gcs" {\n    bucket = "${bucket}"\n    prefix = "lb/${environment}"\n  }\n`
     : '';
 
+  // Compose Terraform blocks
+  let resources: string[] = [];
+  let datas: string[] = [];
+  let negNames: string[] = [];
+  let beNames: string[] = [];
+
+  // IP selection
+  const isProd = environment === 'prod';
+  const useIpResource = (!isProd && ipMode === 'create');
+  if (useIpResource) {
+    resources.push(`resource "google_compute_global_address" "frontend_ip" {\n  name = "${ipName}"\n}`);
+  } else {
+    // Fallback to data source in prod or when use-existing selected
+    datas.push(`data "google_compute_global_address" "frontend_ip" {\n  name = "${ipName}"\n}`);
+  }
+
+  // Certificate selection
+  const allowManagedInProd = isProd ? (certMode === 'managed') : (certMode === 'managed');
+  const useManagedCertResource = (!isProd && certMode === 'managed') || (isProd && allowManagedInProd);
+  if (useManagedCertResource) {
+    // Use defaultDomain as placeholder domain for the managed cert
+    resources.push(`resource "google_compute_managed_ssl_certificate" "managed_cert" {\n  name = "${certName}"\n  managed {\n    domains = ["${defaultDomain}"]\n  }\n}`);
+  } else {
+    datas.push(`data "google_compute_ssl_certificate" "managed_cert" {\n  name = "${certName}"\n}`);
+  }
+
+  // Per-service NEGs and Backend Services
+  for (const svc of services) {
+    const svcName = svc.name;
+    const runSvc = svc.runService;
+    const svcRegions = (svc.regions && svc.regions.length > 0) ? svc.regions : [defaultRegion];
+    const beName = `be-${svcName}`;
+    beNames.push(beName);
+    // Build NEGs and collect attachments
+    let backendBlocks: string[] = [];
+    for (const r of svcRegions) {
+      const negName = `neg-${svcName}-${r}`;
+      negNames.push(negName);
+      const projectAttr = runSvc?.projectId ? `\n  project = "${runSvc.projectId}"` : '';
+      resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "${runSvc?.name || svcName}"${projectAttr}\n  }\n}`);
+      backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
+    }
+    resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+  }
+
+  // If no services declared, keep a default backend to keep URL map valid
+  if (services.length === 0) {
+    const beName = 'be-default';
+    beNames.push(beName);
+    resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
+  }
+
+  // URL Map and Proxy/FR referencing selected cert/ip
+  const certRefExpr = useManagedCertResource
+    ? 'google_compute_managed_ssl_certificate.managed_cert.self_link'
+    : 'data.google_compute_ssl_certificate.managed_cert.self_link';
+  const ipRefExpr = useIpResource
+    ? 'google_compute_global_address.frontend_ip.address'
+    : 'data.google_compute_global_address.frontend_ip.address';
+
+  const defaultBackendRef = `google_compute_backend_service.${beNames[0]}.self_link`;
+
   const tf = `# Synthesized by brat CDKTF synth (module: load-balancer)
-# This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding (dev).
+# This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
 # module: load-balancer
 
 terraform {
@@ -253,7 +327,7 @@ variable "project_id" {
 
 variable "region" {
   type    = string
-  default = "${region}"
+  default = "${defaultRegion}"
 }
 
 variable "environment" {
@@ -261,28 +335,12 @@ variable "environment" {
   default = "${environment}"
 }
 
-# Use-existing Global static IP (data source)
-data "google_compute_global_address" "frontend_ip" {
-  name = "${ipName}"
-}
-
-# Use-existing SSL certificate (data source; managed or self-managed)
-data "google_compute_ssl_certificate" "managed_cert" {
-  name = "${certName}"
-}
-
-# Minimal backend service (placeholder)
-resource "google_compute_backend_service" "default" {
-  name                  = "be-default"
-  protocol              = "HTTP"
-  load_balancing_scheme = "EXTERNAL_MANAGED"
-  log_config { enable = true }
-}
+${[...datas, ...resources].join('\n\n')}
 
 # URL Map (stub)
 resource "google_compute_url_map" "main" {
   name = "${urlMapName}"
-  default_service = google_compute_backend_service.default.self_link
+  default_service = ${defaultBackendRef}
   lifecycle {
     ignore_changes = [
       default_service,
@@ -297,13 +355,13 @@ resource "google_compute_url_map" "main" {
 resource "google_compute_target_https_proxy" "https_proxy" {
   name             = "bitbrat-https-proxy-${environment}"
   url_map          = google_compute_url_map.main.self_link
-  ssl_certificates = [data.google_compute_ssl_certificate.managed_cert.self_link]
+  ssl_certificates = [${certRefExpr}]
 }
 
 # Global Forwarding Rule for 443
 resource "google_compute_global_forwarding_rule" "https_rule" {
   name                  = "bitbrat-https-fr-${environment}"
-  ip_address            = data.google_compute_global_address.frontend_ip.address
+  ip_address            = ${ipRefExpr}
   port_range            = "443"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   target                = google_compute_target_https_proxy.https_proxy.self_link
@@ -312,7 +370,7 @@ resource "google_compute_global_forwarding_rule" "https_rule" {
 # Outputs
 output "globalIpAddress" {
   description = "Frontend global IP address"
-  value       = data.google_compute_global_address.frontend_ip.address
+  value       = ${ipRefExpr}
 }
 
 output "urlMapName" {
@@ -320,11 +378,15 @@ output "urlMapName" {
 }
 
 output "certificateResourceNames" {
-  value = [data.google_compute_ssl_certificate.managed_cert.name]
+  value = [${useManagedCertResource ? 'google_compute_managed_ssl_certificate.managed_cert.name' : 'data.google_compute_ssl_certificate.managed_cert.name'}]
 }
 
 output "backendServiceNames" {
-  value = [google_compute_backend_service.default.name]
+  value = [${beNames.map(n => `google_compute_backend_service.${n}.name`).join(', ')}]
+}
+
+output "negNames" {
+  value = [${negNames.map(n => `google_compute_region_network_endpoint_group.${n}.name`).join(', ')}]
 }
 `;
   return tf;
