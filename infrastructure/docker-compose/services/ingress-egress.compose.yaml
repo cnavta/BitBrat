@@ -1,0 +1,21 @@
+services:
+  ingress-egress:
+    build:
+      context: .
+      dockerfile: Dockerfile.ingress-egress
+    env_file:
+      - .env.local
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
+    ports:
+      - "${INGRESS_EGRESS_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+    depends_on:
+      - nats
+      - firebase-emulator
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

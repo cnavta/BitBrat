@@ -1,0 +1,12 @@
+# URL Map (staging) — Placeholder
+hostRules:
+  - hosts: ["staging.api.bitbrat.ai"]
+    pathMatcher: staging-matcher
+pathMatchers:
+  - name: staging-matcher
+    defaultService: default-content-bucket
+    pathRules:
+      - paths: ["/oauth/*"]
+        service: oauth-flow
+      - paths: ["/_debug/ingress/twitch"]
+        service: ingress-egress

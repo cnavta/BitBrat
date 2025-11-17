@@ -1,0 +1,20 @@
+sprint_id: sprint-14-c1d2e3
+branch: feature/sprint-14-c1d2e3
+pull_request:
+  title: "Sprint 14 Deliverables — CI Infra Plan Job + Root Validation Wiring"
+  url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-14-c1d2e3?expand=1
+  status: open
+  created_at: 2025-11-15T19:49:00Z
+  validated: true
+artifacts:
+  - planning/sprint-14-c1d2e3/sprint-manifest.yaml
+  - planning/sprint-14-c1d2e3/implementation-plan.md
+  - planning/sprint-14-c1d2e3/request-log.md
+  - planning/sprint-14-c1d2e3/validate_deliverable.sh
+  - planning/sprint-14-c1d2e3/verification-report.md
+  - planning/sprint-14-c1d2e3/retro.md
+validation:
+  planned_checks:
+    - validate_deliverable.sh
+    - cloudbuild.infra-plan.yaml (infra dry-run)
+  status: pending

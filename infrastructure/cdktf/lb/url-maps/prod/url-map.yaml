@@ -1,0 +1,12 @@
+# URL Map (prod) — Placeholder
+hostRules:
+  - hosts: ["api.bitbrat.ai"]
+    pathMatcher: prod-matcher
+pathMatchers:
+  - name: prod-matcher
+    defaultService: default-content-bucket
+    pathRules:
+      - paths: ["/oauth/*"]
+        service: oauth-flow
+      - paths: ["/_debug/ingress/twitch"]
+        service: ingress-egress

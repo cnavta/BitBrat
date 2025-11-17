@@ -1,0 +1,16 @@
+sprint_id: sprint-3-cd91e2
+branch: feature/sprint-3-cd91e2
+pull_request:
+  title: "Sprint 3 Deliverables — Architecture-driven deploys, bootstrapper, and multi-service orchestration"
+  url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-3-cd91e2?expand=1
+  status: pending
+  created_at: 2025-11-11T15:18:00-05:00
+  validated: true
+validation:
+  summary: |
+    Root validate_deliverable.sh passes locally (build, tests, local up/down, cloud dry-run). Multi-service Cloud Build apply path succeeds with numeric secret versions and safe env quoting. Single-service Terraform path remains functional.
+  artifacts:
+    - planning/sprint-3-cd91e2/verification-report.md
+    - planning/sprint-3-cd91e2/retro.md
+    - planning/sprint-3-cd91e2/implementation-plan.md
+    - planning/sprint-3-cd91e2/request-log.md

@@ -11,82 +11,6 @@
 
 ---
 
-## ⚙️ Definition of Done
-
-Every sprint deliverable must meet the following criteria before being marked as complete:
-
-* ✅ **Code Quality**: Meets project coding standards and aligns with `architecture.yaml`.
-* ✅ **Basic Unit Testing**: All new features and changes must include corresponding Jest unit tests.
-
-  * No feature or refactor should be merged without test coverage.
-  * Basic testing should **never** be deferred to future sprints.
-* ✅ **Deployment Artifacts**: Every sprint deliverable must include deployment configuration and scripts.
-
-  * This includes Cloud Build configurations, Dockerfiles, and infrastructure definitions.
-  * All build and deployment automation must be functional at sprint completion.
-* ✅ **Documentation**: Implementation rationale, trade-offs, and relevant `llm_prompt` annotations included.
-* ✅ **Traceability**: All code, tests, and deployment files must be traceable to the related prompt and sprint entry.
-
----
-
-## ☁️ GCP Integration
-
-We use **Google Cloud Platform (GCP)** for all infrastructure and deployment workflows.
-
-* **Build System**: Google Cloud Build is the authoritative system for provisioning, building, configuring, and deploying both code and infrastructure.
-* **Deployment Targets**: Services must deploy via Cloud Run or Cloud Functions unless otherwise specified in `architecture.yaml`.
-* **Infrastructure as Code (IaC)**: All provisioning scripts and configurations (YAML, Terraform, or equivalent) must be stored in the repository and included in the sprint deliverables.
-* **Artifact Management**: All containers are published to **Google Artifact Registry**.
-
----
-
-## 🧪 Testing Standards
-
-* Jest is the standard testing framework for both application and CLI tools.
-* Test files should reside alongside the code they test (`*.test.ts` or `*.spec.ts`).
-* All external dependencies must be mocked.
-* CI/CD pipelines must run the full test suite before any deployment.
-
----
-
-## 📦 Deliverable Expectations
-
-Every sprint must produce at least one of the following deliverables:
-
-* Application code or services
-* Unit and integration tests
-* Deployment scripts or Cloud Build configurations
-* Documentation or architectural artifacts
-
-Each deliverable must be **self-contained** and ready for deployment at sprint close.
-
----
-
-## 🚀 Deployment Guidelines
-
-1. All code and infrastructure must deploy using **Cloud Build**.
-2. Cloud Build YAMLs should define build steps for:
-
-  * Installing dependencies
-  * Running tests
-  * Building containers
-  * Deploying to Cloud Run or Cloud Functions
-3. Each deployable component must include:
-
-  * Dockerfile
-  * cloudbuild.yaml
-  * Environment configuration examples
-4. Local development should mirror production deployment as closely as possible via Docker.
-
----
-
-## 🔁 Continuous Improvement
-
-After each sprint:
-
-* Conduct a retro and update `retro.md` with learnings.
-* Update `sprint-manifest.yaml` to include testing and deployment verification.
-* Address action items before the next sprint.
 
 ---
 # 🌀 LLM Sprint Protocol v2.2
@@ -415,6 +339,82 @@ Plan → Approve → Implement → Validate → Verify → Publish (PR) → Retr
 
 **End of LLM Sprint Protocol v2.2**
 ---
+## ⚙️ Definition of Done
+
+Every sprint deliverable must meet the following criteria before being marked as complete:
+
+* ✅ **Code Quality**: Meets project coding standards and aligns with `architecture.yaml`.
+* ✅ **Basic Unit Testing**: All new features and changes must include corresponding Jest unit tests.
+
+    * No feature or refactor should be merged without test coverage.
+    * Basic testing should **never** be deferred to future sprints.
+* ✅ **Deployment Artifacts**: Every sprint deliverable must include deployment configuration and scripts.
+
+    * This includes Cloud Build configurations, Dockerfiles, and infrastructure definitions.
+    * All build and deployment automation must be functional at sprint completion.
+* ✅ **Documentation**: Implementation rationale, trade-offs, and relevant `llm_prompt` annotations included.
+* ✅ **Traceability**: All code, tests, and deployment files must be traceable to the related prompt and sprint entry.
+
+---
+
+## ☁️ GCP Integration
+
+We use **Google Cloud Platform (GCP)** for all infrastructure and deployment workflows.
+
+* **Build System**: Google Cloud Build is the authoritative system for provisioning, building, configuring, and deploying both code and infrastructure.
+* **Deployment Targets**: Services must deploy via Cloud Run unless otherwise specified in `architecture.yaml`.
+* **Infrastructure as Code (IaC)**: All provisioning scripts and configurations (YAML, Terraform, or equivalent) must be stored in the repository and included in the sprint deliverables.
+* **Artifact Management**: All containers are published to **Google Artifact Registry**.
+
+---
+
+## 🧪 Testing Standards
+
+* Jest is the standard testing framework for both application and CLI tools.
+* Test files should reside alongside the code they test (`*.test.ts` or `*.spec.ts`).
+* All external dependencies must be mocked.
+* CI/CD pipelines must run the full test suite before any deployment.
+
+---
+
+## 📦 Deliverable Expectations
+
+Every sprint must produce at least one of the following deliverables:
+
+* Application code or services
+* Unit and integration tests
+* Deployment scripts or Cloud Build configurations
+* Documentation or architectural artifacts
+
+Each deliverable must be **self-contained** and ready for deployment at sprint close.
+
+---
+
+## 🚀 Deployment Guidelines
+
+1. All code and infrastructure must deploy using **Cloud Build**.
+2. Cloud Build YAMLs should define build steps for:
+
+* Installing dependencies
+* Running tests
+* Building containers
+* Deploying to Cloud Run or Cloud Functions
+3. Each deployable component must include:
+
+* Dockerfile
+* cloudbuild.yaml
+* Environment configuration examples
+4. Local development should mirror production deployment as closely as possible via Docker.
+
+---
+
+## 🔁 Continuous Improvement
+
+After each sprint:
+
+* Conduct a retro and update `retro.md` with learnings.
+* Update `sprint-manifest.yaml` to include testing and deployment verification.
+* Address action items before the next sprint.
 
 
 *This structure ensures alignment between LLM and human collaborators, promotes traceability, and enables continuous improvement through retrospectives.*
@@ -444,6 +444,7 @@ Plan → Approve → Implement → Validate → Verify → Publish (PR) → Retr
   You must treat architecture.yaml as the canonical source of truth.
   •	You may not generate, refactor, or delete code that violates it.
   •	You may propose enhancements, but you must justify any deviation.
+  •	Whenever possible, use the architecture.yaml as configuration and directly reference values in it instead of copying.
   •	You should prefer values and descriptions in architecture.yaml over assumptions, defaults, or training priors.
   •	Use prompt_hint and examples blocks to guide implementation style, structure, and tone.
 
@@ -451,6 +452,9 @@ Plan → Approve → Implement → Validate → Verify → Publish (PR) → Retr
   Treat every field as a signal of architectural intent.
 
 Proceed as a professional software engineer would: make informed decisions, annotate tradeoffs, and always align your actions to the structure and goals expressed in architecture.yaml.
+
+## Architectural Principals
+This project heavily relies on Enterprise Integration Patterns and other distributed system best practices. 
 
 ## Tech Stack
 - **Backend**: Node.js 24 with TypeScript
@@ -466,24 +470,24 @@ Proceed as a professional software engineer would: make informed decisions, anno
 - **Cloud Deployment Target**: Google Cloud Run
 - **Cloud Messaging**: Google Cloud PubSub
 - **Local Deployment Target**: Docker Compose
-  - **Local Messaging**: NATS Jetstream
+- **Local Messaging**: NATS Jetstream
 
-    ## Project Structure
-    ```
-    deprecated/         # Deprecated artifacts (for reference only)
-    examples/           # Example code and templates
-    planning/           # All planning artifacts
-    preview/            # Preview artifacts (not ready for implementation)
-    infrastructure/     # Contains infrastructure-as-code files
-    src/
-    ├── apps/           # Entry points for microservices
-    ├── common/         # Shared utilities and base classes
-    ├── config/         # Configuration files
-    ├── services/       # Core service implementations
-    └── types/          # TypeScript type definitions
-    ```
+  ## Project Structure
+  ```
+  deprecated/         # Deprecated artifacts (for reference only)
+  examples/           # Example code and templates
+  planning/           # All planning artifacts
+  preview/            # Preview artifacts (not ready for implementation)
+  infrastructure/     # Contains infrastructure-as-code files
+  src/
+  ├── apps/           # Entry points for microservices
+  ├── common/         # Shared utilities and base classes
+  ├── config/         # Configuration files
+  ├── services/       # Core service implementations
+  └── types/          # TypeScript type definitions
+  ```
 
-    ### Special Directories
+  ### Special Directories
 - **planning**: Contains artifacts that are in progress or are ready for implementation. During ideation, refinement, and execution is the authoritative source for implementation planning.
 - **deprecated**: Contains artifacts that are deprecated and should no longer be considered valid approaches within this project. These files are provided for reference of past approaches only.
 - **preview**: Contains artifacts that are NOT yet ready for use in IMPLEMENTATIONS. They are provided to give an idea of where we want the system to go so that new designs can be made with them in mind.
@@ -525,16 +529,21 @@ Proceed as a professional software engineer would: make informed decisions, anno
 
   ## Development Workflow
 
-  ## Running the Application
-  1. Install dependencies with `npm ci`
+  ## Development Verification Flow
+  All deliverables must pass these steps before being considered valid:
+  1. Install dependencies with `npm install`
   2. Build the project with `npm run build`
-  3. Start the application with `npm start`
-  4. For development, use `npm run dev` to enable hot reloading
+  3. Run tests with `npm test`
+  4. Verify local deployment with `npm run local` and verify healthchecks 
+  5. Verify local shutdown with `npm run local:down`
+  6. Verify remote deployment with `npm run deploy:cloud -- --dry-run`
 
-  ## Testing
-  Jest is the default testing framework for both the root project and the `temdev-cli` directory.
+  For simplicity's sake all these commands can be run by using the validate_deliverable.sh script in the project root.
 
-  ### Test File Organization
+   ## Testing
+   Jest is the default testing framework for both the root project and the `temdev-cli` directory.
+
+   ### Test File Organization
 - Test files should be placed in the `src` directory alongside the code they test
 - Test files should follow the naming convention `*.test.ts` or `*.spec.ts`
 - Tests can also be placed in `__tests__` directories

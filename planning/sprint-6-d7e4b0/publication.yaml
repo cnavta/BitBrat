@@ -1,0 +1,17 @@
+sprint_id: sprint-6-d7e4b0
+branch: feature/sprint-6-d7e4b0
+pull_request:
+  title: "Sprint 6 Deliverables — CDKTF Network & LB Architecture"
+  url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-6-d7e4b0?expand=1
+  status: pending
+  created_at: 2025-11-11T21:43:00Z
+  validated: true
+links:
+  implementation_plan: planning/sprint-6-d7e4b0/implementation-plan.md
+  technical_architecture: planning/sprint-6-d7e4b0/network-and-lb-technical-architecture.md
+  multi_sprint_plan: planning/sprint-6-d7e4b0/network-lb-implementation-plan.md
+  verification_report: planning/sprint-6-d7e4b0/verification-report.md
+  retro: planning/sprint-6-d7e4b0/retro.md
+validation:
+  validate_script: planning/sprint-6-d7e4b0/validate_deliverable.sh
+  result: pass

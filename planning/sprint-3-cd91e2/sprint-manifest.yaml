@@ -1,0 +1,31 @@
+sprint_id: sprint-3-cd91e2
+title: "Networking, Security, and Release Readiness for oauth-flow"
+started_at: 2025-11-07T23:33:00Z
+ended_at: 2025-11-11T15:18:00-05:00
+status: completed
+owner: cloud-architect
+sources:
+  - planning/next-sprint-recommendations.md
+  - architecture.yaml
+scope:
+  - VPC and serverless networking (VPC, subnets, Serverless VPC Connector, Cloud NAT, firewall rules)
+  - Ingress posture: internal-only Cloud Run behind HTTPS External/Internal Load Balancers
+  - Identity/IAM tightening and secret version pinning
+  - DNS and TLS for oauth-flow domain(s)
+  - CI/CD promotion and rollback (build by digest, staged deploy, canary/blue-green)
+  - Observability: dashboards, alerts, uptime checks
+  - Integration and smoke testing via Load Balancer endpoints
+  - Dev overlay for infrastructure
+  - Cost and safety guardrails (budgets, maxInstances, public IP audit)
+acceptance_criteria_refs:
+  - planning/sprint-3-cd91e2/implementation-plan.md#acceptance-criteria
+validation_script: planning/sprint-3-cd91e2/validate_deliverable.sh
+links:
+  next_recommendations: planning/next-sprint-recommendations.md
+  architecture: architecture.yaml
+  index: planning/index.md
+  verification_report: planning/sprint-3-cd91e2/verification-report.md
+  retro: planning/sprint-3-cd91e2/retro.md
+  publication: planning/sprint-3-cd91e2/publication.yaml
+llm_prompt:
+  context: "Initialize new sprint folder, manifest, implementation plan, and request log per Sprint Protocol v2.2."

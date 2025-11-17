@@ -1,0 +1,31 @@
+sprint_id: sprint-15-b4d9e6
+role: Lead Implementor
+protocol_version: "2.2"
+status: implementing
+created_at: 2025-11-15T19:59:00Z
+source_of_truth: architecture.yaml
+related_docs:
+  - planning/sprint-13-ace12f/technical-architecture.md
+  - planning/sprint-13-ace12f/project-implementation-plan.md
+objective: "Network Overlay Parity: Regions, Subnets, Flow Logs, Remote State"
+scope:
+  - Extend config schema for overlay-driven network inputs (regions, subnets, flow logs, remote state)
+  - Update CDKTF synth for network to honor overlays and remove hardcoded values
+  - Add unit tests (schema + synth snapshots)
+  - Exercise CI terraform plan in dry-run (leveraging Sprint 14 CI path)
+deliverables:
+  - tools/brat/src/config/schema.ts updated for new network fields
+  - tools/brat/src/providers/cdktf-synth.ts updated synthNetworkTf for overlays
+  - Jest unit tests under tools/brat/src/**
+  - Planning artifacts under planning/sprint-15-b4d9e6
+acceptance_criteria:
+  - No hardcoded CIDRs or regions; all from architecture.yaml overlays
+  - terraform plan (dry-run) succeeds; subnets/routers/NATs synthesized per overlays
+  - Tests are green in CI
+dependencies:
+  - Sprint 14 CI infra-plan job in place
+publication:
+  branch: feature/sprint-15-b4d9e6
+  pull_request:
+    status: pending
+    url: null

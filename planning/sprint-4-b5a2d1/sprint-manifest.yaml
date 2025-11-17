@@ -1,0 +1,67 @@
+sprint_id: sprint-4-b5a2d1
+started_at: 2025-11-11T15:46:00-05:00
+state: completed
+completed_at: 2025-11-11T18:44:00-05:00
+objective: "Establish architecture and plan to migrate deploy-cloud.sh into a unified TypeScript CLI for build, test, and deploy across local (Docker Compose) and GCP environments."
+scope:
+  - Author architecture for IaC orchestration CLI (oclif + zod + execa + pino, p-limit)
+  - Catalog current deploy-cloud.sh capabilities and constraints
+  - Define command taxonomy and configuration schema
+  - Outline migration plan (phased) and CI integration
+  - Prepare validation approach and acceptance criteria
+owners:
+  cloud_architect: "assistant"
+  lead_architect: "tbd"
+  lead_implementor: "tbd"
+deliverables:
+  - planning/sprint-4-b5a2d1/architecture-iac-cli.md
+  - planning/sprint-4-b5a2d1/implementation-plan.md
+  - planning/sprint-4-b5a2d1/phase-1-implementation-plan.md
+  - planning/sprint-4-b5a2d1/phase-2-implementation-plan.md
+  - planning/sprint-4-b5a2d1/request-log.md
+  - planning/sprint-4-b5a2d1/validate_deliverable.sh
+links:
+  architecture_source_of_truth: architecture.yaml
+  deprecated_dir_policy: "Do not use ./deprecated"
+standards:
+  - Uses Jest for tests
+  - Targets Node 24, TS strict
+  - Aligns with architecture.yaml
+  - No direct edits under ./deprecated
+  - Pre/post implementation docs live under ./planning
+DoD:
+  - "Architecture document accepted by stakeholders"
+  - "Validation script runs: npm ci, build, test"
+  - "No code changes that violate architecture.yaml"
+  - "Plan approved before implementation begins"
+
+decisions:
+  cli_name: brat
+  package_cli_docker_image: true
+  image_convention: "us-central1-docker.pkg.dev/<project>/tools/brat:<tag>"
+  deploy_boundary:
+    brat_excluded_from_service_artifacts: true
+    rationale: "brat is an out-of-band administrative CLI; it must not be bundled into application/runtime images or deployed to executable environments. Distributed only as a standalone CLI image or Node entrypoint invoked by CI."
+
+implementation:
+  code:
+    - tools/brat/src/cli/index.ts
+    - tools/brat/src/config/schema.ts
+    - tools/brat/src/config/loader.ts
+    - tools/brat/src/orchestration/logger.ts
+    - tools/brat/src/orchestration/exec.ts
+    - tools/brat/src/orchestration/queue.ts
+    - tools/brat/src/providers/gcp/cloudbuild.ts
+    - tools/brat/src/providers/gcp/secrets.ts
+    - tools/brat/src/providers/terraform.ts
+    - tools/brat/src/util/git.ts
+  tests:
+    - tools/brat/src/config/loader.spec.ts
+  packaging_boundaries:
+    - Dockerfile.oauth-flow excludes dist/tools
+    - Dockerfile.ingress-egress excludes dist/tools
+
+completion:
+  verification_report: planning/sprint-4-b5a2d1/verification-report.md
+  retro: planning/sprint-4-b5a2d1/retro.md
+  publication: planning/sprint-4-b5a2d1/publication.yaml

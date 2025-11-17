@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+
+# Brat CLI image (draft for Phase 4 packaging)
+# Builds the TypeScript CLI and packages only the CLI runtime bits.
+
+FROM node:24-bullseye AS builder
+WORKDIR /workspace
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY tools ./tools
+RUN npm run build
+
+FROM node:24-bullseye AS runner
+WORKDIR /workspace
+ENV NODE_ENV=production
+# Install only runtime dependencies required by the CLI
+COPY package*.json ./
+RUN npm ci --omit=dev
+# Copy just the compiled CLI from the dist tree
+COPY --from=builder /workspace/dist/tools/brat /workspace/dist/tools/brat
+# Work in the mounted repository path during Cloud Build usage
+WORKDIR /workspace
+ENTRYPOINT ["node", "dist/tools/brat/src/cli/index.js"]
