@@ -10,14 +10,19 @@
     "test": "jest",
     "local": "./infrastructure/deploy-local.sh",
     "local:down": "./infrastructure/deploy-local.sh --down",
-    "deploy:cloud": "./infrastructure/deploy-cloud.sh --add-appropriate-command-line-args"
+    "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
+    "bootstrap:service": "node ./infrastructure/scripts/bootstrap-service.js",
+    "brat": "node dist/tools/brat/src/cli/index.js"
   },
   "keywords": [],
   "author": "chris@ix-n.com",
   "license": "MIT",
   "dependencies": {
     "express": "^5.1.0",
-    "firebase-admin": "^13.5.0"
+    "firebase-admin": "^13.5.0",
+    "js-yaml": "^4.1.0",
+    "pino": "^9.4.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
@@ -34,7 +39,6 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
     "tsconfig-paths": "^4.2.0",
-    "js-yaml": "^4.1.0",
     "supertest": "^7.0.0",
     "@types/supertest": "^6.0.2"
   },

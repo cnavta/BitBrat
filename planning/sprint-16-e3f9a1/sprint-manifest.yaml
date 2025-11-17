@@ -1,0 +1,46 @@
+sprint_id: sprint-16-e3f9a1
+started_at: 2025-11-16T20:09:00Z
+objective: "Sprint 16 — LB Backends: NEGs + Backend Services; ipMode/certMode Inputs."
+status: completed
+ended_at: 2025-11-16T21:14:00Z
+deliverables:
+  - id: s16-planning-execution-plan
+    title: "Sprint Execution Plan for LB Backends (NEGs + Backend Services)"
+    type: docs
+    paths:
+      - planning/sprint-16-e3f9a1/sprint-execution-plan.md
+    acceptance_criteria:
+      - "Document includes objective, deliverables, acceptance criteria, testing, deployment, dependencies, DoD."
+      - "Explicit mapping to architecture.yaml and Sprint 13 plan (Sprint 16 section)."
+  - id: s16-trackable-backlog
+    title: "Trackable Backlog for Sprint 16"
+    type: docs
+    paths:
+      - planning/sprint-16-e3f9a1/backlog.md
+    acceptance_criteria:
+      - "Backlog items have unique IDs, status field, and acceptance criteria."
+      - "Tasks trace to code paths and tests."
+  - id: s16-deliverables-code-outline
+    title: "Planned code changes outline for schema and synth"
+    type: docs
+    paths:
+      - planning/sprint-16-e3f9a1/sprint-execution-plan.md
+    acceptance_criteria:
+      - "Sections detailing tools/brat/src/config/schema.ts additions and providers/cdktf-synth.ts changes are present."
+  - id: s16-verification-report
+    title: "Sprint 16 Verification Report"
+    type: docs
+    paths:
+      - planning/sprint-16-e3f9a1/verification-report.md
+  - id: s16-retro
+    title: "Sprint 16 Retrospective"
+    type: docs
+    paths:
+      - planning/sprint-16-e3f9a1/retro.md
+  - id: s16-publication
+    title: "Sprint 16 Publication Metadata"
+    type: docs
+    paths:
+      - planning/sprint-16-e3f9a1/publication.yaml
+links:
+  architecture: "../..//architecture.yaml"

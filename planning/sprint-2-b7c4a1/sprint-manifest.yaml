@@ -1,0 +1,34 @@
+sprint_id: sprint-2-b7c4a1
+role: Cloud Architect
+created_at: '2025-11-06T12:50:00-05:00'
+objective: >-
+  Deliver CI/CD (Cloud Build → Artifact Registry → Cloud Run dry-run) and IaC for the
+  oauth-flow service, culminating in a correctly configured Cloud Run service. Allow
+  unauthenticated access for this sprint; tighten ingress next sprint.
+projects:
+  prod: twitch-452523
+  dev: bitbrat-local
+  staging: null
+region: us-central1
+service: oauth-flow
+allow_unauthenticated_this_sprint: true
+artifacts:
+  architecture: planning/sprint-2-b7c4a1/architecture.md
+  implementation_plan: planning/sprint-2-b7c4a1/implementation-plan.md
+  request_log: planning/sprint-2-b7c4a1/request-log.md
+  validate_script: planning/sprint-2-b7c4a1/validate_deliverable.sh
+  verification_report: planning/sprint-2-b7c4a1/verification-report.md
+  retro: planning/sprint-2-b7c4a1/retro.md
+  publication: planning/sprint-2-b7c4a1/publication.yaml
+links:
+  canonical_architecture: architecture.yaml
+acceptance_criteria:
+  - Cloud Build pipeline runs tests, builds, pushes image; deploy step succeeds with --dry-run
+  - Terraform plan for prod (twitch-452523) succeeds with no errors
+  - Cloud Run service config matches architecture.yaml defaults
+  - Unit tests for oauth-flow health endpoints pass
+  - Validation script executes successfully
+labels:
+  sprint: sprint-2-b7c4a1
+  service: oauth-flow
+  env: prod

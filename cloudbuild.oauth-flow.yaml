@@ -1,0 +1,88 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: ALLOW_LOOSE
+substitutions:
+  _SERVICE_NAME: oauth-flow
+  _REGION: us-central1
+  _REPO_NAME: bitbrat-services
+  _DRY_RUN: 'true'
+  _TAG: 'manual'
+  _PORT: '3000'
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '3'
+  _CPU: '1'
+  _MEMORY: '512Mi'
+  _ALLOW_UNAUTH: 'true'
+  _SECRET_SET_ARG: ''
+  _ENV_VARS_ARG: ''
+  _DOCKERFILE: 'Dockerfile.oauth-flow'
+steps:
+  - id: 'Install deps'
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+
+  - id: 'Run unit tests'
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['test', '--', '--ci', '--reporters=default']
+
+  - id: 'Build (tsc)'
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'build']
+
+  - id: 'Docker build'
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - '${_DOCKERFILE}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${_TAG}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:latest'
+      - '.'
+
+  - id: 'Docker push ${_TAG}'
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${_TAG}'
+
+  - id: 'Docker push latest'
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:latest'
+
+  - id: 'Cloud Run deploy (conditional)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        IMAGE="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${_TAG}"
+        if [ "${_DRY_RUN}" = "true" ]; then
+          echo "_DRY_RUN=true: skipping gcloud run deploy. Image available at $$IMAGE"
+          exit 0
+        fi
+        ALLOW_FLAG=""
+        if [ "${_ALLOW_UNAUTH}" = "true" ]; then
+          ALLOW_FLAG="--allow-unauthenticated"
+        fi
+        SEC_LIST="$(printf '%s' "${_SECRET_SET_ARG}" | tr ';' ',')"
+        ENV_LIST="$(printf '%s' "${_ENV_VARS_ARG}" | tr ';' ',')"
+        # Build argument vector to avoid shell mis-parsing (e.g., '#' starting a comment)
+        args=(run deploy "${_SERVICE_NAME}"
+          --image "$$IMAGE"
+          --region "${_REGION}"
+          --platform managed
+          --port "${_PORT}"
+          --min-instances "${_MIN_INSTANCES}"
+          --max-instances "${_MAX_INSTANCES}"
+          --cpu "${_CPU}" --memory "${_MEMORY}"
+        )
+        if [ -n "$$ALLOW_FLAG" ]; then args+=("$$ALLOW_FLAG"); fi
+        if [ -n "$$SEC_LIST" ]; then args+=(--set-secrets "$$SEC_LIST"); fi
+        if [ -n "$$ENV_LIST" ]; then args+=(--set-env-vars "$$ENV_LIST"); fi
+        gcloud "$${args[@]}"
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${_TAG}'

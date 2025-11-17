@@ -1,0 +1,16 @@
+sprint_id: sprint-16-e3f9a1
+branch: feature/sprint-16-e3f9a1
+pull_request:
+  title: "Sprint 16 Deliverables — LB Backends: NEGs + Backend Services; ipMode/certMode"
+  url: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-16-e3f9a1
+  status: open
+  created_at: 2025-11-16T21:14:00Z
+  validated: true
+validation_summary:
+  build: pass
+  tests: pass
+  ci_infra_plan: pending_evidence
+links:
+  execution_plan: planning/sprint-16-e3f9a1/sprint-execution-plan.md
+  verification_report: planning/sprint-16-e3f9a1/verification-report.md
+  retro: planning/sprint-16-e3f9a1/retro.md

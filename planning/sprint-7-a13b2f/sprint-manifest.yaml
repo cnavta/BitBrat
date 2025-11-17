@@ -1,0 +1,33 @@
+sprint_id: sprint-7-a13b2f
+created_at: 2025-11-12T00:05:00Z
+author: Lead Implementor
+source_of_truth: architecture.yaml
+objective: "CDKTF Scaffolding and CI Wiring (Plan-only)"
+scope:
+  - Produce a detailed implementation plan for establishing CDKTF project scaffolding for network and load balancer stacks without creating resources
+  - Define brat CLI wiring (plan-only) for `brat infra plan|apply network|lb` delegating to Terraform adapter (synth only this sprint)
+  - Define CI (Cloud Build) additions to run dry-run planning on PRs
+  - Document acceptance criteria, testing strategy, and DoD aligned with Sprint Protocol v2.2
+linked_sources:
+  - planning/sprint-6-d7e4b0/network-and-lb-technical-architecture.md
+  - planning/sprint-6-d7e4b0/network-lb-implementation-plan.md
+deliverables:
+  - planning/sprint-7-a13b2f/implementation-plan.md
+  - planning/sprint-7-a13b2f/request-log.md
+  - planning/sprint-7-a13b2f/validate_deliverable.sh
+  - planning/sprint-7-a13b2f/publication.yaml
+acceptance_criteria:
+  - A comprehensive implementation-plan.md exists describing repo layout, CLI wiring, and CI steps for plan-only Sprint 7
+  - No infrastructure resources are created; all execution paths are dry-run/synth-only by design
+  - Planning index updated with Sprint 7 section and links
+  - Sprint-level validation script exists and passes locally
+dependencies:
+  - None (placeholders only; no GCP changes required for this sprint)
+status: completed
+completed_at: 2025-11-13T13:40:00Z
+approval:
+  approved: true
+  approved_at: 2025-11-13T09:20:00Z
+  approved_by: chris.navta
+notes:
+  - This sprint kicks off the CDKTF implementation with planning only and is derived from Sprint 6 artifacts.
