@@ -1,7 +1,7 @@
 import admin from 'firebase-admin';
 import { getFirestore as gfs, Firestore } from 'firebase-admin/firestore';
 import { logger } from './logging';
-import { loadConfig } from './config';
+//import { loadConfig } from './config';
 
 // Initialize Firebase Admin SDK as a singleton. Configuration (e.g., databaseId)
 // must be provided via the central config loader or explicitly via configureFirestore().
@@ -29,7 +29,7 @@ function resolveDatabaseId(): string {
   // Prefer explicitly configured value; otherwise consult central config; finally default.
   if (configuredDbId && configuredDbId.trim()) return configuredDbId.trim();
   try {
-    const cfg: any = loadConfig() as any;
+    const cfg: any = {} as any;
     const fromCfg = cfg?.firestore?.databaseId as string | undefined;
     if (fromCfg && String(fromCfg).trim()) return String(fromCfg).trim();
   } catch {/* config load failures should not prevent Firestore usage */}
