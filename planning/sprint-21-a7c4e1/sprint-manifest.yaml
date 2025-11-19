@@ -1,0 +1,38 @@
+sprint_id: sprint-21-a7c4e1
+title: "Buckets CDKTF Module"
+role: Lead Implementor
+source_of_truth: architecture.yaml
+status: completed
+date_started: 2025-11-18T15:14:00
+date_completed: 2025-11-18T16:16:00
+objective: |
+  Provision Google Cloud Storage buckets declared as object-store resources under infrastructure.resources
+  with secure defaults, labels, and outputs using a new CDKTF module (buckets).
+scope:
+  - Add synthBucketsTf function and register a new CdktfModule named "buckets" in tools/brat/src/providers/cdktf-synth.ts
+  - For each object-store/cloud-storage resource, synthesize a google_storage_bucket with policy controls
+  - Emit outputs for bucketNames[] and bucketUrlsByKey (gs:// and https URLs)
+  - Add Jest snapshot tests for multiple buckets and policies
+out_of_scope:
+  - Load balancer synth changes (Sprint 22)
+  - URL map renderer/importer (Sprint 23)
+  - Migration/CI expansion (Sprint 24)
+upstream_references:
+  - planning/sprint-17-f7c3a2/technical-architecture-lb-routing-from-infrastructure-resources.md
+  - planning/sprint-17-f7c3a2/implementation-plan-lb-routing-from-infrastructure-resources.md
+deliverables:
+  - path: tools/brat/src/providers/cdktf-synth.ts
+    description: Add synthBucketsTf and register CdktfModule "buckets"; implement bucket resource synthesis
+  - path: tools/brat/src/providers/cdktf-synth.buckets.test.ts
+    description: Jest snapshot tests covering multiple bucket configs and access policies
+acceptance_criteria:
+  - Dry-run terraform plan shows expected google_storage_bucket resources and outputs for sample configs
+  - Unit tests pass and snapshots are stable
+validate_script: planning/sprint-21-a7c4e1/validate_deliverable.sh
+links:
+  implementation_plan: planning/sprint-21-a7c4e1/sprint-execution-plan.md
+  backlog: planning/sprint-21-a7c4e1/backlog.md
+  request_log: planning/sprint-21-a7c4e1/request-log.md
+  verification_report: planning/sprint-21-a7c4e1/verification-report.md
+  retro: planning/sprint-21-a7c4e1/retro.md
+  publication: planning/sprint-21-a7c4e1/publication.yaml

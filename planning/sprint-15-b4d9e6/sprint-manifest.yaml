@@ -1,8 +1,9 @@
 sprint_id: sprint-15-b4d9e6
 role: Lead Implementor
 protocol_version: "2.2"
-status: implementing
+status: completed
 created_at: 2025-11-15T19:59:00Z
+ended_at: 2025-11-18T13:34:00Z
 source_of_truth: architecture.yaml
 related_docs:
   - planning/sprint-13-ace12f/technical-architecture.md
@@ -27,5 +28,5 @@ dependencies:
 publication:
   branch: feature/sprint-15-b4d9e6
   pull_request:
-    status: pending
-    url: null
+    status: open
+    url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-15-b4d9e6?expand=1

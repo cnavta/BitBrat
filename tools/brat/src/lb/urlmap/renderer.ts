@@ -13,9 +13,9 @@ export interface RenderOptions {
 
 /**
  * Build a minimal RendererInput from architecture.yaml for current sprint scope.
- * - Uses infrastructure.main-load-balancer.routing rules
+ * - Uses infrastructure.resources.<lb>.routing rules exclusively
  * - Maps service -> backend service be-<service>
- * - Bucket rules route to default backend for now
+ * - Maps bucket -> backend service be-assets-proxy with urlRewrite embedding bucket key (handled downstream)
  */
 export function loadRendererInputFromArchitecture(opts: { rootDir: string; env: 'dev'|'staging'|'prod'; projectId: string }): RendererInput {
   const arch: any = loadArchitecture(opts.rootDir);
@@ -32,12 +32,21 @@ export function loadRendererInputFromArchitecture(opts: { rootDir: string; env: 
     bucket: r.bucket ? String(r.bucket) : undefined,
     rewritePrefix: r.rewrite_prefix ? String(r.rewrite_prefix) : undefined,
   }));
+  // Determine default backend according to sprint-23 rules
+  const defaultBucket: string | undefined = routing?.default_bucket ? String(routing.default_bucket) : undefined;
+  const firstService = routes.find((r: any) => !!r.service)?.service as string | undefined;
+  const defaultBackend = defaultBucket
+    ? 'be-assets-proxy'
+    : (firstService ? `be-${firstService}` : 'be-default');
+
+  console.log('[urlmap.renderer] Using routing-only source. default_domain=%s default_bucket=%s selected_default_backend=%s',
+    defaultDomain, defaultBucket || '-', defaultBackend);
   const input: RendererInput = RendererInputSchema.parse({
     projectId: opts.projectId,
     env: opts.env,
     defaultDomain,
     routes,
-    defaultBackend: 'be-default',
+    defaultBackend,
   });
   return input;
 }
@@ -60,14 +69,22 @@ export function renderUrlMapYaml(input: RendererInput): UrlMapYaml {
       }
     }
 
-    const beName = r.service ? `be-${r.service}` : input.defaultBackend;
+    // Target backends:
+    // - service rule -> be-<service>
+    // - bucket rule  -> be-assets-proxy
+    // - otherwise    -> default backend
+    const beName = r.bucket ? 'be-assets-proxy' : (r.service ? `be-${r.service}` : input.defaultBackend);
 
     const rr: any = {
       priority: i + 1,
       matchRules: [{ prefixMatch: r.pathPrefix }],
       routeAction: {},
     };
-    if (r.rewritePrefix) {
+    if (r.bucket) {
+      // Embed bucket key into the path per assets-proxy contract
+      const prefix = `/bucket/${r.bucket}` + (r.rewritePrefix ? r.rewritePrefix : '');
+      rr.routeAction.urlRewrite = { pathPrefixRewrite: prefix };
+    } else if (r.rewritePrefix) {
       rr.routeAction.urlRewrite = { pathPrefixRewrite: r.rewritePrefix };
     }
     if (weighted) {

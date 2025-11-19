@@ -34,7 +34,7 @@ describe('cdktf synth connectors module', () => {
     // ensure connector uses network + ip_cidr_range (no subnet block)
     expect(mainTf).toContain('network        = data.google_compute_network.vpc.name');
     expect(mainTf).toContain('ip_cidr_range  = "10.8.0.0/28"');
-    expect(mainTf).toContain('max_instances  = 2');
+    expect(mainTf).toContain('max_instances  = 3');
     expect(mainTf).toContain('min_instances  = 2');
     expect(mainTf).not.toContain('data "google_compute_subnetwork" "subnet"');
     expect(mainTf).not.toContain('subnet {');

@@ -1,0 +1,30 @@
+sprint_id: sprint-24-e3f9a1
+role: Lead Implementor
+date: 2025-11-19
+source_of_truth: architecture.yaml
+upstream:
+  - planning/sprint-17-f7c3a2/technical-architecture-lb-routing-from-infrastructure-resources.md
+  - planning/sprint-17-f7c3a2/implementation-plan-lb-routing-from-infrastructure-resources.md
+objective: "Migration off lb.services[], CI validation for buckets, and documentation updates"
+deliverables:
+  - cli_warnings
+  - ci_cloudbuild_infra_plan_update
+  - local_validate_deliverable_update
+  - migration_notes
+  - assets_proxy_expectations
+artifacts:
+  - sprint-execution-plan.md
+  - backlog.md
+  - request-log.md
+  - validate_deliverable.sh
+  - verification-report.md
+  - retro.md
+  - publication.yaml
+definition_of_done:
+  - "CI dry-run includes buckets plan"
+  - "Local validate_deliverable.sh mirrors CI"
+  - "Docs updated and linked from planning/index.md"
+  - "PR prepared with links to sprint docs"
+publication:
+  path: planning/sprint-24-e3f9a1/publication.yaml
+status: completed
