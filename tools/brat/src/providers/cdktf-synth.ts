@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { loadArchitecture } from '../config/loader';
 
-export type CdktfModule = 'network' | 'load-balancer' | 'connectors';
+export type CdktfModule = 'network' | 'load-balancer' | 'connectors' | 'buckets';
 
 export interface SynthOptions {
   rootDir: string;
@@ -120,7 +120,8 @@ resource "google_compute_subnetwork" "subnet" {
   ip_cidr_range            = each.value.cidr
   region                   = each.key
   network                  = google_compute_network.vpc.id
-  private_ip_google_access = true${flowLogsBlock}}
+  private_ip_google_access = true
+${flowLogsBlock}}
 
 # Cloud Routers (per region)
 resource "google_compute_router" "router" {
@@ -201,13 +202,34 @@ output "natsByRegion" {
 }
 
 function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId: string | undefined): string {
-  // Read inputs from new lb schema with backward-compat fallback to legacy infra node
+  /**
+   * LB Synthesis — Routing-Driven Backends and Assets Proxy
+   * Implements Sprint 22 objective:
+   * - Derive referenced services from infrastructure.resources.<lb>.routing.rules[].service
+   * - Filter to services that are active: true per architecture.yaml
+   * - Synthesize per-region Serverless NEGs and be-<service> backends
+   * - Conditionally synthesize be-assets-proxy and NEGs when any bucket routing exists
+   * - Default backend is first service backend when present; else be-default
+   * Backward-compat: if routing is absent, fall back to lb.services[] (deprecated)
+   * Docs: planning/sprint-22-b91e6c/sprint-execution-plan.md, backlog.md (S22-001..S22-012)
+   *
+   * Dry-run instructions (S22-012):
+   * - Local synth:
+   *   - Run: `node -e "require('./tools/brat/dist/providers/cdktf-synth').synthModule('load-balancer',{rootDir: process.cwd(), env: 'dev', projectId: 'demo'})"`
+   *   - Or via tests: `npm test -- tools/brat/src/providers/cdktf-synth.loadbalancer.routing.test.ts`
+   * - Inspect outputs:
+   *   - Generated files under infrastructure/cdktf/out/load-balancer/main.tf
+   * - Optional terraform plan (no apply):
+   *   - cd infrastructure/cdktf/out/load-balancer && terraform init -upgrade && terraform validate && terraform plan
+   *   - CI/backends are guarded; state backend is disabled by default to keep plan-only safe.
+   */
   let defaultRegion = 'us-central1';
   let lb: any = undefined;
   let legacyLbNode: any = {};
   let defaultDomain = 'api.bitbrat.ai';
+  let arch: any = {};
   try {
-    const arch = loadArchitecture(rootDir) as any;
+    arch = loadArchitecture(rootDir) as any;
     defaultRegion = arch?.deploymentDefaults?.region || arch?.defaults?.services?.region || defaultRegion;
     lb = arch?.lb;
     legacyLbNode = arch?.infrastructure?.resources?.['main-load-balancer'] || arch?.infrastructure?.['main-load-balancer'] || {};
@@ -227,16 +249,12 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
 
   const urlMapName = 'bitbrat-global-url-map';
 
-  // Services and regions
-  const services: Array<{ name: string; regions?: string[]; runService?: { name: string; projectId?: string } }>
-    = Array.isArray(lb?.services) ? lb.services : [];
-
   // Backend state in CI guarded like other modules
-  const bucket = process.env.BITBRAT_TF_BACKEND_BUCKET;
+  const backendBucket = process.env.BITBRAT_TF_BACKEND_BUCKET;
   const ci = String(process.env.CI || '').toLowerCase();
-  const includeBackend = !!bucket && ci !== 'true' && ci !== '1';
+  const includeBackend = !!backendBucket && ci !== 'true' && ci !== '1';
   const backendBlock = includeBackend
-    ? `  backend "gcs" {\n    bucket = "${bucket}"\n    prefix = "lb/${environment}"\n  }\n`
+    ? `  backend "gcs" {\n    bucket = "${backendBucket}"\n    prefix = "lb/${environment}"\n  }\n`
     : '';
 
   // Compose Terraform blocks
@@ -265,27 +283,97 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     datas.push(`data "google_compute_ssl_certificate" "managed_cert" {\n  name = "${certName}"\n}`);
   }
 
-  // Per-service NEGs and Backend Services
-  for (const svc of services) {
-    const svcName = svc.name;
-    const runSvc = svc.runService;
-    const svcRegions = (svc.regions && svc.regions.length > 0) ? svc.regions : [defaultRegion];
-    const beName = `be-${svcName}`;
-    beNames.push(beName);
-    // Build NEGs and collect attachments
+  // ROUTING-DRIVEN DERIVATION
+  const routing = legacyLbNode?.routing;
+  const servicesActiveMap: Record<string, boolean> = arch?.services || {};
+  const deriveUniqueServices = (): string[] => {
+    if (!routing || !Array.isArray(routing?.rules)) return [];
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const r of routing.rules as Array<any>) {
+      const svc = r?.service;
+      if (!svc || typeof svc !== 'string') continue;
+      if (!seen.has(svc)) {
+        seen.add(svc);
+        ordered.push(svc);
+      }
+    }
+    // Filter to active services only
+    return ordered.filter((sid) => {
+      const node = servicesActiveMap?.[sid];
+      // servicesActiveMap may hold objects; treat { active: true } only as active
+      const active = !!(node && typeof node === 'object' && (node as any).active === true);
+      return active;
+    });
+  };
+
+  const referencedServices = deriveUniqueServices();
+  const hasBucketRouting = !!(routing?.default_bucket) || !!(Array.isArray(routing?.rules) && routing.rules.some((r: any) => !!r?.bucket));
+
+  // Fallback to deprecated lb.services[] only when routing not provided
+  type LegacySvc = { name: string; regions?: string[]; runService?: { name: string; projectId?: string } };
+  const legacyServices: LegacySvc[] = (!routing && Array.isArray(lb?.services)) ? lb.services as LegacySvc[] : [];
+
+  // Accumulate per-service regions used to inform assets-proxy NEGs
+  const usedRegions = new Set<string>();
+
+  // Build service backends/NEGs — routing path
+  if (routing) {
+    for (const sid of referencedServices) {
+      const svcRegions = [defaultRegion];
+      const beName = `be-${sid}`;
+      beNames.push(beName);
+      let backendBlocks: string[] = [];
+      for (const r of svcRegions) {
+        usedRegions.add(r);
+        const negName = `neg-${sid}-${r}`;
+        negNames.push(negName);
+        resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "${sid}"\n  }\n}`);
+        backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
+      }
+      resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+    }
+  }
+
+  // Build service backends/NEGs — legacy lb.services[] path (deprecated)
+  if (!routing && legacyServices.length > 0) {
+    for (const svc of legacyServices) {
+      const svcName = svc.name;
+      const runSvc = svc.runService;
+      const svcRegions = (svc.regions && svc.regions.length > 0) ? svc.regions : [defaultRegion];
+      const beName = `be-${svcName}`;
+      beNames.push(beName);
+      let backendBlocks: string[] = [];
+      for (const r of svcRegions) {
+        usedRegions.add(r);
+        const negName = `neg-${svcName}-${r}`;
+        negNames.push(negName);
+        const projectAttr = runSvc?.projectId ? `\n  project = "${runSvc.projectId}"` : '';
+        resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "${runSvc?.name || svcName}"${projectAttr}\n  }\n}`);
+        backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
+      }
+      resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+    }
+  }
+
+  // Assets Proxy — only when bucket routing exists
+  if (routing && hasBucketRouting) {
+    const regions = [...(usedRegions.size > 0 ? usedRegions : new Set([defaultRegion]))];
     let backendBlocks: string[] = [];
-    for (const r of svcRegions) {
-      const negName = `neg-${svcName}-${r}`;
+    for (const r of regions) {
+      const negName = `neg-assets-proxy-${r}`;
       negNames.push(negName);
-      const projectAttr = runSvc?.projectId ? `\n  project = "${runSvc.projectId}"` : '';
-      resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "${runSvc?.name || svcName}"${projectAttr}\n  }\n}`);
+      resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "assets-proxy"\n  }\n}`);
       backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
     }
+    const beName = 'be-assets-proxy';
+    beNames.push(beName);
     resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
   }
 
-  // If no services declared, keep a default backend to keep URL map valid
-  if (services.length === 0) {
+  // If no service backends declared, keep a default backend to keep URL map valid
+  const hasServiceBackends = routing ? (referencedServices.length > 0) : (legacyServices.length > 0);
+  if (!hasServiceBackends) {
     const beName = 'be-default';
     beNames.push(beName);
     resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
@@ -299,7 +387,10 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     ? 'google_compute_global_address.frontend_ip.address'
     : 'data.google_compute_global_address.frontend_ip.address';
 
-  const defaultBackendRef = `google_compute_backend_service.${beNames[0]}.self_link`;
+  // Default backend selection per Sprint 22 rules
+  const defaultBackendRef = hasServiceBackends
+    ? `google_compute_backend_service.be-${(routing ? referencedServices[0] : (legacyServices[0]?.name))}.self_link`
+    : 'google_compute_backend_service.be-default.self_link';
 
   const tf = `# Synthesized by brat CDKTF synth (module: load-balancer)
 # This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
@@ -461,7 +552,7 @@ resource "google_vpc_access_connector" "connector" {
   region         = var.region
   network        = data.google_compute_network.vpc.name
   ip_cidr_range  = "${connectorCidr}"
-  max_instances  = 2
+  max_instances  = 3
   min_instances  = 2
 }
 
@@ -474,6 +565,176 @@ output "connectorsByRegion" {
   return tf;
 }
 
+/**
+ * synthBucketsTf
+ * Generates Terraform for Google Cloud Storage buckets defined under
+ * architecture.yaml -> infrastructure.resources where:
+ *   type: object-store
+ *   implementation: cloud-storage
+ * Behavior:
+ * - Bucket name: <resourceKey>-<env>
+ * - Location: resource.location || deploymentDefaults.region
+ * - Access policy: private (default) or public
+ *   - public: enable uniform bucket-level access and bind allUsers roles/storage.objectViewer
+ * - Versioning: enabled when resource.versioning === true
+ * - Lifecycle: supports simple rules via resource.lifecycle.rules[] items with fields:
+ *   - action: "Delete" | "SetStorageClass"
+ *   - age: number (days)
+ *   - storageClass: string (when SetStorageClass)
+ * - Labels: merges required labels { env, project, managed-by=brat } with resource.labels (without overwriting required keys)
+ */
+function synthBucketsTf(rootDir: string, env: string | undefined, projectId: string | undefined): string {
+  const arch: any = (() => { try { return loadArchitecture(rootDir) as any; } catch { return {}; } })();
+  const environment = env || 'dev';
+  const project = projectId || 'placeholder-project';
+  const defaultRegion = arch?.deploymentDefaults?.region || arch?.defaults?.services?.region || 'us-central1';
+
+  const resources: Record<string, any> = arch?.infrastructure?.resources || {};
+  const bucketEntries = Object.entries(resources)
+    .filter(([_, r]: [string, any]) => r && r.type === 'object-store' && r.implementation === 'cloud-storage')
+    .map(([key, r]) => ({ key, cfg: r as any }));
+
+  // Backend: disabled by default for safety in CI, but allow via env var like other modules
+  const bucketBackend = process.env.BITBRAT_TF_BACKEND_BUCKET;
+  const ci = String(process.env.CI || '').toLowerCase();
+  const includeBackend = !!bucketBackend && ci !== 'true' && ci !== '1';
+  const backendBlock = includeBackend
+    ? `  backend "gcs" {\n    bucket = "${bucketBackend}"\n    prefix = "buckets/${environment}"\n  }\n`
+    : '';
+
+  // Provider + variables
+  let tfParts: string[] = [];
+  tfParts.push(`# Synthesized by brat CDKTF synth (module: buckets)
+# This file provisions Google Cloud Storage buckets declared in architecture.yaml.
+# module: buckets
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 5.0.0"
+    }
+  }
+${backendBlock}}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+variable "project_id" {
+  type    = string
+  default = "${project}"
+}
+
+variable "region" {
+  type    = string
+  default = "${defaultRegion}"
+}
+
+variable "environment" {
+  type    = string
+  default = "${environment}"
+}`);
+
+  // Helper to render labels
+  function renderLabels(extra: Record<string, string | number | boolean> | undefined) {
+    const base: Record<string, string> = {
+      env: String(environment),
+      project: String(project),
+      'managed-by': 'brat',
+    };
+    const out: Record<string, string> = { ...base };
+    if (extra && typeof extra === 'object') {
+      for (const [k, v] of Object.entries(extra)) {
+        if (k in base) continue; // do not overwrite required keys
+        out[k] = String(v);
+      }
+    }
+    const lines = Object.entries(out)
+      .map(([k, v]) => `    ${JSON.stringify(k)} = ${JSON.stringify(v)}`)
+      .join('\n');
+    return `  labels = {\n${lines}\n  }`;
+  }
+
+  // Helper to render lifecycle rules (limited scope per planning doc)
+  function renderLifecycle(lc: any): string {
+    const rules: any[] = lc?.rules || [];
+    if (!Array.isArray(rules) || rules.length === 0) return '';
+    const blocks = rules.map((r) => {
+      const actionType = r?.action || 'Delete';
+      const age = typeof r?.age === 'number' ? r.age : undefined;
+      const storageClass = r?.storageClass;
+      const actionBlock = actionType === 'SetStorageClass' && storageClass
+        ? `  action {\n    type          = "SetStorageClass"\n    storage_class = "${storageClass}"\n  }`
+        : `  action {\n    type = "Delete"\n  }`;
+      const condLines: string[] = [];
+      if (typeof age === 'number') condLines.push(`    age = ${age}`);
+      const conditionBlock = condLines.length > 0
+        ? `  condition {\n${condLines.join('\n')}\n  }`
+        : '';
+      return `lifecycle_rule {\n${actionBlock}\n${conditionBlock}\n}`;
+    });
+    return blocks.join('\n');
+  }
+
+  // Iterate buckets and create resources + optional IAM for public
+  let publicIamBindings: string[] = [];
+  const bucketNames: string[] = [];
+  const bucketItemsTf: string[] = [];
+  for (const { key, cfg } of bucketEntries) {
+    const location = cfg?.location || defaultRegion;
+    const access = cfg?.access_policy || 'private';
+    const versioning = !!cfg?.versioning;
+    const lifecycle = cfg?.lifecycle;
+    const labelsExtra = cfg?.labels || {};
+    const bucketName = `${key}-${environment}`;
+    bucketNames.push(bucketName);
+
+    const iamConfig = access === 'public'
+      ? `\n  iam_configuration {\n    uniform_bucket_level_access = true\n  }`
+      : '';
+
+    const versioningBlock = versioning ? `\n  versioning {\n    enabled = true\n  }` : '';
+    const lifecycleBlock = lifecycle ? `\n${renderLifecycle(lifecycle)}` : '';
+    const labelsBlock = `\n${renderLabels(labelsExtra)}`;
+
+    const resName = `bucket_${key}`;
+    bucketItemsTf.push(
+      `resource "google_storage_bucket" "${resName}" {\n  name     = "${bucketName}"\n  location = "${location}"${versioningBlock}${iamConfig}${lifecycleBlock}${labelsBlock}\n}`
+    );
+
+    if (access === 'public') {
+      publicIamBindings.push(
+        `resource "google_storage_bucket_iam_member" "public_${key}" {\n  bucket = google_storage_bucket.${resName}.name\n  role   = "roles/storage.objectViewer"\n  member = "allUsers"\n}`
+      );
+    }
+  }
+
+  tfParts.push('', bucketItemsTf.join('\n\n'));
+  if (publicIamBindings.length > 0) tfParts.push('', publicIamBindings.join('\n\n'));
+
+  // Outputs
+  const namesList = bucketNames.map(n => JSON.stringify(n)).join(', ');
+  const urlsMap = bucketEntries.map(({ key }) => `    ${JSON.stringify(key)} = {\n      gs  = "gs://${key}-${environment}"\n      url = "https://storage.googleapis.com/${key}-${environment}"\n    }`).join('\n');
+  tfParts.push(`
+# Outputs
+output "bucketNames" {
+  description = "List of synthesized bucket names"
+  value       = [${namesList}]
+}
+
+output "bucketUrlsByKey" {
+  description = "Map of bucket key to gs and https URLs"
+  value       = {
+${urlsMap}
+  }
+}`);
+
+  return tfParts.join('\n');
+}
+
 export function synthModule(moduleName: CdktfModule, opts: SynthOptions): string {
   const rootDir = opts.rootDir;
   const outDir = opts.outDir || getModuleOutDir(rootDir, moduleName);
@@ -483,6 +744,26 @@ export function synthModule(moduleName: CdktfModule, opts: SynthOptions): string
     const tf = synthNetworkTf(rootDir, opts.env, opts.projectId);
     writeFileIfChanged(path.join(outDir, 'main.tf'), tf);
     const readme = `# network (CDKTF synth)\n\nThis directory is generated by the brat CLI.\nIt contains a Terraform configuration for the BitBrat network MVP (VPC, subnet with Private Google Access, Cloud Router, NAT, and baseline firewalls).\n\nState backend (GCS) is intentionally not configured here to keep CI plan-only runs safe.\nFor remote state, create a bucket (e.g., gs://bitbrat-tfstate-<env>) and configure a backend block manually when applying outside CI.\n`;
+    writeFileIfChanged(path.join(outDir, 'README.md'), readme);
+    return outDir;
+  }
+
+  if (moduleName === 'buckets') {
+    const tf = synthBucketsTf(rootDir, opts.env, opts.projectId);
+    writeFileIfChanged(path.join(outDir, 'main.tf'), tf);
+    const readme = `# buckets (CDKTF synth)
+
+This directory is generated by the brat CLI.
+It contains a Terraform configuration for provisioning Google Cloud Storage buckets declared under infrastructure.resources.
+
+Security defaults:
+- Buckets are private by default.
+- Public buckets require access_policy: public and will enable uniform bucket-level access and add an allUsers viewer binding.
+
+Outputs:
+- bucketNames: list of bucket resource names
+- bucketUrlsByKey: map of key => { gs, url }
+`;
     writeFileIfChanged(path.join(outDir, 'README.md'), readme);
     return outDir;
   }

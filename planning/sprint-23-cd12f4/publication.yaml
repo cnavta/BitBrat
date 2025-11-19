@@ -1,0 +1,17 @@
+sprint_id: sprint-23-cd12f4
+branch: feature/sprint-23-cd12f4
+pull_request:
+  title: "Sprint 23 Deliverables — URL Map Renderer & Importer Enhancements"
+  url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-23-cd12f4?expand=1
+  status: open
+  created_at: 2025-11-18T22:21:00Z
+  validated: true
+validation_summary:
+  build: pass
+  tests: pass
+  infra_dry_run: pending_project_id
+links:
+  execution_plan: planning/sprint-23-cd12f4/sprint-execution-plan.md
+  backlog: planning/sprint-23-cd12f4/backlog.md
+  verification_report: planning/sprint-23-cd12f4/verification-report.md
+  retro: planning/sprint-23-cd12f4/retro.md

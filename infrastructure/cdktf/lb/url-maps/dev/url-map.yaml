@@ -1,19 +1,21 @@
-defaultService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-default
+defaultService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-assets-proxy
 hostRules:
   - hosts:
-      - api.bitbrat.ai
+      - api.dev.bitbrat.ai
     pathMatcher: default-matcher
 name: bitbrat-global-url-map
 pathMatchers:
-  - defaultService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-default
+  - defaultService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-assets-proxy
     name: default-matcher
     routeRules:
       - matchRules:
           - prefixMatch: /assets
         priority: 1
         routeAction:
+          urlRewrite:
+            pathPrefixRewrite: /bucket/default-content-bucket
           weightedBackendServices:
-            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-default
+            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-assets-proxy
               weight: 100
       - matchRules:
           - prefixMatch: /oauth

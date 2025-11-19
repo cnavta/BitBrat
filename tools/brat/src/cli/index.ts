@@ -246,6 +246,23 @@ async function cmdDeployServices(flags: GlobalFlags) {
     }
     const envFiltered = filterEnvKvAgainstSecrets(envKv, secretMap);
 
+    // Compute effective allow-unauthenticated policy
+    // Rules:
+    // - Honor service.security.allowUnauthenticated when true
+    // - Additionally, enforce unauthenticated when service is VPC-bound and/or behind Internal & CLB ingress,
+    //   which is required for Serverless NEG behind External HTTP(S) LB to invoke the service.
+    const ingressPolicy = 'internal-and-cloud-load-balancing';
+    const vpcConnectorName = `brat-conn-${(flags.region || svc.region)}-${flags.env}`;
+    const effectiveAllowUnauth = !!(svc.allowUnauth || ingressPolicy === 'internal-and-cloud-load-balancing' || vpcConnectorName);
+    serviceLog.info({
+      status: 'policy',
+      allowUnauthConfigured: svc.allowUnauth,
+      effectiveAllowUnauth,
+      ingress: ingressPolicy,
+      vpcConnector: vpcConnectorName,
+      note: 'Allow unauthenticated is required for LB serverless NEG; enforcing when VPC-bound or Internal & CLB ingress.'
+    }, 'Computed effective allowUnauthenticated policy');
+
     const substitutions: Record<string, string | number | boolean> = {
       _SERVICE_NAME: svc.name,
       _REGION: flags.region || svc.region,
@@ -257,10 +274,13 @@ async function cmdDeployServices(flags: GlobalFlags) {
       _MAX_INSTANCES: svc.maxInstances,
       _CPU: svc.cpu,
       _MEMORY: svc.memory,
-      _ALLOW_UNAUTH: svc.allowUnauth,
+      _ALLOW_UNAUTH: effectiveAllowUnauth,
       _SECRET_SET_ARG: secretMap || '',
       _ENV_VARS_ARG: envFiltered || '',
       _DOCKERFILE: dockerfile,
+      // Enforce Internal & Cloud Load Balancing ingress and attach VPC connector
+      _INGRESS: ingressPolicy,
+      _VPC_CONNECTOR: vpcConnectorName,
     };
 
     if (flags.dryRun) {
@@ -341,6 +361,18 @@ async function cmdInfra(action: 'plan' | 'apply', flags: GlobalFlags, envDir: st
 
 async function main() {
   const { cmd, flags, rest } = parseArgs(process.argv);
+  // Propagate commonly used flags into process.env so lower layers (e.g., config loader
+  // and interpolation context) can resolve environment-aware values without requiring
+  // every call site to thread flags explicitly.
+  if (flags.env) {
+    process.env.BITBRAT_ENV = flags.env;
+  }
+  if (flags.projectId) {
+    process.env.PROJECT_ID = flags.projectId;
+  }
+  if (flags.region) {
+    process.env.REGION = flags.region;
+  }
   if (cmd.length === 0) { printHelp(); return; }
   const [c1, c2] = cmd;
   if (c1 === 'doctor') {

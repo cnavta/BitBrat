@@ -44,6 +44,7 @@ defaults: # Defaults for various entities. Individual entities may override thes
 
 services:
   oauth-flow:
+    active: true
     description: "OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and broadcaster accounts."
     entry: src/apps/oauth-service.ts
     paths:
@@ -54,6 +55,7 @@ services:
       - OAUTH_STATE_SECRET
 
   ingress-egress:
+    active: true
     description: "Bridges external event sources/sinks (e.g., Twitch EventSub/IRC) to internal topics;"
     entry: src/apps/ingress-egress-service.ts
     topics:
@@ -74,6 +76,7 @@ services:
       - TWITCH_CHANNELS
 
   auth:
+    active: false
     description: "Authentication service that handles user authentication and authorization."
     entry: src/apps/auth-service.ts
     topics:
@@ -86,6 +89,7 @@ services:
       - TWITCH_CLIENT_SECRET
 
   event-router:
+    active: false
     description: "Internal event routing service that reads from ingress channel(s) and assigns routing slips."
     entry: src/apps/event-router-service.ts
     topics:
@@ -95,6 +99,7 @@ services:
         - internal.auth.v1
 
   llm-bot:
+    active: false
     description: "Headless LLM worker that consumes bot request subjects and produces responses."
     entry: src/apps/llm-bot-service.ts
     topics:
@@ -108,6 +113,7 @@ services:
       - OPENAI_MAX_RETRIES
 
   finalizer:
+    active: false
     description: "Finalizer service logs the final state of a message and makes sure any open requests are responded to."
     entry: src/apps/finalizer-service.ts
     topics:
@@ -131,7 +137,7 @@ infrastructure:
       description: Main external entry point and router for the application
       routing:
         default_bucket: default-content-bucket
-        default_domain: api.bitbrat.ai
+        default_domain: api.${ENV_PREFIX}${DOMAIN_SUFFIX:-bitbrat.ai}
         rules:
           # Static Assets Routing
           - path_prefix: /assets

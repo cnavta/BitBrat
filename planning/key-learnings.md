@@ -140,3 +140,46 @@ Date: 2025-11-16
 3. Overlay-driven LB inputs (services, ipMode/certMode) increase testability and parity; snapshot tests provide fast feedback but should filter dynamic fields.
 4. Keep remote backend gated in CI to ensure plan-only safety; enable via environment variables for controlled applies.
 5. Publication and verification artifacts (verification-report.md, retro.md, publication.yaml) streamline closure and traceability per Sprint Protocol S11–S13.
+
+
+# Key Learnings — Sprint 17
+
+Date: 2025-11-18
+
+1. Planning-first closure with full Sprint Protocol artifacts (verification report, retro, publication metadata) keeps momentum while deferring risky runtime changes.
+2. Guarded import and preflight reinforcements reduce operational noise; ensure dev/staging remain forgiving while prod stays plan-only by default.
+3. Codifying connectors configurability early (plan + backlog) aligns teams and accelerates subsequent implementation with clear AC and tests.
+4. Keep architecture.yaml as the canonical reference for connectors per-region expectations to enable automated schema cross-checks.
+5. Always update planning/index.md and sprint-manifest.yaml during closure to maintain traceability and discoverability across sprints.
+
+
+# Key Learnings — Sprint 20
+
+Date: 2025-11-18
+
+1. Encoding cross-resource validation in the schema (with Zod superRefine and targeted helpers) provides fast, actionable feedback and reduces downstream synth complexity.
+2. Deprecation paths should be implemented as warnings first (routing over lb.services[]) to preserve compatibility while nudging migration.
+3. Tests co-located with schema code (schema.routing.test.ts) speed iteration and clarify intent; fixtures should mirror architecture.yaml.
+4. Keep importer/synth behavior unchanged within sprint scope to minimize risk; harden guards opportunistically when safe.
+5. Close-out discipline (manifest, verification, retro, publication) ensures traceability and accelerates future sprints.
+
+# Key Learnings — Sprint 23
+
+Date: 2025-11-18
+
+1. Driving URL Map rendering exclusively from architecture.yaml routing eliminated drift and simplified importer guard logic.
+2. Bucket routing via an assets proxy with a path rewrite is testable and portable; encode the proxy contract explicitly in code and tests.
+3. Importer backend-existence guards catch missing dependencies early; extend remediation messages with architecture-driven guidance.
+4. Validation scripts should accept environment variables or provide clear help text; require PROJECT_ID but document how to pass it in local runs.
+5. Publication scaffolding with compare links maintains S11–S13 traceability even when PR creation is manual.
+
+
+# Key Learnings — Sprint 24
+
+Date: 2025-11-19
+
+1. Config interpolation at load time with a constrained context (ENV, ENV_PREFIX, REGION, PROJECT_ID, DOMAIN_SUFFIX) delivers flexibility without schema churn or security risks.
+2. Enforcing Internal & Cloud Load Balancing ingress and allow-unauthenticated across Terraform, CLI, and Cloud Build prevents LB→Cloud Run invocation failures and removes environment drift.
+3. CI/local validation parity is critical; adding the buckets plan step to both cloudbuild.infra-plan.yaml and validate_deliverable.sh reduced surprises.
+4. Cloud Build API rate limits require client-side discipline; async submit + throttled polling with exponential backoff stabilized concurrent service deploys.
+5. Close-out rigor (verification report, retro, publication.yaml) accelerates future sprints and satisfies Sprint Protocol traceability.
