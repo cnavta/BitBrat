@@ -1,0 +1,6 @@
+BUS_PREFIX: local
+FIREBASE_PROJECT_ID: bitbrat-local
+GOOGLE_CLOUD_PROJECT: bitbrat-local
+GCLOUD_PROJECT: bitbrat-local
+FIRESTORE_EMULATOR_HOST: firebase-emulator:8080
+NATS_URL: nats://nats:4222

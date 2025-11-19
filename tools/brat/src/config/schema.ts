@@ -15,6 +15,7 @@ export const DeploymentDefaultsSchema = z.object({
 });
 
 export const ServiceSchema = z.object({
+  active: z.boolean().optional(),
   description: z.string().optional(),
   entry: z.string().optional(),
   region: z.string().optional(),
@@ -97,9 +98,161 @@ export const ArchitectureSchema = z.object({
   deploymentDefaults: DeploymentDefaultsSchema.optional(),
   network: NetworkSchema.optional(),
   lb: LoadBalancerSchema.optional(),
+  // Sprint 20 — infrastructure.resources schema (object-store + load-balancer)
+  infrastructure: z
+    .object({
+      target: z.string().optional(),
+      resources: z
+        .record(
+          z.discriminatedUnion('type', [
+            // object-store (cloud-storage)
+            z
+              .object({
+                type: z.literal('object-store'),
+                implementation: z.literal('cloud-storage'),
+                description: z.string().optional(),
+                access_policy: z.enum(['private', 'public']).default('private'),
+                location: z.string().optional(),
+                versioning: z.boolean().optional(),
+                lifecycle: z.any().optional(),
+                labels: z.record(z.string()).optional(),
+              })
+              .passthrough(),
+            // load-balancer (global-external-application-lb)
+            z
+              .object({
+                type: z.literal('load-balancer'),
+                implementation: z.literal('global-external-application-lb'),
+                name: z.string(),
+                ip: z.string(),
+                description: z.string().optional(),
+                routing: z
+                  .object({
+                    default_domain: z.string(),
+                    default_bucket: z.string().optional(),
+                    rules: z
+                      .array(
+                        z
+                          .object({
+                            path_prefix: z.string(),
+                            rewrite_prefix: z.string().optional(),
+                            service: z.string().optional(),
+                            bucket: z.string().optional(),
+                          })
+                          .superRefine((rule, ctx) => {
+                            const hasService = !!rule.service;
+                            const hasBucket = !!rule.bucket;
+                            if ((hasService && hasBucket) || (!hasService && !hasBucket)) {
+                              ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                message: 'Each routing rule must specify exactly one of service or bucket',
+                                path: [],
+                              });
+                            }
+                          })
+                      )
+                      .default([]),
+                  })
+                  .strict(),
+              })
+              .passthrough(),
+          ])
+        )
+        .default({}),
+    })
+    .optional(),
 }).passthrough();
 
 export type Architecture = z.infer<typeof ArchitectureSchema>;
 export type Service = z.infer<typeof ServiceSchema>;
 export type Network = z.infer<typeof NetworkSchema>;
 export type LoadBalancer = z.infer<typeof LoadBalancerSchema>;
+
+/**
+ * Sprint 20 — Parse and validate routing cross-references, gathering metadata and warnings.
+ * Does not change runtime behavior of existing loaders; provided for tests and future synth stages.
+ */
+export interface ParsedArchitectureMetadata {
+  referencedServiceIds: string[];
+  referencedBucketKeys: string[];
+}
+
+export interface ParseArchitectureResult {
+  arch: Architecture;
+  metadata: ParsedArchitectureMetadata;
+  warnings: string[];
+}
+
+export function parseArchitecture(raw: unknown): ParseArchitectureResult {
+  const arch = ArchitectureSchema.parse(raw) as Architecture;
+  const warnings: string[] = [];
+  const referencedServices = new Set<string>();
+  const referencedBuckets = new Set<string>();
+
+  const serviceIds = new Set<string>(Object.keys(arch.services || {}));
+  const servicesMap = arch.services || ({} as Record<string, Service>);
+
+  const resources = arch.infrastructure?.resources || {} as Record<string, any>;
+  const resourceEntries = Object.entries(resources);
+  const lbResources = resourceEntries.filter(([, r]) => r?.type === 'load-balancer' && r?.implementation === 'global-external-application-lb');
+
+  // Deprecation behavior: prefer routing-based LB over lb.services[] when both exist
+  if ((arch.lb?.services?.length || 0) > 0 && lbResources.length > 0) {
+    warnings.push('Deprecation: lb.services[] is ignored when a routing-driven load-balancer resource exists. Prefer infrastructure.resources.<lb>.routing.');
+  }
+
+  for (const [lbKey, lbRes] of lbResources) {
+    const routing = lbRes.routing;
+    if (!routing) continue;
+
+    // Validate default_bucket reference (if present)
+    if (routing.default_bucket) {
+      const refKey = routing.default_bucket as string;
+      const ref = resources[refKey];
+      if (!ref) {
+        throw new Error(`routing.default_bucket references missing resource '${refKey}' in load balancer '${lbKey}'.`);
+      }
+      if (!(ref.type === 'object-store' && ref.implementation === 'cloud-storage')) {
+        throw new Error(`routing.default_bucket '${refKey}' must reference an object-store with implementation=cloud-storage.`);
+      }
+      referencedBuckets.add(refKey);
+    }
+
+    // Validate each rule
+    const rules = routing.rules || [];
+    rules.forEach((rule: any, idx: number) => {
+      if (rule.service) {
+        const sid = rule.service as string;
+        if (!serviceIds.has(sid)) {
+          throw new Error(`routing.rules[${idx}].service references unknown service '${sid}'.`);
+        }
+        // Warn on inactive service (non-fatal)
+        const svc = servicesMap[sid];
+        if (svc && (svc as any).active === false) {
+          warnings.push(`Service '${sid}' is inactive but referenced by routing.rules[${idx}].service.`);
+        }
+        referencedServices.add(sid);
+      }
+      if (rule.bucket) {
+        const bkey = rule.bucket as string;
+        const ref = resources[bkey];
+        if (!ref) {
+          throw new Error(`routing.rules[${idx}].bucket references missing resource '${bkey}'.`);
+        }
+        if (!(ref.type === 'object-store' && ref.implementation === 'cloud-storage')) {
+          throw new Error(`routing.rules[${idx}].bucket '${bkey}' must reference an object-store with implementation=cloud-storage.`);
+        }
+        referencedBuckets.add(bkey);
+      }
+    });
+  }
+
+  return {
+    arch,
+    metadata: {
+      referencedServiceIds: Array.from(referencedServices),
+      referencedBucketKeys: Array.from(referencedBuckets),
+    },
+    warnings,
+  };
+}

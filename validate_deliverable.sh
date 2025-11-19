@@ -33,7 +33,7 @@ if $SHOW_HELP; then
 Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>]
 
 Description:
-  Runs the full Development Verification Flow plus Sprint 14 infra dry-run validation steps.
+  Runs the full Development Verification Flow plus infra dry-run validation steps (Sprints 14 & 24 updates).
 
 Options:
   -e, --env           Environment overlay to use (default: dev)
@@ -61,7 +61,7 @@ echo "🧪 Running tests..."
 npm test
 
 # Sprint 14: Infra dry-run validation
-echo "🧭 Sprint 14 — Infra dry-run validation (env=$ENV_ARG, project=$PROJECT_ID_ARG)"
+echo "🧭 Infra dry-run validation (env=$ENV_ARG, project=$PROJECT_ID_ARG)"
 
 # Enable required APIs (dry-run)
 echo "➡️  Enabling required APIs (dry-run)"
@@ -74,6 +74,10 @@ npm run brat -- infra plan network --env "$ENV_ARG" --project-id "$PROJECT_ID_AR
 # Plan connectors (dry-run)
 echo "➡️  Planning connectors (dry-run)"
 npm run brat -- infra plan connectors --env "$ENV_ARG" --project-id "$PROJECT_ID_ARG" --dry-run
+
+# Plan buckets (dry-run)
+echo "➡️  Planning buckets (dry-run)"
+npm run brat -- infra plan buckets --env "$ENV_ARG" --project-id "$PROJECT_ID_ARG" --dry-run
 
 # Plan load balancer (dry-run)
 echo "➡️  Planning load balancer (dry-run)"

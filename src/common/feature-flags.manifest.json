@@ -1,0 +1,206 @@
+{
+  "name": "bitbrat-feature-flags",
+  "version": 1,
+  "description": "Canonical feature flags manifest for BitBrat. This file documents the canonical keys, their environment variable synonyms (for backward compatibility), and default values used when envs are absent or malformed.",
+  "updated": "2025-09-25T18:57:00Z",
+  "flags": [
+    {
+      "key": "eventsub.sessions.enabled",
+      "description": "Enable EventSub-based session start/end handling and SessionSummarize publishing.",
+      "env": ["FF_EVENTSUB_SESSIONS"],
+      "default": true
+    },
+    {
+      "key": "twitch.enabled",
+      "description": "Enable Twitch bot connectivity and runtime (IRC/TMI connection, OAuth, etc).",
+      "env": ["FEATURE_TWITCH_ENABLED", "TWITCH_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "firestore.enabled",
+      "description": "Enable Firestore-backed persistence and config store (tokens, runtime config, etc).",
+      "env": ["FEATURE_FIRESTORE_ENABLED", "FIRESTORE_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "firestore.decisions",
+      "description": "Enable logging of orchestration decisions to Firestore (configs/decisions).",
+      "env": ["FEATURE_FIRESTORE_DECISIONS_ENABLED", "FIRESTORE_DECISIONS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "memory.enabled",
+      "description": "Master switch for Memory features (embedding, vector store, retrieval/publish).",
+      "env": ["FEATURE_MEMORY_ENABLED", "ENABLE_MEMORY", "MEMORY_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "memory.publish",
+      "description": "Enable publishing chat events to Memory (e.g., Pub/Sub topic for ingestion).",
+      "env": ["FEATURE_MEMORY_PUBLISH", "ENABLE_MEMORY_PUBLISH"],
+      "default": true
+    },
+    {
+      "key": "memory.retrieval",
+      "description": "Enable Memory retrieval (querying vectors for context/RAG in bot responses).",
+      "env": ["FEATURE_MEMORY_RETRIEVAL", "ENABLE_MEMORY_RETRIEVAL"],
+      "default": true
+    },
+    {
+      "key": "memory.retrieval.attachToPrompt",
+      "description": "Attach retrieval results to the LLM prompt as Memory Context.",
+      "env": ["FEATURE_MEMORY_RETRIEVAL_ATTACH", "MEMORY_RETRIEVAL_ATTACH"],
+      "default": true
+    },
+    {
+      "key": "memory.vector",
+      "description": "Enable Firestore vector search features (KNN queries). Requires memory.enabled.",
+      "env": ["FEATURE_MEMORY_VECTOR", "ENABLE_VECTOR"],
+      "default": true
+    },
+    {
+      "key": "bot.eventResponses",
+      "description": "Enable Event Responses subsystem (FOLLOW/SUB reactions, inline/Firestore registry).",
+      "env": ["FEATURE_EVENT_RESPONSES", "ENABLE_EVENT_RESPONSES"],
+      "default": true
+    },
+    {
+      "key": "eventsub.enabled",
+      "description": "Enable Twitch EventSub (WebSocket) client for follow/subscription notifications.",
+      "env": ["FEATURE_EVENTSUB_ENABLED", "ENABLE_EVENTSUB"],
+      "default": true
+    },
+    {
+      "key": "metrics.enabled",
+      "description": "Enable metrics emission (stdout façade for local; can be wired to Cloud Monitoring).",
+      "env": ["FEATURE_METRICS_ENABLED", "METRICS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "permissions.enabled",
+      "description": "Enable roles/permissions enforcement for commands (admin-only, moderator checks).",
+      "env": ["FEATURE_PERMISSIONS_ENABLED", "PERMISSIONS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "events.externalBus",
+      "description": "Publish InternalEvent records to an external bus (e.g., Google Pub/Sub). When disabled, only in-process flows run.",
+      "env": ["FEATURE_EVENTS_EXTERNAL_BUS", "EVENTS_EXTERNAL_BUS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "moderation.spam.enabled",
+      "description": "Enable spam guard prior to LLM to block/skip low-quality or abusive messages. Default off until a classifier is configured.",
+      "env": ["FEATURE_SPAM_GUARD_ENABLED", "SPAM_GUARD_ENABLED"],
+      "default": false
+    },
+    {
+      "key": "twitch.chat.enabled",
+      "description": "Master switch for chat path (IRC ingress/egress).",
+      "env": ["FEATURE_TWITCH_CHAT_ENABLED", "TWITCH_CHAT_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "twitch.chat.egressOnly",
+      "description": "Allow chat egress (say) only; ignore chat ingress.",
+      "env": ["FEATURE_TWITCH_CHAT_EGRESS_ONLY"],
+      "default": false
+    },
+    {
+      "key": "eventsub.raids.enabled",
+      "description": "Enable EventSub raid event handling.",
+      "env": ["FEATURE_EVENTSUB_RAIDS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "eventsub.redemptions.enabled",
+      "description": "Enable EventSub channel point redemptions event handling.",
+      "env": ["FEATURE_EVENTSUB_REDEMPTIONS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "stream.activity.enabled",
+      "description": "Enable stream state detection and persistence.",
+      "env": ["STREAM_ACTIVITY_AWARENESS"],
+      "default": true
+    },
+    {
+      "key": "stream.activity.gating",
+      "description": "Gate event responses (follow/sub) when stream is not live.",
+      "env": ["ENFORCE_LIVE_GATING"],
+      "default": true
+    },
+    {
+      "key": "mcp.enabled",
+      "description": "Enable MCP integration globally (registry, providers, policy, router).",
+      "env": ["FEATURE_MCP_ENABLED", "MCP_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "mcp.commands.enabled",
+      "description": "Enable MCP commands (!mcp and optional shortcuts like !web).",
+      "env": ["MCP_COMMANDS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "mcp.llmTools.enabled",
+      "description": "Expose selected MCP tools to the LLM via a tool bridge.",
+      "env": ["MCP_LLMTOOLS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "mcp.llmNative.enabled",
+      "description": "Allow provider-native MCP usage via BitBrat proxy/shim (centralized policy).",
+      "env": ["MCP_LLM_NATIVE_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "bot.customCommands.enabled",
+      "description": "Enable Firestore-backed custom commands subsystem (cache + listeners + resolution).",
+      "env": ["FEATURE_CUSTOM_COMMANDS_ENABLED", "CUSTOM_COMMANDS_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "bot.customCommands.listen",
+      "description": "Attach Firestore snapshot listeners for per-channel commands collection.",
+      "env": ["FEATURE_CUSTOM_COMMANDS_LISTEN"],
+      "default": true
+    },
+    {
+      "key": "bot.customCommands.debugMaskTemplates",
+      "description": "Mask templates/LLM fields in debug snapshot exposed at /_debug/commands.",
+      "env": ["FEATURE_CUSTOM_COMMANDS_DEBUG_MASK_TEMPLATES"],
+      "default": true
+    },
+    {
+      "key": "bot.customCommands.bypassWhitelist",
+      "description": "When enabled (with custom commands), allow non-whitelisted !commands to pass upstream for registry/custom handling.",
+      "env": ["FEATURE_CUSTOM_COMMANDS_BYPASS_WHITELIST"],
+      "default": true
+    },
+    {
+      "key": "bot.customCommands.commandsVariable.enabled",
+      "description": "Enable {{commands}} template variable expansion to list accessible commands.",
+      "env": ["FEATURE_CUSTOM_COMMANDS_VARIABLE_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "bot.customCommands.commandsVariable.showAdminToEveryone",
+      "description": "If true, include admin/mod-only commands for all users in {{commands}}. Default false (hide to non-privileged).",
+      "env": ["FEATURE_CUSTOM_COMMANDS_VAR_SHOW_ADMIN"],
+      "default": false
+    },
+    {
+      "key": "bot.customCommands.commandsBuiltin.enabled",
+      "description": "Enable builtin !commands fallback that lists accessible commands when no Firestore override exists.",
+      "env": ["FEATURE_CUSTOM_COMMANDS_BUILTIN_ENABLED"],
+      "default": true
+    },
+    {
+      "key": "bot.prompt.statusEnrichment.enabled",
+      "description": "When true, prepend a concise status summary line to LLM system/context for privileged interactions.",
+      "env": ["FEATURE_PROMPT_STATUS_ENRICHMENT"],
+      "default": true
+    }
+  ]
+}

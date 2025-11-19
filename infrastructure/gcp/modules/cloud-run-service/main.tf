@@ -16,6 +16,9 @@ locals {
     name   = k
     secret = v
   }]
+  # Enforce unauthenticated invocations when explicitly requested OR when
+  # the service is VPC-bound / behind Internal & Cloud Load Balancing ingress
+  effective_allow_unauth = var.allow_unauth || var.ingress == "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER" || var.vpc_connector != ""
 }
 
 resource "google_cloud_run_v2_service" "this" {
@@ -27,6 +30,14 @@ resource "google_cloud_run_v2_service" "this" {
 
   template {
     service_account = var.service_account
+
+    dynamic "vpc_access" {
+      for_each = var.vpc_connector != "" ? [1] : []
+      content {
+        connector = var.vpc_connector
+        egress    = var.vpc_egress
+      }
+    }
 
     scaling {
       min_instance_count = var.min_instances
@@ -73,7 +84,7 @@ resource "google_cloud_run_v2_service" "this" {
 
 # Allow unauthenticated invocation when requested (temporary for this sprint)
 resource "google_cloud_run_v2_service_iam_member" "unauth_invoker" {
-  count    = var.allow_unauth ? 1 : 0
+  count    = local.effective_allow_unauth ? 1 : 0
   project  = var.project_id
   location = var.region
   name     = google_cloud_run_v2_service.this.name

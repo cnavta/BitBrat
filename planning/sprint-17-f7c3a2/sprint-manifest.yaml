@@ -1,0 +1,18 @@
+sprint_id: sprint-17-f7c3a2
+title: "Sprint 17 — Connectors Configurability + Preflight Reinforcement"
+role: Lead Implementor
+source_of_truth: architecture.yaml
+created_at: 2025-11-16T21:44:00
+artifacts:
+  execution_plan: planning/sprint-17-f7c3a2/sprint-execution-plan.md
+  backlog: planning/sprint-17-f7c3a2/backlog.md
+  request_log: planning/sprint-17-f7c3a2/request-log.md
+  validate_script: planning/sprint-17-f7c3a2/validate_deliverable.sh
+  verification_report: planning/sprint-17-f7c3a2/verification-report.md
+  retro: planning/sprint-17-f7c3a2/retro.md
+  publication: planning/sprint-17-f7c3a2/publication.yaml
+upstream_reference:
+  file: planning/sprint-13-ace12f/project-implementation-plan.md
+  section: "Sprint 17 — Connectors Configurability + Preflight Reinforcement"
+status: completed
+closed_at: 2025-11-18T13:02:00

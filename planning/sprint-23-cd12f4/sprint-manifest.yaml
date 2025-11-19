@@ -1,0 +1,43 @@
+sprint_id: sprint-23-cd12f4
+role: Lead Implementor
+objective: "URL Map Renderer and Importer Enhancements"
+created_at: 2025-11-18T21:57:00-05:00
+completed_at: 2025-11-18T22:21:00-05:00
+source_of_truth: architecture.yaml
+upstream_design:
+  - planning/sprint-17-f7c3a2/technical-architecture-lb-routing-from-infrastructure-resources.md
+  - planning/sprint-17-f7c3a2/implementation-plan-lb-routing-from-infrastructure-resources.md
+scope:
+  - Render URL Map YAML exclusively from infrastructure.resources.<lb>.routing
+  - Route bucket rules to be-assets-proxy with required path rewrite contract
+  - Extend importer backend-existence guard to include be-assets-proxy and all referenced be-<service>
+artifacts:
+  - planning/sprint-23-cd12f4/sprint-execution-plan.md
+  - planning/sprint-23-cd12f4/backlog.md
+  - planning/sprint-23-cd12f4/request-log.md
+acceptance_criteria:
+  - Renderer emits expected YAML for service, bucket, and mixed routing
+  - Default service logic: default_bucket -> be-assets-proxy; else first be-<service> or be-default
+  - Importer guards include be-assets-proxy; non-prod imports only when backends exist; prod drift-only
+  - Tests pass for renderer/importer
+definition_of_done:
+  - Tests pass in CI and locally
+  - URL Map YAML written to infrastructure/cdktf/lb/url-maps/<env>/url-map.yaml
+  - Documentation and traceability to architecture.yaml maintained
+publication:
+  branch: feature/sprint-23-cd12f4
+  pull_request:
+    required: true
+    title: "Sprint 23 Deliverables — URL Map Renderer & Importer Enhancements"
+    links:
+      - planning/sprint-23-cd12f4/sprint-execution-plan.md
+      - planning/sprint-23-cd12f4/backlog.md
+      - planning/sprint-23-cd12f4/request-log.md
+validation:
+  build: pass
+  tests: pass
+  infra_dry_run: pending_project_id
+artifacts_published:
+  - planning/sprint-23-cd12f4/verification-report.md
+  - planning/sprint-23-cd12f4/retro.md
+  - planning/sprint-23-cd12f4/publication.yaml

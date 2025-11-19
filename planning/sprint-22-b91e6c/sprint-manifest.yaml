@@ -1,0 +1,45 @@
+sprint_id: sprint-22-b91e6c
+title: "LB Synth: Routing-Driven Backends and Assets Proxy"
+role: Lead Implementor
+source_of_truth: architecture.yaml
+status: completed
+date_started: 2025-11-18T16:33:00
+date_completed: 2025-11-18T21:36:00
+objective: |
+  Update the Load Balancer synthesis to be routing-driven, generating NEGs and backend services
+  only for services referenced by routing rules, and conditionally adding an assets-proxy backend
+  when bucket routing exists.
+scope:
+  - Update synthLoadBalancerTf to derive backends from infrastructure.resources.<lb>.routing
+  - Create per-region NEGs and be-SERVICE backends only for referenced services
+  - When any bucket route exists, create assets-proxy NEGs and be-assets-proxy backend
+  - Emit outputs: backendServiceNames and negNames
+out_of_scope:
+  - Buckets module (Sprint 21)
+  - URL map renderer/importer (Sprint 23)
+  - Migration and CI expansion (Sprint 24)
+upstream_references:
+  - planning/sprint-17-f7c3a2/technical-architecture-lb-routing-from-infrastructure-resources.md
+  - planning/sprint-17-f7c3a2/implementation-plan-lb-routing-from-infrastructure-resources.md
+deliverables:
+  - path: planning/sprint-22-b91e6c/sprint-execution-plan.md
+    description: Execution plan for routing-driven LB synth and assets proxy backends
+  - path: planning/sprint-22-b91e6c/backlog.md
+    description: Trackable backlog for Sprint 22
+  - path: tools/brat/src/providers/cdktf-synth.ts
+    description: Update synthLoadBalancerTf for routing-driven backends and assets proxy
+  - path: tools/brat/src/providers/cdktf-synth.loadbalancer.routing.test.ts
+    description: Jest snapshot tests ensuring only referenced services and conditional assets-proxy
+acceptance_criteria:
+  - Dry-run plan shows only necessary NEGs and backend services; assets proxy present when bucket routing exists
+  - Services referenced in routing that are not active: true are ignored in synthesis (no NEGs/backends created)
+  - Unit tests pass and snapshots are stable
+validate_script: planning/sprint-22-b91e6c/validate_deliverable.sh
+links:
+  implementation_plan: planning/sprint-22-b91e6c/sprint-execution-plan.md
+  backlog: planning/sprint-22-b91e6c/backlog.md
+  request_log: planning/sprint-22-b91e6c/request-log.md
+  publication: planning/sprint-22-b91e6c/publication.yaml
+  verification_report: planning/sprint-22-b91e6c/verification-report.md
+  retro: planning/sprint-22-b91e6c/retro.md
+  key_learnings: planning/sprint-22-b91e6c/key-learnings.md
