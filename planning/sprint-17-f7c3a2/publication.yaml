@@ -1,0 +1,17 @@
+sprint_id: sprint-17-f7c3a2
+branch: feature/sprint-17-f7c3a2
+pull_request:
+  title: "Sprint 17 Deliverables — Connectors Configurability + Preflight Reinforcement"
+  url: https://github.com/cnavta/BitBrat/compare/main...feature/sprint-17-f7c3a2?expand=1
+  status: open
+  created_at: 2025-11-18T13:02:00Z
+  validated: true
+validation_summary:
+  build: pass
+  tests: pass
+  ci_infra_plan: pending_implementation
+links:
+  execution_plan: planning/sprint-17-f7c3a2/sprint-execution-plan.md
+  backlog: planning/sprint-17-f7c3a2/backlog.md
+  verification_report: planning/sprint-17-f7c3a2/verification-report.md
+  retro: planning/sprint-17-f7c3a2/retro.md

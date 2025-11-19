@@ -1,0 +1,54 @@
+sprint_id: sprint-20-d4a9f0
+started_at: 2025-11-18T00:00:00Z
+objective: "Sprint 20 — Schema and Cross-Reference Validation (routing + buckets)"
+status: completed
+ended_at: 2025-11-18T14:48:00Z
+deliverables:
+  - id: s20-execution-plan
+    title: "Sprint 20 Execution Plan"
+    type: docs
+    paths:
+      - planning/sprint-20-d4a9f0/sprint-execution-plan.md
+    acceptance_criteria:
+      - "Plan documents objective, deliverables, acceptance criteria, testing, DoD."
+      - "Aligns to architecture.yaml and Sprint 17 plan (Sprint 20 section)."
+  - id: s20-trackable-backlog
+    title: "Trackable Backlog for Sprint 20"
+    type: docs
+    paths:
+      - planning/sprint-20-d4a9f0/backlog.md
+    acceptance_criteria:
+      - "Tasks have IDs, status markers, acceptance criteria, and traceability."
+  - id: s20-schema-and-validation
+    title: "Schema structures and cross-reference validation"
+    type: code
+    paths:
+      - tools/brat/src/config/schema.ts
+    acceptance_criteria:
+      - "infrastructure.resources supports object-store/cloud-storage and load-balancer/global-external-application-lb."
+      - "XOR validation of routing rules (service vs bucket)."
+      - "Cross references validated; metadata and warnings collected."
+  - id: s20-tests
+    title: "Unit tests for routing schema and validation"
+    type: tests
+    paths:
+      - tools/brat/src/config/schema.routing.test.ts
+    acceptance_criteria:
+      - "Valid and invalid cases covered; deprecation warning asserted."
+  - id: s20-verification-report
+    title: "Sprint 20 Verification Report"
+    type: docs
+    paths:
+      - planning/sprint-20-d4a9f0/verification-report.md
+  - id: s20-retro
+    title: "Sprint 20 Retrospective"
+    type: docs
+    paths:
+      - planning/sprint-20-d4a9f0/retro.md
+  - id: s20-publication
+    title: "Sprint 20 Publication Metadata"
+    type: docs
+    paths:
+      - planning/sprint-20-d4a9f0/publication.yaml
+links:
+  architecture: "../..//architecture.yaml"

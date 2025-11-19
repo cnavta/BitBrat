@@ -28,6 +28,10 @@ steps:
     name: 'gcr.io/cloud-builders/npm'
     args: ['run', 'brat', '--', 'infra', 'plan', 'connectors', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']
 
+  - id: Plan buckets (dry-run)
+    name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'brat', '--', 'infra', 'plan', 'buckets', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']
+
   - id: Plan load balancer (dry-run)
     name: 'gcr.io/cloud-builders/npm'
     args: ['run', 'brat', '--', 'infra', 'plan', 'lb', '--env', '$_ENV', '--project-id', '$_PROJECT_ID', '--dry-run']

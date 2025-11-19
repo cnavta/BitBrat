@@ -111,6 +111,41 @@ This index tracks sprint deliverables and links.
   - PR: pending
   - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-6-d7e4b0?expand=1
 
+## Sprint 23 — URL Map Renderer & Importer Enhancements (sprint-23-cd12f4)
+- Objective: Render URL Map from routing, bucket support via assets proxy, importer guard enhancements.
+- Artifacts:
+  - Planning:
+    - [sprint-execution-plan.md](sprint-23-cd12f4/sprint-execution-plan.md)
+    - [sprint-manifest.yaml](sprint-23-cd12f4/sprint-manifest.yaml)
+    - [backlog.md](sprint-23-cd12f4/backlog.md)
+    - [verification-report.md](sprint-23-cd12f4/verification-report.md)
+    - [retro.md](sprint-23-cd12f4/retro.md)
+    - [publication.yaml](sprint-23-cd12f4/publication.yaml)
+- Publication:
+  - Branch: `feature/sprint-23-cd12f4`
+  - PR: pending (compare link below)
+  - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-23-cd12f4?expand=1
+
+
+## Sprint 24 — Migration, CI and Documentation (sprint-24-e3f9a1)
+- Objective: Finalize migration from lb.services[] to routing-driven config; extend CI to plan buckets; add migration and assets proxy docs.
+- Artifacts:
+  - Planning:
+    - [sprint-execution-plan.md](sprint-24-e3f9a1/sprint-execution-plan.md)
+    - [sprint-manifest.yaml](sprint-24-e3f9a1/sprint-manifest.yaml)
+    - [backlog.md](sprint-24-e3f9a1/backlog.md)
+    - [request-log.md](sprint-24-e3f9a1/request-log.md)
+    - [migration-notes.md](sprint-24-e3f9a1/migration-notes.md)
+    - [assets-proxy-expectations.md](sprint-24-e3f9a1/assets-proxy-expectations.md)
+    - [diagnostic-command-spec.md](sprint-24-e3f9a1/diagnostic-command-spec.md)
+    - [verification-report.md](sprint-24-e3f9a1/verification-report.md)
+    - [retro.md](sprint-24-e3f9a1/retro.md)
+- Publication:
+  - Branch: `feature/sprint-24-e3f9a1`
+  - PR: pending (compare view)
+  - [publication.yaml](sprint-24-e3f9a1/publication.yaml)
+  - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-24-e3f9a1?expand=1
+
 
 ## Sprint 7 — CDKTF Scaffolding and CI Wiring (sprint-7-a13b2f)
 - Objective: Plan-only — create an implementation plan for CDKTF scaffolding and CI dry-run wiring for network and load balancer stacks; no resources created.
@@ -272,9 +307,10 @@ This index tracks sprint deliverables and links.
     - [sprint-manifest.yaml](sprint-15-b4d9e6/sprint-manifest.yaml)
     - [request-log.md](sprint-15-b4d9e6/request-log.md)
     - [validate_deliverable.sh](sprint-15-b4d9e6/validate_deliverable.sh)
+    - [verification-report.md](sprint-15-b4d9e6/verification-report.md)
 - Publication:
   - Branch: `feature/sprint-15-b4d9e6`
-  - PR: pending
+  - PR: open (compare view)
   - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-15-b4d9e6?expand=1
 
 
@@ -293,3 +329,77 @@ This index tracks sprint deliverables and links.
   - Branch: `feature/sprint-16-e3f9a1`
   - PR: open (compare view)
   - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-16-e3f9a1?expand=1
+
+
+## Sprint 17 — Connectors Configurability + Preflight Reinforcement (sprint-17-f7c3a2)
+- Objective: Make connector ip_cidr_range and sizing overlay-driven and reinforce preflight to require connectors presence per targeted region; planning artifacts completed this step.
+- Artifacts:
+  - Planning:
+    - [sprint-execution-plan.md](sprint-17-f7c3a2/sprint-execution-plan.md)
+    - [backlog.md](sprint-17-f7c3a2/backlog.md)
+    - [sprint-manifest.yaml](sprint-17-f7c3a2/sprint-manifest.yaml)
+    - [request-log.md](sprint-17-f7c3a2/request-log.md)
+    - [validate_deliverable.sh](sprint-17-f7c3a2/validate_deliverable.sh)
+    - [verification-report.md](sprint-17-f7c3a2/verification-report.md)
+    - [retro.md](sprint-17-f7c3a2/retro.md)
+    - [publication.yaml](sprint-17-f7c3a2/publication.yaml)
+- Publication:
+  - Branch: `feature/sprint-17-f7c3a2`
+  - PR: open (compare view)
+  - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-17-f7c3a2?expand=1
+
+## Sprint 20 — Schema and Cross-Reference Validation (sprint-20-d4a9f0)
+- Objective: Extend config schema to model load-balancer routing and object-store resources; validate cross-references; emit deprecation warning when lb.services[] co-exists with routing-driven resources.
+- Artifacts:
+  - Planning:
+    - [sprint-execution-plan.md](sprint-20-d4a9f0/sprint-execution-plan.md)
+    - [backlog.md](sprint-20-d4a9f0/backlog.md)
+    - [sprint-manifest.yaml](sprint-20-d4a9f0/sprint-manifest.yaml)
+    - [request-log.md](sprint-20-d4a9f0/request-log.md)
+    - [verification-report.md](sprint-20-d4a9f0/verification-report.md)
+    - [retro.md](sprint-20-d4a9f0/retro.md)
+    - [publication.yaml](sprint-20-d4a9f0/publication.yaml)
+    - [validate_deliverable.sh](sprint-20-d4a9f0/validate_deliverable.sh)
+  - Notes:
+    - Upstream design and plan under sprint-17-f7c3a2 (Sprint 20 section)
+- Publication:
+  - Branch: `feature/sprint-20-d4a9f0`
+  - PR: pending
+  - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-20-d4a9f0?expand=1
+
+
+## Sprint 21 — Buckets CDKTF Module (sprint-21-a7c4e1)
+- Objective: Provision GCS buckets declared as object-store resources with secure defaults, labels, and outputs using a new CDKTF module.
+- Artifacts:
+  - Planning:
+    - [sprint-execution-plan.md](sprint-21-a7c4e1/sprint-execution-plan.md)
+    - [backlog.md](sprint-21-a7c4e1/backlog.md)
+    - [sprint-manifest.yaml](sprint-21-a7c4e1/sprint-manifest.yaml)
+    - [request-log.md](sprint-21-a7c4e1/request-log.md)
+    - [validate_deliverable.sh](sprint-21-a7c4e1/validate_deliverable.sh)
+    - [verification-report.md](sprint-21-a7c4e1/verification-report.md)
+    - [retro.md](sprint-21-a7c4e1/retro.md)
+    - [publication.yaml](sprint-21-a7c4e1/publication.yaml)
+- Publication:
+  - Branch: `feature/sprint-21-a7c4e1`
+  - PR: pending
+  - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-21-a7c4e1?expand=1
+
+
+  ## Sprint 22 — LB Synth: Routing-Driven Backends and Assets Proxy (sprint-22-b91e6c)
+  - Objective: Update LB synth to derive backends from routing and add assets-proxy when bucket routing exists; emit outputs for backends and NEGs.
+  - Artifacts:
+    - Planning:
+      - [sprint-execution-plan.md](sprint-22-b91e6c/sprint-execution-plan.md)
+      - [backlog.md](sprint-22-b91e6c/backlog.md)
+      - [sprint-manifest.yaml](sprint-22-b91e6c/sprint-manifest.yaml)
+      - [request-log.md](sprint-22-b91e6c/request-log.md)
+      - [validate_deliverable.sh](sprint-22-b91e6c/validate_deliverable.sh)
+      - [verification-report.md](sprint-22-b91e6c/verification-report.md)
+      - [retro.md](sprint-22-b91e6c/retro.md)
+      - [publication.yaml](sprint-22-b91e6c/publication.yaml)
+      - [key-learnings.md](sprint-22-b91e6c/key-learnings.md)
+  - Publication:
+    - Branch: `feature/sprint-22-b91e6c`
+    - PR: open (validated)
+    - Open PR here (compare view): https://github.com/cnavta/BitBrat/compare/main...feature/sprint-22-b91e6c?expand=1

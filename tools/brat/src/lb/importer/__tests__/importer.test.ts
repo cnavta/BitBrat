@@ -70,6 +70,9 @@ describe('URL map importer', () => {
   it('imports when drift detected in non-prod and verifies parity', async () => {
     // First describe shows empty
     execMock.mockResolvedValueOnce({ code: 0, stdout: yaml.dump({}), stderr: '' });
+    // Backend existence checks — both backends exist
+    execMock.mockResolvedValueOnce({ code: 0, stdout: 'be-default', stderr: '' }); // describe be-default
+    execMock.mockResolvedValueOnce({ code: 0, stdout: 'be-oauth-flow', stderr: '' }); // describe be-oauth-flow
     // Import succeeds
     execMock.mockResolvedValueOnce({ code: 0, stdout: '', stderr: '' });
     // Second describe returns desired state
@@ -83,5 +86,24 @@ describe('URL map importer', () => {
     const calls = execMock.mock.calls.map((c) => c[1].join(' '));
     const importCall = calls.find((args) => /url-maps import/.test(args));
     expect(importCall).toBeTruthy();
+  });
+
+  it('skips import when referenced backend services are missing', async () => {
+    // Force drift by making current empty
+    execMock.mockResolvedValueOnce({ code: 0, stdout: yaml.dump({}), stderr: '' });
+
+    // Backend existence checks: be-default exists, be-oauth-flow missing
+    // The rendered YAML contains default backend be-default and route to be-oauth-flow
+    execMock.mockResolvedValueOnce({ code: 0, stdout: 'be-default', stderr: '' }); // describe be-default
+    execMock.mockResolvedValueOnce({ code: 1, stdout: '', stderr: 'Not found' }); // describe be-oauth-flow
+
+    const res = await importUrlMap({ projectId: 'demo-project', env: 'dev', urlMapName: 'bitbrat-global-url-map', sourceYamlPath: urlMapFile, dryRun: false });
+    expect(res.changed).toBe(false);
+    expect(res.message).toMatch(/Referenced backend services not found/);
+
+    // Ensure no import attempt occurred
+    const calls = execMock.mock.calls.map((c: any[]) => c[1].join(' '));
+    const importCall = calls.find((args: string) => /url-maps import/.test(args));
+    expect(importCall).toBeUndefined();
   });
 });
