@@ -2,13 +2,20 @@ import express, { Express, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import type { IConfig } from '../types';
+import { buildConfig, safeConfig } from './config';
+import { Logger } from './logging';
 
-export type ExpressSetup = (app: Express) => void;
+export type ExpressSetup = (app: Express, cfg: IConfig) => void;
 
 export interface BaseServerOptions {
   serviceName?: string;
   setup?: ExpressSetup;
   healthPaths?: string[]; // override default health paths if provided
+  /** Optional overrides merged into env-derived config */
+  configOverrides?: Partial<IConfig>;
+  /** Optional configuration validator (throws on error) */
+  validateConfig?: (cfg: IConfig) => void;
 }
 
 /**
@@ -21,15 +28,32 @@ export interface BaseServerOptions {
 export class BaseServer {
   private readonly app: Express;
   private readonly serviceName: string;
+  private readonly config: IConfig;
+  private readonly logger: Logger;
 
   constructor(opts: BaseServerOptions = {}) {
     this.app = express();
     this.serviceName = opts.serviceName || process.env.SERVICE_NAME || 'service';
 
+    // Build typed config once for the server lifetime
+    this.config = buildConfig(process.env, opts.configOverrides || {});
+    // Create a service-scoped, pre-configured logger
+    this.logger = new Logger(this.config.logLevel, this.serviceName);
+    // Expose logger (and config/service) via app.locals for downstream access
+    (this.app as any).locals = this.app.locals || {};
+    (this.app as any).locals.logger = this.logger;
+    (this.app as any).locals.config = this.config;
+    (this.app as any).locals.serviceName = this.serviceName;
+
+    // Allow service implementation to assert required config
+    if (typeof opts.validateConfig === 'function') {
+      opts.validateConfig(this.config);
+    }
+
     this.registerHealth(opts.healthPaths);
 
     if (typeof opts.setup === 'function') {
-      opts.setup(this.app);
+      opts.setup(this.app, this.config);
     }
   }
 
@@ -38,13 +62,22 @@ export class BaseServer {
     return this.app;
   }
 
+  /** Returns the server's config */
+  getConfig(): IConfig {
+    return this.config;
+  }
+
+  /** Returns the server's service-scoped logger */
+  public getLogger(): Logger {
+    return this.logger;
+  }
+
   /** Starts the HTTP server on the given port and optional host */
   async start(port: number, host = '0.0.0.0'): Promise<void> {
     await new Promise<void>((resolve) => {
       this.app.listen(port, host, () => resolve());
     });
-    // eslint-disable-next-line no-console
-    console.log(`[${this.serviceName}] listening on ${host}:${port}`);
+    this.logger.info('listening', { host, port });
   }
 
   private buildHealthBody() {
@@ -74,6 +107,21 @@ export class BaseServer {
     // Root route for quick sanity
     this.app.get('/', (_req: Request, res: Response) => {
       res.status(200).json({ message: `${this.serviceName} up`, ...this.buildHealthBody() });
+    });
+
+    // Default debug endpoint for redacted configuration
+    this.app.get('/_debug/config', (_req: Request, res: Response) => {
+      try {
+        const requiredEnv = BaseServer.computeRequiredKeysFromArchitecture(this.serviceName);
+        res.status(200).json({
+          service: this.serviceName,
+          config: safeConfig(this.config),
+          requiredEnv,
+        });
+      } catch (e: any) {
+        this.logger.warn('debug_config_endpoint_error', { error: e?.message || String(e) });
+        res.status(500).json({ error: 'debug_config_unavailable' });
+      }
     });
   }
 

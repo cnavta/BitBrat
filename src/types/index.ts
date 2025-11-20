@@ -4,51 +4,44 @@
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
+/**
+ * Central application configuration object.
+ * All services should obtain runtime configuration via the config framework (src/common/config.ts)
+ * and use this interface to ensure type safety and traceability.
+ */
 export interface IConfig {
+  /** Service HTTP port */
   port: number;
+  /** Log verbosity */
   logLevel: LogLevel;
-  // Twitch config (Epic 2)
-  twitchEnabled: boolean;
+
+  /** Twitch integration master switch */
+  twitchEnabled?: boolean;
+  /** Optional bot username (IRC) */
   twitchBotUsername?: string;
+  /** Twitch application client id */
   twitchClientId?: string;
+  /** Twitch application client secret (sensitive) */
   twitchClientSecret?: string; // secret
+  /** Explicit redirect URI override for OAuth callbacks */
   twitchRedirectUri?: string;
+  /** Requested OAuth scopes for Twitch authorization */
   twitchScopes: string[]; // for OAuth
+  /** Twitch channel list (e.g., ["#mychannel"]) */
   twitchChannels: string[];
-  commandWhitelist: string[];
+
+  /** Whitelisted commands (if permissions are enforced upstream) */
+  commandWhitelist?: string[];
+
+  /** Secret used to sign OAuth state HMAC */
   oauthStateSecret?: string; // secret for state HMAC
-  // Firestore usage and OAuth token persistence
-  firestoreEnabled: boolean;
-  tokenDocPath?: string; // e.g., oauth/twitch/bot (bot chat identity)
-  broadcasterTokenDocPath?: string; // e.g., oauth/twitch/broadcaster (EventSub identity)
-  // Event Router
-  eventRouterMode?: 'inprocess' | 'pubsub';
-  eventRouterTopic?: string;
-  // Epic 3 – Orchestration knobs
-  dryRun?: boolean;
-  responseRate?: number;
-  triggerKeywords?: string[];
-  contextWindowSize?: number;
-  maxReplyLength?: number; // overall cap of a single reply text before splitting
-  ragMaxHighlights?: number; // max number of RAG highlight snippets to include in prompt
-  ragMaxFacts?: number; // max number of user/channel facts to include in prompt
-  rateLimitWindowMs?: number;
-  rateLimitMaxResponses?: number;
-  userCooldownMs?: number;
-  blocklistTerms?: string[];
-  // Twitch message constraints
-  twitchMaxMessageLength?: number; // per-message cap for Twitch chat (default ~480)
-  replyChunkDelayMs?: number; // small delay between multi-message sends
-  // Epic 4 – LLM settings
-  openaiApiKey?: string;
-  openaiModel?: string;
-  openaiTimeoutMs?: number;
-  openaiMaxRetries?: number;
-  botPersonalityName?: string;
-  // Fallback replies used when LLM errors out
-  fallbackReplies?: string[];
-  // Moderation / Spam Guard
-  spamGuardEnabled?: boolean;
+
+  /** Enable Firestore usage for token storage and other persistence */
+  firestoreEnabled?: boolean;
+  /** Firestore logical document path for the bot token (without trailing '/token') */
+  tokenDocPath?: string;
+  /** Firestore logical document path for the broadcaster token (without trailing '/token') */
+  broadcasterTokenDocPath?: string;
 }
 
 export interface TwitchTokenData {
