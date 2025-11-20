@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { IConfig, ITokenStore, TwitchTokenData } from '../types';
 import { logger } from '../common/logging';
+import { BaseServer } from '../common/base-server';
 
 function hmacSHA256(secret: string, data: string) {
   return crypto.createHmac('sha256', secret).update(data).digest('hex');
@@ -48,12 +49,49 @@ function computeBaseUrl(req: import('express').Request): string {
   return `${proto}://${host}`;
 }
 
+function interpolateEnv(str: string): string {
+  if (!str) return str;
+  // Supports ${VAR} and ${VAR:-default}
+  return str.replace(/\$\{([A-Z0-9_]+)(?::-(.*?))?\}/gi, (_m, varName: string, defVal?: string) => {
+    const v = process.env[varName];
+    if (v == null || v === '') return defVal ?? '';
+    return String(v);
+  });
+}
+
+function resolveLbBaseUrl(): string | null {
+  try {
+    const arch: any = BaseServer.loadArchitectureYaml?.();
+    const domainRaw: string | undefined = arch?.infrastructure?.['main-load-balancer']?.routing?.default_domain;
+    if (domainRaw && typeof domainRaw === 'string') {
+      const domain = interpolateEnv(domainRaw);
+      if (domain) {
+        // Assume HTTPS for public LB
+        return `https://${domain}`;
+      }
+    }
+  } catch (e: any) {
+    // Do not log loudly here; fall back to header-derived computation
+  }
+  return null;
+}
+
+function computeRedirectUri(cfg: IConfig, req: import('express').Request, basePath: string): string {
+  // Explicit override wins fully (treat as complete callback URL)
+  if (cfg.twitchRedirectUri) return cfg.twitchRedirectUri;
+  // Prefer architecture.yaml load balancer default domain when available
+  const lbBase = resolveLbBaseUrl();
+  if (lbBase) return `${lbBase}${basePath}/callback`;
+  // Fallback to request headers / x-forwarded
+  const baseUrl = computeBaseUrl(req);
+  return `${baseUrl}${basePath}/callback`;
+}
+
 export function getAuthUrl(cfg: IConfig, req: import('express').Request, basePath: string = '/oauth/twitch'): string {
   if (!cfg.twitchClientId) {
     throw new Error('Missing TWITCH_CLIENT_ID');
   }
-  const baseUrl = computeBaseUrl(req);
-  const redirectUri = cfg.twitchRedirectUri || `${baseUrl}${basePath}/callback`;
+  const redirectUri = computeRedirectUri(cfg, req, basePath);
   const state = generateState(cfg);
   return buildAuthUrl(cfg, state, redirectUri);
 }
@@ -135,8 +173,7 @@ export function mountTwitchOAuthRoutes(app: import('express').Express, cfg: ICon
     }
     if (!code) return res.status(400).send('Missing code');
     try {
-      const baseUrl = computeBaseUrl(req);
-      const redirectUri = cfg.twitchRedirectUri || `${baseUrl}${basePath}/callback`;
+      const redirectUri = computeRedirectUri(cfg, req, basePath);
       const token = await exchangeCodeForToken(cfg, code, redirectUri);
       await tokenStore.setToken(token);
       res.status(200).send('Twitch authentication successful. You can close this window.');

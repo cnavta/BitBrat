@@ -1,0 +1,128 @@
+sprint_id: sprint-18-a6c9d2
+generated_at: 2025-11-19T19:47:00Z
+owner: junie
+epic: oauth-flow service
+methodology: kanban
+
+items:
+  - id: OF-1
+    title: Approve Sprint Execution Plan and Backlog
+    type: chore
+    priority: P0
+    estimate: 0.5d
+    status: completed
+    description: Review and approve sprint-execution-plan.md and backlog.yaml to begin implementation per Sprint Protocol v2.2.
+    acceptance:
+      - Plan reviewed and approved by product/architecture
+      - Request log updated with approval
+    files:
+      - planning/sprint-18-a6c9d2/sprint-execution-plan.md
+      - planning/sprint-18-a6c9d2/backlog.yaml
+
+  - id: OF-2
+    title: Mount Twitch OAuth routes for Bot identity
+    type: feature
+    priority: P0
+    estimate: 0.5d
+    status: completed
+    description: Use mountTwitchOAuthRoutes with a FirestoreTokenStore at TOKEN_DOC_PATH (default oauth/twitch/bot) under base /oauth/twitch/bot.
+    dependencies: [OF-1]
+    acceptance:
+      - GET /oauth/twitch/bot/start returns 302 (or JSON url)
+      - GET /oauth/twitch/bot/callback persists token at {TOKEN_DOC_PATH}/token
+      - Health endpoints continue to pass
+    files:
+      - src/apps/oauth-service.ts
+      - src/services/twitch-oauth.ts
+      - src/services/firestore-token-store.ts
+
+  - id: OF-3
+    title: Mount Twitch OAuth routes for Broadcaster identity
+    type: feature
+    priority: P0
+    estimate: 0.5d
+    status: completed
+    description: Use mountTwitchOAuthRoutes with a FirestoreTokenStore at BROADCASTER_TOKEN_DOC_PATH (default oauth/twitch/broadcaster) under base /oauth/twitch/broadcaster.
+    dependencies: [OF-1]
+    acceptance:
+      - GET /oauth/twitch/broadcaster/start returns 302 (or JSON url)
+      - GET /oauth/twitch/broadcaster/callback persists token at {BROADCASTER_TOKEN_DOC_PATH}/token
+      - Health endpoints continue to pass
+    files:
+      - src/apps/oauth-service.ts
+      - src/services/twitch-oauth.ts
+      - src/services/firestore-token-store.ts
+
+  - id: OF-4
+    title: Unit tests for OAuth start and callback flows
+    type: test
+    priority: P0
+    estimate: 0.5d
+    status: completed
+    description: Add Jest tests that validate getAuthUrl composition, state verification error paths, and callback happy path with mocked fetch and token store.
+    dependencies: [OF-2, OF-3]
+    acceptance:
+      - New tests added and passing
+      - Coverage includes state tamper/expiry cases
+    files:
+      - src/services/twitch-oauth.test.ts
+      - src/apps/oauth-service.oauth-routes.test.ts
+
+  - id: OF-5
+    title: Local validation script run and CI green
+    type: chore
+    priority: P1
+    estimate: 0.25d
+    status: completed
+    description: Run validate_deliverable.sh at root and sprint level; ensure build and tests pass. Adjust scripts if needed.
+    dependencies: [OF-4]
+    acceptance:
+      - validate_deliverable.sh prints success
+      - npm run build and npm test succeed in CI
+    files:
+      - validate_deliverable.sh
+      - planning/sprint-18-a6c9d2/validate_deliverable.sh
+
+  - id: OF-6
+    title: Cloud Build dry-run for oauth-flow
+    type: chore
+    priority: P1
+    estimate: 0.25d
+    status: planned
+    description: Execute cloudbuild.oauth-flow.yaml in dry-run or config validation mode and capture results in request-log.
+    dependencies: [OF-5]
+    acceptance:
+      - Dry-run shows successful build steps (no deploy credentials required)
+      - Results logged in planning/sprint-18-a6c9d2/request-log.md
+    files:
+      - cloudbuild.oauth-flow.yaml
+      - planning/sprint-18-a6c9d2/request-log.md
+
+  - id: OF-7
+    title: Publish PR with sprint deliverables
+    type: chore
+    priority: P1
+    estimate: 0.25d
+    status: planned
+    description: Create feature branch, commit changes, push and open PR. Include links to planning docs, validation summary, and outstanding items.
+    dependencies: [OF-6]
+    acceptance:
+      - PR open and linked in publication.yaml (to be added upon PR creation)
+      - PR body includes DoD checklist and links to docs
+    files:
+      - planning/sprint-18-a6c9d2/sprint-execution-plan.md
+      - planning/sprint-18-a6c9d2/implementation-plan.md
+      - planning/sprint-18-a6c9d2/backlog.yaml
+
+  - id: OF-8
+    title: Deferred — EventSub controller and config module
+    type: spike
+    priority: P3
+    estimate: 1.0d
+    status: deferred
+    description: Scope and plan implementation of src/services/twitch-eventsub.ts and a unified config loader (src/common/config.ts) for future sprint.
+    dependencies: []
+    acceptance:
+      - Spike notes added to planning/reference or next sprint planning doc
+    files:
+      - planning/reference/twitch-integration-for-llm-agents.md
