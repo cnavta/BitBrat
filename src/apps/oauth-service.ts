@@ -1,61 +1,68 @@
-import express, { Request, Response } from 'express';
+import { mountTwitchOAuthRoutes } from '../services/twitch-oauth';
+import { FirestoreTokenStore } from '../services/firestore-token-store';
+import { IConfig, ITokenStore } from '../types';
+import { assertRequiredSecrets, buildConfig } from '../common/config';
+import { BaseServer } from '../common/base-server';
+import type { Logger } from '../common/logging';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'oauth-flow';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-function ensureRequiredEnv() {
-  const required = ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'OAUTH_STATE_SECRET'];
-  const missing = required.filter((k) => !process.env[k] || String(process.env[k]).trim() === '');
-  if (missing.length > 0) {
-    // eslint-disable-next-line no-console
-    console.error(
-      `[oauth-flow] Missing required environment variables: ${missing.join(', ')}. ` +
-        'These are bound from Secret Manager via Cloud Run. Check secret names/versions and service config.'
-    );
-    process.exit(1);
-  }
-}
-
-function buildHealthBody() {
-  return {
-    status: 'ok',
-    service: SERVICE_NAME,
-    timestamp: new Date().toISOString(),
-    uptimeSec: Math.round(process.uptime()),
-  };
-}
-
-export function createApp() {
-  const app = express();
-
-  // Liveness: process is up
-  app.get('/livez', (_req: Request, res: Response) => {
-    res.status(200).json(buildHealthBody());
+export function createApp(options?: { botStore?: ITokenStore; broadcasterStore?: ITokenStore; config?: Partial<IConfig> }) {
+  const server = new BaseServer({
+    serviceName: SERVICE_NAME,
+    configOverrides: { port: PORT, ...(options?.config || {}) },
+    setup: (app, cfg) => {
+      try {
+        const botStore: ITokenStore = options?.botStore || new FirestoreTokenStore(cfg.tokenDocPath!);
+        const broadcasterStore: ITokenStore = options?.broadcasterStore || new FirestoreTokenStore(cfg.broadcasterTokenDocPath!);
+        // Mount routes for both identities
+        mountTwitchOAuthRoutes(app, cfg, botStore, '/oauth/twitch/bot');
+        mountTwitchOAuthRoutes(app, cfg, broadcasterStore, '/oauth/twitch/broadcaster');
+      } catch (e) {
+        const log: Logger | undefined = (app as any).locals?.logger;
+        if (log) {
+          log.error('Failed to mount OAuth routes', { error: (e as any)?.message || String(e) });
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('[oauth-flow] Failed to mount OAuth routes', e);
+        }
+      }
+    },
   });
-
-  // Readiness: for now, always ready once app is created; extend in later sprints
-  app.get('/readyz', (_req: Request, res: Response) => {
-    res.status(200).json(buildHealthBody());
-  });
-
-  // Health: generic
-  app.get('/healthz', (_req: Request, res: Response) => {
-    res.status(200).json(buildHealthBody());
-  });
-
-  // Root landing for quick sanity
-  app.get('/', (_req: Request, res: Response) => {
-    res.status(200).json({ message: `${SERVICE_NAME} up`, ...buildHealthBody() });
-  });
-
-  return app;
+  return server.getApp();
 }
 
 if (require.main === module) {
-  ensureRequiredEnv();
-  const app = createApp();
-  app.listen(PORT, () => {
-    // eslint-disable-next-line no-console
-    console.log(`[${SERVICE_NAME}] listening on port ${PORT}`);
+  const server = new BaseServer({
+    serviceName: SERVICE_NAME,
+    configOverrides: { port: PORT },
+    validateConfig: (cfg) => assertRequiredSecrets(cfg),
+    setup: (app, cfg) => {
+      try {
+        const botStore: ITokenStore = new FirestoreTokenStore(cfg.tokenDocPath!);
+        const broadcasterStore: ITokenStore = new FirestoreTokenStore(cfg.broadcasterTokenDocPath!);
+        mountTwitchOAuthRoutes(app, cfg, botStore, '/oauth/twitch/bot');
+        mountTwitchOAuthRoutes(app, cfg, broadcasterStore, '/oauth/twitch/broadcaster');
+      } catch (e) {
+        const log: Logger | undefined = (app as any).locals?.logger;
+        if (log) {
+          log.error('Failed to mount OAuth routes at startup', { error: (e as any)?.message || String(e) });
+        } else {
+          // eslint-disable-next-line no-console
+          console.error('[oauth-flow] Failed to mount OAuth routes at startup', e);
+        }
+      }
+    },
+  });
+  const cfg: IConfig = buildConfig(process.env, { port: PORT });
+  server.start(cfg.port).catch((err) => {
+    try {
+      (server.getLogger && server.getLogger()).error('failed to start', { error: (err as any)?.message || String(err) });
+    } catch {
+      // eslint-disable-next-line no-console
+      console.error(`[${SERVICE_NAME}] failed to start`, err);
+    }
+    process.exit(1);
   });
 }

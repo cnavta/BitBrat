@@ -1,0 +1,31 @@
+sprint_id: sprint-18-a6c9d2
+objective: "Design and plan full implementation of the oauth-flow service (Twitch OAuth2)"
+status: active
+start_date: 2025-11-19
+owner: junie
+scope:
+  services:
+    - oauth-flow
+artifacts:
+  - implementation-plan.md
+  - oauth-flow-technical-architecture.md
+  - request-log.md
+  - validate_deliverable.sh
+  - sprint-execution-plan.md
+  - backlog.yaml
+references:
+  - ../../architecture.yaml
+  - ../../src/services/twitch-oauth.ts
+  - ../../src/services/firestore-token-store.ts
+  - ../../src/apps/oauth-service.ts
+  - ../../src/types/index.ts
+  - ../../planning/reference/firestore-oauth-token-storage.md
+  - ../../planning/reference/twitch-token-storage-firestore.md
+  - ../../planning/reference/twitch-integration-for-llm-agents.md
+acceptance_criteria:
+  - "A comprehensive technical architecture document for oauth-flow exists and aligns with architecture.yaml"
+  - "Missing-code callouts are documented with file paths and impact"
+  - "Repo builds and tests pass"
+definition_of_done:
+  - "Documentation committed under planning/ with traceability to this sprint"
+  - "validate_deliverable.sh passes in this sprint folder"
