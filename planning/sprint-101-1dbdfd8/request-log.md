@@ -37,4 +37,25 @@
   - git commit -m "sprint-101-1dbdfd8: implement S101-001..S101-008 (DLQ constant, json-logic-js dep, evaluator, rule loader, and unit tests); update backlog statuses"
   - git rev-parse --short HEAD
  - Result:
+  - commit: 824c43c
+
+## 2025-11-26 14:46
+- Prompt: Install dependencies and validate with tests and build
+- Interpretation: Ensure json-logic-js is installed; run Jest and TypeScript build
+- Shell:
+  - npm install
+  - npm test
+  - npm run build
+- Result:
+  - tests: passed
+  - build: succeeded
+
+## 2025-11-26 14:48
+- Prompt: Update backlog statuses and manifest; commit docs
+- Interpretation: Mark S101-001..008, S101-010..012 as done; set manifest to implementing; extend request-log
+- Shell/Git:
+  - git add planning/sprint-101-1dbdfd8/*
+  - git commit -m "sprint-101-1dbdfd8: mark S101-001..008 and 010..012 done; manifest implementing; extend request-log with validation details"
+  - git rev-parse --short HEAD
+- Result:
   - commit: <pending>

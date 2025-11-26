@@ -104,7 +104,7 @@ items:
       - Docs updated with module purpose and usage notes
     estimate: 1
     dependencies: []
-    status: planned
+    status: done
 
   - id: S101-011
     title: Traceability — request-log updates
@@ -113,7 +113,7 @@ items:
       - Log contains timestamped entries for major actions
     estimate: 1
     dependencies: []
-    status: planned
+    status: done
 
   - id: S101-012
     title: Sprint validation script
@@ -122,4 +122,4 @@ items:
       - Script exists and is executable; calls ../../validate_deliverable.sh
     estimate: 1
     dependencies: []
-    status: planned
+    status: done
