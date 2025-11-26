@@ -6,7 +6,7 @@ objective: >
   events against prioritized rules and apply a RoutingSlip accordingly, falling
   back to a configured default when no rules match, then advance the event to
   the first destination.
-status: planning
+status: completed
 branch: feature/sprint-100-e9a29d-event-router-routing-system
 owners:
   - chris@ix-n.com
@@ -18,3 +18,6 @@ artifacts:
   - request-log.md
   - publication.yaml
   - validate_deliverable.sh
+  - verification-report.md
+  - retro.md
+  - key-learnings.md
