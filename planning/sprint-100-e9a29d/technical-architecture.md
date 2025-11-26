@@ -22,6 +22,8 @@ Decisions
 - Matching: deterministic, first-match wins, short-circuit.
 - RoutingSlip: assigned to event.envelope.routingSlip using existing types in src/types/events.ts.
 - Advance: publish to the nextTopic of the first RoutingStep.
+ - Add constant INTERNAL_ROUTER_DLQ_V1 = "internal.router.dlq.v1" to src/types/events.ts. (Answered: Yes)
+ - Downstream step status transitions are handled by the receiving service (owner of the step). (Answered: Yes)
 
 Types and Contracts
 - Use EnvelopeV1, RoutingStep, InternalEventV1 from src/types/events.ts.
@@ -105,5 +107,5 @@ Testing Strategy (implementation phase)
 - Bus: mock publisher, assert publish to expected topic.
 
 Open Questions
-- Should a constant INTERNAL_ROUTER_DLQ_V1 be added to src/types/events.ts? Proposed value: "internal.router.dlq.v1".
- - Downstream step status transitions: confirm that the receiving service is responsible for marking its own step to OK/ERROR.
+- [Resolved] Should a constant INTERNAL_ROUTER_DLQ_V1 be added to src/types/events.ts? Answer: Yes. Value: "internal.router.dlq.v1".
+- [Resolved] Downstream step status transitions: Answer: Yes — the receiving service is responsible for marking its own step to OK/ERROR.

@@ -13,6 +13,8 @@ owners:
 artifacts:
   - technical-architecture.md
   - implementation-plan.md
+  - sprint-execution-plan.md
+  - trackable-backlog.yaml
   - request-log.md
   - publication.yaml
   - validate_deliverable.sh
