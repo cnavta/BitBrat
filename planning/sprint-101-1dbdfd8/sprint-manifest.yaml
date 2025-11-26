@@ -1,6 +1,6 @@
 sprint_id: sprint-101-1dbdfd8
 branch: feature/sprint-101-1dbdfd8-foundations-ruleloader-evaluator-constants
-status: planning
+status: implementing
 objective: >-
   Foundations for routing engine: RuleLoader, JsonLogic evaluator, and constants
   per sprint-100 technical architecture. No message flow wiring yet.

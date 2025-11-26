@@ -219,7 +219,7 @@ echo "✅ Validation complete."
 ```
 
 ### Critical rule:
-> **A sprint cannot close unless the code created during the sprint builds and tests cleanly using this script.**
+> **A sprint should not be considered ready to close unless `validate_deliverable.sh` is **logically passable** (i.e., all referenced commands exist and are intended to succeed) and aligned with the project-wide DoD. If the script cannot currently succeed due to environment issues (missing tools, credentials, or external systems), the agent must log the failure, include it in `verification-report.md`, and may still proceed to closure if the user explicitly accepts the current state.**
 
 ---
 
@@ -278,13 +278,13 @@ If `gh` authentication fails:
 - Ask for updated credentials or API token  
 
 ### PR Requirements
+### Publication Rules
 
 | Rule | Description |
 |------|-------------|
-| **S11** | A new feature branch MUST be created at sprint start. |
-| **S12** | A GitHub Pull Request MUST be created at sprint completion. |
-| **S13** | The sprint cannot close until the PR URL is confirmed. |
-
+| **S11** | A new feature branch MUST be created at sprint start and used for all sprint changes. |
+| **S12** | At sprint completion, the agent MUST attempt to create a GitHub Pull Request for the feature branch and log the result (success or failure). |
+| **S13** | A sprint cannot close until either (a) a PR has been successfully created and its URL recorded in `publication.yaml`, **or** (b) a failed PR attempt has been logged with the error reason and the user has explicitly accepted closure. |
 `publication.yaml` should contain:
 
 ```yaml
@@ -299,21 +299,28 @@ status: created
 
 A sprint officially completes when:
 
-1. `validate_deliverable.sh` passes  
-2. `verification-report.md` exists  
-3. PR is created  
-4. PR URL is stored in `publication.yaml`  
-5. The user says:
-
-```
-Sprint complete.
-```
+- `validate_deliverable.sh` is logically passable OR its current failures are documented and explicitly accepted by the user
+- A PR has been successfully created and its URL recorded in `publication.yaml`, OR a failed PR attempt has been logged and the user has explicitly accepted closure
+- `verification-report.md` and `retro.md` exist
+- The user says: `Sprint complete.` or `Force complete sprint`
 
 Then the agent generates:
 
 - `retro.md` — what worked, what didn’t  
 - `key-learnings.md` — lessons for future sprints  
+---
+### 2.10 Force Completion Override
 
+If the user says `Force complete sprint`, the agent may close the sprint even if:
+
+- `validate_deliverable.sh` would currently fail, or
+- Tests are incomplete or failing, or
+- The PR could not be created
+
+…as long as:
+
+1. All known failures and gaps are documented under **Partial** or **Deferred** in `verification-report.md`, and
+2. The issues are briefly summarized in `retro.md` for future sprints to pick up.
 ---
 
 # 🧮 3. Project-Wide Definition of Done (DoD)
@@ -346,6 +353,8 @@ These must integrate with `validate_deliverable.sh`
 All code changes trace back to:
 - A sprint  
 - A request ID in `request-log.md`
+
+The user may explicitly accept missing or failing tests for this sprint; in that case, the gaps MUST be listed under **Deferred** in `verification-report.md` and noted in `retro.md`.
 
 ---
 

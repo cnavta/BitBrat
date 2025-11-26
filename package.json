@@ -23,6 +23,7 @@
     "@twurple/chat": "^7.4.0",
     "express": "^5.1.0",
     "firebase-admin": "^13.5.0",
+    "json-logic-js": "^2.0.2",
     "js-yaml": "^4.1.0",
     "nats": "^2.29.3",
     "pino": "^9.4.0",
