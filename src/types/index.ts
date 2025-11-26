@@ -17,8 +17,14 @@ export interface IConfig {
 
   /** Twitch integration master switch */
   twitchEnabled?: boolean;
+  /** Disable live Twitch connections (useful for tests/CI) */
+  twitchDisableConnect?: boolean;
   /** Optional bot username (IRC) */
   twitchBotUsername?: string;
+  /** Bot access token for IRC-capable identity (secret) */
+  twitchBotAccessToken?: string; // secret
+  /** Bot Twitch user id */
+  twitchBotUserId?: string;
   /** Twitch application client id */
   twitchClientId?: string;
   /** Twitch application client secret (sensitive) */
@@ -42,6 +48,11 @@ export interface IConfig {
   tokenDocPath?: string;
   /** Firestore logical document path for the broadcaster token (without trailing '/token') */
   broadcasterTokenDocPath?: string;
+
+  /** Message bus prefix, e.g., "dev." */
+  busPrefix?: string;
+  /** Default max retries for publishers */
+  publishMaxRetries?: number;
 }
 
 export interface TwitchTokenData {

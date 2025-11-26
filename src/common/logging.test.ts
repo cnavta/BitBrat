@@ -49,7 +49,8 @@ describe('Logger redaction integration', () => {
   });
 
   it('masks sensitive context fields in output', () => {
-    const logger = new Logger('info', 'test');
+    Logger.setServiceName('test');
+    const logger = new Logger('info');
     let line = '';
     console.log = (s: any) => { line = String(s); };
 
@@ -80,7 +81,8 @@ describe('Logger severity mapping for Cloud Logging', () => {
   });
 
   it('emits severity field with correct mapping', () => {
-    const logger = new Logger('debug', 'test');
+    Logger.setServiceName('test');
+    const logger = new Logger('debug');
     let got: any[] = [];
     console.error = (s: any) => { got.push(JSON.parse(String(s))); };
     console.warn = (s: any) => { got.push(JSON.parse(String(s))); };

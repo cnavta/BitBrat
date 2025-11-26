@@ -89,7 +89,7 @@ services:
       - TWITCH_CLIENT_SECRET
 
   event-router:
-    active: false
+    active: true
     description: "Internal event routing service that reads from ingress channel(s) and assigns routing slips."
     entry: src/apps/event-router-service.ts
     topics:
@@ -97,6 +97,7 @@ services:
         - internal.llmbot.v1
       consumes:
         - internal.auth.v1
+        - internal.ingress.v1
 
   llm-bot:
     active: false
@@ -150,6 +151,9 @@ infrastructure:
           # Debug Routes
           - path_prefix: /_debug/ingress/twitch
             rewrite_prefix: /_debug/twitch
+            service: ingress-egress
+          - path_prefix: /_debug/ingress/config
+            rewrite_prefix: /_debug/config
             service: ingress-egress
 
 

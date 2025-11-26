@@ -35,7 +35,10 @@ const ConfigSchema = z.object({
   logLevel: z.custom<LogLevel>().default('info'),
 
   twitchEnabled: z.boolean().optional(),
+  twitchDisableConnect: z.boolean().optional(),
   twitchBotUsername: z.string().optional(),
+  twitchBotAccessToken: z.string().optional(),
+  twitchBotUserId: z.string().optional(),
   twitchClientId: z.string().optional(),
   twitchClientSecret: z.string().optional(),
   twitchRedirectUri: z.string().optional(),
@@ -47,6 +50,9 @@ const ConfigSchema = z.object({
   firestoreEnabled: z.boolean().optional(),
   tokenDocPath: z.string().optional(),
   broadcasterTokenDocPath: z.string().optional(),
+
+  busPrefix: z.string().optional(),
+  publishMaxRetries: z.coerce.number().int().min(1).optional(),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -58,7 +64,10 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     logLevel: parseLogLevel(env.LOG_LEVEL, 'info'),
 
     twitchEnabled: parseBool(env.TWITCH_ENABLED, true),
+    twitchDisableConnect: parseBool(env.TWITCH_DISABLE_CONNECT, false),
     twitchBotUsername: env.TWITCH_BOT_USERNAME,
+    twitchBotAccessToken: env.TWITCH_BOT_ACCESS_TOKEN,
+    twitchBotUserId: env.TWITCH_BOT_USER_ID,
     twitchClientId: env.TWITCH_CLIENT_ID,
     twitchClientSecret: env.TWITCH_CLIENT_SECRET,
     twitchRedirectUri: env.TWITCH_REDIRECT_URI,
@@ -70,6 +79,9 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     firestoreEnabled: parseBool(env.FIRESTORE_ENABLED, true),
     tokenDocPath: env.TOKEN_DOC_PATH || 'oauth/twitch/bot',
     broadcasterTokenDocPath: env.BROADCASTER_TOKEN_DOC_PATH || 'oauth/twitch/broadcaster',
+
+    busPrefix: env.BUS_PREFIX,
+    publishMaxRetries: env.PUBLISH_MAX_RETRIES ? Number(env.PUBLISH_MAX_RETRIES) : undefined,
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last
@@ -99,11 +111,12 @@ export function resetConfig(): void {
 
 /** Safe representation of config for logging: redacts secrets. */
 export function safeConfig(cfg: IConfig = getConfig()): Record<string, unknown> {
-  const { twitchClientSecret, oauthStateSecret, ...rest } = cfg;
+  const { twitchClientSecret, oauthStateSecret, twitchBotAccessToken, ...rest } = cfg;
   return {
     ...rest,
     twitchClientSecret: twitchClientSecret ? '***REDACTED***' : undefined,
     oauthStateSecret: oauthStateSecret ? '***REDACTED***' : undefined,
+    twitchBotAccessToken: twitchBotAccessToken ? '***REDACTED***' : undefined,
   };
 }
 

@@ -68,7 +68,20 @@ export class Logger {
     debug: 3,
   };
 
-  constructor(private level: LogLevel = 'info', private service = 'bitbrat') {}
+  // Global/static service name shared across all logger instances
+  private static serviceName = 'bitbrat';
+
+  static setServiceName(name: string) {
+    if (name && typeof name === 'string') {
+      Logger.serviceName = name;
+    }
+  }
+
+  static getServiceName(): string {
+    return Logger.serviceName;
+  }
+
+  constructor(private level: LogLevel = 'info') {}
 
   setLevel(level: LogLevel) {
     this.level = level;
@@ -81,7 +94,7 @@ export class Logger {
   private base(entry: Record<string, unknown>) {
     return {
       ts: new Date().toISOString(),
-      service: this.service,
+      service: Logger.getServiceName(),
       ...entry,
     };
   }
@@ -127,4 +140,4 @@ export class Logger {
   }
 }
 
-export const logger = new Logger('info');
+export const logger = new Logger(process.env.LOG_LEVEL as LogLevel || 'info');
