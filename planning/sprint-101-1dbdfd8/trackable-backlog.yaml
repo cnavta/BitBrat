@@ -14,7 +14,7 @@ items:
       - TypeScript compiles and existing tests still pass
     estimate: 1
     dependencies: []
-    status: planned
+    status: done
 
   - id: S101-002
     title: Add json-logic-js dependency
@@ -24,7 +24,7 @@ items:
       - Build succeeds (tsc) and tests can import evaluator
     estimate: 1
     dependencies: []
-    status: planned
+    status: done
 
   - id: S101-003
     title: Implement JsonLogicEvaluator module
@@ -35,7 +35,7 @@ items:
       - Handles malformed logic gracefully (returns false, no throw)
     estimate: 3
     dependencies: [S101-002]
-    status: planned
+    status: done
 
   - id: S101-004
     title: Implement RuleLoader warm load from Firestore
@@ -46,7 +46,7 @@ items:
       - In-memory cache sorted ascending by priority
     estimate: 5
     dependencies: []
-    status: planned
+    status: done
 
   - id: S101-005
     title: Implement RuleLoader onSnapshot subscription
@@ -57,7 +57,7 @@ items:
       - Provides getRules() read-only snapshot of current cache
     estimate: 3
     dependencies: [S101-004]
-    status: planned
+    status: done
 
   - id: S101-006
     title: Rule validation and sorting
@@ -67,7 +67,7 @@ items:
       - Sorting stable for equal priorities (tie-break by id ascending)
     estimate: 2
     dependencies: [S101-004]
-    status: planned
+    status: done
 
   - id: S101-007
     title: Unit tests — JsonLogicEvaluator
@@ -76,7 +76,7 @@ items:
       - Jest tests pass covering evaluate() true/false and error resilience
     estimate: 3
     dependencies: [S101-003]
-    status: planned
+    status: done
 
   - id: S101-008
     title: Unit tests — RuleLoader
@@ -86,7 +86,7 @@ items:
       - getRules() returns expected arrays after updates
     estimate: 5
     dependencies: [S101-004, S101-005, S101-006]
-    status: planned
+    status: done
 
   - id: S101-009
     title: Firestore emulator smoke test (optional)
