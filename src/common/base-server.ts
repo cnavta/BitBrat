@@ -16,6 +16,8 @@ export interface BaseServerOptions {
   configOverrides?: Partial<IConfig>;
   /** Optional configuration validator (throws on error) */
   validateConfig?: (cfg: IConfig) => void;
+  /** Optional readiness check used to compute /readyz status (200 if true, 503 if false). */
+  readinessCheck?: () => boolean | Promise<boolean>;
 }
 
 /**
@@ -37,8 +39,9 @@ export class BaseServer {
 
     // Build typed config once for the server lifetime
     this.config = buildConfig(process.env, opts.configOverrides || {});
-    // Create a service-scoped, pre-configured logger
-    this.logger = new Logger(this.config.logLevel, this.serviceName);
+    // Set global logger service name and create a pre-configured logger
+    Logger.setServiceName(this.serviceName);
+    this.logger = new Logger(this.config.logLevel);
     // Expose logger (and config/service) via app.locals for downstream access
     (this.app as any).locals = this.app.locals || {};
     (this.app as any).locals.logger = this.logger;
@@ -50,7 +53,7 @@ export class BaseServer {
       opts.validateConfig(this.config);
     }
 
-    this.registerHealth(opts.healthPaths);
+    this.registerHealth(opts.healthPaths, opts.readinessCheck);
 
     if (typeof opts.setup === 'function') {
       opts.setup(this.app, this.config);
@@ -89,7 +92,7 @@ export class BaseServer {
     };
   }
 
-  private registerHealth(healthPaths?: string[]) {
+  private registerHealth(healthPaths?: string[], readinessCheck?: () => boolean | Promise<boolean>) {
     const [health, ready, live] = healthPaths && healthPaths.length >= 3
       ? healthPaths
       : ['/healthz', '/readyz', '/livez'];
@@ -97,8 +100,17 @@ export class BaseServer {
     this.app.get(health, (_req: Request, res: Response) => {
       res.status(200).json(this.buildHealthBody());
     });
-    this.app.get(ready, (_req: Request, res: Response) => {
-      res.status(200).json(this.buildHealthBody());
+    this.app.get(ready, async (_req: Request, res: Response) => {
+      try {
+        let ok = true;
+        if (typeof readinessCheck === 'function') {
+          ok = await readinessCheck();
+        }
+        const body = { ...this.buildHealthBody(), ready: ok } as any;
+        res.status(ok ? 200 : 503).json(body);
+      } catch (e: any) {
+        res.status(503).json({ ...this.buildHealthBody(), ready: false });
+      }
     });
     this.app.get(live, (_req: Request, res: Response) => {
       res.status(200).json(this.buildHealthBody());

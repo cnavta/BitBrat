@@ -5,13 +5,13 @@ import { assertRequiredSecrets, buildConfig } from '../common/config';
 import { BaseServer } from '../common/base-server';
 import type { Logger } from '../common/logging';
 
-const SERVICE_NAME = process.env.SERVICE_NAME || 'oauth-flow';
-const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
+// Avoid direct env usage in app code; use a stable service name and central Config for port
+const SERVICE_NAME = 'oauth-flow';
 
 export function createApp(options?: { botStore?: ITokenStore; broadcasterStore?: ITokenStore; config?: Partial<IConfig> }) {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
-    configOverrides: { port: PORT, ...(options?.config || {}) },
+    configOverrides: { ...(options?.config || {}) },
     setup: (app, cfg) => {
       try {
         const botStore: ITokenStore = options?.botStore || new FirestoreTokenStore(cfg.tokenDocPath!);
@@ -36,7 +36,7 @@ export function createApp(options?: { botStore?: ITokenStore; broadcasterStore?:
 if (require.main === module) {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
-    configOverrides: { port: PORT },
+    configOverrides: {},
     validateConfig: (cfg) => assertRequiredSecrets(cfg),
     setup: (app, cfg) => {
       try {
@@ -55,7 +55,7 @@ if (require.main === module) {
       }
     },
   });
-  const cfg: IConfig = buildConfig(process.env, { port: PORT });
+  const cfg: IConfig = buildConfig(process.env);
   server.start(cfg.port).catch((err) => {
     try {
       (server.getLogger && server.getLogger()).error('failed to start', { error: (err as any)?.message || String(err) });

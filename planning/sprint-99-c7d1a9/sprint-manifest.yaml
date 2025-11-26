@@ -1,0 +1,57 @@
+sprint_id: sprint-99-c7d1a9
+started_at: 2025-11-21T17:02:00Z
+completed_at: 2025-11-22T17:33:00Z
+owner: chris@ix-n.com
+objective: "Ingress-Egress: Ingest Twitch IRC messages and publish normalized envelopes to internal.ingress.v1"
+status: completed
+architecture_reference: ../../architecture.yaml
+docs:
+  technical_architecture: ./technical-architecture-ingress-egress.md
+  execution_plan: ./execution-plan.md
+  backlog: ./backlog.yaml
+  verification_report: ./verification-report.md
+  publication: ./publication.yaml
+  retro: ./retro.md
+  key_learnings: ./key-learnings.md
+deliverables:
+  - name: Technical Architecture for Twitch IRC ingestion
+    path: ./technical-architecture-ingress-egress.md
+    type: documentation
+  - name: Sprint Execution Plan
+    path: ./execution-plan.md
+    type: documentation
+  - name: Trackable Backlog
+    path: ./backlog.yaml
+    type: documentation
+  - name: Verification Report
+    path: ./verification-report.md
+    type: documentation
+  - name: Publication Metadata
+    path: ./publication.yaml
+    type: documentation
+  - name: Retrospective
+    path: ./retro.md
+    type: documentation
+  - name: Key Learnings
+    path: ./key-learnings.md
+    type: documentation
+acceptance_criteria:
+  - Document details how ingress-egress connects to Twitch IRC via Twurple using Firestore-stored OAuth credentials
+  - Defines envelope normalization schema aligned with platform-overview Example Envelope
+  - Specifies publishing to internal.ingress.v1 using the repository message-bus abstraction
+  - Covers resiliency, observability, configuration, security, and debug endpoints
+  - Clear testing and validation approach; alignment with architecture.yaml
+traceability:
+  issues:
+    - "Start ingress-egress: Twitch IRC ingestion"
+  related_files:
+    - ../../planning/platform-overview.md
+    - ../../src/services/message-bus
+definition_of_done:
+  - Technical architecture doc present and reviewed
+  - Implementation plan, execution plan and backlog committed
+  - Code implemented and unit/integration tests passing
+  - validate_deliverable.sh passes
+  - Verification report created and linked
+  - Publication metadata prepared
+  - Retro and key-learnings authored

@@ -16,5 +16,12 @@
     }
   },
   "include": ["src/**/*", "tools/**/*"],
-  "exclude": ["node_modules", "dist", "deprecated/**/*"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "deprecated/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**"
+  ]
 }
