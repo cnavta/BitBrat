@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "envelope.v1.json",
+  "title": "Envelope V1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "v": { "const": "1" },
+    "source": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "traceId": { "type": "string" },
+    "replyTo": { "type": "string" },
+    "timeoutAt": { "type": "string" },
+    "routingSlip": {
+      "$ref": "routing-slip.v1.json"
+    }
+  },
+  "required": ["v", "source", "correlationId"]
+}

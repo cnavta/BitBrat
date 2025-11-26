@@ -1,0 +1,168 @@
+sprint_id: sprint-99-c7d1a9
+owner: chris@ix-n.com
+status: in_progress
+generated_at: 2025-11-21T17:40:00Z
+
+items:
+  - id: INEG-01
+    title: Create ingress/twitch module scaffolding
+    type: task
+    status: done
+    owner: chris@ix-n.com
+    estimate: 3
+    dependencies: []
+    description: >-
+      Create src/services/ingress/twitch directory with credentials-provider.ts, twitch-irc-client.ts,
+      envelope-builder.ts; add index.ts to export interfaces. No external side-effects yet.
+    acceptance_criteria:
+      - Files and exports exist and compile
+      - Interfaces match architecture and Technical Architecture
+    deliverables:
+      - src/services/ingress/twitch/credentials-provider.ts
+      - src/services/ingress/twitch/twitch-irc-client.ts
+      - src/services/ingress/twitch/envelope-builder.ts
+      - src/services/ingress/twitch/index.ts
+    labels: [ingress, twitch, scaffolding]
+
+  - id: INEG-02
+    title: Implement EnvelopeBuilder for Twitch IRC messages
+    type: feature
+    status: done
+    owner: chris@ix-n.com
+    estimate: 5
+    dependencies: [INEG-01]
+    description: Map Twurple IRC message metadata to the platform Envelope schema (v=1, type external.chat.message.v1).
+    acceptance_criteria:
+      - Envelope contains v, id, correlationId, traceId, timestamp, type, source, user, routingSlip, finalizationDestination, payload
+      - Unit tests cover missing tags, unicode, emotes
+    deliverables:
+      - src/services/ingress/twitch/envelope-builder.ts
+      - src/services/ingress/twitch/envelope-builder.spec.ts
+    labels: [envelope, mapping, unit-test]
+
+  - id: INEG-03
+    title: Implement TwitchCredentialsProvider (stubbed Firestore lookup)
+    type: feature
+    status: done
+    owner: chris@ix-n.com
+    estimate: 3
+    dependencies: [INEG-01]
+    description: >-
+      Implement provider interface with a pluggable lookup strategy. For this sprint, return credentials
+      via env or mocked config; prepare hooks for Firestore retrieval without requiring oauth-flow runtime.
+    acceptance_criteria:
+      - getChatAuth(login) returns accessToken, userId, login
+      - No secrets logged; unit test mocks
+    deliverables:
+      - src/services/ingress/twitch/credentials-provider.ts
+      - src/services/ingress/twitch/credentials-provider.spec.ts
+    labels: [credentials, security]
+
+  - id: INEG-04
+    title: Wire MessagePublisher to publish to internal.ingress.v1
+    type: feature
+    status: done
+    owner: chris@ix-n.com
+    estimate: 3
+    dependencies: [INEG-01, INEG-02]
+    description: Use src/services/message-bus abstraction to publish Envelope with ${BUS_PREFIX} prefix and retry/backoff.
+    acceptance_criteria:
+      - Publisher publishes envelope to prefixed topic
+      - Retry/backoff bounded and unit-tested
+    deliverables:
+      - src/services/ingress/twitch/publisher.ts
+      - unit tests
+    labels: [message-bus, publishing, reliability]
+
+  - id: INEG-05
+    title: Integrate TwitchIrcClient with EnvelopeBuilder and Publisher
+    type: feature
+    status: done
+    owner: chris@ix-n.com
+    estimate: 5
+    dependencies: [INEG-02, INEG-03, INEG-04]
+    description: >-
+      Implement Twurple Chat client handling onMessage to build envelope and publish. Include reconnect/backoff hooks.
+    acceptance_criteria:
+      - onMessage builds valid envelope and publishes once per incoming chat message
+      - Reconnect attempts logged; readiness reflects connection state
+    deliverables:
+      - src/services/ingress/twitch/twitch-irc-client.ts
+    labels: [twurple, integration]
+
+  - id: INEG-06
+    title: Add operational endpoints (/healthz, /readyz, /livez, /_debug/twitch)
+    type: feature
+    status: done
+    owner: chris@ix-n.com
+    estimate: 3
+    dependencies: [INEG-05]
+    description: Expose readiness and debug status including joined channels, connection state, last error.
+    acceptance_criteria:
+      - /healthz, /readyz, /livez return appropriate status codes
+      - /_debug/twitch returns JSON snapshot fields per technical architecture
+    deliverables:
+      - src/apps/ingress-egress-service.ts updates
+      - tests covering responses
+    labels: [operations, http]
+
+  - id: INEG-07
+    title: Unit tests — EnvelopeBuilder
+    type: test
+    status: done
+    owner: chris@ix-n.com
+    estimate: 2
+    dependencies: [INEG-02]
+    description: Cover mapping variations and edge cases.
+    acceptance_criteria:
+      - Tests green; coverage reported
+    deliverables:
+      - "*.spec.ts next to EnvelopeBuilder"
+    labels: [unit-test]
+
+  - id: INEG-08
+    title: Unit tests — Publisher retry/backoff
+    type: test
+    status: done
+    owner: chris@ix-n.com
+    estimate: 2
+    dependencies: [INEG-04]
+    description: Mock bus driver failures and assert bounded retries.
+    acceptance_criteria:
+      - Max retry honored; logs emitted
+    deliverables:
+      - "*.spec.ts next to publisher"
+    labels: [unit-test, reliability]
+
+  - id: INEG-09
+    title: Integration test — Mock Twurple to publish envelope
+    type: test
+    status: done
+    owner: chris@ix-n.com
+    estimate: 3
+    dependencies: [INEG-05]
+    description: Simulate Twurple onMessage and assert publish called with correct envelope/topic. Optional NATS local test.
+    acceptance_criteria:
+      - Test passes with mocked Twurple; optional real NATS guarded by env flag
+    deliverables:
+      - integration test in src/services/ingress/twitch/__tests__
+    labels: [integration-test]
+
+  - id: INEG-10
+    title: Validation & Dry-run deployment
+    type: task
+    status: done
+    owner: chris@ix-n.com
+    estimate: 2
+    dependencies: [INEG-06, INEG-07, INEG-08, INEG-09]
+    description: Ensure validate_deliverable.sh passes; run npm scripts for build/test; execute dry-run deployment.
+    acceptance_criteria:
+      - Root and sprint validators pass without SKIP
+      - Dry-run returns success
+    deliverables:
+      - validation logs
+    labels: [validation, deployment]
+
+doc_status: draft
+doc_version: 0.1.0
+alignment: architecture.yaml v0.1.0

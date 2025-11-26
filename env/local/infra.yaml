@@ -1,4 +1,3 @@
-BUS_PREFIX: local
 FIREBASE_PROJECT_ID: bitbrat-local
 GOOGLE_CLOUD_PROJECT: bitbrat-local
 GCLOUD_PROJECT: bitbrat-local

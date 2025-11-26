@@ -1,0 +1,24 @@
+sprint_id: sprint-31-a1b2c3
+title: "Sprint 31 — Event Router: Subscribe to internal.ingress.v1"
+created_at: 2025-11-23T00:32:00Z
+owners:
+  - role: Lead Implementor
+    name: Junie (AI)
+scope:
+  objective: "Implement a simple subscriber in event-router service that listens to internal.ingress.v1 and logs the received event."
+  services:
+    - event-router
+deliverables:
+  - code: src/apps/event-router-service.ts
+  - tests: src/apps/event-router-service.test.ts
+  - docs: planning/sprint-31-a1b2c3/implementation-plan.md
+  - validation: planning/sprint-31-a1b2c3/validate_deliverable.sh
+acceptance_criteria:
+  - Event-router subscribes to ${BUS_PREFIX}internal.ingress.v1 on startup
+  - Incoming messages are logged with type, correlationId, attributes, and payload size
+  - Jest test verifies subscription wiring and subject composition
+definition_of_done:
+  - Tests pass locally via validate_deliverable.sh
+  - Code aligns with architecture.yaml and uses message-bus abstraction
+status: completed
+closed_at: 2025-11-24T23:13:00Z
