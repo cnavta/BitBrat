@@ -18,14 +18,19 @@
   "author": "chris@ix-n.com",
   "license": "MIT",
   "dependencies": {
+    "@google-cloud/pubsub": "^5.2.0",
+    "@twurple/auth": "^7.4.0",
     "@twurple/chat": "^7.4.0",
     "express": "^5.1.0",
     "firebase-admin": "^13.5.0",
     "js-yaml": "^4.1.0",
+    "nats": "^2.29.3",
     "pino": "^9.4.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.0",
     "@types/supertest": "^6.0.2",

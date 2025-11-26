@@ -2,4 +2,4 @@ LOG_LEVEL: info
 MESSAGE_BUS_DRIVER: pubsub
 NATS_URL: "nats-not-used-in-prod"
 BUS_PREFIX: "prod."
-ENV_PREFIX: "prod."
+ENV_PREFIX: ""
