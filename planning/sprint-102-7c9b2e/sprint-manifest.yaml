@@ -1,0 +1,12 @@
+id: sprint-102-7c9b2e
+title: "RouterEngine Integration + Default Path"
+status: planning
+branch: feature/sprint-102-7c9b2e-routerengine-default-path
+lead: "Junie (LLM) — Lead Implementor"
+start_date: "2025-11-27"
+end_date: ""
+related_documents:
+  - planning/sprint-100-e9a29d/technical-architecture.md
+  - planning/sprint-102-7c9b2e/sprint-execution-plan.md
+  - planning/sprint-102-7c9b2e/trackable-backlog.yaml
+approvals: []

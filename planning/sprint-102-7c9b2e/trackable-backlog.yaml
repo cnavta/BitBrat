@@ -1,0 +1,44 @@
+version: 1
+title: "Trackable Backlog — Sprint 102 — RouterEngine Integration + Default Path"
+SprintID: sprint-102-7c9b2e
+branch: feature/sprint-102-7c9b2e-routerengine-default-path
+
+notes:
+  - All items align to architecture.yaml and the Technical Architecture from sprint-100-e9a29d.
+  - Estimates are in developer-days. Adjust as we learn.
+  - Tests are Jest-based; message bus is mocked for unit tests.
+
+backlog:
+  - id: BB-102-01
+    sprint: 102
+    title: RouterEngine first-match-wins with default path
+    description: Iterate rules by priority; select first truthy; if none, route to INTERNAL_ROUTER_DLQ_V1. Normalize RoutingSlip steps.
+    files:
+      - src/services/routing/router-engine.ts
+      - src/types/events.ts
+    estimate: 1.0d
+    acceptance_criteria:
+      - First matching enabled rule short-circuits selection
+      - No-match case produces default slip to INTERNAL_ROUTER_DLQ_V1
+      - Selected slip normalized with status=PENDING, attempt=0, v="1" when undefined
+    tests:
+      - unit: priority/short-circuit selection
+      - unit: default path when no rule matches
+    dependencies: [BB-101-03]
+    status: planned
+
+  - id: BB-102-02
+    sprint: 102
+    title: Integrate RouterEngine into event-router ingress
+    description: Wire ingress subscriber to call RouterEngine and publish to first step’s nextTopic. Add debug decision logging.
+    files:
+      - src/apps/event-router-service.ts
+      - src/services/message-bus/*
+    estimate: 0.75d
+    acceptance_criteria:
+      - On receiving InternalEventV1, publish to expected topic derived from RoutingSlip[0].nextTopic
+      - Logs include { matched, ruleId, priority, selectedTopic }
+    tests:
+      - unit: mock bus publisher; assert subject equals expected topic
+    dependencies: [BB-102-01]
+    status: planned
