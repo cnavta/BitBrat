@@ -17,7 +17,11 @@ export function createApp() {
       // Initialize rules and router engine
       const ruleLoader = new RuleLoader();
       try {
-        await ruleLoader.start(getFirestore());
+        // Start rule loading asynchronously; do not block subscription on Firestore availability
+        // Any errors are logged and do not prevent router startup
+        ruleLoader.start(getFirestore()).catch((e: any) => {
+          logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
+        });
       } catch (e: any) {
         logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
       }

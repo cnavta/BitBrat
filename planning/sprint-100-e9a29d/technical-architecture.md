@@ -14,7 +14,7 @@ Scope
 - Out of scope: UI for rule management, custom JsonLogic operators (phase 1), production deployment changes.
 
 Decisions
-- Rules source: Firestore path "configs/routingRules".
+- Rules source: Firestore path "configs/routingRules/rules".
 - Priority: numeric (lower number = higher priority).
 - Default slip when no rule matches: ["internal.router.dlq.v1"].
 - Evaluation engine: json-logic-js (standard operators only for phase 1).
@@ -42,7 +42,7 @@ Evaluation Context for JsonLogic
   }
   Rules can reference nested fields using standard JsonLogic variable access, e.g., { "var": "payload.message" }.
 
-Firestore Data Model (configs/routingRules)
+Firestore Data Model (configs/routingRules/rules)
 - Document fields:
   - id: string (doc id)
   - enabled: boolean

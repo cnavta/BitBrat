@@ -81,3 +81,12 @@
   - files:
     - planning/sprint-100-e9a29d/trackable-backlog.yaml
   - notes: BB-104-01 updated to status=completed referencing new example doc
+
+- 2025-11-28T18:41:00Z | Hotfix | Normalize Firestore rules collection path
+  - files:
+    - src/services/router/rule-loader.ts
+    - planning/sprint-100-e9a29d/technical-architecture.md
+    - planning/sprint-100-e9a29d/sprint-execution-plan.md
+    - planning/sprint-100-e9a29d/trackable-backlog.yaml
+    - documentation/routing-rules-examples.md
+  - notes: Fix prod startup error "collectionPath must point to a collection" by changing default to configs/routingRules/rules and normalizing even-segment paths (append /rules). Updated docs accordingly.
