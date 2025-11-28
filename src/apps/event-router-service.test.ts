@@ -29,7 +29,7 @@ describe('event-router-service', () => {
     const [subject, handler, opts] = subFn.mock.calls[0];
     expect(subject).toBe(`test.${INTERNAL_INGRESS_V1}`);
     expect(typeof handler).toBe('function');
-    expect(opts).toMatchObject({ queue: 'event-router' });
+    expect(opts).toMatchObject({ queue: 'event-router', ack: 'explicit' });
 
     process.env.BUS_PREFIX = origEnv;
   });
