@@ -71,3 +71,13 @@
   - cmd: bash planning/sprint-102-7c9b2e/validate_deliverable.sh
   - result: success
   - notes: build and tests succeeded; local start/stop and dry-run deploy are best-effort and non-blocking per script
+
+- 2025-11-28T18:11:00Z | Docs | Add Firestore routing rule example document
+  - files:
+    - documentation/routing-rules-examples.md
+  - notes: Example aligns to schema; includes JsonLogic and routingSlip with nextTopic
+
+- 2025-11-28T18:12:00Z | Backlog | Mark documentation example item complete
+  - files:
+    - planning/sprint-100-e9a29d/trackable-backlog.yaml
+  - notes: BB-104-01 updated to status=completed referencing new example doc
