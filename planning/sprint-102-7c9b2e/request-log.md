@@ -50,3 +50,24 @@
   - files:
     - planning/sprint-102-7c9b2e/trackable-backlog.yaml
   - notes: BB-102-01 and BB-102-02 marked completed with notes
+
+- 2025-11-28T16:54:30Z | Tests | Fix ingress integration timing
+  - files:
+    - src/apps/__tests__/event-router-ingress.integration.test.ts
+  - change: Await async BaseServer setup (microtask) before asserting subscribeSubject
+  - result: targeted test passes locally
+
+- 2025-11-28T16:55:00Z | Tests | Run full Jest
+  - cmd: npm test
+  - result: success
+  - summary: 176 tests passed, 66 suites
+
+- 2025-11-28T16:55:10Z | VCS | git add -A && git commit && git push
+  - commit: "test(router): stabilize ingress integration test; all tests green (Sprint 102)"
+  - branch: feature/sprint-102-7c9b2e-routerengine-default-path
+  - result: success
+
+- 2025-11-28T16:56:00Z | Validation | Run sprint validation script
+  - cmd: bash planning/sprint-102-7c9b2e/validate_deliverable.sh
+  - result: success
+  - notes: build and tests succeeded; local start/stop and dry-run deploy are best-effort and non-blocking per script

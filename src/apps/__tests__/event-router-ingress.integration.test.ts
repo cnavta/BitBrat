@@ -62,6 +62,8 @@ describe('event-router ingress integration', () => {
   it('routes event and publishes to first step topic (default DLQ with no rules)', async () => {
     const spy = jest.spyOn(logger, 'debug').mockImplementation((() => {}) as any);
     createApp();
+    // Allow async setup() inside BaseServer to progress to subscription
+    await new Promise((r) => setTimeout(r, 0));
     expect(subscribeSubject).toBe('dev.internal.ingress.v1');
 
     const evt: InternalEventV1 = {
@@ -83,9 +85,9 @@ describe('event-router ingress integration', () => {
     const found = spy.mock.calls.find((c) => c[0] === 'router.decision');
     expect(found).toBeTruthy();
     if (found) {
-      const meta = found[1];
-      expect(meta.matched).toBe(false);
-      expect(meta.selectedTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
+      const meta: any = (found as any)[1];
+      expect(meta && meta.matched).toBe(false);
+      expect(meta && meta.selectedTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
     }
     spy.mockRestore();
   });
