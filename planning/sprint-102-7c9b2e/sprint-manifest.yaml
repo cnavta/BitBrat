@@ -1,6 +1,6 @@
 id: sprint-102-7c9b2e
 title: "RouterEngine Integration + Default Path"
-status: planning
+status: in-progress
 branch: feature/sprint-102-7c9b2e-routerengine-default-path
 lead: "Junie (LLM) — Lead Implementor"
 start_date: "2025-11-27"
