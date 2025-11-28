@@ -40,7 +40,7 @@ export function createApp() {
       try {
         await sub.subscribe(
           subject,
-          async (data: Buffer, attributes: AttributeMap) => {
+          async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const evt = JSON.parse(data.toString('utf8')) as InternalEventV1;
               // Route using rules (first-match-wins, default path)
@@ -68,11 +68,21 @@ export function createApp() {
               };
               await pub.publishJson(evt, pubAttrs);
               logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
+              // Acknowledge only after successful publish
+              await ctx.ack();
             } catch (e: any) {
-              logger.error('event_router.ingress.parse_error', { subject, error: e?.message || String(e) });
+              // Parsing, routing, or publish error
+              const msg = e?.message || String(e);
+              logger.error('event_router.ingress.process_error', { subject, error: msg });
+              // If JSON is invalid, ack to prevent poison redelivery; otherwise nack to retry
+              if (msg && /json|unexpected token|position \d+/i.test(msg)) {
+                await ctx.ack();
+              } else {
+                await ctx.nack(true);
+              }
             }
           },
-          { queue: 'event-router', ack: 'auto' }
+          { queue: 'event-router', ack: 'explicit' }
         );
         logger.info('event_router.subscribe.ok', { subject, queue: 'event-router' });
       } catch (e: any) {

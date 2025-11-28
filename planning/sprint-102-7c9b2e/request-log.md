@@ -96,3 +96,23 @@
     - src/apps/event-router-service.ts
   - change: Guard RuleLoader.start() behind test env check (NODE_ENV==='test' or JEST_WORKER_ID) to avoid Firestore listeners during Jest
   - result: Local Jest runs clean with no teardown errors; aligns with Cloud Build environment
+
+- 2025-11-28T19:50:00Z | Hotfix | Pub/Sub ensure topic timeout + lazy ensure on publish failure
+  - files:
+    - src/services/message-bus/pubsub-driver.ts
+  - change:
+    - Added withTimeout() and env-configurable ensure mode/timeout (PUBSUB_ENSURE_MODE, PUBSUB_ENSURE_TIMEOUT_MS, PUBSUB_ENSURE_DISABLE)
+    - Default behavior now attempts publish first; on NOT_FOUND performs a fast ensure (default 2000ms timeout) and retries once
+    - Cached ensured topics to avoid repeated ensures
+  - reason: Mitigate prod warning "DEADLINE_EXCEEDED ... pubsub.ensure_topic_failed" by preventing long blocking ensure() before every publish
+  - result: Tests remain green; publishing path more resilient in face of network/DNS delays
+
+- 2025-11-28T21:04:00Z | Reliability | Switch event-router to explicit ack semantics
+  - files:
+    - src/apps/event-router-service.ts
+    - src/apps/event-router-service.test.ts
+  - change:
+    - Subscribe with ack='explicit' and call ctx.ack() only after successful publish to next topic
+    - On processing error, ctx.nack(true) to requeue; on JSON parse/invalid payload, ctx.ack() to avoid poison redelivery
+  - reason: Ensure proper acknowledgment behavior; prevent auto-acking before publish and avoid stuck messages
+  - result: Full Jest suite remains green (66 suites, 176 tests)
