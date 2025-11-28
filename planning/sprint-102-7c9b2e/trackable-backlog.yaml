@@ -25,7 +25,10 @@ backlog:
       - unit: priority/short-circuit selection
       - unit: default path when no rule matches
     dependencies: [BB-101-03]
-    status: planned
+    status: completed
+    notes:
+      - Implemented RouterEngine with normalization and default DLQ path
+      - Added unit tests covering priority/short-circuit and default path
 
   - id: BB-102-02
     sprint: 102
@@ -41,4 +44,7 @@ backlog:
     tests:
       - unit: mock bus publisher; assert subject equals expected topic
     dependencies: [BB-102-01]
-    status: planned
+    status: completed
+    notes:
+      - Wired ingress to RouterEngine; publishes to first step topic with BUS_PREFIX
+      - Added test that mocks bus and asserts published subject and decision log

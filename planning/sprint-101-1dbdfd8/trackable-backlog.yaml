@@ -95,7 +95,7 @@ items:
       - Documented steps in sprint-execution-plan.md and/or request-log.md
     estimate: 1
     dependencies: [S101-005]
-    status: planned
+    status: done
 
   - id: S101-010
     title: Documentation updates
