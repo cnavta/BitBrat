@@ -185,7 +185,9 @@ backlog:
       - Example docs render; align with schema in Technical Architecture
     tests: []
     dependencies: [BB-102-02]
-    status: planned
+    status: completed
+    notes:
+      - Added documentation/routing-rules-examples.md with copy-pasteable Firestore rule example aligning to schema
 
   - id: BB-104-02
     sprint: 104
