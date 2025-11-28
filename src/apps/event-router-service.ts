@@ -2,7 +2,10 @@ import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
 import { INTERNAL_INGRESS_V1, InternalEventV1 } from '../types/events';
-import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
+import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
+import { RuleLoader } from '../services/router/rule-loader';
+import { RouterEngine } from '../services/routing/router-engine';
+import { getFirestore } from '../common/firebase';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'event-router';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -11,7 +14,16 @@ export function createApp() {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
     setup: async (_app: Express, cfg) => {
-      // Subscribe to ingress topic and log message contents
+      // Initialize rules and router engine
+      const ruleLoader = new RuleLoader();
+      try {
+        await ruleLoader.start(getFirestore());
+      } catch (e: any) {
+        logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
+      }
+      const engine = new RouterEngine();
+
+      // Subscribe to ingress topic and process routing decisions
       const subject = `${cfg.busPrefix || ''}${INTERNAL_INGRESS_V1}`;
       const sub = createMessageSubscriber();
       logger.info('event_router.subscribe.start', { subject, queue: 'event-router' });
@@ -21,13 +33,31 @@ export function createApp() {
           async (data: Buffer, attributes: AttributeMap) => {
             try {
               const evt = JSON.parse(data.toString('utf8')) as InternalEventV1;
-              logger.info('event_router.ingress.received', {
-                subject,
+              // Route using rules (first-match-wins, default path)
+              const { slip, decision } = engine.route(evt, ruleLoader.getRules());
+              evt.envelope.routingSlip = slip;
+
+              // Debug decision logging per technical architecture
+              logger.debug('router.decision', {
+                matched: decision.matched,
+                ruleId: decision.ruleId,
+                priority: decision.priority,
+                selectedTopic: decision.selectedTopic,
                 type: evt?.type,
                 correlationId: evt?.envelope?.correlationId,
-                attrs: attributes || {},
-                bytes: data?.length || 0,
               });
+
+              // Publish to the next topic (first step)
+              const outSubject = `${cfg.busPrefix || ''}${decision.selectedTopic}`;
+              const pub = createMessagePublisher(outSubject);
+              const pubAttrs: AttributeMap = {
+                type: evt.type,
+                correlationId: evt.envelope.correlationId,
+                source: evt.envelope.source,
+                ...(evt.envelope.traceId ? { traceId: evt.envelope.traceId } : {}),
+              };
+              await pub.publishJson(evt, pubAttrs);
+              logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
             } catch (e: any) {
               logger.error('event_router.ingress.parse_error', { subject, error: e?.message || String(e) });
             }
