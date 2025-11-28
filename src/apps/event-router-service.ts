@@ -16,12 +16,18 @@ export function createApp() {
     setup: async (_app: Express, cfg) => {
       // Initialize rules and router engine
       const ruleLoader = new RuleLoader();
+      const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID;
       try {
-        // Start rule loading asynchronously; do not block subscription on Firestore availability
-        // Any errors are logged and do not prevent router startup
-        ruleLoader.start(getFirestore()).catch((e: any) => {
-          logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
-        });
+        if (isTestEnv) {
+          // Avoid initializing Firestore listeners during Jest to prevent open handles
+          logger.debug('event_router.rule_loader.disabled_for_tests');
+        } else {
+          // Start rule loading asynchronously; do not block subscription on Firestore availability
+          // Any errors are logged and do not prevent router startup
+          ruleLoader.start(getFirestore()).catch((e: any) => {
+            logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
+          });
+        }
       } catch (e: any) {
         logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
       }

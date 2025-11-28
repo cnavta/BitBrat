@@ -90,3 +90,9 @@
     - planning/sprint-100-e9a29d/trackable-backlog.yaml
     - documentation/routing-rules-examples.md
   - notes: Fix prod startup error "collectionPath must point to a collection" by changing default to configs/routingRules/rules and normalizing even-segment paths (append /rules). Updated docs accordingly.
+
+- 2025-11-28T19:00:00Z | Tests/CI | Prevent Jest open handles by disabling RuleLoader in test env
+  - files:
+    - src/apps/event-router-service.ts
+  - change: Guard RuleLoader.start() behind test env check (NODE_ENV==='test' or JEST_WORKER_ID) to avoid Firestore listeners during Jest
+  - result: Local Jest runs clean with no teardown errors; aligns with Cloud Build environment
