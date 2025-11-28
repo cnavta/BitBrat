@@ -1,7 +1,7 @@
 /**
  * RuleLoader – Firestore-backed routing rules cache
  *
- * - Warm-loads rules from Firestore collection (default: configs/routingRules)
+ * - Warm-loads rules from Firestore collection (default: configs/routingRules/rules)
  * - Validates minimal schema
  * - Maintains in-memory cache of enabled, valid rules sorted by priority asc (tie: id asc)
  * - Subscribes via onSnapshot to keep cache up to date
@@ -62,7 +62,7 @@ function sortRules(rules: RuleDoc[]): RuleDoc[] {
 export class RuleLoader {
   private cache: RuleDoc[] = [];
   private unsub: Unsubscribe | null = null;
-  constructor(private readonly collectionPath = 'configs/routingRules') {}
+  constructor(private readonly collectionPath = 'configs/routingRules/rules') {}
 
   /** Read-only snapshot of current cache */
   getRules(): ReadonlyArray<RuleDoc> {
@@ -82,7 +82,21 @@ export class RuleLoader {
    * Accepts a Firestore-like db with collection(path).get() and .onSnapshot(cb).
    */
   async start(db: any) {
-    const col = db.collection(this.collectionPath);
+    const normalize = (p: string | undefined): string => {
+      const base = String(p || '').trim().replace(/^\/+|\/+$/g, '');
+      if (!base) return 'routingRules';
+      const parts = base.split('/').filter(Boolean);
+      // Firestore collection paths must have an odd number of segments (1,3,5,...)
+      if (parts.length % 2 === 0) {
+        const to = [...parts, 'rules'].join('/');
+        logger.warn('rule_loader.collection_path_normalized', { from: base, to });
+        return to;
+      }
+      return parts.join('/');
+    };
+
+    const path = normalize(this.collectionPath);
+    const col = db.collection(path);
     // Warm load
     try {
       const snap = await col.get();

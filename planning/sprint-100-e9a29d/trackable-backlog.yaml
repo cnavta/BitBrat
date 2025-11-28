@@ -68,7 +68,7 @@ backlog:
   - id: BB-101-02
     sprint: 101
     title: Implement RuleLoader with Firestore cache
-    description: Warm-load rules from configs/routingRules; maintain in-memory cache; sort by priority; onSnapshot updates.
+    description: Warm-load rules from configs/routingRules/rules; maintain in-memory cache; sort by priority; onSnapshot updates.
     files:
       - src/services/routing/rule-loader.ts
     estimate: 1.0d

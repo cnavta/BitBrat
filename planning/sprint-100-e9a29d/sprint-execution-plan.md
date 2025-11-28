@@ -22,7 +22,7 @@ Milestones by Sprint
 - Sprint 101 — Foundations: RuleLoader + Evaluator + Constants
   - Scope:
     - Add INTERNAL_ROUTER_DLQ_V1 constant to src/types/events.ts.
-    - Introduce RuleLoader to read configs/routingRules from Firestore (warm load + onSnapshot, in-memory cache, sort by priority).
+    - Introduce RuleLoader to read configs/routingRules/rules from Firestore (warm load + onSnapshot, in-memory cache, sort by priority).
     - Add JsonLogic evaluator module with defined event-derived context (type, channel, userId, envelope, payload, now, ts).
     - Unit tests for evaluator truthy/falsey decisions, priority sorting, invalid doc filtering.
   - Acceptance Criteria:
