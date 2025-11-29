@@ -6,6 +6,7 @@ import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '.
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
 import { getFirestore } from '../common/firebase';
+import { counters } from '../common/counters';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'event-router';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -14,6 +15,20 @@ export function createApp() {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
     setup: async (_app: Express, cfg) => {
+      // ---------------- Debug endpoints ----------------
+      // Expose process-local counters for observability
+      _app.get('/_debug/counters', (_req, res) => {
+        try {
+          res.status(200).json({ counters: counters.snapshot() });
+        } catch (e: any) {
+          logger.warn('event_router.debug_counters_error', { error: e?.message || String(e) });
+          res.status(500).json({ error: 'debug_counters_unavailable' });
+        }
+      });
+      // Convenience alias to counters on base /_debug
+      _app.get('/_debug', (_req, res) => {
+        res.redirect(302, '/_debug/counters');
+      });
       // Initialize rules and router engine
       const ruleLoader = new RuleLoader();
       const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID;
@@ -46,6 +61,15 @@ export function createApp() {
               // Route using rules (first-match-wins, default path)
               const { slip, decision } = engine.route(evt, ruleLoader.getRules());
               evt.envelope.routingSlip = slip;
+
+              // Update observability counters
+              try {
+                counters.increment('router.events.total');
+                if (decision.matched) counters.increment('router.rules.matched');
+                else counters.increment('router.rules.defaulted');
+              } catch (e: any) {
+                logger.warn('event_router.counters.increment_error', { error: e?.message || String(e) });
+              }
 
               // Debug decision logging per technical architecture
               logger.debug('router.decision', {
