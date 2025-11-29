@@ -1,0 +1,139 @@
+version: 1
+title: "Trackable Backlog — Sprint 105: Auth Service (User Enrichment v1)"
+SprintID: sprint-105-2d47f1a
+branch: feature/sprint-105-2d47f1a-auth-service-enrichment
+
+notes:
+  - Aligns with sprint-104 technical architecture for Auth Service (approved v1).
+  - Estimates are developer-days; refine as work proceeds.
+  - Tests use Jest; Firestore emulator for integration where applicable.
+
+backlog:
+  - id: BB-105-01
+    sprint: 105
+    title: Auth enrichment core logic
+    description: "Implement enrichment logic to read user from Firestore and populate envelope.user and envelope.auth."
+    files:
+      - src/services/auth/enrichment.ts
+      - src/services/auth/user-repo.ts
+      - src/types/events.ts
+    estimate: 1.0d
+    acceptance_criteria:
+      - "Given userId matches, envelope.user and envelope.auth.matched=true are set"
+      - "Given email matches, enrichment occurs via email fallback"
+      - "Given no match, envelope.auth.matched=false and event forwarded"
+    tests:
+      - unit: enrichment.spec.ts covers matched/unmatched/email-fallback
+    dependencies: []
+    status: planned
+
+  - id: BB-105-02
+    sprint: 105
+    title: Message bus wiring (subscribe/publish)
+    description: "Subscribe to internal.ingress.v1 and publish to internal.user.enriched.v1 (or AUTH_ENRICH_OUTPUT_TOPIC)."
+    files:
+      - src/apps/auth-service.ts
+      - src/services/message-bus/*
+    estimate: 0.5d
+    acceptance_criteria:
+      - "Service subscribes on start and logs start/stop"
+      - "Publish succeeds with correct attributes and subject"
+    tests:
+      - unit: subscription handler parses JSON and routes to enrichment
+    dependencies: [BB-105-01]
+    status: planned
+
+  - id: BB-105-03
+    sprint: 105
+    title: Observability (logs + counters)
+    description: "Add structured logs and counters for total/matched/unmatched/errors; expose /_debug/counters."
+    files:
+      - src/apps/auth-service.ts
+      - src/common/*
+    estimate: 0.5d
+    acceptance_criteria:
+      - "Debug endpoint returns counters JSON"
+      - "Counters reflect processing outcomes"
+    tests:
+      - unit: counters increment on handler paths
+      - integration: HTTP endpoint returns expected keys
+    dependencies: [BB-105-02]
+    status: planned
+
+  - id: BB-105-04
+    sprint: 105
+    title: Error handling policy
+    description: "Implement ack/nack behavior per architecture: parse errors ack, Firestore and publish errors nack(requeue)."
+    files:
+      - src/apps/auth-service.ts
+      - src/services/auth/enrichment.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "Poison JSON messages are acked (not retried)"
+      - "Transient lookup/publish errors result in nack with requeue"
+    tests:
+      - unit: simulate failures and assert ack/nack paths
+    dependencies: [BB-105-02]
+    status: planned
+
+  - id: BB-105-05
+    sprint: 105
+    title: Contract tests (envelope.user/auth)
+    description: "Assert exact shape and presence of envelope.user and envelope.auth for matched/unmatched cases."
+    files:
+      - tests/contracts/auth-envelope.spec.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "Matched events include id,email?,displayName?,roles?,status?"
+      - "Auth meta includes v, method='enrichment', matched, at, userRef?"
+    tests:
+      - contract: covers matched and unmatched paths
+    dependencies: [BB-105-01]
+    status: planned
+
+  - id: BB-105-06
+    sprint: 105
+    title: Integration with Firestore emulator
+    description: "End-to-end test using emulator with seeded users collection."
+    files:
+      - tests/integration/auth-enrichment-emulator.spec.ts
+    estimate: 1.0d
+    acceptance_criteria:
+      - "Emulator test passes for id and email lookup paths"
+    tests:
+      - integration: uses emulator and bus mocks
+    dependencies: [BB-105-01, BB-105-02]
+    status: planned
+
+  - id: BB-105-07
+    sprint: 105
+    title: Configuration and env validation
+    description: "Support AUTH_ENRICH_OUTPUT_TOPIC, BUS_PREFIX, FIREBASE_DATABASE_ID. Validate required runtime env."
+    files:
+      - src/apps/auth-service.ts
+      - src/common/firebase.ts
+      - src/common/config.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - "Output topic override works"
+      - "Firestore databaseId can be set via FIREBASE_DATABASE_ID"
+    tests:
+      - unit: config/environment handling
+    dependencies: []
+    status: planned
+
+  - id: BB-105-08
+    sprint: 105
+    title: Documentation and security notes
+    description: "Document service behavior, env vars, and required Firestore IAM (read-only)."
+    files:
+      - documentation/*
+      - planning/sprint-105-2d47f1a/*
+    estimate: 0.25d
+    acceptance_criteria:
+      - "README snippet exists"
+      - "IAM notes specify least privilege for users collection"
+    tests:
+      - docs-reviewed
+    dependencies: []
+    status: planned
