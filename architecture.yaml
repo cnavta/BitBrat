@@ -76,12 +76,12 @@ services:
       - TWITCH_CHANNELS
 
   auth:
-    active: false
+    active: true
     description: "Authentication service that handles user authentication and authorization."
     entry: src/apps/auth-service.ts
     topics:
       publishes:
-        - internal.auth.v1
+        - internal.user.enriched.v1
       consumes:
         - internal.ingress.v1
     secrets:
@@ -96,8 +96,7 @@ services:
       publishes:
         - internal.llmbot.v1
       consumes:
-        - internal.auth.v1
-        - internal.ingress.v1
+        - internal.user.enriched.v1
 
   llm-bot:
     active: false

@@ -1,0 +1,13 @@
+id: sprint-104-f0bef1b
+summary: Auth service technical architecture and router default topic change
+branch: feature/sprint-104-f0bef1b-auth-architecture
+owner: architect
+status: in-progress
+start: '2025-11-29T02:05:00Z'
+scope:
+  - Author technical architecture for Auth service (ingress->enrich->user.enriched publish)
+  - Switch event-router default input to internal.user.enriched.v1 (env overridable)
+deliverables:
+  - planning/sprint-104-f0bef1b/technical-architecture-auth-service.md
+  - code changes and tests for router default input topic
+  - validation and verification artifacts
