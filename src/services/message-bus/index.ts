@@ -95,8 +95,12 @@ export interface MessageSubscriber {
 
 /** Resolve the active driver from environment. */
 function getDriver(): 'pubsub' | 'nats' {
-  const v = String(process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS || '').toLowerCase();
-  return v === 'nats' ? 'nats' : 'pubsub';
+  const explicit = String(process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS || '').toLowerCase();
+  if (explicit === 'nats') return 'nats';
+  if (explicit === 'pubsub') return 'pubsub';
+  // Default to NATS during Jest/test environments to avoid importing @google-cloud/pubsub
+  const isTest = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || !!process.env.CI;
+  return isTest ? 'nats' : 'pubsub';
 }
 
 /** Create a MessagePublisher bound to a subject/topic for the current driver. */
