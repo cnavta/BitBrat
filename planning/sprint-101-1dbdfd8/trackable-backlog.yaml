@@ -1,0 +1,125 @@
+# Trackable Backlog — Sprint 101 Foundations
+
+sprint: sprint-101-1dbdfd8
+branch: feature/sprint-101-1dbdfd8-foundations-ruleloader-evaluator-constants
+estimation_scale: [1, 2, 3, 5, 8]
+owner: Lead Implementor
+
+items:
+  - id: S101-001
+    title: Add INTERNAL_ROUTER_DLQ_V1 constant
+    description: Add INTERNAL_ROUTER_DLQ_V1 = "internal.router.dlq.v1" to src/types/events.ts.
+    acceptance_criteria:
+      - Constant exported alongside other INTERNAL_* constants
+      - TypeScript compiles and existing tests still pass
+    estimate: 1
+    dependencies: []
+    status: done
+
+  - id: S101-002
+    title: Add json-logic-js dependency
+    description: Add json-logic-js to dependencies and wire basic type definitions as needed.
+    acceptance_criteria:
+      - Dependency present in package.json
+      - Build succeeds (tsc) and tests can import evaluator
+    estimate: 1
+    dependencies: []
+    status: done
+
+  - id: S101-003
+    title: Implement JsonLogicEvaluator module
+    description: Implement src/services/router/jsonlogic-evaluator.ts that evaluates a rule.logic object against an InternalEventV1-derived context.
+    acceptance_criteria:
+      - Exposes buildContext(evt) and evaluate(logic, ctx) returning boolean
+      - Context contains type, channel, userId, envelope, payload, now (iso), ts (number)
+      - Handles malformed logic gracefully (returns false, no throw)
+    estimate: 3
+    dependencies: [S101-002]
+    status: done
+
+  - id: S101-004
+    title: Implement RuleLoader warm load from Firestore
+    description: Implement src/services/router/rule-loader.ts to read configs/routingRules once on init and cache valid, enabled rules.
+    acceptance_criteria:
+      - Loads rules from Firestore using firebase-admin
+      - Validates minimal schema (enabled:boolean, priority:number, logic:object, routingSlip:array)
+      - In-memory cache sorted ascending by priority
+    estimate: 5
+    dependencies: []
+    status: done
+
+  - id: S101-005
+    title: Implement RuleLoader onSnapshot subscription
+    description: Subscribe to configs/routingRules for realtime updates and keep cache updated.
+    acceptance_criteria:
+      - Uses onSnapshot to update cache deterministically
+      - Skips invalid documents and logs errors
+      - Provides getRules() read-only snapshot of current cache
+    estimate: 3
+    dependencies: [S101-004]
+    status: done
+
+  - id: S101-006
+    title: Rule validation and sorting
+    description: Validate each rule document and ensure deterministic sorting (lower priority value wins).
+    acceptance_criteria:
+      - Disabled or invalid docs are excluded
+      - Sorting stable for equal priorities (tie-break by id ascending)
+    estimate: 2
+    dependencies: [S101-004]
+    status: done
+
+  - id: S101-007
+    title: Unit tests — JsonLogicEvaluator
+    description: Truthy/falsey decision cases; nested var access; malformed logic handling.
+    acceptance_criteria:
+      - Jest tests pass covering evaluate() true/false and error resilience
+    estimate: 3
+    dependencies: [S101-003]
+    status: done
+
+  - id: S101-008
+    title: Unit tests — RuleLoader
+    description: Validate sorting, invalid/disabled filtering, and snapshot update logic using mocks.
+    acceptance_criteria:
+      - Jest tests pass with mocked Firestore
+      - getRules() returns expected arrays after updates
+    estimate: 5
+    dependencies: [S101-004, S101-005, S101-006]
+    status: done
+
+  - id: S101-009
+    title: Firestore emulator smoke test (optional)
+    description: Manually verify onSnapshot callback once against emulator; document steps.
+    acceptance_criteria:
+      - Documented steps in sprint-execution-plan.md and/or request-log.md
+    estimate: 1
+    dependencies: [S101-005]
+    status: done
+
+  - id: S101-010
+    title: Documentation updates
+    description: Update inline docs and planning notes as needed; ensure alignment with sprint-100 technical-architecture.
+    acceptance_criteria:
+      - Docs updated with module purpose and usage notes
+    estimate: 1
+    dependencies: []
+    status: done
+
+  - id: S101-011
+    title: Traceability — request-log updates
+    description: Ensure all meaningful ops are recorded in planning/sprint-101-1dbdfd8/request-log.md
+    acceptance_criteria:
+      - Log contains timestamped entries for major actions
+    estimate: 1
+    dependencies: []
+    status: done
+
+  - id: S101-012
+    title: Sprint validation script
+    description: Add planning/sprint-101-1dbdfd8/validate_deliverable.sh delegating to repo-level script.
+    acceptance_criteria:
+      - Script exists and is executable; calls ../../validate_deliverable.sh
+    estimate: 1
+    dependencies: []
+    status: done

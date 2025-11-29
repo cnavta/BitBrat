@@ -63,6 +63,37 @@ async function ensureTopic(pubsub: PubSub, topicName: string): Promise<void> {
   }
 }
 
+/** Race an async operation against a timeout. Rejects on timeout. */
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  if (!Number.isFinite(ms) || ms <= 0) return p;
+  return await Promise.race([
+    p,
+    new Promise<T>((_resolve, reject) => setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms)),
+  ]) as T;
+}
+
+type EnsureMode = 'always' | 'on-publish-fail' | 'off';
+
+function getEnsureMode(): EnsureMode {
+  if (process.env.PUBSUB_ENSURE_DISABLE === '1') return 'off';
+  const v = String(process.env.PUBSUB_ENSURE_MODE || '').toLowerCase();
+  if (v === 'always' || v === 'on-publish-fail' || v === 'off') return v as EnsureMode;
+  return 'on-publish-fail';
+}
+
+function getEnsureTimeoutMs(): number {
+  const v = Number(process.env.PUBSUB_ENSURE_TIMEOUT_MS || '2000');
+  return Number.isFinite(v) && v >= 0 ? v : 2000;
+}
+
+const ensuredTopics = new Set<string>();
+
+function isNotFoundError(e: any): boolean {
+  const code = e?.code ?? e?.status;
+  const msg = (e?.message || '').toString();
+  return code === 5 || code === 404 || /not[_\s-]?found/i.test(msg);
+}
+
 export class PubSubPublisher implements MessagePublisher {
   private readonly pubsub: PubSub;
   private readonly topicName: string;
@@ -74,9 +105,16 @@ export class PubSubPublisher implements MessagePublisher {
 
   /** Serialize data to JSON and publish with optional attributes. */
   async publishJson(data: unknown, attributes: AttributeMap = {}): Promise<string | null> {
-    const ensureDisabled = process.env.PUBSUB_ENSURE_DISABLE === '1';
-    if (!ensureDisabled) {
-      await ensureTopic(this.pubsub, this.topicName);
+    const ensureMode = getEnsureMode();
+    const ensureTimeout = getEnsureTimeoutMs();
+    if (ensureMode === 'always' && !ensuredTopics.has(this.topicName)) {
+      try {
+        await withTimeout(ensureTopic(this.pubsub, this.topicName), ensureTimeout);
+        ensuredTopics.add(this.topicName);
+      } catch (e: any) {
+        // Do not block publish path on ensure failures/timeouts
+        logger.warn('pubsub.ensure_topic_failed', { topic: this.topicName, error: e?.message || String(e), mode: ensureMode, timeoutMs: ensureTimeout });
+      }
     }
     const topic = this.pubsub.topic(this.topicName, { batching: { maxMessages: 100, maxMilliseconds: 100 } });
     const payload = Buffer.from(JSON.stringify(data));
@@ -96,6 +134,19 @@ export class PubSubPublisher implements MessagePublisher {
       });
       return messageId || null;
     } catch (e: any) {
+      // If the publish failed because the topic doesn't exist, optionally attempt a fast ensure then retry once.
+      if (ensureMode !== 'off' && isNotFoundError(e)) {
+        try {
+          logger.warn('message_publisher.publish.not_found', { driver: 'pubsub', topic: this.topicName, action: 'ensure_then_retry' });
+          await withTimeout(ensureTopic(this.pubsub, this.topicName), ensureTimeout);
+          ensuredTopics.add(this.topicName);
+          const [retryId] = await topic.publishMessage({ data: payload, attributes: attrsNorm });
+          logger.debug('message_publisher.publish.ok', { driver: 'pubsub', topic: this.topicName, messageId: retryId || null, retried: true });
+          return retryId || null;
+        } catch (ee: any) {
+          logger.warn('message_publisher.retry_failed', { driver: 'pubsub', topic: this.topicName, error: ee?.message || String(ee) });
+        }
+      }
       logger.error('message_publisher.publish.error', {
         driver: 'pubsub',
         topic: this.topicName,

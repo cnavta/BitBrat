@@ -1,0 +1,55 @@
+version: 1
+title: "Trackable Backlog — Sprint 103: Observability, Hardening, Integration Tests (event-router)"
+SprintID: sprint-103-9b6393e
+branch: feature/sprint-103-9b6393e-observability-hardening-integration-tests
+
+notes:
+  - All items align to architecture.yaml and the Technical Architecture document from sprint-100-e9a29d.
+  - Estimates are rough (developer-days unless otherwise noted). Update as we learn.
+  - Tests are Jest-based; Firestore emulator used where indicated.
+
+backlog:
+  # Sprint 103 — Observability & Hardening
+  - id: BB-103-01
+    sprint: 103
+    title: Debug counters endpoint
+    description: "Expose /_debug/ counters: router.events.total, router.rules.matched, router.rules.defaulted."
+    files:
+      - src/apps/event-router-service.ts
+      - src/common/*
+    estimate: 0.5d
+    acceptance_criteria:
+      - Endpoint returns counters as JSON
+      - Counters update on message handling
+    tests:
+      - unit/integration: HTTP endpoint returns expected values
+    dependencies: [BB-102-02]
+    status: completed
+
+  - id: BB-103-02
+    sprint: 103
+    title: Firestore emulator integration tests
+    description: Verify RuleLoader reacts to snapshot updates and RouterEngine reroutes accordingly.
+    files:
+      - tests/integration/routing-emulator.spec.ts
+    estimate: 1.0d
+    acceptance_criteria:
+      - Adding/updating rule via emulator changes routing outcome in tests
+    tests:
+      - integration: uses emulator with sample rule docs
+    dependencies: [BB-101-02, BB-102-01]
+    status: deferred
+
+  - id: BB-103-03
+    sprint: 103
+    title: Error handling hardening
+    description: Ensure invalid rule docs are skipped; Firestore failures fall back to default slip.
+    files:
+      - src/services/routing/*
+    estimate: 0.5d
+    acceptance_criteria:
+      - Unit tests cover invalid schema and failure fallbacks
+    tests:
+      - unit: error paths
+    dependencies: [BB-101-02, BB-102-01]
+    status: completed

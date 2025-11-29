@@ -1,0 +1,28 @@
+sprint_id: sprint-101-1dbdfd8
+branch: feature/sprint-101-1dbdfd8-foundations-ruleloader-evaluator-constants
+status: completed
+objective: >-
+  Foundations for routing engine: RuleLoader, JsonLogic evaluator, and constants
+  per sprint-100 technical architecture. No message flow wiring yet.
+scope:
+  in_scope:
+    - Add INTERNAL_ROUTER_DLQ_V1 constant
+    - Implement RuleLoader (warm load + onSnapshot, in-memory cache, priority sort)
+    - Implement JsonLogic evaluator with defined context
+    - Unit tests for evaluator and loader
+  out_of_scope:
+    - RouterEngine integration and publishing (Sprint 102)
+    - Observability and integration tests (Sprint 103)
+    - Publication/PR (Sprint 104)
+artifacts:
+  - sprint-execution-plan.md
+  - trackable-backlog.yaml
+  - request-log.md
+  - validate_deliverable.sh
+  - verification-report.md
+  - retro.md
+  - key-learnings.md
+  - publication.yaml
+dependencies:
+  - firebase-admin
+  - json-logic-js
