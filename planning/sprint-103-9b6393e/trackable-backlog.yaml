@@ -24,7 +24,7 @@ backlog:
     tests:
       - unit/integration: HTTP endpoint returns expected values
     dependencies: [BB-102-02]
-    status: planned
+    status: completed
 
   - id: BB-103-02
     sprint: 103
@@ -38,7 +38,7 @@ backlog:
     tests:
       - integration: uses emulator with sample rule docs
     dependencies: [BB-101-02, BB-102-01]
-    status: planned
+    status: in-progress
 
   - id: BB-103-03
     sprint: 103
@@ -52,4 +52,4 @@ backlog:
     tests:
       - unit: error paths
     dependencies: [BB-101-02, BB-102-01]
-    status: planned
+    status: completed
