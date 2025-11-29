@@ -48,3 +48,14 @@ Actions
 7. Next actions
    - Flesh out emulator-backed integration to verify snapshot reactivity and rerouting (BB-103-02)
    - Review/add any missing unit tests for error handling hardening (BB-103-03)
+
+8. Prod incident: TimeoutNegativeWarning investigation and remediation
+   - Timestamp: 2025-11-28 20:10 local
+   - Symptom: event-router logs showed TimeoutNegativeWarning: negative number; "Timeout duration was set to 1" (Node warning)
+   - Analysis: searched for setTimeout usage; candidates in retry.ts and Pub/Sub driver withTimeout(). Drivers generally guard non-positive ms, but upstream or env-derived values could still pass negative/NaN. Hardened timers globally and locally.
+   - Changes:
+     - src/common/retry.ts — clamp sleep() delay to >=1ms and ceil fractional values
+     - src/common/safe-timers.ts — new module patching global setTimeout/setInterval to clamp invalid/negative delays to 1ms, warns once
+     - src/apps/event-router-service.ts — import safe-timers at top to install clamps early in process
+   - Validation: npm run build && npm test — all suites pass (68 passed, 1 skipped). No TimeoutNegativeWarning seen during tests.
+   - Impact: Prevents Node from emitting TimeoutNegativeWarning in prod from any negative/invalid delay, without changing intended timing semantics materially

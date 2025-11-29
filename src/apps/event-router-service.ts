@@ -1,3 +1,4 @@
+import '../common/safe-timers'; // install safe timer clamps early for this process
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';

@@ -20,7 +20,9 @@ export type RetryAsyncOptions = {
 };
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+  // Clamp to avoid Node TimeoutNegativeWarning and non-integer values
+  const delay = Number.isFinite(ms) ? Math.max(1, Math.ceil(ms)) : 1;
+  return new Promise((r) => setTimeout(r, delay));
 }
 
 export async function withBackoff<T>(fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {
