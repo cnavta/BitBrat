@@ -58,6 +58,13 @@ echo "🧱 Compiling..."
 npm run build
 
 echo "🧪 Running tests..."
+export CI=1
+# Ensure CI uses the in-memory/local message bus to avoid @google-cloud/pubsub during tests
+export MESSAGE_BUS_DRIVER=${MESSAGE_BUS_DRIVER:-nats}
+# Explicitly disable any background subscriptions in services during tests
+export MESSAGE_BUS_DISABLE_SUBSCRIBE=1
+# Disable Pub/Sub topic/subscription ensure logic if any pubsub path is accidentally hit
+export PUBSUB_ENSURE_DISABLE=1
 npm test
 
 # Sprint 14: Infra dry-run validation
