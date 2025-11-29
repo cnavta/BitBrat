@@ -96,6 +96,23 @@ export interface EnvelopeV1 {
   replyTo?: string; // topic for direct reply if not default
   timeoutAt?: string; // optional absolute timeout for the end-to-end processing
   routingSlip?: RoutingStep[]; // at least one step after routing
+  /** Optional: added by Auth service (User Enrichment v1) */
+  user?: {
+    id: string;
+    email?: string;
+    displayName?: string;
+    roles?: string[];
+    status?: string;
+  };
+  /** Optional: added by Auth service (User Enrichment v1) */
+  auth?: {
+    v: '1';
+    provider?: string;
+    method: 'enrichment';
+    matched: boolean;
+    userRef?: string; // e.g., users/<docId>
+    at: string; // ISO timestamp
+  };
 }
 
 export interface InternalEventV1 {
