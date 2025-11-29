@@ -35,3 +35,14 @@
   - src/services/message-bus/message-bus.test.ts (explicitly set pubsub in test instead of relying on default)
   - src/services/message-bus/__tests__/factory-selection.test.ts (new tests for noop selection and explicit pubsub)
   | Notes: Prevents attempts to connect to NATS in CI and ensures tests exit cleanly without open handles.
+
+- 2025-11-29T17:20:00Z | Verify | Action: Add verification and closeout artifacts | Files:
+  - planning/sprint-105-2d47f1a/verification-report.md (completed/partial/deferred summary)
+  - planning/sprint-105-2d47f1a/retro.md (what worked, what did not, improvements)
+  - planning/sprint-105-2d47f1a/key-learnings.md (lessons learned)
+  - planning/sprint-105-2d47f1a/sprint-manifest.yaml (status=completed, completed_at)
+  | Notes: Sprint verification per AGENTS §2.7 and retro/learn per §2.9.
+
+- 2025-11-29T17:20:00Z | Publish | Action: Confirm PR status recorded | Files:
+  - planning/sprint-105-2d47f1a/publication.yaml (pr_url, branch, status: created)
+  | Notes: PR already created earlier (#9); publication metadata present.
