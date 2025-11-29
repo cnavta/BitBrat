@@ -1,0 +1,27 @@
+sprint_id: sprint-103-9b6393e
+title: "Observability, Hardening, and Integration Tests"
+status: completed
+branch: feature/sprint-103-9b6393e-observability-hardening-integration-tests
+created: "2025-11-28T17:46:00"
+objective: |
+  Deliver Observability (/ _debug counters), Hardening (robust error handling), and
+  Firestore emulator Integration Tests for the event-router routing system.
+scope:
+  - Observability: /_debug/ counters endpoint; structured debug logs
+  - Hardening: skip invalid rule docs; fallback on Firestore failures
+  - Integration tests: Firestore emulator snapshot reactivity
+acceptance_criteria:
+  - validate_deliverable.sh passes logically (build, tests, local up/down, dry-run)
+  - /_debug/ returns counters JSON that updates on message handling
+  - Invalid rule docs skipped with errors logged; Firestore failures default to DLQ slip
+  - Integration tests prove onSnapshot reactivity and rerouting
+artifacts:
+  execution_plan: planning/sprint-103-9b6393e/sprint-execution-plan.md
+  implementation_plan: planning/sprint-103-9b6393e/implementation-plan.md
+  backlog: planning/sprint-103-9b6393e/trackable-backlog.yaml
+  request_log: planning/sprint-103-9b6393e/request-log.md
+references:
+  - planning/sprint-100-e9a29d/sprint-execution-plan.md
+  - planning/sprint-100-e9a29d/technical-architecture.md
+  - planning/sprint-100-e9a29d/trackable-backlog.yaml
+closed: "2025-11-28T21:49:00"

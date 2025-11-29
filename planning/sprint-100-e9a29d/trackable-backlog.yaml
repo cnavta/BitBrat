@@ -1,0 +1,218 @@
+version: 1
+title: "Trackable Backlog — Firestore-backed JsonLogic Routing (event-router)"
+SprintID: sprint-100-e9a29d
+branch: feature/sprint-100-e9a29d-event-router-routing-system
+
+notes:
+  - All items align to architecture.yaml and the Technical Architecture document.
+  - Estimates are rough (developer-days unless otherwise noted). Update as we learn.
+  - Tests are Jest-based; Firestore emulator used where indicated.
+
+backlog:
+  # Sprint 100 — Planning and Prep
+  - id: BB-100-01
+    sprint: 100
+    title: Create Sprint Execution Plan
+    description: Author sprint-by-sprint execution plan with milestones and exit criteria.
+    deliverables:
+      - planning/sprint-100-e9a29d/sprint-execution-plan.md
+    estimate: 0.25d
+    acceptance_criteria:
+      - Document exists with sprints 100–104 and scope per sprint
+      - Added to sprint-manifest.yaml
+    tests: []
+    status: planned
+
+  - id: BB-100-02
+    sprint: 100
+    title: Create Trackable Backlog
+    description: Add a YAML backlog with IDs, dependencies, estimates, and acceptance criteria.
+    deliverables:
+      - planning/sprint-100-e9a29d/trackable-backlog.yaml
+    estimate: 0.25d
+    acceptance_criteria:
+      - Backlog items are linked to sprints with unique IDs
+      - Includes tests and acceptance criteria per item
+    tests: []
+    status: planned
+
+  - id: BB-100-03
+    sprint: 100
+    title: Resolve Open Questions in Technical Architecture
+    description: Update technical-architecture.md with answers (Yes/Yes) to open questions.
+    deliverables:
+      - planning/sprint-100-e9a29d/technical-architecture.md
+    estimate: 0.1d
+    acceptance_criteria:
+      - Decisions section includes DLQ constant and downstream step ownership
+      - Open Questions marked as resolved
+    tests: []
+    status: planned
+
+  # Sprint 101 — Foundations
+  - id: BB-101-01
+    sprint: 101
+    title: Add INTERNAL_ROUTER_DLQ_V1 constant
+    description: Add INTERNAL_ROUTER_DLQ_V1 = "internal.router.dlq.v1" to src/types/events.ts.
+    files:
+      - src/types/events.ts
+    estimate: 0.1d
+    acceptance_criteria:
+      - Constant exported and used by subsequent modules
+      - Build succeeds
+    tests:
+      - type-check only
+    dependencies: [BB-100-03]
+    status: planned
+
+  - id: BB-101-02
+    sprint: 101
+    title: Implement RuleLoader with Firestore cache
+    description: Warm-load rules from configs/routingRules/rules; maintain in-memory cache; sort by priority; onSnapshot updates.
+    files:
+      - src/services/routing/rule-loader.ts
+    estimate: 1.0d
+    acceptance_criteria:
+      - Given a mock Firestore, returns sorted enabled rules
+      - Invalid documents are skipped with errors logged
+    tests:
+      - unit: sorting, filtering, error paths
+    dependencies: [BB-101-01]
+    status: planned
+
+  - id: BB-101-03
+    sprint: 101
+    title: JsonLogic Evaluator
+    description: Provide evaluator that maps InternalEventV1 to the defined context and evaluates rule.logic.
+    files:
+      - src/services/routing/jsonlogic-evaluator.ts
+      - src/types/events.ts
+    estimate: 0.75d
+    acceptance_criteria:
+      - Supports standard operators; returns boolean
+      - Context includes type, channel, userId, envelope, payload, now, ts
+    tests:
+      - unit: truthy/falsey, nested var access
+    dependencies: [BB-101-02]
+    status: planned
+
+  # Sprint 102 — RouterEngine Integration
+  - id: BB-102-01
+    sprint: 102
+    title: RouterEngine first-match-wins
+    description: Iterate rules by priority; select first truthy; else default to DLQ constant.
+    files:
+      - src/services/routing/router-engine.ts
+    estimate: 1.0d
+    acceptance_criteria:
+      - First match short-circuits; no match uses default slip
+      - Selected slip normalized with status=PENDING, attempt=0, v="1" (if undefined)
+    tests:
+      - unit: priority/short-circuit; default path
+    dependencies: [BB-101-03]
+    status: planned
+
+  - id: BB-102-02
+    sprint: 102
+    title: Integrate RouterEngine into event-router-service
+    description: Wire ingress subscriber to call RouterEngine and publish to first step’s nextTopic.
+    files:
+      - src/apps/event-router-service.ts
+      - src/services/message-bus/*
+    estimate: 0.75d
+    acceptance_criteria:
+      - On receiving InternalEventV1, publish to expected topic
+      - Logs include { matched, ruleId, priority, selectedTopic }
+    tests:
+      - unit: bus publisher mocked; assert subject
+    dependencies: [BB-102-01]
+    status: planned
+
+  # Sprint 103 — Observability & Hardening
+  - id: BB-103-01
+    sprint: 103
+    title: Debug counters endpoint
+    description: "Expose /_debug/ counters: router.events.total, router.rules.matched, router.rules.defaulted."
+    files:
+      - src/apps/event-router-service.ts
+      - src/common/*
+    estimate: 0.5d
+    acceptance_criteria:
+      - Endpoint returns counters as JSON
+      - Counters update on message handling
+    tests:
+      - unit/integration: HTTP endpoint returns expected values
+    dependencies: [BB-102-02]
+    status: planned
+
+  - id: BB-103-02
+    sprint: 103
+    title: Firestore emulator integration tests
+    description: Verify RuleLoader reacts to snapshot updates and RouterEngine reroutes accordingly.
+    files:
+      - tests/integration/routing-emulator.spec.ts
+    estimate: 1.0d
+    acceptance_criteria:
+      - Adding/updating rule via emulator changes routing outcome in tests
+    tests:
+      - integration: uses emulator with sample rule docs
+    dependencies: [BB-101-02, BB-102-01]
+    status: planned
+
+  - id: BB-103-03
+    sprint: 103
+    title: Error handling hardening
+    description: Ensure invalid rule docs are skipped; Firestore failures fall back to default slip.
+    files:
+      - src/services/routing/*
+    estimate: 0.5d
+    acceptance_criteria:
+      - Unit tests cover invalid schema and failure fallbacks
+    tests:
+      - unit: error paths
+    dependencies: [BB-101-02, BB-102-01]
+    status: planned
+
+  # Sprint 104 — Publication & Readiness
+  - id: BB-104-01
+    sprint: 104
+    title: Documentation and examples
+    description: Update docs and include example Firestore rule documents.
+    files:
+      - documentation/routing-rules-examples.md
+    estimate: 0.25d
+    acceptance_criteria:
+      - Example docs render; align with schema in Technical Architecture
+    tests: []
+    dependencies: [BB-102-02]
+    status: completed
+    notes:
+      - Added documentation/routing-rules-examples.md with copy-pasteable Firestore rule example aligning to schema
+
+  - id: BB-104-02
+    sprint: 104
+    title: Publication (GitHub PR)
+    description: Create PR via gh CLI; update publication.yaml with PR URL; attach verification report.
+    files:
+      - planning/sprint-100-e9a29d/publication.yaml
+      - planning/sprint-100-e9a29d/verification-report.md
+    estimate: 0.25d
+    acceptance_criteria:
+      - PR created and URL stored in publication.yaml
+      - Verification report summarizes deliverables
+    tests: []
+    dependencies: [BB-104-01]
+    status: planned
+
+  - id: BB-104-03
+    sprint: 104
+    title: Validation script passes end-to-end
+    description: Ensure validate_deliverable.sh passes build, tests, local up/down, and dry-run deployment.
+    files:
+      - validate_deliverable.sh
+    estimate: 0.25d
+    acceptance_criteria:
+      - Script runs successfully in CI or local with PROJECT_ID set
+    tests: []
+    dependencies: [BB-103-01, BB-103-02, BB-103-03]
+    status: planned

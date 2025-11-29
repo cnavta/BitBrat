@@ -1,0 +1,23 @@
+id: sprint-100-e9a29d
+title: Firestore-backed JsonLogic Routing for event-router
+objective: >
+  Design the technical architecture to add a Firestore-backed, JsonLogic-based
+  routing system to the event-router service. The router will evaluate incoming
+  events against prioritized rules and apply a RoutingSlip accordingly, falling
+  back to a configured default when no rules match, then advance the event to
+  the first destination.
+status: completed
+branch: feature/sprint-100-e9a29d-event-router-routing-system
+owners:
+  - chris@ix-n.com
+artifacts:
+  - technical-architecture.md
+  - implementation-plan.md
+  - sprint-execution-plan.md
+  - trackable-backlog.yaml
+  - request-log.md
+  - publication.yaml
+  - validate_deliverable.sh
+  - verification-report.md
+  - retro.md
+  - key-learnings.md
