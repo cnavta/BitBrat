@@ -1,10 +1,11 @@
 id: sprint-105-2d47f1a
 name: Auth Service – User Enrichment v1
-status: active
+status: completed
 goal: "Implement Auth service to enrich internal events with user data from Firestore and publish to internal.user.enriched.v1"
 branch: feature/sprint-105-2d47f1a-auth-service-enrichment
 created_at: "2025-11-29T14:21:00Z"
 started_at: "2025-11-29T14:45:00Z"
+completed_at: "2025-11-29T17:20:00Z"
 owner: Lead Implementor
 references:
   - planning/sprint-104-f0bef1b/technical-architecture-auth-service.md
