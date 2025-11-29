@@ -27,3 +27,11 @@
   - validate_deliverable.sh (export MESSAGE_BUS_DRIVER=nats, MESSAGE_BUS_DISABLE_SUBSCRIBE=1, PUBSUB_ENSURE_DISABLE=1 for tests)
   - jest.config.js (previous change — CI-friendly settings)
   | Notes: Prevents Pub/Sub client initialization during Jest which caused import-after-teardown and segfaults in Cloud Build. Local full suite passes; monitor CI.
+
+- 2025-11-29T21:32:00Z | Remediate | Action: Eliminate network I/O during tests; fix Cloud Build NATS connection refusal | Files:
+  - src/services/message-bus/noop-driver.ts (new zero-I/O driver for tests/CI)
+  - src/services/message-bus/index.ts (select 'noop' driver when CI/Jest or MESSAGE_BUS_DISABLE_IO=1; honor explicit driver)
+  - validate_deliverable.sh (force MESSAGE_BUS_DRIVER=noop, MESSAGE_BUS_DISABLE_IO=1 for tests)
+  - src/services/message-bus/message-bus.test.ts (explicitly set pubsub in test instead of relying on default)
+  - src/services/message-bus/__tests__/factory-selection.test.ts (new tests for noop selection and explicit pubsub)
+  | Notes: Prevents attempts to connect to NATS in CI and ensures tests exit cleanly without open handles.

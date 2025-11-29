@@ -59,10 +59,12 @@ npm run build
 
 echo "🧪 Running tests..."
 export CI=1
-# Ensure CI uses the in-memory/local message bus to avoid @google-cloud/pubsub during tests
-export MESSAGE_BUS_DRIVER=${MESSAGE_BUS_DRIVER:-nats}
+# Ensure CI uses a zero-I/O message bus to avoid any network connections (@google-cloud/pubsub or NATS)
+export MESSAGE_BUS_DRIVER=${MESSAGE_BUS_DRIVER:-noop}
 # Explicitly disable any background subscriptions in services during tests
 export MESSAGE_BUS_DISABLE_SUBSCRIBE=1
+# Disable any message bus network I/O at the factory level
+export MESSAGE_BUS_DISABLE_IO=1
 # Disable Pub/Sub topic/subscription ensure logic if any pubsub path is accidentally hit
 export PUBSUB_ENSURE_DISABLE=1
 npm test

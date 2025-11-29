@@ -94,13 +94,17 @@ export interface MessageSubscriber {
 }
 
 /** Resolve the active driver from environment. */
-function getDriver(): 'pubsub' | 'nats' {
+function getDriver(): 'pubsub' | 'nats' | 'noop' {
   const explicit = String(process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS || '').toLowerCase();
-  if (explicit === 'nats') return 'nats';
-  if (explicit === 'pubsub') return 'pubsub';
-  // Default to NATS during Jest/test environments to avoid importing @google-cloud/pubsub
+  if (explicit && explicit !== 'auto') {
+    if (explicit === 'nats' || explicit === 'pubsub' || explicit === 'noop') return explicit as any;
+  }
+  // If IO must be disabled (tests/CI), use noop
+  const ioDisabled = process.env.MESSAGE_BUS_DISABLE_IO === '1';
   const isTest = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || !!process.env.CI;
-  return isTest ? 'nats' : 'pubsub';
+  if (ioDisabled || isTest) return 'noop';
+  // Default in runtime: Pub/Sub
+  return 'pubsub';
 }
 
 /** Create a MessagePublisher bound to a subject/topic for the current driver. */
@@ -110,6 +114,11 @@ export function createMessagePublisher(subject: string): MessagePublisher {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { NatsPublisher } = require('./nats-driver');
     return new NatsPublisher(subject);
+  }
+  if (driver === 'noop') {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { NoopPublisher } = require('./noop-driver');
+    return new NoopPublisher(subject);
   }
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { PubSubPublisher } = require('./pubsub-driver');
@@ -123,6 +132,11 @@ export function createMessageSubscriber(): MessageSubscriber {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { NatsSubscriber } = require('./nats-driver');
     return new NatsSubscriber();
+  }
+  if (driver === 'noop') {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { NoopSubscriber } = require('./noop-driver');
+    return new NoopSubscriber();
   }
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { PubSubSubscriber } = require('./pubsub-driver');
