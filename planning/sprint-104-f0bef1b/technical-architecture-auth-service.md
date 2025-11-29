@@ -1,5 +1,5 @@
 Title: Technical Architecture – Auth Service (User Enrichment)
-Status: Draft for review
+Status: Approved (v1)
 Sprint: sprint-104-f0bef1b
 Branch: feature/sprint-104-f0bef1b-auth-architecture
 
