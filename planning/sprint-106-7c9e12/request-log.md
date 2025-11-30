@@ -49,3 +49,15 @@
     - npm run build && npm test
   - Files:
     - architecture.yaml (updated: removed EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID from required env; added comments)
+
+- 2025-11-30T13:26:00Z | req-07 | Close sprint and finalize artifacts
+  - Interpretation: Mark sprint as completed, record PR, add key learnings, and push changes per Sprint Protocol.
+  - Shell/Git:
+    - git add -A
+    - git commit -m "sprint-106-7c9e12: close sprint — finalize artifacts (verification report, manifest status, key learnings, request log)"
+    - git push
+  - Files:
+    - planning/sprint-106-7c9e12/verification-report.md (updated: PR recorded under Completed)
+    - planning/sprint-106-7c9e12/sprint-manifest.yaml (updated: status Completed; closed_at timestamp; PR link)
+    - planning/sprint-106-7c9e12/key-learnings.md (added)
+    - planning/sprint-106-7c9e12/request-log.md (updated)

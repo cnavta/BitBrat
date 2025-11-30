@@ -7,10 +7,10 @@
 - [x] envelope.egressDestination is injected on ingress publications
 - [x] Unit tests added and all tests pass locally
 - [x] architecture.yaml updated to document per-instance egress topic and env vars
+- [x] Publication PR created and recorded in publication.yaml (https://github.com/cnavta/BitBrat/pull/10)
 
 ## Partial
 - [ ] validate_deliverable.sh health checks remain manual placeholders
-- [ ] Publication (PR) pending — to be created after push/authentication
 
 ## Deferred
 - [ ] Multi-platform egress (Kick/Discord/etc.)
