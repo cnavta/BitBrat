@@ -71,3 +71,4 @@ export interface ITokenStore {
 
 
 //export * from './gateways';
+export * from './events';

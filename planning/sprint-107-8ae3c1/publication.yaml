@@ -1,0 +1,7 @@
+branch: feature/sprint-107-8ae3c1-internal-event-v2
+base: main
+repository: git@github.com:cnavta/BitBrat.git
+pull_request:
+  url: 'https://github.com/cnavta/BitBrat/pull/new/feature/sprint-107-8ae3c1-internal-event-v2'
+  status: needs-creation
+  notes: 'Visit the URL to create the PR, then update status to open and set final PR URL.'
