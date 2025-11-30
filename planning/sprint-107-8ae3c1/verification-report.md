@@ -3,10 +3,13 @@ Deliverable Verification – sprint-107-8ae3c1
 Completed
 - [x] Technical Architecture doc for InternalEventV2 and message flow
 - [x] Sprint planning scaffolding
+- [x] TypeScript interfaces for InternalEventV2, MessageV1, AnnotationV1, CandidateV1, ErrorEntryV1
+- [x] Egress selection utility and integration in ingress-egress-service
+- [x] Unit tests added for selection utility
 
 Partial
-- [ ] Implementation of TypeScript types (pending plan approval)
-- [ ] Egress selection logic (pending plan approval)
+- [ ] Execution of test suite (blocked in current environment)
+- [ ] Repository validation script (blocked in current environment)
 
 Deferred
 - [ ] Full migration of services to V2
