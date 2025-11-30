@@ -33,3 +33,12 @@
     - git add -A
     - git commit -m "sprint-106-7c9e12: implement per-instance egress subscription and Twitch IRC egress; inject envelope.egressDestination; update architecture.yaml; tests"
   - Files: (see commit)
+
+- 2025-11-30T10:12:00Z | req-05 | Honor K_REVISION for per-instance egress identity
+  - Interpretation: When K_REVISION is present (Cloud Run), use it for EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID to derive egress topic.
+  - Shell/Git:
+    - npm run build && npm test
+  - Files:
+    - src/apps/ingress-egress-service.ts (updated)
+    - architecture.yaml (updated)
+    - src/apps/ingress-egress-service.krevision.test.ts (added)

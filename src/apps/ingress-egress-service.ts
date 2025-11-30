@@ -24,6 +24,14 @@ export function createApp() {
       logger.debug('Creating Twitch ingress-egress service', { cfg });
 
       // Resolve instance identity → used to compute per-instance egress topic
+      // If running on Cloud Run, K_REVISION is a stable identifier for the deployed revision.
+      // When present, use it to set both EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID so all
+      // downstream logic (and other modules) see a consistent instance identity.
+      const kRevision = process.env.K_REVISION;
+      if (kRevision) {
+        process.env.EGRESS_INSTANCE_ID = kRevision;
+        process.env.SERVICE_INSTANCE_ID = kRevision;
+      }
       const instanceId =
         process.env.EGRESS_INSTANCE_ID ||
         process.env.SERVICE_INSTANCE_ID ||
