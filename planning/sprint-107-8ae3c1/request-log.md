@@ -35,3 +35,11 @@ Log start: 2025-11-30T15:05:10Z
 ## 2025-11-30T16:13:30Z
 - Fixed failing test imports by correcting relative paths in tests/services/egress/selection.test.ts
 - No runtime logic changes; only path fix to resolve TS2307 module not found errors
+
+## 2025-11-30T16:59:00Z
+- User signaled: Start sprint
+- Confirmed sprint start; staying on feature branch: feature/sprint-107-8ae3c1-internal-event-v2 (HEAD=2dd4f49)
+- Updated planning artifacts:
+  - implementation-plan.md: expanded to full InternalEventV2 migration scope and deliverables
+  - backlog.md: added BB-IEV2 trackable items per service (ingress-egress, auth, router, command-processor) and cross-cutting tasks
+- Next: commit planning updates on feature branch and request plan approval before code changes
