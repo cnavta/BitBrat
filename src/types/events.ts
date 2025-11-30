@@ -124,6 +124,66 @@ export interface InternalEventV1 {
   payload: Record<string, any>;
 }
 
+/**
+ * Sprint 107 — Internal Event Contracts (v2)
+ * InternalEventV2 flattens the V1 envelope and introduces message/annotations/candidates.
+ * This interface is the preferred shape for new services. V1 remains for backward compatibility.
+ */
+export interface MessageV1 {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  text?: string;
+  language?: string;
+  rawPlatformPayload?: Record<string, any>;
+}
+
+export interface AnnotationV1 {
+  id: string;
+  kind: 'intent' | 'entities' | 'sentiment' | 'topic' | 'custom' | string;
+  source: string;
+  createdAt: string; // ISO8601
+  confidence?: number;
+  label?: string;
+  value?: string;
+  score?: number;
+  payload?: Record<string, any>;
+}
+
+export interface CandidateV1 {
+  id: string;
+  kind: 'text' | 'rich' | 'action' | string;
+  source: string;
+  createdAt: string; // ISO8601
+  status: 'proposed' | 'selected' | 'superseded' | 'rejected';
+  priority: number; // lower is higher priority
+  confidence?: number;
+  text?: string;
+  format?: 'plain' | 'markdown' | 'html' | string;
+  reason?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ErrorEntryV1 {
+  source: string;
+  message: string;
+  fatal?: boolean;
+  at: string; // ISO8601
+}
+
+/**
+ * InternalEventV2 extends the EnvelopeV1 fields at the top level (no `envelope` nesting),
+ * and adds normalized message metadata along with annotations and candidate replies.
+ */
+export interface InternalEventV2 extends EnvelopeV1 {
+  type: InternalEventType;
+  channel?: string; // #channel if applicable
+  userId?: string; // optional twitch user id, etc.
+  message: MessageV1;
+  annotations?: AnnotationV1[];
+  candidates?: CandidateV1[];
+  errors?: ErrorEntryV1[];
+}
+
 // Topic/Subject constants (keep identical across drivers)
 export const INTERNAL_INGRESS_V1 = 'internal.ingress.v1';
 export const INTERNAL_ROUTES_V1 = 'internal.routes.v1';
