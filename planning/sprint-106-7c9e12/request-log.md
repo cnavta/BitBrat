@@ -42,3 +42,10 @@
     - src/apps/ingress-egress-service.ts (updated)
     - architecture.yaml (updated)
     - src/apps/ingress-egress-service.krevision.test.ts (added)
+
+- 2025-11-30T12:58:00Z | req-06 | Make EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID optional
+  - Interpretation: Do not treat EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID as required env vars for ingress-egress; keep support but optional.
+  - Shell/Git:
+    - npm run build && npm test
+  - Files:
+    - architecture.yaml (updated: removed EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID from required env; added comments)

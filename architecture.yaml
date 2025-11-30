@@ -76,10 +76,11 @@ services:
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS
-      # Optional instance identity for per-instance egress topic
+      # Optional instance identity for per-instance egress topic.
+      # The service resolves instanceId via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated
+      # Only K_REVISION is listed here because it is auto-provided by Cloud Run when present.
+      # EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID are SUPPORTED but OPTIONAL and therefore not required here.
       - K_REVISION
-      - EGRESS_INSTANCE_ID
-      - SERVICE_INSTANCE_ID
 
   auth:
     active: true
@@ -125,6 +126,14 @@ services:
     topics:
       consumes:
         - internal.finalize.v1
+
+  command-processor:
+    active: true
+    description: "Command processor service handles incoming commands and executes them, producing responses."
+    entry: src/apps/command-processor-service.ts
+    topics:
+      consumes:
+        - internal.command.v1
 
 infrastructure:
   target: gcp
