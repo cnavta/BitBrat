@@ -95,6 +95,7 @@ export interface EnvelopeV1 {
   traceId?: string; // w3c trace id
   replyTo?: string; // topic for direct reply if not default
   timeoutAt?: string; // optional absolute timeout for the end-to-end processing
+  egressDestination?: string; // Destination that can to route external responses for a message, gernerally the ingress-egress instance the message arrived on.
   routingSlip?: RoutingStep[]; // at least one step after routing
   /** Optional: added by Auth service (User Enrichment v1) */
   user?: {

@@ -62,7 +62,9 @@ services:
       publishes:
         - internal.ingress.v1
       consumes:
-        - internal.egress.v1
+        # Per-instance egress topic subscription. The service resolves {instanceId} at runtime
+        # using EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id
+        - internal.egress.v1.{instanceId}
     paths:
       - /_debug/twitch # Debug endpoint that displays the current state of the Twitch IRC and EventSub connections
     scaling:
@@ -74,6 +76,9 @@ services:
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS
+      # Optional instance identity for per-instance egress topic
+      - EGRESS_INSTANCE_ID
+      - SERVICE_INSTANCE_ID
 
   auth:
     active: true
