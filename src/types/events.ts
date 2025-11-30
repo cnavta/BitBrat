@@ -95,7 +95,25 @@ export interface EnvelopeV1 {
   traceId?: string; // w3c trace id
   replyTo?: string; // topic for direct reply if not default
   timeoutAt?: string; // optional absolute timeout for the end-to-end processing
+  egressDestination?: string; // Destination that can to route external responses for a message, gernerally the ingress-egress instance the message arrived on.
   routingSlip?: RoutingStep[]; // at least one step after routing
+  /** Optional: added by Auth service (User Enrichment v1) */
+  user?: {
+    id: string;
+    email?: string;
+    displayName?: string;
+    roles?: string[];
+    status?: string;
+  };
+  /** Optional: added by Auth service (User Enrichment v1) */
+  auth?: {
+    v: '1';
+    provider?: string;
+    method: 'enrichment';
+    matched: boolean;
+    userRef?: string; // e.g., users/<docId>
+    at: string; // ISO timestamp
+  };
 }
 
 export interface InternalEventV1 {
@@ -115,3 +133,5 @@ export const INTERNAL_EGRESS_V1 = 'internal.egress.v1';
 export const INTERNAL_DEADLETTER_V1 = 'internal.deadletter.v1';
 // Router DLQ default target when no rules match (per sprint-100 technical architecture)
 export const INTERNAL_ROUTER_DLQ_V1 = 'internal.router.dlq.v1';
+// User-enriched stream default (Auth service output; Router default input per sprint-104)
+export const INTERNAL_USER_ENRICHED_V1 = 'internal.user.enriched.v1';

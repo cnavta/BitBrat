@@ -10,8 +10,8 @@ describe('message-bus factory', () => {
     process.env = OLD_ENV;
   });
 
-  it('creates PubSub driver by default', async () => {
-    process.env.MESSAGE_BUS_DRIVER = '';
+  it('creates PubSub driver when MESSAGE_BUS_DRIVER=pubsub', async () => {
+    process.env.MESSAGE_BUS_DRIVER = 'pubsub';
     jest.doMock('./pubsub-driver', () => ({
       PubSubPublisher: class { constructor(public subject: string) {} publishJson = jest.fn(async () => '1'); flush = jest.fn(async () => {}); },
       PubSubSubscriber: class { subscribe = jest.fn(async () => async () => {}); },

@@ -45,7 +45,7 @@ jest.mock('../../common/firebase', () => {
 
 import { createApp } from '../event-router-service';
 import type { InternalEventV1 } from '../../types/events';
-import { INTERNAL_ROUTER_DLQ_V1 } from '../../types/events';
+import { INTERNAL_ROUTER_DLQ_V1, INTERNAL_USER_ENRICHED_V1 } from '../../types/events';
 import { logger } from '../../common/logging';
 
 // Test doubles and captors
@@ -64,7 +64,7 @@ describe('event-router ingress integration', () => {
     createApp();
     // Allow async setup() inside BaseServer to progress to subscription
     await new Promise((r) => setTimeout(r, 0));
-    expect(subscribeSubject).toBe('dev.internal.ingress.v1');
+    expect(subscribeSubject).toBe(`dev.${INTERNAL_USER_ENRICHED_V1}`);
 
     const evt: InternalEventV1 = {
       envelope: { v: '1', source: 'ingress.test', correlationId: 'c-evt', routingSlip: [] },

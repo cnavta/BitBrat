@@ -62,7 +62,9 @@ services:
       publishes:
         - internal.ingress.v1
       consumes:
-        - internal.egress.v1
+        # Per-instance egress topic subscription. The service resolves {instanceId} at runtime
+        # using K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id
+        - internal.egress.v1.{instanceId}
     paths:
       - /_debug/twitch # Debug endpoint that displays the current state of the Twitch IRC and EventSub connections
     scaling:
@@ -74,14 +76,19 @@ services:
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS
+      # Optional instance identity for per-instance egress topic.
+      # The service resolves instanceId via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated
+      # Only K_REVISION is listed here because it is auto-provided by Cloud Run when present.
+      # EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID are SUPPORTED but OPTIONAL and therefore not required here.
+      - K_REVISION
 
   auth:
-    active: false
+    active: true
     description: "Authentication service that handles user authentication and authorization."
     entry: src/apps/auth-service.ts
     topics:
       publishes:
-        - internal.auth.v1
+        - internal.user.enriched.v1
       consumes:
         - internal.ingress.v1
     secrets:
@@ -96,8 +103,7 @@ services:
       publishes:
         - internal.llmbot.v1
       consumes:
-        - internal.auth.v1
-        - internal.ingress.v1
+        - internal.user.enriched.v1
 
   llm-bot:
     active: false
@@ -120,6 +126,14 @@ services:
     topics:
       consumes:
         - internal.finalize.v1
+
+  command-processor:
+    active: true
+    description: "Command processor service handles incoming commands and executes them, producing responses."
+    entry: src/apps/command-processor-service.ts
+    topics:
+      consumes:
+        - internal.command.v1
 
 infrastructure:
   target: gcp
