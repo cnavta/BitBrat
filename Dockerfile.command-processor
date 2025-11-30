@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+
+FROM node:24-bullseye AS builder
+WORKDIR /workspace
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:24-bullseye AS runner
+WORKDIR /workspace
+ENV NODE_ENV=production
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm ci --omit=dev
+# Copy compiled app and architecture.yaml for runtime config lookups
+COPY --from=builder /workspace/dist ./dist
+COPY architecture.yaml ./architecture.yaml
+EXPOSE 3000
+ENV SERVICE_NAME=command-processor
+ENV SERVICE_PORT=3000
+CMD ["node", "dist/apps/command-processor-service.js"]
