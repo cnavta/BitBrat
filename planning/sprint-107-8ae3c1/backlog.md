@@ -17,9 +17,9 @@ Legend: [ ] = To do, [*] = In progress, [x] = Done, [!] = Blocked
    - [x] Integrate into ingress-egress-service egress path
 
 4. Tests and Validation
-   - [x] Unit tests for selection utility (priority/confidence/createdAt, edge cases)
-   - [!] Run test suite (jest) and address failures if any (blocked in current environment)
-   - [!] Run validate_deliverable.sh at repo root or sprint delegate (blocked in current environment)
+  - [x] Unit tests for selection utility (priority/confidence/createdAt, edge cases)
+  - [x] Run test suite (jest) and address failures if any (all green)
+  - [!] Run validate_deliverable.sh at repo root or sprint delegate (blocked in current environment)
 
 5. Verification and Publication
    - [x] Update verification-report.md with completed items and outcomes

@@ -1,5 +1,5 @@
-import { selectBestCandidate, extractEgressTextFromEvent } from '../../src/services/egress/selection';
-import { CandidateV1, InternalEventV2 } from '../../src/types/events';
+import { selectBestCandidate, extractEgressTextFromEvent } from '../../../src/services/egress/selection';
+import { CandidateV1, InternalEventV2 } from '../../../src/types/events';
 
 describe('egress selection', () => {
   test('selectBestCandidate returns null for empty or invalid', () => {
