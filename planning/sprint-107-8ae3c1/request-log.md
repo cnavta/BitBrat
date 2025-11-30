@@ -31,3 +31,7 @@
 
 Log start: 2025-11-30T15:05:10Z
 - Created sprint branch and manifest
+
+## 2025-11-30T16:13:30Z
+- Fixed failing test imports by correcting relative paths in tests/services/egress/selection.test.ts
+- No runtime logic changes; only path fix to resolve TS2307 module not found errors
