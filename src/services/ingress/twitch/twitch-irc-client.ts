@@ -29,6 +29,8 @@ export interface ITwitchIrcClient {
   start(): Promise<void>;
   /** Stop the client (disconnect). */
   stop(): Promise<void>;
+  /** Send a text message to a channel via IRC (egress helper). */
+  sendText(text: string, channel?: string): Promise<void>;
 }
 
 /**
@@ -54,6 +56,11 @@ class NoopTwitchIrcClient implements ITwitchIrcClient {
   async stop(): Promise<void> {
     this.snapshot.state = 'DISCONNECTED';
   }
+
+  async sendText(_text: string, _channel?: string): Promise<void> {
+    // no-op in tests/disabled mode
+    return;
+  }
 }
 
 /**
@@ -64,16 +71,18 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
   private disconnecting = false;
   private readonly cfg?: IConfig;
   private readonly credentialsProvider?: ITwitchCredentialsProvider;
+  private readonly egressDestinationTopic?: string;
 
   constructor(
     private readonly builder: IEnvelopeBuilder,
     private readonly publisher: ITwitchIngressPublisher,
     private readonly channels: string[] = [],
-    options?: { cfg?: IConfig; credentialsProvider?: ITwitchCredentialsProvider; disableConnect?: boolean }
+    options?: { cfg?: IConfig; credentialsProvider?: ITwitchCredentialsProvider; disableConnect?: boolean; egressDestinationTopic?: string }
   ) {
     super();
     this.cfg = options?.cfg;
     this.credentialsProvider = options?.credentialsProvider;
+    this.egressDestinationTopic = options?.egressDestinationTopic;
     // Normalize channels: prefer explicit parameter, otherwise from config, otherwise env (for backward-compatible tests)
     const fromCfg = this.cfg?.twitchChannels || [];
     const fromEnv = parseChannels(process.env.TWITCH_CHANNELS);
@@ -263,6 +272,32 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
   }
 
   /**
+   * Send a chat message out to Twitch IRC. If no channel is provided, uses the first configured channel if available.
+   * In disabled/test mode where chat is not connected, this is a no-op that logs at debug level.
+   */
+  async sendText(text: string, channel?: string): Promise<void> {
+    const channels: string[] = ((this as any).channels || []).slice();
+    const target = channel || (channels[0] ? (channels[0].startsWith('#') ? channels[0] : `#${channels[0]}`) : undefined);
+    if (!text || !text.trim()) return;
+    if (!target) {
+      logger.warn('twitch.egress.no_channel', { text });
+      return;
+    }
+    if (this.chat && typeof this.chat.say === 'function') {
+      try {
+        await this.chat.say(target, text);
+        logger.debug('twitch.egress.sent', { channel: target });
+      } catch (e: any) {
+        logger.error('twitch.egress.send_error', { channel: target, error: e?.message || String(e) });
+        throw e;
+      }
+    } else {
+      // No live connection (tests/disabled). Treat as no-op.
+      logger.debug('twitch.egress.noop', { channel: target, reason: 'chat_not_connected' });
+    }
+  }
+
+  /**
    * Public handler also used by Twurple onMessage wiring; can be invoked by tests.
    */
   async handleMessage(
@@ -295,6 +330,10 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
 
     try {
       const evt = this.builder.build(msg);
+      // Ensure egressDestination is set for downstream responses to route back to this instance
+      if (evt && evt.envelope && !evt.envelope.egressDestination && this.egressDestinationTopic) {
+        (evt.envelope as any).egressDestination = this.egressDestinationTopic;
+      }
       await this.publisher.publish(evt);
       this.snapshot.counters.published = (this.snapshot.counters.published || 0) + 1;
     } catch (e: any) {

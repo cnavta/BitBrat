@@ -5,7 +5,11 @@
 export type CounterKey =
   | 'router.events.total'
   | 'router.rules.matched'
-  | 'router.rules.defaulted';
+  | 'router.rules.defaulted'
+  | 'auth.enrich.total'
+  | 'auth.enrich.matched'
+  | 'auth.enrich.unmatched'
+  | 'auth.enrich.errors';
 
 type Snapshot = Record<CounterKey, number>;
 
@@ -14,6 +18,10 @@ class Counters {
     'router.events.total': 0,
     'router.rules.matched': 0,
     'router.rules.defaulted': 0,
+    'auth.enrich.total': 0,
+    'auth.enrich.matched': 0,
+    'auth.enrich.unmatched': 0,
+    'auth.enrich.errors': 0,
   };
 
   increment(key: CounterKey, by = 1) {

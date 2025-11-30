@@ -2,7 +2,7 @@ import '../common/safe-timers'; // install safe timer clamps early for this proc
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
-import { INTERNAL_INGRESS_V1, InternalEventV1 } from '../types/events';
+import { InternalEventV1, INTERNAL_USER_ENRICHED_V1 } from '../types/events';
 import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
@@ -49,8 +49,9 @@ export function createApp() {
       }
       const engine = new RouterEngine();
 
-      // Subscribe to ingress topic and process routing decisions
-      const subject = `${cfg.busPrefix || ''}${INTERNAL_INGRESS_V1}`;
+      // Subscribe to default input topic (env override supported)
+      const inputTopic = process.env.ROUTER_DEFAULT_INPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
+      const subject = `${cfg.busPrefix || ''}${inputTopic}`;
       const sub = createMessageSubscriber();
       logger.info('event_router.subscribe.start', { subject, queue: 'event-router' });
       try {
