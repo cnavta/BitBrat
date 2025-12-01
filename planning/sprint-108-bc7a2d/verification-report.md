@@ -16,15 +16,17 @@
 - [x] Processor full pipeline wired: parse → lookup → policy checks → choose/render → append candidate; service emits receipt logs pre-processing
 - [x] BB-108-10 — Routing slip advancement behavior validated with unit tests (next step, egress, completion)
 - [x] BB-108-11 — Error handling policy validated (JSON parse ack; publish failure nack with requeue)
+- [x] BB-108-12 — Service wiring and handler integration tests completed
+- [x] BB-108-13 — Unit test suite completeness: parsing edges, metadata, logging assertions
+- [x] BB-108-14 — Integration smoke test (V1→V2 adapter path) added and passing
+- [x] BB-108-15 — Logging/observability assertions added and passing
+- [x] BB-108-16 — Documentation added: documentation/services/command-processor.md
 
 ## Partial
-- [ ] BB-108-12 — Service wiring and handler integration tests
-- [ ] BB-108-13 — Suite completeness/coverage improvements
+- [ ] Publication PR creation (pending credentials if required)
 
 ## Deferred
-- [ ] Implementation code
-- [ ] Unit and integration tests execution
-- [ ] PR creation and publication
+- [ ] PR creation and publication (pending auth)
 
 ## Alignment Notes
 - Document aligns with architecture.yaml (service consumes internal.command.v1) and InternalEventV2 contracts in src/types/events.ts.

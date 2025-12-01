@@ -205,7 +205,7 @@ backlog:
     tests:
       - unit: handler-wiring.spec.ts validates pipeline execution and logging
     dependencies: [BB-108-02, BB-108-03, BB-108-10]
-    status: in-progress
+    status: complete
 
   - id: BB-108-13
     sprint: 108
@@ -224,7 +224,7 @@ backlog:
     tests:
       - unit: as listed above
     dependencies: [BB-108-02, BB-108-03, BB-108-04, BB-108-05, BB-108-06, BB-108-07, BB-108-08, BB-108-09, BB-108-10]
-    status: in-progress
+    status: complete
 
   - id: BB-108-14
     sprint: 108
@@ -238,7 +238,7 @@ backlog:
     tests:
       - integration: smoke test as above
     dependencies: [BB-108-12, BB-108-13]
-    status: planned
+    status: complete
 
   - id: BB-108-15
     sprint: 108
@@ -254,7 +254,7 @@ backlog:
     tests:
       - unit: logging.spec.ts asserts presence of log invocations (using test logger)
     dependencies: [BB-108-12]
-    status: planned
+    status: complete
 
   - id: BB-108-16
     sprint: 108
@@ -269,4 +269,4 @@ backlog:
     tests:
       - docs-reviewed
     dependencies: []
-    status: planned
+    status: complete
