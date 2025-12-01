@@ -77,7 +77,7 @@ backlog:
     tests:
       - unit: policy-global-cooldown.spec.ts validates allow/deny behavior
     dependencies: [BB-108-03]
-    status: planned
+    status: complete
 
   - id: BB-108-05
     sprint: 108
@@ -92,7 +92,7 @@ backlog:
     tests:
       - unit: policy-user-cooldown.spec.ts covers user gating edge cases
     dependencies: [BB-108-03]
-    status: planned
+    status: complete
 
   - id: BB-108-06
     sprint: 108
@@ -108,7 +108,7 @@ backlog:
     tests:
       - unit: policy-rate-limit.spec.ts covers window boundaries and rollover
     dependencies: [BB-108-03]
-    status: planned
+    status: complete
 
   - id: BB-108-07
     sprint: 108
@@ -124,7 +124,7 @@ backlog:
     tests:
       - unit: template-selection.spec.ts verifies anti-repeat and randomness
     dependencies: [BB-108-04, BB-108-05, BB-108-06]
-    status: planned
+    status: in-progress
 
   - id: BB-108-08
     sprint: 108
@@ -139,7 +139,7 @@ backlog:
     tests:
       - unit: template-render.spec.ts covers variable substitution and escaping
     dependencies: [BB-108-01]
-    status: planned
+    status: complete
 
   - id: BB-108-09
     sprint: 108
@@ -148,13 +148,14 @@ backlog:
     files:
       - src/services/command-processor/processor.ts
       - src/types/events.ts
+      - src/services/command-processor/candidate.ts
     estimate: 0.25d
     acceptance_criteria:
       - "Candidate includes id, timestamps, source='command-processor', text, and metadata."
     tests:
       - unit: candidate-create.spec.ts asserts shape and fields
     dependencies: [BB-108-08]
-    status: planned
+    status: complete
 
   - id: BB-108-10
     sprint: 108
