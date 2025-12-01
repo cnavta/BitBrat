@@ -1,0 +1,271 @@
+version: 1
+title: "Trackable Backlog — Sprint 108: Command Processor (First Pass)"
+SprintID: sprint-108-bc7a2d
+branch: feature/sprint-108-bc7a2d-command-processor-architecture
+
+notes:
+  - Aligns with technical architecture: planning/sprint-108-bc7a2d/technical-architecture-command-processor.md
+  - Service consumes internal.command.v1; prefers InternalEventV2, tolerates V1 via adapter.
+  - Firestore is the system of record for command definitions; transactions enforce cooldowns/rate limits.
+  - Tests use Jest; message bus network I/O disabled in CI.
+
+backlog:
+  - id: BB-108-01
+    sprint: 108
+    title: Configuration and ENV validation
+    description: "Load and validate COMMAND_SIGIL, BOT_USERNAME, COMMANDS_COLLECTION, and default policy values."
+    files:
+      - src/apps/command-processor-service.ts
+      - src/common/config.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - "Service starts with sensible defaults; misconfiguration logs a clear error and exits."
+      - "COMMAND_SIGIL defaults to '!' and is one character."
+      - "BOT_USERNAME is required for template rendering."
+    tests:
+      - unit: config/validation.spec.ts for required/optional envs
+    dependencies: []
+    status: complete
+
+  - id: BB-108-02
+    sprint: 108
+    title: Event normalization and sigil parsing
+    description: "Accept V1/V2, up-convert to V2, extract text, detect leading sigil, and parse command name + args."
+    files:
+      - src/apps/command-processor-service.ts
+      - src/common/events/adapters.ts
+      - src/services/command-processor/processor.ts
+      - src/types/events.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "Non-sigil messages are marked SKIP on the current step and advanced; no candidate added."
+      - "Sigil messages produce parsed {name, args[]} with lowercase name."
+    tests:
+      - unit: parsing.spec.ts covers non-sigil, different sigils, and args splitting
+    dependencies: [BB-108-01]
+    status: complete
+
+  - id: BB-108-03
+    sprint: 108
+    title: Firestore command repository
+    description: "Implement repository to resolve a command by canonical name or aliases with indices."
+    files:
+      - src/services/command-processor/command-repo.ts
+      - src/common/firebase.ts
+      - documentation/firestore/indexes.md
+    estimate: 0.75d
+    acceptance_criteria:
+      - "Lookup by name returns the command document within 1 query."
+      - "Lookup by alias returns the command document with array-contains query."
+      - "Repository returns normalized model with templates, cooldowns, rateLimit, runtime."
+    tests:
+      - unit: command-repo.spec.ts mocks Firebase Admin and verifies query paths
+    dependencies: [BB-108-01]
+    status: planned
+
+  - id: BB-108-04
+    sprint: 108
+    title: Global cooldown enforcement (transactional)
+    description: "Enforce command-level global cooldown using runtime.lastExecutionAt in a Firestore transaction."
+    files:
+      - src/services/command-processor/policy.ts
+      - src/services/command-processor/command-repo.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "When global cooldown active, subsequent executions within window are blocked (status SKIP)."
+      - "On allowed execution, runtime.lastExecutionAt is updated atomically."
+    tests:
+      - unit: policy-global-cooldown.spec.ts validates allow/deny behavior
+    dependencies: [BB-108-03]
+    status: planned
+
+  - id: BB-108-05
+    sprint: 108
+    title: Per-user cooldown enforcement (transactional)
+    description: "Track user-specific lastExecutionAt under cooldowns/users/{userId}; enforce perUserMs if configured."
+    files:
+      - src/services/command-processor/policy.ts
+      - src/services/command-processor/command-repo.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "User within cooldown window is denied; outside window is allowed and timestamp updated."
+    tests:
+      - unit: policy-user-cooldown.spec.ts covers user gating edge cases
+    dependencies: [BB-108-03]
+    status: planned
+
+  - id: BB-108-06
+    sprint: 108
+    title: Fixed-window rate limiting (transactional)
+    description: "Implement per-command fixed-window counter under rate-limits/windows/{windowKey}."
+    files:
+      - src/services/command-processor/policy.ts
+      - src/services/command-processor/command-repo.ts
+    estimate: 0.75d
+    acceptance_criteria:
+      - "Within window, allow until count < max; otherwise deny."
+      - "Window rollover starts a new document and resets count."
+    tests:
+      - unit: policy-rate-limit.spec.ts covers window boundaries and rollover
+    dependencies: [BB-108-03]
+    status: planned
+
+  - id: BB-108-07
+    sprint: 108
+    title: Template selection with anti-repeat
+    description: "Choose a template randomly excluding runtime.lastUsedTemplateId when possible; persist chosen id."
+    files:
+      - src/services/command-processor/templates.ts
+      - src/services/command-processor/command-repo.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "When multiple templates available, selection excludes the last used whenever possible."
+      - "Selected template id is stored for next run in the same transaction as cooldown updates."
+    tests:
+      - unit: template-selection.spec.ts verifies anti-repeat and randomness
+    dependencies: [BB-108-04, BB-108-05, BB-108-06]
+    status: planned
+
+  - id: BB-108-08
+    sprint: 108
+    title: Minimal template rendering engine
+    description: "Render variables {{botName}}, {{username}}, {{utcNow}} safely into plain text."
+    files:
+      - src/services/command-processor/templates.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "All allowed variables render correctly; unknown placeholders left intact."
+      - "No code execution or HTML interpretation occurs."
+    tests:
+      - unit: template-render.spec.ts covers variable substitution and escaping
+    dependencies: [BB-108-01]
+    status: planned
+
+  - id: BB-108-09
+    sprint: 108
+    title: Candidate creation and append
+    description: "Create CandidateV1 (kind:text, status:proposed, priority:100) and append to event.candidates."
+    files:
+      - src/services/command-processor/processor.ts
+      - src/types/events.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - "Candidate includes id, timestamps, source='command-processor', text, and metadata."
+    tests:
+      - unit: candidate-create.spec.ts asserts shape and fields
+    dependencies: [BB-108-08]
+    status: planned
+
+  - id: BB-108-10
+    sprint: 108
+    title: Routing slip advancement behavior
+    description: "Mark current step OK/SKIP, and publish to next pending step or egressDestination per standard behavior."
+    files:
+      - src/services/command-processor/processor.ts
+      - src/common/events/routing.ts
+      - src/services/message-bus/index.ts
+    estimate: 0.75d
+    acceptance_criteria:
+      - "When pending next step exists, message is published to its nextTopic."
+      - "When no pending steps remain, message is published to egressDestination if present."
+      - "When neither is available, logs completion and acks."
+    tests:
+      - unit: routing-advance.spec.ts exercises all three paths
+    dependencies: [BB-108-02, BB-108-09]
+    status: planned
+
+  - id: BB-108-11
+    sprint: 108
+    title: Error handling and ACK/NACK policy
+    description: "Parse errors ack (no retry); transient Firestore or publish errors nack(requeue). Structured logging throughout."
+    files:
+      - src/apps/command-processor-service.ts
+      - src/services/command-processor/processor.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - "Poison JSON is acked; Firestore outages trigger nack with requeue."
+      - "Logs use correlationId/source/step for all notable events."
+    tests:
+      - unit: error-policy.spec.ts simulates exceptions and asserts ack/nack paths
+    dependencies: [BB-108-02]
+    status: planned
+
+  - id: BB-108-12
+    sprint: 108
+    title: Service wiring and handler integration
+    description: "Connect subscriber callback to processor; ensure metrics/logs fire; maintain test guards to disable subscribe in CI."
+    files:
+      - src/apps/command-processor-service.ts
+      - src/services/command-processor/processor.ts
+      - src/services/message-bus/index.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - "Service consumes internal.command.v1 and processes events end-to-end in dev."
+    tests:
+      - unit: handler-wiring.spec.ts validates pipeline execution and logging
+    dependencies: [BB-108-02, BB-108-03, BB-108-10]
+    status: planned
+
+  - id: BB-108-13
+    sprint: 108
+    title: Unit test suite for command-processor
+    description: "Comprehensive unit tests across parsing, lookup, policy enforcement, rendering, candidate, and routing."
+    files:
+      - tests/services/command-processor/parsing.spec.ts
+      - tests/services/command-processor/command-repo.spec.ts
+      - tests/services/command-processor/policy-*.spec.ts
+      - tests/services/command-processor/template-*.spec.ts
+      - tests/services/command-processor/candidate-create.spec.ts
+      - tests/services/command-processor/routing-advance.spec.ts
+    estimate: 1.5d
+    acceptance_criteria:
+      - "All unit tests pass in CI with MESSAGE_BUS_DISABLE_SUBSCRIBE=1 and noop driver set."
+    tests:
+      - unit: as listed above
+    dependencies: [BB-108-02, BB-108-03, BB-108-04, BB-108-05, BB-108-06, BB-108-07, BB-108-08, BB-108-09, BB-108-10]
+    status: planned
+
+  - id: BB-108-14
+    sprint: 108
+    title: Integration smoke tests
+    description: "End-to-end flow for V1→V2 adapter and candidate append with routing advancement; message bus I/O disabled."
+    files:
+      - tests/integration/command-processor-smoke.spec.ts
+    estimate: 0.75d
+    acceptance_criteria:
+      - "Simulated event yields candidate and correct routing behavior."
+    tests:
+      - integration: smoke test as above
+    dependencies: [BB-108-12, BB-108-13]
+    status: planned
+
+  - id: BB-108-15
+    sprint: 108
+    title: Logging events and observability
+    description: "Emit structured logs for receipt, match, policy decisions, template choice, candidate add, advance, and errors."
+    files:
+      - src/services/command-processor/processor.ts
+      - src/apps/command-processor-service.ts
+      - src/common/logging.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - "All key events listed in the technical architecture are logged with structured fields."
+    tests:
+      - unit: logging.spec.ts asserts presence of log invocations (using test logger)
+    dependencies: [BB-108-12]
+    status: planned
+
+  - id: BB-108-16
+    sprint: 108
+    title: "Documentation: service README and Firestore indexes"
+    description: "Add README snippet for command-processor and specify needed Firestore indexes for name and aliases."
+    files:
+      - documentation/services/command-processor.md
+      - documentation/firestore/indexes.md
+    estimate: 0.5d
+    acceptance_criteria:
+      - "Docs describe env vars, behavior, and required indexes."
+    tests:
+      - docs-reviewed
+    dependencies: []
+    status: planned
