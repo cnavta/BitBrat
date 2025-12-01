@@ -132,6 +132,13 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
   }
 
   const { ref, doc } = lookup;
+  // Observability: record the matched command
+  try {
+    const id = (ref as any)?.id || doc.id;
+    logger.info('command_processor.command.matched', { name: doc.name, id });
+  } catch {
+    logger.info('command_processor.command.matched', { name: doc.name });
+  }
   // Policy defaults
   const cfg = getConfig();
   const defaults = {
@@ -165,6 +172,7 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
     markSkip(evt, 'no_templates_available', 'NO_TEMPLATES');
     return { action: 'blocked', event: evt, stepStatus: 'SKIP', reason: 'no-templates' };
   }
+  logger.info('command_processor.template.chosen', { name: doc.name, templateId: choice.template.id });
 
   // Global cooldown (persist lastUsedTemplateId when allowed)
   const globalDecision = await deps.policy.checkAndUpdateGlobalCooldown(ref as any, doc, now, defaults.globalMs, choice.template.id);

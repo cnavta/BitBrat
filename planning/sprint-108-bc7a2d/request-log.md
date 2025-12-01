@@ -207,3 +207,15 @@
   - git add -A
   - git commit -m "sprint-108-bc7a2d: add routing advancement and error policy tests; update planning artifacts"
   - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T14:15:00Z
+- Added observability logs and assertions for command-processor
+  - Code: processor now logs `command_processor.command.matched` and `command_processor.template.chosen`
+  - Tests: tests/services/command-processor/logging.spec.ts asserts matched/chosen/candidate.added logs
+  - Build & tests:
+    - npm run build → OK
+    - npm test → All suites pass (1 skipped)
+  - Git operations:
+    - git add -A
+    - git commit -m "sprint-108-bc7a2d: add processor logging (matched/chosen) and logging tests"
+    - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
