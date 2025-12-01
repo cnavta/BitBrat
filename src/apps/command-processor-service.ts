@@ -1,11 +1,9 @@
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
-import { INTERNAL_COMMAND_V1, InternalEventV1, InternalEventV2 } from '../types/events';
+import { INTERNAL_COMMAND_V1, InternalEventV1, InternalEventV2, RoutingStep } from '../types/events';
 import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
-import { toV1, toV2 } from '../common/events/adapters';
+import { toV2 } from '../common/events/adapters';
 import { logger } from '../common/logging';
-import { getConfig } from '../common/config';
-import { processEvent } from '../services/command-processor/processor';
 import { summarizeSlip } from '../services/routing/slip';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'command-processor';
@@ -15,7 +13,9 @@ export function createApp() {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
     setup: async (_app: Express, cfg) => {
-      const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
+      // Subscribe is disabled in tests only when explicitly requested via MESSAGE_BUS_DISABLE_SUBSCRIBE=1
+      // Rationale: Some tests intentionally enable subscription while running under Jest.
+      const isTestEnv = process.env.NODE_ENV === 'test' || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
       if (isTestEnv) {
         logger.debug('command_processor.subscribe.disabled_for_tests');
         return;
@@ -38,12 +38,14 @@ export function createApp() {
                 source: preV2?.source,
               });
 
+              // Lazy-load processor to allow Jest doMock() to override in tests after this module is loaded
+              const { processEvent } = require('../services/command-processor/processor');
               const result = await processEvent(raw);
               const v2 = result.event;
 
               // Mark current pending step OK/SKIP based on processor result, then advance per routing slip
-              const slip = v2.routingSlip || [];
-              const nextIdx = slip.findIndex((s) => s.status === 'PENDING');
+              const slip = (v2.routingSlip || []) as RoutingStep[];
+              const nextIdx = slip.findIndex((s: RoutingStep) => s.status === 'PENDING');
               if (nextIdx >= 0) {
                 slip[nextIdx].status = result.stepStatus;
                 slip[nextIdx].endedAt = new Date().toISOString();
