@@ -23,7 +23,7 @@ describe('TwitchIrcClient integration scaffolding', () => {
     expect(snap.joinedChannels).toEqual(['#chan1', '#chan2']);
   });
 
-  it('handleMessage builds envelope and publishes, updating counters', async () => {
+  it('handleMessage builds envelope and publishes V2, updating counters', async () => {
     const client = new TwitchIrcClient(builder, publisher, ['chan']);
     await client.start();
     builder.build.mockReturnValue({
@@ -37,6 +37,14 @@ describe('TwitchIrcClient integration scaffolding', () => {
 
     expect(builder.build).toHaveBeenCalledTimes(1);
     expect(publisher.publish).toHaveBeenCalledTimes(1);
+    const published = (publisher.publish.mock.calls[0] as any[])[0];
+    // Published event is V2 with flattened envelope fields
+    expect(published.v).toBe('1');
+    expect(published.source).toBe('ingress.twitch');
+    expect(published.type).toBe('chat.message.v1');
+    expect(published.correlationId).toBe('c');
+    // rawPlatformPayload should carry original V1 payload
+    expect(published.message.rawPlatformPayload).toEqual({ ok: true });
     const snap = client.getSnapshot();
     expect(snap.counters?.received).toBe(1);
     expect(snap.counters?.published).toBe(1);
@@ -61,7 +69,7 @@ describe('TwitchIrcClient integration scaffolding', () => {
     expect(snap.lastError?.message).toContain('bus down');
   });
 
-  it('injects envelope.egressDestination when missing and option provided', async () => {
+  it('injects egressDestination when missing and option provided', async () => {
     const client = new TwitchIrcClient(builder, publisher, ['chan'], { egressDestinationTopic: 'internal.egress.v1.inst1' });
     await client.start();
     const evt: any = {
@@ -76,6 +84,6 @@ describe('TwitchIrcClient integration scaffolding', () => {
 
     expect(publisher.publish).toHaveBeenCalledTimes(1);
     const publishedEvt = (publisher.publish.mock.calls[0] as any[])[0];
-    expect(publishedEvt.envelope.egressDestination).toBe('internal.egress.v1.inst1');
+    expect(publishedEvt.egressDestination).toBe('internal.egress.v1.inst1');
   });
 });

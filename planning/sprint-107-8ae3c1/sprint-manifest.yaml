@@ -1,0 +1,5 @@
+sprint_id: sprint-107-8ae3c1
+role: Architect
+created_at: 2025-11-30T15:05:00Z
+branch: feature/sprint-107-8ae3c1-internal-event-v2
+summary: Introduce InternalEventV2 schema and document new message flow

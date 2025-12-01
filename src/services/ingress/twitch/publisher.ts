@@ -1,7 +1,8 @@
-import { INTERNAL_INGRESS_V1, InternalEventV1 } from '../../../types/events';
+import { INTERNAL_INGRESS_V1, InternalEventV2 } from '../../../types/events';
 import type { IConfig } from '../../../types';
 import { AttributeMap, MessagePublisher, createMessagePublisher } from '../../message-bus';
 import { retryAsync } from '../../../common/retry';
+import { busAttrsFromEvent } from '../../../common/events/adapters';
 
 export interface TwitchIngressPublisherOptions {
   busPrefix?: string; // e.g., "dev." or ""
@@ -12,12 +13,12 @@ export interface TwitchIngressPublisherOptions {
 }
 
 export interface ITwitchIngressPublisher {
-  publish(evt: InternalEventV1): Promise<string | null>;
+  publish(evt: InternalEventV2): Promise<string | null>;
 }
 
 /**
  * TwitchIngressPublisher
- * - Publishes normalized InternalEventV1 to ${BUS_PREFIX}internal.ingress.v1
+ * - Publishes normalized InternalEventV2 to ${BUS_PREFIX}internal.ingress.v1
  * - Uses message-bus abstraction and bounded retry with backoff
  */
 export class TwitchIngressPublisher implements ITwitchIngressPublisher {
@@ -37,13 +38,8 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
     };
   }
 
-  async publish(evt: InternalEventV1): Promise<string | null> {
-    const attrs: AttributeMap = {
-      type: evt.type,
-      source: evt.envelope.source,
-      correlationId: evt.envelope.correlationId,
-      ...(evt.envelope.traceId ? { traceId: evt.envelope.traceId } : {}),
-    };
+  async publish(evt: InternalEventV2): Promise<string | null> {
+    const attrs: AttributeMap = busAttrsFromEvent(evt);
 
     const res = await retryAsync(async () => {
       return await this.pub.publishJson(evt, attrs);

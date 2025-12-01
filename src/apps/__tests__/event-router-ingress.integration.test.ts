@@ -79,7 +79,8 @@ describe('event-router ingress integration', () => {
     // Assert publish subject and attributes
     expect(publishedSubject).toBe(`dev.${INTERNAL_ROUTER_DLQ_V1}`);
     expect(publishCalls).toHaveLength(1);
-    expect(publishCalls[0].data.envelope.routingSlip[0].nextTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
+    // Router now publishes V2 events; routingSlip is at top-level
+    expect(publishCalls[0].data.routingSlip[0].nextTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
 
     // Assert decision logging occurred
     const found = spy.mock.calls.find((c) => c[0] === 'router.decision');

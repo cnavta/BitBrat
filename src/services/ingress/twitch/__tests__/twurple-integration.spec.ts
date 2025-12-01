@@ -15,7 +15,7 @@ describe('Twurple onMessage → Envelope → Publish (mocked)', () => {
     jest.resetAllMocks();
   });
 
-  it('publishes exactly once per incoming message', async () => {
+  it('publishes exactly once per incoming message (V2 payload)', async () => {
     const client = new TwitchIrcClient(builder, publisher, ['bitbrat']);
     await client.start();
 
@@ -33,6 +33,8 @@ describe('Twurple onMessage → Envelope → Publish (mocked)', () => {
 
     expect(builder.build).toHaveBeenCalledTimes(1);
     expect(publisher.publish).toHaveBeenCalledTimes(1);
-    expect(publisher.publish).toHaveBeenCalledWith(evt);
+    const published = (publisher.publish.mock.calls[0] as any[])[0];
+    expect(published && published.message && published.message.rawPlatformPayload).toEqual({ text: 'Hello' });
+    expect(published.type).toBe('chat.message.v1');
   });
 });
