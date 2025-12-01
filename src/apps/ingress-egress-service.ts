@@ -6,7 +6,7 @@ import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
 import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
 import { INTERNAL_EGRESS_V1 } from '../types/events';
-import { extractEgressTextFromEvent } from '../services/egress/selection';
+import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../services/egress/selection';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'ingress-egress';
 // Use centralized configuration for port instead of reading env directly in app code
@@ -73,7 +73,27 @@ export function createApp() {
             async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
               try {
                 const evt = JSON.parse(data.toString('utf8')) as any;
-                const text = extractEgressTextFromEvent(evt);
+                // Mark selected candidate on V2 events (if candidates exist) and log rationale
+                let evtForDelivery: any = evt;
+                try {
+                  if (evt && Array.isArray(evt.candidates) && evt.candidates.length > 0) {
+                    const best = selectBestCandidate(evt.candidates);
+                    if (best) {
+                      logger.info('ingress-egress.egress.candidate_selected', {
+                        correlationId: evt?.correlationId || evt?.envelope?.correlationId,
+                        candidateId: best.id,
+                        priority: best.priority,
+                        confidence: best.confidence,
+                        createdAt: best.createdAt,
+                      });
+                    }
+                    evtForDelivery = markSelectedCandidate(evt);
+                  }
+                } catch (e: any) {
+                  logger.debug('ingress-egress.egress.candidate_mark_skip', { reason: e?.message || String(e) });
+                }
+
+                const text = extractEgressTextFromEvent(evtForDelivery);
                 if (!text) {
                   logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
                   await ctx.ack();

@@ -195,3 +195,5 @@ export const INTERNAL_DEADLETTER_V1 = 'internal.deadletter.v1';
 export const INTERNAL_ROUTER_DLQ_V1 = 'internal.router.dlq.v1';
 // User-enriched stream default (Auth service output; Router default input per sprint-104)
 export const INTERNAL_USER_ENRICHED_V1 = 'internal.user.enriched.v1';
+// Command topic per architecture.yaml
+export const INTERNAL_COMMAND_V1 = 'internal.command.v1';

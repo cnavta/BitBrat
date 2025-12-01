@@ -41,3 +41,20 @@ export function extractEgressTextFromEvent(evt: InternalEventV2 | InternalEventV
     return null;
   }
 }
+
+/**
+ * Mark the selected candidate on an InternalEventV2, if any candidates exist.
+ * - Uses selectBestCandidate() with priority/confidence/createdAt tie-breakers.
+ * - Returns a shallow-cloned event with candidates array updated; original object is not mutated.
+ */
+export function markSelectedCandidate(evt: InternalEventV2): InternalEventV2 {
+  if (!evt || !Array.isArray(evt.candidates) || evt.candidates.length === 0) return evt;
+  const best = selectBestCandidate(evt.candidates);
+  if (!best) return evt;
+  const selectedId = best.id;
+  const updated: InternalEventV2 = {
+    ...evt,
+    candidates: evt.candidates.map((c) => (c.id === selectedId ? { ...c, status: 'selected' } : c)),
+  };
+  return updated;
+}

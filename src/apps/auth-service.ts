@@ -1,13 +1,14 @@
 import '../common/safe-timers';
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
-import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV1 } from '../types/events';
+import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV1, InternalEventV2, RoutingStep } from '../types/events';
 import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
 import { FirestoreUserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
 import { logger } from '../common/logging';
 import { counters } from '../common/counters';
 import { configureFirestore } from '../common/firebase';
+import { toV1, toV2, busAttrsFromEvent } from '../common/events/adapters';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -44,26 +45,44 @@ export function createApp() {
             async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
               try {
                 counters.increment('auth.enrich.total');
-                const evt = JSON.parse(data.toString('utf8')) as InternalEventV1;
-                const { event: enriched, matched, userRef } = await enrichEvent(evt, userRepo, {
-                  provider: (evt?.envelope as any)?.source?.split('.')?.[1],
+                const raw = JSON.parse(data.toString('utf8')) as any;
+                // Normalize incoming event to V1 for enrichment (enrichment currently works on V1)
+                const asV1: InternalEventV1 = (raw && raw.envelope) ? (raw as InternalEventV1) : toV1(raw as InternalEventV2);
+
+                const { event: enrichedV1, matched, userRef } = await enrichEvent(asV1, userRepo, {
+                  provider: (asV1?.envelope as any)?.source?.split('.')?.[1],
                 });
+
+                // Convert to V2 for publishing and append/update routing step for auth
+                let enrichedV2: InternalEventV2 = toV2(enrichedV1);
+                const nowIso = new Date().toISOString();
+                const stepId = 'auth';
+                const slip: RoutingStep[] = Array.isArray(enrichedV2.routingSlip) ? [...(enrichedV2.routingSlip as RoutingStep[])] : [];
+                const idx = slip.findIndex((s) => s.id === stepId);
+                const step: RoutingStep = {
+                  id: stepId,
+                  v: '1',
+                  status: matched ? 'OK' : 'SKIP',
+                  attempt: 0,
+                  maxAttempts: 1,
+                  startedAt: slip[idx]?.startedAt || nowIso,
+                  endedAt: nowIso,
+                };
+                if (idx >= 0) slip[idx] = { ...slip[idx], ...step };
+                else slip.push(step);
+                enrichedV2 = { ...enrichedV2, routingSlip: slip };
+
                 if (matched) {
                   counters.increment('auth.enrich.matched');
-                  logger.debug('auth.enrich.matched', { correlationId: enriched.envelope.correlationId, userRef, outputSubject });
+                  logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef, outputSubject });
                 } else {
                   counters.increment('auth.enrich.unmatched');
-                  logger.debug('auth.enrich.unmatched', { correlationId: enriched.envelope.correlationId, outputSubject });
+                  logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });
                 }
 
                 const pub = createMessagePublisher(outputSubject);
-                const pubAttrs: AttributeMap = {
-                  type: enriched.type,
-                  correlationId: enriched.envelope.correlationId,
-                  source: enriched.envelope.source,
-                  ...(enriched.envelope.traceId ? { traceId: enriched.envelope.traceId } : {}),
-                };
-                await pub.publishJson(enriched, pubAttrs);
+                const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
+                await pub.publishJson(enrichedV2, pubAttrs);
                 logger.info('auth.publish.ok', { subject: outputSubject });
                 await ctx.ack();
               } catch (e: any) {
