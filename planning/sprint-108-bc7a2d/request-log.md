@@ -86,3 +86,75 @@
   - git add -A
   - git commit -m "sprint-108-bc7a2d: add Firestore command repository and unit tests; docs for indexes"
   - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T04:22:30Z
+- Implemented BB-108-04 (Global cooldown enforcement)
+  - Files added/changed:
+    - src/services/command-processor/policy.ts (global cooldown transactional check/update)
+    - tests/services/command-processor/policy-global-cooldown.spec.ts (unit tests)
+  - Behavior:
+    - If within cooldown window → blocked (no write)
+    - If allowed → updates runtime.lastExecutionAt atomically in Firestore transaction
+  - Build & tests:
+    - npm run build → OK
+    - npm test → 77 passed, 1 skipped (207 tests)
+
+## 2025-12-01T04:23:00Z
+- Git operations (BB-108-04):
+  - git add -A
+  - git commit -m "sprint-108-bc7a2d: implement global cooldown policy with tests (BB-108-04)"
+  - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T04:27:30Z
+- Implemented BB-108-05 (Per-user cooldown enforcement)
+  - Files changed:
+    - src/services/command-processor/policy.ts (added per-user cooldown transaction)
+    - tests/services/command-processor/policy-user-cooldown.spec.ts (new unit tests)
+  - Behavior:
+    - Blocks within user window; sets/updates lastExecutionAt when allowed
+  - Build & tests:
+    - npm run build → OK
+    - npm test → 78 passed, 1 skipped (211 tests)
+
+## 2025-12-01T04:28:00Z
+- Git operations (BB-108-05):
+  - git add -A
+  - git commit -m "sprint-108-bc7a2d: add per-user cooldown policy with tests (BB-108-05)"
+  - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T04:40:00Z
+- Implemented BB-108-06 (Fixed-window rate limiting)
+  - Files changed:
+    - src/services/command-processor/policy.ts (rate limit helpers and transactional check/update)
+    - tests/services/command-processor/policy-rate-limit.spec.ts (unit tests)
+  - Behavior:
+    - Within a window: allow and increment until count < max; deny when count >= max
+    - Rollover: new windowKey starts at window boundary and resets count
+  - Build & tests:
+    - npm run build → OK
+    - npm test → All suites pass; new tests added (policy-rate-limit)
+
+## 2025-12-01T04:41:00Z
+- Git operations (BB-108-06):
+  - git add -A
+  - git commit -m "sprint-108-bc7a2d: implement fixed-window rate limiting with tests (BB-108-06)"
+  - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T04:46:00Z
+- Implemented BB-108-08 (Minimal template rendering engine) and advanced BB-108-07 (Template selection)
+  - Files changed/added:
+    - src/services/command-processor/templates.ts (chooseTemplate, buildRenderContext, renderTemplate)
+    - tests/services/command-processor/template-selection.spec.ts (unit tests for anti-repeat selection)
+    - tests/services/command-processor/template-render.spec.ts (unit tests for variable substitution)
+  - Behavior:
+    - Rendering supports {{botName}}, {{username}}, {{utcNow}}; unknown placeholders left intact
+    - Selection avoids lastUsedTemplateId when possible; falls back safely when only one template exists
+  - Build & tests:
+    - npm run build → OK
+    - npm test → All suites pass; new tests added (template-*)
+
+## 2025-12-01T04:47:00Z
+- Git operations (BB-108-08/07):
+  - git add -A
+  - git commit -m "sprint-108-bc7a2d: add template selection and rendering with unit tests (BB-108-07/08)"
+  - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture

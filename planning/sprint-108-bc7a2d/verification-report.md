@@ -6,10 +6,16 @@
 - [x] Sprint scaffolding (manifest, request-log, validate script, publication stub)
 - [x] BB-108-01 — Config/env validation fields added (COMMAND_SIGIL, BOT_USERNAME, COMMANDS_COLLECTION, defaults)
 - [x] BB-108-02 — Event normalization (V1→V2) and sigil parsing implemented; SKIP on non-command; routing advance wired
+- [x] BB-108-04 — Global cooldown enforcement implemented with Firestore transaction; unit tests added
+- [x] BB-108-05 — Per-user cooldown enforcement implemented with Firestore transaction; unit tests added
+- [x] BB-108-06 — Fixed-window rate limiting implemented with Firestore transaction; unit tests added
 - [x] BB-108-03 — Firestore command repository with lookup by name/alias; unit tests added
+- [x] BB-108-08 — Minimal template rendering engine implemented; unit tests added
+- [x] BB-108-09 — Candidate creation helper implemented; unit tests added
 
 ## Partial
 - [ ] BB-108-10 — Routing advancement behavior (currently handles parse-only path; full candidate path pending)
+- [ ] BB-108-07 — Template selection logic added (anti-repeat); persistence of lastUsedTemplateId pending
 
 ## Deferred
 - [ ] Implementation code
