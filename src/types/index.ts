@@ -15,6 +15,21 @@ export interface IConfig {
   /** Log verbosity */
   logLevel: LogLevel;
 
+  /** Command Processor: leading character to denote a command (default '!') */
+  commandSigil?: string;
+  /** Command Processor: bot display name used in templates */
+  botUsername?: string;
+  /** Command Processor: Firestore collection for commands (default 'commands') */
+  commandsCollection?: string;
+  /** Command Processor: default global cooldown ms (0 disables) */
+  defaultGlobalCooldownMs?: number;
+  /** Command Processor: default per-user cooldown ms (0 disables) */
+  defaultUserCooldownMs?: number;
+  /** Command Processor: default max executions per window (0 disables) */
+  defaultRateMax?: number;
+  /** Command Processor: default window size in ms for rate limiting (default 60000) */
+  defaultRatePerMs?: number;
+
   /** Twitch integration master switch */
   twitchEnabled?: boolean;
   /** Disable live Twitch connections (useful for tests/CI) */

@@ -1,9 +1,12 @@
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { INTERNAL_COMMAND_V1, InternalEventV1, InternalEventV2 } from '../types/events';
-import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
+import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
 import { toV1, toV2 } from '../common/events/adapters';
 import { logger } from '../common/logging';
+import { getConfig } from '../common/config';
+import { processForParsing } from '../services/command-processor/processor';
+import { summarizeSlip } from '../services/routing/slip';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'command-processor';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -27,15 +30,37 @@ export function createApp() {
           async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const raw = JSON.parse(data.toString('utf8')) as any;
-              const asV1: InternalEventV1 | null = raw && raw.envelope ? (raw as InternalEventV1) : null;
-              const v2: InternalEventV2 = asV1 ? toV2(asV1) : (raw as InternalEventV2);
+              const result = processForParsing(raw);
+              const v2 = result.event;
 
-              // Minimal no-op handler: log receipt and ack
               logger.info('command_processor.event.received', {
                 type: v2?.type,
                 correlationId: (v2 as any)?.correlationId,
                 source: v2?.source,
+                action: result.action,
               });
+
+              // Mark current pending step OK/SKIP based on parse result, then advance per routing slip
+              const slip = v2.routingSlip || [];
+              const nextIdx = slip.findIndex((s) => s.status === 'PENDING');
+              if (nextIdx >= 0) {
+                slip[nextIdx].status = result.stepStatus;
+                slip[nextIdx].endedAt = new Date().toISOString();
+              }
+              if (nextIdx >= 0 && slip[nextIdx].nextTopic) {
+                const nextTopic = `${(cfg.busPrefix || '')}${slip[nextIdx].nextTopic}`;
+                const publisher = createMessagePublisher(nextTopic);
+                await publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
+                logger.info('command_processor.advance.next', { nextTopic, slip: summarizeSlip(slip) });
+              } else if (v2.egressDestination) {
+                const nextTopic = `${(cfg.busPrefix || '')}${v2.egressDestination}`;
+                const publisher = createMessagePublisher(nextTopic);
+                await publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
+                logger.info('command_processor.advance.egress', { nextTopic, slip: summarizeSlip(slip) });
+              } else {
+                logger.info('command_processor.advance.complete', { slip: summarizeSlip(slip) });
+              }
+
               await ctx.ack();
             } catch (e: any) {
               const msg = e?.message || String(e);
