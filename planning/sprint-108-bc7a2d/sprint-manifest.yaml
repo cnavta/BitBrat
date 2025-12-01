@@ -2,7 +2,7 @@ id: sprint-108-bc7a2d
 started: "2025-11-30T21:56:00Z"
 owner: Architect
 branch: feature/sprint-108-bc7a2d-command-processor-architecture
-status: planning
+status: executing
 objective: "Create the Technical Architecture for the command-processor service"
 scope:
   in:

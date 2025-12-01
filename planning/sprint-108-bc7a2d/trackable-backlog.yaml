@@ -61,7 +61,7 @@ backlog:
     tests:
       - unit: command-repo.spec.ts mocks Firebase Admin and verifies query paths
     dependencies: [BB-108-01]
-    status: planned
+    status: complete
 
   - id: BB-108-04
     sprint: 108

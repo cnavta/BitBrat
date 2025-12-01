@@ -64,3 +64,25 @@
 - Planning updates:
   - Marked BB-108-01 and BB-108-02 as complete in trackable-backlog.yaml
   - Verification report to be updated after build/tests
+
+## 2025-12-01T04:05:00Z
+- Implemented BB-108-03 (Firestore command repository)
+  - Files added:
+    - src/services/command-processor/command-repo.ts (lookup by name/alias; helpers)
+    - tests/services/command-processor/command-repo.spec.ts (unit tests with mocked Firestore API)
+  - Behavior:
+    - First query by name (==), fallback to aliases (array-contains), both limit(1)
+    - Normalizes templates, cooldowns, rateLimit, runtime fields
+  - Build & tests:
+    - npm run build → OK
+    - npm test → 76 passed, 1 skipped (203 tests)
+
+## 2025-12-01T04:07:30Z
+- Documentation for indexes
+  - Added documentation/firestore/indexes.md outlining required single-field and array-contains indexes
+
+## 2025-12-01T04:08:00Z
+- Git operations:
+  - git add -A
+  - git commit -m "sprint-108-bc7a2d: add Firestore command repository and unit tests; docs for indexes"
+  - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
