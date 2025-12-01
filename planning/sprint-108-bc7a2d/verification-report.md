@@ -21,12 +21,13 @@
 - [x] BB-108-14 — Integration smoke test (V1→V2 adapter path) added and passing
 - [x] BB-108-15 — Logging/observability assertions added and passing
 - [x] BB-108-16 — Documentation added: documentation/services/command-processor.md
+- [x] Publication — GitHub PR created and recorded in publication.yaml
 
 ## Partial
-- [ ] Publication PR creation (pending credentials if required)
+- [ ] None
 
 ## Deferred
-- [ ] PR creation and publication (pending auth)
+- [ ] None
 
 ## Alignment Notes
 - Document aligns with architecture.yaml (service consumes internal.command.v1) and InternalEventV2 contracts in src/types/events.ts.
