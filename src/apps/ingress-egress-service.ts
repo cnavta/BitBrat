@@ -5,7 +5,8 @@ import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twit
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
 import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
-import { INTERNAL_EGRESS_V1, InternalEventV1 } from '../types/events';
+import { INTERNAL_EGRESS_V1 } from '../types/events';
+import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../services/egress/selection';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'ingress-egress';
 // Use centralized configuration for port instead of reading env directly in app code
@@ -71,15 +72,35 @@ export function createApp() {
             egressSubject,
             async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
               try {
-                const evt = JSON.parse(data.toString('utf8')) as InternalEventV1;
-                const text = extractEgressText(evt);
+                const evt = JSON.parse(data.toString('utf8')) as any;
+                // Mark selected candidate on V2 events (if candidates exist) and log rationale
+                let evtForDelivery: any = evt;
+                try {
+                  if (evt && Array.isArray(evt.candidates) && evt.candidates.length > 0) {
+                    const best = selectBestCandidate(evt.candidates);
+                    if (best) {
+                      logger.info('ingress-egress.egress.candidate_selected', {
+                        correlationId: evt?.correlationId || evt?.envelope?.correlationId,
+                        candidateId: best.id,
+                        priority: best.priority,
+                        confidence: best.confidence,
+                        createdAt: best.createdAt,
+                      });
+                    }
+                    evtForDelivery = markSelectedCandidate(evt);
+                  }
+                } catch (e: any) {
+                  logger.debug('ingress-egress.egress.candidate_mark_skip', { reason: e?.message || String(e) });
+                }
+
+                const text = extractEgressTextFromEvent(evtForDelivery);
                 if (!text) {
-                  logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.envelope?.correlationId });
+                  logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
                   await ctx.ack();
                   return;
                 }
                 await twitchClient!.sendText(text);
-                logger.info('ingress-egress.egress.sent', { correlationId: evt?.envelope?.correlationId });
+                logger.info('ingress-egress.egress.sent', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
                 await ctx.ack();
               } catch (e: any) {
                 const msg = e?.message || String(e);
@@ -120,13 +141,4 @@ if (require.main === module) {
   });
 }
 
-/** Extracts the text to send from an InternalEventV1 for egress delivery (bootstrap). */
-function extractEgressText(evt: InternalEventV1 | any): string | null {
-  try {
-    const text = evt?.payload?.chat?.text ?? evt?.payload?.text;
-    if (typeof text === 'string' && text.trim().length > 0) return text.trim();
-    return null;
-  } catch {
-    return null;
-  }
-}
+// text extraction now lives in services/egress/selection.ts

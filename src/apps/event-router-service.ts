@@ -2,12 +2,13 @@ import '../common/safe-timers'; // install safe timer clamps early for this proc
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
-import { InternalEventV1, INTERNAL_USER_ENRICHED_V1 } from '../types/events';
+import { InternalEventV1, InternalEventV2, INTERNAL_USER_ENRICHED_V1 } from '../types/events';
 import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
 import { getFirestore } from '../common/firebase';
 import { counters } from '../common/counters';
+import { toV1, toV2, busAttrsFromEvent } from '../common/events/adapters';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'event-router';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -59,10 +60,14 @@ export function createApp() {
           subject,
           async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
-              const evt = JSON.parse(data.toString('utf8')) as InternalEventV1;
+              const raw = JSON.parse(data.toString('utf8')) as any;
+              // Normalize to V1 for routing engine, then convert to V2 for publish
+              const asV1: InternalEventV1 = (raw && raw.envelope) ? (raw as InternalEventV1) : toV1(raw as InternalEventV2);
               // Route using rules (first-match-wins, default path)
-              const { slip, decision } = engine.route(evt, ruleLoader.getRules());
-              evt.envelope.routingSlip = slip;
+              const { slip, decision } = engine.route(asV1, ruleLoader.getRules());
+              asV1.envelope.routingSlip = slip;
+
+              const v2: InternalEventV2 = toV2(asV1);
 
               // Update observability counters
               try {
@@ -79,20 +84,15 @@ export function createApp() {
                 ruleId: decision.ruleId,
                 priority: decision.priority,
                 selectedTopic: decision.selectedTopic,
-                type: evt?.type,
-                correlationId: evt?.envelope?.correlationId,
+                type: v2?.type,
+                correlationId: (v2 as any)?.correlationId,
               });
 
               // Publish to the next topic (first step)
               const outSubject = `${cfg.busPrefix || ''}${decision.selectedTopic}`;
               const pub = createMessagePublisher(outSubject);
-              const pubAttrs: AttributeMap = {
-                type: evt.type,
-                correlationId: evt.envelope.correlationId,
-                source: evt.envelope.source,
-                ...(evt.envelope.traceId ? { traceId: evt.envelope.traceId } : {}),
-              };
-              await pub.publishJson(evt, pubAttrs);
+              const pubAttrs: AttributeMap = busAttrsFromEvent(v2);
+              await pub.publishJson(v2, pubAttrs);
               logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
               // Acknowledge only after successful publish
               await ctx.ack();
