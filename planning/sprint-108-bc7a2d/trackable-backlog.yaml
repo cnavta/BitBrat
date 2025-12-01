@@ -124,7 +124,7 @@ backlog:
     tests:
       - unit: template-selection.spec.ts verifies anti-repeat and randomness
     dependencies: [BB-108-04, BB-108-05, BB-108-06]
-    status: in-progress
+    status: complete
 
   - id: BB-108-08
     sprint: 108
@@ -173,7 +173,7 @@ backlog:
     tests:
       - unit: routing-advance.spec.ts exercises all three paths
     dependencies: [BB-108-02, BB-108-09]
-    status: planned
+    status: complete
 
   - id: BB-108-11
     sprint: 108
@@ -189,7 +189,7 @@ backlog:
     tests:
       - unit: error-policy.spec.ts simulates exceptions and asserts ack/nack paths
     dependencies: [BB-108-02]
-    status: planned
+    status: complete
 
   - id: BB-108-12
     sprint: 108
@@ -205,7 +205,7 @@ backlog:
     tests:
       - unit: handler-wiring.spec.ts validates pipeline execution and logging
     dependencies: [BB-108-02, BB-108-03, BB-108-10]
-    status: planned
+    status: in-progress
 
   - id: BB-108-13
     sprint: 108
@@ -224,7 +224,7 @@ backlog:
     tests:
       - unit: as listed above
     dependencies: [BB-108-02, BB-108-03, BB-108-04, BB-108-05, BB-108-06, BB-108-07, BB-108-08, BB-108-09, BB-108-10]
-    status: planned
+    status: in-progress
 
   - id: BB-108-14
     sprint: 108
