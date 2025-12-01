@@ -5,7 +5,7 @@ import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '.
 import { toV1, toV2 } from '../common/events/adapters';
 import { logger } from '../common/logging';
 import { getConfig } from '../common/config';
-import { processForParsing } from '../services/command-processor/processor';
+import { processEvent } from '../services/command-processor/processor';
 import { summarizeSlip } from '../services/routing/slip';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'command-processor';
@@ -30,17 +30,18 @@ export function createApp() {
           async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const raw = JSON.parse(data.toString('utf8')) as any;
-              const result = processForParsing(raw);
-              const v2 = result.event;
-
+              // Log receipt immediately after normalization to V2 to avoid dependency on downstream processing
+              const preV2: InternalEventV2 = raw && (raw as any).envelope ? toV2(raw as InternalEventV1) : (raw as InternalEventV2);
               logger.info('command_processor.event.received', {
-                type: v2?.type,
-                correlationId: (v2 as any)?.correlationId,
-                source: v2?.source,
-                action: result.action,
+                type: preV2?.type,
+                correlationId: (preV2 as any)?.correlationId,
+                source: preV2?.source,
               });
 
-              // Mark current pending step OK/SKIP based on parse result, then advance per routing slip
+              const result = await processEvent(raw);
+              const v2 = result.event;
+
+              // Mark current pending step OK/SKIP based on processor result, then advance per routing slip
               const slip = v2.routingSlip || [];
               const nextIdx = slip.findIndex((s) => s.status === 'PENDING');
               if (nextIdx >= 0) {

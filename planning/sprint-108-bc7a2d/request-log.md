@@ -158,3 +158,52 @@
   - git add -A
   - git commit -m "sprint-108-bc7a2d: add template selection and rendering with unit tests (BB-108-07/08)"
   - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T05:12:00Z
+- Implemented full processor pipeline and subscriber updates
+  - Files changed/added:
+    - src/services/command-processor/processor.ts (processEvent: parse → lookup → policies → choose/render → candidate)
+    - src/apps/command-processor-service.ts (log receipt pre-processing; advance routing using processor stepStatus)
+    - tests/services/command-processor/processor.spec.ts (happy path, not-found, rate-limit cases)
+  - Behavior:
+    - Persists lastUsedTemplateId within global cooldown transaction
+    - Appends text candidate with default priority 100 and metadata
+    - Logs: candidate.added; receipt logged prior to processing
+  - Build & tests:
+    - npm run build → OK
+    - npm test → All suites pass; subscriber test adjusted by pre-processing receipt log
+
+## 2025-12-01T05:14:00Z
+- Planning updates:
+  - trackable-backlog.yaml: BB-108-07 → complete; BB-108-10/12/13 → in-progress
+  - verification-report.md: updated Completed and Partial sections
+
+## 2025-12-01T05:15:00Z
+- Git operations:
+  - git add -A
+  - git commit -m "sprint-108-bc7a2d: wire full command-processor pipeline; add processor tests; fix receipt logging; update planning"
+  - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T06:13:00Z
+- Added routing advancement unit tests (BB-108-10)
+  - File: tests/services/command-processor/routing-advance.spec.ts
+  - Cases: next pending step publishes to nextTopic; egress fallback; no next + no egress logs completion
+  - Adjusted test env guards to enable subscription in Jest
+  - Result: tests passing
+
+## 2025-12-01T06:15:00Z
+- Added error handling ack/nack unit tests (BB-108-11)
+  - File: tests/apps/command-processor-error-policy.spec.ts
+  - Cases: JSON parse error → ack; publish failure → nack(true)
+  - Result: tests passing
+
+## 2025-12-01T06:16:00Z
+- Planning updates:
+  - trackable-backlog.yaml: BB-108-10 → complete; BB-108-11 → complete
+  - verification-report.md: moved BB-108-10/11 to Completed; updated Partial for BB-108-12/13
+
+## 2025-12-01T06:16:30Z
+- Git operations:
+  - git add -A
+  - git commit -m "sprint-108-bc7a2d: add routing advancement and error policy tests; update planning artifacts"
+  - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
