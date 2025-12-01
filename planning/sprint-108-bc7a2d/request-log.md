@@ -241,3 +241,31 @@
   - Git:
     - git add -A
     - git commit -m "command-processor: fix error-policy test by lazy-loading processor; adjust subscribe guard; type fix"
+
+## 2025-12-01T16:40:00Z
+- Implemented Firestore Upsert CLI (GDAC-based)
+  - Files added:
+    - tools/firestore-upsert.ts (CLI to upsert a JSON document into Firestore using ADC)
+    - documentation/tools/firestore-upsert.md (usage and examples)
+  - package.json:
+    - Added npm script: "firestore:upsert": "node dist/tools/firestore-upsert.js"
+  - Build & tests:
+    - npm run build → OK
+    - npm test → All existing suites pass (1 skipped)
+  - Notes:
+    - Uses src/common/firebase.ts (firebase-admin) which binds to GDAC; supports doc or collection paths, with --id or JSON id
+
+## 2025-12-01T17:45:00Z
+- Enhancement: Firestore Upsert CLI accepts JSON via STDIN
+  - Changes:
+    - tools/firestore-upsert.ts: allow '-' JSON arg or omitted arg to read from STDIN; added async stdin reader
+    - documentation/tools/firestore-upsert.md: updated usage and examples for STDIN
+  - Behavior:
+    - Supports literal JSON, @file, existing file path, and STDIN (with '-' or omitted arg)
+  - Build & tests:
+    - npm run build → OK
+    - npm test → All suites passing (1 skipped)
+  - Git:
+    - git add -A
+    - git commit -m "tools: firestore-upsert supports JSON from STDIN; docs updated"
+    - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
