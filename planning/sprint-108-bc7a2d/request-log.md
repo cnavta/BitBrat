@@ -269,3 +269,18 @@
     - git add -A
     - git commit -m "tools: firestore-upsert supports JSON from STDIN; docs updated"
     - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
+
+## 2025-12-01T19:08:00Z
+- Sprint completion acknowledged by user; closing sprint artifacts
+  - Updates:
+    - planning/sprint-108-bc7a2d/sprint-manifest.yaml: status=completed; ended timestamp added
+    - planning/sprint-108-bc7a2d/retro.md: added sprint retrospective
+    - planning/sprint-108-bc7a2d/key-learnings.md: added key learnings
+  - Validation:
+    - validate_deliverable.sh is logically passable; tests/build pass locally
+  - Publication:
+    - PR already created and recorded in publication.yaml (status=created)
+  - Git operations:
+    - git add -A
+    - git commit -m "sprint-108-bc7a2d: mark sprint completed; add retro and key-learnings; update request log"
+    - git push -u origin feature/sprint-108-bc7a2d-command-processor-architecture
