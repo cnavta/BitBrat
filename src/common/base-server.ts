@@ -98,6 +98,17 @@ export class BaseServer {
     this.logger.info('listening', { host, port });
   }
 
+  /**
+   * Protected accessor for realized resources by name.
+   * Usage: extend BaseServer and call this.getResource<T>('resourceName').
+   * Returns undefined if the resource is not initialized yet or missing.
+   */
+  protected getResource<T>(name: string): T | undefined {
+    const n = String(name || '').trim();
+    if (!n) return undefined;
+    return (this.resources as any)[n] as T | undefined;
+  }
+
   /** Build combined resource managers: defaults overlaid with provided ones. */
   private buildResourceManagers(overrides: Record<string, ResourceManager<any>>): Record<string, ResourceManager<any>> {
     const defaults: Record<string, ResourceManager<any>> = {

@@ -2,6 +2,7 @@ import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import { TwitchIrcClient, TwitchEnvelopeBuilder, ConfigTwitchCredentialsProvider, FirestoreTwitchCredentialsProvider } from '../services/ingress/twitch';
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
+import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
 import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
@@ -20,7 +21,7 @@ export function createApp() {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
     readinessCheck: () => (twitchClient ? twitchClient.getSnapshot().state === 'CONNECTED' : false),
-    setup: async (app: Express, cfg) => {
+    setup: async (app: Express, cfg, resources) => {
       // Create instances using centralized Config
       logger.debug('Creating Twitch ingress-egress service', { cfg });
 
@@ -42,9 +43,9 @@ export function createApp() {
       const egressSubject = `${cfg.busPrefix || ''}${egressTopic}`; // with BUS_PREFIX for subscription
 
       const envelopeBuilder = new TwitchEnvelopeBuilder();
-      const publisher = createTwitchIngressPublisherFromConfig(cfg);
+      const publisher = createTwitchIngressPublisherFromConfig(cfg, (resources as any)?.publisher?.create);
       const credsProvider = cfg.firestoreEnabled
-        ? new FirestoreTwitchCredentialsProvider(cfg)
+        ? new FirestoreTwitchCredentialsProvider(cfg, new FirestoreTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot', (resources as any)?.firestore))
         : new ConfigTwitchCredentialsProvider(cfg);
 
       // Create the IRC client using config-driven channels
