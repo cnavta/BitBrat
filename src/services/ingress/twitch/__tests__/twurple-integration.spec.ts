@@ -20,9 +20,12 @@ describe('Twurple onMessage → Envelope → Publish (mocked)', () => {
     await client.start();
 
     const evt = {
-      envelope: { v: '1', source: 'ingress.twitch', correlationId: 'c1', routingSlip: [] },
+      v: '1',
+      source: 'ingress.twitch',
+      correlationId: 'c1',
+      routingSlip: [],
       type: 'chat.message.v1',
-      payload: { text: 'Hello' },
+      message: { id: 'm-1', role: 'user', text: 'Hello', rawPlatformPayload: { text: 'Hello' } },
       channel: '#bitbrat',
     } as any;
     builder.build.mockReturnValue(evt);

@@ -1,14 +1,14 @@
 import '../common/safe-timers';
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
-import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV1, InternalEventV2, RoutingStep } from '../types/events';
+import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV2, RoutingStep } from '../types/events';
 import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
 import { FirestoreUserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
 import { logger } from '../common/logging';
 import { counters } from '../common/counters';
 import { configureFirestore } from '../common/firebase';
-import { toV1, toV2, busAttrsFromEvent } from '../common/events/adapters';
+import { busAttrsFromEvent } from '../common/events/attributes';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -36,6 +36,8 @@ export function createApp() {
         const outTopic = process.env.AUTH_ENRICH_OUTPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
         const outputSubject = `${cfg.busPrefix || ''}${outTopic}`;
         const subscriber = createMessageSubscriber();
+        // Reuse a single publisher instance per subject to avoid repeated client init and DNS lookups
+        const publisher = createMessagePublisher(outputSubject);
         const userRepo = new FirestoreUserRepo('users');
 
         logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
@@ -46,15 +48,14 @@ export function createApp() {
               try {
                 counters.increment('auth.enrich.total');
                 const raw = JSON.parse(data.toString('utf8')) as any;
-                // Normalize incoming event to V1 for enrichment (enrichment currently works on V1)
-                const asV1: InternalEventV1 = (raw && raw.envelope) ? (raw as InternalEventV1) : toV1(raw as InternalEventV2);
+                const asV2: InternalEventV2 = raw as InternalEventV2;
 
-                const { event: enrichedV1, matched, userRef } = await enrichEvent(asV1, userRepo, {
-                  provider: (asV1?.envelope as any)?.source?.split('.')?.[1],
+                const { event: enrichedV2Initial, matched, userRef } = await enrichEvent(asV2, userRepo, {
+                  provider: (asV2 as any)?.source?.split('.')?.[1],
                 });
 
-                // Convert to V2 for publishing and append/update routing step for auth
-                let enrichedV2: InternalEventV2 = toV2(enrichedV1);
+                // Append/update routing step for auth
+                let enrichedV2: InternalEventV2 = enrichedV2Initial;
                 const nowIso = new Date().toISOString();
                 const stepId = 'auth';
                 const slip: RoutingStep[] = Array.isArray(enrichedV2.routingSlip) ? [...(enrichedV2.routingSlip as RoutingStep[])] : [];
@@ -80,17 +81,19 @@ export function createApp() {
                   logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });
                 }
 
-                const pub = createMessagePublisher(outputSubject);
                 const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
-                await pub.publishJson(enrichedV2, pubAttrs);
+                await publisher.publishJson(enrichedV2, pubAttrs);
                 logger.info('auth.publish.ok', { subject: outputSubject });
                 await ctx.ack();
               } catch (e: any) {
                 const msg = e?.message || String(e);
                 counters.increment('auth.enrich.errors');
                 logger.error('auth.ingress.process_error', { subject: inputSubject, error: msg });
-                // Poison JSON -> ack; other errors -> nack(requeue)
-                if (/json|unexpected token|position \d+/i.test(msg)) {
+                // Poison JSON -> ack; known network/publish timeouts -> ack to avoid redelivery storm; otherwise nack(requeue)
+                const isJsonError = /json|unexpected token|position \d+/i.test(msg);
+                const code = (e && (e.code || e.status)) || undefined;
+                const isPublishTimeout = code === 4 /* DEADLINE_EXCEEDED */ || /DEADLINE_EXCEEDED|name resolution|getaddrinfo|ENOTFOUND|EAI_AGAIN|Waiting for LB pick/i.test(msg);
+                if (isJsonError || isPublishTimeout) {
                   await ctx.ack();
                 } else {
                   await ctx.nack(true);

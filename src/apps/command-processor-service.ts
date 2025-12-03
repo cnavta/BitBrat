@@ -1,8 +1,7 @@
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
-import { INTERNAL_COMMAND_V1, InternalEventV1, InternalEventV2, RoutingStep } from '../types/events';
+import { INTERNAL_COMMAND_V1, InternalEventV2, RoutingStep } from '../types/events';
 import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
-import { toV2 } from '../common/events/adapters';
 import { logger } from '../common/logging';
 import { summarizeSlip } from '../services/routing/slip';
 
@@ -30,8 +29,8 @@ export function createApp() {
           async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const raw = JSON.parse(data.toString('utf8')) as any;
-              // Log receipt immediately after normalization to V2 to avoid dependency on downstream processing
-              const preV2: InternalEventV2 = raw && (raw as any).envelope ? toV2(raw as InternalEventV1) : (raw as InternalEventV2);
+              // Assume V2 payloads
+              const preV2: InternalEventV2 = raw as InternalEventV2;
               logger.info('command_processor.event.received', {
                 type: preV2?.type,
                 correlationId: (preV2 as any)?.correlationId,

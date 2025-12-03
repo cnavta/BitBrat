@@ -86,6 +86,12 @@ function getEnsureTimeoutMs(): number {
   return Number.isFinite(v) && v >= 0 ? v : 2000;
 }
 
+/** Optional per-publish timeout in milliseconds; 0 disables (use client defaults). */
+function getPublishTimeoutMs(): number {
+  const v = Number(process.env.PUBSUB_PUBLISH_TIMEOUT_MS || '0');
+  return Number.isFinite(v) && v >= 0 ? v : 0;
+}
+
 const ensuredTopics = new Set<string>();
 
 function isNotFoundError(e: any): boolean {
@@ -107,6 +113,7 @@ export class PubSubPublisher implements MessagePublisher {
   async publishJson(data: unknown, attributes: AttributeMap = {}): Promise<string | null> {
     const ensureMode = getEnsureMode();
     const ensureTimeout = getEnsureTimeoutMs();
+    const publishTimeout = getPublishTimeoutMs();
     if (ensureMode === 'always' && !ensuredTopics.has(this.topicName)) {
       try {
         await withTimeout(ensureTopic(this.pubsub, this.topicName), ensureTimeout);
@@ -126,7 +133,8 @@ export class PubSubPublisher implements MessagePublisher {
         attrCount: Object.keys(attrsNorm || {}).length,
         bytes: payload.byteLength,
       });
-      const [messageId] = await topic.publishMessage({ data: payload, attributes: attrsNorm });
+      const result: any = await withTimeout((topic as any).publishMessage({ data: payload, attributes: attrsNorm }), publishTimeout);
+      const [messageId] = Array.isArray(result) ? result : [result];
       logger.debug('message_publisher.publish.ok', {
         driver: 'pubsub',
         topic: this.topicName,
@@ -134,13 +142,19 @@ export class PubSubPublisher implements MessagePublisher {
       });
       return messageId || null;
     } catch (e: any) {
+      // If our local timeout fired, tag the error with DEADLINE_EXCEEDED to enable callers to decide retry/ack policy
+      if (e && typeof e.message === 'string' && /timeout after \d+ms/i.test(e.message)) {
+        (e as any).code = (e as any).code || 4; // gRPC DEADLINE_EXCEEDED
+        (e as any).reason = 'publish_timeout';
+      }
       // If the publish failed because the topic doesn't exist, optionally attempt a fast ensure then retry once.
       if (ensureMode !== 'off' && isNotFoundError(e)) {
         try {
           logger.warn('message_publisher.publish.not_found', { driver: 'pubsub', topic: this.topicName, action: 'ensure_then_retry' });
           await withTimeout(ensureTopic(this.pubsub, this.topicName), ensureTimeout);
           ensuredTopics.add(this.topicName);
-          const [retryId] = await topic.publishMessage({ data: payload, attributes: attrsNorm });
+          const retryResult: any = await withTimeout((topic as any).publishMessage({ data: payload, attributes: attrsNorm }), publishTimeout);
+          const [retryId] = Array.isArray(retryResult) ? retryResult : [retryResult];
           logger.debug('message_publisher.publish.ok', { driver: 'pubsub', topic: this.topicName, messageId: retryId || null, retried: true });
           return retryId || null;
         } catch (ee: any) {
@@ -152,6 +166,7 @@ export class PubSubPublisher implements MessagePublisher {
         topic: this.topicName,
         error: e?.message || String(e),
         code: (e && (e.code || e.status)) || undefined,
+        timeout: e && /timeout after \d+ms/i.test(e.message) ? true : undefined,
       });
       throw e;
     }

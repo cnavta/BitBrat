@@ -46,19 +46,21 @@ describe('command-processor subscriber', () => {
     jest.restoreAllMocks();
   });
 
-  it('normalizes V1 to V2 and logs receipt', async () => {
+  it('logs receipt for V2 input (correlationId propagation)', async () => {
     const spy = jest.spyOn(logger, 'info').mockImplementation((() => {}) as any);
     createApp();
     await new Promise((r) => setTimeout(r, 0));
     expect(subscribeSubject).toBe(`dev.${INTERNAL_COMMAND_V1}`);
 
-    const v1 = {
-      envelope: { v: '1', source: 'ingress.test', correlationId: 'c-1', routingSlip: [] },
+    const v2 = {
+      v: '1',
+      source: 'ingress.test',
+      correlationId: 'c-1',
       type: 'chat.command.v1',
-      payload: { cmd: '!ping' },
+      message: { id: 'm-0', role: 'user', text: '!ping' },
     } as any;
 
-    await capturedHandler!(Buffer.from(JSON.stringify(v1), 'utf8'), {});
+    await capturedHandler!(Buffer.from(JSON.stringify(v2), 'utf8'), {});
 
     // Ensure a receipt log was emitted with correlationId
     const found = spy.mock.calls.find((c) => c[0] === 'command_processor.event.received');

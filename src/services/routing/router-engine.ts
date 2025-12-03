@@ -1,4 +1,4 @@
-import { INTERNAL_ROUTER_DLQ_V1, InternalEventV1, RoutingStep } from '../../types/events';
+import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep } from '../../types/events';
 import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
@@ -16,7 +16,7 @@ export interface RouteResult {
 }
 
 export interface IJsonLogicEvaluator {
-  buildContext: (evt: InternalEventV1, nowIso?: string, ts?: number) => Eval.EvalContext;
+  buildContext: (evt: InternalEventV2, nowIso?: string, ts?: number) => Eval.EvalContext;
   evaluate: (logic: unknown, context: Eval.EvalContext) => boolean;
 }
 
@@ -55,7 +55,8 @@ function defaultSlip(): RoutingStep[] {
 export class RouterEngine {
   constructor(private readonly evaluator: IJsonLogicEvaluator = Eval) {}
 
-  route(evt: InternalEventV1, rules: ReadonlyArray<RuleDoc> = []): RouteResult {
+  route(evt: InternalEventV2, rules: ReadonlyArray<RuleDoc> = []): RouteResult {
+    // Build evaluation context directly from V2
     const ctx = this.evaluator.buildContext(evt);
 
     let chosen: RoutingStep[] | null = null;

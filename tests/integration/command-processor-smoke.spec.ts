@@ -1,24 +1,22 @@
 import { processEvent } from '../../src/services/command-processor/processor';
-import type { InternalEventV1, InternalEventV2 } from '../../src/types/events';
+import type { InternalEventV2 } from '../../src/types/events';
 
-function makeV1(text: string): InternalEventV1 {
+function makeV2(text: string): InternalEventV2 {
   return {
-    envelope: {
-      v: '1',
-      source: 'ingress.test',
-      correlationId: 'c-smoke-1',
-      routingSlip: [{ id: 'command-processor', status: 'PENDING', nextTopic: 'internal.egress.v1' }],
-    } as any,
+    v: '1',
+    source: 'ingress.test',
+    correlationId: 'c-smoke-1',
+    routingSlip: [{ id: 'command-processor', status: 'PENDING', nextTopic: 'internal.egress.v1' }],
     type: 'chat.command.v1',
     channel: '#chan',
     userId: 'u-1',
-    payload: { chat: { text } },
+    message: { id: 'm-1', role: 'user', text },
   } as any;
 }
 
-describe('integration smoke: V1 → V2 → candidate append', () => {
-  it('produces a candidate and preserves envelope fields after V1→V2 normalization', async () => {
-    const v1 = makeV1('!hello world');
+describe('integration smoke: V2 → candidate append', () => {
+  it('produces a candidate and preserves top-level envelope fields', async () => {
+    const v2In = makeV2('!hello world');
     const deps = {
       repoFindByNameOrAlias: async () => ({ ref: { firestore: {} } as any, doc: { id: 'cmd-hello', name: 'hello', templates: [{ id: 't1', text: 'Hello {{username}}' }] } }),
       policy: {
@@ -30,7 +28,7 @@ describe('integration smoke: V1 → V2 → candidate append', () => {
       now: () => new Date('2025-01-01T00:00:00.000Z'),
     } as any;
 
-    const outcome = await processEvent(v1 as any, deps);
+    const outcome = await processEvent(v2In as any, deps);
     expect(outcome.action).toBe('produced');
     const v2 = outcome.event as InternalEventV2;
     expect(v2.v).toBe('1');
