@@ -134,3 +134,17 @@
 - 2025-12-02T22:11:00Z | VCS |
   - cmd: git add -A && git commit -m "sprint-109-8991ec0: migrate remaining tests/services to InternalEventV2; adjust egress selection; all tests passing"
   - result: committed V2 migration changes
+
+- 2025-12-02T21:14:00Z | Publication |
+  - Action: Force complete sprint per user instruction; skipping PR creation
+  - files:
+    - planning/sprint-109-8991ec0/publication.yaml (created)
+    - planning/sprint-109-8991ec0/retro.md (created)
+    - planning/sprint-109-8991ec0/verification-report.md (exists)
+    - planning/sprint-109-8991ec0/key-learnings.md (created)
+  - notes:
+    - publication.yaml status set to force-closed with reason
+
+- 2025-12-02T21:14:10Z | VCS |
+  - cmd: git add -A && git commit -m "sprint-109-8991ec0: force close sprint — add publication.yaml and key-learnings; finalize retro"
+  - result: committed publication and closure artifacts
