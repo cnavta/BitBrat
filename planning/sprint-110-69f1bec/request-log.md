@@ -59,3 +59,24 @@ entries:
     action: "Commit implementation changes"
     cmd: "git add -A && git commit -m 'sprint-110: publishing perf — attr normalization helper, driver integration, Pub/Sub batching defaults, docs, and unit tests'"
     result: "committed"
+  - timestamp: "2025-12-03T00:02:10-05:00"
+    action: "Fix failing pubsub attribute logging test (remove resetModules)"
+    files_modified:
+      - tests/services/message-bus/pubsub-attributes.spec.ts
+    result: "tests adjusted"
+  - timestamp: "2025-12-03T00:06:20-05:00"
+    action: "Add NATS attribute normalization test"
+    files_created:
+      - tests/services/message-bus/nats-attributes.spec.ts
+    reason: "Cover BB-110-02 across both drivers"
+  - timestamp: "2025-12-03T00:10:35-05:00"
+    action: "Add retry schedule unit tests"
+    files_created:
+      - tests/common/retry.spec.ts
+    reason: "BB-110-05 backoff helper coverage"
+  - timestamp: "2025-12-03T00:15:42-05:00"
+    action: "Add structured logging tests for publishers"
+    files_created:
+      - tests/services/message-bus/pubsub-logging.spec.ts
+      - tests/services/message-bus/nats-logging.spec.ts
+    reason: "BB-110-07 observability baseline"

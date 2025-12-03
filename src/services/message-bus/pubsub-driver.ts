@@ -18,7 +18,7 @@
  */
 import { PubSub } from '@google-cloud/pubsub';
 import { logger } from '../../common/logging';
-import { normalizeAttributes } from './index';
+import { normalizeAttributes } from './attributes';
 import type {
   AttributeMap,
   MessageHandler,
