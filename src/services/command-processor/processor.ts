@@ -1,5 +1,4 @@
-import { InternalEventV1, InternalEventV2, RoutingStep, RoutingStatus } from '../../types/events';
-import { toV2 } from '../../common/events/adapters';
+import { InternalEventV2, RoutingStep, RoutingStatus } from '../../types/events';
 import { getConfig } from '../../common/config';
 import { markStepResult } from '../routing/slip';
 import { logger } from '../../common/logging';
@@ -37,7 +36,6 @@ export interface ProcessOutcome {
 
 /** Normalize unknown payload to InternalEventV2. */
 export function normalizeEvent(raw: any): InternalEventV2 {
-  if (raw && raw.envelope) return toV2(raw as InternalEventV1);
   return raw as InternalEventV2;
 }
 

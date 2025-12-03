@@ -11,7 +11,6 @@ import type { ITwitchCredentialsProvider, TwitchChatAuth } from './credentials-p
 import type { IConfig } from '../../../types';
 import {logger} from "../../../common/logging";
 import { InternalEventV2 } from '../../../types/events';
-import { toV2 } from '../../../common/events/adapters';
 
 export type TwitchConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'RECONNECTING' | 'ERROR';
 
@@ -331,14 +330,12 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     logger.debug('Twitch IRC message received', {msg});
 
     try {
-      const evtV1 = this.builder.build(msg);
+      const evtV2: InternalEventV2 = this.builder.build(msg);
       // Ensure egressDestination is set for downstream responses to route back to this instance
-      if (evtV1 && evtV1.envelope && !evtV1.envelope.egressDestination && this.egressDestinationTopic) {
-        (evtV1.envelope as any).egressDestination = this.egressDestinationTopic;
+      if (!evtV2.egressDestination && this.egressDestinationTopic) {
+        (evtV2 as any).egressDestination = this.egressDestinationTopic;
       }
-      // Convert to V2 for publishing on internal.ingress.v1 subject
-      const v2: InternalEventV2 = toV2(evtV1);
-      await this.publisher.publish(v2);
+      await this.publisher.publish(evtV2);
       this.snapshot.counters.published = (this.snapshot.counters.published || 0) + 1;
     } catch (e: any) {
       this.snapshot.counters.failed = (this.snapshot.counters.failed || 0) + 1;

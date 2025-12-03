@@ -2,13 +2,13 @@ import '../common/safe-timers'; // install safe timer clamps early for this proc
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
-import { InternalEventV1, InternalEventV2, INTERNAL_USER_ENRICHED_V1 } from '../types/events';
-import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
+import { InternalEventV2, INTERNAL_USER_ENRICHED_V1 } from '../types/events';
+import { AttributeMap, MessagePublisher, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
 import { getFirestore } from '../common/firebase';
 import { counters } from '../common/counters';
-import { toV1, toV2, busAttrsFromEvent } from '../common/events/adapters';
+import { busAttrsFromEvent } from '../common/events/attributes';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'event-router';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -54,6 +54,8 @@ export function createApp() {
       const inputTopic = process.env.ROUTER_DEFAULT_INPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
       const subject = `${cfg.busPrefix || ''}${inputTopic}`;
       const sub = createMessageSubscriber();
+      // Cache publishers per subject to avoid repeated client initialization and DNS lookups
+      const publisherCache = new Map<string, MessagePublisher>();
       logger.info('event_router.subscribe.start', { subject, queue: 'event-router' });
       try {
         await sub.subscribe(
@@ -61,13 +63,15 @@ export function createApp() {
           async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const raw = JSON.parse(data.toString('utf8')) as any;
-              // Normalize to V1 for routing engine, then convert to V2 for publish
-              const asV1: InternalEventV1 = (raw && raw.envelope) ? (raw as InternalEventV1) : toV1(raw as InternalEventV2);
-              // Route using rules (first-match-wins, default path)
-              const { slip, decision } = engine.route(asV1, ruleLoader.getRules());
-              asV1.envelope.routingSlip = slip;
-
-              const v2: InternalEventV2 = toV2(asV1);
+              // Assume V2 payloads; no V1 support
+              const v2In: InternalEventV2 = raw as InternalEventV2;
+              logger.debug('event_router.ingress.received', {
+                event: v2In,
+              });
+              // Route using rules (first-match-wins, default path). RouterEngine now accepts V2.
+              const { slip, decision } = engine.route(v2In, ruleLoader.getRules());
+              v2In.routingSlip = slip;
+              const v2: InternalEventV2 = v2In;
 
               // Update observability counters
               try {
@@ -90,7 +94,11 @@ export function createApp() {
 
               // Publish to the next topic (first step)
               const outSubject = `${cfg.busPrefix || ''}${decision.selectedTopic}`;
-              const pub = createMessagePublisher(outSubject);
+              let pub = publisherCache.get(outSubject);
+              if (!pub) {
+                pub = createMessagePublisher(outSubject);
+                publisherCache.set(outSubject, pub);
+              }
               const pubAttrs: AttributeMap = busAttrsFromEvent(v2);
               await pub.publishJson(v2, pubAttrs);
               logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
@@ -100,8 +108,13 @@ export function createApp() {
               // Parsing, routing, or publish error
               const msg = e?.message || String(e);
               logger.error('event_router.ingress.process_error', { subject, error: msg });
-              // If JSON is invalid, ack to prevent poison redelivery; otherwise nack to retry
-              if (msg && /json|unexpected token|position \d+/i.test(msg)) {
+              // If JSON is invalid, ack to prevent poison redelivery
+              // If known publish timeout/network name-resolution issues, ack to avoid redelivery storm
+              // Otherwise, nack to retry
+              const isJsonError = msg && /json|unexpected token|position \d+/i.test(msg);
+              const code = (e && (e.code || e.status)) || undefined;
+              const isPublishTimeout = code === 4 /* DEADLINE_EXCEEDED */ || /DEADLINE_EXCEEDED|name resolution|getaddrinfo|ENOTFOUND|EAI_AGAIN|Waiting for LB pick/i.test(msg);
+              if (isJsonError || isPublishTimeout) {
                 await ctx.ack();
               } else {
                 await ctx.nack(true);

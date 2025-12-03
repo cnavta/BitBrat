@@ -1,9 +1,9 @@
-import { InternalEventV1 } from '../../../types/events';
+import { InternalEventV2 } from '../../../types/events';
 import crypto from 'crypto';
 
 /**
  * EnvelopeBuilder — Twitch IRC
- * llm_prompt: Provide a transport-neutral mapping interface from IRC message metadata to InternalEventV1.
+ * llm_prompt: Provide a transport-neutral mapping interface from IRC message metadata to InternalEventV2.
  *
  * This scaffolding defines the types and contract only (INEG-01). No side effects.
  */
@@ -36,10 +36,10 @@ export interface EnvelopeBuilderOptions {
 }
 
 /**
- * Contract for transforming an IRC message into an InternalEventV1 (enveloped).
+ * Contract for transforming an IRC message into an InternalEventV2 (flattened envelope).
  */
 export interface IEnvelopeBuilder {
-  build(msg: IrcMessageMeta, opts?: EnvelopeBuilderOptions): InternalEventV1;
+  build(msg: IrcMessageMeta, opts?: EnvelopeBuilderOptions): InternalEventV2;
 }
 
 /**
@@ -47,17 +47,17 @@ export interface IEnvelopeBuilder {
  */
 export class NoopEnvelopeBuilder implements IEnvelopeBuilder {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  build(_msg: IrcMessageMeta, _opts?: EnvelopeBuilderOptions): InternalEventV1 {
+  build(_msg: IrcMessageMeta, _opts?: EnvelopeBuilderOptions): InternalEventV2 {
     throw new Error('EnvelopeBuilder not implemented yet (INEG-02)');
   }
 }
 
 /**
- * TwitchEnvelopeBuilder — builds InternalEventV1 for chat messages.
+ * TwitchEnvelopeBuilder — builds InternalEventV2 for chat messages.
  * Implementation aligned with src/types/events.ts contracts.
  */
 export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
-  build(msg: IrcMessageMeta, opts?: EnvelopeBuilderOptions): InternalEventV1 {
+  build(msg: IrcMessageMeta, opts?: EnvelopeBuilderOptions): InternalEventV2 {
     const uuid = opts?.uuid || crypto.randomUUID;
     const nowIso = opts?.nowIso || (() => new Date().toISOString());
 
@@ -65,33 +65,37 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
     const correlationId = uuid();
     const traceId = uuid();
 
-    return {
-      envelope: {
-        v: '1',
-        source: 'ingress.twitch',
-        correlationId,
-        traceId,
-        routingSlip: [],
-      },
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twitch',
+      correlationId,
+      traceId,
+      routingSlip: [],
       type: 'chat.message.v1',
       channel,
       userId: msg.userId,
-      payload: {
+      message: {
+        id: msg.messageId || `msg-${correlationId}`,
+        role: 'user',
         text: msg.text,
-        messageId: msg.messageId || '',
-        user: {
-          login: msg.userLogin,
-          displayName: msg.userDisplayName || msg.userLogin,
+        rawPlatformPayload: {
+          text: msg.text,
+          messageId: msg.messageId || '',
+          user: {
+            login: msg.userLogin,
+            displayName: msg.userDisplayName || msg.userLogin,
+          },
+          roomId: msg.roomId || '',
+          color: msg.color,
+          badges: msg.badges || [],
+          isMod: !!msg.isMod,
+          isSubscriber: !!msg.isSubscriber,
+          emotes: msg.emotes || [],
+          raw: msg.raw || {},
+          timestamp: nowIso(),
         },
-        roomId: msg.roomId || '',
-        color: msg.color,
-        badges: msg.badges || [],
-        isMod: !!msg.isMod,
-        isSubscriber: !!msg.isSubscriber,
-        emotes: msg.emotes || [],
-        raw: msg.raw || {},
-        timestamp: nowIso(),
       },
     };
+    return evt;
   }
 }

@@ -1,15 +1,18 @@
 import { RouterEngine } from '../router-engine';
 import type { RuleDoc } from '../../router/rule-loader';
-import type { InternalEventV1 } from '../../../types/events';
+import type { InternalEventV2 } from '../../../types/events';
 import { INTERNAL_ROUTER_DLQ_V1 } from '../../../types/events';
 
 describe('RouterEngine', () => {
-  const baseEvt: InternalEventV1 = {
-    envelope: { v: '1', source: 'test', correlationId: 'c-1', routingSlip: [] },
+  const baseEvt: InternalEventV2 = {
+    v: '1',
+    source: 'test',
+    correlationId: 'c-1',
+    routingSlip: [],
     type: 'chat.command.v1',
-    payload: { text: '!ping' },
     channel: '#ch',
     userId: 'u1',
+    message: { id: 'm1', role: 'user', text: '!ping', rawPlatformPayload: { text: '!ping' } },
   } as any;
 
   it('selects the first matching rule (priority/short-circuit)', () => {

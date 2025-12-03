@@ -7,7 +7,7 @@ describe('TwitchEnvelopeBuilder', () => {
   let idx = 0;
   const uuid = () => uuidSeq[idx++ % uuidSeq.length];
 
-  it('maps basic IRC fields into InternalEventV1 envelope', () => {
+  it('maps basic IRC fields into InternalEventV2 envelope', () => {
     const msg: IrcMessageMeta = {
       channel: 'bitbrat',
       userLogin: 'someuser',
@@ -25,23 +25,23 @@ describe('TwitchEnvelopeBuilder', () => {
     };
 
     const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
-    expect(evt.envelope.v).toBe('1');
-    expect(evt.envelope.source).toBe('ingress.twitch');
-    expect(evt.envelope.correlationId).toBe('u1');
-    expect(evt.envelope.traceId).toBe('u2');
+    expect(evt.v).toBe('1');
+    expect(evt.source).toBe('ingress.twitch');
+    expect(evt.correlationId).toBe('u1');
+    expect(evt.traceId).toBe('u2');
     expect(evt.type).toBe('chat.message.v1');
     expect(evt.channel).toBe('#bitbrat');
     expect(evt.userId).toBe('123');
-    expect(evt.payload.text).toBe('Hello 👋');
-    expect(evt.payload.messageId).toBe('abc');
-    expect(evt.payload.user.login).toBe('someuser');
-    expect(evt.payload.user.displayName).toBe('SomeUser');
-    expect(evt.payload.roomId).toBe('456');
-    expect(evt.payload.color).toBe('#AABBCC');
-    expect(evt.payload.badges).toEqual(['subscriber']);
-    expect(evt.payload.isSubscriber).toBe(true);
-    expect(evt.payload.emotes).toEqual([{ id: '25', start: 6, end: 7 }]);
-    expect(evt.payload.timestamp).toBe(fixedNow);
+    expect(evt.message.text).toBe('Hello 👋');
+    expect(evt.message.id).toBe('abc');
+    expect(evt.message.rawPlatformPayload?.user?.login).toBe('someuser');
+    expect(evt.message.rawPlatformPayload?.user?.displayName).toBe('SomeUser');
+    expect(evt.message.rawPlatformPayload?.roomId).toBe('456');
+    expect(evt.message.rawPlatformPayload?.color).toBe('#AABBCC');
+    expect(evt.message.rawPlatformPayload?.badges).toEqual(['subscriber']);
+    expect(evt.message.rawPlatformPayload?.isSubscriber).toBe(true);
+    expect(evt.message.rawPlatformPayload?.emotes).toEqual([{ id: '25', start: 6, end: 7 }]);
+    expect(evt.message.rawPlatformPayload?.timestamp).toBe(fixedNow);
   });
 
   it('normalizes channel to include # and tolerates missing optionals', () => {
@@ -52,8 +52,8 @@ describe('TwitchEnvelopeBuilder', () => {
     } as any;
     const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
     expect(evt.channel).toBe('#room');
-    expect(evt.payload.messageId).toBe('');
-    expect(evt.payload.badges).toEqual([]);
-    expect(evt.payload.raw).toEqual({});
+    expect(evt.message.id).toBeDefined();
+    expect(evt.message.rawPlatformPayload?.badges).toEqual([]);
+    expect(evt.message.rawPlatformPayload?.raw).toEqual({});
   });
 });

@@ -2,7 +2,7 @@ import { INTERNAL_INGRESS_V1, InternalEventV2 } from '../../../types/events';
 import type { IConfig } from '../../../types';
 import { AttributeMap, MessagePublisher, createMessagePublisher } from '../../message-bus';
 import { retryAsync } from '../../../common/retry';
-import { busAttrsFromEvent } from '../../../common/events/adapters';
+import { busAttrsFromEvent } from '../../../common/events/attributes';
 
 export interface TwitchIngressPublisherOptions {
   busPrefix?: string; // e.g., "dev." or ""
