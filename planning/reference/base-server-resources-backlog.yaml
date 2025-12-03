@@ -1,0 +1,194 @@
+version: 1
+title: "Trackable Backlog — BaseServer Resource Management v1"
+id_prefix: BSR-
+references:
+  - architecture.yaml
+  - planning/reference/technical-architecture-base-server-resources.md
+  - src/common/base-server.ts
+  - src/services/message-bus/
+  - src/common/firebase.ts
+
+notes:
+  - Scope: Implement ResourceManager lifecycle in BaseServer with default resources (Publisher, Firestore) and graceful shutdown.
+  - Backwards compatibility: setup(app, cfg) continues to work; new optional third arg exposes realized resources; also via app.locals.resources.
+  - Tests are Jest-based; no external I/O in CI (MESSAGE_BUS_DRIVER=noop, MESSAGE_BUS_DISABLE_IO=1).
+
+backlog:
+  - id: BSR-01
+    title: Define ResourceManager interfaces and resource map types
+    description: "Create ResourceManager<T> and ResourceMap types; define SetupContext { config, logger, serviceName, env }."
+    files:
+      - src/common/resources/types.ts
+      - src/common/base-server.ts
+    estimate: 0.2d
+    acceptance_criteria:
+      - Type definitions compiled and exported for use by BaseServer and managers
+      - SetupContext includes config, logger, serviceName, env snapshot
+    tests:
+      - none (types only)
+    status: todo
+
+  - id: BSR-02
+    title: Wire resources into BaseServer construction and setup()
+    description: "Extend BaseServerOptions to accept resources?: Record<string, ResourceManager>. Realize defaults + overrides at construction; expose instances to setup third arg and app.locals.resources."
+    files:
+      - src/common/base-server.ts
+    estimate: 0.6d
+    acceptance_criteria:
+      - BaseServerOptions.resources accepted and honored
+      - setup(app, cfg, resources?) receives realized map (optional third param)
+      - app.locals.resources populated with instances
+      - base_server.resources.init log includes keys
+    tests:
+      - tests/common/base-server-resources.spec.ts: init order, third-arg plumbed, app.locals presence
+    dependencies: [BSR-01]
+    status: todo
+
+  - id: BSR-03
+    title: Default Publisher resource manager
+    description: "Provide publisher manager with per-subject cache and flushAll on shutdown. Uses createMessagePublisher(subject)."
+    files:
+      - src/common/resources/publisher-manager.ts
+      - src/services/message-bus/index.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - setup() returns { create(subject), flushAll() }
+      - create() caches publishers by subject and reuses on subsequent calls
+      - shutdown() calls flushAll() best-effort and clears cache
+      - Works with MESSAGE_BUS_DRIVER=noop in tests without network I/O
+    tests:
+      - tests/common/publisher-manager.spec.ts: caching and flushAll best-effort
+    dependencies: [BSR-01]
+    status: todo
+
+  - id: BSR-04
+    title: Default Firestore resource manager
+    description: "Provide Firestore manager that returns getFirestore() singleton; shutdown is no-op. Honors configureFirestore() if FIREBASE_DATABASE_ID set."
+    files:
+      - src/common/resources/firestore-manager.ts
+      - src/common/firebase.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - setup() returns a Firestore-like instance from getFirestore()
+      - shutdown() is a safe no-op
+      - No additional I/O in tests (emulator or noop env respected)
+    tests:
+      - tests/common/firestore-manager.spec.ts: setup returns singleton; shutdown does not throw
+    dependencies: [BSR-01]
+    status: todo
+
+  - id: BSR-05
+    title: Graceful shutdown with signal handlers (SIGTERM/SIGINT)
+    description: "Register debounced one-time signal handlers in BaseServer to call ResourceManager.shutdown(instance) in reverse init order."
+    files:
+      - src/common/base-server.ts
+    estimate: 0.4d
+    acceptance_criteria:
+      - On signal, shutdown called once per resource in reverse order
+      - Errors in one shutdown do not prevent others from running
+      - Log base_server.resource.shutdown.ok|error per key
+    tests:
+      - tests/common/base-server-resources.spec.ts: simulate shutdown path; verify reverse order and error isolation
+    dependencies: [BSR-02]
+    status: todo
+
+  - id: BSR-06
+    title: Observability logs for resource setup/shutdown
+    description: "Emit base_server.resource.setup.ok|error and base_server.resource.shutdown.ok|error with { key }."
+    files:
+      - src/common/base-server.ts
+      - src/common/logging.ts
+    estimate: 0.1d
+    acceptance_criteria:
+      - Setup emits per-resource ok|error logs
+      - Shutdown emits per-resource ok|error logs
+    tests:
+      - tests/common/base-server-resources.spec.ts: assert logger calls with expected messages/keys
+    dependencies: [BSR-02]
+    status: todo
+
+  - id: BSR-07
+    title: Unit tests for BaseServer resource lifecycle
+    description: "Add comprehensive tests using mocked ResourceManagers to verify init order, reverse shutdown, error isolation, and third-arg exposure."
+    files:
+      - tests/common/base-server-resources.spec.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - All described behaviors covered; tests pass in CI
+    tests:
+      - unit: as above
+    dependencies: [BSR-02, BSR-05, BSR-06]
+    status: todo
+
+  - id: BSR-08
+    title: Unit tests for default Publisher manager
+    description: "Verify subject caching and flushAll() best-effort behavior with noop driver."
+    files:
+      - tests/common/publisher-manager.spec.ts
+    estimate: 0.3d
+    acceptance_criteria:
+      - Same subject returns same instance; different subject returns different instance
+      - flushAll() calls flush on all cached publishers; continues on error
+    tests:
+      - unit: as above
+    dependencies: [BSR-03]
+    status: todo
+
+  - id: BSR-09
+    title: Example service adoption (non-breaking)
+    description: "Update one service (auth or event-router) to read realized resources via setup third arg while preserving existing behavior."
+    files:
+      - src/apps/auth-service.ts
+      - src/apps/event-router-service.ts
+    estimate: 0.3d
+    acceptance_criteria:
+      - Service compiles and runs without behavior change
+      - Example usage: use resources.publisher.create(subject) instead of direct factory where convenient
+    tests:
+      - unit: smoke test service createApp() path with MESSAGE_BUS_DRIVER=noop
+    dependencies: [BSR-02, BSR-03, BSR-04]
+    status: todo
+
+  - id: BSR-10
+    title: Documentation alignment
+    description: "Add a short how-to in documentation/ (or update the TA doc notes) on accessing resources via setup third arg and app.locals.resources."
+    files:
+      - documentation/base-server-resources.md
+      - planning/reference/technical-architecture-base-server-resources.md
+    estimate: 0.2d
+    acceptance_criteria:
+      - Docs explain ResourceManager pattern and default resources
+      - Examples show setup(app, cfg, resources) and app.locals.resources access
+    tests:
+      - none
+    dependencies: [BSR-02, BSR-03, BSR-04]
+    status: todo
+
+  - id: BSR-11
+    title: Backward compatibility and type safety
+    description: "Ensure ExpressSetup third parameter is optional and existing services compile unchanged. Provide minimal type helpers."
+    files:
+      - src/common/base-server.ts
+      - src/common/resources/types.ts
+    estimate: 0.2d
+    acceptance_criteria:
+      - Existing setup(app, cfg) signatures remain valid
+      - New setup(app, cfg, resources?) signature compiles and is documented
+    tests:
+      - type-level via successful build; smoke tests for services
+    dependencies: [BSR-02]
+    status: todo
+
+  - id: BSR-12
+    title: Validation script alignment
+    description: "Confirm validate_deliverable.sh remains logically passable; no new external dependencies required for tests."
+    files:
+      - validate_deliverable.sh
+      - package.json
+    estimate: 0.1d
+    acceptance_criteria:
+      - validate_deliverable.sh unchanged or updated minimally; npm test/build succeed locally and in CI
+    tests:
+      - manual/script run
+    dependencies: [BSR-07, BSR-08]
+    status: todo
