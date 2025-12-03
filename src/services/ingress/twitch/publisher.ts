@@ -10,6 +10,8 @@ export interface TwitchIngressPublisherOptions {
   baseDelayMs?: number; // default 250
   maxDelayMs?: number; // default 5000
   jitterMs?: number; // 0 => disable jitter (deterministic tests)
+  /** Optional factory to create a MessagePublisher for a subject (e.g., BaseServer resources.publisher.create) */
+  publisherFactory?: (subject: string) => MessagePublisher;
 }
 
 export interface ITwitchIngressPublisher {
@@ -29,7 +31,8 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
   constructor(options: TwitchIngressPublisherOptions = {}) {
     const prefix = (options.busPrefix ?? process.env.BUS_PREFIX ?? '').toString();
     this.subject = `${prefix}${INTERNAL_INGRESS_V1}`;
-    this.pub = createMessagePublisher(this.subject);
+    const factory = options.publisherFactory || createMessagePublisher;
+    this.pub = factory(this.subject);
     this.opts = {
       maxRetries: options.maxRetries ?? 5,
       baseDelayMs: options.baseDelayMs ?? 250,
@@ -53,17 +56,19 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
   }
 }
 
-export function createTwitchIngressPublisherFromEnv(): TwitchIngressPublisher {
+export function createTwitchIngressPublisherFromEnv(publisherFactory?: (subject: string) => MessagePublisher): TwitchIngressPublisher {
   return new TwitchIngressPublisher({
     busPrefix: process.env.BUS_PREFIX,
     // allow optional env overrides if present
     maxRetries: process.env.PUBLISH_MAX_RETRIES ? Number(process.env.PUBLISH_MAX_RETRIES) : undefined,
+    publisherFactory,
   });
 }
 
-export function createTwitchIngressPublisherFromConfig(cfg: IConfig): TwitchIngressPublisher {
+export function createTwitchIngressPublisherFromConfig(cfg: IConfig, publisherFactory?: (subject: string) => MessagePublisher): TwitchIngressPublisher {
   return new TwitchIngressPublisher({
     busPrefix: cfg.busPrefix,
     maxRetries: cfg.publishMaxRetries,
+    publisherFactory,
   });
 }

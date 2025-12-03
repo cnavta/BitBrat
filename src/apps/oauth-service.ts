@@ -12,10 +12,10 @@ export function createApp(options?: { botStore?: ITokenStore; broadcasterStore?:
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
     configOverrides: { ...(options?.config || {}) },
-    setup: (app, cfg) => {
+    setup: (app, cfg, resources) => {
       try {
-        const botStore: ITokenStore = options?.botStore || new FirestoreTokenStore(cfg.tokenDocPath!);
-        const broadcasterStore: ITokenStore = options?.broadcasterStore || new FirestoreTokenStore(cfg.broadcasterTokenDocPath!);
+        const botStore: ITokenStore = options?.botStore || new FirestoreTokenStore(cfg.tokenDocPath!, (resources as any)?.firestore);
+        const broadcasterStore: ITokenStore = options?.broadcasterStore || new FirestoreTokenStore(cfg.broadcasterTokenDocPath!, (resources as any)?.firestore);
         // Mount routes for both identities
         mountTwitchOAuthRoutes(app, cfg, botStore, '/oauth/twitch/bot');
         mountTwitchOAuthRoutes(app, cfg, broadcasterStore, '/oauth/twitch/broadcaster');
@@ -38,10 +38,10 @@ if (require.main === module) {
     serviceName: SERVICE_NAME,
     configOverrides: {},
     validateConfig: (cfg) => assertRequiredSecrets(cfg),
-    setup: (app, cfg) => {
+    setup: (app, cfg, resources) => {
       try {
-        const botStore: ITokenStore = new FirestoreTokenStore(cfg.tokenDocPath!);
-        const broadcasterStore: ITokenStore = new FirestoreTokenStore(cfg.broadcasterTokenDocPath!);
+        const botStore: ITokenStore = new FirestoreTokenStore(cfg.tokenDocPath!, (resources as any)?.firestore);
+        const broadcasterStore: ITokenStore = new FirestoreTokenStore(cfg.broadcasterTokenDocPath!, (resources as any)?.firestore);
         mountTwitchOAuthRoutes(app, cfg, botStore, '/oauth/twitch/bot');
         mountTwitchOAuthRoutes(app, cfg, broadcasterStore, '/oauth/twitch/broadcaster');
       } catch (e) {

@@ -26,7 +26,7 @@ backlog:
       - SetupContext includes config, logger, serviceName, env snapshot
     tests:
       - none (types only)
-    status: todo
+    status: completed
 
   - id: BSR-02
     title: Wire resources into BaseServer construction and setup()
@@ -42,7 +42,7 @@ backlog:
     tests:
       - tests/common/base-server-resources.spec.ts: init order, third-arg plumbed, app.locals presence
     dependencies: [BSR-01]
-    status: todo
+    status: completed
 
   - id: BSR-03
     title: Default Publisher resource manager
@@ -59,7 +59,7 @@ backlog:
     tests:
       - tests/common/publisher-manager.spec.ts: caching and flushAll best-effort
     dependencies: [BSR-01]
-    status: todo
+    status: completed
 
   - id: BSR-04
     title: Default Firestore resource manager
@@ -75,7 +75,7 @@ backlog:
     tests:
       - tests/common/firestore-manager.spec.ts: setup returns singleton; shutdown does not throw
     dependencies: [BSR-01]
-    status: todo
+    status: completed
 
   - id: BSR-05
     title: Graceful shutdown with signal handlers (SIGTERM/SIGINT)
@@ -90,7 +90,7 @@ backlog:
     tests:
       - tests/common/base-server-resources.spec.ts: simulate shutdown path; verify reverse order and error isolation
     dependencies: [BSR-02]
-    status: todo
+    status: completed
 
   - id: BSR-06
     title: Observability logs for resource setup/shutdown
@@ -105,7 +105,7 @@ backlog:
     tests:
       - tests/common/base-server-resources.spec.ts: assert logger calls with expected messages/keys
     dependencies: [BSR-02]
-    status: todo
+    status: completed
 
   - id: BSR-07
     title: Unit tests for BaseServer resource lifecycle
@@ -118,7 +118,7 @@ backlog:
     tests:
       - unit: as above
     dependencies: [BSR-02, BSR-05, BSR-06]
-    status: todo
+    status: completed
 
   - id: BSR-08
     title: Unit tests for default Publisher manager
@@ -132,7 +132,7 @@ backlog:
     tests:
       - unit: as above
     dependencies: [BSR-03]
-    status: todo
+    status: completed
 
   - id: BSR-09
     title: Example service adoption (non-breaking)
@@ -147,7 +147,7 @@ backlog:
     tests:
       - unit: smoke test service createApp() path with MESSAGE_BUS_DRIVER=noop
     dependencies: [BSR-02, BSR-03, BSR-04]
-    status: todo
+    status: completed
 
   - id: BSR-10
     title: Documentation alignment
@@ -177,7 +177,7 @@ backlog:
     tests:
       - type-level via successful build; smoke tests for services
     dependencies: [BSR-02]
-    status: todo
+    status: completed
 
   - id: BSR-12
     title: Validation script alignment
@@ -191,4 +191,4 @@ backlog:
     tests:
       - manual/script run
     dependencies: [BSR-07, BSR-08]
-    status: todo
+    status: completed

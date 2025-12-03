@@ -109,20 +109,31 @@ function getDriver(): 'pubsub' | 'nats' | 'noop' {
 
 /** Create a MessagePublisher bound to a subject/topic for the current driver. */
 export function createMessagePublisher(subject: string): MessagePublisher {
+  // Ensure a single publisher instance per <driver>::<subject> across the process
   const driver = getDriver();
+  const key = `${driver}::${subject}`;
+  if (!(globalThis as any).__bb_publisher_cache) {
+    (globalThis as any).__bb_publisher_cache = new Map<string, MessagePublisher>();
+  }
+  const cache: Map<string, MessagePublisher> = (globalThis as any).__bb_publisher_cache;
+  const existing = cache.get(key);
+  if (existing) return existing;
+  let created: MessagePublisher;
   if (driver === 'nats') {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { NatsPublisher } = require('./nats-driver');
-    return new NatsPublisher(subject);
-  }
-  if (driver === 'noop') {
+    created = new NatsPublisher(subject);
+  } else if (driver === 'noop') {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { NoopPublisher } = require('./noop-driver');
-    return new NoopPublisher(subject);
+    created = new NoopPublisher(subject);
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { PubSubPublisher } = require('./pubsub-driver');
+    created = new PubSubPublisher(subject);
   }
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { PubSubPublisher } = require('./pubsub-driver');
-  return new PubSubPublisher(subject);
+  cache.set(key, created);
+  return created;
 }
 
 /** Create a MessageSubscriber for the current driver. */

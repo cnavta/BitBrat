@@ -4,6 +4,7 @@ import { INTERNAL_COMMAND_V1, InternalEventV2, RoutingStep } from '../types/even
 import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
 import { logger } from '../common/logging';
 import { summarizeSlip } from '../services/routing/slip';
+import { findByNameOrAlias } from '../services/command-processor/command-repo';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'command-processor';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -11,7 +12,7 @@ const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10
 export function createApp() {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
-    setup: async (_app: Express, cfg) => {
+    setup: async (_app: Express, cfg, resources) => {
       // Subscribe is disabled in tests only when explicitly requested via MESSAGE_BUS_DISABLE_SUBSCRIBE=1
       // Rationale: Some tests intentionally enable subscription while running under Jest.
       const isTestEnv = process.env.NODE_ENV === 'test' || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
@@ -39,7 +40,9 @@ export function createApp() {
 
               // Lazy-load processor to allow Jest doMock() to override in tests after this module is loaded
               const { processEvent } = require('../services/command-processor/processor');
-              const result = await processEvent(raw);
+              const result = await processEvent(raw, {
+                repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, (resources as any)?.firestore),
+              });
               const v2 = result.event;
 
               // Mark current pending step OK/SKIP based on processor result, then advance per routing slip
@@ -51,12 +54,16 @@ export function createApp() {
               }
               if (nextIdx >= 0 && slip[nextIdx].nextTopic) {
                 const nextTopic = `${(cfg.busPrefix || '')}${slip[nextIdx].nextTopic}`;
-                const publisher = createMessagePublisher(nextTopic);
+                const publisher = (resources as any)?.publisher?.create
+                  ? (resources as any).publisher.create(nextTopic)
+                  : createMessagePublisher(nextTopic);
                 await publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
                 logger.info('command_processor.advance.next', { nextTopic, slip: summarizeSlip(slip) });
               } else if (v2.egressDestination) {
                 const nextTopic = `${(cfg.busPrefix || '')}${v2.egressDestination}`;
-                const publisher = createMessagePublisher(nextTopic);
+                const publisher = (resources as any)?.publisher?.create
+                  ? (resources as any).publisher.create(nextTopic)
+                  : createMessagePublisher(nextTopic);
                 await publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
                 logger.info('command_processor.advance.egress', { nextTopic, slip: summarizeSlip(slip) });
               } else {

@@ -40,7 +40,7 @@ export function createApp() {
         const publisher = (resources as any)?.publisher?.create
           ? (resources as any).publisher.create(outputSubject)
           : createMessagePublisher(outputSubject);
-        const userRepo = new FirestoreUserRepo('users');
+        const userRepo = new FirestoreUserRepo('users', (resources as any)?.firestore);
 
         logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
         try {

@@ -3,10 +3,10 @@ import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
 import { InternalEventV2, INTERNAL_USER_ENRICHED_V1 } from '../types/events';
-import { AttributeMap, MessagePublisher, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
+import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
-import { getFirestore } from '../common/firebase';
+// Firestore is provided via BaseServer resources
 import { counters } from '../common/counters';
 import { busAttrsFromEvent } from '../common/events/attributes';
 
@@ -16,7 +16,7 @@ const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10
 export function createApp() {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
-    setup: async (_app: Express, cfg) => {
+    setup: async (_app: Express, cfg, resources) => {
       // ---------------- Debug endpoints ----------------
       // Expose process-local counters for observability
       _app.get('/_debug/counters', (_req, res) => {
@@ -41,7 +41,7 @@ export function createApp() {
         } else {
           // Start rule loading asynchronously; do not block subscription on Firestore availability
           // Any errors are logged and do not prevent router startup
-          ruleLoader.start(getFirestore()).catch((e: any) => {
+          ruleLoader.start((resources as any)?.firestore).catch((e: any) => {
             logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
           });
         }
@@ -54,8 +54,6 @@ export function createApp() {
       const inputTopic = process.env.ROUTER_DEFAULT_INPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
       const subject = `${cfg.busPrefix || ''}${inputTopic}`;
       const sub = createMessageSubscriber();
-      // Cache publishers per subject to avoid repeated client initialization and DNS lookups
-      const publisherCache = new Map<string, MessagePublisher>();
       logger.info('event_router.subscribe.start', { subject, queue: 'event-router' });
       try {
         await sub.subscribe(
@@ -94,11 +92,9 @@ export function createApp() {
 
               // Publish to the next topic (first step)
               const outSubject = `${cfg.busPrefix || ''}${decision.selectedTopic}`;
-              let pub = publisherCache.get(outSubject);
-              if (!pub) {
-                pub = createMessagePublisher(outSubject);
-                publisherCache.set(outSubject, pub);
-              }
+              const pub = (resources as any)?.publisher?.create
+                ? (resources as any).publisher.create(outSubject)
+                : require('../services/message-bus').createMessagePublisher(outSubject);
               const pubAttrs: AttributeMap = busAttrsFromEvent(v2);
               await pub.publishJson(v2, pubAttrs);
               logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
