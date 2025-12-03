@@ -16,7 +16,7 @@ const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10
 export function createApp() {
   const server = new BaseServer({
     serviceName: SERVICE_NAME,
-    setup: async (app: Express, cfg) => {
+    setup: async (app: Express, cfg, resources) => {
       const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
       // Configure Firestore database binding if provided
       if (process.env.FIREBASE_DATABASE_ID) {
@@ -36,8 +36,10 @@ export function createApp() {
         const outTopic = process.env.AUTH_ENRICH_OUTPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
         const outputSubject = `${cfg.busPrefix || ''}${outTopic}`;
         const subscriber = createMessageSubscriber();
-        // Reuse a single publisher instance per subject to avoid repeated client init and DNS lookups
-        const publisher = createMessagePublisher(outputSubject);
+        // Prefer BaseServer resources publisher manager; fallback to factory
+        const publisher = (resources as any)?.publisher?.create
+          ? (resources as any).publisher.create(outputSubject)
+          : createMessagePublisher(outputSubject);
         const userRepo = new FirestoreUserRepo('users');
 
         logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
