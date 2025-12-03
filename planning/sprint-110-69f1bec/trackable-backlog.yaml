@@ -117,7 +117,7 @@ backlog:
       - Unit tests assert logger called with expected keys (using jest mocks)
     labels: [observability, publishing]
     dependencies: []
-    status: in-progress
+    status: completed
 
   - id: BB-110-08
     sprint: 110
@@ -160,4 +160,4 @@ backlog:
       - PR created or failure documented per AGENTS.md
     labels: [publication]
     dependencies: [BB-110-02, BB-110-03, BB-110-04, BB-110-05, BB-110-06, BB-110-07, BB-110-08, BB-110-09]
-    status: todo
+    status: completed
