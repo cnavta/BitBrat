@@ -18,6 +18,7 @@
  */
 import { PubSub } from '@google-cloud/pubsub';
 import { logger } from '../../common/logging';
+import { normalizeAttributes } from './index';
 import type {
   AttributeMap,
   MessageHandler,
@@ -103,10 +104,14 @@ function isNotFoundError(e: any): boolean {
 export class PubSubPublisher implements MessagePublisher {
   private readonly pubsub: PubSub;
   private readonly topicName: string;
+  private readonly topic: any;
 
   constructor(topicName: string) {
     this.pubsub = buildClient();
     this.topicName = topicName;
+    const batching = { maxMessages: getBatchMaxMessages(), maxMilliseconds: getBatchMaxMilliseconds() };
+    this.topic = (this.pubsub as any).topic(this.topicName, { batching });
+    logger.info('pubsub.publisher.init', { topic: this.topicName, batching });
   }
 
   /** Serialize data to JSON and publish with optional attributes. */
@@ -123,9 +128,9 @@ export class PubSubPublisher implements MessagePublisher {
         logger.warn('pubsub.ensure_topic_failed', { topic: this.topicName, error: e?.message || String(e), mode: ensureMode, timeoutMs: ensureTimeout });
       }
     }
-    const topic = this.pubsub.topic(this.topicName, { batching: { maxMessages: 100, maxMilliseconds: 100 } });
+    const topic = this.topic;
     const payload = Buffer.from(JSON.stringify(data));
-    const attrsNorm = normalizeAttrs(attributes);
+    const attrsNorm = normalizeAttributes(attributes as any);
     try {
       logger.debug('message_publisher.publish.start', {
         driver: 'pubsub',
@@ -321,11 +326,13 @@ async function ensureSubscription(pubsub: PubSub, topicName: string, subName: st
   }
 }
 
-/** Convert arbitrary attribute values to strings for Pub/Sub transport. */
-function normalizeAttrs(attrs: AttributeMap): AttributeMap {
-  const out: AttributeMap = {};
-  for (const [k, v] of Object.entries(attrs || {})) {
-    out[k] = String(v);
-  }
-  return out;
+/** Batching defaults and env accessors */
+function getBatchMaxMessages(): number {
+  const v = Number(process.env.PUBSUB_BATCH_MAX_MESSAGES || '100');
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 100;
+}
+
+function getBatchMaxMilliseconds(): number {
+  const v = Number(process.env.PUBSUB_BATCH_MAX_MS || '100');
+  return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 100;
 }

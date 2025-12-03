@@ -16,6 +16,7 @@
 import { connect, StringCodec, NatsConnection, JetStreamClient, consumerOpts, createInbox, headers as natsHeaders } from 'nats';
 import { logger } from '../../common/logging';
 import type { AttributeMap, MessageHandler, MessagePublisher, MessageSubscriber, SubscribeOptions, UnsubscribeFn } from './index';
+import { normalizeAttributes } from './index';
 
 // NATS string codec used for JSON payload encoding/decoding
 const sc = StringCodec();
@@ -48,7 +49,7 @@ export class NatsPublisher implements MessagePublisher {
   async publishJson(data: unknown, attributes: AttributeMap = {}): Promise<string | null> {
     const js = await this.jsPromise;
     const payload = sc.encode(JSON.stringify(data));
-    const headers = mapToHeaders(attributes);
+    const headers = mapToHeaders(normalizeAttributes(attributes as any));
     const subj = withPrefix(this.subject);
     try {
       logger.debug('message_publisher.publish.start', {
@@ -190,7 +191,7 @@ export class NatsSubscriber implements MessageSubscriber {
 }
 
 /** Map AttributeMap to NATS headers (string values only). */
-function mapToHeaders(attrs: AttributeMap | undefined) {
+export function mapToHeaders(attrs: AttributeMap | undefined) {
   if (!attrs || Object.keys(attrs).length === 0) return undefined;
   const h = natsHeaders();
   for (const [k, v] of Object.entries(attrs)) {
@@ -201,7 +202,7 @@ function mapToHeaders(attrs: AttributeMap | undefined) {
 }
 
 /** Convert various header shapes from NATS libraries into a plain AttributeMap. */
-function headersToMap(hdrs: any): AttributeMap {
+export function headersToMap(hdrs: any): AttributeMap {
   const out: AttributeMap = {};
   if (!hdrs) return out;
   try {
