@@ -37,7 +37,7 @@ backlog:
       - Unit tests cover attribute mapping for both drivers
     labels: [message-bus, publishing, correctness]
     dependencies: []
-    status: todo
+    status: in-progress
 
   - id: BB-110-03
     sprint: 110
@@ -54,7 +54,7 @@ backlog:
       - Tests simulate timeout behavior without real network
     labels: [message-bus, publishing, resilience]
     dependencies: []
-    status: todo
+    status: in-progress
 
   - id: BB-110-04
     sprint: 110
@@ -70,7 +70,7 @@ backlog:
       - NATS flush guidance documented; flush() covered by unit test
     labels: [performance, publishing]
     dependencies: [BB-110-03]
-    status: todo
+    status: in-progress
 
   - id: BB-110-05
     sprint: 110
@@ -86,7 +86,7 @@ backlog:
       - Unit tests verify schedule generation and jitter bounds
     labels: [reliability, performance]
     dependencies: []
-    status: todo
+    status: in-progress
 
   - id: BB-110-06
     sprint: 110
@@ -101,7 +101,7 @@ backlog:
       - Tests verify attribute pass-through without modification
     labels: [idempotency, publishing]
     dependencies: [BB-110-02]
-    status: todo
+    status: completed
 
   - id: BB-110-07
     sprint: 110
@@ -147,7 +147,7 @@ backlog:
       - Script exists, executable, and references standard npm scripts
     labels: [validation]
     dependencies: []
-    status: todo
+    status: completed
 
   - id: BB-110-10
     sprint: 110

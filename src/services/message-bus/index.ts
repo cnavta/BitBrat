@@ -142,3 +142,4 @@ export function createMessageSubscriber(): MessageSubscriber {
   const { PubSubSubscriber } = require('./pubsub-driver');
   return new PubSubSubscriber();
 }
+export { normalizeAttributes } from './attributes';
