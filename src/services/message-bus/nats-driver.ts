@@ -16,7 +16,7 @@
 import { connect, StringCodec, NatsConnection, JetStreamClient, consumerOpts, createInbox, headers as natsHeaders } from 'nats';
 import { logger } from '../../common/logging';
 import type { AttributeMap, MessageHandler, MessagePublisher, MessageSubscriber, SubscribeOptions, UnsubscribeFn } from './index';
-import { normalizeAttributes } from './index';
+import { normalizeAttributes } from './attributes';
 
 // NATS string codec used for JSON payload encoding/decoding
 const sc = StringCodec();

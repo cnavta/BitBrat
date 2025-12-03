@@ -79,3 +79,34 @@ export function isTransientError(err: any): boolean {
   }
   return false;
 }
+
+/**
+ * Compute an exponential backoff schedule with optional jitter and cap. Pure function for testing.
+ * attempts: number of delays to produce (e.g., 3 => [base, 2x, 4x])
+ * baseDelayMs: starting delay in ms
+ * maxDelayMs: optional cap; values won't exceed this
+ * jitterRatio: 0..1, where 0 means deterministic, 0.2 means ±20% randomization
+ */
+export function computeBackoffSchedule(
+  attempts: number,
+  baseDelayMs = 250,
+  maxDelayMs = 5000,
+  jitterRatio = 0.5,
+): number[] {
+  const out: number[] = [];
+  const count = Math.max(0, Math.floor(attempts));
+  const base = Math.max(1, Math.floor(baseDelayMs));
+  const cap = Math.max(base, Math.floor(maxDelayMs));
+  const jr = Math.max(0, Math.min(1, Number(jitterRatio)));
+  for (let i = 0; i < count; i++) {
+    const ideal = Math.min(cap, base * Math.pow(2, i));
+    if (jr === 0) {
+      out.push(ideal);
+    } else {
+      const jitter = ideal * jr;
+      const val = Math.min(cap, Math.floor(ideal + (Math.random() * 2 * jitter - jitter)));
+      out.push(Math.max(1, val));
+    }
+  }
+  return out;
+}
