@@ -1,0 +1,163 @@
+version: 1
+title: "Trackable Backlog — Sprint 110: Message Publishing Performance"
+SprintID: sprint-110-69f1bec
+branch: feature/sprint-110-69f1bec-publish-perf
+
+notes:
+  - Focus: Reduce latency, improve throughput, and increase resilience in the message publishing path.
+  - Source: planning/reference/messaging-system-improvements.md; architecture.yaml is canonical.
+  - Estimates are in developer-days; labels enable filtering.
+
+backlog:
+  - id: BB-110-01
+    sprint: 110
+    title: Sprint scaffolding and branch
+    description: Create sprint directory, feature branch, and manifest per AGENTS.md. Initialize request-log.
+    files:
+      - planning/sprint-110-69f1bec/
+    estimate: 0.1d
+    acceptance_criteria:
+      - Sprint manifest exists and records branch name
+      - Feature branch created and logged
+    labels: [sprint, planning]
+    dependencies: []
+    status: completed
+
+  - id: BB-110-02
+    sprint: 110
+    title: Normalize publish attributes across drivers
+    description: Ensure correlationId, type, traceparent, and optional stepId published consistently (lowerCamelCase) in Pub/Sub and NATS drivers.
+    files:
+      - src/services/message-bus/pubsub-driver.ts
+      - src/services/message-bus/nats-driver.ts
+      - src/services/message-bus/index.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - Attributes are lowerCamelCase and identical across drivers for the same input
+      - Unit tests cover attribute mapping for both drivers
+    labels: [message-bus, publishing, correctness]
+    dependencies: []
+    status: todo
+
+  - id: BB-110-03
+    sprint: 110
+    title: Publishing timeouts and ensure strategy tuneables
+    description: Implement and document PUBSUB_PUBLISH_TIMEOUT_MS, PUBSUB_ENSURE_MODE, PUBSUB_ENSURE_TIMEOUT_MS; mirror similar behavior for NATS where applicable; set sensible defaults.
+    files:
+      - src/services/message-bus/pubsub-driver.ts
+      - src/services/message-bus/nats-driver.ts
+      - documentation/messaging-config.md
+    estimate: 0.4d
+    acceptance_criteria:
+      - Pub/Sub publisher respects timeout and ensure strategy with logs; retries once on NotFound when allowed
+      - NATS publisher documents equivalent toggles (or N/A) and provides flush behavior
+      - Tests simulate timeout behavior without real network
+    labels: [message-bus, publishing, resilience]
+    dependencies: []
+    status: todo
+
+  - id: BB-110-04
+    sprint: 110
+    title: Batching parameters review and defaults
+    description: Validate Pub/Sub batching config (maxMessages, maxMilliseconds) and document recommended defaults for throughput vs latency; ensure NATS flush behavior is exposed.
+    files:
+      - src/services/message-bus/pubsub-driver.ts
+      - src/services/message-bus/nats-driver.ts
+      - documentation/messaging-config.md
+    estimate: 0.25d
+    acceptance_criteria:
+      - Pub/Sub uses explicit batching defaults and logs them at init
+      - NATS flush guidance documented; flush() covered by unit test
+    labels: [performance, publishing]
+    dependencies: [BB-110-03]
+    status: todo
+
+  - id: BB-110-05
+    sprint: 110
+    title: Shared backoff constants and helper
+    description: Centralize retry/backoff defaults in a shared constants module; expose helper to compute exponential backoff with jitter.
+    files:
+      - src/common/constants.ts
+      - src/common/retry.ts
+      - src/services/message-bus/*
+    estimate: 0.5d
+    acceptance_criteria:
+      - Default backoff constants exported and used by subscribers where applicable
+      - Unit tests verify schedule generation and jitter bounds
+    labels: [reliability, performance]
+    dependencies: []
+    status: todo
+
+  - id: BB-110-06
+    sprint: 110
+    title: Idempotency header and dedupe guidance for side effects
+    description: Provide guidance and optional attribute header (idempotencyKey) publishing; add docs for dedupe store TTL recommendations.
+    files:
+      - src/services/message-bus/index.ts
+      - documentation/messaging-config.md
+    estimate: 0.25d
+    acceptance_criteria:
+      - idempotencyKey inclusion documented and supported via attributes
+      - Tests verify attribute pass-through without modification
+    labels: [idempotency, publishing]
+    dependencies: [BB-110-02]
+    status: todo
+
+  - id: BB-110-07
+    sprint: 110
+    title: Observability baseline for publishers
+    description: Ensure logs and optional metrics include driver, subject/topic, attrCount, payload bytes, and timing; add debug logs around flush.
+    files:
+      - src/services/message-bus/pubsub-driver.ts
+      - src/services/message-bus/nats-driver.ts
+      - src/common/logging.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - Start/ok/error logs exist for publish and flush with structured fields
+      - Unit tests assert logger called with expected keys (using jest mocks)
+    labels: [observability, publishing]
+    dependencies: []
+    status: todo
+
+  - id: BB-110-08
+    sprint: 110
+    title: Attribute normalization helper
+    description: Extract a small helper to normalize AttributeMap keys (lowerCamelCase) and filter undefined; reuse in both drivers.
+    files:
+      - src/services/message-bus/index.ts
+      - src/services/message-bus/pubsub-driver.ts
+      - src/services/message-bus/nats-driver.ts
+    estimate: 0.3d
+    acceptance_criteria:
+      - Shared helper exported and used by drivers
+      - Unit tests for key normalization and value stringification
+    labels: [correctness, publishing]
+    dependencies: [BB-110-02]
+    status: todo
+
+  - id: BB-110-09
+    sprint: 110
+    title: Validate deliverable script alignment
+    description: Ensure sprint validate_deliverable.sh delegates to repo root and is logically passable (build + tests).
+    files:
+      - planning/sprint-110-69f1bec/validate_deliverable.sh
+      - validate_deliverable.sh
+    estimate: 0.1d
+    acceptance_criteria:
+      - Script exists, executable, and references standard npm scripts
+    labels: [validation]
+    dependencies: []
+    status: todo
+
+  - id: BB-110-10
+    sprint: 110
+    title: Publication (PR)
+    description: Commit, push branch, and create GitHub PR; record PR URL in publication.yaml.
+    files:
+      - planning/sprint-110-69f1bec/publication.yaml
+    estimate: 0.1d
+    acceptance_criteria:
+      - PR created or failure documented per AGENTS.md
+    labels: [publication]
+    dependencies: [BB-110-02, BB-110-03, BB-110-04, BB-110-05, BB-110-06, BB-110-07, BB-110-08, BB-110-09]
+    status: todo
