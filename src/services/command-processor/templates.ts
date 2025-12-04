@@ -1,6 +1,7 @@
 import type { InternalEventV2 } from '../../types/events';
 import type { CommandTemplate } from './command-repo';
 import { getConfig } from '../../common/config';
+import {logger} from "../../common/logging";
 
 export interface TemplateChoice {
   template: CommandTemplate;
@@ -12,6 +13,7 @@ export function chooseTemplate(
   lastUsedTemplateId?: string,
   rng: () => number = Math.random
 ): TemplateChoice | null {
+  logger.debug('command_processor.template.choose', {templates, lastUsedTemplateId})
   const list = Array.isArray(templates) ? templates.filter((t) => t && t.id && t.text) : [];
   if (list.length === 0) return null;
   let pool = list;
@@ -21,6 +23,7 @@ export function chooseTemplate(
   }
   const idx = Math.floor(rng() * pool.length);
   const template = pool[idx];
+  logger.debug('command_processor.template.chosen', {template, lastUsedTemplateId, idx, poolLength: pool.length});
   return { template };
 }
 

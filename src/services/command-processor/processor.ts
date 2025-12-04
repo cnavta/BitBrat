@@ -180,6 +180,7 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
   }
 
   // Render and append candidate
+  logger.debug('command_processor.candidate.rendering', { name: doc.name, templateId: choice.template.id });
   const ctx = buildRenderContext(evt);
   const text = renderTemplate(choice.template.text, ctx);
   const effRate = effectiveRateLimit(doc, defaults.rate) || { max: 0, perMs: defaults.rate.perMs };

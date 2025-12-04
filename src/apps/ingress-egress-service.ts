@@ -28,6 +28,19 @@ class IngressEgressServer extends BaseServer {
   private async setupApp(app: Express, cfg: any) {
     // Create instances using centralized Config
     logger.debug('Creating Twitch ingress-egress service', { cfg });
+    // Surface key runtime messaging config for diagnostics
+    try {
+      logger.info('ingress-egress.config', {
+        busPrefix: cfg.busPrefix,
+        messageBusDriver: process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS || 'auto',
+        pubsub: {
+          batchMaxMs: process.env.PUBSUB_BATCH_MAX_MS || '(default: 20)',
+          batchMaxMessages: process.env.PUBSUB_BATCH_MAX_MESSAGES || '(default: 100)',
+          publishTimeoutMs: process.env.PUBSUB_PUBLISH_TIMEOUT_MS || '(auto: 2000 in Cloud Run, 0 locally)',
+          ensureMode: process.env.PUBSUB_ENSURE_MODE || '(default: on-publish-fail)'
+        }
+      });
+    } catch {}
 
     // Resolve instance identity → used to compute per-instance egress topic
     const kRevision = process.env.K_REVISION;
@@ -76,6 +89,7 @@ class IngressEgressServer extends BaseServer {
           async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const evt = JSON.parse(data.toString('utf8')) as any;
+              logger.debug('ingress-egress.egress_subscribe.received_event', { event: evt });
               // Mark selected candidate on V2 events (if candidates exist) and log rationale
               let evtForDelivery: any = evt;
               try {

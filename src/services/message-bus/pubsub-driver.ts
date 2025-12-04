@@ -89,8 +89,17 @@ function getEnsureTimeoutMs(): number {
 
 /** Optional per-publish timeout in milliseconds; 0 disables (use client defaults). */
 function getPublishTimeoutMs(): number {
-  const v = Number(process.env.PUBSUB_PUBLISH_TIMEOUT_MS || '0');
-  return Number.isFinite(v) && v >= 0 ? v : 0;
+  const raw = process.env.PUBSUB_PUBLISH_TIMEOUT_MS;
+  if (raw != null && raw !== '') {
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }
+  // Heuristic default: when running in Cloud Run, bound worst-case publish wait to 2000ms unless overridden.
+  // Detect Cloud Run via K_SERVICE or K_REVISION.
+  if (process.env.K_SERVICE || process.env.K_REVISION) {
+    return 2000;
+  }
+  return 0;
 }
 
 const ensuredTopics = new Set<string>();
@@ -111,7 +120,15 @@ export class PubSubPublisher implements MessagePublisher {
     this.topicName = topicName;
     const batching = { maxMessages: getBatchMaxMessages(), maxMilliseconds: getBatchMaxMilliseconds() };
     this.topic = (this.pubsub as any).topic(this.topicName, { batching });
-    logger.info('pubsub.publisher.init', { topic: this.topicName, batching });
+    // Surface effective settings at init for diagnostics
+    const ensureMode = getEnsureMode();
+    const publishTimeout = getPublishTimeoutMs();
+    logger.info('pubsub.publisher.init', {
+      topic: this.topicName,
+      batching,
+      ensureMode,
+      publishTimeoutMs: publishTimeout,
+    });
   }
 
   /** Serialize data to JSON and publish with optional attributes. */
@@ -138,12 +155,14 @@ export class PubSubPublisher implements MessagePublisher {
         attrCount: Object.keys(attrsNorm || {}).length,
         bytes: payload.byteLength,
       });
+      const t0 = Date.now();
       const result: any = await withTimeout((topic as any).publishMessage({ data: payload, attributes: attrsNorm }), publishTimeout);
       const [messageId] = Array.isArray(result) ? result : [result];
       logger.debug('message_publisher.publish.ok', {
         driver: 'pubsub',
         topic: this.topicName,
         messageId: messageId || null,
+        durationMs: Date.now() - t0,
       });
       return messageId || null;
     } catch (e: any) {
@@ -333,6 +352,12 @@ function getBatchMaxMessages(): number {
 }
 
 function getBatchMaxMilliseconds(): number {
-  const v = Number(process.env.PUBSUB_BATCH_MAX_MS || '100');
-  return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 100;
+  const raw = process.env.PUBSUB_BATCH_MAX_MS;
+  const v = Number(raw == null || raw === '' ? '20' : raw);
+  const ms = Number.isFinite(v) && v >= 0 ? Math.floor(v) : 20;
+  // Warn if configured very high (≥ 1000ms) which can introduce large latency at low throughput
+  if (ms >= 1000) {
+    logger.warn('pubsub.publisher.batching.window_high', { maxMilliseconds: ms, note: 'High flush window may add publish latency at low throughput.' });
+  }
+  return ms;
 }

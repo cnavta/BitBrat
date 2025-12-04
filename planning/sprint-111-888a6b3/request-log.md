@@ -22,3 +22,9 @@
 2025-12-03T20:36:05-05:00 git add -A
 2025-12-03T20:36:10-05:00 git commit -m "feat(brat): support --image-tag and --repo for deploy; chore(validate): exercise flags; docs: update backlog & verification"
 2025-12-03T20:36:20-05:00 git push
+2025-12-04T16:48:10-05:00 Implemented Pub/Sub latency improvements: publish duration telemetry, lowered default PUBSUB_BATCH_MAX_MS to 20ms with warning, defaulted PUBSUB_PUBLISH_TIMEOUT_MS to 2000ms on Cloud Run, added diagnostics logging
+2025-12-04T16:48:20-05:00 Updated ingress-egress startup to log effective messaging configuration (BUS_PREFIX, MESSAGE_BUS_DRIVER, PUBSUB_*)
+2025-12-04T16:48:30-05:00 npm run build → success; npm test → success (100 passed, 1 skipped)
+2025-12-04T16:48:45-05:00 git add -A
+2025-12-04T16:48:50-05:00 git commit -m "perf(pubsub): add publish duration telemetry; default batch window 20ms; default publish timeout 2s on Cloud Run; log settings; chore(ingress-egress): log runtime messaging config"
+2025-12-04T16:49:00-05:00 git push
