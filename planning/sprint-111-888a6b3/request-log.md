@@ -28,3 +28,7 @@
 2025-12-04T16:48:45-05:00 git add -A
 2025-12-04T16:48:50-05:00 git commit -m "perf(pubsub): add publish duration telemetry; default batch window 20ms; default publish timeout 2s on Cloud Run; log settings; chore(ingress-egress): log runtime messaging config"
 2025-12-04T16:49:00-05:00 git push
+2025-12-04T17:40:10-05:00 Investigation: command-processor env overlay not applied on Cloud Run. Root cause: env loader filters by service.env keys from architecture.yaml; command-processor had none, so BOT_USERNAME from env/<env>/command-processor.yaml was excluded.
+2025-12-04T17:41:00-05:00 Edited architecture.yaml: added env: [BOT_USERNAME] under services.command-processor to include overlay in deploys.
+2025-12-04T17:41:20-05:00 Updated sprint validate script to dry-run deploy for command-processor to verify _ENV_VARS_ARG propagation.
+2025-12-04T17:41:40-05:00 npm run build → success; npm test → success.
