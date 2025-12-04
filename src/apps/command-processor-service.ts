@@ -51,6 +51,7 @@ class CommandProcessorServer extends BaseServer {
               repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db),
             });
             const v2 = result.event;
+            logger.info('command_processor.event.processed', {result});
 
             // Mark current pending step OK/SKIP based on processor result, then advance per routing slip
             const slip = (v2.routingSlip || []) as RoutingStep[];
