@@ -19,4 +19,4 @@ acceptance_criteria:
 links:
   architecture: architecture.yaml
   repo_root: .
-status: planning
+status: implementation
