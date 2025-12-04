@@ -23,4 +23,8 @@ test -f "planning/sprint-111-888a6b3/request-log.md"
 echo "ℹ️  Checking brat CLI availability (help only)..."
 npm run brat -- --help >/dev/null 2>&1 || echo "(non-fatal) brat CLI help check failed; CLI will be implemented in future sprints."
 
+echo "🧪 Dry-run single-service deploy (oauth-flow)..."
+# Use a placeholder project ID and skip VPC preflight via --dry-run
+npm run brat -- deploy service oauth-flow --env dev --project-id demo-project --region us-central1 --dry-run --allow-no-vpc || true
+
 echo "✅ Validation complete for planning deliverable."

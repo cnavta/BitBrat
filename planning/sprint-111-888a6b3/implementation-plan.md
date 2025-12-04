@@ -33,10 +33,10 @@
 - DoD aligned with project-wide standards (tests passing, docs, traceability). For this sprint: planning artifacts + validation + PR.
 ---
 ## Backlog (to implement single-service deploy)
-1. CLI: Add `deploy` subcommand to brat
-   - Accept: `<service>` or `--service <name>`
-   - Flags: `--env`, `--project`, `--region`, `--image-tag`, `--repo`, `--dry-run`
-   - Validate service against architecture.yaml
+1. CLI: Add `deploy` subcommand to brat — Completed (this sprint)
+   - Accept: `<service>` or `--service <name>` — Implemented via `brat deploy service <name>` and alias `brat deploy <name>`
+   - Flags: `--env`, `--project`, `--region`, `--image-tag`, `--repo`, `--dry-run` — Partially implemented (`--env`, `--project`, `--region`, `--dry-run` wired); `--image-tag`/`--repo` planned
+   - Validate service against architecture.yaml — Implemented
 2. Service discovery from architecture.yaml
    - Parse `services` map and default settings under `defaults.services`
    - Resolve entry path → Dockerfile mapping
@@ -61,8 +61,8 @@
 8. Logging and dry-run
    - Print planned actions when `--dry-run` is set (no side effects)
 9. Tests
-   - Unit tests for CLI and parsing
-   - Integration tests with mocked gcloud
+   - Unit tests for CLI and parsing — Deferred to next sprint
+   - Integration tests with mocked gcloud — Deferred
 10. Documentation
    - README section: `npm run brat deploy <service>` usage
    - Examples for oauth-flow, ingress-egress
@@ -73,7 +73,7 @@
    - Optional GitHub Action to run dry-run validate on PRs
 ---
 ## Milestones
-- M1: CLI skeleton + service validation (unit-tested)
+- M1: CLI skeleton + service validation (unit-tested) — Partially met (code complete; tests deferred)
 - M2: Build + push (dry-run supported)
 - M3: Cloud Run deploy (dry-run + real)
 - M4: Docs + examples

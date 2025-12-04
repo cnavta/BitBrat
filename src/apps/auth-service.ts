@@ -9,108 +9,116 @@ import { logger } from '../common/logging';
 import { counters } from '../common/counters';
 import { configureFirestore } from '../common/firebase';
 import { busAttrsFromEvent } from '../common/events/attributes';
+import type { PublisherResource } from '../common/resources/publisher-manager';
+import type { Firestore } from 'firebase-admin/firestore';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
+class AuthServer extends BaseServer {
+  constructor() {
+    super({ serviceName: SERVICE_NAME });
+    this.setupApp(this.getApp() as any, this.getConfig() as any);
+  }
+
+  private async setupApp(app: Express, cfg: any) {
+    const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
+    // Configure Firestore database binding if provided
+    if (process.env.FIREBASE_DATABASE_ID) {
+      configureFirestore(process.env.FIREBASE_DATABASE_ID);
+    }
+
+    // Debug counters endpoint
+    app.get('/_debug/counters', (_req, res) => {
+      res.status(200).json({ counters: counters.snapshot() });
+    });
+
+    // Message bus subscription (skipped in test to avoid external clients during Jest)
+    if (isTestEnv) {
+      logger.debug('auth.subscribe.disabled_for_tests');
+      return;
+    }
+
+    const inputSubject = `${cfg.busPrefix || ''}${INTERNAL_INGRESS_V1}`;
+    const outTopic = process.env.AUTH_ENRICH_OUTPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
+    const outputSubject = `${cfg.busPrefix || ''}${outTopic}`;
+    const subscriber = createMessageSubscriber();
+    const pubRes = this.getResource<PublisherResource>('publisher');
+    const publisher = pubRes ? pubRes.create(outputSubject) : createMessagePublisher(outputSubject);
+    const db = this.getResource<Firestore>('firestore');
+    const userRepo = new FirestoreUserRepo('users', db);
+
+    logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
+    try {
+      await subscriber.subscribe(
+        inputSubject,
+        async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+          try {
+            counters.increment('auth.enrich.total');
+            const raw = JSON.parse(data.toString('utf8')) as any;
+            const asV2: InternalEventV2 = raw as InternalEventV2;
+
+            const { event: enrichedV2Initial, matched, userRef } = await enrichEvent(asV2, userRepo, {
+              provider: (asV2 as any)?.source?.split('.')?.[1],
+            });
+
+            // Append/update routing step for auth
+            let enrichedV2: InternalEventV2 = enrichedV2Initial;
+            const nowIso = new Date().toISOString();
+            const stepId = 'auth';
+            const slip: RoutingStep[] = Array.isArray(enrichedV2.routingSlip) ? [...(enrichedV2.routingSlip as RoutingStep[])] : [];
+            const idx = slip.findIndex((s) => s.id === stepId);
+            const step: RoutingStep = {
+              id: stepId,
+              v: '1',
+              status: matched ? 'OK' : 'SKIP',
+              attempt: 0,
+              maxAttempts: 1,
+              startedAt: slip[idx]?.startedAt || nowIso,
+              endedAt: nowIso,
+            };
+            if (idx >= 0) slip[idx] = { ...slip[idx], ...step };
+            else slip.push(step);
+            enrichedV2 = { ...enrichedV2, routingSlip: slip };
+
+            if (matched) {
+              counters.increment('auth.enrich.matched');
+              logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef, outputSubject });
+            } else {
+              counters.increment('auth.enrich.unmatched');
+              logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });
+            }
+
+            const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
+            await publisher.publishJson(enrichedV2, pubAttrs);
+            logger.info('auth.publish.ok', { subject: outputSubject });
+            await ctx.ack();
+          } catch (e: any) {
+            const msg = e?.message || String(e);
+            counters.increment('auth.enrich.errors');
+            logger.error('auth.ingress.process_error', { subject: inputSubject, error: msg });
+            // Poison JSON -> ack; known network/publish timeouts -> ack to avoid redelivery storm; otherwise nack(requeue)
+            const isJsonError = /json|unexpected token|position \d+/i.test(msg);
+            const code = (e && (e.code || e.status)) || undefined;
+            const isPublishTimeout = code === 4 /* DEADLINE_EXCEEDED */ || /DEADLINE_EXCEEDED|name resolution|getaddrinfo|ENOTFOUND|EAI_AGAIN|Waiting for LB pick/i.test(msg);
+            if (isJsonError || isPublishTimeout) {
+              await ctx.ack();
+            } else {
+              await ctx.nack(true);
+            }
+          }
+        },
+        { queue: 'auth', ack: 'explicit' }
+      );
+      logger.info('auth.subscribe.ok', { subject: inputSubject, queue: 'auth' });
+    } catch (e: any) {
+      logger.error('auth.subscribe.error', { subject: inputSubject, error: e?.message || String(e) });
+    }
+  }
+}
+
 export function createApp() {
-  const server = new BaseServer({
-    serviceName: SERVICE_NAME,
-    setup: async (app: Express, cfg, resources) => {
-      const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
-      // Configure Firestore database binding if provided
-      if (process.env.FIREBASE_DATABASE_ID) {
-        configureFirestore(process.env.FIREBASE_DATABASE_ID);
-      }
-
-      // Debug counters endpoint
-      app.get('/_debug/counters', (_req, res) => {
-        res.status(200).json({ counters: counters.snapshot() });
-      });
-
-      // Message bus subscription (skipped in test to avoid external clients during Jest)
-      if (isTestEnv) {
-        logger.debug('auth.subscribe.disabled_for_tests');
-      } else {
-        const inputSubject = `${cfg.busPrefix || ''}${INTERNAL_INGRESS_V1}`;
-        const outTopic = process.env.AUTH_ENRICH_OUTPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
-        const outputSubject = `${cfg.busPrefix || ''}${outTopic}`;
-        const subscriber = createMessageSubscriber();
-        // Prefer BaseServer resources publisher manager; fallback to factory
-        const publisher = (resources as any)?.publisher?.create
-          ? (resources as any).publisher.create(outputSubject)
-          : createMessagePublisher(outputSubject);
-        const userRepo = new FirestoreUserRepo('users', (resources as any)?.firestore);
-
-        logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
-        try {
-          await subscriber.subscribe(
-            inputSubject,
-            async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
-              try {
-                counters.increment('auth.enrich.total');
-                const raw = JSON.parse(data.toString('utf8')) as any;
-                const asV2: InternalEventV2 = raw as InternalEventV2;
-
-                const { event: enrichedV2Initial, matched, userRef } = await enrichEvent(asV2, userRepo, {
-                  provider: (asV2 as any)?.source?.split('.')?.[1],
-                });
-
-                // Append/update routing step for auth
-                let enrichedV2: InternalEventV2 = enrichedV2Initial;
-                const nowIso = new Date().toISOString();
-                const stepId = 'auth';
-                const slip: RoutingStep[] = Array.isArray(enrichedV2.routingSlip) ? [...(enrichedV2.routingSlip as RoutingStep[])] : [];
-                const idx = slip.findIndex((s) => s.id === stepId);
-                const step: RoutingStep = {
-                  id: stepId,
-                  v: '1',
-                  status: matched ? 'OK' : 'SKIP',
-                  attempt: 0,
-                  maxAttempts: 1,
-                  startedAt: slip[idx]?.startedAt || nowIso,
-                  endedAt: nowIso,
-                };
-                if (idx >= 0) slip[idx] = { ...slip[idx], ...step };
-                else slip.push(step);
-                enrichedV2 = { ...enrichedV2, routingSlip: slip };
-
-                if (matched) {
-                  counters.increment('auth.enrich.matched');
-                  logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef, outputSubject });
-                } else {
-                  counters.increment('auth.enrich.unmatched');
-                  logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });
-                }
-
-                const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
-                await publisher.publishJson(enrichedV2, pubAttrs);
-                logger.info('auth.publish.ok', { subject: outputSubject });
-                await ctx.ack();
-              } catch (e: any) {
-                const msg = e?.message || String(e);
-                counters.increment('auth.enrich.errors');
-                logger.error('auth.ingress.process_error', { subject: inputSubject, error: msg });
-                // Poison JSON -> ack; known network/publish timeouts -> ack to avoid redelivery storm; otherwise nack(requeue)
-                const isJsonError = /json|unexpected token|position \d+/i.test(msg);
-                const code = (e && (e.code || e.status)) || undefined;
-                const isPublishTimeout = code === 4 /* DEADLINE_EXCEEDED */ || /DEADLINE_EXCEEDED|name resolution|getaddrinfo|ENOTFOUND|EAI_AGAIN|Waiting for LB pick/i.test(msg);
-                if (isJsonError || isPublishTimeout) {
-                  await ctx.ack();
-                } else {
-                  await ctx.nack(true);
-                }
-              }
-            },
-            { queue: 'auth', ack: 'explicit' }
-          );
-          logger.info('auth.subscribe.ok', { subject: inputSubject, queue: 'auth' });
-        } catch (e: any) {
-          logger.error('auth.subscribe.error', { subject: inputSubject, error: e?.message || String(e) });
-        }
-      }
-    },
-  });
+  const server = new AuthServer();
   return server.getApp();
 }
 

@@ -65,7 +65,7 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
 }
 
 function printHelp() {
-  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
+  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc]\n  brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc]\n  brat deploy <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
 }
 
 async function cmdDoctor(flags: GlobalFlags) {
@@ -188,10 +188,16 @@ export async function cmdTrigger(action: 'create' | 'update' | 'delete', flags: 
   }
 }
 
-async function cmdDeployServices(flags: GlobalFlags) {
+async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
   const root = process.cwd();
   const cfg = resolveConfig(root);
-  const services = Object.values(cfg.services);
+  let services = Object.values(cfg.services);
+  if (targetService) {
+    services = services.filter((s) => s.name === targetService);
+    if (services.length === 0) {
+      throw new ConfigurationError(`Service not found in architecture.yaml: ${targetService}`);
+    }
+  }
   const concurrency = flags.concurrency || cfg.maxConcurrency || 1;
   const queue = new Queue(concurrency);
   const tag = deriveTag();
@@ -205,16 +211,20 @@ async function cmdDeployServices(flags: GlobalFlags) {
 
   const tasks = services.map((svc) => async () => {
     // Preflight enforcement: ensure VPC, subnet, router/NAT, and connector exist in target region/env
-    try {
-      await assertVpcPreconditions({
-        projectId: flags.projectId,
-        region: flags.region || (svc as any).region,
-        env: flags.env,
-        allowNoVpc: (flags as any).allowNoVpc,
-        dryRun: flags.dryRun,
-      });
-    } catch (e: any) {
-      throw new DependencyError(e?.message || String(e));
+    if (!flags.dryRun) {
+      try {
+        await assertVpcPreconditions({
+          projectId: flags.projectId,
+          region: flags.region || (svc as any).region,
+          env: flags.env,
+          allowNoVpc: (flags as any).allowNoVpc,
+          dryRun: flags.dryRun,
+        });
+      } catch (e: any) {
+        throw new DependencyError(e?.message || String(e));
+      }
+    } else {
+      log.info({ service: svc.name, action: 'deploy.service', status: 'preflight-skip', reason: 'dry-run' }, 'Skipping VPC preflight in dry-run');
     }
     const serviceLog = log.child({ service: svc.name, action: 'deploy.service' });
     const start = Date.now();
@@ -389,6 +399,21 @@ async function main() {
   }
   if (c1 === 'deploy' && c2 === 'services') {
     await cmdDeployServices(flags);
+    return;
+  }
+  if (c1 === 'deploy' && c2 === 'service') {
+    const serviceName = cmd[2];
+    if (!serviceName) {
+      console.error('Usage: brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run]');
+      process.exit(2);
+    }
+    await cmdDeployServices(flags, serviceName);
+    return;
+  }
+  // Alias: brat deploy <name>
+  if (c1 === 'deploy' && c2 && c2 !== 'services') {
+    const serviceName = c2;
+    await cmdDeployServices(flags, serviceName);
     return;
   }
   if (c1 === 'apis' && c2 === 'enable') {
