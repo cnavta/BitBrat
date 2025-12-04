@@ -134,6 +134,9 @@ services:
     topics:
       consumes:
         - internal.command.v1
+    env:
+      # Ensure per-env overlay (env/<env>/command-processor.yaml) is applied to Cloud Run
+      - BOT_USERNAME
 
 infrastructure:
   target: gcp

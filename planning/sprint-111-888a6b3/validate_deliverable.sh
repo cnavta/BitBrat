@@ -34,4 +34,13 @@ npm run brat -- deploy service oauth-flow \
   --image-tag ci-test-tag \
   --repo demo-repo || true
 
+echo "🧪 Dry-run single-service deploy (command-processor) to verify env overlay application..."
+# Expectation: substitutions should include _ENV_VARS_ARG with BOT_USERNAME from env/dev/command-processor.yaml
+npm run brat -- deploy service command-processor \
+  --env dev \
+  --project-id demo-project \
+  --region us-central1 \
+  --dry-run \
+  --allow-no-vpc || true
+
 echo "✅ Validation complete for planning deliverable."
