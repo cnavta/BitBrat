@@ -15,3 +15,10 @@
 2025-12-03T19:20:55-05:00 git add -A
 2025-12-03T19:20:58-05:00 git commit -m "feat(brat): add single-service deploy command and dry-run path; docs(backlog): mark CLI task complete; chore(validate): exercise dry-run deploy"
 2025-12-03T19:21:10-05:00 git push
+2025-12-03T20:35:20-05:00 Implemented deploy flags: --image-tag and --repo; updated help text and wiring
+2025-12-03T20:35:28-05:00 Updated sprint validate script to exercise new flags in dry-run
+2025-12-03T20:35:40-05:00 npm run build → success
+2025-12-03T20:35:50-05:00 npm test → success
+2025-12-03T20:36:05-05:00 git add -A
+2025-12-03T20:36:10-05:00 git commit -m "feat(brat): support --image-tag and --repo for deploy; chore(validate): exercise flags; docs: update backlog & verification"
+2025-12-03T20:36:20-05:00 git push

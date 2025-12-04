@@ -9,6 +9,7 @@ Completed:
 - Created GitHub PR and recorded in publication.yaml: https://github.com/cnavta/BitBrat/pull/14
 - Implemented CLI support for single-service deploy: `brat deploy service <name>` and alias `brat deploy <name>`
 - Updated sprint validate script to run a dry-run single-service deploy (oauth-flow)
+ - Added deploy flags `--image-tag` and `--repo`; help text and wiring to Cloud Build substitutions
 
 Partial:
 - Tests for CLI parsing and architecture validation (deferred to next sprint)
