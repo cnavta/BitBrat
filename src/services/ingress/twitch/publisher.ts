@@ -3,6 +3,7 @@ import type { IConfig } from '../../../types';
 import { AttributeMap, MessagePublisher, createMessagePublisher } from '../../message-bus';
 import { retryAsync } from '../../../common/retry';
 import { busAttrsFromEvent } from '../../../common/events/attributes';
+import { logger } from '../../../common/logging';
 
 export interface TwitchIngressPublisherOptions {
   busPrefix?: string; // e.g., "dev." or ""
@@ -43,14 +44,41 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
 
   async publish(evt: InternalEventV2): Promise<string | null> {
     const attrs: AttributeMap = busAttrsFromEvent(evt);
-
+    let attempt = 0;
     const res = await retryAsync(async () => {
+      attempt++;
+      logger.debug('ingress.publish.attempt', {
+        subject: this.subject,
+        attempt,
+        maxAttempts: this.opts.maxRetries,
+        attrsCount: Object.keys(attrs || {}).length,
+      });
       return await this.pub.publishJson(evt, attrs);
     }, {
       attempts: this.opts.maxRetries,
       baseDelayMs: this.opts.baseDelayMs,
       maxDelayMs: this.opts.maxDelayMs,
       jitterMs: this.opts.jitterMs,
+      shouldRetry: (err, a) => {
+        const code = Number(err?.code ?? err?.status);
+        const reason = (err && (err.reason || err.errorReason)) || undefined;
+        // Do not retry our own local publish timeout wrapper — likely to duplicate
+        if (code === 4 && String(reason).toLowerCase() === 'publish_timeout') {
+          logger.warn('ingress.publish.no_retry_on_timeout', { subject: this.subject, attempt: a, code, reason });
+          return false;
+        }
+        // Retry only transient transport/server errors
+        const retryable = code === 14 /* UNAVAILABLE */
+          || code === 13 /* INTERNAL */
+          || code === 8  /* RESOURCE_EXHAUSTED */
+          || code === 10 /* ABORTED */;
+        if (!retryable) {
+          logger.warn('ingress.publish.no_retry', { subject: this.subject, attempt: a, code, reason });
+        } else {
+          logger.warn('ingress.publish.retry', { subject: this.subject, attempt: a, code, reason });
+        }
+        return retryable;
+      }
     });
     return res;
   }

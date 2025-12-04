@@ -54,13 +54,15 @@ describe('TwitchIngressPublisher', () => {
     expect(call.attrs.traceId).toBe('t1');
   });
 
-  it('retries on failure up to configured maxRetries', async () => {
+  it('retries on transient gRPC codes up to configured maxRetries', async () => {
     let attempts = 0;
     publishImpl = async (data: any, attrs?: Record<string, string>) => {
       publishCalls.push({ data, attrs: attrs || {} });
       attempts++;
       if (attempts < 3) {
-        throw new Error('transient');
+        const err: any = new Error('UNAVAILABLE');
+        err.code = 14; // gRPC UNAVAILABLE
+        throw err;
       }
       return 'mid-3';
     };
@@ -79,10 +81,13 @@ describe('TwitchIngressPublisher', () => {
     expect(publishCalls.length).toBe(3);
   });
 
-  it('propagates error after exhausting retries', async () => {
+  it('does not retry on local publish timeout and propagates after first failure', async () => {
     publishImpl = async (data: any, attrs?: Record<string, string>) => {
       publishCalls.push({ data, attrs: attrs || {} });
-      throw new Error('always fail');
+      const err: any = new Error('timeout after 2000ms');
+      err.code = 4; // DEADLINE_EXCEEDED
+      err.reason = 'publish_timeout';
+      throw err;
     };
 
     const pub = new TwitchIngressPublisher({ maxRetries: 3, baseDelayMs: 1, maxDelayMs: 2, jitterMs: 0 });
@@ -94,7 +99,8 @@ describe('TwitchIngressPublisher', () => {
       message: { id: 'm3', role: 'user', text: 'yo' },
     } as any;
 
-    await expect(pub.publish(evt)).rejects.toThrow('always fail');
-    expect(publishCalls.length).toBe(3);
+    await expect(pub.publish(evt)).rejects.toThrow(/timeout/i);
+    // should not retry due to publish_timeout
+    expect(publishCalls.length).toBe(1);
   });
 });

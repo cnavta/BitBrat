@@ -87,22 +87,63 @@ function getEnsureTimeoutMs(): number {
   return Number.isFinite(v) && v >= 0 ? v : 2000;
 }
 
-/** Optional per-publish timeout in milliseconds; 0 disables (use client defaults). */
+/** Optional per-publish timeout in milliseconds; 0 disables (use client defaults).
+ * Default is 0 everywhere unless explicitly set via PUBSUB_PUBLISH_TIMEOUT_MS.
+ */
 function getPublishTimeoutMs(): number {
   const raw = process.env.PUBSUB_PUBLISH_TIMEOUT_MS;
   if (raw != null && raw !== '') {
     const n = Number(raw);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }
-  // Heuristic default: when running in Cloud Run, bound worst-case publish wait to 2000ms unless overridden.
-  // Detect Cloud Run via K_SERVICE or K_REVISION.
-  if (process.env.K_SERVICE || process.env.K_REVISION) {
-    return 2000;
-  }
   return 0;
 }
 
 const ensuredTopics = new Set<string>();
+
+/** Lightweight in-memory idempotency dedupe (per-process). */
+const DEDUPE_DISABLED = String(process.env.MESSAGE_DEDUP_DISABLE || '').toLowerCase() === '1';
+function getDedupeTtlMs(): number {
+  const n = Number(process.env.MESSAGE_DEDUP_TTL_MS || '600000'); // 10 minutes default
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 600000;
+}
+function getDedupeMax(): number {
+  const n = Number(process.env.MESSAGE_DEDUP_MAX || '5000');
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 5000;
+}
+const __dedupe = {
+  map: new Map<string, number>() as Map<string, number>,
+  lastPrune: 0,
+};
+function dedupeShouldDrop(key: string, now: number): boolean {
+  const ttl = getDedupeTtlMs();
+  const max = getDedupeMax();
+  // Prune periodically or when size exceeds max
+  if (__dedupe.map.size > max || now - __dedupe.lastPrune > Math.min(ttl, 30000)) {
+    for (const [k, ts] of __dedupe.map) {
+      if (now - ts > ttl) __dedupe.map.delete(k);
+    }
+    // If still above max, drop oldest entries until at 90% of max
+    if (__dedupe.map.size > max) {
+      const target = Math.floor(max * 0.9);
+      const it = __dedupe.map.keys();
+      while (__dedupe.map.size > target) {
+        const next = it.next();
+        if (next.done) break;
+        __dedupe.map.delete(next.value);
+      }
+    }
+    __dedupe.lastPrune = now;
+  }
+  const prev = __dedupe.map.get(key);
+  if (prev && now - prev <= ttl) {
+    // Update timestamp to extend TTL window and drop
+    __dedupe.map.set(key, now);
+    return true;
+  }
+  __dedupe.map.set(key, now);
+  return false;
+}
 
 function isNotFoundError(e: any): boolean {
   const code = e?.code ?? e?.status;
@@ -271,6 +312,33 @@ export class PubSubSubscriber implements MessageSubscriber {
         bytes: data?.length || 0,
         attrCount: Object.keys(attrs || {}).length,
       });
+
+      // Lightweight idempotency dedupe (based on idempotencyKey or correlationId attribute)
+      try {
+        if (!DEDUPE_DISABLED) {
+          const key = String(
+            (attrs as any).idempotencyKey ||
+            (attrs as any).IdempotencyKey ||
+            (attrs as any)['idempotency-key'] ||
+            (attrs as any)['Idempotency-Key'] ||
+            (attrs as any).correlationId ||
+            (attrs as any).CorrelationId ||
+            (attrs as any)['correlation-id'] ||
+            (attrs as any)['Correlation-Id'] ||
+            ''
+          );
+          if (key) {
+            const now = Date.now();
+            if (dedupeShouldDrop(key, now)) {
+              logger.warn('message_consumer.dedupe.drop', { driver: 'pubsub', subscription: subName, idempotencyKey: key, ttlMs: getDedupeTtlMs() });
+              await ack();
+              return;
+            }
+          }
+        }
+      } catch (e: any) {
+        logger.debug('message_consumer.dedupe.error', { subscription: subName, error: e?.message || String(e) });
+      }
       const started = Date.now();
       try {
         await handler(data, attrs, { ack, nack });
