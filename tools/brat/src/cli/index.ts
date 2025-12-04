@@ -32,6 +32,8 @@ interface GlobalFlags {
   module?: string;
   allowNoVpc?: boolean;
   ci?: boolean;
+  imageTag?: string;
+  repoName?: string;
 }
 
 export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: string[] } {
@@ -50,6 +52,8 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
     else if (a === '--module') { flags.module = String(args[++i]); }
     else if (a === '--allow-no-vpc') { (flags as any).allowNoVpc = true; }
     else if (a === '--ci') { flags.ci = true; }
+    else if (a === '--image-tag') { flags.imageTag = String(args[++i]); }
+    else if (a === '--repo') { flags.repoName = String(args[++i]); }
     else if (a.startsWith('-')) {
       const next = args[i + 1];
       if (next && !next.startsWith('-')) {
@@ -65,7 +69,7 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
 }
 
 function printHelp() {
-  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc]\n  brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc]\n  brat deploy <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
+  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
 }
 
 async function cmdDoctor(flags: GlobalFlags) {
@@ -200,10 +204,10 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
   }
   const concurrency = flags.concurrency || cfg.maxConcurrency || 1;
   const queue = new Queue(concurrency);
-  const tag = deriveTag();
+  const tag = flags.imageTag || deriveTag();
 
   const cbConfigPath = path.join(root, 'cloudbuild.oauth-flow.yaml');
-  const repoName = 'bitbrat-services';
+  const repoName = flags.repoName || 'bitbrat-services';
 
   if (!services.length) {
     throw new ConfigurationError('No services found in architecture.yaml');

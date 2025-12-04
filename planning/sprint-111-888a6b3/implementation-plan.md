@@ -35,7 +35,7 @@
 ## Backlog (to implement single-service deploy)
 1. CLI: Add `deploy` subcommand to brat — Completed (this sprint)
    - Accept: `<service>` or `--service <name>` — Implemented via `brat deploy service <name>` and alias `brat deploy <name>`
-   - Flags: `--env`, `--project`, `--region`, `--image-tag`, `--repo`, `--dry-run` — Partially implemented (`--env`, `--project`, `--region`, `--dry-run` wired); `--image-tag`/`--repo` planned
+   - Flags: `--env`, `--project`, `--region`, `--image-tag`, `--repo`, `--dry-run` — Implemented (`--image-tag` and `--repo` now supported; defaults: tag=git short sha, repo=bitbrat-services)
    - Validate service against architecture.yaml — Implemented
 2. Service discovery from architecture.yaml
    - Parse `services` map and default settings under `defaults.services`
