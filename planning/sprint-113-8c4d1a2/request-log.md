@@ -73,3 +73,12 @@
     - git push
     - git stash pop
   - Result: Merge completed and pushed successfully. Local uncommitted change to architecture.yaml restored from stash.
+
+- 2025-12-05 17:10: Final confirmation received — "Sprint complete." (local).
+  - Interpretation: Close sprint formally per AGENTS.md 2.9.
+  - Files updated:
+    - planning/sprint-113-8c4d1a2/sprint-manifest.yaml (status: closed; end timestamp set)
+  - Shell/git:
+    - git add planning/sprint-113-8c4d1a2/sprint-manifest.yaml
+    - git commit -m "sprint-113: close sprint in manifest with end timestamp"
+    - git push
