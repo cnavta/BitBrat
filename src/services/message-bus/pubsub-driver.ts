@@ -180,8 +180,10 @@ export class PubSubPublisher implements MessagePublisher {
     const publishTimeout = getPublishTimeoutMs();
     if (ensureMode === 'always' && !ensuredTopics.has(this.topicName)) {
       try {
+        logger.debug('pubsub.ensure.start', { topic: this.topicName, mode: ensureMode });
         await withTimeout(ensureTopic(this.pubsub, this.topicName), ensureTimeout);
         ensuredTopics.add(this.topicName);
+        logger.debug('pubsub.ensure.ok', { topic: this.topicName, mode: ensureMode });
       } catch (e: any) {
         // Do not block publish path on ensure failures/timeouts
         logger.warn('pubsub.ensure_topic_failed', { topic: this.topicName, error: e?.message || String(e), mode: ensureMode, timeoutMs: ensureTimeout });
@@ -194,11 +196,11 @@ export class PubSubPublisher implements MessagePublisher {
       logger.debug('message_publisher.publish.start', {
         driver: 'pubsub',
         topic: this.topicName,
-        attrCount: Object.keys(attrsNorm || {}).length,
+        attributes: attrsNorm,
         bytes: payload.byteLength,
       });
       const t0 = Date.now();
-      const result: any = await withTimeout((topic as any).publishMessage({ data: payload, attributes: attrsNorm }), publishTimeout);
+      const result: any = await topic.publishMessage({ data: payload, attributes: attrsNorm });
       const [messageId] = Array.isArray(result) ? result : [result];
       logger.debug('message_publisher.publish.ok', {
         driver: 'pubsub',

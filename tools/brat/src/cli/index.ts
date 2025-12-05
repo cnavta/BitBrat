@@ -214,7 +214,7 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
   }
 
   const tasks = services.map((svc) => async () => {
-    // Preflight enforcement: ensure VPC, subnet, router/NAT, and connector exist in target region/env
+    // Preflight enforcement: ensure VPC, subnet, router, and Serverless VPC Access connector exist in target region/env
     if (!flags.dryRun) {
       try {
         await assertVpcPreconditions({

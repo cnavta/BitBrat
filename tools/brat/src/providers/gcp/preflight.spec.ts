@@ -38,21 +38,21 @@ describe('preflight VPC/connector enforcement', () => {
     (execCmd as jest.Mock).mockImplementation(async () => ({ code: 0, stdout: '', stderr: '' }));
     await expect(assertVpcPreconditions({ projectId: 'p', region: 'us-central1', env: 'dev' }))
       .resolves.toBeUndefined();
-    // VPC, Subnet, Router, NAT, Connector
-    expect((execCmd as jest.Mock).mock.calls.length).toBe(5);
+    // VPC, Subnet, Router, Connector (no NAT enforced)
+    expect((execCmd as jest.Mock).mock.calls.length).toBe(4);
   });
 
   it('fails when a required resource is missing', async () => {
     let call = 0;
     (execCmd as jest.Mock).mockImplementation(async () => {
       call++;
-      // Make 4th call (Cloud NAT describe) fail
+      // Make 4th call (Connector describe) fail
       if (call === 4) {
         return { code: 1, stdout: '', stderr: 'not found' };
       }
       return { code: 0, stdout: '', stderr: '' };
     });
     await expect(assertVpcPreconditions({ projectId: 'p', region: 'us-central1', env: 'dev' }))
-      .rejects.toThrow(/Missing or inaccessible Cloud NAT/);
+      .rejects.toThrow(/Missing or inaccessible Serverless VPC Access Connector/);
   });
 });

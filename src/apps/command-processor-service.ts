@@ -66,14 +66,14 @@ class CommandProcessorServer extends BaseServer {
               // In Jest, prefer direct factory to honor per-test mocks reliably
               const preferFactory = typeof process.env.JEST_WORKER_ID !== 'undefined';
               const publisher = (!preferFactory && pubRes) ? pubRes.create(nextTopic) : createMessagePublisher(nextTopic);
-              await publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
+              publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
               logger.info('command_processor.advance.next', { nextTopic, slip: summarizeSlip(slip) });
             } else if (v2.egressDestination) {
               const nextTopic = `${(cfg.busPrefix || '')}${v2.egressDestination}`;
               const pubRes = this.getResource<PublisherResource>('publisher');
               const preferFactory = typeof process.env.JEST_WORKER_ID !== 'undefined';
               const publisher = (!preferFactory && pubRes) ? pubRes.create(nextTopic) : createMessagePublisher(nextTopic);
-              await publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
+              publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
               logger.info('command_processor.advance.egress', { nextTopic, slip: summarizeSlip(slip) });
             } else {
               logger.info('command_processor.advance.complete', { slip: summarizeSlip(slip) });
