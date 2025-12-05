@@ -24,7 +24,7 @@ Legend: [ ] = To do, [*] = In progress, [x] = Done, [!] = Blocked
 5. Verification and Publication (initial)
    - [x] Update verification-report.md with completed items and outcomes
    - [x] Commit and push feature branch
-   - [x] Open PR on GitHub (manual or automation) — link recorded in publication.yaml
+   - [ ] Open PR on GitHub (manual or automation) — link recorded in publication.yaml
    - [x] Update publication.yaml with PR link
    - [x] Retro and key-learnings stubs populated
 
