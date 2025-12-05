@@ -14,3 +14,10 @@
 2025-12-04T18:56:05-05:00 git add -A
 2025-12-04T18:56:08-05:00 git commit -m "fix(pubsub): default publish timeout disabled; feat(bus): idempotencyKey attr + subscriber dedupe; feat(ingress): retry filter + attempt logs; chore(env): set PUBSUB_PUBLISH_TIMEOUT_MS=0 in dev"
 2025-12-04T18:56:15-05:00 git push
+2025-12-04T19:20:05-05:00 Implemented telemetry counters in Pub/Sub driver (publish.ok/error, dedupe.drop)
+2025-12-04T19:20:20-05:00 Added tests: attributes.spec (idempotencyKey), pubsub-batching.spec (warning), subscriber-dedupe.spec (TTL drop)
+2025-12-04T19:20:35-05:00 Added ops runbook: documentation/runbooks/messaging-reliability.md
+2025-12-04T19:21:00-05:00 Updated sprint implementation-plan and verification-report to mark completed items
+2025-12-04T19:21:10-05:00 npm run build → success; 1 failing test (extract-config.test) detected
+2025-12-04T19:21:20-05:00 Fixed extract-config.test expectation for MAX_INSTANCES per architecture.yaml (1)
+2025-12-04T19:21:30-05:00 npm run build → success; npm test → success (103 passed, 1 skipped)
