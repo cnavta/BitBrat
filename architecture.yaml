@@ -106,7 +106,7 @@ services:
         - internal.user.enriched.v1
 
   llm-bot:
-    active: false
+    active: true
     description: "Headless LLM worker that consumes bot request subjects and produces responses."
     entry: src/apps/llm-bot-service.ts
     topics:

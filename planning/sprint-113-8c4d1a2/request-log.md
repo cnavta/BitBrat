@@ -60,3 +60,16 @@
     - git add -A
     - git commit -m "sprint-113: mark sprint closed; add retro + key learnings; note closure in verification report"
     - git push
+
+- 2025-12-05 16:03: User requested merge from origin/main into current sprint branch, then push.
+  - Interpretation: Sync feature branch with latest main. Preserve local WIP via stash; resolve conflicts minimalistically.
+  - Shell/git:
+    - git status
+    - git fetch --all --prune
+    - git stash push -u -m "sprint-113: pre-merge stash before merging origin/main"
+    - git merge origin/main
+    - Resolved conflicts: kept "theirs" for older planning artifacts under planning/sprint-107-8ae3c1/*; kept "ours" for src service code and tests
+    - git commit -m "Merge origin/main into feature/sprint-113-8c4d1a2-remove-cloud-nat; prefer ours for service code, theirs for prior sprint planning artifacts"
+    - git push
+    - git stash pop
+  - Result: Merge completed and pushed successfully. Local uncommitted change to architecture.yaml restored from stash.
