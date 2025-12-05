@@ -14,7 +14,7 @@ describe('extract-config CLI', () => {
     expect(json.REGION).toBe('us-central1');
     expect(json.PORT).toBe(3000);
     expect(json.MIN_INSTANCES).toBe(0);
-    expect(json.MAX_INSTANCES).toBe(2);
+    expect(json.MAX_INSTANCES).toBe(1);
     expect(json.CPU).toBe('1');
     expect(json.MEMORY).toBe('512Mi');
     expect(json.ALLOW_UNAUTH).toBe(true);

@@ -18,6 +18,7 @@
  */
 import { PubSub } from '@google-cloud/pubsub';
 import { logger } from '../../common/logging';
+import { counters } from '../../common/counters';
 import { normalizeAttributes } from './attributes';
 import type {
   AttributeMap,
@@ -205,6 +206,7 @@ export class PubSubPublisher implements MessagePublisher {
         messageId: messageId || null,
         durationMs: Date.now() - t0,
       });
+      try { counters.increment('message_publisher.publish.ok'); } catch {}
       return messageId || null;
     } catch (e: any) {
       // If our local timeout fired, tag the error with DEADLINE_EXCEEDED to enable callers to decide retry/ack policy
@@ -233,6 +235,7 @@ export class PubSubPublisher implements MessagePublisher {
         code: (e && (e.code || e.status)) || undefined,
         timeout: e && /timeout after \d+ms/i.test(e.message) ? true : undefined,
       });
+      try { counters.increment('message_publisher.publish.error'); } catch {}
       throw e;
     }
   }
@@ -331,6 +334,7 @@ export class PubSubSubscriber implements MessageSubscriber {
             const now = Date.now();
             if (dedupeShouldDrop(key, now)) {
               logger.warn('message_consumer.dedupe.drop', { driver: 'pubsub', subscription: subName, idempotencyKey: key, ttlMs: getDedupeTtlMs() });
+              try { counters.increment('message_consumer.dedupe.drop'); } catch {}
               await ack();
               return;
             }
