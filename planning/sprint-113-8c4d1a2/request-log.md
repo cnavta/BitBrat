@@ -82,3 +82,12 @@
     - git add planning/sprint-113-8c4d1a2/sprint-manifest.yaml
     - git commit -m "sprint-113: close sprint in manifest with end timestamp"
     - git push
+
+- 2025-12-05 17:12: Corrective action — restore unintended deletions from previous commit.
+  - Context: Git commit included deletions of llm-bot related files not part of sprint scope.
+  - Shell/git:
+    - git checkout HEAD~1 -- Dockerfile.llm-bot src/apps/llm-bot-service.test.ts src/apps/llm-bot-service.ts
+    - git add Dockerfile.llm-bot src/apps/llm-bot-service.test.ts src/apps/llm-bot-service.ts
+    - git commit -m "revert unintended deletions: restore llm-bot Dockerfile and service files; keep sprint closure metadata"
+    - git push
+  - Result: Files restored; branch updated. No application logic changes beyond restoration.

@@ -61,7 +61,7 @@
 
 ## Backlog (Prioritized)
 
-1) Switch generator to Subclass BaseServer pattern (P0)
+1) Switch generator to Subclass BaseServer pattern (P0) — Status: DONE ✓
    - Generate class <PascalServiceName>Server extends BaseServer
    - In constructor: super({ serviceName: SERVICE_NAME }); invoke private async setupApp(app, cfg)
    - Export createApp() that constructs the subclass and returns getApp()
@@ -69,53 +69,53 @@
    Acceptance:
    - Generated file compiles and mirrors patterns in src/apps/auth-service.ts (structure and naming adjusted per service)
 
-2) Align environment validation and health endpoints (P0)
+2) Align environment validation and health endpoints (P0) — Status: DONE ✓
    - Ensure generated main uses BaseServer.ensureRequiredEnv(SERVICE_NAME)
    - Rely on BaseServer default health endpoints (/healthz, /readyz, /livez) and root
    Acceptance:
    - Generated tests cover /healthz, /readyz, /livez
 
-3) Incorporate resource access pattern stubs (P1)
+3) Incorporate resource access pattern stubs (P1) — Status: DONE ✓
    - Provide commented examples to access publisher and firestore via this.getResource<T>()
    - Avoid direct imports of bus/firestore in the template by default; keep minimal
    Acceptance:
    - Template compiles without additional deps; comments guide usage
 
-4) Update Jest test template (P1)
+4) Update Jest test template (P1) — Status: DONE ✓
    - Keep co-located test referencing createApp()
    - Maintain stub path tests; ensure wildcard/params normalization
    - Ensure tests do not require external services (NODE_ENV test and MESSAGE_BUS_DISABLE_SUBSCRIBE guidance)
    Acceptance:
    - bootstrap-service.test.js updated to reflect new structure and passes
 
-5) Dockerfile template refinements (P1)
+5) Dockerfile template refinements (P1) — Status: DONE ✓
    - Keep Node 24 base images
    - Ensure architecture.yaml copied for BaseServer env computation
    - Prefer CMD ["node", "dist/apps/<entry>.js"]
    Acceptance:
    - Generated Dockerfile mirrors existing Dockerfile.llm-bot layout
 
-6) Compose file template alignment (P2)
+6) Compose file template alignment (P2) — Status: PLANNED
    - Validate env_file .env.local and GOOGLE_APPLICATION_CREDENTIALS mount
    - Ports mapping retains ${SERVICE}_HOST_PORT pattern
    - Optionally include depends_on for nats/firebase-emulator (consistent with deploy-local.sh)
    Acceptance:
    - deploy-local.sh recognizes generated compose file
 
-7) CLI UX improvements (P2)
+7) CLI UX improvements (P2) — Status: PLANNED
    - Ensure --name maps to architecture.yaml services key; error if missing
    - Add --dry-run to print planned files without writing
    - Add --overwrite-suffix or retain --force behavior
    Acceptance:
    - bootstrap-service.js supports new flags; help text updated
 
-8) Documentation (P2)
+8) Documentation (P2) — Status: PLANNED
    - Update README or docs section: how to use bootstrap:service, required envs, next steps
    - Reference architecture.yaml precedence
    Acceptance:
    - Docs PR section drafted
 
-9) Migration notes (P3)
+9) Migration notes (P3) — Status: PLANNED
    - Mark inline setup pattern as deprecated; identify services to regenerate (e.g., llm-bot)
    - Provide steps to replace app.listen with server.start in existing entries (if any)
    Acceptance:

@@ -19,3 +19,15 @@
   - Commands:
     - git add planning/sprint-114-6ab39c
     - git commit -m "sprint-114: add planning artifacts and backlog for bootstrap modernization"
+
+- 2025-12-05 17:58: Implement P0–P1 generator updates
+  - Files modified:
+    - infrastructure/scripts/bootstrap-service.js
+    - infrastructure/scripts/bootstrap-service.test.js
+    - planning/sprint-114-6ab39c/implementation-plan.md (status updates)
+    - planning/sprint-114-6ab39c/verification-report.md (completed items)
+    - planning/sprint-114-6ab39c/sprint-manifest.yaml (status implementing)
+  - Commands:
+    - npm test
+    - git add infrastructure/scripts/bootstrap-service.js infrastructure/scripts/bootstrap-service.test.js planning/sprint-114-6ab39c/implementation-plan.md planning/sprint-114-6ab39c/verification-report.md planning/sprint-114-6ab39c/sprint-manifest.yaml
+    - git commit -m "sprint-114(P0-P1): bootstrap generator -> BaseServer subclass + server.start; tests updated; planning statuses"
