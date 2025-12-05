@@ -71,7 +71,9 @@ variable "vpc_connector" {
 # Valid values per Cloud Run v2: ALL_TRAFFIC | PRIVATE_RANGES_ONLY
 variable "vpc_egress" {
   type    = string
-  default = "ALL_TRAFFIC"
+  # Default to PRIVATE_RANGES_ONLY to ensure public traffic bypasses the VPC connector
+  # for lower latency to Google APIs like Pub/Sub.
+  default = "PRIVATE_RANGES_ONLY"
 }
 
 variable "env_from_secrets" {

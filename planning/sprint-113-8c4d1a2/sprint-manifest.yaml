@@ -1,0 +1,18 @@
+id: sprint-113-8c4d1a2
+title: Remove Cloud NAT to reduce Pub/Sub latency
+owner: Cloud Architect
+start: 2025-12-05T13:54:00-05:00
+scope:
+  - Investigate egress path for Cloud Run → Pub/Sub
+  - Remove Cloud NAT from IaC if safe
+  - Align Cloud Run egress posture to use most performant path
+non_goals:
+  - Production rollout of infra changes (apply) — plan-only in this sprint
+  - Private Service Connect enablement for Google APIs
+risks:
+  - Services requiring fixed egress IP would be impacted (currently N/A)
+  - Hidden dependency on NAT for outbound to third-parties (none reported)
+stakeholders:
+  - Lead Architect
+  - Lead Implementor
+  - Quality Lead

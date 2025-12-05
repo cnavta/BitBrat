@@ -134,6 +134,8 @@ services:
     topics:
       consumes:
         - internal.command.v1
+    env:
+      - BOT_USERNAME
 
 infrastructure:
   target: gcp
@@ -182,3 +184,9 @@ deploymentDefaults:
     memory: 512Mi
   global-external-application-lb:
     loadBalancingScheme: EXTERNAL_MANAGED
+
+# Networking posture (Sprint 113):
+# - No Cloud NAT: outbound public traffic should use Cloud Run default egress path for best latency.
+# - VPC connectors are used to reach private RFC1918 ranges only; services should configure
+#   egress: PRIVATE_RANGES_ONLY when attaching a Serverless VPC Access connector.
+# - Subnets keep private_ip_google_access = true; PSC/restricted VIP for Google APIs is not required now.

@@ -8,7 +8,7 @@ function mkTmpDir(prefix = 'brat-cdktf-net-') {
 }
 
 describe('cdktf synth network module', () => {
-  it('generates terraform with VPC, subnets (for_each), routers/NATs (per region), firewalls, and outputs', () => {
+  it('generates terraform with VPC, subnets (for_each), routers (per region), firewalls, and outputs (no NAT)', () => {
     const tmp = mkTmpDir();
     fs.writeFileSync(path.join(tmp, 'architecture.yaml'), 'name: test\ndeploymentDefaults:\n  region: us-central1\n', 'utf8');
     const out = synthModule('network', { rootDir: tmp, env: 'dev', projectId: 'proj-123' });
@@ -25,8 +25,7 @@ describe('cdktf synth network module', () => {
     expect(mainTf).toContain('resource "google_compute_router" "router"');
     expect(mainTf).toContain('for_each = toset(local.regions)');
     expect(mainTf).toContain('name     = "brat-router-${each.key}"');
-    expect(mainTf).toContain('resource "google_compute_router_nat" "nat"');
-    expect(mainTf).toContain('name                               = "brat-nat-${each.key}"');
+    expect(mainTf).not.toContain('resource "google_compute_router_nat" "nat"');
     expect(mainTf).toContain('google_compute_firewall');
     expect(mainTf).toContain('brat-subnet-us-central1-dev');
 
@@ -37,7 +36,7 @@ describe('cdktf synth network module', () => {
     expect(mainTf).toContain('output "vpcSelfLink"');
     expect(mainTf).toContain('output "subnetSelfLinkByRegion"');
     expect(mainTf).toContain('output "routersByRegion"');
-    expect(mainTf).toContain('output "natsByRegion"');
+    expect(mainTf).not.toContain('output "natsByRegion"');
 
     // variable blocks must be multi-line (no single-line multiple arguments)
     expect(mainTf).toContain('variable "project_id" {');
