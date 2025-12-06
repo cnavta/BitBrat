@@ -71,3 +71,17 @@
     - git add cloudbuild.oauth-flow.yaml planning/sprint-116-4f7a1c/request-log.md
     - git commit -m "brat/cloudbuild: echo effective deploy parameters (min/max/cpu/memory/port) to verify propagation to gcloud run deploy"
     - git push
+
+- 2025-12-05 22:59: Finalize sprint artifacts and close sprint
+  - Files modified:
+    - planning/sprint-116-4f7a1c/sprint-manifest.yaml (status: completed, completed_at set)
+    - planning/sprint-116-4f7a1c/verification-report.md (completed items, validation results)
+    - planning/sprint-116-4f7a1c/retro.md (what worked/didn’t, improvements)
+    - planning/sprint-116-4f7a1c/key-learnings.md (lessons learned)
+  - Build & Tests:
+    - npm run build (PASS)
+    - npm test (PASS)
+  - Commands executed:
+    - git add -A
+    - git commit -m "sprint-116: finalize sprint – manifest completed; verification report; retro; key learnings; log closure"
+    - git push
