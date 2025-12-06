@@ -27,6 +27,22 @@ For log-to-trace linkage in Cloud Logging, ensure one of the following is set in
 
 Exporter: The Google Cloud Trace exporter is dynamically required at runtime. If `@google-cloud/opentelemetry-cloud-trace-exporter` is installed in the environment, spans will be exported to Cloud Trace. Otherwise, spans remain local.
 
+## Architecture defaults
+
+The repository documents tracing defaults in architecture.yaml under defaults.services.observability.tracing:
+
+- enabled: false
+- sampler_ratio: 0.1
+
+These serve as guidance/config documentation and do not automatically enforce environment variables. To enable tracing for a given deployment, set the corresponding environment variables:
+
+- TRACING_ENABLED=1
+- TRACING_SAMPLER_RATIO=0.1
+
+## OAuth HTTP spans
+
+The oauth-flow service instruments its HTTP routes with light middleware that opens a span per request under the /oauth path. This makes it easy to correlate logs during OAuth flows to Cloud Trace spans without changing route behavior.
+
 ## Pub/Sub and HTTP propagation
 
 When a service publishes to Pub/Sub while inside an active span, Google client libraries and Cloud Run push subscriptions automatically propagate and continue the trace context. You should see:

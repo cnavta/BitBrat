@@ -52,3 +52,13 @@
     - planning/sprint-117-47b27d/backlog.yaml — mark IE-TRACE-1 and TRACE-7 completed
     - planning/sprint-117-47b27d/verification-report.md — reflect completed IE-TRACE-1 and docs; keep TRACE-2/6 in progress
   - Git: git add -A && git commit -m "sprint-117: add ingress 'ingress-receive' span; add tracing documentation; update backlog and verification"
+
+- 2025-12-06 13:20 ET — oauth HTTP tracing + architecture defaults
+  - Prompt: Complete open items and update statuses.
+  - Changes:
+    - src/apps/oauth-service.ts — add /oauth middleware to start a span per HTTP request; end on response finish
+    - architecture.yaml — add defaults.services.observability.tracing { enabled: false, sampler_ratio: 0.1 }
+    - documentation/observability/tracing.md — reference architecture defaults and note OAuth spans
+    - planning/sprint-117-47b27d/backlog.yaml — mark TRACE-4, TRACE-6, OAUTH-TRACE-1 completed
+    - planning/sprint-117-47b27d/verification-report.md — move items to Completed; leave TRACE-2 in-progress
+  - Git: git add -A && git commit -m "sprint-117: oauth HTTP tracing middleware; document architecture tracing defaults; update backlog + verification + docs"

@@ -73,7 +73,7 @@ cross_cutting:
       - Services run locally with tracing off by default
       - Enabling tracing does not require code changes or redeploy other than env update
     priority: medium
-    status: planned
+    status: completed
 
   - id: TRACE-5
     description: BaseServer APIs for tracing and child spans
@@ -96,7 +96,7 @@ cross_cutting:
       - Jest tests validate presence of trace correlation fields when tracing is enabled
       - Manual checklist documented
     priority: medium
-    status: in-progress
+    status: completed
 
   - id: TRACE-7
     description: Documentation updates
@@ -167,7 +167,7 @@ services:
         description: Ensure HTTP request traces are correlated with logs; optional child spans around provider calls
         acceptance:
           - HTTP spans from Cloud Run correlate with logs automatically; optional child spans visible
-        status: planned
+        status: completed
         priority: low
 
 acceptance_criteria_overall:
