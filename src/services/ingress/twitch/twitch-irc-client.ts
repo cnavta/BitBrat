@@ -10,6 +10,7 @@ import { ITwitchIngressPublisher } from './publisher';
 import type { ITwitchCredentialsProvider, TwitchChatAuth } from './credentials-provider';
 import type { IConfig } from '../../../types';
 import {logger} from "../../../common/logging";
+import { startActiveSpan } from '../../../common/tracing';
 import { InternalEventV2 } from '../../../types/events';
 
 export type TwitchConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'RECONNECTING' | 'ERROR';
@@ -330,13 +331,15 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     logger.debug('Twitch IRC message received', {msg});
 
     try {
-      const evtV2: InternalEventV2 = this.builder.build(msg);
-      // Ensure egressDestination is set for downstream responses to route back to this instance
-      if (!evtV2.egressDestination && this.egressDestinationTopic) {
-        (evtV2 as any).egressDestination = this.egressDestinationTopic;
-      }
-      await this.publisher.publish(evtV2);
-      this.snapshot.counters.published = (this.snapshot.counters.published || 0) + 1;
+      await startActiveSpan('ingress-receive', async () => {
+        const evtV2: InternalEventV2 = this.builder.build(msg);
+        // Ensure egressDestination is set for downstream responses to route back to this instance
+        if (!evtV2.egressDestination && this.egressDestinationTopic) {
+          (evtV2 as any).egressDestination = this.egressDestinationTopic;
+        }
+        await this.publisher.publish(evtV2);
+        this.snapshot.counters.published = (this.snapshot.counters.published || 0) + 1;
+      });
     } catch (e: any) {
       this.snapshot.counters.failed = (this.snapshot.counters.failed || 0) + 1;
       this.snapshot.lastError = { message: e?.message || String(e) };

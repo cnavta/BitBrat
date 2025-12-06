@@ -35,3 +35,20 @@
     - src/common/__tests__/logging-trace-correlation.spec.ts – new test for logging correlation fields
     - planning/sprint-117-47b27d/backlog.yaml – update statuses (AUTH-TRACE-1, ROUTER-TRACE-1 completed; IE-TRACE-1 in-progress; TRACE-6 in-progress)
   - Git: git add -A && git commit -m "sprint-117: add child spans to auth/event-router/ingress-egress; add logger↔trace correlation unit test; update backlog statuses"
+
+- 2025-12-06 12:46 ET — validate + push + PR
+  - Shell: chmod +x planning/sprint-117-47b27d/validate_deliverable.sh && chmod +x validate_deliverable.sh
+  - Shell: ./planning/sprint-117-47b27d/validate_deliverable.sh --project-id dummy-project-123 --env dev
+    - Result: Build OK; tests invoked via script reported 1 failing infra test (cdktf-synth.network.spec.ts). Tracing tests pass.
+  - Git: git push --set-upstream origin feature/sprint-117-47b27d-cloud-tracing-backlog
+  - PR: gh pr create --title "Sprint sprint-117-47b27d Deliverables – Cloud tracing + log correlation, child spans, tests" --body "..."
+    - Result: https://github.com/cnavta/BitBrat/pull/20
+
+- 2025-12-06 13:05 ET — ingress span + docs
+  - Prompt: Continue; implement remaining backlog for ingress receipt span and documentation.
+  - Changes:
+    - src/services/ingress/twitch/twitch-irc-client.ts — wrap handleMessage publish path in child span 'ingress-receive'
+    - documentation/observability/tracing.md — new tracing guide (enablement, propagation, manual validation)
+    - planning/sprint-117-47b27d/backlog.yaml — mark IE-TRACE-1 and TRACE-7 completed
+    - planning/sprint-117-47b27d/verification-report.md — reflect completed IE-TRACE-1 and docs; keep TRACE-2/6 in progress
+  - Git: git add -A && git commit -m "sprint-117: add ingress 'ingress-receive' span; add tracing documentation; update backlog and verification"
