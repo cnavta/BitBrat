@@ -5,7 +5,7 @@ import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twit
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
-import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
+import { AttributeMap } from '../services/message-bus';
 import { INTERNAL_EGRESS_V1 } from '../types/events';
 import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../services/egress/selection';
 import type { PublisherResource } from '../common/resources/publisher-manager';
@@ -81,11 +81,10 @@ class IngressEgressServer extends BaseServer {
     if (isTestEnv) {
       logger.debug('ingress-egress.egress_subscribe.disabled_for_tests');
     } else {
-      const subscriber = createMessageSubscriber();
       logger.info('ingress-egress.egress_subscribe.start', { subject: egressSubject, queue: `ingress-egress.${instanceId}` });
       try {
-        this.unsubscribeEgress = await subscriber.subscribe(
-          egressSubject,
+        await this.onMessage(
+          { destination: egressTopic, queue: `ingress-egress.${instanceId}`, ack: 'explicit' },
           async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const evt = JSON.parse(data.toString('utf8')) as any;
@@ -131,8 +130,7 @@ class IngressEgressServer extends BaseServer {
                 await ctx.ack();
               }
             }
-          },
-          { queue: `ingress-egress.${instanceId}`, ack: 'explicit' }
+          }
         );
         logger.info('ingress-egress.egress_subscribe.ok', { subject: egressSubject });
       } catch (e: any) {
@@ -141,7 +139,7 @@ class IngressEgressServer extends BaseServer {
     }
 
     // Debug endpoint exposes current snapshot
-    app.get('/_debug/twitch', (_req: Request, res: Response) => {
+    this.onHTTPRequest('/_debug/twitch', (_req: Request, res: Response) => {
       const snapshot = this.twitchClient!.getSnapshot();
       res.status(200).json({ snapshot, egressTopic });
     });

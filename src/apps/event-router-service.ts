@@ -3,7 +3,7 @@ import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
 import { InternalEventV2, INTERNAL_USER_ENRICHED_V1 } from '../types/events';
-import { AttributeMap, createMessageSubscriber } from '../services/message-bus';
+import { AttributeMap } from '../services/message-bus';
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
 // Firestore is provided via BaseServer resources
@@ -23,9 +23,8 @@ class EventRouterServer extends BaseServer {
   }
 
   private async setupApp(_app: Express, cfg: any) {
-    // ---------------- Debug endpoints ----------------
-    // Expose process-local counters for observability
-    _app.get('/_debug/counters', (_req, res) => {
+    // ---------------- Debug endpoints (via BaseServer helper) ----------------
+    this.onHTTPRequest('/_debug/counters', (_req, res) => {
       try {
         res.status(200).json({ counters: counters.snapshot() });
       } catch (e: any) {
@@ -34,7 +33,7 @@ class EventRouterServer extends BaseServer {
       }
     });
     // Convenience alias to counters on base /_debug
-    _app.get('/_debug', (_req, res) => {
+    this.onHTTPRequest('/_debug', (_req, res) => {
       res.redirect(302, '/_debug/counters');
     });
     // Initialize rules and router engine
@@ -60,11 +59,10 @@ class EventRouterServer extends BaseServer {
     // Subscribe to default input topic (env override supported)
     const inputTopic = process.env.ROUTER_DEFAULT_INPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
     const subject = `${cfg.busPrefix || ''}${inputTopic}`;
-    const sub = createMessageSubscriber();
     logger.info('event_router.subscribe.start', { subject, queue: 'event-router' });
     try {
-      await sub.subscribe(
-        subject,
+      await this.onMessage(
+        { destination: inputTopic, queue: 'event-router', ack: 'explicit' },
         async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
           try {
             const raw = JSON.parse(data.toString('utf8')) as any;
@@ -124,8 +122,7 @@ class EventRouterServer extends BaseServer {
               await ctx.nack(true);
             }
           }
-        },
-        { queue: 'event-router', ack: 'explicit' }
+        }
       );
       logger.info('event_router.subscribe.ok', { subject, queue: 'event-router' });
     } catch (e: any) {

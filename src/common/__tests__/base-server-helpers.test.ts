@@ -37,6 +37,8 @@ describe('BaseServer helpers', () => {
   });
 
   it('onMessage skips subscription while in test environment', async () => {
+    const prev = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
+    process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = '1';
     class TestServer extends BaseServer {
       constructor() {
         super({ serviceName: 'test' });
@@ -51,6 +53,7 @@ describe('BaseServer helpers', () => {
     // Should not even construct subscriber in test mode
     expect(createMessageSubscriberMock).not.toHaveBeenCalled();
     expect(subscribeMock).not.toHaveBeenCalled();
+    if (prev === undefined) delete process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE; else process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = prev as any;
   });
 
   it.skip('onMessage subscribes with prefix, queue, and ack when not in test env', async () => {

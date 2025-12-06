@@ -1,6 +1,6 @@
 id: sprint-115-b7e1a9
 title: "BaseServer I/O Helpers"
-status: implementing
+status: completed
 created_at: "2025-12-05T18:31:00-05:00"
 branch: feature/sprint-115-b7e1a9-base-server-io
 owner: architect
@@ -9,3 +9,4 @@ description: |
   - Exposing HTTP endpoints via a helper
   - Subscribing to a message topic via a helper
   Provide a Technical Architecture first, then implement with tests.
+closed_at: "2025-12-05T19:36:00-05:00"

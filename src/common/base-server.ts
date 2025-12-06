@@ -145,9 +145,9 @@ export class BaseServer {
   protected async onMessage(destination: string, handler: MessageHandler, options?: SubscribeOptions): Promise<void>;
   protected async onMessage(cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler): Promise<void>;
   protected async onMessage(arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler, options?: SubscribeOptions): Promise<void> {
-    const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
-    if (isTestEnv) {
-      this.logger.debug('base_server.message.subscribe.skipped_for_tests');
+    const skipSubscribe = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
+    if (skipSubscribe) {
+      this.logger.debug('base_server.message.subscribe.skipped_by_env');
       return;
     }
     const cfg = typeof arg1 === 'string' ? { destination: arg1, queue: undefined as string | undefined, ack: undefined as any } : arg1;

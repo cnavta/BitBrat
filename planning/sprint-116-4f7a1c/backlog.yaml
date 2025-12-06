@@ -37,14 +37,14 @@ services:
         acceptance:
           - "Subscription uses this.onMessage({ destination: subject, queue: 'auth', ack: 'explicit' }, handler)"
           - Error handling preserves current ack/nack behavior
-        status: planned
+        status: completed
         priority: high
       - id: AUTH-2
         description: Replace app.get('/_debug/counters') with BaseServer.onHTTPRequest('/_debug/counters', handler)
         acceptance:
           - Route registered via onHTTPRequest
           - Behavior identical to current implementation
-        status: planned
+        status: completed
         priority: medium
 
   - name: event-router
@@ -60,14 +60,14 @@ services:
         acceptance:
           - "Uses this.onMessage({ destination: subject, queue: 'event-router', ack: 'explicit' }, handler)"
           - Maintains counters and publish behavior prior to ack
-        status: planned
+        status: completed
         priority: high
       - id: ROUTER-2
         description: Replace debug routes with BaseServer.onHTTPRequest wrappers
         acceptance:
           - /_debug/counters and /_debug registered via onHTTPRequest
           - Behavior and status codes unchanged
-        status: planned
+        status: completed
         priority: medium
 
   - name: ingress-egress
@@ -83,13 +83,13 @@ services:
         acceptance:
           - "Uses this.onMessage({ destination: egressSubject, queue: `ingress-egress.${instanceId}`, ack: 'explicit' }, handler)"
           - Maintains candidate selection logic and ack behavior
-        status: planned
+        status: completed
         priority: high
       - id: IE-2
         description: Replace /_debug/twitch route with BaseServer.onHTTPRequest
         acceptance:
           - Route behavior unchanged; response includes snapshot and egressTopic
-        status: planned
+        status: completed
         priority: medium
 
   - name: command-processor
