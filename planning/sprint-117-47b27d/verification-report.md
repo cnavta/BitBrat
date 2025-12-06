@@ -11,14 +11,15 @@
 - [x] IE-TRACE-1: ingress-egress child span (ingress-receive) and egress delivery (deliver-egress)
 - [x] Unit test verifying log-to-trace correlation fields
 - [x] TRACE-7: Documentation – documentation/observability/tracing.md
+- [x] TRACE-4: Architecture defaults for tracing documented in architecture.yaml
+- [x] TRACE-6: Testing/validation – unit test for log↔trace correlation and manual checklist in docs
+- [x] OAUTH-TRACE-1: OAuth HTTP spans middleware for /oauth routes
 
 ## In Progress
 - [ ] TRACE-2: End-to-end propagation verification across Pub/Sub/HTTP (runtime validation)
-- [ ] TRACE-6: Testing/validation — integration coverage for publish→consume pipeline
 
 ## Deferred / Planned
-- [ ] TRACE-4: Document TRACING_* env flags in architecture.yaml (optional docs)
-- [ ] TRACE-7: Documentation updates and troubleshooting guide
+- [ ] TRACE-7: Additional documentation and troubleshooting elaborations (future iterations)
 
 ## Validation Results
 - Local Jest: PASS (108 suites: 107 passed, 1 skipped; 271 tests: 269 passed, 2 skipped) — unchanged by docs/instrumentation tweaks

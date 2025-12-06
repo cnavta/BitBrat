@@ -309,7 +309,9 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     meta?: Partial<Omit<IrcMessageMeta, 'channel' | 'userLogin' | 'text'>>
   ): Promise<void> {
     this.snapshot.counters = this.snapshot.counters || {};
-    this.snapshot.counters.received = (this.snapshot.counters.received || 0) + 1;
+    // Capture a stable reference so TS understands defined-ness across async boundaries
+    const counters = (this.snapshot.counters = this.snapshot.counters || {});
+    counters.received = (counters.received || 0) + 1;
     this.snapshot.lastMessageAt = new Date().toISOString();
 
     const msg: IrcMessageMeta = {
@@ -338,10 +340,10 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
           (evtV2 as any).egressDestination = this.egressDestinationTopic;
         }
         await this.publisher.publish(evtV2);
-        this.snapshot.counters.published = (this.snapshot.counters.published || 0) + 1;
+        counters.published = (counters.published || 0) + 1;
       });
     } catch (e: any) {
-      this.snapshot.counters.failed = (this.snapshot.counters.failed || 0) + 1;
+      counters.failed = (counters.failed || 0) + 1;
       this.snapshot.lastError = { message: e?.message || String(e) };
       throw e;
     }
