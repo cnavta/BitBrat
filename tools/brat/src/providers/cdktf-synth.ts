@@ -131,15 +131,9 @@ resource "google_compute_router" "router" {
   network  = google_compute_network.vpc.id
 }
 
-# Cloud NAT (per region)
-resource "google_compute_router_nat" "nat" {
-  for_each                           = google_compute_router.router
-  name                               = "brat-nat-${'${'}each.key}"
-  router                             = each.value.name
-  region                             = each.key
-  nat_ip_allocate_option             = "AUTO_ONLY"
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
-}
+## Cloud NAT removed to reduce latency. Public egress should use Cloud Run default path.
+## When using Serverless VPC Access, set egress to "Private ranges only" so public
+## traffic (e.g., Pub/Sub APIs) bypasses the connector.
 
 # Firewall: allow-internal
 resource "google_compute_firewall" "allow_internal" {
@@ -193,10 +187,7 @@ output "routersByRegion" {
   value       = { for r, s in google_compute_router.router : r => s.name }
 }
 
-output "natsByRegion" {
-  description = "Map of region to NAT name"
-  value       = { for r, s in google_compute_router_nat.nat : r => s.name }
-}
+## NAT outputs removed
 `;
   return tf;
 }

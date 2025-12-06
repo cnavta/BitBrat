@@ -18,6 +18,8 @@
  */
 import { PubSub } from '@google-cloud/pubsub';
 import { logger } from '../../common/logging';
+import { counters } from '../../common/counters';
+import { normalizeAttributes } from './attributes';
 import type {
   AttributeMap,
   MessageHandler,
@@ -86,7 +88,63 @@ function getEnsureTimeoutMs(): number {
   return Number.isFinite(v) && v >= 0 ? v : 2000;
 }
 
+/** Optional per-publish timeout in milliseconds; 0 disables (use client defaults).
+ * Default is 0 everywhere unless explicitly set via PUBSUB_PUBLISH_TIMEOUT_MS.
+ */
+function getPublishTimeoutMs(): number {
+  const raw = process.env.PUBSUB_PUBLISH_TIMEOUT_MS;
+  if (raw != null && raw !== '') {
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }
+  return 0;
+}
+
 const ensuredTopics = new Set<string>();
+
+/** Lightweight in-memory idempotency dedupe (per-process). */
+const DEDUPE_DISABLED = String(process.env.MESSAGE_DEDUP_DISABLE || '').toLowerCase() === '1';
+function getDedupeTtlMs(): number {
+  const n = Number(process.env.MESSAGE_DEDUP_TTL_MS || '600000'); // 10 minutes default
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 600000;
+}
+function getDedupeMax(): number {
+  const n = Number(process.env.MESSAGE_DEDUP_MAX || '5000');
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 5000;
+}
+const __dedupe = {
+  map: new Map<string, number>() as Map<string, number>,
+  lastPrune: 0,
+};
+function dedupeShouldDrop(key: string, now: number): boolean {
+  const ttl = getDedupeTtlMs();
+  const max = getDedupeMax();
+  // Prune periodically or when size exceeds max
+  if (__dedupe.map.size > max || now - __dedupe.lastPrune > Math.min(ttl, 30000)) {
+    for (const [k, ts] of __dedupe.map) {
+      if (now - ts > ttl) __dedupe.map.delete(k);
+    }
+    // If still above max, drop oldest entries until at 90% of max
+    if (__dedupe.map.size > max) {
+      const target = Math.floor(max * 0.9);
+      const it = __dedupe.map.keys();
+      while (__dedupe.map.size > target) {
+        const next = it.next();
+        if (next.done) break;
+        __dedupe.map.delete(next.value);
+      }
+    }
+    __dedupe.lastPrune = now;
+  }
+  const prev = __dedupe.map.get(key);
+  if (prev && now - prev <= ttl) {
+    // Update timestamp to extend TTL window and drop
+    __dedupe.map.set(key, now);
+    return true;
+  }
+  __dedupe.map.set(key, now);
+  return false;
+}
 
 function isNotFoundError(e: any): boolean {
   const code = e?.code ?? e?.status;
@@ -97,50 +155,75 @@ function isNotFoundError(e: any): boolean {
 export class PubSubPublisher implements MessagePublisher {
   private readonly pubsub: PubSub;
   private readonly topicName: string;
+  private readonly topic: any;
 
   constructor(topicName: string) {
     this.pubsub = buildClient();
     this.topicName = topicName;
+    const batching = { maxMessages: getBatchMaxMessages(), maxMilliseconds: getBatchMaxMilliseconds() };
+    this.topic = (this.pubsub as any).topic(this.topicName, { batching });
+    // Surface effective settings at init for diagnostics
+    const ensureMode = getEnsureMode();
+    const publishTimeout = getPublishTimeoutMs();
+    logger.info('pubsub.publisher.init', {
+      topic: this.topicName,
+      batching,
+      ensureMode,
+      publishTimeoutMs: publishTimeout,
+    });
   }
 
   /** Serialize data to JSON and publish with optional attributes. */
   async publishJson(data: unknown, attributes: AttributeMap = {}): Promise<string | null> {
     const ensureMode = getEnsureMode();
     const ensureTimeout = getEnsureTimeoutMs();
+    const publishTimeout = getPublishTimeoutMs();
     if (ensureMode === 'always' && !ensuredTopics.has(this.topicName)) {
       try {
+        logger.debug('pubsub.ensure.start', { topic: this.topicName, mode: ensureMode });
         await withTimeout(ensureTopic(this.pubsub, this.topicName), ensureTimeout);
         ensuredTopics.add(this.topicName);
+        logger.debug('pubsub.ensure.ok', { topic: this.topicName, mode: ensureMode });
       } catch (e: any) {
         // Do not block publish path on ensure failures/timeouts
         logger.warn('pubsub.ensure_topic_failed', { topic: this.topicName, error: e?.message || String(e), mode: ensureMode, timeoutMs: ensureTimeout });
       }
     }
-    const topic = this.pubsub.topic(this.topicName, { batching: { maxMessages: 100, maxMilliseconds: 100 } });
+    const topic = this.topic;
     const payload = Buffer.from(JSON.stringify(data));
-    const attrsNorm = normalizeAttrs(attributes);
+    const attrsNorm = normalizeAttributes(attributes as any);
     try {
       logger.debug('message_publisher.publish.start', {
         driver: 'pubsub',
         topic: this.topicName,
-        attrCount: Object.keys(attrsNorm || {}).length,
+        attributes: attrsNorm,
         bytes: payload.byteLength,
       });
-      const [messageId] = await topic.publishMessage({ data: payload, attributes: attrsNorm });
+      const t0 = Date.now();
+      const result: any = await topic.publishMessage({ data: payload, attributes: attrsNorm });
+      const [messageId] = Array.isArray(result) ? result : [result];
       logger.debug('message_publisher.publish.ok', {
         driver: 'pubsub',
         topic: this.topicName,
         messageId: messageId || null,
+        durationMs: Date.now() - t0,
       });
+      try { counters.increment('message_publisher.publish.ok'); } catch {}
       return messageId || null;
     } catch (e: any) {
+      // If our local timeout fired, tag the error with DEADLINE_EXCEEDED to enable callers to decide retry/ack policy
+      if (e && typeof e.message === 'string' && /timeout after \d+ms/i.test(e.message)) {
+        (e as any).code = (e as any).code || 4; // gRPC DEADLINE_EXCEEDED
+        (e as any).reason = 'publish_timeout';
+      }
       // If the publish failed because the topic doesn't exist, optionally attempt a fast ensure then retry once.
       if (ensureMode !== 'off' && isNotFoundError(e)) {
         try {
           logger.warn('message_publisher.publish.not_found', { driver: 'pubsub', topic: this.topicName, action: 'ensure_then_retry' });
           await withTimeout(ensureTopic(this.pubsub, this.topicName), ensureTimeout);
           ensuredTopics.add(this.topicName);
-          const [retryId] = await topic.publishMessage({ data: payload, attributes: attrsNorm });
+          const retryResult: any = await withTimeout((topic as any).publishMessage({ data: payload, attributes: attrsNorm }), publishTimeout);
+          const [retryId] = Array.isArray(retryResult) ? retryResult : [retryResult];
           logger.debug('message_publisher.publish.ok', { driver: 'pubsub', topic: this.topicName, messageId: retryId || null, retried: true });
           return retryId || null;
         } catch (ee: any) {
@@ -152,7 +235,9 @@ export class PubSubPublisher implements MessagePublisher {
         topic: this.topicName,
         error: e?.message || String(e),
         code: (e && (e.code || e.status)) || undefined,
+        timeout: e && /timeout after \d+ms/i.test(e.message) ? true : undefined,
       });
+      try { counters.increment('message_publisher.publish.error'); } catch {}
       throw e;
     }
   }
@@ -232,6 +317,34 @@ export class PubSubSubscriber implements MessageSubscriber {
         bytes: data?.length || 0,
         attrCount: Object.keys(attrs || {}).length,
       });
+
+      // Lightweight idempotency dedupe (based on idempotencyKey or correlationId attribute)
+      try {
+        if (!DEDUPE_DISABLED) {
+          const key = String(
+            (attrs as any).idempotencyKey ||
+            (attrs as any).IdempotencyKey ||
+            (attrs as any)['idempotency-key'] ||
+            (attrs as any)['Idempotency-Key'] ||
+            (attrs as any).correlationId ||
+            (attrs as any).CorrelationId ||
+            (attrs as any)['correlation-id'] ||
+            (attrs as any)['Correlation-Id'] ||
+            ''
+          );
+          if (key) {
+            const now = Date.now();
+            if (dedupeShouldDrop(key, now)) {
+              logger.warn('message_consumer.dedupe.drop', { driver: 'pubsub', subscription: subName, idempotencyKey: key, ttlMs: getDedupeTtlMs() });
+              try { counters.increment('message_consumer.dedupe.drop'); } catch {}
+              await ack();
+              return;
+            }
+          }
+        }
+      } catch (e: any) {
+        logger.debug('message_consumer.dedupe.error', { subscription: subName, error: e?.message || String(e) });
+      }
       const started = Date.now();
       try {
         await handler(data, attrs, { ack, nack });
@@ -306,11 +419,19 @@ async function ensureSubscription(pubsub: PubSub, topicName: string, subName: st
   }
 }
 
-/** Convert arbitrary attribute values to strings for Pub/Sub transport. */
-function normalizeAttrs(attrs: AttributeMap): AttributeMap {
-  const out: AttributeMap = {};
-  for (const [k, v] of Object.entries(attrs || {})) {
-    out[k] = String(v);
+/** Batching defaults and env accessors */
+function getBatchMaxMessages(): number {
+  const v = Number(process.env.PUBSUB_BATCH_MAX_MESSAGES || '100');
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 100;
+}
+
+function getBatchMaxMilliseconds(): number {
+  const raw = process.env.PUBSUB_BATCH_MAX_MS;
+  const v = Number(raw == null || raw === '' ? '20' : raw);
+  const ms = Number.isFinite(v) && v >= 0 ? Math.floor(v) : 20;
+  // Warn if configured very high (≥ 1000ms) which can introduce large latency at low throughput
+  if (ms >= 1000) {
+    logger.warn('pubsub.publisher.batching.window_high', { maxMilliseconds: ms, note: 'High flush window may add publish latency at low throughput.' });
   }
-  return out;
+  return ms;
 }

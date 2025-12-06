@@ -1,0 +1,146 @@
+version: 1
+summary: |
+  Backlog to migrate services to BaseServer.onMessage and BaseServer.onHTTPRequest.
+  Focus: replace direct message-bus subscriptions and direct app.get/app.post calls
+  with BaseServer helpers for consistency, observability, and testability.
+owner: lead-implementor
+created_at: "2025-12-05T19:56:00-05:00"
+
+services:
+  - name: llm-bot
+    path: src/apps/llm-bot-service.ts
+    current_usage:
+      onMessage: true
+      onHTTPRequest: false
+      notes: |
+        Uses BaseServer.onMessage for internal.llmbot.v1. No explicit HTTP routes
+        besides BaseServer default health endpoints.
+    tasks:
+      - id: LLM-1
+        description: Verify onMessage usage aligns with ack/error handling conventions
+        acceptance:
+          - Handler acks via ctx.ack() in finally block
+          - Logs include subject, attributes where relevant
+        status: planned
+        priority: low
+
+  - name: auth
+    path: src/apps/auth-service.ts
+    current_usage:
+      onMessage: false
+      onHTTPRequest: false
+      notes: |
+        Subscribes via createMessageSubscriber; exposes /_debug/counters via app.get.
+    tasks:
+      - id: AUTH-1
+        description: Migrate subscription to BaseServer.onMessage with destination, queue="auth", ack="explicit"
+        acceptance:
+          - "Subscription uses this.onMessage({ destination: subject, queue: 'auth', ack: 'explicit' }, handler)"
+          - Error handling preserves current ack/nack behavior
+        status: completed
+        priority: high
+      - id: AUTH-2
+        description: Replace app.get('/_debug/counters') with BaseServer.onHTTPRequest('/_debug/counters', handler)
+        acceptance:
+          - Route registered via onHTTPRequest
+          - Behavior identical to current implementation
+        status: completed
+        priority: medium
+
+  - name: event-router
+    path: src/apps/event-router-service.ts
+    current_usage:
+      onMessage: false
+      onHTTPRequest: partial
+      notes: |
+        Uses createMessageSubscriber; defines two debug routes via app.get.
+    tasks:
+      - id: ROUTER-1
+        description: Migrate subscription to BaseServer.onMessage with queue="event-router", ack="explicit"
+        acceptance:
+          - "Uses this.onMessage({ destination: subject, queue: 'event-router', ack: 'explicit' }, handler)"
+          - Maintains counters and publish behavior prior to ack
+        status: completed
+        priority: high
+      - id: ROUTER-2
+        description: Replace debug routes with BaseServer.onHTTPRequest wrappers
+        acceptance:
+          - /_debug/counters and /_debug registered via onHTTPRequest
+          - Behavior and status codes unchanged
+        status: completed
+        priority: medium
+
+  - name: ingress-egress
+    path: src/apps/ingress-egress-service.ts
+    current_usage:
+      onMessage: false
+      onHTTPRequest: partial
+      notes: |
+        Egress subscription via createMessageSubscriber; has /_debug/twitch via app.get.
+    tasks:
+      - id: IE-1
+        description: Migrate egress subscription to BaseServer.onMessage with per-instance queue, ack="explicit"
+        acceptance:
+          - "Uses this.onMessage({ destination: egressSubject, queue: `ingress-egress.${instanceId}`, ack: 'explicit' }, handler)"
+          - Maintains candidate selection logic and ack behavior
+        status: completed
+        priority: high
+      - id: IE-2
+        description: Replace /_debug/twitch route with BaseServer.onHTTPRequest
+        acceptance:
+          - Route behavior unchanged; response includes snapshot and egressTopic
+        status: completed
+        priority: medium
+
+  - name: command-processor
+    path: src/apps/command-processor-service.ts
+    current_usage:
+      onMessage: false
+      onHTTPRequest: n/a
+      notes: |
+        Subscribes via createMessageSubscriber. No explicit HTTP routes.
+    tasks:
+      - id: CMD-1
+        description: Migrate subscription to BaseServer.onMessage with queue="command-processor", ack="explicit"
+        acceptance:
+          - "Uses this.onMessage({ destination: subject, queue: 'command-processor', ack: 'explicit' }, handler)"
+          - Honors Jest test behavior (MESSAGE_BUS_DISABLE_SUBSCRIBE)
+        status: completed
+        priority: high
+
+  - name: oauth-flow
+    path: src/apps/oauth-service.ts
+    current_usage:
+      onMessage: n/a
+      onHTTPRequest: partial
+      notes: |
+        Service mounts multiple OAuth routes via a router. BaseServer.onHTTPRequest is
+        best for single handlers; migrating router mounts is optional.
+    tasks:
+      - id: OAUTH-1
+        description: Evaluate feasibility of wrapping simple health/debug routes with onHTTPRequest (no-op if none)
+        acceptance:
+          - Document decision; no behavior changes
+        decision: "Service mounts a router with multiple OAuth handlers; no standalone debug/health routes to wrap. Keep existing router mounts. BaseServer continues to serve health endpoints."
+        status: completed
+        priority: low
+
+cross_cutting:
+  - id: CC-1
+    description: Ensure all services rely on BaseServer-provided health endpoints; remove duplicate health checks if any
+    acceptance:
+      - /healthz, /readyz, /livez remain served by BaseServer
+    status: completed
+    priority: medium
+  - id: CC-2
+    description: Update affected tests to mock BaseServer.onMessage appropriately and validate subscription registration
+    acceptance:
+      - Existing Jest suites pass; new tests added where necessary
+    status: completed
+    priority: high
+  - id: CC-3
+    description: Update architecture docs if needed to reference BaseServer helper usage
+    acceptance:
+      - planning/reference or sprint docs updated accordingly
+    status: completed
+    priority: low

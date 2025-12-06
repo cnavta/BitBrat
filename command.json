@@ -1,0 +1,21 @@
+{
+  "name": "hello",
+  "description": "Greets the user with the bot name and current time.",
+  "aliases": ["hi", "hey"],
+  "templates": [
+    { "id": "t1", "text": "Hello, {{username}}! I'm {{botName}}." },
+    { "id": "t2", "text": "Hey {{username}}, it's {{botName}} at {{utcNow}}." }
+  ],
+  "cooldowns": {
+    "globalMs": 5000,
+    "perUserMs": 60000
+  },
+  "rateLimit": {
+    "max": 20,
+    "perMs": 60000
+  },
+  "runtime": {
+    "lastUsedTemplateId": "t2",
+    "lastExecutionAt": "2025-12-04T14:17:00.000Z"
+  }
+}

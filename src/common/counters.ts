@@ -9,7 +9,10 @@ export type CounterKey =
   | 'auth.enrich.total'
   | 'auth.enrich.matched'
   | 'auth.enrich.unmatched'
-  | 'auth.enrich.errors';
+  | 'auth.enrich.errors'
+  | 'message_publisher.publish.ok'
+  | 'message_publisher.publish.error'
+  | 'message_consumer.dedupe.drop';
 
 type Snapshot = Record<CounterKey, number>;
 
@@ -22,6 +25,9 @@ class Counters {
     'auth.enrich.matched': 0,
     'auth.enrich.unmatched': 0,
     'auth.enrich.errors': 0,
+    'message_publisher.publish.ok': 0,
+    'message_publisher.publish.error': 0,
+    'message_consumer.dedupe.drop': 0,
   };
 
   increment(key: CounterKey, by = 1) {

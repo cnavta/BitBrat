@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "priority": 10,
+  "description": "Route chat messages starting with '!' to the command-processor",
+  "logic": {
+    "and": [
+      { "==": [ { "substr": [ { "var": "message.text" }, 0, 1 ] }, "!" ] }
+    ]
+  },
+  "routingSlip": [
+    {
+      "id": "command-processor",
+      "v": "1",
+      "nextTopic": "internal.command.v1",
+      "maxAttempts": 3,
+      "attributes": { "origin": "event-router" }
+    }
+  ],
+  "metadata": {
+    "createdAt": "2025-12-01T14:30:00.000Z",
+    "updatedAt": "2025-12-01T14:30:00.000Z",
+    "updatedBy": "example"
+  }
+}

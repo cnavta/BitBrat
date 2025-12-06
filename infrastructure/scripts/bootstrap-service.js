@@ -46,8 +46,19 @@ function printHelp() {
   console.log('- infrastructure/docker-compose/services/<service>.compose.yaml (local runtime)');
 }
 
+function toPascal(name) {
+  const parts = String(name)
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
+  return parts.join('');
+}
+
 function generateAppSource(serviceName, stubPaths) {
   const SERVICE_NAME = serviceName;
+  const ClassName = `${toPascal(serviceName)}Server`;
   const explicitHandlers = Array.isArray(stubPaths) && stubPaths.length > 0
     ? stubPaths.map((p) => `    app.get('${p}', (_req: Request, res: Response) => { res.status(200).end(); });`).join('\n')
     : '';
@@ -57,23 +68,33 @@ import { Express, Request, Response } from 'express';
 const SERVICE_NAME = process.env.SERVICE_NAME || '${SERVICE_NAME}';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-export function createApp() {
-  const server = new BaseServer({
-    serviceName: SERVICE_NAME,
-    setup: (app: Express) => {
-      // Architecture-specified explicit stub handlers (GET)
+class ${ClassName} extends BaseServer {
+  constructor() {
+    super({ serviceName: SERVICE_NAME });
+    this.setupApp(this.getApp() as any, this.getConfig() as any);
+  }
+
+  private async setupApp(app: Express, _cfg: any) {
+    // Architecture-specified explicit stub handlers (GET)
 ${explicitHandlers}
-    },
-  });
+
+    // Example resource access patterns (uncomment and adapt):
+    // const publisher = this.getResource<any>('publisher');
+    // publisher?.publishJson({ hello: 'world' });
+    // const firestore = this.getResource<any>('firestore');
+    // const doc = await firestore?.collection('demo').doc('x').get();
+  }
+}
+
+export function createApp() {
+  const server = new ${ClassName}();
   return server.getApp();
 }
 
 if (require.main === module) {
   BaseServer.ensureRequiredEnv(SERVICE_NAME);
-  const app = createApp();
-  app.listen(PORT, () => {
-    console.log('[${SERVICE_NAME}] listening on port ' + PORT);
-  });
+  const server = new ${ClassName}();
+  void server.start(PORT);
 }
 `;
 }

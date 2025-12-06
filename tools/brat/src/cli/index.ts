@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import { createLogger } from '../orchestration/logger';
-import { resolveConfig, loadEnvKv, synthesizeSecretMapping, filterEnvKvAgainstSecrets, loadArchitecture } from '../config/loader';
+import { resolveConfig, loadEnvKv, synthesizeSecretMapping, filterEnvKvAgainstSecrets, loadArchitecture, ResolvedServiceConfig } from '../config/loader';
 import { deriveTag } from '../util/git';
 import { resolveSecretMappingToNumeric } from '../providers/gcp/secrets';
 import { submitBuild } from '../providers/gcp/cloudbuild';
@@ -32,6 +32,8 @@ interface GlobalFlags {
   module?: string;
   allowNoVpc?: boolean;
   ci?: boolean;
+  imageTag?: string;
+  repoName?: string;
 }
 
 export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: string[] } {
@@ -50,6 +52,8 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
     else if (a === '--module') { flags.module = String(args[++i]); }
     else if (a === '--allow-no-vpc') { (flags as any).allowNoVpc = true; }
     else if (a === '--ci') { flags.ci = true; }
+    else if (a === '--image-tag') { flags.imageTag = String(args[++i]); }
+    else if (a === '--repo') { flags.repoName = String(args[++i]); }
     else if (a.startsWith('-')) {
       const next = args[i + 1];
       if (next && !next.startsWith('-')) {
@@ -65,7 +69,7 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
 }
 
 function printHelp() {
-  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
+  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
 }
 
 async function cmdDoctor(flags: GlobalFlags) {
@@ -188,33 +192,43 @@ export async function cmdTrigger(action: 'create' | 'update' | 'delete', flags: 
   }
 }
 
-async function cmdDeployServices(flags: GlobalFlags) {
+async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
   const root = process.cwd();
   const cfg = resolveConfig(root);
-  const services = Object.values(cfg.services);
+  let services = Object.values(cfg.services);
+  if (targetService) {
+    services = services.filter((s) => s.name === targetService);
+    if (services.length === 0) {
+      throw new ConfigurationError(`Service not found in architecture.yaml: ${targetService}`);
+    }
+  }
   const concurrency = flags.concurrency || cfg.maxConcurrency || 1;
   const queue = new Queue(concurrency);
-  const tag = deriveTag();
+  const tag = flags.imageTag || deriveTag();
 
   const cbConfigPath = path.join(root, 'cloudbuild.oauth-flow.yaml');
-  const repoName = 'bitbrat-services';
+  const repoName = flags.repoName || 'bitbrat-services';
 
   if (!services.length) {
     throw new ConfigurationError('No services found in architecture.yaml');
   }
 
   const tasks = services.map((svc) => async () => {
-    // Preflight enforcement: ensure VPC, subnet, router/NAT, and connector exist in target region/env
-    try {
-      await assertVpcPreconditions({
-        projectId: flags.projectId,
-        region: flags.region || (svc as any).region,
-        env: flags.env,
-        allowNoVpc: (flags as any).allowNoVpc,
-        dryRun: flags.dryRun,
-      });
-    } catch (e: any) {
-      throw new DependencyError(e?.message || String(e));
+    // Preflight enforcement: ensure VPC, subnet, router, and Serverless VPC Access connector exist in target region/env
+    if (!flags.dryRun) {
+      try {
+        await assertVpcPreconditions({
+          projectId: flags.projectId,
+          region: flags.region || (svc as any).region,
+          env: flags.env,
+          allowNoVpc: (flags as any).allowNoVpc,
+          dryRun: flags.dryRun,
+        });
+      } catch (e: any) {
+        throw new DependencyError(e?.message || String(e));
+      }
+    } else {
+      log.info({ service: svc.name, action: 'deploy.service', status: 'preflight-skip', reason: 'dry-run' }, 'Skipping VPC preflight in dry-run');
     }
     const serviceLog = log.child({ service: svc.name, action: 'deploy.service' });
     const start = Date.now();
@@ -263,25 +277,18 @@ async function cmdDeployServices(flags: GlobalFlags) {
       note: 'Allow unauthenticated is required for LB serverless NEG; enforcing when VPC-bound or Internal & CLB ingress.'
     }, 'Computed effective allowUnauthenticated policy');
 
-    const substitutions: Record<string, string | number | boolean> = {
-      _SERVICE_NAME: svc.name,
-      _REGION: flags.region || svc.region,
-      _REPO_NAME: repoName,
-      _DRY_RUN: false,
-      _TAG: tag,
-      _PORT: svc.port,
-      _MIN_INSTANCES: svc.minInstances,
-      _MAX_INSTANCES: svc.maxInstances,
-      _CPU: svc.cpu,
-      _MEMORY: svc.memory,
-      _ALLOW_UNAUTH: effectiveAllowUnauth,
-      _SECRET_SET_ARG: secretMap || '',
-      _ENV_VARS_ARG: envFiltered || '',
-      _DOCKERFILE: dockerfile,
-      // Enforce Internal & Cloud Load Balancing ingress and attach VPC connector
-      _INGRESS: ingressPolicy,
-      _VPC_CONNECTOR: vpcConnectorName,
-    };
+    const substitutions = computeDeploySubstitutions({
+      svc: svc as ResolvedServiceConfig,
+      repoName,
+      region: flags.region,
+      tag,
+      allowUnauth: effectiveAllowUnauth,
+      dockerfile,
+      envVarsArg: envFiltered,
+      secretSetArg: secretMap,
+      ingressPolicy,
+      vpcConnectorName,
+    });
 
     if (flags.dryRun) {
       serviceLog.info({ status: 'dry-run', substitutions }, 'DRY-RUN: Would submit Cloud Build');
@@ -316,6 +323,40 @@ async function cmdDeployServices(flags: GlobalFlags) {
     process.exit(1);
   }
   log.info({ action: 'deploy.services.complete' }, 'deploy services completed');
+}
+
+export interface DeploySubstitutionsInput {
+  svc: ResolvedServiceConfig;
+  repoName: string;
+  region?: string;
+  tag: string;
+  allowUnauth: boolean;
+  dockerfile: string;
+  envVarsArg: string;
+  secretSetArg: string;
+  ingressPolicy: string;
+  vpcConnectorName: string;
+}
+
+export function computeDeploySubstitutions(i: DeploySubstitutionsInput): Record<string, string | number | boolean> {
+  return {
+    _SERVICE_NAME: i.svc.name,
+    _REGION: i.region || i.svc.region,
+    _REPO_NAME: i.repoName,
+    _DRY_RUN: false,
+    _TAG: i.tag,
+    _PORT: i.svc.port,
+    _MIN_INSTANCES: i.svc.minInstances,
+    _MAX_INSTANCES: i.svc.maxInstances,
+    _CPU: i.svc.cpu,
+    _MEMORY: i.svc.memory,
+    _ALLOW_UNAUTH: i.allowUnauth,
+    _SECRET_SET_ARG: i.secretSetArg || '',
+    _ENV_VARS_ARG: i.envVarsArg || '',
+    _DOCKERFILE: i.dockerfile,
+    _INGRESS: i.ingressPolicy,
+    _VPC_CONNECTOR: i.vpcConnectorName,
+  };
 }
 
 async function cmdInfra(action: 'plan' | 'apply', flags: GlobalFlags, envDir: string, serviceName: string, repoName: string) {
@@ -389,6 +430,21 @@ async function main() {
   }
   if (c1 === 'deploy' && c2 === 'services') {
     await cmdDeployServices(flags);
+    return;
+  }
+  if (c1 === 'deploy' && c2 === 'service') {
+    const serviceName = cmd[2];
+    if (!serviceName) {
+      console.error('Usage: brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run]');
+      process.exit(2);
+    }
+    await cmdDeployServices(flags, serviceName);
+    return;
+  }
+  // Alias: brat deploy <name>
+  if (c1 === 'deploy' && c2 && c2 !== 'services') {
+    const serviceName = c2;
+    await cmdDeployServices(flags, serviceName);
     return;
   }
   if (c1 === 'apis' && c2 === 'enable') {

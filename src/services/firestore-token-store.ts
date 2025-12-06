@@ -1,14 +1,17 @@
 import { ITokenStore, TwitchTokenData } from '../types';
 import { logger } from '../common/logging';
 import { getFirestore } from '../common/firebase';
+import type { Firestore } from 'firebase-admin/firestore';
 
 /**
  * Firestore-backed token store for Twitch OAuth tokens.
  * The docPath should be a full document path like "oauth/twitch/bot" or "oauth/twitch/broadcaster".
  */
 export class FirestoreTokenStore implements ITokenStore {
-  private db = getFirestore();
-  constructor(private docPath: string) {}
+  private db: Firestore;
+  constructor(private docPath: string, db?: Firestore) {
+    this.db = db || getFirestore();
+  }
 
   private docRef() {
     return this.db.doc(this.docPath + '/token');

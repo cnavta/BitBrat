@@ -1,4 +1,5 @@
 import { getFirestore } from '../../common/firebase';
+import type { Firestore } from 'firebase-admin/firestore';
 
 export interface AuthUserDoc {
   id: string;
@@ -16,13 +17,15 @@ export interface UserRepo {
 /** Firestore-backed user repository */
 export class FirestoreUserRepo implements UserRepo {
   private readonly collectionName: string;
-  constructor(collectionName = 'users') {
+  private readonly db?: Firestore;
+  constructor(collectionName = 'users', db?: Firestore) {
     this.collectionName = collectionName;
+    this.db = db;
   }
 
   async getById(id: string): Promise<AuthUserDoc | null> {
     if (!id) return null;
-    const db = getFirestore();
+    const db = this.db || getFirestore();
     const snap = await db.collection(this.collectionName).doc(id).get();
     if (!snap.exists) return null;
     const data = snap.data() as any;
@@ -37,7 +40,7 @@ export class FirestoreUserRepo implements UserRepo {
 
   async getByEmail(email: string): Promise<AuthUserDoc | null> {
     if (!email) return null;
-    const db = getFirestore();
+    const db = this.db || getFirestore();
     const q = await db.collection(this.collectionName).where('email', '==', email).limit(1).get();
     if (q.empty) return null;
     const doc = q.docs[0];

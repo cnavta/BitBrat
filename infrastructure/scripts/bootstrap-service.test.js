@@ -7,22 +7,28 @@ describe('bootstrap-service generators', () => {
     expect(toKebab('  weird---Name__ ')).toBe('weird-name');
   });
 
-  test('generateAppSource includes BaseServer import, explicit path handlers, and env validation hook', () => {
+  test('generateAppSource uses subclass pattern, explicit handlers, resource stubs, and env validation with server.start', () => {
     const src = generateAppSource('ingress-egress', ['/one', '/two', '/bar/:id', '/star/*']);
     expect(src).toContain("process.env.SERVICE_NAME || 'ingress-egress'");
-    // Uses BaseServer wrapper
+    // Uses BaseServer subclass pattern
     expect(src).toContain("import { BaseServer } from '../common/base-server'");
-    expect(src).toContain('setup: (app: Express) =>');
+    expect(src).toContain('class IngressEgressServer extends BaseServer');
     // Explicit app.get handlers for each path
     expect(src).toContain("app.get('/one'");
     expect(src).toContain("app.get('/two'");
     expect(src).toContain("app.get('/bar/:id'");
     expect(src).toContain("app.get('/star/*'");
+    // Resource access comments present
+    expect(src).toContain("this.getResource<any>('publisher')");
+    expect(src).toContain("this.getResource<any>('firestore')");
     // No STUB_PATHS array anymore and no yaml imports in template
     expect(src).not.toContain('const STUB_PATHS');
     expect(src).not.toContain("import yaml from 'js-yaml'");
-    // Should validate env via BaseServer helper
+    // Should validate env via BaseServer helper and use server.start
     expect(src).toContain('BaseServer.ensureRequiredEnv');
+    expect(src).toContain('server.start(PORT)');
+    // Should not use app.listen anymore
+    expect(src).not.toContain('app.listen(');
   });
 
   test('generateTestSource references entry module and emits stub path tests', () => {
