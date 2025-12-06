@@ -1,0 +1,11 @@
+id: sprint-117-47b27d
+created_at: "2025-12-05T23:10:00-05:00"
+owner: lead-implementor
+branch: feature/sprint-117-47b27d-cloud-tracing-backlog
+objective: "Establish Cloud Trace + Cloud Logging message tracing across services; deliver a trackable YAML backlog and plan for implementation."
+status: planning
+links:
+  - ../..//architecture.yaml
+notes: |
+  This sprint begins the observability initiative focusing on distributed tracing for Pub/Sub-based flows.
+  Initial deliverable is a trackable backlog and implementation plan; code changes follow user approval.
