@@ -106,7 +106,7 @@ cross_cutting:
     acceptance:
       - Docs merged under documentation/observability/tracing.md
     priority: low
-    status: planned
+    status: completed
 
 services:
   - name: ingress-egress
@@ -116,7 +116,7 @@ services:
         description: Ensure spans cover external event receipt and publish to internal.ingress.v1
         acceptance:
           - Waterfall shows receive→publish spans
-        status: in-progress
+        status: completed
         priority: high
 
   - name: auth
