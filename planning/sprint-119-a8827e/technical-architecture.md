@@ -54,7 +54,11 @@ This document scopes the design only. No implementation is included.
      - Do not mark the step `OK` on the sender side; the consumer of the step is responsible for updating `status` to `OK`/`SKIP`/`ERROR` based on processing outcome, then calling `next()` as appropriate.
 
 - Idempotency considerations:
-  - Publishing is at-least-once at transport level; consumers must be idempotent.
+  - Method-level idempotency: Repeated calls to `next(event)` with the same in-memory event instance MUST be no-ops. The helper will:
+    - Detect a prior successful dispatch for `next()` using an in-memory marker (non-serializable) set on the event object (e.g., a `Symbol` or WeakMap entry).
+    - If the marker is present, log at `debug` level and return without publishing.
+    - Set the marker immediately before attempting publish; if publish fails (throws), the marker is cleared so a retry can proceed.
+  - Transport-level semantics remain at-least-once; downstream consumers must still be idempotent.
   - The helper will not mutate semantic payload beyond timestamps/attempts on the selected step.
 
 ### complete(event)
@@ -63,6 +67,12 @@ This document scopes the design only. No implementation is included.
   - Immediately publish the event to `event.egressDestination` if present.
   - If no `egressDestination`, log a warning; no-op.
   - Does not modify `routingSlip` statuses; this is an explicit bypass.
+
+- Idempotency considerations:
+  - Method-level idempotency: Repeated calls to `complete(event)` with the same in-memory event instance MUST be no-ops. The helper will:
+    - Use a separate in-memory marker from `next()` to track `complete()` dispatch on the object.
+    - If already marked as completed, log at `debug` and return without publishing.
+    - Set the marker before publish; on publish error, clear the marker to allow retry.
 
 ## Attributes and Metadata
 - When publishing, set attributes via the message bus abstraction (`AttributeMap`):
@@ -113,6 +123,10 @@ This document scopes the design only. No implementation is included.
 - next(event):
   ```ts
   protected async next(event: InternalEventV2): Promise<void> {
+    // Idempotency: event-local, non-serializable guard
+    const NEXT_MARK = Symbol.for('bb.routing.next.dispatched');
+    if ((event as any)[NEXT_MARK]) { this.getLogger().debug('routing.next.idempotent_noop', { correlationId: event.correlationId }); return; }
+    (event as any)[NEXT_MARK] = true;
     const slip = event.routingSlip || [];
     const idx = slip.findIndex(s => s.status !== 'OK' && s.status !== 'SKIP');
     if (idx < 0) {
@@ -130,9 +144,15 @@ This document scopes the design only. No implementation is included.
     step.attempts = (step.attempts || 0) + 1;
     const subject = step.nextTopic || step.to;
     const pub = createMessagePublisher(subject);
-    await startActiveSpan('routing.next', async () => {
-      await pub.publishJson(event, buildAttrs(event, step));
-    });
+    try {
+      await startActiveSpan('routing.next', async () => {
+        await pub.publishJson(event, buildAttrs(event, step));
+      });
+    } catch (e) {
+      // Clear idempotency mark on failure to allow caller retry
+      delete (event as any)[NEXT_MARK];
+      throw e;
+    }
     this.getLogger().info('routing.next.published', { subject, stepIndex: idx, attempts: step.attempts, correlationId: event.correlationId });
   }
   ```
@@ -140,12 +160,22 @@ This document scopes the design only. No implementation is included.
 - complete(event):
   ```ts
   protected async complete(event: InternalEventV2): Promise<void> {
+    // Idempotency: event-local, non-serializable guard
+    const COMPLETE_MARK = Symbol.for('bb.routing.complete.dispatched');
+    if ((event as any)[COMPLETE_MARK]) { this.getLogger().debug('routing.complete.idempotent_noop', { correlationId: event.correlationId }); return; }
+    (event as any)[COMPLETE_MARK] = true;
     const dest = event.egressDestination;
     if (!dest) { this.getLogger().warn('routing.complete.no_egress', { correlationId: event.correlationId }); return; }
     const pub = createMessagePublisher(dest);
-    await startActiveSpan('routing.complete', async () => {
-      await pub.publishJson(event, buildAttrs(event));
-    });
+    try {
+      await startActiveSpan('routing.complete', async () => {
+        await pub.publishJson(event, buildAttrs(event));
+      });
+    } catch (e) {
+      // Clear idempotency mark on failure to allow caller retry
+      delete (event as any)[COMPLETE_MARK];
+      throw e;
+    }
     this.getLogger().info('routing.complete.published', { dest, correlationId: event.correlationId });
   }
   ```
@@ -179,6 +209,7 @@ This document scopes the design only. No implementation is included.
   - `next()` publishes to the first pending step’s subject.
   - If no pending steps: publishes to `egressDestination`.
   - `complete()` publishes to `egressDestination`.
+  - Repeated calls to `next(event)` or `complete(event)` with the same event instance do not publish again (idempotent no-ops); verify markers are set and cleared on failure.
   - All methods include required attributes and tracing hooks (assert attribute injection via spy).
 - Use message-bus `noop` driver in tests; spy on `publishJson` calls.
 - Negative tests: missing `egressDestination` warns without throwing; publish failure surfaces error.

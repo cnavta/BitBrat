@@ -8,9 +8,10 @@ import { Logger } from './logging';
 import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
-import { createMessageSubscriber } from '../services/message-bus';
+import { createMessageSubscriber, createMessagePublisher, type AttributeMap } from '../services/message-bus';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
+import type { InternalEventV2, RoutingStep } from '../types/events';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -383,5 +384,136 @@ export class BaseServer {
       );
       process.exit(1);
     }
+  }
+
+  /**
+   * Protected helper: advance the event to the next routing destination.
+   * - Finds the first pending step (status not in OK|SKIP).
+   * - If no pending step, falls back to egressDestination when present.
+   * - Publishes with standard attributes and emits tracing/logging.
+   * - Idempotent per in-memory event instance: subsequent calls are no-ops unless the prior publish failed.
+   */
+  protected async next(event: InternalEventV2): Promise<void> {
+    const NEXT_MARK = Symbol.for('bb.routing.next.dispatched');
+    if ((event as any)[NEXT_MARK]) {
+      this.logger.debug('routing.next.idempotent_noop', { correlationId: event?.correlationId });
+      return;
+    }
+    (event as any)[NEXT_MARK] = true;
+
+    const slip: RoutingStep[] = Array.isArray((event as any).routingSlip) ? ((event as any).routingSlip as RoutingStep[]) : [];
+    const idx = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
+    // If no pending step, fallback to egress
+    if (idx < 0) {
+      const dest = (event as any).egressDestination as string | undefined;
+      if (!dest) {
+        this.logger.warn('routing.next.no_target', { correlationId: event?.correlationId });
+        return;
+      }
+      const pub = createMessagePublisher(dest);
+      try {
+        await startActiveSpan('routing.complete', async () => {
+          await pub.publishJson(event, this.buildRoutingAttributes(event));
+        });
+      } catch (e) {
+        delete (event as any)[NEXT_MARK];
+        throw e;
+      }
+      this.logger.info('routing.next.fallback_egress', { dest, correlationId: event?.correlationId });
+      return;
+    }
+
+    const step = slip[idx] as RoutingStep;
+    // Minimal mutation for observability
+    step.startedAt = step.startedAt || new Date().toISOString();
+    // attempt is 0-based per contract
+    step.attempt = (typeof step.attempt === 'number' ? step.attempt : -1) + 1;
+    const subject = (step.nextTopic) as string;
+    if (!subject) {
+      this.logger.warn('routing.next.step_missing_subject', { correlationId: event?.correlationId });
+      return;
+    }
+    const pub = createMessagePublisher(subject);
+
+    try {
+      await startActiveSpan('routing.next', async () => {
+        await pub.publishJson(event, this.buildRoutingAttributes(event, step));
+      });
+    } catch (e) {
+      // Clear idempotency mark to allow safe retry by caller
+      delete (event as any)[NEXT_MARK];
+      throw e;
+    }
+
+    this.logger.info('routing.next.published', {
+      subject,
+      stepIndex: idx,
+      attempt: step.attempt,
+      correlationId: event?.correlationId,
+    });
+  }
+
+  /**
+   * Protected helper: bypass routing slip and publish directly to egressDestination.
+   * - Idempotent per in-memory event instance.
+   */
+  protected async complete(event: InternalEventV2): Promise<void> {
+    const COMPLETE_MARK = Symbol.for('bb.routing.complete.dispatched');
+    if ((event as any)[COMPLETE_MARK]) {
+      this.logger.debug('routing.complete.idempotent_noop', { correlationId: event?.correlationId });
+      return;
+    }
+    (event as any)[COMPLETE_MARK] = true;
+
+    const dest = (event as any).egressDestination as string | undefined;
+    if (!dest) {
+      this.logger.warn('routing.complete.no_egress', { correlationId: event?.correlationId });
+      return;
+    }
+    const pub = createMessagePublisher(dest);
+    try {
+      await startActiveSpan('routing.complete', async () => {
+        await pub.publishJson(event, this.buildRoutingAttributes(event));
+      });
+    } catch (e) {
+      delete (event as any)[COMPLETE_MARK];
+      throw e;
+    }
+    this.logger.info('routing.complete.published', { dest, correlationId: event?.correlationId });
+  }
+
+  // Internal: build standard message attributes for routing publishes
+  private buildRoutingAttributes(event: InternalEventV2, step?: RoutingStep): AttributeMap {
+    const attrs: AttributeMap = {
+      correlationId: String((event as any).correlationId || ''),
+      type: String((event as any).type || ''),
+      source: this.serviceName,
+    };
+    // Inject current traceparent if tracing active; startActiveSpan should have set context. We also propagate any existing traceId.
+    try {
+      const tracer = this.getTracer();
+      // Fall back to existing traceId if present via event
+      const traceId = (event as any).traceId as string | undefined;
+      if (tracer) {
+        // startActiveSpan manages context injection during publish; we expose a hint via traceId if present
+        if (traceId) attrs.traceparent = traceId;
+      } else if (traceId) {
+        attrs.traceparent = traceId;
+      }
+    } catch {
+      // ignore tracing errors
+    }
+    if ((event as any).replyTo) attrs.replyTo = String((event as any).replyTo);
+    if (step && step.attributes) {
+      // Merge step attributes with last-writer-wins: step attrs first, then base overwrites reserved keys
+      for (const [k, v] of Object.entries(step.attributes)) {
+        attrs[k] = String(v);
+      }
+      // Ensure reserved keys are preserved
+      attrs.correlationId = String((event as any).correlationId || '');
+      attrs.type = String((event as any).type || '');
+      attrs.source = this.serviceName;
+    }
+    return attrs;
   }
 }
