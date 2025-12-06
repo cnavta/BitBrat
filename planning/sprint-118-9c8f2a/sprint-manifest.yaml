@@ -3,7 +3,7 @@ created_at: "2025-12-06T16:39:00-05:00"
 owner: lead-implementor
 branch: feature/sprint-118-9c8f2a-command-effects
 objective: "Enable command processor to emit either an Annotation or a Candidate onto InternalEventV2; deliver a prioritized, trackable YAML backlog."
-status: planning
+status: in-progress
 links:
   - ../../architecture.yaml
   - ./backlog.yaml
