@@ -39,3 +39,26 @@
     - BL-001 status: review (awaiting user approval)
   - notes:
     - Plan covers scope, deliverables, acceptance criteria, testing strategy, deployment approach, dependencies, DoD, risks, and traceability.
+
+- 2025-12-06 18:03 ET — Implementation Plan approved (User)
+  - prompt: Approve BL-001 and begin execution.
+  - backlog updates:
+    - BL-001 status: done
+
+- 2025-12-06 18:05 ET — Add validation script (Lead Implementor)
+  - files added:
+    - planning/sprint-119-a8827e/validate_deliverable.sh
+  - backlog updates:
+    - BL-002 status: done
+  - notes:
+    - Script installs deps, builds, runs tests with IO disabled, attempts local start/stop, and dry-run deploy.
+
+- 2025-12-06 18:12 ET — Implement BaseServer routing helpers (Lead Implementor)
+  - files modified:
+    - src/common/base-server.ts (add protected next(event) and complete(event) with idempotency, tracing, logging; attribute builder)
+  - build: tsc passed
+  - backlog updates:
+    - BL-003 status: in-progress
+    - BL-004 status: in-progress
+  - notes:
+    - Adjusted to current RoutingStep shape (uses attempt, nextTopic). Fallback to egress when no pending step.

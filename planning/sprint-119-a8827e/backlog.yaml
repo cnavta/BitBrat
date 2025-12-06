@@ -20,7 +20,7 @@ backlog:
     title: Draft Implementation Plan (implementation-plan.md) for sprint approval
     type: doc
     priority: P0
-    status: review
+    status: done
     estimate: 2
     depends_on: []
     acceptance:
@@ -33,7 +33,7 @@ backlog:
     title: Add validate_deliverable.sh (sprint-local) aligned with project DoD
     type: ci
     priority: P0
-    status: todo
+    status: done
     estimate: 2
     depends_on: [BL-001]
     acceptance:
@@ -44,7 +44,7 @@ backlog:
     title: Implement BaseServer protected helper next(event) with idempotency
     type: code
     priority: P0
-    status: todo
+    status: in-progress
     estimate: 5
     depends_on: [BL-001]
     acceptance:
@@ -61,7 +61,7 @@ backlog:
     title: Implement BaseServer protected helper complete(event) with idempotency
     type: code
     priority: P0
-    status: todo
+    status: in-progress
     estimate: 3
     depends_on: [BL-001]
     acceptance:
