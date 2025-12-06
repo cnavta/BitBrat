@@ -324,7 +324,7 @@ if [[ "$MULTI_MODE" == true ]]; then
       local mem="$1"; shift
       local allow_unauth="$1"; shift
 
-      local subs="_SERVICE_NAME=$svc,_REGION=$region,_REPO_NAME=$REPO_NAME,_DRY_RUN=false,_TAG=$build_tag,_PORT=$port,_MIN_INSTANCES=$min_i,_MAX_INSTANCES=$max_i,_CPU=$cpu,_MEMORY=$mem,_ALLOW_UNAUTH=$allow_unauth,_SECRET_SET_ARG=$secret_set_arg,_ENV_VARS_ARG=$env_kv,_DOCKERFILE=$dockerfile"
+      local subs="_SERVICE_NAME=$svc,_REGION=$region,_REPO_NAME=$REPO_NAME,_DRY_RUN=false,_TAG=$build_tag,_PORT=$port,_MIN_INSTANCES=$min_i,_MAX_INSTANCES=$max_i,_CPU=$cpu,_MEMORY=$mem,_ALLOW_UNAUTH=$allow_unauth,_SECRET_SET_ARG=$secret_set_arg,_ENV_VARS_ARG=$env_kv,_DOCKERFILE=$dockerfile,_BILLING=instance,_GRUMBLE=tank"
       gcloud builds submit --project "$PROJECT_ID" --config "$CB_CONFIG" \
         --substitutions="$subs" \
         .
@@ -695,7 +695,7 @@ if [[ "$DO_BUILD" == true ]]; then
     log "[secrets][single] Cloud Build _SECRET_SET_ARG: <empty>"
   fi
   gcloud builds submit --project "$PROJECT_ID" --config "$CB_CONFIG" \
-    --substitutions _SERVICE_NAME="$SERVICE_NAME",_REGION="$REGION",_REPO_NAME="$REPO_NAME",_DRY_RUN="$CB_DRY_RUN",_TAG="$BUILD_TAG",_PORT="${PORT}",_MIN_INSTANCES="${MIN_INSTANCES}",_MAX_INSTANCES="${MAX_INSTANCES}",_CPU="${CPU}",_MEMORY="${MEMORY}",_ALLOW_UNAUTH="${ALLOW_UNAUTH}",_SECRET_SET_ARG="${SECRET_SET_ARG}",_DOCKERFILE="${DOCKERFILE}" \
+    --substitutions _SERVICE_NAME="$SERVICE_NAME",_REGION="$REGION",_REPO_NAME="$REPO_NAME",_DRY_RUN="$CB_DRY_RUN",_TAG="$BUILD_TAG",_PORT="${PORT}",_MIN_INSTANCES="${MIN_INSTANCES}",_MAX_INSTANCES="${MAX_INSTANCES}",_CPU="${CPU}",_MEMORY="${MEMORY}",_ALLOW_UNAUTH="${ALLOW_UNAUTH}",_SECRET_SET_ARG="${SECRET_SET_ARG}",_DOCKERFILE="${DOCKERFILE}",_BILLING=instance \
     .
 fi
 
@@ -736,6 +736,17 @@ else
     -out=tfplan || true
 fi
 popd >/dev/null
+
+# Enforce instance-based billing on Cloud Run services after Terraform apply (best-effort)
+if [[ "$APPLY" == true && "$DRY_RUN" == false ]]; then
+  if command -v gcloud >/dev/null 2>&1; then
+    # Single service mode: ensure the primary service billing is set to instance
+    if [[ "$SERVICE_SET" == false || -n "$SERVICE_NAME" ]]; then
+      log "Ensuring Cloud Run billing mode=instance for service ${SERVICE_NAME} in ${REGION}"
+      gcloud run services update "${SERVICE_NAME}" --region "${REGION}" --platform managed --billing instance || true
+    fi
+  fi
+fi
 
 # Optional: Create/Update Cloud Build trigger
 if [[ "$CREATE_TRIGGER" == true ]]; then
