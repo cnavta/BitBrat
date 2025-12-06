@@ -19,6 +19,16 @@ class LlmBotServer extends BaseServer {
     // publisher?.publishJson({ hello: 'world' });
     // const firestore = this.getResource<any>('firestore');
     // const doc = await firestore?.collection('demo').doc('x').get();
+
+    // Subscribe to the llm-bot input topic and log received messages
+    await this.onMessage('internal.llmbot.v1', async (data, attributes, ctx) => {
+      try {
+        const txt = data?.toString('utf8');
+        this.getLogger().info('llm_bot.received', { message: txt, attributes });
+      } finally {
+        await ctx.ack();
+      }
+    });
   }
 }
 
