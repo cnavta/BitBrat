@@ -38,9 +38,20 @@ class CommandProcessorServer extends BaseServer {
             // Lazy-load processor to allow Jest doMock() to override in tests after this module is loaded
             const { processEvent } = require('../services/command-processor/processor');
             const db = this.getResource<Firestore>('firestore');
-            const result = await processEvent(raw, {
-              repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db),
-            });
+            // Wrap execution in a child span when tracing is enabled
+            const tracer = (this as any).getTracer?.();
+            const exec = async () => {
+              return await processEvent(raw, { repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db) });
+            };
+            const result = tracer && typeof tracer.startActiveSpan === 'function'
+              ? await tracer.startActiveSpan('execute-command', async (span: any) => {
+                  try {
+                    return await exec();
+                  } finally {
+                    span.end();
+                  }
+                })
+              : await exec();
             const v2 = result.event;
             logger.info('command_processor.event.processed', { result });
 
