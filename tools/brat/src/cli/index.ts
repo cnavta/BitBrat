@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import { createLogger } from '../orchestration/logger';
-import { resolveConfig, loadEnvKv, synthesizeSecretMapping, filterEnvKvAgainstSecrets, loadArchitecture } from '../config/loader';
+import { resolveConfig, loadEnvKv, synthesizeSecretMapping, filterEnvKvAgainstSecrets, loadArchitecture, ResolvedServiceConfig } from '../config/loader';
 import { deriveTag } from '../util/git';
 import { resolveSecretMappingToNumeric } from '../providers/gcp/secrets';
 import { submitBuild } from '../providers/gcp/cloudbuild';
@@ -277,25 +277,18 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
       note: 'Allow unauthenticated is required for LB serverless NEG; enforcing when VPC-bound or Internal & CLB ingress.'
     }, 'Computed effective allowUnauthenticated policy');
 
-    const substitutions: Record<string, string | number | boolean> = {
-      _SERVICE_NAME: svc.name,
-      _REGION: flags.region || svc.region,
-      _REPO_NAME: repoName,
-      _DRY_RUN: false,
-      _TAG: tag,
-      _PORT: svc.port,
-      _MIN_INSTANCES: svc.minInstances,
-      _MAX_INSTANCES: svc.maxInstances,
-      _CPU: svc.cpu,
-      _MEMORY: svc.memory,
-      _ALLOW_UNAUTH: effectiveAllowUnauth,
-      _SECRET_SET_ARG: secretMap || '',
-      _ENV_VARS_ARG: envFiltered || '',
-      _DOCKERFILE: dockerfile,
-      // Enforce Internal & Cloud Load Balancing ingress and attach VPC connector
-      _INGRESS: ingressPolicy,
-      _VPC_CONNECTOR: vpcConnectorName,
-    };
+    const substitutions = computeDeploySubstitutions({
+      svc: svc as ResolvedServiceConfig,
+      repoName,
+      region: flags.region,
+      tag,
+      allowUnauth: effectiveAllowUnauth,
+      dockerfile,
+      envVarsArg: envFiltered,
+      secretSetArg: secretMap,
+      ingressPolicy,
+      vpcConnectorName,
+    });
 
     if (flags.dryRun) {
       serviceLog.info({ status: 'dry-run', substitutions }, 'DRY-RUN: Would submit Cloud Build');
@@ -330,6 +323,40 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
     process.exit(1);
   }
   log.info({ action: 'deploy.services.complete' }, 'deploy services completed');
+}
+
+export interface DeploySubstitutionsInput {
+  svc: ResolvedServiceConfig;
+  repoName: string;
+  region?: string;
+  tag: string;
+  allowUnauth: boolean;
+  dockerfile: string;
+  envVarsArg: string;
+  secretSetArg: string;
+  ingressPolicy: string;
+  vpcConnectorName: string;
+}
+
+export function computeDeploySubstitutions(i: DeploySubstitutionsInput): Record<string, string | number | boolean> {
+  return {
+    _SERVICE_NAME: i.svc.name,
+    _REGION: i.region || i.svc.region,
+    _REPO_NAME: i.repoName,
+    _DRY_RUN: false,
+    _TAG: i.tag,
+    _PORT: i.svc.port,
+    _MIN_INSTANCES: i.svc.minInstances,
+    _MAX_INSTANCES: i.svc.maxInstances,
+    _CPU: i.svc.cpu,
+    _MEMORY: i.svc.memory,
+    _ALLOW_UNAUTH: i.allowUnauth,
+    _SECRET_SET_ARG: i.secretSetArg || '',
+    _ENV_VARS_ARG: i.envVarsArg || '',
+    _DOCKERFILE: i.dockerfile,
+    _INGRESS: i.ingressPolicy,
+    _VPC_CONNECTOR: i.vpcConnectorName,
+  };
 }
 
 async function cmdInfra(action: 'plan' | 'apply', flags: GlobalFlags, envDir: string, serviceName: string, repoName: string) {

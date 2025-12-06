@@ -48,3 +48,26 @@
     - git add -A
     - git commit -m "sprint-116: migrate command-processor to BaseServer.onMessage; mark CMD-1 done; document OAUTH-1; fix tests"
     - git push
+
+- 2025-12-06 03:10: Investigate brat scaling defaults and add regression tests
+  - Context: brat deploy tool appeared not to honor defaults.services.scaling from architecture.yaml.
+  - Findings: resolveServices already merges scaling with precedence: service.scaling > defaults.services.scaling > deploymentDefaults.cloud-run. CLI passes _MIN/_MAX substitutions to Cloud Build.
+  - Files added:
+    - tools/brat/src/config/__tests__/resolve-services.scaling.test.ts (assert inheritance, overrides, and fallback behavior for min/max instances)
+  - Commands executed:
+    - npm run build
+    - npm test
+    - git add -A
+    - git commit -m "brat: add tests to verify defaults.services.scaling are applied and respected; confirm deploy substitutions path"
+    - git push
+
+- 2025-12-06 03:30: Add explicit Cloud Build deploy parameter echoes for verification
+  - Goal: Provide end-to-end visibility that min/max instances (and related) are passed to gcloud run deploy.
+  - Files modified:
+    - cloudbuild.oauth-flow.yaml (echo _MIN/_MAX/_CPU/_MEMORY/_PORT/_INGRESS/_VPC_CONNECTOR prior to deploy; echo full gcloud command)
+  - Commands executed:
+    - npm run build
+    - npm test
+    - git add cloudbuild.oauth-flow.yaml planning/sprint-116-4f7a1c/request-log.md
+    - git commit -m "brat/cloudbuild: echo effective deploy parameters (min/max/cpu/memory/port) to verify propagation to gcloud run deploy"
+    - git push

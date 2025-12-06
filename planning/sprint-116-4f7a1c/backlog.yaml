@@ -130,17 +130,17 @@ cross_cutting:
     description: Ensure all services rely on BaseServer-provided health endpoints; remove duplicate health checks if any
     acceptance:
       - /healthz, /readyz, /livez remain served by BaseServer
-    status: planned
+    status: completed
     priority: medium
   - id: CC-2
     description: Update affected tests to mock BaseServer.onMessage appropriately and validate subscription registration
     acceptance:
       - Existing Jest suites pass; new tests added where necessary
-    status: planned
+    status: completed
     priority: high
   - id: CC-3
     description: Update architecture docs if needed to reference BaseServer helper usage
     acceptance:
       - planning/reference or sprint docs updated accordingly
-    status: planned
+    status: completed
     priority: low

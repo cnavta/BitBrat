@@ -68,6 +68,16 @@ steps:
           echo "_DRY_RUN=true: skipping gcloud run deploy. Image available at $$IMAGE"
           exit 0
         fi
+        echo "Cloud Run deploy parameters:"
+        echo "  service: ${_SERVICE_NAME}"
+        echo "  region: ${_REGION}"
+        echo "  port: ${_PORT}"
+        echo "  min-instances: ${_MIN_INSTANCES}"
+        echo "  max-instances: ${_MAX_INSTANCES}"
+        echo "  cpu: ${_CPU}"
+        echo "  memory: ${_MEMORY}"
+        echo "  ingress: ${_INGRESS}"
+        echo "  vpc-connector: ${_VPC_CONNECTOR}"
         ALLOW_FLAG=""
         if [ "${_ALLOW_UNAUTH}" = "true" ]; then
           ALLOW_FLAG="--allow-unauthenticated"
@@ -91,6 +101,7 @@ steps:
         if [ -n "$$ALLOW_FLAG" ]; then args+=("$$ALLOW_FLAG"); fi
         if [ -n "$$SEC_LIST" ]; then args+=(--set-secrets "$$SEC_LIST"); fi
         if [ -n "$$ENV_LIST" ]; then args+=(--set-env-vars "$$ENV_LIST"); fi
+        echo "Executing: gcloud $${args[@]}"
         gcloud "$${args[@]}"
 
         # Explicitly ensure IAM binding for unauthenticated access when requested
