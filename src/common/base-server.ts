@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, RequestHandler } from 'express';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
@@ -8,6 +8,8 @@ import { Logger } from './logging';
 import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
+import { createMessageSubscriber } from '../services/message-bus';
+import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -40,6 +42,7 @@ export class BaseServer {
   private readonly resourceManagers: Record<string, ResourceManager<any>>;
   private readonly resources: ResourceInstances;
   private shutdownBound = false;
+  private readonly unsubscribers: UnsubscribeFn[] = [];
 
   constructor(opts: BaseServerOptions = {}) {
     this.app = express();
@@ -109,6 +112,72 @@ export class BaseServer {
     return (this.resources as any)[n] as T | undefined;
   }
 
+  // ---------- Protected helpers: HTTP and Message subscription ----------
+
+  /**
+   * Register an HTTP endpoint on the internal Express app.
+   * Overloads:
+   * - onHTTPRequest(path, handler)
+   * - onHTTPRequest({ path, method }, handler)
+   */
+  protected onHTTPRequest(path: string, handler: RequestHandler): void;
+  protected onHTTPRequest(cfg: { path: string; method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' }, handler: RequestHandler): void;
+  protected onHTTPRequest(arg1: string | { path: string; method?: string }, handler: RequestHandler): void {
+    const cfg = typeof arg1 === 'string' ? { path: arg1, method: 'GET' } : { path: arg1.path, method: (arg1.method || 'GET').toUpperCase() };
+    const method = String(cfg.method || 'GET').toUpperCase();
+    const path = cfg.path;
+    const app: any = this.app as any;
+    const methodFn = (method === 'GET' ? app.get :
+      method === 'POST' ? app.post :
+      method === 'PUT' ? app.put :
+      method === 'DELETE' ? app.delete :
+      method === 'PATCH' ? app.patch : app.get).bind(app);
+    this.logger.info('base_server.http.register', { service: this.serviceName, method, path });
+    methodFn(path, handler);
+  }
+
+  /**
+   * Subscribe to a message destination (topic/subject) using the message-bus abstraction.
+   * Overloads:
+   * - onMessage(destination, handler, options?)
+   * - onMessage({ destination, queue, ack }, handler)
+   */
+  protected async onMessage(destination: string, handler: MessageHandler, options?: SubscribeOptions): Promise<void>;
+  protected async onMessage(cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler): Promise<void>;
+  protected async onMessage(arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler, options?: SubscribeOptions): Promise<void> {
+    const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
+    if (isTestEnv) {
+      this.logger.debug('base_server.message.subscribe.skipped_for_tests');
+      return;
+    }
+    const cfg = typeof arg1 === 'string' ? { destination: arg1, queue: undefined as string | undefined, ack: undefined as any } : arg1;
+    const subject = `${this.config.busPrefix || ''}${cfg.destination}`;
+    const queue = (options && options.queue) || cfg.queue || this.serviceName;
+    const ack = (options && options.ack) || cfg.ack || 'explicit';
+
+    const subscriber = createMessageSubscriber();
+    this.logger.info('base_server.message.subscribe.start', { subject, queue });
+    try {
+      const unsubscribe = await subscriber.subscribe(
+        subject,
+        async (data, attributes, ctx) => {
+          try {
+            await Promise.resolve(handler(data, attributes, ctx));
+          } catch (e: any) {
+            // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
+            this.logger.error('base_server.message.handler_error', { subject, error: e?.message || String(e) });
+            try { await ctx.ack(); } catch {}
+          }
+        },
+        { ...(options || {}), queue, ack }
+      );
+      this.unsubscribers.push(unsubscribe);
+      this.logger.info('base_server.message.subscribe.ok', { subject, queue });
+    } catch (e: any) {
+      this.logger.error('base_server.message.subscribe.error', { subject, error: e?.message || String(e) });
+    }
+  }
+
   /** Build combined resource managers: defaults overlaid with provided ones. */
   private buildResourceManagers(overrides: Record<string, ResourceManager<any>>): Record<string, ResourceManager<any>> {
     const defaults: Record<string, ResourceManager<any>> = {
@@ -161,6 +230,15 @@ export class BaseServer {
       if (this.shutdownBound) return;
       this.shutdownBound = true;
       this.logger.info('base_server.shutdown.start', { signal });
+      // Attempt to unsubscribe from any message subscriptions first
+      for (const fn of this.unsubscribers.splice(0)) {
+        try {
+          await fn();
+          this.logger.info('base_server.unsubscribe.ok');
+        } catch (e: any) {
+          this.logger.warn('base_server.unsubscribe.error', { error: e?.message || String(e) });
+        }
+      }
       const keys = Object.keys(this.resourceManagers);
       for (const k of [...keys].reverse()) {
         const mgr = this.resourceManagers[k];
