@@ -59,3 +59,4 @@
    - Message helper prefix/queue/ack in non-test env — SKIPPED (deferred)
 5. Update documentation references if needed — Status: DONE ✓
 6. Open PR and record in publication.yaml — Status: PLANNED
+7. Wire llm-bot minimal onMessage logging for its topic (internal.llmbot.v1) — Status: DONE ✓
