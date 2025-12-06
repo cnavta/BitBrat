@@ -1,0 +1,1425 @@
+
+> bitbrat-platform@1.0.0 test
+> jest
+(node:66712) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/__tests__/logging-trace-correlation.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.network.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+(node:66718) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/base-server.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.277Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.288Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.290Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.291Z","service":"test-svc","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.291Z","service":"test-svc","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.293Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.309Z","service":"custom","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.310Z","service":"custom","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.310Z","service":"custom","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.310Z","service":"custom","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.310Z","service":"custom","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+(node:66719) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/apps/event-router-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.319Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.329Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.330Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.330Z","service":"event-router","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.331Z","service":"event-router","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.334Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.335Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.336Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.336Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.336Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.336Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.336Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.339Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.340Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.340Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.340Z","service":"event-router","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.340Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.340Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.340Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.341Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.341Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.341Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.341Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/__tests__/base-server-helpers.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.484Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.485Z","service":"test","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.485Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.485Z","service":"test","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.485Z","service":"test","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.486Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.486Z","service":"test","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/ping"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.486Z","service":"test","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/echo"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.499Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.499Z","service":"test","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.499Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.499Z","service":"test","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.500Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/llm-bot-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.503Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.508Z","service":"llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.508Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.508Z","service":"llm-bot","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.509Z","service":"llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.511Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.513Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.llmbot.v1","queue":"llm-bot"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.513Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.llmbot.v1","queue":"llm-bot"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.592Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.594Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"topic.test","subscription":"topic.test.sub","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:46.594Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"topic.test","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:60:29)
+    console.warn
+      {"ts":"2025-12-06T17:36:46.595Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"topic.test","subscription":"topic.test.sub","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:60:19)
+    console.log
+      {"ts":"2025-12-06T17:36:46.595Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"topic.test.sub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.620Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.620Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"topic.test","subscription":"topic.test.sub","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:46.621Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"topic.test","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:86:29)
+    console.warn
+      {"ts":"2025-12-06T17:36:46.621Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"topic.test","subscription":"topic.test.sub","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:86:19)
+    console.log
+      {"ts":"2025-12-06T17:36:46.621Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"topic.test.sub"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/command-processor-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.649Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.653Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.653Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.653Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.653Z","service":"command-processor","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.654Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.655Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.start","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.657Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.658Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.658Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.ok","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/message-bus/__tests__/pubsub-subscriber.ensure.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.716Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.717Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.ingress.v1","subscription":"internal.ingress.v1.router","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.717Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.subscription.created","topic":"internal.ingress.v1","subscription":"internal.ingress.v1.router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.718Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.ingress.v1.router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.737Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.737Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.ingress.v1","subscription":"internal.ingress.v1.router","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.737Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.ingress.v1.router"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/message-bus/nats-flush.spec.ts
+ PASS  src/apps/ingress-egress-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.756Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.758Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.759Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.759Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.759Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.759Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.760Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.761Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/message-bus/nats-attributes.spec.ts
+ PASS  src/services/message-bus/nats-driver.test.ts
+ PASS  src/services/routing/__tests__/router-engine.test.ts
+ PASS  tests/services/message-bus/pubsub-batching.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.850Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.852Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"internal.test.v1","batching":{"maxMessages":100,"maxMilliseconds":1500},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/routing-advance.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.866Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.868Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.868Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.868Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.869Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.869Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.870Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.873Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.873Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.873Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.873Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.873Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.873Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.874Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.876Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.876Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.876Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.876Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.876Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.876Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.876Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/message-bus/__tests__/pubsub-publisher-logging.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:46.892Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.892Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"test.topic","batching":{"maxMessages":100,"maxMilliseconds":20},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.893Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:46.893Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"test.topic","batching":{"maxMessages":100,"maxMilliseconds":20},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/template-render.spec.ts
+ PASS  tests/common/base-server-resources.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.010Z","service":"test-svc","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/message-bus/nats-logging.spec.ts
+ PASS  tests/apps/command-processor-error-policy.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.059Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.060Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.061Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.061Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.061Z","service":"command-processor","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.062Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.062Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.062Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.062Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.062Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-06T17:36:47.065Z","service":"command-processor","level":"error","severity":"ERROR","msg":"command_processor.process_error","subject":"dev.internal.command.v1","error":"Expected property name or '}' in JSON at position 1 (line 1 column 2)"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at src/apps/command-processor-service.ts:87:20
+      at src/common/base-server.ts:176:39
+      at src/common/tracing.ts:104:20
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at startActiveSpan (src/common/tracing.ts:102:17)
+      at subscriber.subscribe (src/common/base-server.ts:175:36)
+      at Object.<anonymous> (tests/apps/command-processor-error-policy.spec.ts:62:11)
+ PASS  src/common/logging.test.ts
+ PASS  src/services/ingress/twitch/__tests__/twurple-integration.spec.ts
+ PASS  src/apps/auth-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.111Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.113Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.113Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.113Z","service":"auth","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.113Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.114Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/ingress/twitch/twitch-irc-client.spec.ts
+ PASS  tests/common/base-server-get-resource.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.225Z","service":"svc","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/integration/command-processor-smoke.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-06T17:36:47.259Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at processEvent (src/services/command-processor/processor.ts:117:21)
+      at Object.<anonymous> (tests/integration/command-processor-smoke.spec.ts:31:39)
+    console.log
+      {"ts":"2025-12-06T17:36:47.261Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"hello","args":1}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.261Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"hello","id":"cmd-hello"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.262Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"hello","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.262Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"hello","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/template-selection.spec.ts
+ PASS  tests/services/command-processor/parsing.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-06T17:36:47.337Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at Object.<anonymous> (tests/services/command-processor/parsing.spec.ts:24:34)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.338Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at Object.<anonymous> (tests/services/command-processor/parsing.spec.ts:31:34)
+    console.log
+      {"ts":"2025-12-06T17:36:47.338Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"ping","args":2}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/__tests__/event-router-ingress.integration.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.352Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.354Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.354Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.354Z","service":"event-router","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.354Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.355Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.355Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.355Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.355Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.355Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.355Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.357Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.publish.ok","subject":"dev.internal.router.dlq.v1","selectedTopic":"internal.router.dlq.v1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/firebase.test.ts
+ PASS  src/services/router/__tests__/rule-loader.hardening.test.ts
+  ● Console
+    console.error
+      {"ts":"2025-12-06T17:36:47.401Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"rule_loader.warm_load_error","error":"emulator not available"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at RuleLoader.start (src/services/router/rule-loader.ts:106:14)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.hardening.test.ts:12:5)
+    console.error
+      {"ts":"2025-12-06T17:36:47.403Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"rule_loader.subscribe_error","error":"listen failed"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at RuleLoader.start (src/services/router/rule-loader.ts:120:14)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.hardening.test.ts:26:5)
+ PASS  src/services/twitch-token-manager.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.426Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch_token_manager.refreshed"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-06T17:36:47.427Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"twitch_token_manager.refresh_failed","status":400,"body":"bad"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at doRefresh (src/services/twitch-token-manager.ts:84:18)
+      at TwitchTokenManager.getValidToken (src/services/twitch-token-manager.ts:42:12)
+      at TwitchTokenManager.getValidAccessToken (src/services/twitch-token-manager.ts:22:19)
+      at Object.<anonymous> (src/services/twitch-token-manager.test.ts:64:17)
+ PASS  src/common/base-server.debug-config.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.437Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.438Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.438Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.438Z","service":"test-svc","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.438Z","service":"test-svc","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.439Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/common/firestore-manager.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.470Z","service":"bitbrat","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.471Z","service":"bitbrat","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.471Z","service":"bitbrat","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/twitch-oauth.test.ts
+ PASS  tests/services/command-processor/policy-rate-limit.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.510Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.policy.blocked","code":"RATE_LIMIT","rate":{"max":2,"perMs":60000},"windowKey":"20***0000","count":2}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/ingress/twitch/publisher.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-06T17:36:47.510Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.retry","subject":"internal.ingress.v1","attempt":1,"code":14}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:78:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:79:17)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.513Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.retry","subject":"internal.ingress.v1","attempt":2,"code":14}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:78:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:79:17)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.517Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.no_retry_on_timeout","subject":"dev.internal.ingress.v1","attempt":1,"code":4,"reason":"publish_timeout"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:67:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:102:5)
+ PASS  src/common/base-server.logger.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.553Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.554Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.554Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.554Z","service":"test-svc","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.554Z","service":"test-svc","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.554Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.555Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.555Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.555Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.555Z","service":"test-svc","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.556Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/logging.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-06T17:36:47.565Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at processEvent (src/services/command-processor/processor.ts:117:21)
+      at Object.<anonymous> (tests/services/command-processor/logging.spec.ts:31:35)
+ PASS  tests/services/command-processor/policy-user-cooldown.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.589Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.policy.blocked","code":"USER_COOLDOWN","cooldownMs":15000,"lastExecutionAt":"2025-01-01T00:00:02.000Z","remainingMs":7000,"userId":"u-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/common/publisher-manager.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.627Z","service":"bitbrat","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.628Z","service":"bitbrat","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.628Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"publisher.manager.flush.error","error":"boom"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.flushAll (src/common/resources/publisher-manager.ts:33:15)
+      at Object.<anonymous> (tests/common/publisher-manager.spec.ts:40:5)
+    console.log
+      {"ts":"2025-12-06T17:36:47.629Z","service":"bitbrat","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/command-repo.spec.ts
+ PASS  tests/services/command-processor/policy-global-cooldown.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.643Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.policy.blocked","code":"GLOBAL_COOLDOWN","cooldownMs":15000,"lastExecutionAt":"2025-01-01T00:00:01.000Z","remainingMs":6000}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/message-bus/subscriber-dedupe.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:47.668Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.669Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.test.v1","subscription":"internal.test.v1.q","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.669Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.test.v1.q"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.669Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"message_consumer.dedupe.drop","driver":"pubsub","subscription":"internal.test.v1.q","idempotencyKey":"***","ttlMs":60000}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at SubscriptionMock.onMessage (src/services/message-bus/pubsub-driver.ts:338:22)
+      at Object.<anonymous> (tests/services/message-bus/subscriber-dedupe.spec.ts:54:22)
+ PASS  src/services/router/__tests__/rule-loader.test.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-06T17:36:47.685Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"rule_loader.invalid_doc","id":"d"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at RuleLoader.refreshFromSnapshot (src/services/router/rule-loader.ts:133:16)
+      at RuleLoader.start (src/services/router/rule-loader.ts:103:12)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.test.ts:35:5)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.685Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"rule_loader.invalid_doc","id":"e"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at RuleLoader.refreshFromSnapshot (src/services/router/rule-loader.ts:133:16)
+      at RuleLoader.start (src/services/router/rule-loader.ts:103:12)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.test.ts:35:5)
+ PASS  tests/services/command-processor/processor.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-06T17:36:47.700Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at processEvent (src/services/command-processor/processor.ts:117:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:30:35)
+    console.log
+      {"ts":"2025-12-06T17:36:47.701Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"ping","args":0}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.701Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"ping","id":"cmd1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.711Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"ping","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.711Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"ping","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.712Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at processEvent (src/services/command-processor/processor.ts:117:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:49:35)
+    console.log
+      {"ts":"2025-12-06T17:36:47.713Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"missing","args":0}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.713Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.not_found","name":"missing"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:47.713Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at processEvent (src/services/command-processor/processor.ts:117:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:68:35)
+    console.log
+      {"ts":"2025-12-06T17:36:47.713Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"rate","args":0}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:47.713Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"rate","id":"cmd2"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/message-bus/pubsub-logging.spec.ts
+ PASS  tools/brat/src/cli/trigger.spec.ts
+ PASS  tests/services/message-bus/pubsub-attributes.spec.ts
+ PASS  tools/brat/src/cli/__tests__/deploy-substitutions.scaling.test.ts
+ PASS  src/types/events.types.test.ts
+ PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.routing.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  infrastructure/cdktf/network/config.spec.ts
+ PASS  src/services/ingress/twitch/credentials-provider.spec.ts
+ PASS  tools/brat/src/config/schema.routing.test.ts
+ PASS  tools/brat/src/providers/gcp/preflight.spec.ts
+  ● Console
+    console.warn
+      [preflight] --allow-no-vpc specified; skipping VPC/connector enforcement for local development.
+      22 |     }
+      23 |     // Local override: permit skipping checks for development
+    > 24 |     console.warn('[preflight] --allow-no-vpc specified; skipping VPC/connector enforcement for local development.');
+         |             ^
+      25 |     return;
+      26 |   }
+      27 |
+      at assertVpcPreconditions (tools/brat/src/providers/gcp/preflight.ts:24:13)
+      at Object.<anonymous> (tools/brat/src/providers/gcp/preflight.spec.ts:32:40)
+ PASS  tools/brat/src/config/__tests__/interpolation.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["ENV","NOPE"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":["UNKNOWN_VAR"],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  src/services/ingress/twitch/credentials-provider.config.spec.ts
+ PASS  tools/brat/src/config/__tests__/resolve-services.scaling.test.ts
+ PASS  tools/brat/src/providers/cdktf-synth.buckets.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  src/services/message-bus/message-bus.test.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/renderer.routing.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      [urlmap.renderer] Using routing-only source. default_domain=api.example.com default_bucket=site-assets selected_default_backend=be-assets-proxy
+      at loadRendererInputFromArchitecture (tools/brat/src/lb/urlmap/renderer.ts:42:11)
+ PASS  tools/brat/src/lb/importer/__tests__/importer.test.ts
+ PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/config/loader.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/config/__tests__/allow-unauth.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/config/schema.network.spec.ts
+ PASS  src/common/config.test.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/renderer.test.ts
+ PASS  tools/brat/src/config/schema.test.ts
+ PASS  tools/brat/src/providers/gcp/cloudbuild.spec.ts
+ PASS  src/common/retry.test.ts
+ PASS  tools/brat/src/providers/cdktf-synth.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/providers/cdktf-synth.connectors.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/providers/gcp/cloudbuild-triggers.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.lb.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/lb/importer/__tests__/importer.guard.test.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/from-repo-arch.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      [urlmap.renderer] Using routing-only source. default_domain=api.bitbrat.ai default_bucket=default-content-bucket selected_default_backend=be-assets-proxy
+      at loadRendererInputFromArchitecture (tools/brat/src/lb/urlmap/renderer.ts:42:11)
+ PASS  src/services/routing/routing.slip.test.ts
+ PASS  tools/brat/src/providers/gcp/secrets.spec.ts
+ PASS  tests/services/egress/selection.test.ts
+ PASS  tools/brat/src/providers/gcp/cloudrun.spec.ts
+ PASS  src/services/auth/__tests__/enrichment.spec.ts
+ PASS  src/common/feature-flags.test.ts
+(node:66713) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tests/services/message-bus/normalize-attributes.spec.ts
+ PASS  src/services/routing/routing.dlq.test.ts
+ PASS  tests/common/events/attributes.spec.ts
+ PASS  tests/services/command-processor/candidate-create.spec.ts
+ PASS  src/services/message-bus/__tests__/factory-selection.test.ts
+ PASS  tools/brat/src/providers/gcp/apis.spec.ts
+ PASS  tools/brat/src/config/schema.spec.ts
+ PASS  src/services/router/__tests__/jsonlogic-evaluator.test.ts
+ PASS  src/services/message-bus/__tests__/subscriber-options.test.ts
+ PASS  tools/brat/src/providers/gcp/lb-preflight.spec.ts
+ PASS  tests/common/retry.spec.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/load-from-arch.test.ts
+ PASS  src/services/ingress/twitch/envelope-builder.spec.ts
+ PASS  tools/brat/src/orchestration/errors.spec.ts
+ PASS  infrastructure/scripts/bootstrap-service.test.js
+(node:66721) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66722) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  infrastructure/scripts/extract-config.test.ts
+ PASS  tools/brat/src/orchestration/exec.spec.ts
+(node:66714) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/apps/oauth-service.oauth-routes.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:48.625Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.637Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.638Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.638Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.638Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.639Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+(node:66716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/apps/oauth-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:48.700Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.709Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.709Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.709Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.709Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.711Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+(node:66720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/apps/__tests__/event-router-debug.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:48.793Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.801Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.801Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.801Z","service":"event-router","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.801Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.802Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.802Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.803Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.803Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.807Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.810Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.816Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.816Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.816Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.816Z","service":"event-router","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.817Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.817Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.817Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.817Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.817Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.817Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.817Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.821Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.publish.ok","subject":"dev.internal.router.dlq.v1","selectedTopic":"internal.router.dlq.v1"}
+      at Logger.info (src/common/logging.ts:142:13)
+(node:66715) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/apps/ingress-egress-service.krevision.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:48.806Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.814Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.815Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.815Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.815Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.826Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.827Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.841Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/__tests__/command-processor-service.test.ts (6.381 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-06T17:36:48.628Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.637Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.638Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.638Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.640Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.641Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:48.641Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:48.648Z","service":"command-processor","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at processEvent (src/services/command-processor/processor.ts:117:21)
+      at exec (src/apps/command-processor-service.ts:44:28)
+      at src/apps/command-processor-service.ts:49:34
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at src/apps/command-processor-service.ts:47:30
+      at src/common/base-server.ts:176:39
+      at src/common/tracing.ts:104:20
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at startActiveSpan (src/common/tracing.ts:102:17)
+      at subscriber.subscribe (src/common/base-server.ts:175:36)
+      at capturedHandler (src/apps/__tests__/command-processor-service.test.ts:12:13)
+      at Object.<anonymous> (src/apps/__tests__/command-processor-service.test.ts:63:11)
+    console.error
+      {"ts":"2025-12-06T17:36:50.192Z","service":"command-processor","level":"error","severity":"ERROR","msg":"command_repo.lookup.error","name":"ping","error":"7 PERMISSION_DENIED: Missing or insufficient permissions."}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at findByNameOrAlias (src/services/command-processor/command-repo.ts:91:12)
+      at processEvent (src/services/command-processor/processor.ts:125:18)
+      at exec (src/apps/command-processor-service.ts:44:22)
+      at src/apps/command-processor-service.ts:49:28
+      at src/apps/command-processor-service.ts:47:17
+      at src/common/base-server.ts:176:17
+      at src/common/tracing.ts:104:14
+      at subscriber.subscribe (src/common/base-server.ts:175:15)
+      at Object.<anonymous> (src/apps/__tests__/command-processor-service.test.ts:63:5)
+    console.error
+      {"ts":"2025-12-06T17:36:50.193Z","service":"command-processor","level":"error","severity":"ERROR","msg":"command_processor.process_error","subject":"dev.internal.command.v1","error":"7 PERMISSION_DENIED: Missing or insufficient permissions."}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at src/apps/command-processor-service.ts:87:20
+      at src/common/base-server.ts:176:17
+      at src/common/tracing.ts:104:14
+      at subscriber.subscribe (src/common/base-server.ts:175:15)
+      at Object.<anonymous> (src/apps/__tests__/command-processor-service.test.ts:63:5)
+    console.log
+      {"ts":"2025-12-06T17:36:50.194Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:50.194Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:50.194Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:50.194Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:50.195Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:50.195Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-06T17:36:50.195Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-06T17:36:50.197Z","service":"command-processor","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:79:12)
+      at processEvent (src/services/command-processor/processor.ts:117:21)
+      at exec (src/apps/command-processor-service.ts:44:28)
+      at src/apps/command-processor-service.ts:49:34
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at src/apps/command-processor-service.ts:47:30
+      at src/common/base-server.ts:176:39
+      at src/common/tracing.ts:104:20
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at startActiveSpan (src/common/tracing.ts:102:17)
+      at subscriber.subscribe (src/common/base-server.ts:175:36)
+      at capturedHandler (src/apps/__tests__/command-processor-service.test.ts:12:13)
+      at Object.<anonymous> (src/apps/__tests__/command-processor-service.test.ts:88:11)
+    console.error
+      {"ts":"2025-12-06T17:36:50.286Z","service":"command-processor","level":"error","severity":"ERROR","msg":"command_repo.lookup.error","name":"ping","error":"7 PERMISSION_DENIED: Missing or insufficient permissions."}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at findByNameOrAlias (src/services/command-processor/command-repo.ts:91:12)
+      at processEvent (src/services/command-processor/processor.ts:125:18)
+      at exec (src/apps/command-processor-service.ts:44:22)
+      at src/apps/command-processor-service.ts:49:28
+      at src/apps/command-processor-service.ts:47:17
+      at src/common/base-server.ts:176:17
+      at src/common/tracing.ts:104:14
+      at subscriber.subscribe (src/common/base-server.ts:175:15)
+      at Object.<anonymous> (src/apps/__tests__/command-processor-service.test.ts:88:5)
+    console.error
+      {"ts":"2025-12-06T17:36:50.286Z","service":"command-processor","level":"error","severity":"ERROR","msg":"command_processor.process_error","subject":"dev.internal.command.v1","error":"7 PERMISSION_DENIED: Missing or insufficient permissions."}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at src/apps/command-processor-service.ts:87:20
+      at src/common/base-server.ts:176:17
+      at src/common/tracing.ts:104:14
+      at subscriber.subscribe (src/common/base-server.ts:175:15)
+      at Object.<anonymous> (src/apps/__tests__/command-processor-service.test.ts:88:5)
+Test Suites: 1 skipped, 107 passed, 107 of 108 total
+Tests:       2 skipped, 269 passed, 271 total
+Snapshots:   2 passed, 2 total
+Time:        6.975 s, estimated 7 s
+Ran all test suites.

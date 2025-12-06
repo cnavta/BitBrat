@@ -61,8 +61,8 @@ echo "🧪 Running tests..."
 export CI=1
 # Ensure CI uses a zero-I/O message bus to avoid any network connections (@google-cloud/pubsub or NATS)
 export MESSAGE_BUS_DRIVER=${MESSAGE_BUS_DRIVER:-noop}
-# Explicitly disable any background subscriptions in services during tests
-export MESSAGE_BUS_DISABLE_SUBSCRIBE=1
+# Allow tests to control subscription behavior themselves; do not force-disable globally here
+unset MESSAGE_BUS_DISABLE_SUBSCRIBE
 # Disable any message bus network I/O at the factory level
 export MESSAGE_BUS_DISABLE_IO=1
 # Disable Pub/Sub topic/subscription ensure logic if any pubsub path is accidentally hit

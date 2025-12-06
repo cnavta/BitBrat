@@ -25,3 +25,13 @@
     - src/apps/command-processor-service.ts – add child span 'execute-command'
     - planning/sprint-117-47b27d/backlog.yaml – update statuses (TRACE-1,3,5, LLM-TRACE-1, CMD-TRACE-1)
   - Git: git add -A && git commit -m "sprint-117: implement tracing bootstrap + log correlation; child spans in llm-bot and command-processor; update backlog statuses"
+
+- 2025-12-06 12:40 ET — extend tracing + add tests
+  - Prompt: Continue implementation; add child spans to remaining services; add unit test for log-to-trace correlation; update backlog statuses
+  - Files modified:
+    - src/apps/auth-service.ts – add child span 'user-enrichment'
+    - src/apps/event-router-service.ts – add child span 'route-message'
+    - src/apps/ingress-egress-service.ts – add child span 'deliver-egress'
+    - src/common/__tests__/logging-trace-correlation.spec.ts – new test for logging correlation fields
+    - planning/sprint-117-47b27d/backlog.yaml – update statuses (AUTH-TRACE-1, ROUTER-TRACE-1 completed; IE-TRACE-1 in-progress; TRACE-6 in-progress)
+  - Git: git add -A && git commit -m "sprint-117: add child spans to auth/event-router/ingress-egress; add logger↔trace correlation unit test; update backlog statuses"

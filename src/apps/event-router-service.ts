@@ -71,10 +71,13 @@ class EventRouterServer extends BaseServer {
             logger.debug('event_router.ingress.received', {
               event: v2In,
             });
-            // Route using rules (first-match-wins, default path). RouterEngine now accepts V2.
-            const { slip, decision } = engine.route(v2In, ruleLoader.getRules());
-            v2In.routingSlip = slip;
-            const v2: InternalEventV2 = v2In;
+            // Wrap routing + publish in a child span for trace visibility
+            const tracer = (this as any).getTracer?.();
+            const run = async () => {
+              // Route using rules (first-match-wins, default path). RouterEngine now accepts V2.
+              const { slip, decision } = engine.route(v2In, ruleLoader.getRules());
+              v2In.routingSlip = slip;
+              const v2: InternalEventV2 = v2In;
 
             // Update observability counters
             try {
@@ -95,15 +98,27 @@ class EventRouterServer extends BaseServer {
               correlationId: (v2 as any)?.correlationId,
             });
 
-            // Publish to the next topic (first step)
-            const outSubject = `${cfg.busPrefix || ''}${decision.selectedTopic}`;
-            const pubRes = this.getResource<PublisherResource>('publisher');
-            const pub = pubRes
-              ? pubRes.create(outSubject)
-              : require('../services/message-bus').createMessagePublisher(outSubject);
-            const pubAttrs: AttributeMap = busAttrsFromEvent(v2);
-            await pub.publishJson(v2, pubAttrs);
-            logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
+              // Publish to the next topic (first step)
+              const outSubject = `${cfg.busPrefix || ''}${decision.selectedTopic}`;
+              const pubRes = this.getResource<PublisherResource>('publisher');
+              const pub = pubRes
+                ? pubRes.create(outSubject)
+                : require('../services/message-bus').createMessagePublisher(outSubject);
+              const pubAttrs: AttributeMap = busAttrsFromEvent(v2);
+              await pub.publishJson(v2, pubAttrs);
+              logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
+            };
+            if (tracer && typeof tracer.startActiveSpan === 'function') {
+              await tracer.startActiveSpan('route-message', async (span: any) => {
+                try {
+                  await run();
+                } finally {
+                  span.end();
+                }
+              });
+            } else {
+              await run();
+            }
             // Acknowledge only after successful publish
             await ctx.ack();
           } catch (e: any) {
