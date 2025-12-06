@@ -1,7 +1,7 @@
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { INTERNAL_COMMAND_V1, InternalEventV2, RoutingStep } from '../types/events';
-import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
+import { AttributeMap, createMessagePublisher } from '../services/message-bus';
 import { logger } from '../common/logging';
 import { summarizeSlip } from '../services/routing/slip';
 import { findByNameOrAlias } from '../services/command-processor/command-repo';
@@ -19,20 +19,11 @@ class CommandProcessorServer extends BaseServer {
   }
 
   private async setupApp(cfg: any) {
-    // Subscribe is disabled in tests only when explicitly requested via MESSAGE_BUS_DISABLE_SUBSCRIBE=1
-    // Rationale: Some tests intentionally enable subscription while running under Jest.
-    const isTestEnv = process.env.NODE_ENV === 'test' || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
-    if (isTestEnv) {
-      logger.debug('command_processor.subscribe.disabled_for_tests');
-      return;
-    }
-
     const subject = `${cfg.busPrefix || ''}${INTERNAL_COMMAND_V1}`;
-    const subscriber = createMessageSubscriber();
     logger.info('command_processor.subscribe.start', { subject, queue: 'command-processor' });
     try {
-      await subscriber.subscribe(
-        subject,
+      await this.onMessage(
+        { destination: INTERNAL_COMMAND_V1, queue: 'command-processor', ack: 'explicit' },
         async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
           try {
             const raw = JSON.parse(data.toString('utf8')) as any;
@@ -51,7 +42,7 @@ class CommandProcessorServer extends BaseServer {
               repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db),
             });
             const v2 = result.event;
-            logger.info('command_processor.event.processed', {result});
+            logger.info('command_processor.event.processed', { result });
 
             // Mark current pending step OK/SKIP based on processor result, then advance per routing slip
             const slip = (v2.routingSlip || []) as RoutingStep[];
@@ -89,8 +80,7 @@ class CommandProcessorServer extends BaseServer {
               await ctx.nack(true);
             }
           }
-        },
-        { queue: 'command-processor', ack: 'explicit' }
+        }
       );
       logger.info('command_processor.subscribe.ok', { subject, queue: 'command-processor' });
     } catch (e: any) {
