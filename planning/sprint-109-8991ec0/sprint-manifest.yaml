@@ -1,0 +1,8 @@
+title: "Event Router – Full InternalEventV2 Migration (Planning)"
+sprint: sprint-109-8991ec0
+branch: feature/sprint-109-8991ec0-event-router-iev2
+createdAt: "2025-12-01T19:20:00-05:00"
+summary: "Plan and backlog to convert event-router to fully use InternalEventV2 format end-to-end."
+notes:
+  - Aligns with architecture.yaml precedence and AGENTS.md Sprint Protocol
+  - Router currently normalizes to V1 for routing; goal is native V2 routing path

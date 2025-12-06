@@ -1,0 +1,156 @@
+version: 1
+title: "Trackable Backlog — Sprint 109: Event Router to InternalEventV2"
+SprintID: sprint-109-8991ec0
+branch: feature/sprint-109-8991ec0-event-router-iev2
+
+notes:
+  - Goal: Convert event-router to operate natively on InternalEventV2 (no V1 intermediate) and publish V2 events
+  - Constraints: Preserve RouterEngine behavior (first-match-wins, default to INTERNAL_ROUTER_DLQ_V1)
+  - References:
+      - src/apps/event-router-service.ts
+      - src/services/routing/router-engine.ts
+      - src/common/events/adapters.ts
+      - src/types/events.ts
+      - planning/sprint-107-8ae3c1/technical-architecture-internal-event-v2.md
+
+backlog:
+  - id: BB-109-01
+    sprint: 109
+    title: Sprint scaffolding and branch
+    description: Create sprint directory, feature branch, and manifest per AGENTS.md.
+    files:
+      - planning/sprint-109-8991ec0/
+    estimate: 0.1d
+    acceptance_criteria:
+      - Sprint manifest exists with branch recorded
+      - Feature branch created and logged in request-log.md
+    dependencies: []
+    status: in-progress
+
+  - id: BB-109-02
+    sprint: 109
+    title: Event Router — Adopt InternalEventV2 ingress normalization
+    description: "Update event-router ingress to assume V2 payloads by default and up-convert V1 to V2 only when necessary. Remove V2→V1→V2 round-trip."
+    files:
+      - src/apps/event-router-service.ts
+      - src/common/events/adapters.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - Incoming payloads without `envelope` are treated as V2; if `envelope` exists, up-convert to V2 once
+      - No invocation of toV1 within event-router-service
+      - busAttrsFromEvent derives attributes from V2 event
+    dependencies: [BB-109-01]
+    status: todo
+
+  - id: BB-109-03
+    sprint: 109
+    title: RouterEngine — Add InternalEventV2 compatibility layer
+    description: "Introduce a thin adapter inside event-router to supply RouterEngine with the minimal InternalEventV1 shape it needs, or extend RouterEngine to accept V2 while preserving behavior. Prefer not to modify rules storage."
+    files:
+      - src/services/routing/router-engine.ts
+      - src/apps/event-router-service.ts
+      - src/services/router/rule-loader.ts
+      - src/common/events/adapters.ts
+      - tests/services/routing/router-engine-v2-compat.spec.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - Routing decision and slip are identical for equivalent V1 vs V2 inputs (golden cases)
+      - Default path falls back to INTERNAL_ROUTER_DLQ_V1 when no rules match
+    dependencies: [BB-109-02]
+    status: todo
+
+  - id: BB-109-04
+    sprint: 109
+    title: Publish V2 event with updated routingSlip
+    description: "Ensure the routed event is published as InternalEventV2 with routingSlip set from RouterEngine."
+    files:
+      - src/apps/event-router-service.ts
+    estimate: 0.2d
+    acceptance_criteria:
+      - Published payload is V2; attributes derived from V2 via busAttrsFromEvent
+      - Info/debug logs reflect V2 fields (type, correlationId)
+    dependencies: [BB-109-03]
+    status: todo
+
+  - id: BB-109-05
+    sprint: 109
+    title: Tests — Event Router V2 path
+    description: "Add unit/integration tests covering V2-only path and legacy V1 up-conversion fallback."
+    files:
+      - src/apps/event-router-service.ts
+      - tests/apps/event-router-v2.spec.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - V2 input routes correctly per rules and publishes to selected topic
+      - V1 input up-converted to V2 yields the same selected topic and slip as V1 baseline
+      - Default path goes to INTERNAL_ROUTER_DLQ_V1 when no match
+    dependencies: [BB-109-02, BB-109-03, BB-109-04]
+    status: todo
+
+  - id: BB-109-06
+    sprint: 109
+    title: Remove redundant V1 conversions from event-router
+    description: "Delete/disable V2→V1→V2 conversions in event-router-service; keep adapters in common for other services."
+    files:
+      - src/apps/event-router-service.ts
+    estimate: 0.1d
+    acceptance_criteria:
+      - No remaining toV1/toV2 round-trip in event-router-service
+    dependencies: [BB-109-05]
+    status: todo
+
+  - id: BB-109-07
+    sprint: 109
+    title: Observability and counters alignment for V2
+    description: "Ensure counters and logs use V2 nomenclature and fields consistently; keep existing keys."
+    files:
+      - src/apps/event-router-service.ts
+      - src/common/counters.ts
+      - src/common/logging.ts
+    estimate: 0.1d
+    acceptance_criteria:
+      - router.events.total increments on V2 path
+      - router.rules.matched/defaulted counters still function
+      - Debug log includes V2 type and correlationId
+    dependencies: [BB-109-04]
+    status: todo
+
+  - id: BB-109-08
+    sprint: 109
+    title: Validate deliverable script alignment
+    description: "Ensure validate_deliverable.sh covers build and tests for event-router V2 path."
+    files:
+      - validate_deliverable.sh
+      - package.json
+    estimate: 0.1d
+    acceptance_criteria:
+      - validate_deliverable.sh logically passable; references existing scripts
+      - New tests included in npm test
+    dependencies: [BB-109-05]
+    status: todo
+
+  - id: BB-109-09
+    sprint: 109
+    title: Documentation update
+    description: "Update technical docs to state event-router consumes and emits InternalEventV2."
+    files:
+      - documentation/routing-rules-examples.md
+      - planning/sprint-109-8991ec0/verification-report.md
+    estimate: 0.1d
+    acceptance_criteria:
+      - Docs mention V2-native routing path
+      - Verification report lists completed/partial items
+    dependencies: [BB-109-04]
+    status: todo
+
+  - id: BB-109-10
+    sprint: 109
+    title: Publication (PR)
+    description: "Commit, push branch, and create GitHub PR; record PR URL in publication.yaml."
+    files:
+      - planning/sprint-109-8991ec0/publication.yaml
+    estimate: 0.1d
+    acceptance_criteria:
+      - PR created or failure documented per AGENTS.md
+    dependencies: [BB-109-08, BB-109-09]
+    status: todo

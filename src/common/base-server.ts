@@ -1,12 +1,17 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, RequestHandler } from 'express';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import type { IConfig } from '../types';
 import { buildConfig, safeConfig } from './config';
 import { Logger } from './logging';
+import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
+import { PublisherManager } from './resources/publisher-manager';
+import { FirestoreManager } from './resources/firestore-manager';
+import { createMessageSubscriber } from '../services/message-bus';
+import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 
-export type ExpressSetup = (app: Express, cfg: IConfig) => void;
+export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
 export interface BaseServerOptions {
   serviceName?: string;
@@ -18,6 +23,8 @@ export interface BaseServerOptions {
   validateConfig?: (cfg: IConfig) => void;
   /** Optional readiness check used to compute /readyz status (200 if true, 503 if false). */
   readinessCheck?: () => boolean | Promise<boolean>;
+  /** Optional resource managers map. Merged over defaults (publisher, firestore). */
+  resources?: Record<string, ResourceManager<any>>;
 }
 
 /**
@@ -32,6 +39,10 @@ export class BaseServer {
   private readonly serviceName: string;
   private readonly config: IConfig;
   private readonly logger: Logger;
+  private readonly resourceManagers: Record<string, ResourceManager<any>>;
+  private readonly resources: ResourceInstances;
+  private shutdownBound = false;
+  private readonly unsubscribers: UnsubscribeFn[] = [];
 
   constructor(opts: BaseServerOptions = {}) {
     this.app = express();
@@ -53,10 +64,17 @@ export class BaseServer {
       opts.validateConfig(this.config);
     }
 
+    // Initialize resources (defaults + overrides)
+    this.resourceManagers = this.buildResourceManagers(opts.resources || {});
+    this.resources = {} as ResourceInstances;
+    (this.app as any).locals.resources = this.resources;
+    this.initializeResources();
+    this.registerSignalHandlers();
+
     this.registerHealth(opts.healthPaths, opts.readinessCheck);
 
     if (typeof opts.setup === 'function') {
-      opts.setup(this.app, this.config);
+      opts.setup(this.app, this.config, this.resources);
     }
   }
 
@@ -81,6 +99,160 @@ export class BaseServer {
       this.app.listen(port, host, () => resolve());
     });
     this.logger.info('listening', { host, port });
+  }
+
+  /**
+   * Protected accessor for realized resources by name.
+   * Usage: extend BaseServer and call this.getResource<T>('resourceName').
+   * Returns undefined if the resource is not initialized yet or missing.
+   */
+  protected getResource<T>(name: string): T | undefined {
+    const n = String(name || '').trim();
+    if (!n) return undefined;
+    return (this.resources as any)[n] as T | undefined;
+  }
+
+  // ---------- Protected helpers: HTTP and Message subscription ----------
+
+  /**
+   * Register an HTTP endpoint on the internal Express app.
+   * Overloads:
+   * - onHTTPRequest(path, handler)
+   * - onHTTPRequest({ path, method }, handler)
+   */
+  protected onHTTPRequest(path: string, handler: RequestHandler): void;
+  protected onHTTPRequest(cfg: { path: string; method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' }, handler: RequestHandler): void;
+  protected onHTTPRequest(arg1: string | { path: string; method?: string }, handler: RequestHandler): void {
+    const cfg = typeof arg1 === 'string' ? { path: arg1, method: 'GET' } : { path: arg1.path, method: (arg1.method || 'GET').toUpperCase() };
+    const method = String(cfg.method || 'GET').toUpperCase();
+    const path = cfg.path;
+    const app: any = this.app as any;
+    const methodFn = (method === 'GET' ? app.get :
+      method === 'POST' ? app.post :
+      method === 'PUT' ? app.put :
+      method === 'DELETE' ? app.delete :
+      method === 'PATCH' ? app.patch : app.get).bind(app);
+    this.logger.info('base_server.http.register', { service: this.serviceName, method, path });
+    methodFn(path, handler);
+  }
+
+  /**
+   * Subscribe to a message destination (topic/subject) using the message-bus abstraction.
+   * Overloads:
+   * - onMessage(destination, handler, options?)
+   * - onMessage({ destination, queue, ack }, handler)
+   */
+  protected async onMessage(destination: string, handler: MessageHandler, options?: SubscribeOptions): Promise<void>;
+  protected async onMessage(cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler): Promise<void>;
+  protected async onMessage(arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler, options?: SubscribeOptions): Promise<void> {
+    const skipSubscribe = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
+    if (skipSubscribe) {
+      this.logger.debug('base_server.message.subscribe.skipped_by_env');
+      return;
+    }
+    const cfg = typeof arg1 === 'string' ? { destination: arg1, queue: undefined as string | undefined, ack: undefined as any } : arg1;
+    const subject = `${this.config.busPrefix || ''}${cfg.destination}`;
+    const queue = (options && options.queue) || cfg.queue || this.serviceName;
+    const ack = (options && options.ack) || cfg.ack || 'explicit';
+
+    const subscriber = createMessageSubscriber();
+    this.logger.info('base_server.message.subscribe.start', { subject, queue });
+    try {
+      const unsubscribe = await subscriber.subscribe(
+        subject,
+        async (data, attributes, ctx) => {
+          try {
+            await Promise.resolve(handler(data, attributes, ctx));
+          } catch (e: any) {
+            // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
+            this.logger.error('base_server.message.handler_error', { subject, error: e?.message || String(e) });
+            try { await ctx.ack(); } catch {}
+          }
+        },
+        { ...(options || {}), queue, ack }
+      );
+      this.unsubscribers.push(unsubscribe);
+      this.logger.info('base_server.message.subscribe.ok', { subject, queue });
+    } catch (e: any) {
+      this.logger.error('base_server.message.subscribe.error', { subject, error: e?.message || String(e) });
+    }
+  }
+
+  /** Build combined resource managers: defaults overlaid with provided ones. */
+  private buildResourceManagers(overrides: Record<string, ResourceManager<any>>): Record<string, ResourceManager<any>> {
+    const defaults: Record<string, ResourceManager<any>> = {
+      publisher: new PublisherManager(),
+      firestore: new FirestoreManager(),
+    };
+    // Merge: overrides replace defaults by key and can add new keys
+    const out: Record<string, ResourceManager<any>> = { ...defaults, ...overrides };
+    return out;
+  }
+
+  /** Initialize all resources and expose realized instances */
+  private initializeResources(): void {
+    const keys = Object.keys(this.resourceManagers);
+    this.logger.info('base_server.resources.init', { keys });
+    const ctx: SetupContext = {
+      config: this.config,
+      logger: this.logger,
+      serviceName: this.serviceName,
+      env: { ...process.env },
+      app: this.app,
+    } as any;
+    for (const k of keys) {
+      const mgr = this.resourceManagers[k];
+      try {
+        const inst = mgr.setup(ctx);
+        if (inst && typeof (inst as any).then === 'function') {
+          // Promise returned — handle async setup
+          (inst as any)
+            .then((realized: any) => {
+              (this.resources as any)[k] = realized;
+              this.logger.info('base_server.resource.setup.ok', { key: k });
+            })
+            .catch((e: any) => {
+              this.logger.warn('base_server.resource.setup.error', { key: k, error: e?.message || String(e) });
+            });
+        } else {
+          (this.resources as any)[k] = inst;
+          this.logger.info('base_server.resource.setup.ok', { key: k });
+        }
+      } catch (e: any) {
+        this.logger.warn('base_server.resource.setup.error', { key: k, error: e?.message || String(e) });
+      }
+    }
+  }
+
+  /** Register SIGTERM/SIGINT handlers to shutdown resources in reverse order */
+  private registerSignalHandlers(): void {
+    const handler = async (signal: NodeJS.Signals) => {
+      if (this.shutdownBound) return;
+      this.shutdownBound = true;
+      this.logger.info('base_server.shutdown.start', { signal });
+      // Attempt to unsubscribe from any message subscriptions first
+      for (const fn of this.unsubscribers.splice(0)) {
+        try {
+          await fn();
+          this.logger.info('base_server.unsubscribe.ok');
+        } catch (e: any) {
+          this.logger.warn('base_server.unsubscribe.error', { error: e?.message || String(e) });
+        }
+      }
+      const keys = Object.keys(this.resourceManagers);
+      for (const k of [...keys].reverse()) {
+        const mgr = this.resourceManagers[k];
+        const inst = (this.resources as any)[k];
+        try {
+          await Promise.resolve(mgr.shutdown(inst));
+          this.logger.info('base_server.resource.shutdown.ok', { key: k });
+        } catch (e: any) {
+          this.logger.warn('base_server.resource.shutdown.error', { key: k, error: e?.message || String(e) });
+        }
+      }
+    };
+    process.once('SIGTERM', handler);
+    process.once('SIGINT', handler);
   }
 
   private buildHealthBody() {

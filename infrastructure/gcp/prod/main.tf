@@ -33,7 +33,8 @@ module "run_oauth" {
   # Attach Serverless VPC Access connector (must exist; created by connectors module in this repo)
   # Default naming convention from connectors synth: brat-conn-<region>-<env>. For prod env use 'prod'
   vpc_connector        = "brat-conn-${var.region}-prod"
-  vpc_egress           = "ALL_TRAFFIC"
+  # Ensure public egress (e.g., Pub/Sub, Twitch) bypasses the connector for lowest latency
+  vpc_egress           = "PRIVATE_RANGES_ONLY"
 
   env = merge(var.env, {
     SERVICE_NAME = var.service_name

@@ -28,7 +28,6 @@ export async function assertVpcPreconditions(opts: VpcPreflightOptions): Promise
   const vpcName = 'brat-vpc';
   const subnetName = `brat-subnet-${region}-${env}`;
   const routerName = `brat-router-${region}`;
-  const natName = `brat-nat-${region}`;
   const connectorName = `brat-conn-${region}-${env}`;
 
   const run = async (cmd: string, args: string[], label: string) => {
@@ -43,7 +42,7 @@ export async function assertVpcPreconditions(opts: VpcPreflightOptions): Promise
   await run('gcloud', ['compute', 'networks', 'describe', vpcName, '--project', projectId, '--quiet'], 'VPC');
   await run('gcloud', ['compute', 'networks', 'subnets', 'describe', subnetName, '--region', region, '--project', projectId, '--quiet'], 'Subnet');
   await run('gcloud', ['compute', 'routers', 'describe', routerName, '--region', region, '--project', projectId, '--quiet'], 'Cloud Router');
-  await run('gcloud', ['compute', 'routers', 'nats', 'describe', natName, '--router', routerName, '--region', region, '--project', projectId, '--quiet'], 'Cloud NAT');
+  // Cloud NAT is intentionally NOT enforced as a prerequisite (Sprint 113 posture: no NAT)
   await run('gcloud', ['compute', 'networks', 'vpc-access', 'connectors', 'describe', connectorName, '--region', region, '--project', projectId, '--quiet'], 'Serverless VPC Access Connector');
 
   if (dryRun) {

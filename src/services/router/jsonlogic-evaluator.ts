@@ -1,10 +1,10 @@
 /**
  * JsonLogic Evaluator
  *
- * Provides utilities to build an evaluation context from an InternalEventV1
+ * Provides utilities to build an evaluation context from an InternalEventV2
  * and to evaluate JsonLogic expressions safely (malformed logic returns false).
  */
-import type { InternalEventV1 } from '../../types/events';
+import type { InternalEventV2 } from '../../types/events';
 
 // json-logic-js does not ship perfect TS types in all versions; use a safe import
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -14,22 +14,37 @@ export interface EvalContext {
   type: string;
   channel?: string;
   userId?: string;
-  envelope: InternalEventV1['envelope'];
+  // Back-compat fields to ease rule expressions during V1→V2 migration:
+  // - payload maps to message.rawPlatformPayload
+  // - envelope-like fields are exposed at top-level where useful
   payload: Record<string, any>;
+  v?: string;
+  source?: string;
+  correlationId?: string;
+  traceId?: string;
+  message?: any;
+  annotations?: any[];
+  candidates?: any[];
   now: string; // ISO8601
   ts: number; // epoch ms
 }
 
-/** Build a deterministic evaluation context for JsonLogic from an InternalEventV1. */
-export function buildContext(evt: InternalEventV1, nowIso?: string, ts?: number): EvalContext {
+/** Build a deterministic evaluation context for JsonLogic from an InternalEventV2. */
+export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number): EvalContext {
   const now = nowIso || new Date().toISOString();
   const n = typeof ts === 'number' ? ts : Date.now();
   return {
     type: evt.type,
     channel: evt.channel,
     userId: evt.userId,
-    envelope: evt.envelope,
-    payload: evt.payload || {},
+    v: (evt as any).v,
+    source: (evt as any).source,
+    correlationId: (evt as any).correlationId,
+    traceId: (evt as any).traceId,
+    message: (evt as any).message,
+    annotations: (evt as any).annotations,
+    candidates: (evt as any).candidates,
+    payload: (evt as any)?.message?.rawPlatformPayload || {},
     now,
     ts: n,
   };

@@ -1,0 +1,22 @@
+id: sprint-111-888a6b3
+title: "Single Service Deploy via npm run brat – Backlog Setup"
+created: "2025-12-03T18:35:00-05:00"
+owner: lead-implementor
+objective: |
+  Create a trackable, verifiable backlog to enable deploying a single service
+  through the repo’s brat CLI via `npm run brat`.
+scope:
+  in:
+    - Planning artifacts for single-service deploy capability
+    - Validation script for planning deliverable
+  out:
+    - Actual deployment implementation (future sprint)
+    - Infra changes beyond what’s needed to document the plan
+acceptance_criteria:
+  - Implementation plan exists and is approved by user
+  - Backlog items are traceable, ordered, and actionable
+  - Validation script is logically passable on CI/local
+links:
+  architecture: architecture.yaml
+  repo_root: .
+status: implementation

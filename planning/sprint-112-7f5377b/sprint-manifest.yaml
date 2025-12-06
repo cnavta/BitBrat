@@ -1,0 +1,28 @@
+id: sprint-112-7f5377b
+title: "Reliability Fixes – Pub/Sub duplicates, idempotency, sane defaults"
+created: "2025-12-04T17:57:00-05:00"
+owner: lead-implementor
+objective: |
+  Create a trackable, verifiable backlog to remediate duplicate message explosions
+  and excessive retry behavior by:
+  - Removing aggressive local publish timeouts (default to disabled)
+  - Filtering retries to true transport errors only
+  - Introducing idempotency keys end-to-end and lightweight subscriber dedupe
+  - Tuning default Pub/Sub batching for low latency without being aggressive
+  - Improving telemetry (attempt counts, durations) and documentation
+scope:
+  in:
+    - Planning artifacts for the above fixes and updates
+    - Validation script for planning deliverable (no external side effects)
+    - Publication (feature branch + PR)
+  out:
+    - Runtime changes merged to main (to be delivered in follow-on sprint)
+    - Cloud migrations or incremental releases (services are down)
+acceptance_criteria:
+  - Implementation plan exists with actionable, traceable backlog items
+  - Validation script is logically passable on CI/local (build + tests)
+  - PR opened with planning artifacts
+links:
+  architecture: architecture.yaml
+  repo_root: .
+status: planning

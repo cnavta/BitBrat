@@ -1,14 +1,16 @@
 import { buildContext, evaluate } from '../jsonlogic-evaluator';
-import type { InternalEventV1 } from '../../../types/events';
+import type { InternalEventV2 } from '../../../types/events';
 
 describe('JsonLogicEvaluator', () => {
-  const baseEvt: InternalEventV1 = {
-    envelope: { v: '1', source: 'test', correlationId: 'abc' },
+  const baseEvt: InternalEventV2 = {
+    v: '1',
+    source: 'test',
+    correlationId: 'abc',
     type: 'chat.command.v1',
     channel: '#test',
     userId: 'u1',
-    payload: { text: '!ping', nested: { value: 42 } },
-  };
+    message: { id: 'm1', role: 'user', text: '!ping', rawPlatformPayload: { text: '!ping', nested: { value: 42 } } },
+  } as any;
 
   it('builds context with now/ts and evaluates truthy logic', () => {
     const ctx = buildContext(baseEvt, '2020-01-01T00:00:00.000Z', 1577836800000);

@@ -1,4 +1,4 @@
-import { CandidateV1, InternalEventV1, InternalEventV2 } from '../../types/events';
+import { CandidateV1, InternalEventV2 } from '../../types/events';
 
 function toDate(value?: string): number {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -25,7 +25,7 @@ export function selectBestCandidate(candidates: CandidateV1[] | undefined | null
   return sorted[0] ?? null;
 }
 
-export function extractEgressTextFromEvent(evt: InternalEventV2 | InternalEventV1 | any): string | null {
+export function extractEgressTextFromEvent(evt: InternalEventV2 | any): string | null {
   try {
     // Prefer V2 candidates when present
     const candidates = (evt && evt.candidates) as CandidateV1[] | undefined;
@@ -33,9 +33,12 @@ export function extractEgressTextFromEvent(evt: InternalEventV2 | InternalEventV
     const text = best?.text;
     if (typeof text === 'string' && text.trim()) return text.trim();
 
-    // Fallback to V1 payload shapes
-    const legacy = evt?.payload?.chat?.text ?? evt?.payload?.text;
-    if (typeof legacy === 'string' && legacy.trim()) return legacy.trim();
+    // Fallback to potential legacy shapes inside raw platform payload
+    const legacy1 = evt?.message?.rawPlatformPayload?.chat?.text ?? evt?.message?.rawPlatformPayload?.text;
+    if (typeof legacy1 === 'string' && legacy1.trim()) return legacy1.trim();
+    // Fallback to pre-V2 legacy event shapes that carried payload at root
+    const legacy2 = evt?.payload?.chat?.text ?? evt?.payload?.text;
+    if (typeof legacy2 === 'string' && legacy2.trim()) return legacy2.trim();
     return null;
   } catch {
     return null;
