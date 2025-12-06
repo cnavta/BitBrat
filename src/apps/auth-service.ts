@@ -2,7 +2,7 @@ import '../common/safe-timers';
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV2, RoutingStep } from '../types/events';
-import { AttributeMap, createMessagePublisher, createMessageSubscriber } from '../services/message-bus';
+import { AttributeMap, createMessagePublisher } from '../services/message-bus';
 import { FirestoreUserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
 import { logger } from '../common/logging';
@@ -28,8 +28,8 @@ class AuthServer extends BaseServer {
       configureFirestore(process.env.FIREBASE_DATABASE_ID);
     }
 
-    // Debug counters endpoint
-    app.get('/_debug/counters', (_req, res) => {
+    // Debug counters endpoint via BaseServer helper
+    this.onHTTPRequest('/_debug/counters', (_req, res) => {
       res.status(200).json({ counters: counters.snapshot() });
     });
 
@@ -42,7 +42,6 @@ class AuthServer extends BaseServer {
     const inputSubject = `${cfg.busPrefix || ''}${INTERNAL_INGRESS_V1}`;
     const outTopic = process.env.AUTH_ENRICH_OUTPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
     const outputSubject = `${cfg.busPrefix || ''}${outTopic}`;
-    const subscriber = createMessageSubscriber();
     const pubRes = this.getResource<PublisherResource>('publisher');
     const publisher = pubRes ? pubRes.create(outputSubject) : createMessagePublisher(outputSubject);
     const db = this.getResource<Firestore>('firestore');
@@ -50,8 +49,8 @@ class AuthServer extends BaseServer {
 
     logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
     try {
-      await subscriber.subscribe(
-        inputSubject,
+      await this.onMessage(
+        { destination: INTERNAL_INGRESS_V1, queue: 'auth', ack: 'explicit' },
         async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
           try {
             counters.increment('auth.enrich.total');
@@ -107,8 +106,7 @@ class AuthServer extends BaseServer {
               await ctx.nack(true);
             }
           }
-        },
-        { queue: 'auth', ack: 'explicit' }
+        }
       );
       logger.info('auth.subscribe.ok', { subject: inputSubject, queue: 'auth' });
     } catch (e: any) {
