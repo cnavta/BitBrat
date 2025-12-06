@@ -2,9 +2,7 @@ import * as api from '@opentelemetry/api';
 import { AsyncHooksContextManager } from '@opentelemetry/context-async-hooks';
 import { Resource } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
-import { ParentBasedSampler, TraceIdRatioBasedSampler, BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
-import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
+import { NodeTracerProvider, ParentBasedSampler, TraceIdRatioBasedSampler, BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 
 let provider: NodeTracerProvider | null = null;
 let contextManager: AsyncHooksContextManager | null = null;
@@ -40,8 +38,15 @@ export function initializeTracing(serviceName = process.env.SERVICE_NAME || 'ser
     resource,
   });
 
-  const exporter = new TraceExporter();
-  provider.addSpanProcessor(new BatchSpanProcessor(exporter));
+  try {
+    // Lazy-require exporter so local dev/tests don't need the package installed
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { TraceExporter } = require('@google-cloud/opentelemetry-cloud-trace-exporter');
+    const exporter = new TraceExporter();
+    provider.addSpanProcessor(new BatchSpanProcessor(exporter));
+  } catch {
+    // No exporter available; tracing will be local-only (no export)
+  }
   provider.register();
 
   contextManager = new AsyncHooksContextManager().enable();

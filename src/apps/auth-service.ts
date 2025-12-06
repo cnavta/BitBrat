@@ -52,40 +52,55 @@ class AuthServer extends BaseServer {
             const raw = JSON.parse(data.toString('utf8')) as any;
             const asV2: InternalEventV2 = raw as InternalEventV2;
 
-            const { event: enrichedV2Initial, matched, userRef } = await enrichEvent(asV2, userRepo, {
-              provider: (asV2 as any)?.source?.split('.')?.[1],
-            });
+            // Create a child span for enrichment and publish for better trace visibility
+            const tracer = (this as any).getTracer?.();
+            const run = async () => {
+              const { event: enrichedV2Initial, matched, userRef } = await enrichEvent(asV2, userRepo, {
+                provider: (asV2 as any)?.source?.split('.')?.[1],
+              });
 
-            // Append/update routing step for auth
-            let enrichedV2: InternalEventV2 = enrichedV2Initial;
-            const nowIso = new Date().toISOString();
-            const stepId = 'auth';
-            const slip: RoutingStep[] = Array.isArray(enrichedV2.routingSlip) ? [...(enrichedV2.routingSlip as RoutingStep[])] : [];
-            const idx = slip.findIndex((s) => s.id === stepId);
-            const step: RoutingStep = {
-              id: stepId,
-              v: '1',
-              status: matched ? 'OK' : 'SKIP',
-              attempt: 0,
-              maxAttempts: 1,
-              startedAt: slip[idx]?.startedAt || nowIso,
-              endedAt: nowIso,
+              // Append/update routing step for auth
+              let enrichedV2: InternalEventV2 = enrichedV2Initial;
+              const nowIso = new Date().toISOString();
+              const stepId = 'auth';
+              const slip: RoutingStep[] = Array.isArray(enrichedV2.routingSlip) ? [...(enrichedV2.routingSlip as RoutingStep[])] : [];
+              const idx = slip.findIndex((s) => s.id === stepId);
+              const step: RoutingStep = {
+                id: stepId,
+                v: '1',
+                status: matched ? 'OK' : 'SKIP',
+                attempt: 0,
+                maxAttempts: 1,
+                startedAt: slip[idx]?.startedAt || nowIso,
+                endedAt: nowIso,
+              };
+              if (idx >= 0) slip[idx] = { ...slip[idx], ...step };
+              else slip.push(step);
+              enrichedV2 = { ...enrichedV2, routingSlip: slip };
+
+              if (matched) {
+                counters.increment('auth.enrich.matched');
+                logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef, outputSubject });
+              } else {
+                counters.increment('auth.enrich.unmatched');
+                logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });
+              }
+
+              const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
+              publisher.publishJson(enrichedV2, pubAttrs);
+              logger.info('auth.publish.ok', { subject: outputSubject });
             };
-            if (idx >= 0) slip[idx] = { ...slip[idx], ...step };
-            else slip.push(step);
-            enrichedV2 = { ...enrichedV2, routingSlip: slip };
-
-            if (matched) {
-              counters.increment('auth.enrich.matched');
-              logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef, outputSubject });
+            if (tracer && typeof tracer.startActiveSpan === 'function') {
+              await tracer.startActiveSpan('user-enrichment', async (span: any) => {
+                try {
+                  await run();
+                } finally {
+                  span.end();
+                }
+              });
             } else {
-              counters.increment('auth.enrich.unmatched');
-              logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });
+              await run();
             }
-
-            const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
-            publisher.publishJson(enrichedV2, pubAttrs);
-            logger.info('auth.publish.ok', { subject: outputSubject });
             await ctx.ack();
           } catch (e: any) {
             const msg = e?.message || String(e);
