@@ -34,6 +34,56 @@ describe('command-processor.processEvent', () => {
     expect(res.event.candidates![0].text).toContain('Alice');
   });
 
+  it('produces an annotation when command type=annotation', async () => {
+    const evt = makeEvent('!note');
+    const doc = {
+      id: 'cmdA',
+      name: 'note',
+      type: 'annotation',
+      annotationKind: 'prompt',
+      templates: [{ id: 't1', text: 'Saved {{username}}' }],
+    } as any;
+    const deps = {
+      repoFindByNameOrAlias: async (_name: string) => ({ ref: { firestore: {} } as any, doc }),
+      policy: {
+        checkAndUpdateGlobalCooldown: async () => ({ allowed: true }),
+        checkAndUpdateUserCooldown: async () => ({ allowed: true }),
+        checkAndUpdateRateLimit: async () => ({ allowed: true }),
+      },
+      rng: () => 0,
+      now: () => new Date('2025-01-01T00:00:00.000Z'),
+    } as any;
+    const res = await processEvent(evt, deps);
+    expect(res.action).toBe('produced');
+    expect(res.stepStatus).toBe('OK');
+    expect((res.event.annotations || []).length).toBe(1);
+    expect(res.event.annotations![0].kind).toBe('prompt');
+    expect(res.event.annotations![0].label).toBe('note');
+    expect(res.event.annotations![0].value).toContain('Alice');
+    expect(res.event.candidates || []).toHaveLength(0);
+  });
+
+  it('blocks when per-user cooldown denies', async () => {
+    const evt = makeEvent('!cool');
+    const doc = { id: 'cmd3', name: 'cool', templates: [{ id: 't1', text: 'ok' }] } as any;
+    const deps = {
+      repoFindByNameOrAlias: async () => ({ ref: { firestore: {} } as any, doc }),
+      policy: {
+        checkAndUpdateGlobalCooldown: async () => ({ allowed: true }),
+        checkAndUpdateUserCooldown: async () => ({ allowed: false, code: 'USER_COOLDOWN' }),
+        checkAndUpdateRateLimit: async () => ({ allowed: true }),
+      },
+      rng: () => 0,
+      now: () => new Date('2025-01-01T00:00:00.000Z'),
+    } as any;
+    const res = await processEvent(evt, deps);
+    expect(res.action).toBe('blocked');
+    expect(res.stepStatus).toBe('SKIP');
+    expect(res.reason).toBe('user-cooldown');
+    expect(res.event.candidates || []).toHaveLength(0);
+    expect(res.event.annotations || []).toHaveLength(0);
+  });
+
   it('skips when command is not found', async () => {
     const evt = makeEvent('!missing');
     const deps = {

@@ -137,9 +137,11 @@ export interface MessageV1 {
   rawPlatformPayload?: Record<string, any>;
 }
 
+export type AnnotationKindV1 = 'intent' | 'entities' | 'sentiment' | 'topic' | 'custom' | 'prompt' | string;
+
 export interface AnnotationV1 {
   id: string;
-  kind: 'intent' | 'entities' | 'sentiment' | 'topic' | 'custom' | string;
+  kind: AnnotationKindV1;
   source: string;
   createdAt: string; // ISO8601
   confidence?: number;

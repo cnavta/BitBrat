@@ -30,7 +30,7 @@ cross_cutting:
     acceptance:
       - TS types compile; processor can branch based on CommandDoc.type
     priority: high
-    status: not-started
+    status: completed
 
   - id: CMD-EFF-2
     description: Implement processor to produce Annotation or Candidate based on CommandDoc.type
@@ -52,7 +52,7 @@ cross_cutting:
       - Matching 'candidate' command adds a CandidateV1 to event.candidates and returns stepStatus='OK'
       - If no command matches, returns stepStatus='SKIP' and leaves event unchanged
     priority: highest
-    status: not-started
+    status: in-progress
 
   - id: CMD-EFF-3
     description: Respect cooldowns and rate limits for commands before producing effects
@@ -65,7 +65,7 @@ cross_cutting:
       - Cooldown and rate limits are honored in unit tests
       - No database writes required beyond any existing counters (if present)
     priority: high
-    status: not-started
+    status: in-progress
 
   - id: CMD-EFF-4
     description: Minimal template rendering utility for command templates
@@ -77,7 +77,7 @@ cross_cutting:
     acceptance:
       - Unit tests show correct interpolation and fallback behavior
     priority: medium
-    status: not-started
+    status: completed
 
   - id: CMD-EFF-5
     description: Update and add unit tests for processor branching, limits, and rendering
@@ -88,7 +88,7 @@ cross_cutting:
     acceptance:
       - Jest tests pass locally and in CI
     priority: highest
-    status: not-started
+    status: in-progress
 
   - id: CMD-EFF-6
     description: Logging and observability for command effects
@@ -99,7 +99,7 @@ cross_cutting:
     acceptance:
       - Logs present with expected fields; sensitive data not printed at info level
     priority: medium
-    status: not-started
+    status: in-progress
 
   - id: CMD-EFF-7
     description: Documentation updates
@@ -121,19 +121,19 @@ services:
         acceptance:
           - processEvent returns updated event and stepStatus per scenarios in CMD-EFF-2
         priority: highest
-        status: not-started
+        status: in-progress
       - id: CMD-SVC-2
         description: Integrate template rendering and record lastUsedTemplateId in runtime
         acceptance:
           - runtime.lastUsedTemplateId is updated on successful candidate creation
         priority: high
-        status: not-started
+        status: in-progress
       - id: CMD-SVC-3
         description: Cooldown and rate-limit checks before effect creation
         acceptance:
           - Violations produce SKIP with no mutations to annotations/candidates
         priority: high
-        status: not-started
+        status: in-progress
 
   - name: tests
     path: tests/
@@ -143,13 +143,13 @@ services:
         acceptance:
           - Tests cover positive/negative paths; coverage > 80% for processor module
         priority: highest
-        status: not-started
+        status: in-progress
       - id: TEST-CP-2
         description: Unit tests for cooldown and rate-limit behavior
         acceptance:
           - Simulated time windows confirm SKIP without mutations
         priority: high
-        status: not-started
+        status: in-progress
 
 acceptance_criteria_overall:
   - Given a matching 'annotation' command with annotationKind set, the resulting event contains a new AnnotationV1 with correct kind and timestamps; stepStatus='OK'
