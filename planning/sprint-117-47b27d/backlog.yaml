@@ -31,7 +31,7 @@ cross_cutting:
       - Sampling ratio honored; parent-based continuation works
       - No tracer created when disabled
     priority: high
-    status: planned
+    status: completed
 
   - id: TRACE-2
     description: Propagate/continue trace through Pub/Sub and HTTP automatically
@@ -44,7 +44,7 @@ cross_cutting:
       - A published message within a span yields a downstream span in subscriber without manual code
       - Trace waterfall shows topic wait time and consumer spans
     priority: high
-    status: planned
+    status: in-progress
 
   - id: TRACE-3
     description: Structured logging correlation with traces
@@ -60,7 +60,7 @@ cross_cutting:
       - Log entries include clickable trace links in Log Explorer
       - Severity mapping remains correct; no double JSON wrapping
     priority: high
-    status: planned
+    status: completed
 
   - id: TRACE-4
     description: Developer configuration and ops controls
@@ -85,7 +85,7 @@ cross_cutting:
       - Handlers can call this.getTracer()?.startActiveSpan('child', fn)
       - Spans appear nested in Cloud Trace waterfall
     priority: high
-    status: planned
+    status: completed
 
   - id: TRACE-6
     description: Testing and validation for tracing
@@ -147,7 +147,7 @@ services:
         acceptance:
           - Span "process-llm-request" visible under message span
           - Logs contain logging.googleapis.com/trace and spanId
-        status: planned
+        status: completed
         priority: high
 
   - name: command-processor
@@ -157,7 +157,7 @@ services:
         description: Continue trace and add minimal child span around command execution
         acceptance:
           - Child span "execute-command" visible; logs correlated
-        status: planned
+        status: completed
         priority: medium
 
   - name: oauth-flow

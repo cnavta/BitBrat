@@ -1,4 +1,5 @@
 import { LogLevel } from '../types';
+import { getLogCorrelationFields } from './tracing';
 
 /**
  * Redact secrets from log context objects. Keys that look sensitive (key|token|secret|password|authorization|cookie|auth)
@@ -92,11 +93,18 @@ export class Logger {
   }
 
   private base(entry: Record<string, unknown>) {
-    return {
+    const base: Record<string, unknown> = {
       ts: new Date().toISOString(),
       service: Logger.getServiceName(),
       ...entry,
     };
+    try {
+      const corr = getLogCorrelationFields();
+      if (corr) {
+        Object.assign(base, corr);
+      }
+    } catch {}
+    return base;
   }
 
   private sanitize(context?: Record<string, unknown>) {

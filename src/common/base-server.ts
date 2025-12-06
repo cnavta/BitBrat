@@ -10,6 +10,7 @@ import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
 import { createMessageSubscriber } from '../services/message-bus';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
+import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -50,6 +51,8 @@ export class BaseServer {
 
     // Build typed config once for the server lifetime
     this.config = buildConfig(process.env, opts.configOverrides || {});
+    // Initialize tracing (no-op if disabled)
+    try { initializeTracing(this.serviceName); } catch { /* ignore */ }
     // Set global logger service name and create a pre-configured logger
     Logger.setServiceName(this.serviceName);
     this.logger = new Logger(this.config.logLevel);
@@ -91,6 +94,11 @@ export class BaseServer {
   /** Returns the server's service-scoped logger */
   public getLogger(): Logger {
     return this.logger;
+  }
+
+  /** Returns OpenTelemetry tracer if tracing is enabled */
+  protected getTracer() {
+    return getTracer();
   }
 
   /** Starts the HTTP server on the given port and optional host */
@@ -162,7 +170,14 @@ export class BaseServer {
         subject,
         async (data, attributes, ctx) => {
           try {
-            await Promise.resolve(handler(data, attributes, ctx));
+            const tracer = this.getTracer();
+            if (tracer) {
+              await startActiveSpan(`msg ${subject}`, async () => {
+                await Promise.resolve(handler(data, attributes, ctx));
+              });
+            } else {
+              await Promise.resolve(handler(data, attributes, ctx));
+            }
           } catch (e: any) {
             // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
             this.logger.error('base_server.message.handler_error', { subject, error: e?.message || String(e) });
@@ -250,6 +265,7 @@ export class BaseServer {
           this.logger.warn('base_server.resource.shutdown.error', { key: k, error: e?.message || String(e) });
         }
       }
+      try { await shutdownTracing(); } catch {}
     };
     process.once('SIGTERM', handler);
     process.once('SIGINT', handler);
