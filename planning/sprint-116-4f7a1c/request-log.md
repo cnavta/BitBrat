@@ -35,3 +35,16 @@
     - git add -A
     - git commit -m "sprint-116: migrate auth, event-router, ingress-egress to BaseServer.onMessage/onHTTPRequest; adjust BaseServer test-mode rule; update backlog and manifest"
     - git push
+
+- 2025-12-06 02:18: Migrate command-processor to BaseServer.onMessage and finalize backlog items
+  - Files modified:
+    - src/apps/command-processor-service.ts (use onMessage; remove direct createMessageSubscriber)
+    - src/apps/command-processor-service.test.ts (set MESSAGE_BUS_DISABLE_SUBSCRIBE=1 during tests)
+    - src/apps/auth-service.test.ts (mock Firestore and set MESSAGE_BUS_DISABLE_SUBSCRIBE=1)
+    - planning/sprint-116-4f7a1c/backlog.yaml (mark CMD-1 completed; OAUTH-1 completed with decision note)
+  - Commands executed:
+    - npm run build
+    - npm test
+    - git add -A
+    - git commit -m "sprint-116: migrate command-processor to BaseServer.onMessage; mark CMD-1 done; document OAUTH-1; fix tests"
+    - git push

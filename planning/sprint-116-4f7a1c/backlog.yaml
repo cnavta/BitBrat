@@ -105,7 +105,7 @@ services:
         acceptance:
           - "Uses this.onMessage({ destination: subject, queue: 'command-processor', ack: 'explicit' }, handler)"
           - Honors Jest test behavior (MESSAGE_BUS_DISABLE_SUBSCRIBE)
-        status: planned
+        status: completed
         priority: high
 
   - name: oauth-flow
@@ -121,7 +121,8 @@ services:
         description: Evaluate feasibility of wrapping simple health/debug routes with onHTTPRequest (no-op if none)
         acceptance:
           - Document decision; no behavior changes
-        status: planned
+        decision: "Service mounts a router with multiple OAuth handlers; no standalone debug/health routes to wrap. Keep existing router mounts. BaseServer continues to serve health endpoints."
+        status: completed
         priority: low
 
 cross_cutting:

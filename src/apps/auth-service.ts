@@ -7,7 +7,6 @@ import { FirestoreUserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
 import { logger } from '../common/logging';
 import { counters } from '../common/counters';
-import { configureFirestore } from '../common/firebase';
 import { busAttrsFromEvent } from '../common/events/attributes';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -23,10 +22,6 @@ class AuthServer extends BaseServer {
 
   private async setupApp(app: Express, cfg: any) {
     const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
-    // Configure Firestore database binding if provided
-    if (process.env.FIREBASE_DATABASE_ID) {
-      configureFirestore(process.env.FIREBASE_DATABASE_ID);
-    }
 
     // Debug counters endpoint via BaseServer helper
     this.onHTTPRequest('/_debug/counters', (_req, res) => {
