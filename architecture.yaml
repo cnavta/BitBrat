@@ -185,6 +185,8 @@ deploymentDefaults:
     maxInstances: 100
     cpu: '1'
     memory: 512Mi
+    # Ensure all services use instance-based billing by default
+    billing: instance
   global-external-application-lb:
     loadBalancingScheme: EXTERNAL_MANAGED
 

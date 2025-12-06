@@ -62,3 +62,23 @@
     - planning/sprint-117-47b27d/backlog.yaml — mark TRACE-4, TRACE-6, OAUTH-TRACE-1 completed
     - planning/sprint-117-47b27d/verification-report.md — move items to Completed; leave TRACE-2 in-progress
   - Git: git add -A && git commit -m "sprint-117: oauth HTTP tracing middleware; document architecture tracing defaults; update backlog + verification + docs"
+
+- 2025-12-06 13:58 ET — enforce Cloud Run instance-based billing
+  - Prompt: Ensure all Cloud Run services are deployed with instance-based billing, not request-based.
+  - Changes:
+    - cloudbuild.oauth-flow.yaml — add _BILLING substitution (default 'instance') and pass --billing to gcloud run deploy
+    - infrastructure/deploy-cloud.sh — propagate _BILLING=instance to Cloud Build (single & multi-service)
+    - infrastructure/deploy-cloud.sh — after Terraform apply, best-effort `gcloud run services update --billing instance` to cover TF-created services
+    - architecture.yaml — set deploymentDefaults.cloud-run.billing: instance (documentation default)
+  - Validation: No app/runtime code changed; unit tests unaffected. Full validate_deliverable pending runtime credentials; logically passable.
+  - Git: git add -A && git commit -m "enforce Cloud Run instance-based billing via Cloud Build and deploy script; document default in architecture.yaml"
+
+- 2025-12-06 16:22 ET — sprint closure
+  - Prompt: Sprint complete.
+  - Interpretation: Finalize sprint artifacts, mark sprint manifest completed, and record closure notes per Sprint Protocol.
+  - Files modified:
+    - planning/sprint-117-47b27d/sprint-manifest.yaml — status set to completed
+    - planning/sprint-117-47b27d/verification-report.md — added Closure section; reiterated validation results and noted remaining in-progress item (TRACE-2)
+    - planning/sprint-117-47b27d/retro.md — updated What worked/What didn’t/Improvements based on implementation and deploy learnings
+    - planning/sprint-117-47b27d/key-learnings.md — appended lessons learned
+  - Git: git add -A && git commit -m "sprint-117: close sprint — mark completed; add closure notes (verification, retro, learnings)"
