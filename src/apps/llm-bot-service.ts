@@ -2,6 +2,7 @@ import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import type { InternalEventV2, RoutingStep } from '../types/events';
 import crypto from 'crypto';
+import { startActiveSpan } from '../common/tracing';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'llm-bot';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -42,52 +43,7 @@ class LlmBotServer extends BaseServer {
           await tracer.startActiveSpan('llm.process', async (span: any) => {
             try {
               const evt = eventIn as InternalEventV2;
-              const prompt = extractPrompt(evt);
-
-              if (!prompt) {
-                // Mark current step ERROR with code NO_PROMPT and advance routing (do not crash)
-                const updated = markCurrentStepError(evt, 'NO_PROMPT', 'No prompt found in annotations');
-                logger.warn('llm_bot.no_prompt', { correlationId: evt?.correlationId });
-                await this.next(updated);
-                return;
-              }
-
-              logger.info('llm_bot.prompt.ok', { correlationId: evt?.correlationId });
-
-              // LLB-3: Integrate mcp-agent with OpenAI (lazy import + singleton)
-              const agent = await getAgent();
-
-              logger.info('llm.invoke.start', { correlationId: evt?.correlationId });
-              let text = '';
-              try {
-                // Minimal agent prompt interface; keep generic to avoid tight coupling
-                const res: any = await agent.prompt({ user: prompt, options: { model: getModel(), timeoutMs: getTimeoutMs() } });
-                text = extractText(res);
-              } catch (err: any) {
-                const mapped = mapLlmError(err);
-                if (mapped.kind === 'invalid') {
-                  markCurrentStepError(evt, 'LLM_REQUEST_INVALID', mapped.message || 'LLM provider rejected request');
-                  logger.warn('llm.invoke.invalid', { correlationId: evt?.correlationId, code: 'LLM_REQUEST_INVALID' });
-                  await this.next(evt);
-                  return;
-                }
-                // network/timeout/server — rethrow to allow redelivery
-                logger.error('llm.invoke.failed', { correlationId: evt?.correlationId, reason: mapped.kind });
-                throw err;
-              }
-              logger.info('llm.invoke.finish', { correlationId: evt?.correlationId });
-
-              // LLB-4: Append assistant candidate with idempotency guard
-              const idKey = computeIdempotency(prompt, evt?.correlationId);
-              if (!hasIdempotency(evt, idKey)) {
-                appendAssistantCandidate(evt, text, getModel());
-                setIdempotency(evt, idKey);
-              } else {
-                logger.debug?.('llm.candidate.idempotent_skip', { correlationId: evt?.correlationId });
-              }
-
-              // Advance routing
-              await this.next(evt);
+              await handleLlmEvent(this, evt);
             } finally {
               span.end();
             }
@@ -114,7 +70,7 @@ if (require.main === module) {
 /** Extract a prompt string from an InternalEventV2 annotations collection.
  * Supports either an array of AnnotationV1 entries with kind === 'prompt' or a legacy object shape.
  */
-function extractPrompt(evt: InternalEventV2 | any): string | null {
+export function extractPrompt(evt: InternalEventV2 | any): string | null {
   try {
     // If annotations is an array (preferred schema)
     if (Array.isArray(evt?.annotations)) {
@@ -132,7 +88,7 @@ function extractPrompt(evt: InternalEventV2 | any): string | null {
 }
 
 /** Mark the first pending routing step as ERROR with a code and message. */
-function markCurrentStepError(evt: InternalEventV2, code: string, message?: string): InternalEventV2 {
+export function markCurrentStepError(evt: InternalEventV2, code: string, message?: string): InternalEventV2 {
   const slip: RoutingStep[] = Array.isArray((evt as any).routingSlip) ? ((evt as any).routingSlip as RoutingStep[]) : [];
   const idxPending = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
   const step = idxPending >= 0 ? slip[idxPending] : undefined;
@@ -185,7 +141,7 @@ function getMaxRetries(): number {
   return Number.isFinite(v) ? v : 2;
 }
 
-function extractText(res: any): string {
+export function extractText(res: any): string {
   if (!res) return '';
   if (typeof res === 'string') return res;
   if (typeof res.text === 'string') return res.text;
@@ -198,7 +154,7 @@ function extractText(res: any): string {
   return '';
 }
 
-function appendAssistantCandidate(evt: any, text: string, model: string) {
+export function appendAssistantCandidate(evt: any, text: string, model: string) {
   if (!evt) return;
   if (!Array.isArray(evt.candidates)) evt.candidates = [];
   const now = new Date().toISOString();
@@ -215,7 +171,7 @@ function appendAssistantCandidate(evt: any, text: string, model: string) {
   });
 }
 
-function computeIdempotency(prompt: string, correlationId?: string): string {
+export function computeIdempotency(prompt: string, correlationId?: string): string {
   return crypto.createHash('sha256').update(`${prompt}::${correlationId || ''}`).digest('hex');
 }
 function getCurrentStep(evt: any): RoutingStep | undefined {
@@ -235,7 +191,7 @@ function setIdempotency(evt: any, key: string): void {
   step.attributes['llm_hash'] = key;
 }
 
-function mapLlmError(err: any): { kind: 'invalid' | 'server' | 'network' | 'timeout' | 'unknown'; message?: string } {
+export function mapLlmError(err: any): { kind: 'invalid' | 'server' | 'network' | 'timeout' | 'unknown'; message?: string } {
   const msg = String(err?.message || '');
   const code = (err?.status || err?.code || err?.response?.status) as number | string | undefined;
   if (typeof code === 'number') {
@@ -245,4 +201,55 @@ function mapLlmError(err: any): { kind: 'invalid' | 'server' | 'network' | 'time
   if (/timeout/i.test(msg)) return { kind: 'timeout', message: msg };
   if (/network|ECONN|ENOTFOUND|EAI_AGAIN/i.test(msg)) return { kind: 'network', message: msg };
   return { kind: 'unknown', message: msg };
+}
+
+/**
+ * Core handler extracted for unit/integration testing. Implements the event flow:
+ * prompt extraction -> LLM invocation -> candidate append (idempotent) -> advance routing.
+ */
+export async function handleLlmEvent(server: BaseServer, evt: InternalEventV2): Promise<void> {
+  const logger = (server as any).getLogger?.() || console;
+  const prompt = extractPrompt(evt);
+  if (!prompt) {
+    markCurrentStepError(evt, 'NO_PROMPT', 'No prompt found in annotations');
+    logger.warn?.('llm_bot.no_prompt', { correlationId: evt?.correlationId });
+    await (server as any).next(evt);
+    return;
+  }
+  logger.info?.('llm_bot.prompt.ok', { correlationId: evt?.correlationId });
+
+  // Tracing span for llm.invoke
+  await startActiveSpan('llm.invoke', async () => {
+    logger.info?.('llm.invoke.start', { correlationId: evt?.correlationId });
+  });
+
+  const agent = await getAgent();
+  let text = '';
+  try {
+    await startActiveSpan('llm.invoke', async () => {
+      const res: any = await agent.prompt({ user: prompt, options: { model: getModel(), timeoutMs: getTimeoutMs() } });
+      text = extractText(res);
+    });
+  } catch (err: any) {
+    const mapped = mapLlmError(err);
+    if (mapped.kind === 'invalid') {
+      markCurrentStepError(evt, 'LLM_REQUEST_INVALID', mapped.message || 'LLM provider rejected request');
+      logger.warn?.('llm.invoke.invalid', { correlationId: evt?.correlationId, code: 'LLM_REQUEST_INVALID' });
+      await (server as any).next(evt);
+      return;
+    }
+    logger.error?.('llm.invoke.failed', { correlationId: evt?.correlationId, reason: mapped.kind });
+    throw err;
+  }
+  logger.info?.('llm.invoke.finish', { correlationId: evt?.correlationId });
+
+  const idKey = computeIdempotency(prompt, evt?.correlationId);
+  if (!hasIdempotency(evt, idKey)) {
+    appendAssistantCandidate(evt, text, getModel());
+    setIdempotency(evt, idKey);
+  } else {
+    logger.debug?.('llm.candidate.idempotent_skip', { correlationId: evt?.correlationId });
+  }
+
+  await (server as any).next(evt);
 }

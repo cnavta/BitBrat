@@ -88,7 +88,7 @@ backlog:
   - id: LLB-7
     title: Observability — logging and tracing
     priority: P1
-    status: todo
+    status: done
     owner: Lead Implementor
     labels: [observability, logging, tracing]
     dependencies: [LLB-1, LLB-3, LLB-5]
@@ -101,7 +101,7 @@ backlog:
   - id: LLB-8
     title: Configuration and env validation
     priority: P1
-    status: todo
+    status: done
     owner: Lead Implementor
     labels: [config]
     dependencies: [LLB-1]
@@ -126,7 +126,7 @@ backlog:
   - id: LLB-10
     title: Unit tests with noop message bus and mocked mcp-agent
     priority: P0
-    status: todo
+    status: done
     owner: Quality Lead
     labels: [tests, jest]
     dependencies: [LLB-2, LLB-3, LLB-4, LLB-6]
@@ -138,7 +138,7 @@ backlog:
   - id: LLB-11
     title: Integration test — end-to-end in-process
     priority: P1
-    status: todo
+    status: done
     owner: Quality Lead
     labels: [tests, integration]
     dependencies: [LLB-5, LLB-10]
@@ -150,7 +150,7 @@ backlog:
   - id: LLB-12
     title: Deployment artifacts — Cloud Build and service wiring
     priority: P2
-    status: todo
+    status: done
     owner: Cloud Architect
     labels: [deployment, cloud-run]
     dependencies: [LLB-1, LLB-8]
@@ -163,7 +163,7 @@ backlog:
   - id: LLB-13
     title: Security — Secret Manager and redaction
     priority: P2
-    status: todo
+    status: done
     owner: Lead Implementor
     labels: [security]
     dependencies: [LLB-3]
@@ -175,7 +175,7 @@ backlog:
   - id: LLB-14
     title: Runbook and service documentation
     priority: P3
-    status: todo
+    status: done
     owner: Lead Implementor
     labels: [docs]
     dependencies: [LLB-5, LLB-7]
@@ -187,7 +187,7 @@ backlog:
   - id: LLB-15
     title: Publication and PR update
     priority: P0
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     labels: [process]
     dependencies: [LLB-10]
