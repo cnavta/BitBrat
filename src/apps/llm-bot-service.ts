@@ -142,18 +142,25 @@ async function getAgent(): Promise<any> {
   if (_agentPromise) return _agentPromise;
   // lazy dynamic import to keep startup light and avoid type coupling
   _agentPromise = (async () => {
-    const mod = await import('@joshuacalpuerto/mcp-agent');
-    const Agent = (mod as any).Agent || (mod as any).default || mod;
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('OPENAI_API_KEY missing');
-    const agent = new Agent({
-      provider: 'openai',
-      apiKey,
-      model: getModel(),
-      timeoutMs: getTimeoutMs(),
-      maxRetries: getMaxRetries(),
-    });
-    return agent;
+    try {
+      const mod = await import('@joshuacalpuerto/mcp-agent');
+      const Agent = (mod as any).Agent || (mod as any).default || mod;
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error('OPENAI_API_KEY missing');
+      const agent = new Agent({
+        provider: 'openai',
+        apiKey,
+        model: getModel(),
+        timeoutMs: getTimeoutMs(),
+        maxRetries: getMaxRetries(),
+      });
+      return agent;
+    } catch (e) {
+      // Re-throw with a clean error that does not leak internals; caller maps error kinds
+      const err = new Error('MCP_AGENT_IMPORT_FAILED');
+      (err as any).code = 'IMPORT_FAILED';
+      throw err;
+    }
   })();
   return _agentPromise;
 }
