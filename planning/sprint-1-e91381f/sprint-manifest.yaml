@@ -1,0 +1,18 @@
+id: sprint-1-e91381f
+title: LLM Bot – Technical Architecture and Planning
+created_at: 2025-12-06T20:57:00-05:00
+branch: feature/sprint-1-e91381f-llm-bot-architecture
+owner: Architect
+goal: >-
+  Produce a Technical Architecture for the llm-bot service using @joshuacalpuerto/mcp-agent
+  and OpenAI, define implementation plan and validation approach per AGENTS.md.
+status: planning
+inputs:
+  topic: internal.llmbot.v1
+  model: gpt-5-mini
+  driver: agnostic (must work regardless of MESSAGE_BUS_DRIVER)
+artifacts:
+  - implementation-plan.md
+  - technical-architecture.md
+  - request-log.md
+  - validate_deliverable.sh
