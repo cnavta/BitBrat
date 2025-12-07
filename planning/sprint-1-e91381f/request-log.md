@@ -34,3 +34,31 @@
     - planning/sprint-1-e91381f/backlog.yaml created
   - Notes:
     - Backlog items map directly to architecture sections: subscription, prompt extraction, mcp-agent integration, candidate append, routing advance, error handling, observability, config, tests, deployment, security, docs, and publication.
+
+- 2025-12-06T21:28-05:00
+  - Prompt: "This looks good. Please start executing it." — Begin implementing llm-bot per backlog starting with LLB-1 and LLB-2.
+  - Interpretation: Implement service subscription to internal.llmbot.v1 and prompt extraction with missing-prompt error path that advances routing.
+  - Files changed:
+    - src/apps/llm-bot-service.ts — subscribe to internal.llmbot.v1; add prompt extraction; mark step ERROR with code NO_PROMPT and call BaseServer.next(); tracing span name llm.process.
+    - planning/sprint-1-e91381f/backlog.yaml — update statuses: LLB-1 done, LLB-2 in-progress.
+  - Shell/Git:
+    - git add -A
+    - git commit -m "feat(llm-bot): subscribe to internal.llmbot.v1; implement prompt extraction with NO_PROMPT error path and routing advance; update backlog statuses"
+    - git push -u origin feature/sprint-1-e91381f-llm-bot-architecture
+  - Notes:
+    - No network I/O required under MESSAGE_BUS_DRIVER=noop. Health endpoints provided by BaseServer remain available.
+
+- 2025-12-06T21:45-05:00
+  - Prompt: Continue executing the plan.
+  - Interpretation: Implement LLB-3 (mcp-agent with OpenAI), start LLB-4 (append assistant candidate with idempotency), and LLB-6 (error mapping). Keep driver-agnostic.
+  - Files changed:
+    - package.json — add dependency @joshuacalpuerto/mcp-agent.
+    - src/apps/llm-bot-service.ts — integrate lazy-initialized mcp-agent; invoke on prompt; map errors (4xx→LLM_REQUEST_INVALID advance, 5xx/timeout/network→throw); append assistant candidate with idempotency hash; advance routing via BaseServer.next().
+    - planning/sprint-1-e91381f/backlog.yaml — mark LLB-3 done; LLB-4 and LLB-6 in-progress.
+  - Shell/Git:
+    - git add -A
+    - git commit -m "feat(llm-bot): integrate mcp-agent OpenAI; append assistant candidate with idempotency; error mapping and routing advance; update backlog"
+    - git push -u origin feature/sprint-1-e91381f-llm-bot-architecture
+  - Validation:
+    - ./validate_deliverable.sh --project-id dummy-project --env dev
+    - Expect build success; tests as before with one known infra test failure unrelated to llm-bot.
