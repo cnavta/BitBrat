@@ -36,7 +36,7 @@ backlog:
   - id: LLB-3
     title: Integrate @joshuacalpuerto/mcp-agent with OpenAI (gpt-5-mini)
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     labels: [llm-bot, mcp-agent, openai]
     dependencies: [LLB-2]
@@ -50,7 +50,7 @@ backlog:
   - id: LLB-4
     title: Append assistant candidate to event.message.candidates[]
     priority: P0
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     labels: [llm-bot, schema]
     dependencies: [LLB-3]
@@ -75,7 +75,7 @@ backlog:
   - id: LLB-6
     title: Error handling paths and codes
     priority: P0
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     labels: [error-handling]
     dependencies: [LLB-2, LLB-3]
