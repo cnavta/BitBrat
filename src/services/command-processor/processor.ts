@@ -12,6 +12,7 @@ import {
   effectiveRateLimit,
 } from './policy';
 import { appendTextCandidate } from './candidate';
+import { appendAnnotation, createAnnotation } from './annotation';
 import { buildRenderContext, chooseTemplate, renderTemplate } from './templates';
 
 export interface ParsedCommand {
@@ -164,7 +165,32 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
     return { action: 'blocked', event: evt, stepStatus: 'SKIP', reason: 'rate-limit' };
   }
 
-  // Choose template (anti-repeat)
+  // Branch by command type (default 'candidate')
+  const effectType = (doc as any)?.type || 'candidate';
+  if (effectType === 'annotation') {
+    // Optional template for label/value; if none, fallback to empty rendered text
+    const choice = chooseTemplate(doc.templates || [], undefined, deps.rng);
+    const ctx = buildRenderContext(evt);
+    const rendered = choice ? renderTemplate(choice.template.text, ctx) : '';
+
+    // Global cooldown (do not persist lastUsedTemplateId for annotations)
+    const globalDecision = await deps.policy.checkAndUpdateGlobalCooldown(ref as any, doc, now, defaults.globalMs, undefined);
+    if (!globalDecision.allowed) {
+      markSkip(evt, 'global_cooldown_active', 'GLOBAL_COOLDOWN');
+      return { action: 'blocked', event: evt, stepStatus: 'SKIP', reason: 'global-cooldown' };
+    }
+
+    const kind = (doc as any)?.annotationKind || 'custom';
+    const ann = createAnnotation(kind, doc.name, rendered, {
+      commandName: doc.name,
+      args: parsed.args,
+    });
+    appendAnnotation(evt, ann);
+    logger.info('command_processor.effect.added', { effect: 'annotation', name: doc.name, kind });
+    return { action: 'produced', event: evt, stepStatus: 'OK' };
+  }
+
+  // Candidate (default)
   const choice = chooseTemplate(doc.templates || [], doc.runtime?.lastUsedTemplateId, deps.rng);
   if (!choice) {
     markSkip(evt, 'no_templates_available', 'NO_TEMPLATES');
@@ -195,6 +221,7 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
     },
   });
 
+  // Backward-compatible log name expected by tests and dashboards
   logger.info('command_processor.candidate.added', { name: doc.name, templateId: choice.template.id });
   return { action: 'produced', event: evt, stepStatus: 'OK' };
 }

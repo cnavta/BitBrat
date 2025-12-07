@@ -87,36 +87,50 @@ class IngressEgressServer extends BaseServer {
           { destination: egressTopic, queue: `ingress-egress.${instanceId}`, ack: 'explicit' },
           async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
-              const evt = JSON.parse(data.toString('utf8')) as any;
-              logger.debug('ingress-egress.egress_subscribe.received_event', { event: evt });
-              // Mark selected candidate on V2 events (if candidates exist) and log rationale
-              let evtForDelivery: any = evt;
-              try {
-                if (evt && Array.isArray(evt.candidates) && evt.candidates.length > 0) {
-                  const best = selectBestCandidate(evt.candidates);
-                  if (best) {
-                    logger.info('ingress-egress.egress.candidate_selected', {
-                      correlationId: evt?.correlationId || evt?.envelope?.correlationId,
-                      candidateId: best.id,
-                      priority: best.priority,
-                      confidence: best.confidence,
-                      createdAt: best.createdAt,
-                    });
+              const tracer = (this as any).getTracer?.();
+              const run = async () => {
+                const evt = JSON.parse(data.toString('utf8')) as any;
+                logger.debug('ingress-egress.egress_subscribe.received_event', { event: evt });
+                // Mark selected candidate on V2 events (if candidates exist) and log rationale
+                let evtForDelivery: any = evt;
+                try {
+                  if (evt && Array.isArray(evt.candidates) && evt.candidates.length > 0) {
+                    const best = selectBestCandidate(evt.candidates);
+                    if (best) {
+                      logger.info('ingress-egress.egress.candidate_selected', {
+                        correlationId: evt?.correlationId || evt?.envelope?.correlationId,
+                        candidateId: best.id,
+                        priority: best.priority,
+                        confidence: best.confidence,
+                        createdAt: best.createdAt,
+                      });
+                    }
+                    evtForDelivery = markSelectedCandidate(evt);
                   }
-                  evtForDelivery = markSelectedCandidate(evt);
+                } catch (e: any) {
+                  logger.debug('ingress-egress.egress.candidate_mark_skip', { reason: e?.message || String(e) });
                 }
-              } catch (e: any) {
-                logger.debug('ingress-egress.egress.candidate_mark_skip', { reason: e?.message || String(e) });
-              }
 
-              const text = extractEgressTextFromEvent(evtForDelivery);
-              if (!text) {
-                logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
-                await ctx.ack();
-                return;
+                const text = extractEgressTextFromEvent(evtForDelivery);
+                if (!text) {
+                  logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
+                  await ctx.ack();
+                  return;
+                }
+                await this.twitchClient!.sendText(text);
+                logger.info('ingress-egress.egress.sent', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
+              };
+              if (tracer && typeof tracer.startActiveSpan === 'function') {
+                await tracer.startActiveSpan('deliver-egress', async (span: any) => {
+                  try {
+                    await run();
+                  } finally {
+                    span.end();
+                  }
+                });
+              } else {
+                await run();
               }
-              await this.twitchClient!.sendText(text);
-              logger.info('ingress-egress.egress.sent', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
               await ctx.ack();
             } catch (e: any) {
               const msg = e?.message || String(e);

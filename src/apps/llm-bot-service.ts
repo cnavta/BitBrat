@@ -23,8 +23,22 @@ class LlmBotServer extends BaseServer {
     // Subscribe to the llm-bot input topic and log received messages
     await this.onMessage('internal.llmbot.v1', async (data, attributes, ctx) => {
       try {
+        const logger = this.getLogger();
         const txt = data?.toString('utf8');
-        this.getLogger().info('llm_bot.received', { message: txt, attributes });
+        logger.info('llm_bot.received', { message: txt, attributes });
+
+        // Create a child span for processing for better trace visibility
+        const tracer = (this as any).getTracer?.();
+        if (tracer && typeof tracer.startActiveSpan === 'function') {
+          await tracer.startActiveSpan('process-llm-request', async (span: any) => {
+            try {
+              logger.info('llm_bot.processing');
+              // ... LLM processing would occur here ...
+            } finally {
+              span.end();
+            }
+          });
+        }
       } finally {
         await ctx.ack();
       }

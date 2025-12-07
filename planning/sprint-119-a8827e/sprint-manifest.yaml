@@ -1,0 +1,18 @@
+id: sprint-119-a8827e
+title: "Routing Slip in BaseServer – next() and complete()"
+role: Architect
+started_at: 2025-12-06T17:39:00-05:00
+objective: "Incorporate routing slip behavior from command-processor into BaseServer with protected methods: next(event) and complete(event)."
+scope:
+  in:
+    - Design shared routing-slip behavior in BaseServer
+    - Define InternalEventV2 contract changes (if any)
+    - Define interactions with message-bus publisher/subscriber
+    - Error handling, idempotency, tracing, and configuration
+  out:
+    - Full implementation code changes (pending plan approval)
+    - Deployment changes beyond validation scripts
+artifacts:
+  - technical-architecture.md
+  - request-log.md
+status: planning

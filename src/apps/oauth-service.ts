@@ -5,6 +5,7 @@ import { assertRequiredSecrets, buildConfig } from '../common/config';
 import { BaseServer } from '../common/base-server';
 import type { Logger } from '../common/logging';
 import type { Firestore } from 'firebase-admin/firestore';
+import { api } from '../common/tracing';
 
 // Avoid direct env usage in app code; use a stable service name and central Config for port
 const SERVICE_NAME = 'oauth-flow';
@@ -21,6 +22,23 @@ class OauthServer extends BaseServer {
 
   private setupApp(app: any, cfg: IConfig) {
     try {
+      // Trace each OAuth HTTP request when tracing is enabled, so logs correlate with Cloud Trace
+      app.use('/oauth', (req: any, res: any, next: any) => {
+        try {
+          const tracer = (this as any).getTracer?.();
+          if (!tracer || typeof tracer.startActiveSpan !== 'function') return next();
+          tracer.startActiveSpan(`http ${req.method} ${req.path || req.url}`, (span: api.Span) => {
+            // End span when response finishes to cover the entire handler path
+            res.on('finish', () => {
+              try { span.end(); } catch {}
+            });
+            next();
+          });
+        } catch {
+          next();
+        }
+      });
+
       const db = this.getResource<Firestore>('firestore');
       const botStore: ITokenStore = this.options?.botStore || new FirestoreTokenStore(cfg.tokenDocPath!, db);
       const broadcasterStore: ITokenStore = this.options?.broadcasterStore || new FirestoreTokenStore(cfg.broadcasterTokenDocPath!, db);

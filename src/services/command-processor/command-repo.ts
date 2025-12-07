@@ -2,6 +2,7 @@ import { Firestore, DocumentReference } from 'firebase-admin/firestore';
 import { getFirestore } from '../../common/firebase';
 import { getConfig } from '../../common/config';
 import { logger } from '../../common/logging';
+import {AnnotationKindV1} from "@/types";
 
 export interface CommandTemplate {
   id: string;
@@ -11,6 +12,8 @@ export interface CommandTemplate {
 export interface CommandDoc {
   id: string;
   name: string;
+  type?: 'candidate' | 'annotation';
+  annotationKind?: AnnotationKindV1;
   description?: string;
   aliases?: string[];
   templates: CommandTemplate[];
@@ -44,6 +47,8 @@ function normalizeCommand(id: string, data: any): CommandDoc | null {
     name: String(data.name || '').toLowerCase(),
     description: data.description ? String(data.description) : undefined,
     aliases: Array.isArray(data.aliases) ? data.aliases.map((a: any) => String(a).toLowerCase()) : undefined,
+    annotationKind: data.annotationKind as AnnotationKindV1,
+    type: data.type || 'candidate',
     templates,
     cooldowns: data.cooldowns ? { globalMs: toInt(data.cooldowns.globalMs), perUserMs: toInt(data.cooldowns.perUserMs) } : undefined,
     rateLimit: data.rateLimit ? { max: rateMax as number, perMs: ratePer as number } : undefined,
