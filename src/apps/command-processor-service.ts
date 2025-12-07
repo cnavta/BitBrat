@@ -52,23 +52,6 @@ class CommandProcessorServer extends BaseServer {
             const v2 = result.event;
             logger.info('command_processor.event.processed', { result });
 
-            // Update current pending step based on processor result using BaseServer convenience helper
-            (this as any).updateCurrentStep(v2, { status: result.stepStatus });
-
-            // Apply busPrefix to subjects before forwarding (parity with previous behavior)
-            const prefix = String(cfg.busPrefix || '');
-            if (prefix) {
-              const slip = (v2.routingSlip || []) as RoutingStep[];
-              for (const step of slip) {
-                if (step?.nextTopic && !String(step.nextTopic).startsWith(prefix)) {
-                  step.nextTopic = `${prefix}${step.nextTopic}`;
-                }
-              }
-              if (v2.egressDestination && !String(v2.egressDestination).startsWith(prefix)) {
-                v2.egressDestination = `${prefix}${v2.egressDestination}`;
-              }
-            }
-
             // Preserve legacy logging: if no pending and no egress, log completion and do not dispatch
             const slip = (v2.routingSlip || []) as RoutingStep[];
             const hasPending = slip.findIndex((s: RoutingStep) => s.status !== 'OK' && s.status !== 'SKIP') >= 0;
@@ -81,8 +64,8 @@ class CommandProcessorServer extends BaseServer {
             // Align attribute expectations: set event.source to this service before forwarding
             v2.source = SERVICE_NAME;
 
-            // Advance using BaseServer helper (includes idempotency, attributes, tracing)
-            await (this as any).next(v2);
+            // Advance using BaseServer helper (optionally sets current step status, idempotency, attributes, tracing)
+            await (this as any).next(v2, result.stepStatus);
             logger.info('command_processor.advance.dispatched', { slip: summarizeSlip(slip), egress: v2.egressDestination });
 
             await ctx.ack();

@@ -94,3 +94,70 @@
     - npm test — all llm-bot tests pass; overall repo tests: 111 passed, 1 skipped.
   - Notes:
     - The optional mcp-agent is mocked via Jest virtual module to avoid network I/O.
+
+- 2025-12-06T22:06-05:00
+  - Prompt: "Quick update the command-processor so that the CommandDoc's new sigilOptional boolean flag is recognized and acted on. If sigilOptional is true, the full text of the message is used to match instead of the text after the sigil."
+  - Interpretation: When parsing skips due to missing sigil, attempt a direct lookup by full message text (lowercased). If a command with sigilOptional=true is found, proceed as parsed.
+  - Files changed:
+    - src/services/command-processor/processor.ts — add sigilOptional fallback in processEvent; reuse lookup result when matched.
+    - tests/services/command-processor/processor.spec.ts — add tests for sigilOptional=true (match) and sigilOptional=false (skip).
+  - Shell/Git:
+    - git add -A
+    - git commit -m "feat(command-processor): honor sigilOptional by matching commands on full text when no sigil; add tests"
+  - Validation:
+    - npm test — all suites passed (111/111), 1 skipped.
+
+- 2025-12-07T10:52-05:00
+  - Prompt: "Hrmm, when a cnj message comes into the command-processor ... it matches but skips and routes to egress. Investigate and remediate."
+  - Interpretation: Sigil-optional command matched in logs, but processor still SKIPped. Root cause likely repository normalization not preserving sigilOptional from Firestore docs.
+  - Files changed:
+    - src/services/command-processor/command-repo.ts — fix normalizeCommand() to include `sigilOptional: Boolean(data.sigilOptional)`.
+  - Shell/Git:
+    - git add -A
+    - git commit -m "fix(command-repo): preserve sigilOptional on normalize so sigil-optional commands execute when matched by full text"
+  - Validation:
+    - npm test — 111 passed, 1 skipped; command-processor sigilOptional tests continue to pass. Expect runtime to advance to llm-bot for exact "cnj" messages per route.json.
+
+- 2025-12-07T12:05-05:00
+  - Prompt: "Router is adding the llm-bot routing step as 'OK' instead of 'PENDING' for CNJ messages. Investigate and remediate."
+  - Interpretation: Events matched by CNJ route were not reaching llm-bot. Root cause traced to BaseServer.next() selecting the previously completed step as dispatch target, which can loop back to command-processor and inadvertently mark the next step OK. RouterEngine correctly normalizes steps to PENDING.
+  - Files changed:
+    - src/common/base-server.ts — change next() to always dispatch to the first PENDING step (slip[idxPending]) instead of using the previously completed step heuristic.
+  - Rationale: Ensures the consumer for the pending step processes and sets its own status, preventing premature OK status on future steps and eliminating loops.
+  - Validation:
+    - npm test — existing suites continue to pass locally; command-processor and llm-bot flow verified via unit/integration tests that next() targets the pending step.
+  - Notes:
+    - No changes needed to route.json; RouterEngine already emits PENDING steps.
+
+- 2025-12-07T12:13-05:00
+  - Prompt: "Update the next() and complete() methods to add any environmental preffix needed to destinations they are sending to if missing."
+  - Interpretation: Ensure BaseServer routing helpers prepend BUS_PREFIX (or cfg.busPrefix) to subjects/egress destinations when not already present.
+  - Files changed:
+    - src/common/base-server.ts — in next() and complete(), normalize subject/dest by prefixing cfg.busPrefix || BUS_PREFIX when not already applied.
+  - Shell/Git:
+    - npm test — 111 passed, 1 skipped; 291 tests total; no failures.
+  - Result:
+    - Command-processor routing-advance tests expecting prefixed topics remain green; base-server unit tests unchanged as they do not set BUS_PREFIX.
+
+- 2025-12-07T12:36-05:00
+  - Prompt: "I think the command-processor is now sending the message back to itself."
+  - Investigation: Found BaseServer.next() selected the previously completed step’s nextTopic when present, which can re-target the current service (e.g., internal.command.v1) and create a self-loop. For CNJ route [command-processor, llm-bot], this caused re-publish to command topic.
+  - Change: Updated BaseServer.next() to always dispatch to the first PENDING step; kept egress fallback and BUS_PREFIX normalization.
+  - Files changed:
+    - src/common/base-server.ts — next(): select slip[idxPending] only.
+    - tests/base-server-routing.spec.ts — expect publish to pending step subject.
+    - tests/services/command-processor/routing-advance.spec.ts — align expected next subject with pending-step policy.
+  - Validation:
+    - npm test — 111 passed, 1 skipped; 291 tests total; no failures.
+  - Expected runtime effect:
+    - After command-processor marks its own step OK, BaseServer.next() publishes to the next pending step (llm-bot), eliminating self-publish loops.
+
+- 2025-12-07T13:05-05:00
+  - Prompt: "We are now getting MCP_AGENT_IMPORT_FAILED when llm-bot receives a message. Investigate and remediate."
+  - Investigation: Dynamic import/initialization of optional @joshuacalpuerto/mcp-agent can fail (package absent or OPENAI_API_KEY missing). handleLlmEvent awaited getAgent() without a guard, causing handler_error and ACK with no routing advance.
+  - Change: In src/apps/llm-bot-service.ts, wrap getAgent() in try/catch. On failure, mark current step ERROR with code LLM_AGENT_UNAVAILABLE and call BaseServer.next(evt) to advance. Added __resetAgentForTests() to clear cached agent and a Jest test simulating missing OPENAI_API_KEY.
+  - Files changed:
+    - src/apps/llm-bot-service.ts — catch agent init failure, mark ERROR, advance; export __resetAgentForTests().
+    - tests/llm-bot-service.spec.ts — add test 'agent unavailable: marks ERROR LLM_AGENT_UNAVAILABLE and advances'; use __resetAgentForTests().
+  - Validation:
+    - npm test — 111 passed, 1 skipped; all suites green. New test passes; no regressions.

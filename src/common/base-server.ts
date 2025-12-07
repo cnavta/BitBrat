@@ -12,6 +12,7 @@ import { createMessageSubscriber, createMessagePublisher, type AttributeMap } fr
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
 import type { InternalEventV2, RoutingStep } from '../types/events';
+import type { RoutingStatus } from '../types/events';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -408,7 +409,11 @@ export class BaseServer {
    * - Publishes with standard attributes and emits tracing/logging.
    * - Idempotent per in-memory event instance: subsequent calls are no-ops unless the prior publish failed.
    */
-  protected async next(event: InternalEventV2): Promise<void> {
+  protected async next(event: InternalEventV2, stepStatus?: RoutingStatus): Promise<void> {
+    // Optionally update the current step before dispatching
+    if (stepStatus) {
+      try { (this as any).updateCurrentStep?.(event, { status: stepStatus }); } catch {}
+    }
     const NEXT_MARK = Symbol.for('bb.routing.next.dispatched');
     if ((event as any)[NEXT_MARK]) {
       this.logger.debug('routing.next.idempotent_noop', { correlationId: event?.correlationId });
@@ -420,7 +425,11 @@ export class BaseServer {
     const idxPending = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
     // If no pending step, fallback to egress
     if (idxPending < 0) {
-      const dest = (event as any).egressDestination as string | undefined;
+      const destRaw = (event as any).egressDestination as string | undefined;
+      const cfg: any = (this as any).getConfig?.() || {};
+      const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+      const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
+      const dest = destRaw ? (needsPrefix(destRaw) ? `${prefix}${destRaw}` : destRaw) : undefined;
       if (!dest) {
         this.logger.warn('routing.next.no_target', { correlationId: event?.correlationId });
         return;
@@ -438,21 +447,17 @@ export class BaseServer {
       return;
     }
 
-    // Determine which step's nextTopic to dispatch to:
-    // Prefer the most recently completed step (immediately before the first pending),
-    // falling back to the first pending step if no such completed step exists or has no nextTopic.
-    const completedIdx = idxPending > 0 ? idxPending - 1 : -1;
-    const candidateStep: RoutingStep | undefined =
-      completedIdx >= 0 && slip[completedIdx] && (slip[completedIdx].status === 'OK' || slip[completedIdx].status === 'SKIP') && slip[completedIdx].nextTopic
-        ? slip[completedIdx]
-        : slip[idxPending];
-
-    const step = candidateStep as RoutingStep;
+    // Determine which step to dispatch to: always the first pending step
+    const step = slip[idxPending] as RoutingStep;
     // Minimal mutation for observability on the step we're dispatching to
     step.startedAt = step.startedAt || new Date().toISOString();
     // attempt is 0-based per contract
     step.attempt = (typeof step.attempt === 'number' ? step.attempt : -1) + 1;
-    const subject = (step.nextTopic) as string;
+    const subjectRaw = (step.nextTopic) as string;
+    const cfg: any = (this as any).getConfig?.() || {};
+    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+    const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
+    const subject = subjectRaw ? (needsPrefix(subjectRaw) ? `${prefix}${subjectRaw}` : subjectRaw) : '';
     if (!subject) {
       this.logger.warn('routing.next.step_missing_subject', { correlationId: event?.correlationId });
       return;
@@ -481,7 +486,11 @@ export class BaseServer {
    * Protected helper: bypass routing slip and publish directly to egressDestination.
    * - Idempotent per in-memory event instance.
    */
-  protected async complete(event: InternalEventV2): Promise<void> {
+  protected async complete(event: InternalEventV2, stepStatus?: RoutingStatus): Promise<void> {
+    // Optionally update the current step before dispatching to egress
+    if (stepStatus) {
+      try { (this as any).updateCurrentStep?.(event, { status: stepStatus }); } catch {}
+    }
     const COMPLETE_MARK = Symbol.for('bb.routing.complete.dispatched');
     if ((event as any)[COMPLETE_MARK]) {
       this.logger.debug('routing.complete.idempotent_noop', { correlationId: event?.correlationId });
@@ -489,7 +498,11 @@ export class BaseServer {
     }
     (event as any)[COMPLETE_MARK] = true;
 
-    const dest = (event as any).egressDestination as string | undefined;
+    const destRaw = (event as any).egressDestination as string | undefined;
+    const cfg: any = (this as any).getConfig?.() || {};
+    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+    const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
+    const dest = destRaw ? (needsPrefix(destRaw) ? `${prefix}${destRaw}` : destRaw) : undefined;
     if (!dest) {
       this.logger.warn('routing.complete.no_egress', { correlationId: event?.correlationId });
       return;

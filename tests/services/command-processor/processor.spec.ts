@@ -121,4 +121,47 @@ describe('command-processor.processEvent', () => {
     expect(res.reason).toBe('rate-limit');
     expect(res.event.candidates || []).toHaveLength(0);
   });
+
+  it('matches command by full text when sigilOptional=true and no sigil present', async () => {
+    const evt = makeEvent('hello', true);
+    const doc = { id: 'cmd4', name: 'hello', sigilOptional: true, templates: [{ id: 't1', text: 'Hi {{username}}' }] } as any;
+    const deps = {
+      repoFindByNameOrAlias: jest.fn(async (name: string) => {
+        if (name === 'hello') return { ref: { firestore: {} } as any, doc };
+        return null;
+      }),
+      policy: {
+        checkAndUpdateGlobalCooldown: async () => ({ allowed: true }),
+        checkAndUpdateUserCooldown: async () => ({ allowed: true }),
+        checkAndUpdateRateLimit: async () => ({ allowed: true }),
+      },
+      rng: () => 0,
+      now: () => new Date('2025-01-01T00:00:00.000Z'),
+    } as any;
+    const res = await processEvent(evt, deps);
+    expect(res.action).toBe('produced');
+    expect(res.stepStatus).toBe('OK');
+    expect(res.event.candidates && res.event.candidates.length).toBe(1);
+  });
+
+  it('does not match by full text when sigilOptional=false and no sigil present', async () => {
+    const evt = makeEvent('world', true);
+    const doc = { id: 'cmd5', name: 'world', sigilOptional: false, templates: [{ id: 't1', text: 'ok' }] } as any;
+    const deps = {
+      repoFindByNameOrAlias: jest.fn(async (name: string) => {
+        if (name === 'world') return { ref: { firestore: {} } as any, doc };
+        return null;
+      }),
+      policy: {
+        checkAndUpdateGlobalCooldown: async () => ({ allowed: true }),
+        checkAndUpdateUserCooldown: async () => ({ allowed: true }),
+        checkAndUpdateRateLimit: async () => ({ allowed: true }),
+      },
+      rng: () => 0,
+      now: () => new Date('2025-01-01T00:00:00.000Z'),
+    } as any;
+    const res = await processEvent(evt, deps);
+    expect(res.action).toBe('skip');
+    expect(res.stepStatus).toBe('SKIP');
+  });
 });

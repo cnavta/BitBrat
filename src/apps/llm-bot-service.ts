@@ -3,6 +3,7 @@ import { Express } from 'express';
 import type { InternalEventV2, RoutingStep } from '../types/events';
 import crypto from 'crypto';
 import { startActiveSpan } from '../common/tracing';
+import {logger} from "../common/logging";
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'llm-bot';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -104,29 +105,36 @@ export function markCurrentStepError(evt: InternalEventV2, code: string, message
 let _agentPromise: Promise<any> | null = null;
 async function getAgent(): Promise<any> {
   if (_agentPromise) return _agentPromise;
-  // lazy dynamic import to keep startup light and avoid type coupling
   _agentPromise = (async () => {
     try {
       const mod = await import('@joshuacalpuerto/mcp-agent');
       const Agent = (mod as any).Agent || (mod as any).default || mod;
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) throw new Error('OPENAI_API_KEY missing');
-      const agent = new Agent({
-        provider: 'openai',
-        apiKey,
-        model: getModel(),
-        timeoutMs: getTimeoutMs(),
-        maxRetries: getMaxRetries(),
-      });
-      return agent;
+      const model = getModel();
+      const timeoutMs = getTimeoutMs();
+      const maxRetries = getMaxRetries();
+      if (Agent && typeof (Agent as any).initialize === 'function') {
+        const initialized = await (Agent as any).initialize({
+          llm: { provider: 'openai', apiKey, model, timeoutMs, maxTokens: undefined, temperature: undefined, maxRetries },
+          name: 'llm-bot',
+          description: 'BitBrat llm-bot agent',
+        });
+        if (initialized && typeof initialized.prompt === 'function') return initialized;
+      }
+      throw new Error('MCP_AGENT_API_MISMATCH');
     } catch (e) {
-      // Re-throw with a clean error that does not leak internals; caller maps error kinds
       const err = new Error('MCP_AGENT_IMPORT_FAILED');
       (err as any).code = 'IMPORT_FAILED';
       throw err;
     }
   })();
   return _agentPromise;
+}
+
+// Test helper: allow Jest to reset the cached agent between tests
+export function __resetAgentForTests(): void {
+  _agentPromise = null;
 }
 
 function getModel(): string {
@@ -213,17 +221,28 @@ export async function handleLlmEvent(server: BaseServer, evt: InternalEventV2): 
   if (!prompt) {
     markCurrentStepError(evt, 'NO_PROMPT', 'No prompt found in annotations');
     logger.warn?.('llm_bot.no_prompt', { correlationId: evt?.correlationId });
-    await (server as any).next(evt);
+    // Atomically set current step status and advance routing to avoid re-dispatch to self
+    await (server as any).next(evt, 'ERROR');
     return;
   }
   logger.info?.('llm_bot.prompt.ok', { correlationId: evt?.correlationId });
 
-  // Tracing span for llm.invoke
+  // Tracing span for llm.invoke (start marker)
   await startActiveSpan('llm.invoke', async () => {
     logger.info?.('llm.invoke.start', { correlationId: evt?.correlationId });
   });
 
-  const agent = await getAgent();
+  // Initialize agent; if unavailable (import failure / missing key), mark step ERROR and advance
+  let agent: any;
+  try {
+    agent = await getAgent();
+  } catch (e: any) {
+    markCurrentStepError(evt, 'LLM_AGENT_UNAVAILABLE', 'LLM agent unavailable or not configured');
+    logger.warn?.('llm.agent.unavailable', { correlationId: evt?.correlationId, error: String(e?.message || e) });
+    // Ensure we both update step and advance in one call to prevent loops
+    await (server as any).next(evt, 'ERROR');
+    return;
+  }
   let text = '';
   try {
     await startActiveSpan('llm.invoke', async () => {
@@ -235,7 +254,7 @@ export async function handleLlmEvent(server: BaseServer, evt: InternalEventV2): 
     if (mapped.kind === 'invalid') {
       markCurrentStepError(evt, 'LLM_REQUEST_INVALID', mapped.message || 'LLM provider rejected request');
       logger.warn?.('llm.invoke.invalid', { correlationId: evt?.correlationId, code: 'LLM_REQUEST_INVALID' });
-      await (server as any).next(evt);
+      await (server as any).next(evt, 'ERROR');
       return;
     }
     logger.error?.('llm.invoke.failed', { correlationId: evt?.correlationId, reason: mapped.kind });
@@ -251,5 +270,6 @@ export async function handleLlmEvent(server: BaseServer, evt: InternalEventV2): 
     logger.debug?.('llm.candidate.idempotent_skip', { correlationId: evt?.correlationId });
   }
 
-  await (server as any).next(evt);
+  // Mark success for this step and advance to the next pending step
+  await (server as any).next(evt, 'OK');
 }
