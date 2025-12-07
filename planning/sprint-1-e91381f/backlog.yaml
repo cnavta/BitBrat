@@ -1,0 +1,197 @@
+version: 1
+generated_at: 2025-12-06T21:17:00-05:00
+source: planning/sprint-1-e91381f/technical-architecture.md
+owner: Lead Implementor
+notes: |
+  Prioritized, trackable backlog to implement the llm-bot service per the Technical Architecture.
+  Must adhere to architecture.yaml (topics, env, runtime) and AGENTS.md Sprint Protocol.
+
+backlog:
+  - id: LLB-1
+    title: Service scaffold and subscription to internal.llmbot.v1
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    labels: [llm-bot, service, subscription]
+    dependencies: []
+    acceptance_criteria:
+      - A process starts as src/apps/llm-bot-service.ts using BaseServer and message-bus abstraction.
+      - Service subscribes to internal.llmbot.v1 without network I/O when MESSAGE_BUS_DRIVER=noop.
+      - Health endpoints respond at /healthz, /readyz, /livez.
+    estimate: 1d
+
+  - id: LLB-2
+    title: Prompt extraction from annotations
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    labels: [llm-bot, prompt]
+    dependencies: [LLB-1]
+    acceptance_criteria:
+      - If event.annotations.prompt is a non-empty string, it is selected as the prompt.
+      - If missing or empty, mark current routing step ERROR with code NO_PROMPT and advance (do not crash).
+      - Logs a warn-level entry with correlationId.
+    estimate: 0.5d
+
+  - id: LLB-3
+    title: Integrate @joshuacalpuerto/mcp-agent with OpenAI (gpt-5-mini)
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    labels: [llm-bot, mcp-agent, openai]
+    dependencies: [LLB-2]
+    acceptance_criteria:
+      - Agent initialized once with OPENAI_API_KEY and default model from OPENAI_MODEL (default gpt-5-mini).
+      - Timeout and retry behavior adheres to OPENAI_TIMEOUT_MS and OPENAI_MAX_RETRIES.
+      - A simple prompt call returns text or throws a typed error.
+      - No secrets are logged.
+    estimate: 1d
+
+  - id: LLB-4
+    title: Append assistant candidate to event.message.candidates[]
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    labels: [llm-bot, schema]
+    dependencies: [LLB-3]
+    acceptance_criteria:
+      - On success, append { role: "assistant", content, model, source: "llm-bot", createdAt: ISO8601 }.
+      - Idempotency guard prevents duplicate append on retry using hash(prompt+correlationId) stored in step.attributes or local marker.
+    estimate: 0.5d
+
+  - id: LLB-5
+    title: Advance routing slip to next hop or egress
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    labels: [routing, message-bus]
+    dependencies: [LLB-4]
+    acceptance_criteria:
+      - Use shared routing helpers if available; otherwise publish to next step subject resolved from routingSlip.
+      - When no remaining steps, publish to egressDestination if present.
+      - Attributes include correlationId and traceparent.
+    estimate: 0.5d
+
+  - id: LLB-6
+    title: Error handling paths and codes
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    labels: [error-handling]
+    dependencies: [LLB-2, LLB-3]
+    acceptance_criteria:
+      - Missing prompt sets step.status=ERROR, code=NO_PROMPT, advances routing.
+      - OpenAI 4xx maps to step.status=ERROR, code=LLM_REQUEST_INVALID, advances routing.
+      - 5xx/timeout/network errors rethrow to enable redelivery.
+    estimate: 0.5d
+
+  - id: LLB-7
+    title: Observability — logging and tracing
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    labels: [observability, logging, tracing]
+    dependencies: [LLB-1, LLB-3, LLB-5]
+    acceptance_criteria:
+      - info logs on start/finish LLM call and on publish to next hop.
+      - warn logs for missing prompt and recoverable issues; error logs for exceptions.
+      - Tracing spans named llm.invoke and routing.next with traceparent propagation in message attributes.
+    estimate: 0.5d
+
+  - id: LLB-8
+    title: Configuration and env validation
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    labels: [config]
+    dependencies: [LLB-1]
+    acceptance_criteria:
+      - Validates required envs: OPENAI_API_KEY, OPENAI_MODEL (default gpt-5-mini), OPENAI_TIMEOUT_MS, OPENAI_MAX_RETRIES.
+      - Fails fast with clear error if OPENAI_API_KEY is missing.
+      - Respects MESSAGE_BUS_DRIVER; noop mode performs no network I/O during tests.
+    estimate: 0.5d
+
+  - id: LLB-9
+    title: Feature flag LLM_BOT_ENABLED
+    priority: P2
+    status: todo
+    owner: Lead Implementor
+    labels: [feature-flag]
+    dependencies: [LLB-1]
+    acceptance_criteria:
+      - When LLM_BOT_ENABLED=0, subscriber does not process messages (nacks/acks appropriately or skips) but health endpoints remain OK.
+      - Default enabled when unset.
+    estimate: 0.25d
+
+  - id: LLB-10
+    title: Unit tests with noop message bus and mocked mcp-agent
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    labels: [tests, jest]
+    dependencies: [LLB-2, LLB-3, LLB-4, LLB-6]
+    acceptance_criteria:
+      - Jest tests cover: prompt extraction, error codes, candidate append idempotency, and routing advancement calls.
+      - Tests run with MESSAGE_BUS_DRIVER=noop and no network I/O.
+    estimate: 1d
+
+  - id: LLB-11
+    title: Integration test — end-to-end in-process
+    priority: P1
+    status: todo
+    owner: Quality Lead
+    labels: [tests, integration]
+    dependencies: [LLB-5, LLB-10]
+    acceptance_criteria:
+      - In-memory publish of a message with annotations.prompt yields a message with assistant candidate and next hop publish called.
+      - Missing prompt path sets ERROR and advances.
+    estimate: 1d
+
+  - id: LLB-12
+    title: Deployment artifacts — Cloud Build and service wiring
+    priority: P2
+    status: todo
+    owner: Cloud Architect
+    labels: [deployment, cloud-run]
+    dependencies: [LLB-1, LLB-8]
+    acceptance_criteria:
+      - Cloud Build config for llm-bot exists and references Dockerfile.llm-bot.
+      - Service conforms to architecture.yaml defaults; no unauthenticated restriction changes.
+      - validate_deliverable.sh includes a dry-run for this service (optional if shared script already handles it).
+    estimate: 1d
+
+  - id: LLB-13
+    title: Security — Secret Manager and redaction
+    priority: P2
+    status: todo
+    owner: Lead Implementor
+    labels: [security]
+    dependencies: [LLB-3]
+    acceptance_criteria:
+      - OPENAI_API_KEY is sourced from environment/Secret Manager and never logged.
+      - Logs avoid echoing prompts that could contain secrets unless debug is enabled and scrubbed.
+    estimate: 0.25d
+
+  - id: LLB-14
+    title: Runbook and service documentation
+    priority: P3
+    status: todo
+    owner: Lead Implementor
+    labels: [docs]
+    dependencies: [LLB-5, LLB-7]
+    acceptance_criteria:
+      - Docs describe configuration, failure modes, and common troubleshooting steps.
+      - Includes example events and expected outputs.
+    estimate: 0.5d
+
+  - id: LLB-15
+    title: Publication and PR update
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    labels: [process]
+    dependencies: [LLB-10]
+    acceptance_criteria:
+      - All changes committed to feature branch; PR updated with summary.
+      - planning/sprint-1-e91381f/publication.yaml reflects current branch and status.
+    estimate: 0.25d

@@ -85,10 +85,6 @@
 - Bus-agnostic by using existing message-bus publish/subscribe factories
 - Candidate schema stored within event.message.candidates preserving backward compatibility
 
-## Rollout Plan
-- Sprint 1: documentation only
-- Sprint 2: implement llm-bot-service.ts with mcp-agent wiring and tests; feature-flag by env LLM_BOT_ENABLED
-
 ## Risks & Mitigations
 - Provider limits or latency: use timeouts/retries; limit token sizes
 - Duplicate candidates on retry: compute idempotency key (hash of prompt+correlationId) stored in step.attributes to guard appends
