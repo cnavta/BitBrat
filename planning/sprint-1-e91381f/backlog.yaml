@@ -10,7 +10,7 @@ backlog:
   - id: LLB-1
     title: Service scaffold and subscription to internal.llmbot.v1
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     labels: [llm-bot, service, subscription]
     dependencies: []
@@ -23,7 +23,7 @@ backlog:
   - id: LLB-2
     title: Prompt extraction from annotations
     priority: P0
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     labels: [llm-bot, prompt]
     dependencies: [LLB-1]
