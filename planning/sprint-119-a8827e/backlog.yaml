@@ -44,7 +44,7 @@ backlog:
     title: Implement BaseServer protected helper next(event) with idempotency
     type: code
     priority: P0
-    status: in-progress
+    status: done
     estimate: 5
     depends_on: [BL-001]
     acceptance:
@@ -61,7 +61,7 @@ backlog:
     title: Implement BaseServer protected helper complete(event) with idempotency
     type: code
     priority: P0
-    status: in-progress
+    status: done
     estimate: 3
     depends_on: [BL-001]
     acceptance:
@@ -74,7 +74,7 @@ backlog:
     title: Unit tests for BaseServer helpers (using test subclass + noop bus)
     type: test
     priority: P0
-    status: todo
+    status: done
     estimate: 5
     depends_on: [BL-003, BL-004]
     acceptance:
@@ -88,7 +88,7 @@ backlog:
     title: Refactor command-processor to call BaseServer.next/complete
     type: code
     priority: P0
-    status: todo
+    status: done
     estimate: 3
     depends_on: [BL-003, BL-004, BL-005]
     acceptance:
@@ -99,7 +99,7 @@ backlog:
     title: Documentation updates (service guidelines + README notes)
     type: doc
     priority: P1
-    status: todo
+    status: done
     estimate: 2
     depends_on: [BL-003, BL-004]
     acceptance:
@@ -110,7 +110,7 @@ backlog:
     title: Observability polish for routing spans and logs
     type: code
     priority: P1
-    status: todo
+    status: done
     estimate: 2
     depends_on: [BL-003, BL-004]
     acceptance:
@@ -121,7 +121,7 @@ backlog:
     title: Update validate_deliverable.sh to run targeted tests for helpers
     type: ci
     priority: P1
-    status: todo
+    status: done
     estimate: 1
     depends_on: [BL-005]
     acceptance:

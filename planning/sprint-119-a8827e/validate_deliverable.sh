@@ -12,6 +12,9 @@ export MESSAGE_BUS_DISABLE_IO=1
 export NODE_ENV=test
 npm test
 
+echo "🎯 Running targeted tests for BaseServer routing helpers..."
+npx jest tests/base-server-routing.spec.ts --runInBand
+
 echo "🏃 Starting local environment (best-effort)..."
 set +e
 npm run local

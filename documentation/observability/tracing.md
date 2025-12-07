@@ -53,6 +53,15 @@ When a service publishes to Pub/Sub while inside an active span, Google client l
 
 No custom headers or code are required for propagation.
 
+## Routing helper spans
+
+Services using `BaseServer` routing helpers will emit the following spans when tracing is enabled:
+
+- `routing.next` — publishing to the next routing destination; attributes include `subject`, `correlationId`, and `stepIndex` when applicable.
+- `routing.complete` — publishing directly to `egressDestination`; attributes include `egressDestination` and `correlationId`.
+
+These spans help trace message progression across internal hops and to egress. Ensure logs include `correlationId` to correlate with these spans.
+
 ## Manual validation checklist
 
 1. Set env on services in Cloud Run (or locally if exporting is configured):
