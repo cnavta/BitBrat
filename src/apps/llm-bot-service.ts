@@ -20,12 +20,11 @@ class LlmBotServer extends BaseServer {
     // const firestore = this.getResource<any>('firestore');
     // const doc = await firestore?.collection('demo').doc('x').get();
 
-    // Subscribe to the llm-bot input topic and log received messages
-    await this.onMessage('internal.llmbot.v1', async (data, attributes, ctx) => {
+    // Subscribe to the llm-bot input topic and log received messages (JSON assumed)
+    await this.onMessage<any>('internal.llmbot.v1', async (data, attributes, ctx) => {
       try {
         const logger = this.getLogger();
-        const txt = data?.toString('utf8');
-        logger.info('llm_bot.received', { message: txt, attributes });
+        logger.info('llm_bot.received', { message: data, attributes });
 
         // Create a child span for processing for better trace visibility
         const tracer = (this as any).getTracer?.();

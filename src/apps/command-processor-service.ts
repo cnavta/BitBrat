@@ -22,13 +22,10 @@ class CommandProcessorServer extends BaseServer {
     const subject = `${cfg.busPrefix || ''}${INTERNAL_COMMAND_V1}`;
     logger.info('command_processor.subscribe.start', { subject, queue: 'command-processor' });
     try {
-      await this.onMessage(
+      await this.onMessage<InternalEventV2>(
         { destination: INTERNAL_COMMAND_V1, queue: 'command-processor', ack: 'explicit' },
-        async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+        async (preV2: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
           try {
-            const raw = JSON.parse(data.toString('utf8')) as any;
-            // Assume V2 payloads
-            const preV2: InternalEventV2 = raw as InternalEventV2;
             logger.info('command_processor.event.received', {
               type: preV2?.type,
               correlationId: (preV2 as any)?.correlationId,
@@ -41,7 +38,7 @@ class CommandProcessorServer extends BaseServer {
             // Wrap execution in a child span when tracing is enabled
             const tracer = (this as any).getTracer?.();
             const exec = async () => {
-              return await processEvent(raw, { repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db) });
+              return await processEvent(preV2 as any, { repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db) });
             };
             const result = tracer && typeof tracer.startActiveSpan === 'function'
               ? await tracer.startActiveSpan('execute-command', async (span: any) => {
@@ -55,31 +52,38 @@ class CommandProcessorServer extends BaseServer {
             const v2 = result.event;
             logger.info('command_processor.event.processed', { result });
 
-            // Mark current pending step OK/SKIP based on processor result, then advance per routing slip
+            // Update current pending step based on processor result using BaseServer convenience helper
+            (this as any).updateCurrentStep(v2, { status: result.stepStatus });
+
+            // Apply busPrefix to subjects before forwarding (parity with previous behavior)
+            const prefix = String(cfg.busPrefix || '');
+            if (prefix) {
+              const slip = (v2.routingSlip || []) as RoutingStep[];
+              for (const step of slip) {
+                if (step?.nextTopic && !String(step.nextTopic).startsWith(prefix)) {
+                  step.nextTopic = `${prefix}${step.nextTopic}`;
+                }
+              }
+              if (v2.egressDestination && !String(v2.egressDestination).startsWith(prefix)) {
+                v2.egressDestination = `${prefix}${v2.egressDestination}`;
+              }
+            }
+
+            // Preserve legacy logging: if no pending and no egress, log completion and do not dispatch
             const slip = (v2.routingSlip || []) as RoutingStep[];
-            const nextIdx = slip.findIndex((s: RoutingStep) => s.status === 'PENDING');
-            if (nextIdx >= 0) {
-              slip[nextIdx].status = result.stepStatus;
-              slip[nextIdx].endedAt = new Date().toISOString();
-            }
-            if (nextIdx >= 0 && slip[nextIdx].nextTopic) {
-              const nextTopic = `${(cfg.busPrefix || '')}${slip[nextIdx].nextTopic}`;
-              const pubRes = this.getResource<PublisherResource>('publisher');
-              // In Jest, prefer direct factory to honor per-test mocks reliably
-              const preferFactory = typeof process.env.JEST_WORKER_ID !== 'undefined';
-              const publisher = (!preferFactory && pubRes) ? pubRes.create(nextTopic) : createMessagePublisher(nextTopic);
-              publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
-              logger.info('command_processor.advance.next', { nextTopic, slip: summarizeSlip(slip) });
-            } else if (v2.egressDestination) {
-              const nextTopic = `${(cfg.busPrefix || '')}${v2.egressDestination}`;
-              const pubRes = this.getResource<PublisherResource>('publisher');
-              const preferFactory = typeof process.env.JEST_WORKER_ID !== 'undefined';
-              const publisher = (!preferFactory && pubRes) ? pubRes.create(nextTopic) : createMessagePublisher(nextTopic);
-              publisher.publishJson(v2, { type: v2.type, correlationId: v2.correlationId, source: v2.source });
-              logger.info('command_processor.advance.egress', { nextTopic, slip: summarizeSlip(slip) });
-            } else {
+            const hasPending = slip.findIndex((s: RoutingStep) => s.status !== 'OK' && s.status !== 'SKIP') >= 0;
+            if (!hasPending && !v2.egressDestination) {
               logger.info('command_processor.advance.complete', { slip: summarizeSlip(slip) });
+              await ctx.ack();
+              return;
             }
+
+            // Align attribute expectations: set event.source to this service before forwarding
+            v2.source = SERVICE_NAME;
+
+            // Advance using BaseServer helper (includes idempotency, attributes, tracing)
+            await (this as any).next(v2);
+            logger.info('command_processor.advance.dispatched', { slip: summarizeSlip(slip), egress: v2.egressDestination });
 
             await ctx.ack();
           } catch (e: any) {

@@ -131,7 +131,7 @@ backlog:
     title: Publication (PR) for feature branch per AGENTS.md
     type: ops
     priority: P0
-    status: todo
+    status: done
     estimate: 1
     depends_on: [BL-002, BL-006, BL-007]
     acceptance:

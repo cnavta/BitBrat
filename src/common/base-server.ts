@@ -151,9 +151,21 @@ export class BaseServer {
    * - onMessage(destination, handler, options?)
    * - onMessage({ destination, queue, ack }, handler)
    */
-  protected async onMessage(destination: string, handler: MessageHandler, options?: SubscribeOptions): Promise<void>;
-  protected async onMessage(cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler): Promise<void>;
-  protected async onMessage(arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler, options?: SubscribeOptions): Promise<void> {
+  // Generic overloads: deliver parsed JSON object of type T to handler
+  protected async onMessage<T = any>(
+    destination: string,
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
+    options?: SubscribeOptions
+  ): Promise<void>;
+  protected async onMessage<T = any>(
+    cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void
+  ): Promise<void>;
+  protected async onMessage<T = any>(
+    arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
+    options?: SubscribeOptions
+  ): Promise<void> {
     const skipSubscribe = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
     if (skipSubscribe) {
       this.logger.debug('base_server.message.subscribe.skipped_by_env');
@@ -174,10 +186,13 @@ export class BaseServer {
             const tracer = this.getTracer();
             if (tracer) {
               await startActiveSpan(`msg ${subject}`, async () => {
-                await Promise.resolve(handler(data, attributes, ctx));
+                // Assume JSON payloads: parse Buffer/string into object for typed handler
+                const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+                await Promise.resolve(handler(parsed, attributes, ctx));
               });
             } else {
-              await Promise.resolve(handler(data, attributes, ctx));
+              const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+              await Promise.resolve(handler(parsed, attributes, ctx));
             }
           } catch (e: any) {
             // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
@@ -402,9 +417,9 @@ export class BaseServer {
     (event as any)[NEXT_MARK] = true;
 
     const slip: RoutingStep[] = Array.isArray((event as any).routingSlip) ? ((event as any).routingSlip as RoutingStep[]) : [];
-    const idx = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
+    const idxPending = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
     // If no pending step, fallback to egress
-    if (idx < 0) {
+    if (idxPending < 0) {
       const dest = (event as any).egressDestination as string | undefined;
       if (!dest) {
         this.logger.warn('routing.next.no_target', { correlationId: event?.correlationId });
@@ -423,8 +438,17 @@ export class BaseServer {
       return;
     }
 
-    const step = slip[idx] as RoutingStep;
-    // Minimal mutation for observability
+    // Determine which step's nextTopic to dispatch to:
+    // Prefer the most recently completed step (immediately before the first pending),
+    // falling back to the first pending step if no such completed step exists or has no nextTopic.
+    const completedIdx = idxPending > 0 ? idxPending - 1 : -1;
+    const candidateStep: RoutingStep | undefined =
+      completedIdx >= 0 && slip[completedIdx] && (slip[completedIdx].status === 'OK' || slip[completedIdx].status === 'SKIP') && slip[completedIdx].nextTopic
+        ? slip[completedIdx]
+        : slip[idxPending];
+
+    const step = candidateStep as RoutingStep;
+    // Minimal mutation for observability on the step we're dispatching to
     step.startedAt = step.startedAt || new Date().toISOString();
     // attempt is 0-based per contract
     step.attempt = (typeof step.attempt === 'number' ? step.attempt : -1) + 1;
@@ -447,7 +471,7 @@ export class BaseServer {
 
     this.logger.info('routing.next.published', {
       subject,
-      stepIndex: idx,
+      stepIndex: slip.indexOf(step),
       attempt: step.attempt,
       correlationId: event?.correlationId,
     });
@@ -480,6 +504,62 @@ export class BaseServer {
       throw e;
     }
     this.logger.info('routing.complete.published', { dest, correlationId: event?.correlationId });
+  }
+
+  /**
+   * Protected helper: update the current pending routing step with provided fields.
+   * - Finds the first step whose status is not in OK|SKIP (i.e., pending in our semantics).
+   * - Applies updates: status, error, notes/appendNote.
+   * - If status transitions to a terminal state (OK|SKIP|ERROR), sets endedAt (if unset).
+   * - Returns { index, step } or null when no pending step exists.
+   */
+  protected updateCurrentStep(
+    event: InternalEventV2,
+    update: {
+      status?: 'PENDING' | 'OK' | 'ERROR' | 'SKIP';
+      error?: { code: string; message?: string; retryable?: boolean } | null;
+      notes?: string;
+      appendNote?: string;
+    }
+  ): { index: number; step: RoutingStep } | null {
+    const slip: RoutingStep[] = Array.isArray((event as any).routingSlip) ? ((event as any).routingSlip as RoutingStep[]) : [];
+    if (!Array.isArray(slip) || slip.length === 0) {
+      this.logger.debug('routing.step_update.no_slip', { correlationId: (event as any)?.correlationId });
+      return null;
+    }
+    const idx = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
+    if (idx < 0) {
+      this.logger.debug('routing.step_update.no_pending', { correlationId: (event as any)?.correlationId });
+      return null;
+    }
+    const step = slip[idx] as RoutingStep;
+
+    // Apply notes update
+    if (typeof update.notes === 'string') {
+      step.notes = update.notes;
+    } else if (typeof update.appendNote === 'string' && update.appendNote) {
+      step.notes = step.notes ? `${step.notes}\n${update.appendNote}` : update.appendNote;
+    }
+
+    // Apply error set/clear
+    if (update.hasOwnProperty('error')) {
+      (step as any).error = update.error ?? null;
+    }
+
+    // Apply status and manage endedAt for terminal
+    if (update.status) {
+      step.status = update.status as any;
+      if (update.status === 'OK' || update.status === 'SKIP' || update.status === 'ERROR') {
+        step.endedAt = step.endedAt || new Date().toISOString();
+      }
+    }
+
+    this.logger.debug('routing.step_update.applied', {
+      correlationId: (event as any)?.correlationId,
+      stepIndex: idx,
+      status: step.status,
+    });
+    return { index: idx, step };
   }
 
   // Internal: build standard message attributes for routing publishes
