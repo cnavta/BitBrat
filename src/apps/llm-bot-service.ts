@@ -28,6 +28,14 @@ class LlmBotServer extends BaseServer {
         const logger = this.getLogger();
         logger.info('llm_bot.received', { correlationId: (eventIn as any)?.correlationId, attributes });
 
+        // Feature flag: allow disabling processing via env LLM_BOT_ENABLED=0/false
+        const enabledEnv = (process.env.LLM_BOT_ENABLED || '1').toLowerCase();
+        const isEnabled = !(enabledEnv === '0' || enabledEnv === 'false');
+        if (!isEnabled) {
+          logger.info('llm_bot.disabled.skip', { correlationId: (eventIn as any)?.correlationId });
+          return; // finally will ack
+        }
+
         // Create a child span for processing for better trace visibility
         const tracer = (this as any).getTracer?.();
         if (tracer && typeof tracer.startActiveSpan === 'function') {
