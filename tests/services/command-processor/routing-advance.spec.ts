@@ -96,7 +96,8 @@ describe('command-processor routing advancement', () => {
     expect(ack).toHaveBeenCalled();
     expect(nack).not.toHaveBeenCalled();
     expect(published.length).toBe(1);
-    expect(published[0].topic).toBe('dev.internal.next.v1');
+    // After processor marks current step OK, the first pending becomes index 1 (egress)
+    expect(published[0].topic).toBe('dev.internal.egress.v1');
     // Ensure processor was invoked and routing step updated
     expect((processEvent as unknown as jest.Mock).mock.calls.length).toBeGreaterThan(0);
     const publishedEvt = published[0].evt as any;

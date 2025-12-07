@@ -14,6 +14,7 @@ export interface CommandDoc {
   name: string;
   type?: 'candidate' | 'annotation';
   annotationKind?: AnnotationKindV1;
+  sigilOptional?: boolean;
   description?: string;
   aliases?: string[];
   templates: CommandTemplate[];
@@ -45,6 +46,7 @@ function normalizeCommand(id: string, data: any): CommandDoc | null {
   return {
     id,
     name: String(data.name || '').toLowerCase(),
+    sigilOptional: Boolean(data.sigilOptional),
     description: data.description ? String(data.description) : undefined,
     aliases: Array.isArray(data.aliases) ? data.aliases.map((a: any) => String(a).toLowerCase()) : undefined,
     annotationKind: data.annotationKind as AnnotationKindV1,
@@ -74,6 +76,7 @@ function toInt(v: any): number | undefined {
 export async function findByNameOrAlias(name: string, db?: Firestore): Promise<CommandLookupResult | null> {
   const lc = String(name || '').toLowerCase();
   if (!lc) return null;
+  logger.debug('command_repo.lookup.start', { name: lc });
   const database = db || getFirestore();
   const col = database.collection(getCollectionPath());
   try {
@@ -82,6 +85,7 @@ export async function findByNameOrAlias(name: string, db?: Firestore): Promise<C
     if (!byNameSnap.empty) {
       const d = byNameSnap.docs[0];
       const doc = normalizeCommand(d.id, d.data());
+      logger.debug('command_repo.lookup.found', { name: lc, doc, by: 'name' });
       if (doc) return { ref: d.ref, doc };
     }
     // Fallback lookup by alias
@@ -89,6 +93,7 @@ export async function findByNameOrAlias(name: string, db?: Firestore): Promise<C
     if (!byAliasSnap.empty) {
       const d = byAliasSnap.docs[0];
       const doc = normalizeCommand(d.id, d.data());
+      logger.debug('command_repo.lookup.found', { name: lc, doc, by: 'alias' });
       if (doc) return { ref: d.ref, doc };
     }
     return null;

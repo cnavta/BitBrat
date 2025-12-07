@@ -1,10 +1,17 @@
 {
   "enabled": true,
   "priority": 10,
-  "description": "Route chat messages starting with '!' to the command-processor",
+  "description": "Match exact CNJ (case-insensitive) → command-processor → llm-bot",
   "logic": {
-    "and": [
-      { "==": [ { "substr": [ { "var": "message.text" }, 0, 1 ] }, "!" ] }
+    "or": [
+      { "==": [ { "var": "message.text" }, "CNJ" ] },
+      { "==": [ { "var": "message.text" }, "cnj" ] },
+      { "==": [ { "var": "message.text" }, "Cnj" ] },
+      { "==": [ { "var": "message.text" }, "cNj" ] },
+      { "==": [ { "var": "message.text" }, "cnJ" ] },
+      { "==": [ { "var": "message.text" }, "CNj" ] },
+      { "==": [ { "var": "message.text" }, "cNJ" ] },
+      { "==": [ { "var": "message.text" }, "CnJ" ] }
     ]
   },
   "routingSlip": [
@@ -14,11 +21,18 @@
       "nextTopic": "internal.command.v1",
       "maxAttempts": 3,
       "attributes": { "origin": "event-router" }
+    },
+    {
+      "id": "llm-bot",
+      "v": "1",
+      "nextTopic": "internal.llmbot.v1",
+      "maxAttempts": 3,
+      "attributes": { "origin": "event-router" }
     }
   ],
   "metadata": {
-    "createdAt": "2025-12-01T14:30:00.000Z",
-    "updatedAt": "2025-12-01T14:30:00.000Z",
-    "updatedBy": "example"
+    "createdAt": "2025-12-06T21:53:00.000Z",
+    "updatedAt": "2025-12-06T21:53:00.000Z",
+    "updatedBy": "assistant"
   }
 }

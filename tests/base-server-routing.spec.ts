@@ -10,8 +10,8 @@ class TestServer extends BaseServer {
   constructor() {
     super({ serviceName: 'test-service' });
   }
-  public async nextPublic(evt: InternalEventV2) { return (this as any).next(evt); }
-  public async completePublic(evt: InternalEventV2) { return (this as any).complete(evt); }
+  public async nextPublic(evt: InternalEventV2, status?: any) { return (this as any).next(evt, status); }
+  public async completePublic(evt: InternalEventV2, status?: any) { return (this as any).complete(evt, status); }
 }
 
 function makeEvent(partial: Partial<InternalEventV2>): InternalEventV2 {
@@ -58,9 +58,25 @@ describe('BaseServer routing helpers', () => {
 
     await server.nextPublic(evt);
 
-    const pub = getPublisher('internal.router.done.v1');
+    const pub = getPublisher('internal.bot.requests.v1');
     expect(pub.publishJson).toHaveBeenCalledTimes(1);
     // payload shape depends on upstream; presence of a call is sufficient here
+  });
+
+  test('next(status) marks current step then publishes to next pending', async () => {
+    const steps: RoutingStep[] = [
+      { id: 'step1', status: 'PENDING', nextTopic: 'internal.step1.v1' },
+      { id: 'step2', status: 'PENDING', nextTopic: 'internal.step2.v1' },
+    ] as any;
+    const evt = makeEvent({ routingSlip: steps });
+
+    await server.nextPublic(evt, 'OK');
+
+    // After marking step1 OK, next() should publish to step2 (first pending)
+    const pub = getPublisher('internal.step2.v1');
+    expect(pub.publishJson).toHaveBeenCalledTimes(1);
+    expect((evt.routingSlip as RoutingStep[])[0].status).toBe('OK');
+    expect(typeof (evt.routingSlip as RoutingStep[])[0].endedAt).toBe('string');
   });
 
   test('next() falls back to egressDestination when no pending steps', async () => {
@@ -80,6 +96,17 @@ describe('BaseServer routing helpers', () => {
     const evt = makeEvent({ egressDestination: 'internal.egress.v1' });
     await server.completePublic(evt);
     expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
+  });
+
+  test('complete(status) updates current step then publishes to egress', async () => {
+    const steps: RoutingStep[] = [
+      { id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' },
+    ] as any;
+    const evt = makeEvent({ routingSlip: steps, egressDestination: 'internal.egress.v1' });
+    await server.completePublic(evt, 'SKIP');
+    expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
+    expect((evt.routingSlip as RoutingStep[])[0].status).toBe('SKIP');
+    expect(typeof (evt.routingSlip as RoutingStep[])[0].endedAt).toBe('string');
   });
 
   test('idempotency: next() second call is no-op for same event instance', async () => {
