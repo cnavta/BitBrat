@@ -187,7 +187,7 @@ backlog:
   - id: LLB-15
     title: Publication and PR update
     priority: P0
-    status: in-progress
+    status: done
     owner: Lead Implementor
     labels: [process]
     dependencies: [LLB-10]

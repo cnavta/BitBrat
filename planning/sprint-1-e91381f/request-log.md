@@ -76,3 +76,21 @@
   - Validation:
     - ./validate_deliverable.sh --project-id dummy-project --env dev
     - Build should succeed; known infra test may still fail unrelated to llm-bot.
+
+- 2025-12-06T22:20-05:00
+  - Prompt: Finish remaining backlog items.
+  - Interpretation: Add observability refinements, export helpers for testability, create unit/integration tests with mocked mcp-agent and noop bus, add Cloud Build for llm-bot, author runbook, and update backlog statuses.
+  - Files changed:
+    - src/apps/llm-bot-service.ts — extract handleLlmEvent; export helpers; add llm.invoke tracing; minor logging refinements.
+    - tests/llm-bot-service.spec.ts — new Jest tests for prompt extraction, error path, candidate append, and end-to-end flow with stub server and mocked agent.
+    - cloudbuild.llm-bot.yaml — Cloud Build pipeline for Dockerfile.llm-bot with secrets/env.
+    - documentation/llm-bot-runbook.md — runbook with config, failure modes, examples, ops notes.
+    - planning/sprint-1-e91381f/backlog.yaml — update LLB-7/8/10/11/12/13/14 to done; LLB-15 in-progress.
+  - Shell/Git:
+    - git add -A
+    - git commit -m "test(llm-bot): add unit/integration tests; cloudbuild for llm-bot; observability refinements; update backlog"
+    - git push -u origin feature/sprint-1-e91381f-llm-bot-architecture
+  - Validation:
+    - npm test — all llm-bot tests pass; overall repo tests: 111 passed, 1 skipped.
+  - Notes:
+    - The optional mcp-agent is mocked via Jest virtual module to avoid network I/O.
