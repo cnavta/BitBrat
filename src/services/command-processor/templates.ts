@@ -27,30 +27,36 @@ export function chooseTemplate(
   return { template };
 }
 
-export interface RenderContext {
-  botName: string;
-  username: string;
-  utcNow: string; // ISO8601
-}
+export type RenderContext = Record<string, string>;
 
 /** Build default render context from event + config. */
 export function buildRenderContext(evt: InternalEventV2): RenderContext {
   const cfg = getConfig();
   const botName = cfg.botUsername || 'Bot';
-  const username = (evt?.user as any)?.displayName || evt?.userId || 'user';
+  const username = (evt?.user as any)?.displayName || (evt as any)?.user?.id || evt?.userId || 'user';
   const utcNow = new Date().toISOString();
-  return { botName, username, utcNow };
+  const channel = evt.channel || '';
+  const userId = ((evt as any)?.user?.id as string) || (evt.userId as string) || '';
+  const messageText = (evt?.message?.text || '').toString();
+  const ctx: RenderContext = { botName, username, utcNow, channel, userId, messageText };
+  // Shallow include payload fields (stringify primitives)
+  const payload = (evt as any)?.payload || {};
+  if (payload && typeof payload === 'object') {
+    for (const [k, v] of Object.entries(payload)) {
+      if (v === null || v === undefined) continue;
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+        ctx[k] = String(v);
+      }
+    }
+  }
+  return ctx;
 }
 
 /** Minimal mustache-like renderer supporting {{botName}}, {{username}}, {{utcNow}}. Unknowns left intact. */
 export function renderTemplate(text: string, ctx: RenderContext): string {
   if (typeof text !== 'string' || !text) return '';
-  const mapping: Record<string, string> = {
-    botName: String(ctx.botName ?? ''),
-    username: String(ctx.username ?? ''),
-    utcNow: String(ctx.utcNow ?? ''),
-  };
-  return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, varName: string) => {
+  const mapping: Record<string, string> = { ...ctx };
+  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, varName: string) => {
     if (Object.prototype.hasOwnProperty.call(mapping, varName)) {
       return mapping[varName];
     }

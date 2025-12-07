@@ -26,6 +26,9 @@ defaults: # Defaults for various entities. Individual entities may override thes
     observability:
       log_export: cloud-logging
       metrics: cloud-monitoring
+      tracing:
+        enabled: false         # TRACING_ENABLED default
+        sampler_ratio: 0.1     # TRACING_SAMPLER_RATIO default
     port: 3000
     health: # Default HTTP-based health check endpoints for services
       - /healthz
@@ -182,6 +185,8 @@ deploymentDefaults:
     maxInstances: 100
     cpu: '1'
     memory: 512Mi
+    # Ensure all services use instance-based billing by default
+    billing: instance
   global-external-application-lb:
     loadBalancingScheme: EXTERNAL_MANAGED
 

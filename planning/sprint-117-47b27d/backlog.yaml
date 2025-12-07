@@ -1,0 +1,181 @@
+version: 1
+summary: |
+  Trackable backlog to add distributed message tracing using Google Cloud Trace
+  and correlate structured logs in Cloud Logging across all services. Focus is on
+  minimal, safe instrumentation that leverages automatic Pub/Sub trace propagation
+  and Cloud Run request context, with optional child spans in handlers for deeper insight.
+owner: lead-implementor
+created_at: "2025-12-05T23:12:00-05:00"
+
+references:
+  - architecture.yaml: defaults.services.observability
+  - Google Cloud Trace + Logging integration for Cloud Run and Pub/Sub
+
+cross_cutting:
+  - id: TRACE-1
+    description: Choose and integrate OpenTelemetry SDK with Google Cloud Trace exporter
+    rationale: Enable end-to-end tracing with minimal overhead; align with Cloud Run defaults
+    tasks:
+      - Install deps:
+          - @opentelemetry/api
+          - @opentelemetry/sdk-trace-node
+          - @opentelemetry/resources
+          - @opentelemetry/semantic-conventions
+          - @opentelemetry/context-async-hooks
+          - @google-cloud/opentelemetry-cloud-trace-exporter
+      - Add BaseServer tracer bootstrap with lazy init and shutdown hooks
+      - Read env flags TRACING_ENABLED, TRACING_SAMPLER_RATIO, GCP_PROJECT
+      - Default sampler: ParentBasedTraceIdRatioBased with ratio=0.1 (configurable)
+    acceptance:
+      - Tracer is created once per process when TRACING_ENABLED=true
+      - Sampling ratio honored; parent-based continuation works
+      - No tracer created when disabled
+    priority: high
+    status: completed
+
+  - id: TRACE-2
+    description: Propagate/continue trace through Pub/Sub and HTTP automatically
+    rationale: Use Google libraries + Cloud Run to avoid custom headers/attrs
+    tasks:
+      - Ensure publisher calls happen within active spans (no code if using BaseServer hooks)
+      - Verify Pub/Sub attributes carry traceparent automatically
+      - Verify push subscription to Cloud Run continues trace automatically
+    acceptance:
+      - A published message within a span yields a downstream span in subscriber without manual code
+      - Trace waterfall shows topic wait time and consumer spans
+    priority: high
+    status: in-progress
+
+  - id: TRACE-3
+    description: Structured logging correlation with traces
+    rationale: Click-through from logs to traces in Cloud Logging speeds diagnosis
+    tasks:
+      - Ensure Logger writes JSON and includes trace fields when available:
+          - logging.googleapis.com/trace
+          - logging.googleapis.com/spanId
+          - logging.googleapis.com/trace_sampled
+      - For HTTP, derive trace from X-Cloud-Trace-Context or OpenTelemetry context
+      - For background message handlers, read current span context from OTel
+    acceptance:
+      - Log entries include clickable trace links in Log Explorer
+      - Severity mapping remains correct; no double JSON wrapping
+    priority: high
+    status: completed
+
+  - id: TRACE-4
+    description: Developer configuration and ops controls
+    tasks:
+      - Add env vars to architecture.yaml defaults and per-service as needed:
+        - TRACING_ENABLED (default: false)
+        - TRACING_SAMPLER_RATIO (default: 0.1)
+      - Document how to enable per environment; ensure safe defaults for local/dev
+    acceptance:
+      - Services run locally with tracing off by default
+      - Enabling tracing does not require code changes or redeploy other than env update
+    priority: medium
+    status: completed
+
+  - id: TRACE-5
+    description: BaseServer APIs for tracing and child spans
+    tasks:
+      - Add BaseServer.getTracer(): Tracer | undefined
+      - Wrap onMessage handlers to establish/continue a span if upstream context exists
+      - Provide helper to start child spans inside handlers
+    acceptance:
+      - Handlers can call this.getTracer()?.startActiveSpan('child', fn)
+      - Spans appear nested in Cloud Trace waterfall
+    priority: high
+    status: completed
+
+  - id: TRACE-6
+    description: Testing and validation for tracing
+    tasks:
+      - Add integration test that simulates publish→consume pipeline and asserts logs include trace links
+      - Add smoke docs for manual validation in Cloud Console
+    acceptance:
+      - Jest tests validate presence of trace correlation fields when tracing is enabled
+      - Manual checklist documented
+    priority: medium
+    status: completed
+
+  - id: TRACE-7
+    description: Documentation updates
+    tasks:
+      - Add troubleshooting guide: finding traces from logs; sampling considerations; cost notes
+      - Update service READMEs (if present) with tracing usage
+    acceptance:
+      - Docs merged under documentation/observability/tracing.md
+    priority: low
+    status: completed
+
+services:
+  - name: ingress-egress
+    path: src/apps/ingress-egress-service.ts
+    tasks:
+      - id: IE-TRACE-1
+        description: Ensure spans cover external event receipt and publish to internal.ingress.v1
+        acceptance:
+          - Waterfall shows receive→publish spans
+        status: completed
+        priority: high
+
+  - name: auth
+    path: src/apps/auth-service.ts
+    tasks:
+      - id: AUTH-TRACE-1
+        description: Continue trace from internal.ingress.v1; child span for enrichment; publish internal.user.enriched.v1
+        acceptance:
+          - Child span "user-enrichment" visible; logs correlated to trace
+        status: completed
+        priority: high
+
+  - name: event-router
+    path: src/apps/event-router-service.ts
+    tasks:
+      - id: ROUTER-TRACE-1
+        description: Continue trace; child span for routing logic; publish internal.llmbot.v1
+        acceptance:
+          - Child span "route-message" visible; logs correlated
+        status: completed
+        priority: high
+
+  - name: llm-bot
+    path: src/apps/llm-bot-service.ts
+    tasks:
+      - id: LLM-TRACE-1
+        description: Add child span inside onMessage handler (e.g., process-llm-request) and structured logs
+        acceptance:
+          - Span "process-llm-request" visible under message span
+          - Logs contain logging.googleapis.com/trace and spanId
+        status: completed
+        priority: high
+
+  - name: command-processor
+    path: src/apps/command-processor-service.ts
+    tasks:
+      - id: CMD-TRACE-1
+        description: Continue trace and add minimal child span around command execution
+        acceptance:
+          - Child span "execute-command" visible; logs correlated
+        status: completed
+        priority: medium
+
+  - name: oauth-flow
+    path: src/apps/oauth-service.ts
+    tasks:
+      - id: OAUTH-TRACE-1
+        description: Ensure HTTP request traces are correlated with logs; optional child spans around provider calls
+        acceptance:
+          - HTTP spans from Cloud Run correlate with logs automatically; optional child spans visible
+        status: completed
+        priority: low
+
+acceptance_criteria_overall:
+  - All services produce correlated logs with clickable trace links when TRACING_ENABLED=true
+  - A sample message’s end-to-end path is visible across at least three services in Cloud Trace
+  - Sampling controls are configurable via env without code changes
+  - Unit/integration tests validate presence of trace correlation fields when enabled
+
+risk_notes:
+  - Enabling tracing increases overhead; keep sampling low in prod initially
+  - Ensure no PII is recorded in spans; use attributes judiciously

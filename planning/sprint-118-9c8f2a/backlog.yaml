@@ -1,0 +1,163 @@
+version: 1
+summary: |
+  Extend the command processor so that executing a command may yield either a
+  Candidate or an Annotation on the current InternalEventV2. Leverage the
+  updated CommandDoc (type: 'candidate' | 'annotation', optional annotationKind)
+  and the existing core event contracts for Annotations and Candidates.
+owner: lead-implementor
+created_at: "2025-12-06T16:39:00-05:00"
+
+references:
+  - architecture.yaml: services.command-processor, events
+  - src/types/events.ts: InternalEventV2, AnnotationV1, CandidateV1
+  - src/services/command-processor/command-repo.ts: CommandDoc
+  - firestore.rules: commands collection access
+
+guiding_principles:
+  - Keep the processor stateless w.r.t. event mutation (no external writes)
+  - Backward compatible: unknown/invalid commands result in SKIP, not ERROR
+  - Respect cooldowns and rate limits strictly before producing effects
+  - Deterministic and testable: pure function behavior around processEvent
+
+cross_cutting:
+  - id: CMD-EFF-1
+    description: Align contracts and types in code with updated CommandDoc and InternalEventV2
+    rationale: Ensure compile-time safety and clear intent for command effects
+    tasks:
+      - Verify CommandDoc includes {type, annotationKind} in repo normalize step
+      - Ensure events.ts exports AnnotationV1 and CandidateV1 (already present)
+      - Add helper type CommandEffect = 'annotation' | 'candidate'
+    acceptance:
+      - TS types compile; processor can branch based on CommandDoc.type
+    priority: high
+    status: completed
+
+  - id: CMD-EFF-2
+    description: Implement processor to produce Annotation or Candidate based on CommandDoc.type
+    rationale: Core capability for this sprint
+    tasks:
+      - When type='annotation':
+        - Create AnnotationV1 with id, kind (from annotationKind or 'custom'), source='command-processor', createdAt
+        - Populate value/label from command/template variable resolution when applicable
+        - Append to event.annotations[]
+      - When type='candidate':
+        - Select a template (lastUsedTemplateId or first available)
+        - Render variables from event.message/payload (simple {{var}} interpolation)
+        - Create CandidateV1 with status='proposed', priority from CommandDoc or default 100
+        - Append to event.candidates[]
+      - Preserve existing step status semantics: OK on success, SKIP on no-op
+      - Add ErrorEntryV1 on unexpected failures and set stepStatus='ERROR'
+    acceptance:
+      - Matching 'annotation' command adds an AnnotationV1 to event.annotations and returns stepStatus='OK'
+      - Matching 'candidate' command adds a CandidateV1 to event.candidates and returns stepStatus='OK'
+      - If no command matches, returns stepStatus='SKIP' and leaves event unchanged
+    priority: highest
+    status: completed
+
+  - id: CMD-EFF-3
+    description: Respect cooldowns and rate limits for commands before producing effects
+    rationale: Prevent spam/abuse; maintain global/user-level fairness
+    tasks:
+      - Enforce perUserMs and globalMs cooldowns
+      - Enforce fixed-window rateLimit {max, perMs}
+      - On violation, return stepStatus='SKIP' and do not mutate annotations/candidates
+    acceptance:
+      - Cooldown and rate limits are honored in unit tests
+      - No database writes required beyond any existing counters (if present)
+    priority: high
+    status: completed
+
+  - id: CMD-EFF-4
+    description: Minimal template rendering utility for command templates
+    rationale: Allow variable substitution without adding heavy dependencies
+    tasks:
+      - Implement safe, tiny mustache-like {{var}} interpolation from context
+      - Provide variables: channel, userId, message.text, payload fields
+      - Fallback to raw template text if substitution fails
+    acceptance:
+      - Unit tests show correct interpolation and fallback behavior
+    priority: medium
+    status: completed
+
+  - id: CMD-EFF-5
+    description: Update and add unit tests for processor branching, limits, and rendering
+    rationale: Regression protection and confidence
+    tasks:
+      - Tests for: annotation path, candidate path, no match, cooldown skip, rate-limit skip, error path
+      - Mock command-repo findByNameOrAlias and time functions for deterministic tests
+    acceptance:
+      - Jest tests pass locally and in CI
+    priority: highest
+    status: completed
+
+  - id: CMD-EFF-6
+    description: Logging and observability for command effects
+    rationale: Operational visibility
+    tasks:
+      - Log effect type, command id, and outcome (OK/SKIP/ERROR) with correlationId
+      - Avoid logging full message text unless in debug level
+    acceptance:
+      - Logs present with expected fields; sensitive data not printed at info level
+    priority: medium
+    status: completed
+
+  - id: CMD-EFF-7
+    description: Documentation updates
+    rationale: Help operators author commands
+    tasks:
+      - Document CommandDoc.type and annotationKind semantics
+      - Provide examples for annotation and candidate commands with templates
+    acceptance:
+      - Docs added under documentation/commands/effects.md
+    priority: low
+    status: completed
+
+services:
+  - name: command-processor
+    path: src/apps/command-processor-service.ts
+    tasks:
+      - id: CMD-SVC-1
+        description: Implement processEvent branching to create AnnotationV1 or CandidateV1
+        acceptance:
+          - processEvent returns updated event and stepStatus per scenarios in CMD-EFF-2
+        priority: highest
+        status: completed
+      - id: CMD-SVC-2
+        description: Integrate template rendering and record lastUsedTemplateId in runtime
+        acceptance:
+          - runtime.lastUsedTemplateId is updated on successful candidate creation
+        priority: high
+        status: completed
+      - id: CMD-SVC-3
+        description: Cooldown and rate-limit checks before effect creation
+        acceptance:
+          - Violations produce SKIP with no mutations to annotations/candidates
+        priority: high
+        status: completed
+
+  - name: tests
+    path: tests/
+    tasks:
+      - id: TEST-CP-1
+        description: Unit tests for annotation and candidate creation paths
+        acceptance:
+          - Tests cover positive/negative paths; coverage > 80% for processor module
+        priority: highest
+        status: completed
+      - id: TEST-CP-2
+        description: Unit tests for cooldown and rate-limit behavior
+        acceptance:
+          - Simulated time windows confirm SKIP without mutations
+        priority: high
+        status: completed
+
+acceptance_criteria_overall:
+  - Given a matching 'annotation' command with annotationKind set, the resulting event contains a new AnnotationV1 with correct kind and timestamps; stepStatus='OK'
+  - Given a matching 'candidate' command with a valid template, the resulting event contains a new CandidateV1 with status='proposed' and rendered text; stepStatus='OK'
+  - When no command matches, or cooldown/rate-limit blocks, stepStatus='SKIP' and event is unchanged in annotations/candidates
+  - Errors are captured in event.errors with source='command-processor' and do not crash the consumer
+
+risk_notes:
+  - Template injection or malformed variables; mitigate by simple, safe interpolation
+  - High message volume could stress rate windows; keep logic O(1) with fixed window keys
+  - Ambiguous command aliases; ensure lookup order: name then alias (already implemented)

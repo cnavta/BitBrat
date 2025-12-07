@@ -16,6 +16,8 @@ substitutions:
   _SECRET_SET_ARG: ''
   _ENV_VARS_ARG: ''
   _DOCKERFILE: 'Dockerfile.oauth-flow'
+  # Billing model: ensure instance-based billing on Cloud Run
+  _BILLING: 'instance'
   # Networking: enforce Internal & CLB ingress and attach VPC connector when provided
   _INGRESS: 'internal-and-cloud-load-balancing'
   _VPC_CONNECTOR: ''
@@ -57,13 +59,16 @@ steps:
       - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:latest'
 
   - id: 'Cloud Run deploy (conditional)'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    # Pin to a specific, recent version of the Cloud SDK to ensure all flags are available.
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:478.0.0'
     entrypoint: 'bash'
     args:
       - -c
       - |
         set -euo pipefail
         IMAGE="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${_TAG}"
+        echo "--- Using gcloud version: ---"
+        gcloud --version
         if [ "${_DRY_RUN}" = "true" ]; then
           echo "_DRY_RUN=true: skipping gcloud run deploy. Image available at $$IMAGE"
           exit 0
@@ -76,33 +81,34 @@ steps:
         echo "  max-instances: ${_MAX_INSTANCES}"
         echo "  cpu: ${_CPU}"
         echo "  memory: ${_MEMORY}"
+        echo "  billing: ${_BILLING}"
         echo "  ingress: ${_INGRESS}"
         echo "  vpc-connector: ${_VPC_CONNECTOR}"
         ALLOW_FLAG=""
         if [ "${_ALLOW_UNAUTH}" = "true" ]; then
           ALLOW_FLAG="--allow-unauthenticated"
         fi
-        SEC_LIST="$(printf '%s' "${_SECRET_SET_ARG}" | tr ';' ',')"
-        ENV_LIST="$(printf '%s' "${_ENV_VARS_ARG}" | tr ';' ',')"
-        # Build argument vector to avoid shell mis-parsing (e.g., '#' starting a comment)
-        args=(run deploy "${_SERVICE_NAME}"
-          --image "$$IMAGE"
-          --region "${_REGION}"
-          --platform managed
-          --port "${_PORT}"
-          --min-instances "${_MIN_INSTANCES}"
-          --max-instances "${_MAX_INSTANCES}"
-          --cpu "${_CPU}" --memory "${_MEMORY}"
-        )
-        # Enforce ingress policy
-        if [ -n "${_INGRESS}" ]; then args+=(--ingress "${_INGRESS}"); fi
-        # Optionally attach Serverless VPC connector
-        if [ -n "${_VPC_CONNECTOR}" ]; then args+=(--vpc-connector "${_VPC_CONNECTOR}"); fi
-        if [ -n "$$ALLOW_FLAG" ]; then args+=("$$ALLOW_FLAG"); fi
-        if [ -n "$$SEC_LIST" ]; then args+=(--set-secrets "$$SEC_LIST"); fi
-        if [ -n "$$ENV_LIST" ]; then args+=(--set-env-vars "$$ENV_LIST"); fi
-        echo "Executing: gcloud $${args[@]}"
-        gcloud "$${args[@]}"
+
+        # Build command as a string to ensure correct parsing by the shell
+        CMD="gcloud run deploy ${_SERVICE_NAME} \
+          --image $$IMAGE \
+          --region ${_REGION} \
+          --platform managed \
+          --port ${_PORT} \
+          --min-instances ${_MIN_INSTANCES} \
+          --max-instances ${_MAX_INSTANCES} \
+          --cpu ${_CPU} --memory ${_MEMORY} \
+          --execution-environment gen2 \
+          --no-cpu-throttling"
+
+        if [ -n "${_INGRESS}" ]; then CMD="$${CMD} --ingress ${_INGRESS}"; fi
+        if [ -n "${_VPC_CONNECTOR}" ]; then CMD="$${CMD} --vpc-connector ${_VPC_CONNECTOR}"; fi
+        if [ -n "$$ALLOW_FLAG" ]; then CMD="$${CMD} $$ALLOW_FLAG"; fi
+        if [ -n "${_SECRET_SET_ARG}" ]; then CMD="$${CMD} --set-secrets $(printf '%s' "${_SECRET_SET_ARG}" | tr ';' ',')"; fi
+        if [ -n "${_ENV_VARS_ARG}" ]; then CMD="$${CMD} --set-env-vars $(printf '%s' "${_ENV_VARS_ARG}" | tr ';' ',')"; fi
+
+        echo "Executing: $$CMD"
+        eval "$$CMD"
 
         # Explicitly ensure IAM binding for unauthenticated access when requested
         if [ "${_ALLOW_UNAUTH}" = "true" ]; then
