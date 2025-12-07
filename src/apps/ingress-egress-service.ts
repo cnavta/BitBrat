@@ -83,13 +83,12 @@ class IngressEgressServer extends BaseServer {
     } else {
       logger.info('ingress-egress.egress_subscribe.start', { subject: egressSubject, queue: `ingress-egress.${instanceId}` });
       try {
-        await this.onMessage(
+        await this.onMessage<any>(
           { destination: egressTopic, queue: `ingress-egress.${instanceId}`, ack: 'explicit' },
-          async (data: Buffer, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+          async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               const tracer = (this as any).getTracer?.();
               const run = async () => {
-                const evt = JSON.parse(data.toString('utf8')) as any;
                 logger.debug('ingress-egress.egress_subscribe.received_event', { event: evt });
                 // Mark selected candidate on V2 events (if candidates exist) and log rationale
                 let evtForDelivery: any = evt;

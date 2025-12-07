@@ -44,13 +44,11 @@ class AuthServer extends BaseServer {
 
     logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
     try {
-      await this.onMessage(
+      await this.onMessage<InternalEventV2>(
         { destination: INTERNAL_INGRESS_V1, queue: 'auth', ack: 'explicit' },
-        async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+        async (asV2: InternalEventV2, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
           try {
             counters.increment('auth.enrich.total');
-            const raw = JSON.parse(data.toString('utf8')) as any;
-            const asV2: InternalEventV2 = raw as InternalEventV2;
 
             // Create a child span for enrichment and publish for better trace visibility
             const tracer = (this as any).getTracer?.();

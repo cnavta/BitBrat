@@ -10,6 +10,8 @@ Overview
     - Advances to the next destination. If no pending steps remain, falls back to `egressDestination`.
   - `protected async complete(event: InternalEventV2)`
     - Bypasses the routing slip and publishes directly to `egressDestination`.
+  - `protected updateCurrentStep(event: InternalEventV2, update: UpdateSpec)`
+    - Convenience method for receivers to update the current pending step (set `status`, `error`, and `notes`). Returns `{ index, step } | null`.
 - Both methods are idempotent per in-memory event instance: subsequent calls with the same event are no-ops, unless the prior publish failed.
 
 When to use
@@ -27,6 +29,13 @@ Behavior summary
   - Spans: `routing.next`, `routing.complete`.
   - Logs include `correlationId`, `subject`/`egressDestination`, and `stepIndex` where applicable.
 
+Step update helper
+- Signature: `protected updateCurrentStep(event: InternalEventV2, update: { status?: RoutingStatus; error?: { code: string; message?: string; retryable?: boolean } | null; notes?: string; appendNote?: string }): { index: number; step: RoutingStep } | null`
+- Behavior:
+  - Finds the first pending step (status not in `OK|SKIP`), applies updates.
+  - Sets `endedAt` when transitioning to `OK|SKIP|ERROR`.
+  - Does not advance routing; callers should invoke `next(event)`/`complete(event)` afterward.
+
 Idempotency
 - Each helper sets an in-memory, non-serializable marker on the event object.
 - If called again with the same event instance, the helper returns immediately (no publish) and logs a debug message.
@@ -37,12 +46,7 @@ Usage example
 class MyService extends BaseServer {
   async handle(evt: InternalEventV2) {
     // ... process current step ...
-    const slip = evt.routingSlip || [];
-    const idx = slip.findIndex((s) => s.status !== 'OK' && s.status !== 'SKIP');
-    if (idx >= 0) {
-      slip[idx].status = 'OK';
-      slip[idx].endedAt = new Date().toISOString();
-    }
+    this.updateCurrentStep(evt, { status: 'OK' });
     await (this as any).next(evt);
   }
 }
