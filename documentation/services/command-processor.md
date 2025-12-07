@@ -10,7 +10,7 @@ Overview
 - Resolves commands from Firestore by canonical name or alias
 - Enforces optional global cooldown, per-user cooldown, and fixed-window rate limit
 - Renders a response from a command template and appends it as a CandidateV1
-- Advances the routing slip to the next step, or publishes to egressDestination if none remain
+- Advances the routing slip to the next step using BaseServer helpers, or publishes to egressDestination if none remain
 
 Environment Variables
 - COMMAND_SIGIL: Leading character denoting a command (default: !)
@@ -62,7 +62,10 @@ Behavior
 
 5) Routing advancement
 - Set current step status=OK (or SKIP on no-op/violations) and endedAt
-- Publish to next pending step’s nextTopic; else publish to egressDestination; else log completion
+- Use BaseServer protected helpers to advance:
+  - `next(event)`: prefers the most recently completed step’s `nextTopic`, otherwise the first pending step; if none remain, falls back to `egressDestination`.
+  - `complete(event)`: bypasses routing slip and publishes directly to `egressDestination`.
+- Both helpers are idempotent per in-memory event instance; repeated calls are no-ops unless prior publish failed.
 
 Logging (structured)
 - command_processor.event.received
@@ -76,6 +79,9 @@ Logging (structured)
 Testing
 - Unit tests cover parsing, repo lookups, policies, template selection/rendering, candidate creation, routing advancement
 - Integration smoke test verifies V1→V2 normalization and candidate append
+
+See also
+- documentation/services/base-server-routing.md — details, usage, and idempotency of routing helpers.
 
 Security
 - Uses Firebase Admin (server credentials)

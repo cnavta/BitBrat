@@ -62,3 +62,47 @@
     - BL-004 status: in-progress
   - notes:
     - Adjusted to current RoutingStep shape (uses attempt, nextTopic). Fallback to egress when no pending step.
+
+- 2025-12-06 19:55 ET — Add unit tests for BaseServer helpers (Lead Implementor)
+  - files added:
+    - tests/base-server-routing.spec.ts
+  - actions:
+    - Implemented tests for subject selection, egress fallback, idempotency, and failure retry
+    - Ran Jest: passing
+  - backlog updates:
+    - BL-005 status: done
+
+- 2025-12-06 20:15 ET — Refactor command-processor to use BaseServer helpers (Lead Implementor)
+  - files modified:
+    - src/apps/command-processor-service.ts (apply busPrefix, preserve completion log, delegate to BaseServer.next)
+    - src/common/base-server.ts (update next() selection to prefer most recently completed step's nextTopic)
+  - tests:
+    - Updated tests to align with selection logic
+    - Ran full Jest suite: all passing
+  - backlog updates:
+    - BL-003 status: done
+    - BL-004 status: done
+    - BL-006 status: done
+  - notes:
+    - Selection behavior now matches existing service expectations; helpers retain idempotency and tracing
+
+- 2025-12-06 20:28 ET — Documentation updates for routing helpers (Lead Implementor)
+  - files added:
+    - documentation/services/base-server-routing.md
+  - files modified:
+    - documentation/services/command-processor.md (reference using BaseServer helpers)
+    - documentation/observability/tracing.md (note span names routing.next and routing.complete)
+  - backlog updates:
+    - BL-007 status: done
+
+- 2025-12-06 20:31 ET — Observability polish review (Lead Implementor)
+  - review: Verified span names and log fields in src/common/base-server.ts are aligned with TA.
+  - no code changes required; tests remain passing
+  - backlog updates:
+    - BL-008 status: done
+
+- 2025-12-06 20:34 ET — Validation script enhancement (Lead Implementor)
+  - files modified:
+    - planning/sprint-119-a8827e/validate_deliverable.sh (add targeted Jest run for BaseServer helper tests)
+  - backlog updates:
+    - BL-009 status: done
