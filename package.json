@@ -34,7 +34,7 @@
     "nats": "^2.29.3",
     "pino": "^9.4.0",
     "zod": "^3.23.8",
-    "@joshuacalpuerto/mcp-agent": "^1.1.1"
+    "openai": "^6.10.0"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
