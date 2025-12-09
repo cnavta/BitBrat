@@ -1,0 +1,114 @@
+sprint: sprint-122-7e3f9a
+title: "Short-term memory (in-memory) for llm-bot via LangGraph.js"
+status: planning
+owner: Architect
+items:
+  - id: T-001
+    title: "Add messages[] to LLM state and implement short-term memory reducer"
+    priority: 1
+    status: todo
+    estimate: 3
+    depends_on: []
+    acceptance_criteria:
+      - "Reducer appends new messages deterministically"
+      - "Trims by max chars (LLM_BOT_MEMORY_MAX_CHARS, default 8000)"
+      - "Trims by max count (LLM_BOT_MEMORY_MAX_MESSAGES, default 8)"
+      - "Unit tests cover append, char-limit, count-limit"
+    tags: [memory, reducer]
+
+  - id: T-002
+    title: "Implement ingest_prompt node to convert annotations and update messages[]"
+    priority: 2
+    status: todo
+    estimate: 2
+    depends_on: [T-001]
+    acceptance_criteria:
+      - "Transforms prompt annotations into a single HumanMessage"
+      - "Updates messages via reducer"
+      - "SKIP path when no prompt annotations"
+      - "Logs before/after counts and trims"
+    tags: [graph, prompts]
+
+  - id: T-003
+    title: "Update call_model to use flattened conversation and append AssistantMessage"
+    priority: 3
+    status: todo
+    estimate: 3
+    depends_on: [T-001, T-002]
+    acceptance_criteria:
+      - "Flattens messages into a single string for Responses API"
+      - "Calls OpenAI with model and timeout envs respected"
+      - "Appends AssistantMessage with response text into messages"
+      - "Logs input size and message count"
+      - "ERROR path records evt.errors"
+    tags: [model, openai]
+
+  - id: T-004
+    title: "Implement build_candidate from last AssistantMessage"
+    priority: 4
+    status: todo
+    estimate: 2
+    depends_on: [T-003]
+    acceptance_criteria:
+      - "CandidateV1 created with kind 'text' and status 'proposed'"
+      - "Text equals last AssistantMessage content"
+      - "llmText and combinedPrompt maintained for backward compatibility"
+    tags: [candidate]
+
+  - id: T-005
+    title: "Observability: structured logs around memory and LLM call"
+    priority: 5
+    status: todo
+    estimate: 1
+    depends_on: [T-001, T-003]
+    acceptance_criteria:
+      - "Logs include beforeCount, afterCount, trimmedByChars, trimmedByCount"
+      - "LLM call logs include message length and char count"
+    tags: [observability]
+
+  - id: T-006
+    title: "Unit tests for reducer and processor paths"
+    priority: 6
+    status: todo
+    estimate: 3
+    depends_on: [T-001, T-002, T-003, T-004]
+    acceptance_criteria:
+      - "reducer.spec.ts covers append and trimming"
+      - "processor.memory.spec.ts covers OK, SKIP, ERROR paths"
+      - "OpenAI calls mocked; tests are deterministic"
+    tags: [tests]
+
+  - id: T-007
+    title: "Env defaults and configuration surface"
+    priority: 7
+    status: todo
+    estimate: 1
+    depends_on: [T-001]
+    acceptance_criteria:
+      - "Defaults applied when envs are unset"
+      - "Optional system prompt supported (empty by default)"
+      - "Document envs in code comments or README section"
+    tags: [config]
+
+  - id: T-008
+    title: "Sprint validation script and runbook"
+    priority: 8
+    status: in-progress
+    estimate: 1
+    depends_on: []
+    acceptance_criteria:
+      - "planning/sprint-122-7e3f9a/validate_deliverable.sh exists and is executable"
+      - "Script logically passable using repository npm scripts"
+    tags: [ci]
+
+  - id: T-009
+    title: "Publication: Create PR and record in publication.yaml"
+    priority: 9
+    status: todo
+    estimate: 1
+    depends_on: [T-001, T-002, T-003, T-004, T-006]
+    acceptance_criteria:
+      - "Feature branch pushed"
+      - "PR created via gh CLI or API"
+      - "planning/.../publication.yaml contains PR URL and branch"
+    tags: [publish]
