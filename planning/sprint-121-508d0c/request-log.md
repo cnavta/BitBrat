@@ -10,3 +10,4 @@
  - 2025-12-09T10:10:00-05:00 | Retro & Learnings | Added `retro.md` and `key-learnings.md`.
  - 2025-12-09T10:11:00-05:00 | Manifest | Updated `sprint-manifest.yaml` status to complete.
  - 2025-12-09T10:12:00-05:00 | Publication | Prepared `publication.yaml` and attempted PR creation (will update with result below).
+  - 2025-12-09T10:13:30-05:00 | Publication | PR created: https://github.com/cnavta/BitBrat/pull/24
