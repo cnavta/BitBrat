@@ -116,7 +116,10 @@ class LlmBotServer extends BaseServer {
               logger.debug('llm_bot.processing_langgraph');
               const status = await processEvent(this, data as InternalEventV2);
               await (this as any).next?.(data as InternalEventV2, status);
-              logger.info('llm_bot.processed', { correlationId: (data as any)?.correlationId, status });
+              logger.info('llm_bot.processed', {correlationId: (data as any)?.correlationId, status});
+            } catch (e) {
+              logger.error('llm_bot.process_error', { error: e });
+              throw e;
             } finally {
               span.end();
             }

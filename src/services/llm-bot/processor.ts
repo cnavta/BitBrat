@@ -4,12 +4,51 @@ import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
 
 // Minimal LangGraph shim: we keep structure ready; can swap with real graph nodes later.
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string; createdAt: string };
+
 type LlmGraphState = {
   event: InternalEventV2;
-  combinedPrompt?: string;
+  combinedPrompt?: string; // backward-compat
+  messages?: ChatMessage[]; // short-term memory within a single run
   llmText?: string;
   error?: Error;
 };
+
+function toHuman(text: string): ChatMessage {
+  return { role: 'user', content: String(text || ''), createdAt: new Date().toISOString() };
+}
+
+function toAssistant(text: string): ChatMessage {
+  return { role: 'assistant', content: String(text || ''), createdAt: new Date().toISOString() };
+}
+
+function totalChars(msgs: ChatMessage[] = []): number {
+  return msgs.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+}
+
+function applyMemoryReducer(
+  existing: ChatMessage[] = [],
+  incoming: ChatMessage[] = [],
+  limits: { maxMessages: number; maxChars: number }
+): { messages: ChatMessage[]; trimmedByChars: number; trimmedByCount: number } {
+  const merged = [...existing, ...incoming];
+  let trimmedByChars = 0;
+  let trimmedByCount = 0;
+  // Trim by chars (drop from oldest)
+  const maxChars = Math.max(0, limits.maxChars || 0);
+  let work = merged;
+  while (maxChars > 0 && totalChars(work) > maxChars && work.length > 0) {
+    const dropped = work.shift();
+    trimmedByChars += (dropped?.content?.length || 0);
+  }
+  // Trim by count (keep last N)
+  const maxMessages = Math.max(1, limits.maxMessages || 1);
+  if (work.length > maxMessages) {
+    trimmedByCount = work.length - maxMessages;
+    work = work.slice(-maxMessages);
+  }
+  return { messages: work, trimmedByChars, trimmedByCount };
+}
 
 function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
   if (!Array.isArray(annotations)) return undefined;
@@ -24,6 +63,10 @@ function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
   const parts = prompts.map((p) => p.value || p.payload?.text || '').filter(Boolean);
   const combined = parts.join('\n\n');
   return combined.trim() || undefined;
+}
+
+function flattenMessagesForModel(messages: ChatMessage[] = []): string {
+  return messages.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
 }
 
 async function callOpenAI(model: string, prompt: string, timeoutMs?: number): Promise<string> {
@@ -58,40 +101,108 @@ export async function processEvent(
   const logger = (server as any).getLogger?.();
   const state: LlmGraphState = { event: evt };
 
+  logger.debug('llm_bot.process_event', { correlationId: evt.correlationId });
+
   try {
     // Build a tiny LangGraph to orchestrate the steps using Annotations for typing
     const LlmState = Annotation.Root({
       event: Annotation<InternalEventV2>(),
       combinedPrompt: Annotation<string | undefined>(),
+      messages: Annotation<ChatMessage[] | undefined>(),
       llmText: Annotation<string | undefined>(),
     });
 
     const graph = new StateGraph(LlmState)
-      .addNode('build_prompt', async (s: typeof LlmState.State) => {
-        const combinedPrompt = buildCombinedPrompt(s.event.annotations);
-        return { combinedPrompt };
+      .addNode('ingest_prompt', async (s: typeof LlmState.State) => {
+        logger.debug('llm_bot.process_event.ingest_prompt', { correlationId: s.event.correlationId });
+        const anns = Array.isArray(s.event.annotations) ? s.event.annotations : [];
+        const combinedPrompt = buildCombinedPrompt(anns as any);
+        const maxMessages = Number(process.env.LLM_BOT_MEMORY_MAX_MESSAGES || '8');
+        const maxChars = Number(process.env.LLM_BOT_MEMORY_MAX_CHARS || '8000');
+        let messages: ChatMessage[] = Array.isArray(s.messages) ? [...(s.messages as ChatMessage[])] : [];
+
+        // Optionally include a system prompt as the very first message
+        if (messages.length === 0) {
+          const sys = process.env.LLM_BOT_SYSTEM_PROMPT;
+          if (sys && sys.trim()) {
+            messages.push({ role: 'system', content: sys.trim(), createdAt: new Date().toISOString() });
+          }
+        }
+
+        if (combinedPrompt) {
+          // Build one HumanMessage per prompt annotation (sorted) for better trimming behavior
+          const promptAnns = anns
+            .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
+          promptAnns.sort((a: any, b: any) => {
+            const at = Date.parse(a.createdAt || '') || 0;
+            const bt = Date.parse(b.createdAt || '') || 0;
+            if (at !== bt) return at - bt;
+            return (a.id || '').localeCompare(b.id || '');
+          });
+          const incoming = promptAnns.map((p: any) => toHuman(p.value || p.payload?.text || ''));
+          const { messages: reduced, trimmedByChars, trimmedByCount } = applyMemoryReducer(messages, incoming, {
+            maxMessages: isFinite(maxMessages) ? maxMessages : 8,
+            maxChars: isFinite(maxChars) ? maxChars : 8000,
+          });
+          logger?.debug?.('llm_bot.memory_update', {
+            beforeCount: messages.length,
+            afterCount: reduced.length,
+            trimmedByChars,
+            trimmedByCount,
+            correlationId: s.event.correlationId,
+          });
+          messages = reduced;
+        }
+
+        return { combinedPrompt, messages };
       })
       .addNode('call_model', async (s: typeof LlmState.State) => {
+        logger.debug('llm_bot.process_event.call_model', { correlationId: s.event.correlationId });
         const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
         const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || '15000');
         const fn = deps?.callLLM || callOpenAI;
-        if (!s.combinedPrompt) return {};
-        const llmText = await fn(model, s.combinedPrompt, isFinite(timeoutMs) ? timeoutMs : undefined);
-        return { llmText };
+        const msgs = (s.messages as ChatMessage[]) || [];
+        if (!s.combinedPrompt) return {}; // No prompt to act on
+        const input = flattenMessagesForModel(msgs);
+        logger?.debug?.('llm_bot.call_model.input_stats', {
+          messageCount: msgs.length,
+          charCount: input.length,
+          correlationId: s.event.correlationId,
+        });
+        const llmText = await fn(model, input, isFinite(timeoutMs) ? timeoutMs : undefined);
+        const trimmed = String(llmText || '').trim();
+        const out: Partial<typeof LlmState.State> = { llmText: trimmed } as any;
+        // Only append assistant message if non-empty to avoid blank turns in memory
+        if (trimmed) {
+          (out as any).messages = [...msgs, toAssistant(trimmed)];
+        }
+        return out as any;
       })
-      .addEdge('__start__', 'build_prompt')
-      .addConditionalEdges('build_prompt', (s: typeof LlmState.State) => (s.combinedPrompt ? 'call_model' : END))
-      .addEdge('call_model', END)
+      .addNode('build_candidate', async (_s: typeof LlmState.State) => {
+        // Node kept for structural clarity; actual candidate push happens after graph execution
+        return {};
+      })
+      .addEdge('__start__', 'ingest_prompt')
+      .addConditionalEdges('ingest_prompt', (s: typeof LlmState.State) => (s.combinedPrompt ? 'call_model' : END))
+      .addEdge('call_model', 'build_candidate')
+      .addEdge('build_candidate', END)
       .compile();
 
+    logger.debug('llm_bot.process_event.graph_compiled', { correlationId: evt.correlationId });
     const result = await graph.invoke(state);
+    logger.debug('llm_bot.process_event.graph_invoked', { correlationId: evt.correlationId, result });
 
     if (!result.combinedPrompt) {
       logger?.info?.('llm_bot.no_prompt_annotations', { correlationId: evt.correlationId });
       return 'SKIP';
     }
 
-    // Append candidate based on llmText
+    // Append candidate based on llmText only if non-empty
+    const text = String(result.llmText || '').trim();
+    if (!text) {
+      logger?.info?.('llm_bot.empty_llm_response', { correlationId: evt.correlationId });
+      return 'OK';
+    }
     if (!Array.isArray(evt.candidates)) evt.candidates = [];
     const candidate: CandidateV1 = {
       id: 'cand-' + (evt.correlationId || Date.now().toString(36)),
@@ -100,14 +211,15 @@ export async function processEvent(
       createdAt: new Date().toISOString(),
       status: 'proposed',
       priority: 10,
-      text: String(result.llmText || '').trim(),
+      text,
       reason: 'llm-bot.basic',
     };
+    logger.debug('llm_bot.process_event.candidate_added', { correlationId: evt.correlationId, candidate });
     evt.candidates.push(candidate);
     return 'OK';
   } catch (err: any) {
     state.error = err instanceof Error ? err : new Error(String(err));
-    logger?.error?.('llm_bot.error', { message: state.error.message, correlationId: evt.correlationId });
+    logger.error('llm_bot.error', { message: state.error.message, correlationId: evt.correlationId, err });
     if (!Array.isArray(evt.errors)) evt.errors = [];
     evt.errors.push({ source: 'llm-bot', message: state.error.message, at: new Date().toISOString() });
     return 'ERROR';
