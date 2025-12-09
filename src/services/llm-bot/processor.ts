@@ -14,6 +14,18 @@ type LlmGraphState = {
   error?: Error;
 };
 
+function preview(text: string, max = 200): string {
+  const s = String(text || '');
+  if (s.length <= max) return s;
+  return s.slice(0, max) + `…(+${s.length - max})`;
+}
+
+function isAbortError(err: any): boolean {
+  const name = (err && err.name) || '';
+  const msg = (err && err.message) || '';
+  return name === 'AbortError' || /abort(ed)?/i.test(msg) || /The operation was aborted/i.test(msg);
+}
+
 function toHuman(text: string): ChatMessage {
   return { role: 'user', content: String(text || ''), createdAt: new Date().toISOString() };
 }
@@ -81,6 +93,7 @@ async function callOpenAI(model: string, prompt: string, timeoutMs?: number): Pr
     input: prompt,
     max_output_tokens: 512,
   };
+
   // IMPORTANT: pass AbortSignal via the fetch options (2nd param), NOT in the request body
   const resp = await (client as any).responses.create(
     requestBody,
@@ -164,19 +177,56 @@ export async function processEvent(
         const msgs = (s.messages as ChatMessage[]) || [];
         if (!s.combinedPrompt) return {}; // No prompt to act on
         const input = flattenMessagesForModel(msgs);
-        logger?.debug?.('llm_bot.call_model.input_stats', {
+        const corr = s.event.correlationId;
+        const startedAt = Date.now();
+        logger?.debug?.('openai.request', {
+          correlationId: corr,
+          model,
+          timeoutMs: isFinite(timeoutMs) ? timeoutMs : undefined,
           messageCount: msgs.length,
-          charCount: input.length,
-          correlationId: s.event.correlationId,
+          inputChars: input.length,
+          inputPreview: preview(input),
         });
-        const llmText = await fn(model, input, isFinite(timeoutMs) ? timeoutMs : undefined);
-        const trimmed = String(llmText || '').trim();
-        const out: Partial<typeof LlmState.State> = { llmText: trimmed } as any;
-        // Only append assistant message if non-empty to avoid blank turns in memory
-        if (trimmed) {
-          (out as any).messages = [...msgs, toAssistant(trimmed)];
+        try {
+          const llmText = await fn(model, input, isFinite(timeoutMs) ? timeoutMs : undefined);
+          const durationMs = Date.now() - startedAt;
+          const trimmed = String(llmText || '').trim();
+          logger?.debug?.('openai.response', {
+            correlationId: corr,
+            model,
+            durationMs,
+            outputChars: trimmed.length,
+            outputPreview: preview(trimmed),
+          });
+          const out: Partial<typeof LlmState.State> = { llmText: trimmed } as any;
+          // Only append assistant message if non-empty to avoid blank turns in memory
+          if (trimmed) {
+            (out as any).messages = [...msgs, toAssistant(trimmed)];
+          }
+          return out as any;
+        } catch (e: any) {
+          const durationMs = Date.now() - startedAt;
+          if (isAbortError(e)) {
+            logger?.warn?.('openai.timeout', {
+              correlationId: corr,
+              model,
+              timeoutMs: isFinite(timeoutMs) ? timeoutMs : undefined,
+              durationMs,
+              inputChars: input.length,
+              message: e?.message || 'aborted',
+            });
+          } else {
+            logger?.error?.('openai.error', {
+              correlationId: corr,
+              model,
+              durationMs,
+              message: e?.message || String(e),
+              name: e?.name,
+              code: (e && (e.code || e.status)) || undefined,
+            });
+          }
+          throw e; // preserve existing error handling at outer scope
         }
-        return out as any;
       })
       .addNode('build_candidate', async (_s: typeof LlmState.State) => {
         // Node kept for structural clarity; actual candidate push happens after graph execution
@@ -188,7 +238,7 @@ export async function processEvent(
       .addEdge('build_candidate', END)
       .compile();
 
-    logger.debug('llm_bot.process_event.graph_compiled', { correlationId: evt.correlationId });
+    logger.debug('llm_bot.process_event.graph_compiled', { correlationId: evt.correlationId }, state);
     const result = await graph.invoke(state);
     logger.debug('llm_bot.process_event.graph_invoked', { correlationId: evt.correlationId, result });
 
@@ -199,6 +249,7 @@ export async function processEvent(
 
     // Append candidate based on llmText only if non-empty
     const text = String(result.llmText || '').trim();
+    logger.debug('llm_bot.process_event.llm_text_trimmed', { correlationId: evt.correlationId, text });
     if (!text) {
       logger?.info?.('llm_bot.empty_llm_response', { correlationId: evt.correlationId });
       return 'OK';
