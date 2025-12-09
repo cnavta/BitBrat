@@ -61,13 +61,10 @@ class EventRouterServer extends BaseServer {
     const subject = `${cfg.busPrefix || ''}${inputTopic}`;
     logger.info('event_router.subscribe.start', { subject, queue: 'event-router' });
     try {
-      await this.onMessage(
+      await this.onMessage<InternalEventV2>(
         { destination: inputTopic, queue: 'event-router', ack: 'explicit' },
-        async (data: Buffer, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+        async (v2In: InternalEventV2, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
           try {
-            const raw = JSON.parse(data.toString('utf8')) as any;
-            // Assume V2 payloads; no V1 support
-            const v2In: InternalEventV2 = raw as InternalEventV2;
             logger.debug('event_router.ingress.received', {
               event: v2In,
             });

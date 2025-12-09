@@ -162,7 +162,6 @@ interface Envelope {
 - **Database**: Firestore (Firebase)
 - **Twitch Integration**: Twurple libraries
 - **Streaming**: OBS WebSocket
-- **LLM Agent Framework**: @joshuacalpuerto/mcp-agent
 - **AI Platform Targets**: OpenAI and Google Vertex AI
 - **Containerization**: Docker
 - **Artifact & Container Registry**: Google Cloud Artifact Registry

@@ -12,6 +12,7 @@ import { createMessageSubscriber, createMessagePublisher, type AttributeMap } fr
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
 import type { InternalEventV2, RoutingStep } from '../types/events';
+import type { RoutingStatus } from '../types/events';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -151,9 +152,21 @@ export class BaseServer {
    * - onMessage(destination, handler, options?)
    * - onMessage({ destination, queue, ack }, handler)
    */
-  protected async onMessage(destination: string, handler: MessageHandler, options?: SubscribeOptions): Promise<void>;
-  protected async onMessage(cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler): Promise<void>;
-  protected async onMessage(arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' }, handler: MessageHandler, options?: SubscribeOptions): Promise<void> {
+  // Generic overloads: deliver parsed JSON object of type T to handler
+  protected async onMessage<T = any>(
+    destination: string,
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
+    options?: SubscribeOptions
+  ): Promise<void>;
+  protected async onMessage<T = any>(
+    cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void
+  ): Promise<void>;
+  protected async onMessage<T = any>(
+    arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
+    options?: SubscribeOptions
+  ): Promise<void> {
     const skipSubscribe = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
     if (skipSubscribe) {
       this.logger.debug('base_server.message.subscribe.skipped_by_env');
@@ -174,10 +187,13 @@ export class BaseServer {
             const tracer = this.getTracer();
             if (tracer) {
               await startActiveSpan(`msg ${subject}`, async () => {
-                await Promise.resolve(handler(data, attributes, ctx));
+                // Assume JSON payloads: parse Buffer/string into object for typed handler
+                const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+                await Promise.resolve(handler(parsed, attributes, ctx));
               });
             } else {
-              await Promise.resolve(handler(data, attributes, ctx));
+              const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+              await Promise.resolve(handler(parsed, attributes, ctx));
             }
           } catch (e: any) {
             // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
@@ -393,7 +409,11 @@ export class BaseServer {
    * - Publishes with standard attributes and emits tracing/logging.
    * - Idempotent per in-memory event instance: subsequent calls are no-ops unless the prior publish failed.
    */
-  protected async next(event: InternalEventV2): Promise<void> {
+  protected async next(event: InternalEventV2, stepStatus?: RoutingStatus): Promise<void> {
+    // Optionally update the current step before dispatching
+    if (stepStatus) {
+      try { (this as any).updateCurrentStep?.(event, { status: stepStatus }); } catch {}
+    }
     const NEXT_MARK = Symbol.for('bb.routing.next.dispatched');
     if ((event as any)[NEXT_MARK]) {
       this.logger.debug('routing.next.idempotent_noop', { correlationId: event?.correlationId });
@@ -402,10 +422,15 @@ export class BaseServer {
     (event as any)[NEXT_MARK] = true;
 
     const slip: RoutingStep[] = Array.isArray((event as any).routingSlip) ? ((event as any).routingSlip as RoutingStep[]) : [];
-    const idx = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
+    // Only consider explicitly PENDING steps as dispatch targets. Steps marked ERROR should not be retried here.
+    const idxPending = slip.findIndex((s) => s && s.status === 'PENDING');
     // If no pending step, fallback to egress
-    if (idx < 0) {
-      const dest = (event as any).egressDestination as string | undefined;
+    if (idxPending < 0) {
+      const destRaw = (event as any).egressDestination as string | undefined;
+      const cfg: any = (this as any).getConfig?.() || {};
+      const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+      const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
+      const dest = destRaw ? (needsPrefix(destRaw) ? `${prefix}${destRaw}` : destRaw) : undefined;
       if (!dest) {
         this.logger.warn('routing.next.no_target', { correlationId: event?.correlationId });
         return;
@@ -423,12 +448,17 @@ export class BaseServer {
       return;
     }
 
-    const step = slip[idx] as RoutingStep;
-    // Minimal mutation for observability
+    // Determine which step to dispatch to: always the first pending step
+    const step = slip[idxPending] as RoutingStep;
+    // Minimal mutation for observability on the step we're dispatching to
     step.startedAt = step.startedAt || new Date().toISOString();
     // attempt is 0-based per contract
     step.attempt = (typeof step.attempt === 'number' ? step.attempt : -1) + 1;
-    const subject = (step.nextTopic) as string;
+    const subjectRaw = (step.nextTopic) as string;
+    const cfg: any = (this as any).getConfig?.() || {};
+    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+    const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
+    const subject = subjectRaw ? (needsPrefix(subjectRaw) ? `${prefix}${subjectRaw}` : subjectRaw) : '';
     if (!subject) {
       this.logger.warn('routing.next.step_missing_subject', { correlationId: event?.correlationId });
       return;
@@ -447,7 +477,7 @@ export class BaseServer {
 
     this.logger.info('routing.next.published', {
       subject,
-      stepIndex: idx,
+      stepIndex: slip.indexOf(step),
       attempt: step.attempt,
       correlationId: event?.correlationId,
     });
@@ -457,7 +487,11 @@ export class BaseServer {
    * Protected helper: bypass routing slip and publish directly to egressDestination.
    * - Idempotent per in-memory event instance.
    */
-  protected async complete(event: InternalEventV2): Promise<void> {
+  protected async complete(event: InternalEventV2, stepStatus?: RoutingStatus): Promise<void> {
+    // Optionally update the current step before dispatching to egress
+    if (stepStatus) {
+      try { (this as any).updateCurrentStep?.(event, { status: stepStatus }); } catch {}
+    }
     const COMPLETE_MARK = Symbol.for('bb.routing.complete.dispatched');
     if ((event as any)[COMPLETE_MARK]) {
       this.logger.debug('routing.complete.idempotent_noop', { correlationId: event?.correlationId });
@@ -465,7 +499,11 @@ export class BaseServer {
     }
     (event as any)[COMPLETE_MARK] = true;
 
-    const dest = (event as any).egressDestination as string | undefined;
+    const destRaw = (event as any).egressDestination as string | undefined;
+    const cfg: any = (this as any).getConfig?.() || {};
+    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+    const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
+    const dest = destRaw ? (needsPrefix(destRaw) ? `${prefix}${destRaw}` : destRaw) : undefined;
     if (!dest) {
       this.logger.warn('routing.complete.no_egress', { correlationId: event?.correlationId });
       return;
@@ -480,6 +518,62 @@ export class BaseServer {
       throw e;
     }
     this.logger.info('routing.complete.published', { dest, correlationId: event?.correlationId });
+  }
+
+  /**
+   * Protected helper: update the current pending routing step with provided fields.
+   * - Finds the first step whose status is not in OK|SKIP (i.e., pending in our semantics).
+   * - Applies updates: status, error, notes/appendNote.
+   * - If status transitions to a terminal state (OK|SKIP|ERROR), sets endedAt (if unset).
+   * - Returns { index, step } or null when no pending step exists.
+   */
+  protected updateCurrentStep(
+    event: InternalEventV2,
+    update: {
+      status?: 'PENDING' | 'OK' | 'ERROR' | 'SKIP';
+      error?: { code: string; message?: string; retryable?: boolean } | null;
+      notes?: string;
+      appendNote?: string;
+    }
+  ): { index: number; step: RoutingStep } | null {
+    const slip: RoutingStep[] = Array.isArray((event as any).routingSlip) ? ((event as any).routingSlip as RoutingStep[]) : [];
+    if (!Array.isArray(slip) || slip.length === 0) {
+      this.logger.debug('routing.step_update.no_slip', { correlationId: (event as any)?.correlationId });
+      return null;
+    }
+    const idx = slip.findIndex((s) => s && s.status !== 'OK' && s.status !== 'SKIP');
+    if (idx < 0) {
+      this.logger.debug('routing.step_update.no_pending', { correlationId: (event as any)?.correlationId });
+      return null;
+    }
+    const step = slip[idx] as RoutingStep;
+
+    // Apply notes update
+    if (typeof update.notes === 'string') {
+      step.notes = update.notes;
+    } else if (typeof update.appendNote === 'string' && update.appendNote) {
+      step.notes = step.notes ? `${step.notes}\n${update.appendNote}` : update.appendNote;
+    }
+
+    // Apply error set/clear
+    if (update.hasOwnProperty('error')) {
+      (step as any).error = update.error ?? null;
+    }
+
+    // Apply status and manage endedAt for terminal
+    if (update.status) {
+      step.status = update.status as any;
+      if (update.status === 'OK' || update.status === 'SKIP' || update.status === 'ERROR') {
+        step.endedAt = step.endedAt || new Date().toISOString();
+      }
+    }
+
+    this.logger.debug('routing.step_update.applied', {
+      correlationId: (event as any)?.correlationId,
+      stepIndex: idx,
+      status: step.status,
+    });
+    return { index: idx, step };
   }
 
   // Internal: build standard message attributes for routing publishes
