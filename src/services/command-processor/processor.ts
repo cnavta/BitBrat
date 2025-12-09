@@ -82,7 +82,7 @@ export function processForParsing(raw: any): ProcessResult {
 
   const parsed = parseCommandFromText(text, sigil);
   if (!parsed) {
-    markSkip(evt, 'message_did_not_start_with_sigil', 'NO_COMMAND');
+    // Do not mutate routing slip here. We may still match a sigil-optional command later.
     logger.debug('command_processor.parse.skip', { textPreview: text.slice(0, 64), sigil });
     return { action: 'skip', event: evt, stepStatus: 'SKIP', reason: 'no-command' };
   }
@@ -117,16 +117,36 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
   const deps = { ...defaultDeps(), ...(overrides || {}) } as ProcessorDeps;
   const parsedRes = processForParsing(raw);
   const evt = parsedRes.event;
+
+  // Support sigil-optional commands: when the message does not start with the sigil,
+  // attempt a direct match using the full, lowercased message text. If a command
+  // document is found with sigilOptional=true, treat it as the parsed command.
+  let parsed: ParsedCommand | undefined = parsedRes.parsed as ParsedCommand | undefined;
+  let lookupOverride: CommandLookupResult | null = null;
   if (parsedRes.action === 'skip') {
-    return { action: 'skip', event: evt, stepStatus: 'SKIP', reason: parsedRes.reason };
+    const fullText = getText(evt).toLowerCase();
+    if (fullText) {
+      const candidate = await deps.repoFindByNameOrAlias(fullText);
+      if (candidate && candidate.doc && (candidate.doc as any).sigilOptional) {
+        lookupOverride = candidate;
+        parsed = { name: candidate.doc.name, args: [] };
+        logger.info('command_processor.sigil_optional.matched', { name: candidate.doc.name });
+      }
+    }
+    if (!parsed) {
+      // Only now mark the step as SKIP since no sigil-optional command matched
+      markSkip(evt, 'message_did_not_start_with_sigil', 'NO_COMMAND');
+      return { action: 'skip', event: evt, stepStatus: 'SKIP', reason: parsedRes.reason };
+    }
+  } else {
+    parsed = parsedRes.parsed! as ParsedCommand;
   }
-  const parsed = parsedRes.parsed!;
 
   // Lookup command
-  const lookup = await deps.repoFindByNameOrAlias(parsed.name);
+  const lookup = lookupOverride || (await deps.repoFindByNameOrAlias((parsed as ParsedCommand).name));
   if (!lookup) {
     markSkip(evt, 'command_not_found', 'COMMAND_NOT_FOUND');
-    logger.info('command_processor.command.not_found', { name: parsed.name });
+    logger.info('command_processor.command.not_found', { name: (parsed as ParsedCommand).name });
     return { action: 'skip', event: evt, stepStatus: 'SKIP', reason: 'not-found' };
   }
 

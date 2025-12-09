@@ -65,6 +65,22 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
     }
     else { cmd.push(a); }
   }
+  // Defaults and environment-driven toggles
+  // Allow bypassing strict VPC preflight outside prod unless explicitly disabled
+  const ciEnv = String(process.env.CI || '').toLowerCase();
+  const isCi = ciEnv === 'true' || ciEnv === '1';
+  const allowNoVpcEnv = process.env.BITBRAT_ALLOW_NO_VPC;
+  const strictEnv = process.env.BITBRAT_STRICT_PRECHECKS;
+  const isStrict = (strictEnv === '1' || strictEnv?.toLowerCase() === 'true' || !!flags.ci || isCi);
+  if (allowNoVpcEnv != null) {
+    // Explicit environment override takes precedence
+    (flags as any).allowNoVpc = allowNoVpcEnv === '1' || allowNoVpcEnv?.toLowerCase() === 'true';
+  } else if ((flags as any).allowNoVpc == null) {
+    // Implicit default: outside CI and when not explicitly strict, allow skipping VPC preflight
+    if (!isStrict) {
+      (flags as any).allowNoVpc = true;
+    }
+  }
   return { cmd, flags, rest };
 }
 

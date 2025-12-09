@@ -1,0 +1,41 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build llm-bot image'
+    args: ['build', '-t', '${_IMAGE}', '-f', 'Dockerfile.llm-bot', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push llm-bot image'
+    args: ['push', '${_IMAGE}']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy to Cloud Run (llm-bot)'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - llm-bot
+      - --image=${_IMAGE}
+      - --platform=managed
+      - --region=${_REGION}
+      - --allow-unauthenticated
+      - --memory=512Mi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=1
+      - --set-env-vars=LOG_LEVEL=info,MESSAGE_BUS_DRIVER=${_MESSAGE_BUS_DRIVER}
+      - --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY:latest
+      - --set-env-vars=OPENAI_MODEL=${_OPENAI_MODEL},OPENAI_TIMEOUT_MS=${_OPENAI_TIMEOUT_MS},OPENAI_MAX_RETRIES=${_OPENAI_MAX_RETRIES}
+
+substitutions:
+  _REGION: us-central1
+  _IMAGE: us-central1-docker.pkg.dev/$PROJECT_ID/bitbrat/llm-bot:${SHORT_SHA}
+  _MESSAGE_BUS_DRIVER: pubsub
+  _OPENAI_MODEL: gpt-5-mini
+  _OPENAI_TIMEOUT_MS: '30000'
+  _OPENAI_MAX_RETRIES: '2'
+
+images:
+  - '${_IMAGE}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -15,6 +15,12 @@ npm test
 echo "🎯 Running targeted tests for BaseServer routing helpers..."
 npx jest tests/base-server-routing.spec.ts --runInBand
 
+echo "🎯 Running targeted tests for BaseServer step update helper..."
+npx jest tests/base-server-step-update.spec.ts --runInBand
+
+echo "🎯 Running targeted tests for BaseServer onMessage generic + JSON parsing..."
+npx jest tests/base-server-onmessage.spec.ts --runInBand
+
 echo "🏃 Starting local environment (best-effort)..."
 set +e
 npm run local

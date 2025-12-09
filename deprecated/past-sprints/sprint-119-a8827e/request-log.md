@@ -106,3 +106,28 @@
     - planning/sprint-119-a8827e/validate_deliverable.sh (add targeted Jest run for BaseServer helper tests)
   - backlog updates:
     - BL-009 status: done
+
+- 2025-12-06 20:40 ET — Publication (Lead Implementor)
+  - actions:
+    - git push -u origin feature/sprint-119-a8827e-routing-slip-baseserver
+    - gh pr create (success)
+  - outputs:
+    - PR: https://github.com/cnavta/BitBrat/pull/22
+    - publication.yaml written with PR URL and branch
+  - backlog updates:
+    - BL-010 status: done
+
+- 2025-12-07 01:00 ET — Add BaseServer step update helper and refactor command-processor (Lead Implementor)
+  - prompt: "Next, we'd like to add a convenience function in the BaseServer for receivers to update the current pending step accordingly."
+  - files modified:
+    - src/common/base-server.ts (add protected updateCurrentStep(event, update))
+    - src/apps/command-processor-service.ts (use updateCurrentStep in place of manual status/endedAt mutation)
+  - files added:
+    - tests/base-server-step-update.spec.ts (unit tests for the helper)
+  - docs updated:
+    - documentation/services/base-server-routing.md (document updateCurrentStep signature/usage)
+  - validation:
+    - npm run build (pass)
+    - npm test (all suites passing); updated validate_deliverable.sh to run new targeted spec
+  - notes:
+    - Helper finds first pending step, applies status/error/notes, sets endedAt on terminal states, returns { index, step }.
