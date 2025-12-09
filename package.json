@@ -34,7 +34,8 @@
     "nats": "^2.29.3",
     "pino": "^9.4.0",
     "zod": "^3.23.8",
-    "openai": "^6.10.0"
+    "openai": "^6.10.0",
+    "@langchain/langgraph": "^0.2.6"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

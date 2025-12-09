@@ -1,11 +1,12 @@
 id: sprint-121-508d0c
 title: "LLM Bot – First Pass with LangGraph"
-goal: "Define architecture and plan a first-pass llm-bot service using LangGraph.js around LLM usage."
+goal: "Define architecture and implement a first-pass llm-bot service using LangGraph.js around LLM usage."
 owner: "@architect"
 createdAt: "2025-12-08T19:32:00-05:00"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-121-508d0c-llm-bot-first-pass"
+  pr: ""
 notes: |
   Sprint initiated per AGENTS.md v2.4. This sprint focuses on designing and implementing
   a minimal llm-bot that consumes internal.llmbot.v1, aggregates prompt annotations, uses
