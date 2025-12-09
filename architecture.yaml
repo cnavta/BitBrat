@@ -1,6 +1,6 @@
 name: BitBrat Platform
 description: The BitBrat Platform is an LLM powered event orchestration and execution engine aimed at Streamers. Uses Node/TypeScript, Twurple,
-  Firestore, OpenAI, oshuaalpuerto/mcp-agent. Deployed on Cloud Run.
+  Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
   version: 0.1.0

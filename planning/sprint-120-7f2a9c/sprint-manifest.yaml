@@ -20,6 +20,3 @@ scope:
     - RAG / tools / memory
     - Observability beyond basic logging
 repo_branch: feature/sprint-120-7f2a9c-llm-bot-first-pass
-status: in-progress
-links:
-  branch: feature/sprint-120-7f2a9c-llm-bot-first-pass
