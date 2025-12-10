@@ -13,3 +13,19 @@
   - planning/sprint-123-a2f701b/implementation-plan.md
   - planning/sprint-123-a2f701b/backlog.yaml
 - Notes: Await user approval before implementation.
+
+## 2025-12-10T05:32Z
+- Prompt: "Plan approved, begin implementation."
+- Interpretation: Move sprint status to in-progress; implement short-term memory per plan; add tests and update artifacts.
+- Git/CLI:
+  - git add -A
+  - git commit -m "sprint-123-a2f701b: begin implementation – memory reducer exported + tests (reducer, memory, error); update manifest to in-progress"
+- Files modified/added:
+  - planning/sprint-123-a2f701b/sprint-manifest.yaml (status -> in-progress)
+  - planning/sprint-123-a2f701b/backlog.yaml (updated statuses)
+  - src/services/llm-bot/processor.ts (export reducer + type)
+  - src/services/llm-bot/reducer.spec.ts (new)
+  - src/services/llm-bot/processor.memory.spec.ts (pre-existing, validated)
+  - src/services/llm-bot/processor.error.spec.ts (new)
+- Verification:
+  - npm test (all suites passing locally)

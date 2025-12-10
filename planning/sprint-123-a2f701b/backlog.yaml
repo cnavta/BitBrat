@@ -16,7 +16,7 @@ items:
   - id: STM-001
     title: "Establish LangGraph state shape and messages reducer"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: []
     acceptance:
@@ -27,7 +27,7 @@ items:
   - id: STM-002
     title: "Add ingest_prompt node to build HumanMessage from annotations"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [STM-001]
     acceptance:
@@ -38,7 +38,7 @@ items:
   - id: STM-003
     title: "Update call_model to use messages and append AssistantMessage"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [STM-001, STM-002]
     acceptance:
@@ -49,7 +49,7 @@ items:
   - id: STM-004
     title: "Add build_candidate node to emit text candidate from assistant reply"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [STM-003]
     acceptance:
@@ -59,7 +59,7 @@ items:
   - id: STM-005
     title: "Environment configuration for memory limits"
     priority: P1
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     dependsOn: [STM-001]
     acceptance:
@@ -69,7 +69,7 @@ items:
   - id: STM-006
     title: "Unit tests: reducer"
     priority: P0
-    status: todo
+    status: done
     owner: Quality Lead
     dependsOn: [STM-001]
     acceptance:
@@ -78,7 +78,7 @@ items:
   - id: STM-007
     title: "Unit tests: processor memory behavior"
     priority: P0
-    status: todo
+    status: done
     owner: Quality Lead
     dependsOn: [STM-002, STM-003, STM-004]
     acceptance:
@@ -89,7 +89,7 @@ items:
   - id: STM-008
     title: "Observability logs for memory operations"
     priority: P1
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [STM-001, STM-003]
     acceptance:

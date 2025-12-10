@@ -51,6 +51,11 @@
 - validate_deliverable.sh will run npm ci/build/test; local run optional.
 - Ensure env defaults don’t break runtime when unset; read via process.env with fallbacks.
 
+## Environment
+- LLM_BOT_MEMORY_MAX_MESSAGES (default 8)
+- LLM_BOT_MEMORY_MAX_CHARS (default 8000)
+- Optional: LLM_BOT_SYSTEM_PROMPT (prepended once when messages are empty)
+
 ## Dependencies
 - Node/TypeScript toolchain (existing)
 - OpenAI API key for runtime/manual tests (unit tests use mocks)
