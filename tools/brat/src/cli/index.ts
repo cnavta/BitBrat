@@ -461,7 +461,7 @@ async function main() {
   if (c1 === 'deploy' && c2 === 'service') {
     const serviceName = cmd[2];
     if (!serviceName) {
-      console.error('Usage: brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run]');
+      console.error('Usage: brat deploy service <name> --env <name> [--project-id <id>] [--region <r>] [--dry-run]');
       process.exit(2);
     }
     requireEnv(`deploy service ${serviceName}`);

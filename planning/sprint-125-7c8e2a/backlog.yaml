@@ -1,0 +1,204 @@
+# Prioritized, Trackable YAML Backlog — sprint-125-7c8e2a
+
+version: 1
+generatedAt: "2025-12-10T21:27:00Z"
+owner: "Lead Implementor"
+sprint: "sprint-125-7c8e2a"
+
+definitions:
+  statuses: [todo, in-progress, blocked, review, done, deferred]
+  priorities:
+    - P0 # critical path for acceptance
+    - P1 # important this sprint
+    - P2 # nice to have / stretch
+
+items:
+  - id: CP-001
+    title: "Config: expose ALLOWED_SIGILS with sensible default"
+    priority: P0
+    status: done
+    owner: Lead Implementor
+    dependsOn: []
+    acceptance:
+      - getConfig exposes allowedSigils (array), defaulting to ['!'] when unset
+      - Multi-character sigils allowed (e.g., ['!', '::'])
+      - Documented in code comments and used by processor
+
+  - id: CP-002
+    title: "Repo normalization: pass-through sigil; default termLocation to 'prefix'"
+    priority: P0
+    status: done
+    owner: Lead Implementor
+    dependsOn: []
+    acceptance:
+      - normalizeCommand preserves data.sigil verbatim when present
+      - termLocation defaults to 'prefix' when missing in Firestore docs
+      - Unit test validates defaults and passthrough
+
+  - id: CP-003
+    title: "Regex helpers for prefix/suffix/anywhere with whitespace boundaries and '(' allowance"
+    priority: P0
+    status: in-progress
+    owner: Lead Implementor
+    dependsOn: [CP-001]
+    acceptance:
+      - Helper escapes multi-char sigils and names
+      - 'prefix regex: ^term(?=\s|\(|$)'
+      - 'suffix regex: (?<=^|\s)term$'
+      - 'anywhere regex: (?<=^|\s)term(?=\s|\(|$)'
+      - Unit tests cover positive/negative boundary cases
+
+  - id: CP-004
+    title: "Processor: validate fast-path parse against doc rules (sigil/termLocation)"
+    priority: P0
+    status: in-progress
+    owner: Lead Implementor
+    dependsOn: [CP-003]
+    acceptance:
+      - If default-sigil prefix parse yields name, confirm doc’s own sigil/termLocation actually matches text
+      - If invalid, fall back to secondary matching
+
+  - id: CP-005
+    title: "Processor: secondary matching for suffix/anywhere with token-based reverse lookup"
+    priority: P0
+    status: in-progress
+    owner: Lead Implementor
+    dependsOn: [CP-003]
+    acceptance:
+      - Extract first/last tokens and iterate tokens for anywhere
+      - Apply ALLOWED_SIGILS filter for sigiled tokens; support sigilOptional name-only tokens
+      - Alias lookups honored; earliest valid occurrence wins
+
+  - id: CP-006
+    title: "Arguments: parentheses-only parsing immediately after term; prefix legacy fallback"
+    priority: P0
+    status: in-progress
+    owner: Lead Implementor
+    dependsOn: [CP-003, CP-005]
+    acceptance:
+      - Anywhere/suffix: only an immediate balanced (...) group yields args payload; trailing text ignored for args
+      - Prefix: if (...) present, use its payload; else parse legacy space-separated args following term
+
+  - id: CP-007
+    title: "Telemetry: debug logs for match type, effectiveSigil, indices"
+    priority: P2
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CP-004, CP-005]
+    acceptance:
+      - Logs show which rule matched (prefix/suffix/anywhere), indices, and effectiveSigil
+      - No sensitive data included; log keys stable for tests/dashboards
+
+  - id: CP-008
+    title: "Tests: normalization defaults and sigil passthrough"
+    priority: P0
+    status: done
+    owner: Quality Lead
+    dependsOn: [CP-002]
+    acceptance:
+      - Missing termLocation normalizes to 'prefix'
+      - Provided sigil is preserved verbatim
+
+  - id: CP-009
+    title: "Tests: prefix matching with default sigil"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CP-004]
+    acceptance:
+      - '!help now' matches help; 'x!help' does not; '!help(1,2)' parses args payload '1,2'
+
+  - id: CP-010
+    title: "Tests: overridden sigil and ALLOWED_SIGILS enforcement"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CP-001, CP-004]
+    acceptance:
+      - Command with sigil '::' matches only when ALLOWED_SIGILS includes '::'
+      - When excluded, match fails unless sigilOptional=true
+
+  - id: CP-011
+    title: "Tests: sigilOptional ignores provided sigil"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CP-004, CP-005]
+    acceptance:
+      - Command matches by name per termLocation with no sigil required
+
+  - id: CP-012
+    title: "Tests: suffix termLocation with boundaries and parentheses allowance"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CP-005, CP-006]
+    acceptance:
+      - 'please help' (suffix command 'help') only matches when at end; 'help,' does not
+      - 'help(3,4)' at end parses args payload '3,4'
+
+  - id: CP-013
+    title: "Tests: anywhere matching with strict boundaries and punctuation negatives"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CP-005, CP-006]
+    acceptance:
+      - 'please !help now' matches; 'please!help' does not
+      - '!hum(hi,4) extra text' yields args payload 'hi,4'; extra text ignored for args
+
+  - id: CP-014
+    title: "Tests: alias matching obeys sigil/termLocation rules"
+    priority: P1
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CP-005]
+    acceptance:
+      - Alias triggers same matching behavior across all termLocations
+
+  - id: CP-015
+    title: "Docs: inline comments and notes for configuration and matching semantics"
+    priority: P2
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CP-004, CP-005, CP-006]
+    acceptance:
+      - Code comments summarize boundary rules, parentheses exception, and ALLOWED_SIGILS usage
+
+  - id: CP-016
+    title: "Validation: build and test pass; validate_deliverable.sh remains logically passable"
+    priority: P1
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CP-008, CP-009, CP-010, CP-011, CP-012, CP-013, CP-014]
+    acceptance:
+      - npm run build succeeds; npm test passes locally
+      - No changes required to validate_deliverable.sh, or documented if necessary
+
+  - id: CP-017
+    title: "Publication: commit, push branch, create PR, update publication.yaml"
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CP-016]
+    acceptance:
+      - Feature branch pushed and PR created per Sprint Protocol v2.4
+      - planning/sprint-125-7c8e2a/publication.yaml contains PR URL and branch
+
+  - id: CP-018
+    title: "Compatibility check: legacy commands (prefix + default sigil) unaffected"
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CP-004]
+    acceptance:
+      - Existing tests for legacy behavior still pass without modification
+
+  - id: CP-019
+    title: "Performance smoke: ensure limited Firestore lookups (O(tokens))"
+    priority: P2
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CP-005]
+    acceptance:
+      - Review demonstrates bounded lookups (name + alias per token) and no collection scans
