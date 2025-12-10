@@ -1,0 +1,16 @@
+id: sprint-124-f3a1c8
+title: "Enforce --env requirement in brat CLI"
+goal: "Prevent accidental deployments using an unintended environment by requiring env to be specified for brat commands that depend on it."
+owner: "Junie (LLM)"
+createdAt: "2025-12-10T14:34:00-05:00"
+status: "planning"
+links:
+  pr: "" # to be filled when PR is created
+  branch: "feature/sprint-124-f3a1c8-require-env-flag"
+notes: |
+  User requested that brat requires an environment for operations that depend on it.
+  Requirement clarified as:
+  - Either --env flag OR BITBRAT_ENV environment variable satisfies the requirement.
+  - Commands requiring env: deploy services, deploy service <name>, deploy <name>, infra plan/apply, lb urlmap render/import, apis enable.
+  - Exempt: doctor, config show, config validate, trigger create/update/delete.
+  - If env is missing, the command should exit with code 2 and advise using --env dev|prod.
