@@ -4,7 +4,7 @@ import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
 
 // Minimal LangGraph shim: we keep structure ready; can swap with real graph nodes later.
-type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string; createdAt: string };
+export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string; createdAt: string };
 
 type LlmGraphState = {
   event: InternalEventV2;
@@ -38,7 +38,7 @@ function totalChars(msgs: ChatMessage[] = []): number {
   return msgs.reduce((acc, m) => acc + (m.content?.length || 0), 0);
 }
 
-function applyMemoryReducer(
+export function applyMemoryReducer(
   existing: ChatMessage[] = [],
   incoming: ChatMessage[] = [],
   limits: { maxMessages: number; maxChars: number }
