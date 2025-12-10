@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { StateGraph, END, Annotation } from '@langchain/langgraph';
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
+import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
 
 // Minimal LangGraph shim: we keep structure ready; can swap with real graph nodes later.
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string; createdAt: string };
@@ -116,6 +117,14 @@ export async function processEvent(
   const logger = (server as any).getLogger?.();
   const state: LlmGraphState = { event: evt };
 
+  const store = getInstanceMemoryStore();
+  function memoryKeyFor(e: any): string {
+    const channel = (e?.dispatch?.channel) || (e?.channel) || 'default';
+    const userId = e?.user?.id || 'anon';
+    return `${channel}:${userId}`;
+  }
+  const memKey = memoryKeyFor(evt);
+
   logger.debug('llm_bot.process_event', { correlationId: evt.correlationId });
 
   try {
@@ -134,7 +143,20 @@ export async function processEvent(
         const combinedPrompt = buildCombinedPrompt(anns as any);
         const maxMessages = Number(process.env.LLM_BOT_MEMORY_MAX_MESSAGES || '8');
         const maxChars = Number(process.env.LLM_BOT_MEMORY_MAX_CHARS || '8000');
+        // Start with any messages already in state (should be empty on first node)
         let messages: ChatMessage[] = Array.isArray(s.messages) ? [...(s.messages as ChatMessage[])] : [];
+
+        // Load prior turns from instance store and prepend
+        try {
+          const prior = await store.read(memKey);
+          if (Array.isArray(prior) && prior.length > 0) {
+            // Cast StoreMessage -> ChatMessage (identical shape)
+            const priorAsChat = (prior as StoreMessage[]).map((m) => ({ role: m.role, content: m.content, createdAt: m.createdAt })) as ChatMessage[];
+            messages = [...priorAsChat, ...messages];
+          }
+        } catch (e: any) {
+          logger?.warn?.('llm_bot.instance_memory.read_error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
+        }
 
         // Optionally include a system prompt as the very first message
         if (messages.length === 0) {
@@ -180,6 +202,15 @@ export async function processEvent(
             correlationId: s.event.correlationId,
           });
           messages = reduced;
+
+          // Persist the current user turns to instance store to carry across events
+          try {
+            if (incoming.length > 0) {
+              await store.append(memKey, incoming as StoreMessage[]);
+            }
+          } catch (e: any) {
+            logger?.warn?.('llm_bot.instance_memory.append_user_error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
+          }
         }
 
         return { combinedPrompt, messages };
@@ -226,7 +257,14 @@ export async function processEvent(
           const out: Partial<typeof LlmState.State> = { llmText: trimmed } as any;
           // Only append assistant message if non-empty to avoid blank turns in memory
           if (trimmed) {
-            (out as any).messages = [...msgs, toAssistant(trimmed)];
+            const assistantMsg = toAssistant(trimmed);
+            (out as any).messages = [...msgs, assistantMsg];
+            // Persist assistant turn to instance store
+            try {
+              await store.append(memKey, [assistantMsg as unknown as StoreMessage]);
+            } catch (e: any) {
+              logger?.warn?.('llm_bot.instance_memory.append_assistant_error', { correlationId: corr, error: e?.message || String(e) });
+            }
           }
           return out as any;
         } catch (e: any) {
