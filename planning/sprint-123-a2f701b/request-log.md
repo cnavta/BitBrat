@@ -69,3 +69,19 @@
   - git commit -m "fix(cloudbuild): escape custom script vars to avoid Cloud Build substitution (ENV_DELIM/ENV_MAPPED)"
   - git push -u origin feature/sprint-123-a2f701b-stm-plan
 - Expected outcome: Cloud Build no longer errors on invalid substitution keys; brat deploy proceeds to gcloud run deploy with correctly delimited env vars.
+
+## 2025-12-10T19:58Z
+- Prompt: "Sprint complete."
+- Interpretation: Close sprint per AGENTS.md §2.9 by ensuring gates are met: validation script logically passable, PR exists and recorded, verification-report present, retro and key-learnings created; update manifest/publication as needed.
+- Files added:
+  - planning/sprint-123-a2f701b/retro.md
+  - planning/sprint-123-a2f701b/key-learnings.md
+- Files verified/unchanged:
+  - planning/sprint-123-a2f701b/verification-report.md (complete)
+  - planning/sprint-123-a2f701b/sprint-manifest.yaml (status: complete)
+  - planning/sprint-123-a2f701b/publication.yaml (PR URL recorded; status: created)
+- Git/CLI:
+  - git add -A
+  - git commit -m "sprint-123-a2f701b: add retro and key-learnings; finalize sprint artifacts"
+  - git push -u origin feature/sprint-123-a2f701b-stm-plan
+- Outcome: Sprint gates satisfied; awaiting user confirmation "Sprint complete." acknowledged.
