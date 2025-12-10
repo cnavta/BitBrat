@@ -47,3 +47,14 @@
   - git push -u origin feature/sprint-123-a2f701b-stm-plan
 - Validation:
   - ./validate_deliverable.sh --env dev --scope llm-bot → 7/7 suites passed, 17/17 tests passed
+
+## 2025-12-10T14:22Z
+- Prompt: "Cloud Run deploy fails with unrecognized arguments when LLM_BOT_SYSTEM_PROMPT includes spaces."
+- Interpretation: gcloud run deploy was receiving --set-env-vars without safe quoting/delimiter, causing the system prompt to be split into separate CLI args. Fix Cloud Build deploy step to use gcloud’s custom delimiter syntax for env vars so values can contain spaces/commas.
+- Files modified:
+  - cloudbuild.oauth-flow.yaml — changed deploy step to pass --set-env-vars using a custom delimiter and single-quoted mapping: --set-env-vars='^~^KEY=VAL~KEY2=VAL2'. This prevents splitting on spaces/commas in values (e.g., LLM_BOT_SYSTEM_PROMPT).
+- Commands:
+  - git add -A
+  - git commit -m "fix(deploy): use custom delimiter for --set-env-vars in Cloud Build to support spaces/commas (fix Cloud Run deploy error)"
+  - git push -u origin feature/sprint-123-a2f701b-stm-plan
+- Expected outcome: Cloud Run deploy no longer errors on unrecognized arguments; system prompt and other envs with spaces are accepted.
