@@ -110,8 +110,9 @@ steps:
         if [ -n "${_ENV_VARS_ARG}" ]; then
           ENV_DELIM='~'
           # Convert our semicolon-delimited KV list to the chosen delimiter; wrap in single quotes to preserve spaces
-          ENV_MAPPED=$(printf '%s' "${_ENV_VARS_ARG}" | tr ';' "${ENV_DELIM}")
-          CMD="$${CMD} --set-env-vars='^${ENV_DELIM}^${ENV_MAPPED}'"
+          ENV_MAPPED=$(printf '%s' "${_ENV_VARS_ARG}" | tr ';' "$$ENV_DELIM")
+          SET_ENV_ARG="^$$ENV_DELIM^$$ENV_MAPPED"
+          CMD="$${CMD} --set-env-vars='$$SET_ENV_ARG'"
         fi
 
         echo "Executing: $$CMD"
