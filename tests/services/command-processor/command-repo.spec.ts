@@ -56,4 +56,15 @@ describe('command-repo.findByNameOrAlias', () => {
     const res = await findByNameOrAlias('missing', db);
     expect(res).toBeNull();
   });
+
+  it('normalizes termLocation to prefix when missing and preserves sigil', async () => {
+    const db = makeDb({
+      nameDoc: { name: 'alpha', sigil: '!!', /* termLocation missing */ templates: [{ id: 't1', text: 'x' }] },
+      aliasDoc: null,
+    });
+    const res = await findByNameOrAlias('alpha', db);
+    expect(res).not.toBeNull();
+    expect(res!.doc.termLocation).toBe('prefix');
+    expect(res!.doc.sigil).toBe('!!');
+  });
 });

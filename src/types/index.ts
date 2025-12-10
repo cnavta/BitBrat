@@ -17,6 +17,8 @@ export interface IConfig {
 
   /** Command Processor: leading character to denote a command (default '!') */
   commandSigil?: string;
+  /** Command Processor: whitelist of allowed sigils to consider during parsing/matching (supports multi-char) */
+  allowedSigils?: string[];
   /** Command Processor: bot display name used in templates */
   botUsername?: string;
   /** Command Processor: Firestore collection for commands (default 'commands') */

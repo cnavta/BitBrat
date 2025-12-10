@@ -112,45 +112,196 @@ function defaultDeps(): ProcessorDeps {
   };
 }
 
+type TermLocation = 'prefix' | 'suffix' | 'anywhere';
+
+function termLocationOf(doc: any): TermLocation {
+  const v = (doc?.termLocation || '').toString().toLowerCase();
+  if (v === 'suffix' || v === 'anywhere' || v === 'prefix') return v as TermLocation;
+  return 'prefix';
+}
+
+function allowedSigils(): string[] {
+  const cfg = getConfig();
+  const list = (cfg as any).allowedSigils as string[] | undefined;
+  return Array.isArray(list) && list.length ? list : [((cfg.commandSigil || '!').slice(0, 1))];
+}
+
+function sigilAllowed(s: string): boolean {
+  return allowedSigils().includes(s);
+}
+
+function effectiveSigil(doc: any): string {
+  if (doc?.sigilOptional) return '';
+  const cfg = getConfig();
+  const s = (typeof doc?.sigil === 'string' && doc.sigil) ? String(doc.sigil) : (cfg.commandSigil || '!').slice(0, 1);
+  // Enforce whitelist
+  if (!sigilAllowed(s)) return '__DISALLOWED__';
+  return s;
+}
+
+interface MatchInfo {
+  ok: boolean;
+  location?: TermLocation;
+  start?: number;
+  end?: number; // index after match
+  parenPayload?: string; // inside (...)
+}
+
+function isWs(ch: string | undefined): boolean {
+  return ch != null ? /\s/.test(ch) : true;
+}
+
+function extractParenPayload(text: string, idxOpen: number): string | null {
+  if (text[idxOpen] !== '(') return null;
+  const idxClose = text.indexOf(')', idxOpen + 1);
+  if (idxClose < 0) return null;
+  return text.substring(idxOpen + 1, idxClose);
+}
+
+function matchAtPrefix(text: string, term: string): MatchInfo {
+  const tlc = term.toLowerCase();
+  const tl = tlc.length;
+  const lc = text.toLowerCase();
+  if (!lc.startsWith(tlc)) return { ok: false };
+  const next = lc[tl];
+  if (next && !(isWs(next) || next === '(')) return { ok: false };
+  const mi: MatchInfo = { ok: true, location: 'prefix', start: 0, end: tl };
+  if (next === '(') {
+    const payload = extractParenPayload(text, tl);
+    if (payload != null) mi.parenPayload = payload;
+  }
+  return mi;
+}
+
+function matchAtSuffix(text: string, term: string): MatchInfo {
+  const lc = text.toLowerCase();
+  const tlc = term.toLowerCase();
+  const tl = tlc.length;
+  // Two cases: ...<ws>term$ OR ...<ws>term(payload)$
+  // Try parentheses case first
+  const idxTerm = lc.lastIndexOf(tlc);
+  if (idxTerm >= 0) {
+    const after = lc.substring(idxTerm + tl);
+    if (after.length === 0) {
+      // exactly ends with term
+      const before = lc[idxTerm - 1];
+      if (idxTerm === 0 || isWs(before)) return { ok: true, location: 'suffix', start: idxTerm, end: idxTerm + tl };
+      return { ok: false };
+    }
+    if (after[0] === '(' && after.endsWith(')')) {
+      const before = lc[idxTerm - 1];
+      if (!(idxTerm === 0 || isWs(before))) return { ok: false };
+      const payload = extractParenPayload(text, idxTerm + tl);
+      if (payload == null) return { ok: false };
+      return { ok: true, location: 'suffix', start: idxTerm, end: idxTerm + tl, parenPayload: payload };
+    }
+  }
+  return { ok: false };
+}
+
+function matchAnywhere(text: string, term: string): MatchInfo {
+  const lc = text.toLowerCase();
+  const tlc = term.toLowerCase();
+  const tl = tlc.length;
+  let from = 0;
+  while (true) {
+    const idx = lc.indexOf(tlc, from);
+    if (idx < 0) return { ok: false };
+    const before = lc[idx - 1];
+    const after = lc[idx + tl];
+    if ((idx === 0 || isWs(before)) && (after == null || isWs(after) || after === '(')) {
+      const mi: MatchInfo = { ok: true, location: 'anywhere', start: idx, end: idx + tl };
+      if (after === '(') {
+        const payload = extractParenPayload(text, idx + tl);
+        if (payload != null) mi.parenPayload = payload;
+      }
+      return mi;
+    }
+    from = idx + 1;
+  }
+}
+
+function matchDocAgainstText(text: string, doc: any, candidateKey: string): MatchInfo {
+  const loc = termLocationOf(doc);
+  const sig = effectiveSigil(doc);
+  if (sig === '__DISALLOWED__') return { ok: false };
+  const term = (doc?.sigilOptional ? '' : sig) + String(candidateKey || '').toLowerCase();
+  if (!term) return { ok: false };
+  let mi: MatchInfo;
+  if (loc === 'prefix') mi = matchAtPrefix(text, term);
+  else if (loc === 'suffix') mi = matchAtSuffix(text, term);
+  else mi = matchAnywhere(text, term);
+  return mi;
+}
+
+function tokenizeCandidateKeys(text: string): string[] {
+  const toks = text.toLowerCase().split(/\s+/).filter(Boolean);
+  const out = new Set<string>();
+  const sigs = allowedSigils();
+  for (const t of toks) {
+    const base = t.includes('(') ? t.substring(0, t.indexOf('(')) : t;
+    // Name without sigil for sigilOptional
+    if (base) out.add(base);
+    for (const s of sigs) {
+      if (base.startsWith(s) && base.length > s.length) {
+        out.add(base.substring(s.length));
+      }
+    }
+  }
+  // Also consider entire text for sigilOptional full-text commands
+  const full = text.trim().toLowerCase();
+  if (full) out.add(full);
+  return Array.from(out.values()).filter(Boolean);
+}
+
 /** Full pipeline: parse → lookup → policy checks → choose/render → append candidate. */
 export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>): Promise<ProcessOutcome> {
   const deps = { ...defaultDeps(), ...(overrides || {}) } as ProcessorDeps;
   const parsedRes = processForParsing(raw);
   const evt = parsedRes.event;
+  const msgText = getText(evt);
 
-  // Support sigil-optional commands: when the message does not start with the sigil,
-  // attempt a direct match using the full, lowercased message text. If a command
-  // document is found with sigilOptional=true, treat it as the parsed command.
-  let parsed: ParsedCommand | undefined = parsedRes.parsed as ParsedCommand | undefined;
-  let lookupOverride: CommandLookupResult | null = null;
-  if (parsedRes.action === 'skip') {
-    const fullText = getText(evt).toLowerCase();
-    if (fullText) {
-      const candidate = await deps.repoFindByNameOrAlias(fullText);
-      if (candidate && candidate.doc && (candidate.doc as any).sigilOptional) {
-        lookupOverride = candidate;
-        parsed = { name: candidate.doc.name, args: [] };
-        logger.info('command_processor.sigil_optional.matched', { name: candidate.doc.name });
-      }
-    }
-    if (!parsed) {
-      // Only now mark the step as SKIP since no sigil-optional command matched
-      markSkip(evt, 'message_did_not_start_with_sigil', 'NO_COMMAND');
-      return { action: 'skip', event: evt, stepStatus: 'SKIP', reason: parsedRes.reason };
-    }
-  } else {
-    parsed = parsedRes.parsed! as ParsedCommand;
+  // Try fast-path: text started with default sigil → use first word as candidate key
+  const fastCandidateKey = parsedRes.parsed?.name;
+
+  type Found = { ref: any; doc: any; match: MatchInfo } | null;
+  let found: Found = null;
+
+  async function tryLookupByKey(key: string): Promise<Found> {
+    if (!key) return null;
+    const res = await deps.repoFindByNameOrAlias(key);
+    if (!res) return null;
+    const match = matchDocAgainstText(msgText, res.doc, key);
+    if (match.ok) return { ref: res.ref, doc: res.doc, match };
+    return null;
   }
 
-  // Lookup command
-  const lookup = lookupOverride || (await deps.repoFindByNameOrAlias((parsed as ParsedCommand).name));
-  if (!lookup) {
-    markSkip(evt, 'command_not_found', 'COMMAND_NOT_FOUND');
-    logger.info('command_processor.command.not_found', { name: (parsed as ParsedCommand).name });
+  if (fastCandidateKey) {
+    found = await tryLookupByKey(fastCandidateKey);
+  }
+
+  // Secondary search: tokenize and attempt lookups by candidate keys, selecting first valid match
+  if (!found) {
+    const keys = tokenizeCandidateKeys(msgText);
+    for (const k of keys) {
+      // Skip duplicate attempt of fast key
+      if (k === fastCandidateKey) continue;
+      // Skip empty
+      if (!k) continue;
+      // Avoid obvious non-commands: extremely long tokens
+      if (k.length > 80) continue;
+      const res = await tryLookupByKey(k);
+      if (res) { found = res; break; }
+    }
+  }
+
+  if (!found) {
+    // Nothing matched under the boundary and sigil rules
+    markSkip(evt, parsedRes.action === 'skip' ? 'no-command' : 'command_not_matched', 'NO_COMMAND');
     return { action: 'skip', event: evt, stepStatus: 'SKIP', reason: 'not-found' };
   }
 
-  const { ref, doc } = lookup;
+  const { ref, doc } = found;
   // Observability: record the matched command
   try {
     const id = (ref as any)?.id || doc.id;
@@ -183,6 +334,23 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
   if (!rateDecision.allowed) {
     markSkip(evt, 'rate_limited', 'RATE_LIMIT');
     return { action: 'blocked', event: evt, stepStatus: 'SKIP', reason: 'rate-limit' };
+  }
+
+  // Build ParsedCommand using location-specific arg extraction
+  const loc = termLocationOf(doc);
+  let parsed: ParsedCommand = { name: doc.name, args: [] };
+  const m = found.match;
+  if (loc === 'prefix') {
+    if (m.parenPayload != null) parsed.args = [m.parenPayload];
+    else {
+      const rest = msgText.substring((m.end as number)).trim();
+      parsed.args = rest ? rest.split(/\s+/).filter(Boolean) : [];
+    }
+  } else if (loc === 'suffix') {
+    parsed.args = m.parenPayload != null ? [m.parenPayload] : [];
+  } else {
+    // anywhere: parse parentheses only if present; ignore trailing text
+    parsed.args = m.parenPayload != null ? [m.parenPayload] : [];
   }
 
   // Branch by command type (default 'candidate')

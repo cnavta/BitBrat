@@ -1,0 +1,14 @@
+id: sprint-125-7c8e2a
+title: "Command Processor: per-command sigil + termLocation support"
+goal: "Design and implement support for CommandDoc.sigil overrides and termLocation matching (prefix|suffix|anywhere) with strict token boundaries."
+owner: "Junie (LLM)"
+createdAt: "2025-12-10T15:36:00-05:00"
+status: "in-progress"
+links:
+  pr: "" # will be set when PR is created
+  branch: "feature/sprint-125-7c8e2a-command-processor-sigil-term"
+notes: |
+  Architectural planning sprint to extend command detection semantics:
+  - Honor per-command `sigil` when set (unless `sigilOptional: true`).
+  - Add `termLocation` matching (prefix | suffix | anywhere). Default to 'prefix' for legacy docs.
+  - Enforce whitespace token boundaries so commands aren't matched when abutted to other text.

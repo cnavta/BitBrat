@@ -36,6 +36,7 @@ const ConfigSchema = z.object({
 
   // Command Processor specific (optional; service-level validation may enforce presence)
   commandSigil: z.string().optional(),
+  allowedSigils: z.array(z.string()).optional(),
   botUsername: z.string().optional(),
   commandsCollection: z.string().optional(),
   defaultGlobalCooldownMs: z.coerce.number().int().min(0).optional(),
@@ -74,6 +75,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
 
     // Command Processor
     commandSigil: (env.COMMAND_SIGIL || '!').slice(0, 1),
+    allowedSigils: parseList(env.ALLOWED_SIGILS).length ? parseList(env.ALLOWED_SIGILS) : ['!'],
     botUsername: env.BOT_USERNAME || env.TWITCH_BOT_USERNAME,
     commandsCollection: env.COMMANDS_COLLECTION || 'commands',
     defaultGlobalCooldownMs: env.DEFAULT_GLOBAL_COOLDOWN_MS ? Number(env.DEFAULT_GLOBAL_COOLDOWN_MS) : 0,

@@ -14,7 +14,9 @@ export interface CommandDoc {
   name: string;
   type?: 'candidate' | 'annotation';
   annotationKind?: AnnotationKindV1;
+  sigil?: string; // If not specified, process default is assumed.
   sigilOptional?: boolean;
+  termLocation?: 'prefix' | 'suffix' | 'anywhere';
   description?: string;
   aliases?: string[];
   templates: CommandTemplate[];
@@ -43,10 +45,17 @@ function normalizeCommand(id: string, data: any): CommandDoc | null {
     : [];
   const rateMax = data?.rateLimit != null ? toInt(data.rateLimit.max) ?? 0 : undefined;
   const ratePer = data?.rateLimit != null ? toInt(data.rateLimit.perMs) ?? 60000 : undefined;
+  const termLocation = ((): 'prefix' | 'suffix' | 'anywhere' => {
+    const v = (data.termLocation || '').toString().toLowerCase();
+    if (v === 'suffix' || v === 'anywhere' || v === 'prefix') return v as any;
+    return 'prefix';
+  })();
   return {
     id,
     name: String(data.name || '').toLowerCase(),
+    sigil: typeof data.sigil === 'string' ? String(data.sigil) : undefined,
     sigilOptional: Boolean(data.sigilOptional),
+    termLocation,
     description: data.description ? String(data.description) : undefined,
     aliases: Array.isArray(data.aliases) ? data.aliases.map((a: any) => String(a).toLowerCase()) : undefined,
     annotationKind: data.annotationKind as AnnotationKindV1,
