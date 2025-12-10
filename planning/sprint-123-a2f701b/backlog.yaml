@@ -59,7 +59,7 @@ items:
   - id: STM-005
     title: "Environment configuration for memory limits"
     priority: P1
-    status: in-progress
+    status: done
     owner: Lead Implementor
     dependsOn: [STM-001]
     acceptance:
@@ -99,7 +99,7 @@ items:
   - id: STM-009
     title: "Validation script alignment"
     priority: P1
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [STM-006, STM-007]
     acceptance:
@@ -108,7 +108,7 @@ items:
   - id: STM-010
     title: "Documentation updates (planning notes and usage)"
     priority: P2
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [STM-001, STM-003, STM-004]
     acceptance:
@@ -133,3 +133,82 @@ milestones:
     includes: [STM-005, STM-008, STM-010]
     exitCriteria:
       - Env and logs documented; debug logs visible in local runs
+
+  # Phase 2 — Instance-Scoped Memory (cross-event within process lifetime)
+  - id: STM-011
+    title: "Implement InstanceMemoryStore (in-process)"
+    priority: P0
+    status: done
+    owner: Lead Implementor
+    dependsOn: [STM-001]
+    acceptance:
+      - Store supports per-key turns[], TTL eviction, LRU by maxKeys
+      - Per-key trim by message count and char budget
+      - Singleton accessor via getInstanceMemoryStore()
+
+  - id: STM-012
+    title: "Integrate store into processor (load/append)"
+    priority: P0
+    status: done
+    owner: Lead Implementor
+    dependsOn: [STM-011, STM-002, STM-003]
+    acceptance:
+      - ingest_prompt prepends prior turns from store for key
+      - call_model appends assistant turn on success; user turns appended on ingest
+      - Keying: `${channel}:${userId||anon}`
+
+  - id: STM-013
+    title: "Unit tests: store behavior (TTL/LRU/concurrency)"
+    priority: P0
+    status: done
+    owner: Quality Lead
+    dependsOn: [STM-011]
+    acceptance:
+      - Tests cover count/char trimming, TTL expiry, LRU eviction, per-key lock ordering
+
+  - id: STM-014
+    title: "Unit tests: processor across events using instance store"
+    priority: P0
+    status: done
+    owner: Quality Lead
+    dependsOn: [STM-012]
+    acceptance:
+      - Second event for same key includes prior turns in flattened input
+      - Different keys remain isolated
+      - Empty assistant reply does not add assistant turn to store
+
+  - id: STM-015
+    title: "Configuration: add LLM_BOT_INSTANCE_MEM_* env vars"
+    priority: P1
+    status: done
+    owner: Lead Implementor
+    dependsOn: [STM-011]
+    acceptance:
+      - architecture.yaml lists env vars for max keys/msg/chars and TTL
+
+  - id: STM-016
+    title: "Observability: instance memory logs"
+    priority: P2
+    status: done
+    owner: Lead Implementor
+    dependsOn: [STM-012]
+    acceptance:
+      - Logs on read/append errors; debug counts after append
+
+  - id: STM-017
+    title: "Docs: planning notes update for instance memory"
+    priority: P2
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-011, STM-012]
+    acceptance:
+      - Implementation plan updated; env knobs documented; caveats listed
+
+  - id: STM-018
+    title: "Validation: run scoped tests for llm-bot"
+    priority: P1
+    status: done
+    owner: Lead Implementor
+    dependsOn: [STM-013, STM-014]
+    acceptance:
+      - ./validate_deliverable.sh --scope llm-bot passes locally

@@ -12,6 +12,10 @@
   - Logging around memory updates and model invocation
   - Unit tests for reducer and processor happy/skip/error paths
   - Minimal configuration updates (env defaults, local dev docs)
+- Phase 2 (Continuation): Instance-scoped (cross-event, process-lifetime) short-term memory store
+  - In-process singleton store with per-key turns[], TTL eviction, and LRU by maxKeys
+  - Integrate at ingest_prompt (prepend prior turns) and post call_model (append assistant)
+  - Env knobs: LLM_BOT_INSTANCE_MEM_MAX_KEYS, _MAX_MSGS, _MAX_CHARS, _TTL_MS
 - Out of scope
   - Any persistence beyond current run (no Firestore/Redis)
   - Token-accurate counting and multi-modal message parts
@@ -23,11 +27,17 @@
 - New environment variables with defaults:
   - LLM_BOT_MEMORY_MAX_MESSAGES (default 8)
   - LLM_BOT_MEMORY_MAX_CHARS (default 8000)
+- New (phase 2):
+  - src/services/llm-bot/instance-memory.ts (InstanceMemoryStore with singleton)
+  - LLM_BOT_INSTANCE_MEM_MAX_KEYS, LLM_BOT_INSTANCE_MEM_MAX_MSGS, LLM_BOT_INSTANCE_MEM_MAX_CHARS, LLM_BOT_INSTANCE_MEM_TTL_MS
 - Tests:
   - src/services/llm-bot/__tests__/reducer.spec.ts
   - src/services/llm-bot/__tests__/processor.memory.spec.ts
+  - src/services/llm-bot/__tests__/instance-memory.spec.ts (store)
+  - src/services/llm-bot/__tests__/processor.instance-memory.spec.ts (cross-event)
 - Observability:
   - Debug logs for memory updates and model input sizing
+  - Warnings on instance store read/append errors
 - Planning artifacts (this plan + backlog.yaml)
 
 ## Acceptance Criteria

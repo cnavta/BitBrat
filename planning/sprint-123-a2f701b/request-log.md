@@ -29,3 +29,21 @@
   - src/services/llm-bot/processor.error.spec.ts (new)
 - Verification:
   - npm test (all suites passing locally)
+
+## 2025-12-10T07:44Z
+- Prompt: "Continue"
+- Interpretation: Implement instance-scoped short-term memory (cross-event, in-process) per Architect recommendation; integrate with processor; add tests; update env configuration; validate.
+- Files modified/added:
+  - src/services/llm-bot/instance-memory.ts (new) — InstanceMemoryStore with TTL/LRU and per-key bounds
+  - src/services/llm-bot/processor.ts — integrate store: load prior on ingest; append user+assistant
+  - src/services/llm-bot/instance-memory.spec.ts (new) — store tests (trim, TTL, LRU, concurrency)
+  - src/services/llm-bot/processor.instance-memory.spec.ts (new) — cross-event integration tests
+  - architecture.yaml — add LLM_BOT_INSTANCE_MEM_* env vars
+  - planning/sprint-123-a2f701b/implementation-plan.md — add Phase 2 notes and deliverables
+  - planning/sprint-123-a2f701b/backlog.yaml — add STM-011..018 with statuses
+- Git/CLI:
+  - git add -A
+  - git commit -m "sprint-123-a2f701b: instance-scoped memory – store module, processor integration, tests; env config; planning updates"
+  - git push -u origin feature/sprint-123-a2f701b-stm-plan
+- Validation:
+  - ./validate_deliverable.sh --env dev --scope llm-bot → 7/7 suites passed, 17/17 tests passed

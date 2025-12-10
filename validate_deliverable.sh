@@ -10,6 +10,7 @@ fi
 # Parse arguments
 ENV_ARG=""
 PROJECT_ID_ARG=""
+SCOPE_ARG="all" # all | llm-bot
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
@@ -18,6 +19,8 @@ while [[ $# -gt 0 ]]; do
       ENV_ARG="$2"; shift 2 ;;
     --project-id|-p)
       PROJECT_ID_ARG="$2"; shift 2 ;;
+    --scope|-s)
+      SCOPE_ARG="$2"; shift 2 ;;
     --help|-h)
       SHOW_HELP=true; shift ;;
     --)
@@ -38,6 +41,7 @@ Description:
 Options:
   -e, --env           Environment overlay to use (default: dev)
   -p, --project-id    GCP Project ID to target (default: value of $PROJECT_ID)
+  -s, --scope         Validation scope: all | llm-bot (default: all)
   -h, --help          Show this help message
 EOF
   exit 0
@@ -58,7 +62,7 @@ npm install
 echo "🧱 Compiling..."
 npm run build
 
-echo "🧪 Running tests..."
+echo "🧪 Running tests (scope=$SCOPE_ARG)..."
 export CI=1
 # Ensure CI uses a zero-I/O message bus to avoid any network connections (@google-cloud/pubsub or NATS)
 export MESSAGE_BUS_DRIVER=${MESSAGE_BUS_DRIVER:-noop}
@@ -68,7 +72,11 @@ unset MESSAGE_BUS_DISABLE_SUBSCRIBE
 export MESSAGE_BUS_DISABLE_IO=1
 # Disable Pub/Sub topic/subscription ensure logic if any pubsub path is accidentally hit
 export PUBSUB_ENSURE_DISABLE=1
-npm test
+if [[ "$SCOPE_ARG" == "llm-bot" ]]; then
+  npm test -- src/services/llm-bot
+else
+  npm test
+fi
 
 if [[ "$SKIP_INFRA" != "1" ]]; then
   # Sprint 14: Infra dry-run validation
