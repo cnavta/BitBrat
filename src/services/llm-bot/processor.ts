@@ -91,14 +91,16 @@ async function callOpenAI(model: string, prompt: string, timeoutMs?: number): Pr
   const requestBody: any = {
     model: model || 'gpt-5-mini',
     input: prompt,
-    max_output_tokens: 512,
+    max_output_tokens: 1024,
   };
 
+  console.debug('openai.request.raw', JSON.stringify(requestBody));
   // IMPORTANT: pass AbortSignal via the fetch options (2nd param), NOT in the request body
   const resp = await (client as any).responses.create(
     requestBody,
     controller ? { signal: controller.signal } : undefined
   );
+  console.debug('openai.response.raw', JSON.stringify(resp));
   const text = (resp as any)?.output?.[0]?.content?.[0]?.text
     ?? (resp as any)?.output_text
     ?? (resp as any)?.choices?.[0]?.message?.content
@@ -143,7 +145,14 @@ export async function processEvent(
         }
 
         if (combinedPrompt) {
-          // Build one HumanMessage per prompt annotation (sorted) for better trimming behavior
+          // Build one HumanMessage from the base event message (if present),
+          // then one per prompt annotation (sorted) for better trimming behavior
+          const incoming: ChatMessage[] = [];
+          const baseText = (s.event as any)?.message?.text ? String((s.event as any).message.text).trim() : '';
+          if (baseText) {
+            incoming.push(toHuman(baseText));
+          }
+
           const promptAnns = anns
             .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
           promptAnns.sort((a: any, b: any) => {
@@ -152,7 +161,13 @@ export async function processEvent(
             if (at !== bt) return at - bt;
             return (a.id || '').localeCompare(b.id || '');
           });
-          const incoming = promptAnns.map((p: any) => toHuman(p.value || p.payload?.text || ''));
+          for (const p of promptAnns) {
+            const t = String(p.value || p.payload?.text || '').trim();
+            // Avoid immediate duplication if prompt equals the base message text
+            if (!t) continue;
+            if (!(baseText && t === baseText)) incoming.push(toHuman(t));
+          }
+
           const { messages: reduced, trimmedByChars, trimmedByCount } = applyMemoryReducer(messages, incoming, {
             maxMessages: isFinite(maxMessages) ? maxMessages : 8,
             maxChars: isFinite(maxChars) ? maxChars : 8000,
@@ -179,6 +194,16 @@ export async function processEvent(
         const input = flattenMessagesForModel(msgs);
         const corr = s.event.correlationId;
         const startedAt = Date.now();
+        // Backward-compatible input logging for operational visibility
+        logger?.debug?.('llm_bot.call_model.input_stats', {
+          correlationId: corr,
+          messageCount: msgs.length,
+          charCount: input.length,
+        });
+        logger?.debug?.('llm_bot.call_model.input_preview', {
+          correlationId: corr,
+          preview: preview(input),
+        });
         logger?.debug?.('openai.request', {
           correlationId: corr,
           model,

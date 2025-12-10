@@ -31,3 +31,12 @@
 \- 2025-12-09T23:12:00Z | Prompt: "Run tests" | Interpretation: Execute Jest suite to ensure no regressions after logging changes.
   - command: npm test
   - result: 115 passed, 1 skipped; 302 total tests, 300 passed, 2 skipped.
+
+\- 2025-12-10T03:55:00Z | Prompt: "Investigate Cloud Run logs: memory not visible in OpenAI request" | Interpretation: Ensure short-term memory is included in inputs and observable.
+  - files modified: src/services/llm-bot/processor.ts, env/dev/llm-bot.yaml
+  - change:
+    - Include base event message (message.text) as an initial (user) turn alongside prompt annotations (dedupe identical text).
+    - Add backward-compatible logs: llm_bot.call_model.input_stats and llm_bot.call_model.input_preview (also keep openai.request).
+    - Add dev env defaults for memory limits and example LLM_BOT_SYSTEM_PROMPT to aid local visibility.
+  - command: npm test
+  - result: 115 passed, 1 skipped; 302 total tests, 300 passed, 2 skipped.
