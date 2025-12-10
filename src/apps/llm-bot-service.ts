@@ -102,16 +102,6 @@ class LlmBotServer extends BaseServer {
   }
 
   private async setupApp(app: Express, _cfg: any) {
-    // Architecture-specified explicit stub handlers (GET)
-
-
-    // Example resource access patterns (uncomment and adapt):
-    // const publisher = this.getResource<any>('publisher');
-    // publisher?.publishJson({ hello: 'world' });
-    // const firestore = this.getResource<any>('firestore');
-    // const doc = await firestore?.collection('demo').doc('x').get();
-
-    // Subscribe to the llm-bot input topic and process messages (InternalEventV2 assumed)
     await this.onMessage<InternalEventV2>('internal.llmbot.v1', async (data, attributes, ctx) => {
       try {
         const logger = this.getLogger();
@@ -123,9 +113,13 @@ class LlmBotServer extends BaseServer {
           await tracer.startActiveSpan('process-llm-request', async (span: any) => {
             try {
               // Preferred: LangGraph processor
+              logger.debug('llm_bot.processing_langgraph');
               const status = await processEvent(this, data as InternalEventV2);
               await (this as any).next?.(data as InternalEventV2, status);
-              logger.info('llm_bot.processed', { correlationId: (data as any)?.correlationId, status });
+              logger.info('llm_bot.processed', {correlationId: (data as any)?.correlationId, status});
+            } catch (e) {
+              logger.error('llm_bot.process_error', { error: e });
+              throw e;
             } finally {
               span.end();
             }
