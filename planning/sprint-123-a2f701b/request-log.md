@@ -58,3 +58,14 @@
   - git commit -m "fix(deploy): use custom delimiter for --set-env-vars in Cloud Build to support spaces/commas (fix Cloud Run deploy error)"
   - git push -u origin feature/sprint-123-a2f701b-stm-plan
 - Expected outcome: Cloud Run deploy no longer errors on unrecognized arguments; system prompt and other envs with spaces are accepted.
+
+## 2025-12-10T17:53Z
+- Prompt: "We are now getting INVALID_ARGUMENT for build.substitutions: key in the template 'ENV_DELIM' is not a valid built-in substitution."
+- Interpretation: Cloud Build performs variable substitution on ${VAR} in step scripts. The earlier change introduced ${ENV_DELIM}/${ENV_MAPPED} in the inline bash, which Cloud Build treated as substitutions, causing INVALID_ARGUMENT. Escape them using $$ so Cloud Build leaves them for the shell at runtime.
+- Files modified:
+  - cloudbuild.oauth-flow.yaml — escape Cloud Build substitutions in bash step: replace ${ENV_DELIM} and ${ENV_MAPPED} with $$ENV_DELIM and $$ENV_MAPPED; build SET_ENV_ARG and pass as --set-env-vars='^^'.
+- Commands:
+  - git add -A
+  - git commit -m "fix(cloudbuild): escape custom script vars to avoid Cloud Build substitution (ENV_DELIM/ENV_MAPPED)"
+  - git push -u origin feature/sprint-123-a2f701b-stm-plan
+- Expected outcome: Cloud Build no longer errors on invalid substitution keys; brat deploy proceeds to gcloud run deploy with correctly delimited env vars.
