@@ -21,3 +21,17 @@
     - src/services/command-processor/processor.ts (termLocation + per-command sigil + boundaries + parentheses args)
     - tests/services/command-processor/command-repo.spec.ts (normalization test)
     - planning/sprint-125-7c8e2a/backlog.yaml (update statuses)
+
+- 2025-12-10 18:41 ET
+  - Prompt: "Force sprint complete."
+  - Interpretation: Close sprint per AGENTS.md 2.10 — document current failures and gaps, finalize verification and retro docs, mark sprint complete
+  - Shell/Git:
+    - git add planning/sprint-125-7c8e2a/
+    - git commit -m "sprint-125-7c8e2a: force complete – add verification report, retro, key learnings, validate script; mark sprint complete"
+    - git push
+  - Files touched:
+    - planning/sprint-125-7c8e2a/sprint-manifest.yaml (status: complete)
+    - planning/sprint-125-7c8e2a/verification-report.md
+    - planning/sprint-125-7c8e2a/retro.md
+    - planning/sprint-125-7c8e2a/key-learnings.md
+    - planning/sprint-125-7c8e2a/validate_deliverable.sh
