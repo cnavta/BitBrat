@@ -1,0 +1,13 @@
+id: sprint-123-a2f701b
+title: "Short-term memory (in-run) for llm-bot via LangGraph state reducers"
+goal: "Design a minimal, ephemeral short-term memory for llm-bot using LangGraph.js messages reducer; add observability and tests."
+owner: "Lead Implementor"
+createdAt: "2025-12-10T00:13:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/25"
+  branch: "feature/sprint-123-a2f701b-stm-plan"
+notes: |
+  Aligns to architecture.yaml (services.llm-bot). Scope is in-run only—no cross-run persistence.
+  Implementation started per user approval on 2025-12-10.
+  Sprint closed after validation and publication steps were satisfied per AGENTS.md §2.9.

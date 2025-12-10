@@ -21,4 +21,4 @@ npm run brat -- infra apply lb --env $ENV --project-id $PROJECT_ID              
 npm run brat -- lb urlmap render --env $ENV --project-id $PROJECT_ID
 npm run brat -- lb urlmap import --env $ENV --project-id $PROJECT_ID --dry-run     # review drift
 npm run brat -- lb urlmap import --env $ENV --project-id $PROJECT_ID               # apply if acceptable
-npm run brat -- deploy services --env $ENV --project-id $PROJECT_ID --concurrency 3
+npm run brat -- deploy services --env $ENV --project-id $PROJECT_ID --concurrency 6

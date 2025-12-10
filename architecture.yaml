@@ -121,6 +121,16 @@ services:
       - OPENAI_MODEL
       - OPENAI_TIMEOUT_MS
       - OPENAI_MAX_RETRIES
+      # Short-term memory bounds (in-run)
+      - LLM_BOT_MEMORY_MAX_MESSAGES
+      - LLM_BOT_MEMORY_MAX_CHARS
+      # Optional system primer for conversations (prepended once when memory empty)
+      - LLM_BOT_SYSTEM_PROMPT
+      # Instance-scoped short-term memory (cross-event within process lifetime)
+      - LLM_BOT_INSTANCE_MEM_MAX_KEYS
+      - LLM_BOT_INSTANCE_MEM_MAX_MSGS
+      - LLM_BOT_INSTANCE_MEM_MAX_CHARS
+      - LLM_BOT_INSTANCE_MEM_TTL_MS
 
   finalizer:
     active: false

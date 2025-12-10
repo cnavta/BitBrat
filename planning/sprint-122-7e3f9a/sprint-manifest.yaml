@@ -1,0 +1,11 @@
+id: sprint-122-7e3f9a
+title: "Short-term memory (in-memory) for llm-bot via LangGraph.js"
+goal: "Design and implement short-term (in-run) conversational memory for llm-bot using LangGraph.js state reducers; add observability and tests."
+owner: "Architect"
+createdAt: "2025-12-09T12:13:00Z"
+status: "complete"
+links:
+  pr: ""
+  branch: "feature/sprint-122-7e3f9a-short-term-memory"
+notes: |
+  Aligns with architecture.yaml service: llm-bot. Implements in-memory short-term memory per LangGraph docs; no cross-run persistence in this sprint. Validation executed locally; PR not created due to missing credentials.

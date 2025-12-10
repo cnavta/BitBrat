@@ -105,7 +105,15 @@ steps:
         if [ -n "${_VPC_CONNECTOR}" ]; then CMD="$${CMD} --vpc-connector ${_VPC_CONNECTOR}"; fi
         if [ -n "$$ALLOW_FLAG" ]; then CMD="$${CMD} $$ALLOW_FLAG"; fi
         if [ -n "${_SECRET_SET_ARG}" ]; then CMD="$${CMD} --set-secrets $(printf '%s' "${_SECRET_SET_ARG}" | tr ';' ',')"; fi
-        if [ -n "${_ENV_VARS_ARG}" ]; then CMD="$${CMD} --set-env-vars $(printf '%s' "${_ENV_VARS_ARG}" | tr ';' ',')"; fi
+        # Use a custom delimiter for --set-env-vars so values may contain commas and spaces without breaking parsing
+        # Format: --set-env-vars='^<DELIM>^KEY=VAL<DELIM>KEY2=VAL2'
+        if [ -n "${_ENV_VARS_ARG}" ]; then
+          ENV_DELIM='~'
+          # Convert our semicolon-delimited KV list to the chosen delimiter; wrap in single quotes to preserve spaces
+          ENV_MAPPED=$(printf '%s' "${_ENV_VARS_ARG}" | tr ';' "$$ENV_DELIM")
+          SET_ENV_ARG="^$$ENV_DELIM^$$ENV_MAPPED"
+          CMD="$${CMD} --set-env-vars='$$SET_ENV_ARG'"
+        fi
 
         echo "Executing: $$CMD"
         eval "$$CMD"
