@@ -1,0 +1,135 @@
+# Prioritized, Trackable YAML Backlog — sprint-123-a2f701b
+
+version: 1
+generatedAt: "2025-12-10T00:13:30Z"
+owner: "Lead Implementor"
+sprint: "sprint-123-a2f701b"
+
+definitions:
+  statuses: [todo, in-progress, blocked, review, done, deferred]
+  priorities:
+    - P0 # critical path for acceptance
+    - P1 # important this sprint
+    - P2 # nice to have / stretch
+
+items:
+  - id: STM-001
+    title: "Establish LangGraph state shape and messages reducer"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: []
+    acceptance:
+      - Reducer appends messages and trims by max count and max chars
+      - Defaults: maxMessages=8, maxChars=8000 (env-overridable)
+      - Unit tests cover append and trimming
+
+  - id: STM-002
+    title: "Add ingest_prompt node to build HumanMessage from annotations"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-001]
+    acceptance:
+      - Annotations transformed into a single user message and appended via reducer
+      - When no annotations exist, graph exits early with SKIP
+      - Debug logs include message counts before/after
+
+  - id: STM-003
+    title: "Update call_model to use messages and append AssistantMessage"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-001, STM-002]
+    acceptance:
+      - Messages flattened into a single input string for model call
+      - Assistant output appended as AssistantMessage
+      - Debug logs record message length and char estimate
+
+  - id: STM-004
+    title: "Add build_candidate node to emit text candidate from assistant reply"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-003]
+    acceptance:
+      - CandidateV1 created with last assistant content
+      - Backward compatibility fields (llmText/combinedPrompt) maintained
+
+  - id: STM-005
+    title: "Environment configuration for memory limits"
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-001]
+    acceptance:
+      - Reads LLM_BOT_MEMORY_MAX_MESSAGES and LLM_BOT_MEMORY_MAX_CHARS with defaults
+      - Documented in README/planning
+
+  - id: STM-006
+    title: "Unit tests: reducer"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [STM-001]
+    acceptance:
+      - Tests pass for append and trimming scenarios
+
+  - id: STM-007
+    title: "Unit tests: processor memory behavior"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [STM-002, STM-003, STM-004]
+    acceptance:
+      - Happy path validates flattened input includes prior turns
+      - Skip path: no annotations => SKIP and no candidate
+      - Error path: injected model failure => ERROR and logs
+
+  - id: STM-008
+    title: "Observability logs for memory operations"
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-001, STM-003]
+    acceptance:
+      - Logs include before/after counts and trim metrics
+      - Model input size logged (message count and chars)
+
+  - id: STM-009
+    title: "Validation script alignment"
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-006, STM-007]
+    acceptance:
+      - validate_deliverable.sh runs build and tests successfully locally
+
+  - id: STM-010
+    title: "Documentation updates (planning notes and usage)"
+    priority: P2
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [STM-001, STM-003, STM-004]
+    acceptance:
+      - Planning notes describe env vars and behavior
+      - Short usage note for developers
+
+milestones:
+  - id: M1
+    title: "Memory core operational"
+    includes: [STM-001, STM-002, STM-003, STM-004]
+    exitCriteria:
+      - End-to-end flow produces candidate using short-term memory
+
+  - id: M2
+    title: "Tested and validated"
+    includes: [STM-006, STM-007, STM-009]
+    exitCriteria:
+      - All unit tests pass via validation script
+
+  - id: M3
+    title: "Docs and observability"
+    includes: [STM-005, STM-008, STM-010]
+    exitCriteria:
+      - Env and logs documented; debug logs visible in local runs
