@@ -36,7 +36,7 @@ function makeRateRef(options: { exists: boolean; count: number }) {
 
 describe('policy.rateLimit', () => {
   it('computes effective rate limit from doc or defaults', () => {
-    const base: CommandDoc = { id: '1', name: 'c', templates: [] };
+    const base: CommandDoc = { id: '1', name: 'c', templates: [], matchType: { kind: 'command', values: ['c'], priority: 0 } };
     expect(effectiveRateLimit(base, { max: 0, perMs: 60000 })).toBeNull();
     expect(effectiveRateLimit({ ...base, rateLimit: { max: 5, perMs: 10000 } }, { max: 0, perMs: 60000 })).toEqual({ max: 5, perMs: 10000 });
     expect(effectiveRateLimit(base, { max: 3, perMs: 15000 })).toEqual({ max: 3, perMs: 15000 });
@@ -54,7 +54,7 @@ describe('policy.rateLimit', () => {
   });
 
   it('allows until count < max then denies at >= max', async () => {
-    const doc: CommandDoc = { id: '1', name: 'c', templates: [], rateLimit: { max: 2, perMs: 60000 } };
+    const doc: CommandDoc = { id: '1', name: 'c', templates: [], matchType: { kind: 'command', values: ['c'], priority: 0 }, rateLimit: { max: 2, perMs: 60000 } };
     const now = new Date('2025-01-01T00:00:10.000Z');
 
     // Case 0 → allow and set to 1
