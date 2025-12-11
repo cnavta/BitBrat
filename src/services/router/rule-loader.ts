@@ -21,7 +21,8 @@ export interface RuleDoc {
   enabled: boolean;
   priority: number;
   description?: string;
-  logic: Record<string, unknown>;
+  // Firestore stores JsonLogic as a JSON string (see sprint-127 change)
+  logic: string;
   routingSlip: RoutingStepRef[];
   metadata?: Record<string, unknown>;
 }
@@ -37,7 +38,21 @@ function validateRule(raw: any, id: string): RuleDoc | null {
   if (raw.enabled !== true) return null; // only cache enabled
   const priority = raw.priority;
   if (typeof priority !== 'number' || Number.isNaN(priority)) return null;
-  if (!isObject(raw.logic)) return null;
+  // Expect logic to be a JSON string; allow object for backward-compat by stringifying
+  let logicStr: string | null = null;
+  if (typeof raw.logic === 'string') {
+    const s = raw.logic.trim();
+    if (!s) return null;
+    logicStr = s;
+  } else if (isObject(raw.logic)) {
+    try {
+      logicStr = JSON.stringify(raw.logic);
+    } catch {
+      return null;
+    }
+  } else {
+    return null;
+  }
   if (!Array.isArray(raw.routingSlip)) return null;
   const routingSlip = raw.routingSlip.filter((s: any) => isObject(s) && typeof s.nextTopic === 'string');
   if (routingSlip.length === 0) return null;
@@ -46,7 +61,7 @@ function validateRule(raw: any, id: string): RuleDoc | null {
     enabled: true,
     priority,
     description: typeof raw.description === 'string' ? raw.description : undefined,
-    logic: raw.logic as Record<string, unknown>,
+    logic: logicStr as string,
     routingSlip: routingSlip as RoutingStepRef[],
     metadata: isObject(raw.metadata) ? (raw.metadata as Record<string, unknown>) : undefined,
   };
