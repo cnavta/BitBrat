@@ -174,15 +174,26 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
       : (await deps.repoFindByNameOrAlias(parsedRes.parsed.name));
     if (byTerm) {
       matched = { ref: byTerm.ref, doc: byTerm.doc, kind: 'command' };
+    } else {
+      logger.debug('command_processor.command.lookup.miss', { term: parsedRes.parsed.name });
     }
   }
 
   // Regex fallback
   if (!matched) {
+    const cfg = getConfig();
     const compiled = deps.getRegexCompiled();
+    // Apply message-length cap for regex evaluation, if configured
+    const cap = Number((cfg as any).regexMaxMessageLength ?? 0) | 0;
+    const textForRegex = cap > 0 && msgText.length > cap ? msgText.slice(0, cap) : msgText;
+    if (cap > 0 && msgText.length > cap) {
+      logger.debug('command_processor.regex.eval.truncated', { originalLen: msgText.length, usedLen: textForRegex.length, cap });
+    } else {
+      logger.debug('command_processor.regex.eval.start', { len: textForRegex.length, commands: compiled.length });
+    }
     outer: for (const entry of compiled) {
       for (const rx of entry.patterns) {
-        const m = msgText.match(rx);
+        const m = textForRegex.match(rx);
         if (m) {
           matched = { ref: entry.ref, doc: entry.doc, kind: 'regex', regexInfo: { pattern: String(rx), match: m } };
           break outer;

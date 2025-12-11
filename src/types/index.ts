@@ -32,6 +32,13 @@ export interface IConfig {
   /** Command Processor: default window size in ms for rate limiting (default 60000) */
   defaultRatePerMs?: number;
 
+  /** Regex cache: optional cap on number of regex commands to cache */
+  regexMaxCommands?: number;
+  /** Regex cache: optional cap on patterns compiled per command */
+  regexMaxPatternsPerCommand?: number;
+  /** Regex evaluation: optional max message length considered for regex matching */
+  regexMaxMessageLength?: number;
+
   /** Twitch integration master switch */
   twitchEnabled?: boolean;
   /** Disable live Twitch connections (useful for tests/CI) */

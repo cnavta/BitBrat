@@ -44,6 +44,11 @@ const ConfigSchema = z.object({
   defaultRateMax: z.coerce.number().int().min(0).optional(),
   defaultRatePerMs: z.coerce.number().int().min(1).optional(),
 
+  // Regex-related safeguards
+  regexMaxCommands: z.coerce.number().int().min(0).optional(),
+  regexMaxPatternsPerCommand: z.coerce.number().int().min(0).optional(),
+  regexMaxMessageLength: z.coerce.number().int().min(0).optional(),
+
   twitchEnabled: z.boolean().optional(),
   twitchDisableConnect: z.boolean().optional(),
   twitchBotUsername: z.string().optional(),
@@ -82,6 +87,11 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     defaultUserCooldownMs: env.DEFAULT_USER_COOLDOWN_MS ? Number(env.DEFAULT_USER_COOLDOWN_MS) : 0,
     defaultRateMax: env.DEFAULT_RATE_MAX ? Number(env.DEFAULT_RATE_MAX) : 0,
     defaultRatePerMs: env.DEFAULT_RATE_PER_MS ? Number(env.DEFAULT_RATE_PER_MS) : 60000,
+
+    // Regex safeguards
+    regexMaxCommands: env.REGEX_MAX_COMMANDS ? Number(env.REGEX_MAX_COMMANDS) : undefined,
+    regexMaxPatternsPerCommand: env.REGEX_MAX_PATTERNS_PER_COMMAND ? Number(env.REGEX_MAX_PATTERNS_PER_COMMAND) : undefined,
+    regexMaxMessageLength: env.REGEX_MAX_MESSAGE_LENGTH ? Number(env.REGEX_MAX_MESSAGE_LENGTH) : undefined,
 
     twitchEnabled: parseBool(env.TWITCH_ENABLED, true),
     twitchDisableConnect: parseBool(env.TWITCH_DISABLE_CONNECT, false),
