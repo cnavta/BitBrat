@@ -25,4 +25,10 @@ echo "Validating presence of ALLOWED_SIGILS in env configs..."
 grep -q "ALLOWED_SIGILS" "$BASE_DIR/../../env/dev/command-processor.yaml"
 grep -q "ALLOWED_SIGILS" "$BASE_DIR/../../env/local/command-processor.yaml"
 
+echo "Checking Firestore index documentation..."
+if [[ ! -f "$BASE_DIR/../../documentation/command-indexes.md" ]]; then
+  echo "Missing documentation/command-indexes.md" >&2
+  exit 1
+fi
+
 echo "Artifacts present and basic checks passed."

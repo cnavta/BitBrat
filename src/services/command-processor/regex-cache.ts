@@ -1,5 +1,6 @@
 import { Firestore, Query, QuerySnapshot } from 'firebase-admin/firestore';
 import { getFirestore } from '../../common/firebase';
+import { getConfig } from '../../common/config';
 import { logger } from '../../common/logging';
 import { CommandDoc, getCollectionPath } from './command-repo';
 
@@ -20,6 +21,9 @@ function safeCompile(pattern: string): RegExp | null {
 }
 
 function rebuildFromSnapshot(snap: QuerySnapshot): void {
+  const cfg = getConfig();
+  const maxCommands = Number(cfg.regexMaxCommands ?? Number.POSITIVE_INFINITY);
+  const maxPatternsPer = Number(cfg.regexMaxPatternsPerCommand ?? Number.POSITIVE_INFINITY);
   const items: CompiledRegexEntry[] = [];
   for (const d of snap.docs) {
     const data = d.data();
@@ -49,9 +53,14 @@ function rebuildFromSnapshot(snap: QuerySnapshot): void {
     })();
     if (!doc) continue;
     const patterns: RegExp[] = [];
+    let taken = 0;
     for (const p of doc.matchType.values) {
+      if (taken >= maxPatternsPer) break;
       const rx = safeCompile(p);
-      if (rx) patterns.push(rx);
+      if (rx) {
+        patterns.push(rx);
+        taken++;
+      }
     }
     // Skip entries with no valid patterns
     if (!patterns.length) continue;
@@ -64,8 +73,16 @@ function rebuildFromSnapshot(snap: QuerySnapshot): void {
     if (pa !== pb) return pa - pb;
     return String(a.doc.id).localeCompare(String(b.doc.id));
   });
-  compiledCache = items;
-  logger.info('regex_cache.rebuilt', { count: compiledCache.length });
+  const limited = Number.isFinite(maxCommands) ? items.slice(0, Math.max(0, maxCommands)) : items;
+  compiledCache = limited;
+  logger.info('regex_cache.rebuilt', {
+    count: compiledCache.length,
+    totalDocs: items.length,
+    appliedCaps: {
+      maxCommands: Number.isFinite(maxCommands) ? maxCommands : undefined,
+      maxPatternsPerCommand: Number.isFinite(maxPatternsPer) ? maxPatternsPer : undefined,
+    },
+  });
 }
 
 export function getCompiledRegexCommands(): ReadonlyArray<CompiledRegexEntry> {
