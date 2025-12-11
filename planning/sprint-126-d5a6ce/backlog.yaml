@@ -1,0 +1,163 @@
+# Prioritized, Trackable YAML Backlog — sprint-126-d5a6ce
+
+version: 1
+generatedAt: "2025-12-11T00:10:00Z"
+owner: "Lead Implementor"
+sprint: "sprint-126-d5a6ce"
+
+definitions:
+  statuses: [todo, in-progress, blocked, review, done, deferred]
+  priorities:
+    - P0 # critical path for acceptance
+    - P1 # important this sprint
+    - P2 # nice to have / stretch
+
+items:
+  - id: CPvNext-001
+    title: "Config: expose allowedSigils from env with sensible default"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: []
+    acceptance:
+      - getConfig exposes allowedSigils: string[] from env ALLOWED_SIGILS
+      - Default to ["!"] when unset or invalid
+      - Documented in code comments and used by processor
+
+  - id: CPvNext-002
+    title: "CommandRepo: adopt CommandDoc vNext and command-term lookup"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-001]
+    acceptance:
+      - "CommandDoc includes matchType { kind: 'command'|'regex', values: string[], priority: number }"
+      - New function findFirstByCommandTerm(term) queries kind=='command' AND values array-contains term ORDER BY priority ASC LIMIT 1
+      - Legacy fields (sigil, sigilOptional, termLocation, aliases) not referenced in production code paths
+
+  - id: CPvNext-003
+    title: "Regex cache: load, validate, compile and order regex commands"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-002]
+    acceptance:
+      - loadRegexCommands() returns commands sorted by priority with pre-compiled patterns
+      - Invalid patterns are skipped with debug logs
+      - Safety limits configurable: maxCommands, maxPatternsPerCommand
+
+  - id: CPvNext-004
+    title: "Processor: multi-sigil command parsing and annotation payload"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-001, CPvNext-002]
+    acceptance:
+      - If text starts with any allowed sigil, extracts term + args (+ argsText)
+      - Looks up first command by term (priority ASC)
+      - Emits annotation payload { sigil, term, args, argsText }
+
+  - id: CPvNext-005
+    title: "Processor: regex fallback path with groups capture"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-003]
+    acceptance:
+      - If no command match, iterates regex commands by priority and tests patterns
+      - On first match, captures positional and named groups (if present)
+      - Emits annotation payload { pattern, groups, namedGroups }
+      - Deterministic tie-breaker: priority ASC then doc id ASC
+
+  - id: CPvNext-006
+    title: "Policy integration: cooldowns and rate limits on both paths"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-004, CPvNext-005]
+    acceptance:
+      - Global and per-user cooldowns evaluated before producing candidates/annotations
+      - Rate limits enforced using existing helpers
+      - Blocked outcomes logged with structured reason codes
+
+  - id: CPvNext-007
+    title: "Safety: regex and input limits"
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-003]
+    acceptance:
+      - Message length cap applied for regex evaluation (configurable)
+      - Patterns validated at load; option to disable patterns exceeding length/complexity thresholds
+      - Unit tests cover invalid/edge patterns and skipping behavior
+
+  - id: CPvNext-008
+    title: "Observability: logs, counters, and latency histograms"
+    priority: P1
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-004, CPvNext-005]
+    acceptance:
+      - Debug logs for match decisions include kind, term/pattern, commandId
+      - Metrics hooks for matches/blocks and processing latency
+      - Trace/span attributes for kind, term, commandId (if tracing enabled)
+
+  - id: CPvNext-009
+    title: "Indexes: document composite index requirements"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-002]
+    acceptance:
+      - Documentation snippet for Firestore composite index: matchType.kind + matchType.values (array-contains) ordered by matchType.priority
+      - Included in repo docs and referenced by validate script notes or README
+
+  - id: CPvNext-010
+    title: "Tests: unit coverage for parsing and repo lookups"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CPvNext-002, CPvNext-004]
+    acceptance:
+      - Multi-sigil parsing; term/args extraction; argsText fidelity
+      - findFirstByCommandTerm respects priority ordering and lowercase normalization
+
+  - id: CPvNext-011
+    title: "Tests: regex groups and safety behavior"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CPvNext-003, CPvNext-005, CPvNext-007]
+    acceptance:
+      - Named and positional groups extracted correctly; missing named groups omitted
+      - Invalid patterns are skipped and logged; message length cap enforced
+
+  - id: CPvNext-012
+    title: "Tests: integration E2E command→annotation/candidate"
+    priority: P1
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CPvNext-004, CPvNext-005, CPvNext-006]
+    acceptance:
+      - End-to-end flow produces expected annotations/candidates for command and regex paths
+      - Policy gates correctly block when limits reached
+
+  - id: CPvNext-013
+    title: "Code cleanup: remove references to legacy fields"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-004, CPvNext-005]
+    acceptance:
+      - No references to sigilOptional, termLocation, or per-command sigil remain in production code
+      - Dead code and tests referencing legacy fields removed or refactored
+
+  - id: CPvNext-014
+    title: "Docs: examples and migration guide (manual)"
+    priority: P2
+    status: deferred
+    owner: Lead Implementor
+    dependsOn: [CPvNext-009]
+    acceptance:
+      - Example command docs for matchType 'command' and 'regex'
+      - Brief manual migration notes outlining field changes

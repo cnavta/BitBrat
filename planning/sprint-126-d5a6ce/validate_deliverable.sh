@@ -7,9 +7,11 @@ BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 required=(
   "$BASE_DIR/sprint-manifest.yaml"
   "$BASE_DIR/implementation-plan.md"
+  "$BASE_DIR/implementation-plan-impl.md"
   "$BASE_DIR/technical-architecture.md"
   "$BASE_DIR/publication.yaml"
   "$BASE_DIR/request-log.md"
+  "$BASE_DIR/backlog.yaml"
 )
 
 for f in "${required[@]}"; do
