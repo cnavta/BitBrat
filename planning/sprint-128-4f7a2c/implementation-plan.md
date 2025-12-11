@@ -36,6 +36,7 @@ Acceptance Criteria
 - Feature can be disabled via PERSONALITY_ENABLED=false
 - Observability: logs and basic metrics for resolution, cache, drops
 - No behavior change when no personality annotations present
+ - Name-based Firestore selection: where name == payload.name and status == 'active', order by version desc, limit 1
 
 Testing Strategy
 - Unit tests

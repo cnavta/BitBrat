@@ -29,3 +29,9 @@
     - planning/sprint-128-4f7a2c/publication.yaml (created)
     - planning/sprint-128-4f7a2c/retro.md (created)
     - planning/sprint-128-4f7a2c/key-learnings.md (created)
+
+- 2025-12-11T18:20:00Z
+  - Prompt: Change document selection strategy to name-based lookup with version ordering
+  - Interpretation: Update TA to: Firestore auto-generated IDs; query by name where status=='active' order by version desc limit 1; add index guidance
+  - Files:
+    - planning/sprint-128-4f7a2c/technical-architecture.md (updated)
