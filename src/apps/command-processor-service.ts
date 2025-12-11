@@ -4,7 +4,8 @@ import { INTERNAL_COMMAND_V1, InternalEventV2, RoutingStep } from '../types/even
 import { AttributeMap, createMessagePublisher } from '../services/message-bus';
 import { logger } from '../common/logging';
 import { summarizeSlip } from '../services/routing/slip';
-import { findByNameOrAlias } from '../services/command-processor/command-repo';
+import { findFirstByCommandTerm } from '../services/command-processor/command-repo';
+import { startRegexCache } from '../services/command-processor/regex-cache';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { Firestore } from 'firebase-admin/firestore';
 
@@ -22,6 +23,14 @@ class CommandProcessorServer extends BaseServer {
     const subject = `${cfg.busPrefix || ''}${INTERNAL_COMMAND_V1}`;
     logger.info('command_processor.subscribe.start', { subject, queue: 'command-processor' });
     try {
+      // Initialize regex cache live updates
+      try {
+        const db = this.getResource<Firestore>('firestore');
+        startRegexCache(db);
+        logger.info('command_processor.regex_cache.started');
+      } catch (e: any) {
+        logger.warn('command_processor.regex_cache.start_error', { error: e?.message || String(e) });
+      }
       await this.onMessage<InternalEventV2>(
         { destination: INTERNAL_COMMAND_V1, queue: 'command-processor', ack: 'explicit' },
         async (preV2: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
@@ -38,7 +47,7 @@ class CommandProcessorServer extends BaseServer {
             // Wrap execution in a child span when tracing is enabled
             const tracer = (this as any).getTracer?.();
             const exec = async () => {
-              return await processEvent(preV2 as any, { repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db) });
+              return await processEvent(preV2 as any, { repoFindFirstByCommandTerm: (term: string) => findFirstByCommandTerm(term, db) });
             };
             const result = tracer && typeof tracer.startActiveSpan === 'function'
               ? await tracer.startActiveSpan('execute-command', async (span: any) => {

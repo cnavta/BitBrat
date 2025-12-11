@@ -1,37 +1,3 @@
-# Sprint Request Log – sprint-126-d5a6ce
-
-## 2025-12-10T19:27:20Z – Sprint start confirmation
-- Prompt: "Start sprint" confirmation and constraints (ALLOWED_SIGILS in config; no extra tie-break rules)
-- Interpretation: Initialize sprint per AGENTS.md; create branch and planning artifacts.
-- Shell/Git:
-  - git checkout -b feature/sprint-126-d5a6ce-command-processor-simplified-matching
-- Files touched: planning/sprint-126-d5a6ce/* (to be added)
-
-## 2025-12-10T19:31:00Z – Create planning artifacts
-- Prompt: Create TA deliverables and planning files
-- Interpretation: Author sprint manifest, implementation plan, TA doc scaffold, validation script, publication metadata.
-- Shell/Git:
-  - git add planning/sprint-126-d5a6ce/
-  - git commit -m "sprint-126: add manifest and planning scaffolds"
-- Files touched:
-  - planning/sprint-126-d5a6ce/sprint-manifest.yaml
-  - planning/sprint-126-d5a6ce/implementation-plan.md
-  - planning/sprint-126-d5a6ce/technical-architecture.md
-  - planning/sprint-126-d5a6ce/validate_deliverable.sh
-  - planning/sprint-126-d5a6ce/publication.yaml
-
-## 2025-12-11T00:12:00Z – Implementation plan and backlog
-- Prompt: "Analyze the TA and create a Sprint Implementation Plan and Prioritized Trackable YAML Backlog"
-- Interpretation: Add implementation plan (for code work) and backlog with P0/P1/P2 tasks, dependencies, and acceptance criteria; update validator.
-- Shell/Git:
-  - git add planning/sprint-126-d5a6ce/
-  - git commit -m "sprint-126: add implementation plan for code phase and prioritized YAML backlog; update validator"
-- Files touched:
-  - planning/sprint-126-d5a6ce/implementation-plan-impl.md
-  - planning/sprint-126-d5a6ce/backlog.yaml
-  - planning/sprint-126-d5a6ce/validate_deliverable.sh
-
-## 2025-12-11T20:05:00Z – Update docs to mandate onSnapshot for regex cache
 - Prompt: "Update documentation to specify that a Firestore onSnapshot listener must reload the regex cache on any change."
 - Interpretation: Amend Technical Architecture, Implementation Plan acceptance/testing, and Backlog to explicitly require an onSnapshot listener on the regex commands query; document initial load, error handling/backoff, and observability; add P0 backlog item.
 - Shell/Git:
@@ -45,3 +11,18 @@
   - planning/sprint-126-d5a6ce/implementation-plan-impl.md
   - planning/sprint-126-d5a6ce/backlog.yaml
   - planning/sprint-126-d5a6ce/request-log.md
+
+
+## 2025-12-11T21:20:00Z – Begin implementation (repo + processor + regex cache)
+- Prompt: "Plan approved, begin implementation please!"
+- Interpretation: Implement simplified matching per TA: command-path by matchType (values, priority) using ALLOWED_SIGILS, with regex fallback via live Firestore onSnapshot cache.
+- Shell/Git:
+  - npm run build
+  - npm test (observed failing legacy tests relying on sigilOptional/termLocation/alias)
+- Files touched:
+  - src/services/command-processor/command-repo.ts — add findFirstByCommandTerm(), normalize vNext; remove legacy fields in normalization
+  - src/services/command-processor/processor.ts — two-stage matching (command→regex), parse with ALLOWED_SIGILS, standardized annotation/candidate payload
+  - src/services/command-processor/regex-cache.ts — new live cache with Firestore onSnapshot for matchType.kind=='regex'
+  - src/apps/command-processor-service.ts — start regex cache at startup; wire repoFindFirstByCommandTerm
+- Notes:
+  - Build succeeded. Several tests fail due to intentional removal of sigilOptional/termLocation behaviors; will align tests in follow-up.
