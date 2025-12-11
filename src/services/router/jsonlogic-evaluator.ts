@@ -65,13 +65,27 @@ export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number)
 
 /**
  * Evaluate a JsonLogic expression against the provided context.
+ * Accepts either an object (native JsonLogic) or a JSON string representation of it.
  * Returns boolean; any error or non-boolean result is coerced to false.
  */
 export function evaluate(logic: unknown, context: EvalContext): boolean {
   try {
-    if (!logic || typeof logic !== 'object') return false;
+    // Normalize logic when stored as a string (Firestore recommendation)
+    let expr: any = null;
+    if (typeof logic === 'string') {
+      try {
+        expr = JSON.parse(logic);
+      } catch {
+        return false; // invalid JSON string
+      }
+    } else if (logic && typeof logic === 'object') {
+      expr = logic as any;
+    } else {
+      return false;
+    }
+
     registerOperatorsOnce();
-    const result = jsonLogic.apply(logic as any, context);
+    const result = jsonLogic.apply(expr, context);
     return result === true || result === 1;
   } catch {
     // Malformed logic should not throw; treat as non-match

@@ -1,12 +1,16 @@
 import { RouterEngine } from '../router-engine';
 import type { RuleDoc } from '../../router/rule-loader';
-import type { InternalEventV2 } from '../../../types/events';
+import type { InternalEventV2, RoutingStep } from '../../../types/events';
 
 describe('RouterEngine + JsonLogic custom operators integration', () => {
   const evt: InternalEventV2 = {
     v: '1', source: 'test', correlationId: 'c-ops',
     type: 'chat.command.v1', channel: '#ch', userId: 'u1',
     user: { id: 'u1', roles: ['Mod'] },
+    routingSlip: [
+      { id: 'router', v: '1', status: 'OK', attempt: 1, nextTopic: 'internal.llmbot.v1' },
+      { id: 'llm-bot', v: '1', status: 'OK', attempt: 1 }, // terminal OK (no nextTopic)
+    ] as RoutingStep[],
     message: { id: 'm1', role: 'user', text: '!PiNg', rawPlatformPayload: { text: '!PiNg' } },
   } as any;
 
@@ -14,17 +18,18 @@ describe('RouterEngine + JsonLogic custom operators integration', () => {
     const rules: RuleDoc[] = [
       {
         id: 'r-no', enabled: true, priority: 1,
-        logic: { '==': [ { var: 'type' }, 'chat.message.v1' ] } as any,
+        logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.message.v1' ] }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.never.v1' }],
       },
       {
         id: 'r-yes', enabled: true, priority: 2,
-        logic: {
+        logic: JSON.stringify({
           and: [
             { ci_eq: [ { var: 'message.text' }, '!ping' ] },
             { re_test: [ { var: 'message.text' }, ['^!p', 'i'] ] },
+            { slip_complete: [ { var: 'routingSlip' } ] },
           ],
-        } as any,
+        }),
         routingSlip: [{ id: 'router', v: '1', nextTopic: 'internal.llmbot.v1' }],
       },
     ];

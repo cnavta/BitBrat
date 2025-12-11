@@ -11,11 +11,11 @@ function makeSnap(docs: any[]) {
 describe('RuleLoader', () => {
   it('warm loads rules, validates and sorts by priority asc and id', async () => {
     const docs = [
-      makeDoc('b', { enabled: true, priority: 20, logic: {}, routingSlip: [{ id: 'r', nextTopic: 't1' }] }),
-      makeDoc('a', { enabled: true, priority: 10, logic: {}, routingSlip: [{ id: 'r', nextTopic: 't2' }] }),
-      makeDoc('c', { enabled: false, priority: 5, logic: {}, routingSlip: [{ id: 'r', nextTopic: 't3' }] }), // disabled → ignored
-      makeDoc('d', { enabled: true, priority: 'x', logic: {}, routingSlip: [{ id: 'r', nextTopic: 't4' }] }), // invalid priority
-      makeDoc('e', { enabled: true, priority: 10, logic: {}, routingSlip: [] }), // invalid slip
+      makeDoc('b', { enabled: true, priority: 20, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't1' }] }),
+      makeDoc('a', { enabled: true, priority: 10, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't2' }] }),
+      makeDoc('c', { enabled: false, priority: 5, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't3' }] }), // disabled → ignored
+      makeDoc('d', { enabled: true, priority: 'x', logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't4' }] }), // invalid priority
+      makeDoc('e', { enabled: true, priority: 10, logic: JSON.stringify({}), routingSlip: [] }), // invalid slip
     ];
     const warmSnap = makeSnap(docs);
 
@@ -40,9 +40,9 @@ describe('RuleLoader', () => {
 
     // Apply snapshot update: swap priorities and add tie to check tie-breaker by id
     const updateSnap = makeSnap([
-      makeDoc('b', { enabled: true, priority: 5, logic: {}, routingSlip: [{ id: 'r', nextTopic: 't1' }] }),
-      makeDoc('a', { enabled: true, priority: 5, logic: {}, routingSlip: [{ id: 'r', nextTopic: 't2' }] }),
-      makeDoc('c', { enabled: true, priority: 5, logic: {}, routingSlip: [{ id: 'r', nextTopic: 't3' }] }),
+      makeDoc('b', { enabled: true, priority: 5, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't1' }] }),
+      makeDoc('a', { enabled: true, priority: 5, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't2' }] }),
+      makeDoc('c', { enabled: true, priority: 5, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't3' }] }),
     ]);
     snapshotCb(updateSnap);
     const rules2 = rl.getRules();

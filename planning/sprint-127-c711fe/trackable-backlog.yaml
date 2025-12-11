@@ -24,7 +24,7 @@ backlog:
       - Sprint manifest exists with branch recorded
       - Feature branch created and logged in request-log.md
     dependencies: []
-    status: in-progress
+    status: done
 
   - id: BB-127-02
     sprint: 127
@@ -38,7 +38,7 @@ backlog:
       - Documented list of operators and signatures in code comments
       - Registration function safe to call multiple times
     dependencies: [BB-127-01]
-    status: todo
+    status: done
 
   - id: BB-127-03
     sprint: 127
@@ -54,7 +54,7 @@ backlog:
       - Non-strings coerced safely; null/undefined handled gracefully
       - Tests pass
     dependencies: [BB-127-02]
-    status: todo
+    status: done
 
   - id: BB-127-04
     sprint: 127
@@ -71,7 +71,7 @@ backlog:
       - Compiled regex cached by (pattern, flags)
       - Tests pass
     dependencies: [BB-127-02]
-    status: todo
+    status: done
 
   - id: BB-127-05
     sprint: 127
@@ -87,7 +87,7 @@ backlog:
       - Returns false if any step is PENDING or ERROR or slip missing
       - Tests pass
     dependencies: [BB-127-02]
-    status: todo
+    status: done
 
   - id: BB-127-06
     sprint: 127
@@ -105,7 +105,7 @@ backlog:
       - text_contains(value, needle[, ci]) supports case-insensitive option
       - Tests pass
     dependencies: [BB-127-02]
-    status: todo
+    status: done
 
   - id: BB-127-07
     sprint: 127
@@ -120,7 +120,7 @@ backlog:
       - No changes required to RouterEngine API
       - Tests pass
     dependencies: [BB-127-03, BB-127-04, BB-127-05]
-    status: todo
+    status: done
 
   - id: BB-127-08
     sprint: 127
@@ -135,7 +135,7 @@ backlog:
       - validate_deliverable.sh logically passable
       - npm test includes new tests
     dependencies: [BB-127-07]
-    status: todo
+    status: done
 
   - id: BB-127-09
     sprint: 127
@@ -150,7 +150,7 @@ backlog:
       - Operators documented via JSDoc with usage examples
       - Verification report notes coverage
     dependencies: [BB-127-03, BB-127-04, BB-127-05, BB-127-06]
-    status: todo
+    status: done
 
   - id: BB-127-10
     sprint: 127
@@ -163,4 +163,4 @@ backlog:
     acceptance_criteria:
       - PR created or failure documented per AGENTS.md
     dependencies: [BB-127-08, BB-127-09]
-    status: todo
+    status: done
