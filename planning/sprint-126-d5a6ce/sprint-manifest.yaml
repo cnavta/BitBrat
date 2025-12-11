@@ -3,7 +3,7 @@ title: "Command Processor – Simplified Matching"
 goal: "Design the simplified two-kind command matching architecture (command | regex), remove per-command sigils/sigilOptional/termLocation, and define data model, processing flow, and testing/operability requirements."
 owner: "@christophernavta"
 createdAt: "2025-12-10T19:27:00Z"
-status: "planning"
+status: "in-progress"
 links:
   pr: "" # will be added when created
   branch: "feature/sprint-126-d5a6ce-command-processor-simplified-matching"

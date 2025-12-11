@@ -1,7 +1,7 @@
 # Prioritized, Trackable YAML Backlog — sprint-126-d5a6ce
 
 version: 1
-generatedAt: "2025-12-11T00:10:00Z"
+generatedAt: "2025-12-11T01:30:00Z"
 owner: "Lead Implementor"
 sprint: "sprint-126-d5a6ce"
 
@@ -16,7 +16,7 @@ items:
   - id: CPvNext-001
     title: "Config: expose allowedSigils from env with sensible default"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: []
     acceptance:
@@ -27,7 +27,7 @@ items:
   - id: CPvNext-002
     title: "CommandRepo: adopt CommandDoc vNext and command-term lookup"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [CPvNext-001]
     acceptance:
@@ -38,7 +38,7 @@ items:
   - id: CPvNext-003
     title: "Regex cache: load, validate, compile and order regex commands"
     priority: P0
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     dependsOn: [CPvNext-002]
     acceptance:
@@ -49,7 +49,7 @@ items:
   - id: CPvNext-004
     title: "Processor: multi-sigil command parsing and annotation payload"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [CPvNext-001, CPvNext-002]
     acceptance:
@@ -60,7 +60,7 @@ items:
   - id: CPvNext-005
     title: "Processor: regex fallback path with groups capture"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [CPvNext-003]
     acceptance:
@@ -72,7 +72,7 @@ items:
   - id: CPvNext-006
     title: "Policy integration: cooldowns and rate limits on both paths"
     priority: P0
-    status: todo
+    status: done
     owner: Lead Implementor
     dependsOn: [CPvNext-004, CPvNext-005]
     acceptance:
@@ -94,7 +94,7 @@ items:
   - id: CPvNext-008
     title: "Observability: logs, counters, and latency histograms"
     priority: P1
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     dependsOn: [CPvNext-004, CPvNext-005]
     acceptance:
@@ -145,7 +145,7 @@ items:
   - id: CPvNext-013
     title: "Code cleanup: remove references to legacy fields"
     priority: P0
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     dependsOn: [CPvNext-004, CPvNext-005]
     acceptance:
@@ -165,7 +165,7 @@ items:
   - id: CPvNext-015
     title: "Regex cache: live updates via Firestore onSnapshot"
     priority: P0
-    status: todo
+    status: in-progress
     owner: Lead Implementor
     dependsOn: [CPvNext-003]
     acceptance:
@@ -175,3 +175,14 @@ items:
       - Errors are logged with context and retried with basic backoff; rapid updates may be debounced
       - Observability: emit structured logs for refresh start/end and counts of patterns loaded
       - Tests simulate add/update/delete via mocked onSnapshot to verify cache refresh behavior
+
+  - id: CPvNext-016
+    title: "Tests: migrate legacy termLocation/sigilOptional/alias-heavy suites to vNext semantics"
+    priority: P0
+    status: todo
+    owner: Quality Lead
+    dependsOn: [CPvNext-004, CPvNext-005, CPvNext-006]
+    acceptance:
+      - Legacy tests updated or removed; new tests added for vNext parsing and matching
+      - All jest suites pass locally (CI parity)
+      - Coverage updated to include regex fallback path and command-term lookup
