@@ -57,14 +57,15 @@ describe('command-repo.findByNameOrAlias', () => {
     expect(res).toBeNull();
   });
 
-  it('normalizes termLocation to prefix when missing and preserves sigil', async () => {
+  it('normalizes vNext fields: provides default matchType when absent', async () => {
     const db = makeDb({
-      nameDoc: { name: 'alpha', sigil: '!!', /* termLocation missing */ templates: [{ id: 't1', text: 'x' }] },
+      nameDoc: { name: 'alpha', /* legacy fields ignored */ templates: [{ id: 't1', text: 'x' }] },
       aliasDoc: null,
     });
     const res = await findByNameOrAlias('alpha', db);
     expect(res).not.toBeNull();
-    expect(res!.doc.termLocation).toBe('prefix');
-    expect(res!.doc.sigil).toBe('!!');
+    expect(res!.doc.matchType.kind).toBe('command');
+    expect(res!.doc.matchType.values).toContain('alpha');
+    expect(typeof res!.doc.matchType.priority).toBe('number');
   });
 });
