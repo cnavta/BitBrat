@@ -26,3 +26,16 @@
   - src/apps/command-processor-service.ts — start regex cache at startup; wire repoFindFirstByCommandTerm
 - Notes:
   - Build succeeded. Several tests fail due to intentional removal of sigilOptional/termLocation behaviors; will align tests in follow-up.
+
+## 2025-12-11T01:32:00Z – Backlog and sprint status update
+- Prompt: "Continue, and please make sure the backlog is up to date"
+- Interpretation: Reflect current implementation state in backlog; move sprint from planning to in-progress; add explicit task for migrating legacy tests to vNext semantics.
+- Shell/Git:
+  - git add planning/sprint-126-d5a6ce/backlog.yaml \
+            planning/sprint-126-d5a6ce/sprint-manifest.yaml \
+            planning/sprint-126-d5a6ce/request-log.md
+  - git commit -m "sprint-126: update backlog statuses to reflect implementation; set sprint in-progress; add test-migration item"
+- Files touched:
+  - planning/sprint-126-d5a6ce/backlog.yaml — marked CPvNext-001/002/004/005/006/013/015 as done; CPvNext-003/008 as in-progress; added CPvNext-016 for legacy test migration; refreshed generatedAt
+  - planning/sprint-126-d5a6ce/sprint-manifest.yaml — status: in-progress
+  - planning/sprint-126-d5a6ce/request-log.md — this entry
