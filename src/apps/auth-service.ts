@@ -1,7 +1,7 @@
 import '../common/safe-timers';
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
-import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV2, RoutingStep } from '../types/events';
+import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV2 } from '../types/events';
 import { AttributeMap, createMessagePublisher } from '../services/message-bus';
 import { FirestoreUserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
@@ -57,24 +57,9 @@ class AuthServer extends BaseServer {
                 provider: (asV2 as any)?.source?.split('.')?.[1],
               });
 
-              // Append/update routing step for auth
-              let enrichedV2: InternalEventV2 = enrichedV2Initial;
-              const nowIso = new Date().toISOString();
-              const stepId = 'auth';
-              const slip: RoutingStep[] = Array.isArray(enrichedV2.routingSlip) ? [...(enrichedV2.routingSlip as RoutingStep[])] : [];
-              const idx = slip.findIndex((s) => s.id === stepId);
-              const step: RoutingStep = {
-                id: stepId,
-                v: '1',
-                status: matched ? 'OK' : 'SKIP',
-                attempt: 0,
-                maxAttempts: 1,
-                startedAt: slip[idx]?.startedAt || nowIso,
-                endedAt: nowIso,
-              };
-              if (idx >= 0) slip[idx] = { ...slip[idx], ...step };
-              else slip.push(step);
-              enrichedV2 = { ...enrichedV2, routingSlip: slip };
+              // Do NOT append an 'auth' step to the routingSlip here.
+              // Per requirement: keep routingSlip untouched before event-router.
+              const enrichedV2: InternalEventV2 = enrichedV2Initial;
 
               if (matched) {
                 counters.increment('auth.enrich.matched');

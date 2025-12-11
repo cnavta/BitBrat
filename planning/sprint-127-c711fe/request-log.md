@@ -40,3 +40,9 @@
     - src/services/router/__tests__/rule-loader.hardening.test.ts (string logic)
     - route.json (example now stores logic as a JSON string)
   - notes: npm test passed (124/126 suites; 326 tests passed, 10 skipped). Back-compat retained by stringifying object logic in loader.
+
+- 2025-12-11T17:14:00Z | Change | Stop adding 'auth' step to routingSlip prior to event-router (assume static path ingress→router)
+  - rationale: Router rules rely on slip completion semantics; pre-populating with 'auth' muddied completion state
+  - files:
+    - src/apps/auth-service.ts (removed routingSlip mutation)
+  - validation: build + tests green (124/126 suites passed; 326 tests passed, 10 skipped)
