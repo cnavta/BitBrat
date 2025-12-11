@@ -1,0 +1,16 @@
+id: sprint-127-c711fe
+title: "JsonLogic helper operators for event-router"
+goal: |
+  Add helper JsonLogic operators to improve rule expressiveness in event-router:
+  - Case-insensitive text equality
+  - Regex test for text
+  - Routing slip completion check
+  - Additional InternalEventV2-centric helpers as identified during design
+owner: "@lead-implementor"
+createdAt: "2025-12-11T15:46:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-127-c711fe-jsonlogic-operators"
+notes: |
+  Follow AGENTS.md Sprint Protocol v2.4. Planning artifacts are authoritative for this sprint.
+  Implementation waits for plan approval.
