@@ -23,10 +23,11 @@ class CommandProcessorServer extends BaseServer {
     const subject = `${cfg.busPrefix || ''}${INTERNAL_COMMAND_V1}`;
     logger.info('command_processor.subscribe.start', { subject, queue: 'command-processor' });
     try {
+      const isJest = Boolean((global as any).jest || process.env.JEST_WORKER_ID);
       // Initialize regex cache live updates
       try {
         // During Jest tests, avoid opening Firestore listeners which cause timeouts/permission errors
-        if (!process.env.JEST_WORKER_ID) {
+        if (!isJest) {
           const db = this.getResource<Firestore>('firestore');
           startRegexCache(db);
           logger.info('command_processor.regex_cache.started');
@@ -48,18 +49,20 @@ class CommandProcessorServer extends BaseServer {
 
             // Lazy-load processor to allow Jest doMock() to override in tests after this module is loaded
             const { processEvent } = require('../services/command-processor/processor');
-            const db = this.getResource<Firestore>('firestore');
+            // Detect Jest reliably to avoid initializing Firestore in tests (prevents hanging async handles)
+            const isJestExec = Boolean((global as any).jest || process.env.JEST_WORKER_ID);
             // Wrap execution in a child span when tracing is enabled
             const tracer = (this as any).getTracer?.();
             const exec = async () => {
               // In Jest, avoid Firestore lookups to prevent permission/timeouts; rely on processor defaults (skip if no match)
-              if (process.env.JEST_WORKER_ID) {
+              if (isJestExec) {
                 return await processEvent(preV2 as any, {
                   repoFindFirstByCommandTerm: async () => null,
                   repoFindByNameOrAlias: async () => null,
                   getRegexCompiled: () => [],
                 });
               }
+              const db = this.getResource<Firestore>('firestore');
               return await processEvent(preV2 as any, { repoFindFirstByCommandTerm: (term: string) => findFirstByCommandTerm(term, db) });
             };
             const result = tracer && typeof tracer.startActiveSpan === 'function'

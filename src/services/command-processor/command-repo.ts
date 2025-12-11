@@ -131,6 +131,7 @@ export async function findFirstByCommandTerm(term: string, db?: Firestore): Prom
     if (snap.empty) return null;
     const d = snap.docs[0];
     const doc = normalizeCommand(d.id, d.data());
+    logger.debug('command_repo.findFirstByCommandTerm.found', { term: lc, docId: doc?.id });
     return doc ? { ref: d.ref, doc } : null;
   } catch (e: any) {
     logger.error('command_repo.findFirstByCommandTerm.error', { term: lc, error: e?.message || String(e) });

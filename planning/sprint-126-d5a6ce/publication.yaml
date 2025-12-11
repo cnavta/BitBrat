@@ -1,3 +1,4 @@
 pr_url: ""
 branch: "feature/sprint-126-d5a6ce-command-processor-simplified-matching"
-status: "pending"
+status: "deferred"
+notes: "PR creation skipped due to unavailable GitHub credentials in this environment; user accepted sprint closure."

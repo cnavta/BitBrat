@@ -20,6 +20,8 @@ module.exports = () => {
       maxWorkers: 1,
       workerThreads: false,
       detectOpenHandles: true,
+      // In CI, force process exit after tests complete to avoid timeouts from lingering async handles
+      forceExit: true,
     };
   }
   return base;

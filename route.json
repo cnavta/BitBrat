@@ -1,17 +1,11 @@
 {
   "enabled": true,
   "priority": 10,
-  "description": "Match exact CNJ (case-insensitive) → command-processor → llm-bot",
+  "description": "Bitbrat mention",
   "logic": {
-    "or": [
-      { "==": [ { "var": "message.text" }, "CNJ" ] },
-      { "==": [ { "var": "message.text" }, "cnj" ] },
-      { "==": [ { "var": "message.text" }, "Cnj" ] },
-      { "==": [ { "var": "message.text" }, "cNj" ] },
-      { "==": [ { "var": "message.text" }, "cnJ" ] },
-      { "==": [ { "var": "message.text" }, "CNj" ] },
-      { "==": [ { "var": "message.text" }, "cNJ" ] },
-      { "==": [ { "var": "message.text" }, "CnJ" ] }
+    "in": [
+      "BitBrat_the_AI",
+      { "var": ["message.text", ""] }
     ]
   },
   "routingSlip": [

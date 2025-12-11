@@ -76,6 +76,18 @@ export class BaseServer {
     this.initializeResources();
     this.registerSignalHandlers();
 
+    // In test environments (e.g., Jest), SIGTERM/SIGINT may never fire.
+    // Register best-effort cleanup hooks so open handles (subscribers, timers) don't keep the process alive.
+    const isJest = Boolean((global as any).jest || process.env.JEST_WORKER_ID);
+    if (isJest) {
+      const shutdownOnExit = async (_code?: number) => {
+        try { await this.close('process-exit'); } catch { /* ignore */ }
+      };
+      // beforeExit gives the runtime a chance to finish pending promises
+      process.once('beforeExit', shutdownOnExit as any);
+      process.once('exit', shutdownOnExit as any);
+    }
+
     this.registerHealth(opts.healthPaths, opts.readinessCheck);
 
     if (typeof opts.setup === 'function') {
@@ -109,6 +121,37 @@ export class BaseServer {
       this.app.listen(port, host, () => resolve());
     });
     this.logger.info('listening', { host, port });
+  }
+
+  /**
+   * Public, idempotent shutdown to release resources and unsubscribe from message bus.
+   * Safe to call multiple times.
+   */
+  public async close(reason: string = 'manual'): Promise<void> {
+    if (this.shutdownBound) return; // idempotent
+    this.shutdownBound = true;
+    this.logger.info('base_server.shutdown.start', { reason });
+    // Attempt to unsubscribe from any message subscriptions first
+    for (const fn of this.unsubscribers.splice(0)) {
+      try {
+        await fn();
+        this.logger.info('base_server.unsubscribe.ok');
+      } catch (e: any) {
+        this.logger.warn('base_server.unsubscribe.error', { error: e?.message || String(e) });
+      }
+    }
+    const keys = Object.keys(this.resourceManagers);
+    for (const k of [...keys].reverse()) {
+      const mgr = this.resourceManagers[k];
+      const inst = (this.resources as any)[k];
+      try {
+        await Promise.resolve(mgr.shutdown(inst));
+        this.logger.info('base_server.resource.shutdown.ok', { key: k });
+      } catch (e: any) {
+        this.logger.warn('base_server.resource.shutdown.error', { key: k, error: e?.message || String(e) });
+      }
+    }
+    try { await shutdownTracing(); } catch {}
   }
 
   /**
@@ -214,8 +257,12 @@ export class BaseServer {
   private buildResourceManagers(overrides: Record<string, ResourceManager<any>>): Record<string, ResourceManager<any>> {
     const defaults: Record<string, ResourceManager<any>> = {
       publisher: new PublisherManager(),
-      firestore: new FirestoreManager(),
     };
+    // Avoid initializing Firestore in Jest/CI test runs to prevent lingering async handles
+    const isJest = Boolean((global as any).jest || process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test');
+    if (!isJest) {
+      defaults.firestore = new FirestoreManager();
+    }
     // Merge: overrides replace defaults by key and can add new keys
     const out: Record<string, ResourceManager<any>> = { ...defaults, ...overrides };
     return out;
@@ -259,30 +306,8 @@ export class BaseServer {
   /** Register SIGTERM/SIGINT handlers to shutdown resources in reverse order */
   private registerSignalHandlers(): void {
     const handler = async (signal: NodeJS.Signals) => {
-      if (this.shutdownBound) return;
-      this.shutdownBound = true;
-      this.logger.info('base_server.shutdown.start', { signal });
-      // Attempt to unsubscribe from any message subscriptions first
-      for (const fn of this.unsubscribers.splice(0)) {
-        try {
-          await fn();
-          this.logger.info('base_server.unsubscribe.ok');
-        } catch (e: any) {
-          this.logger.warn('base_server.unsubscribe.error', { error: e?.message || String(e) });
-        }
-      }
-      const keys = Object.keys(this.resourceManagers);
-      for (const k of [...keys].reverse()) {
-        const mgr = this.resourceManagers[k];
-        const inst = (this.resources as any)[k];
-        try {
-          await Promise.resolve(mgr.shutdown(inst));
-          this.logger.info('base_server.resource.shutdown.ok', { key: k });
-        } catch (e: any) {
-          this.logger.warn('base_server.resource.shutdown.error', { key: k, error: e?.message || String(e) });
-        }
-      }
-      try { await shutdownTracing(); } catch {}
+      // Delegate to unified close() to ensure consistent, idempotent teardown
+      await this.close(`signal:${signal}`);
     };
     process.once('SIGTERM', handler);
     process.once('SIGINT', handler);

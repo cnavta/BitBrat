@@ -10,10 +10,49 @@ let compiledCache: CompiledRegexEntry[] = [];
 let unsubscribeFn: (() => void) | null = null;
 let started = false;
 
+/** Allowed JS regex flags */
+const ALLOWED_FLAGS = new Set(['g', 'i', 'm', 's', 'u', 'y', 'd']);
+
+/**
+ * Parse a full regex literal string like "/^cnj/i" into { source: "^cnj", flags: "i" }.
+ * Returns null if the string is not in literal form.
+ */
+function parseRegexLiteral(input: string): { source: string; flags: string } | null {
+  if (!input || input.length < 2) return null;
+  if (input[0] !== '/') return null;
+  // Find the last unescaped '/'
+  let end = -1;
+  for (let i = input.length - 1; i >= 1; i--) {
+    if (input[i] !== '/') continue;
+    // Count backslashes preceding this slash
+    let bs = 0;
+    for (let j = i - 1; j >= 0 && input[j] === '\\'; j--) bs++;
+    if ((bs & 1) === 0) { // even number of backslashes → slash not escaped
+      end = i;
+      break;
+    }
+  }
+  if (end <= 0) return null;
+  const body = input.slice(1, end);
+  const rawFlags = input.slice(end + 1).trim();
+  // Filter to allowed flags and de-duplicate while preserving order
+  let flags = '';
+  for (const ch of rawFlags) {
+    if (ALLOWED_FLAGS.has(ch) && !flags.includes(ch)) flags += ch;
+  }
+  return { source: body, flags };
+}
+
 function safeCompile(pattern: string): RegExp | null {
   try {
-    // Always use case-insensitive by default; authors can embed flags via (?i) if needed, but for safety we force 'i'
-    return new RegExp(pattern, 'i');
+    const val = String(pattern);
+    // Support full regex literal syntax: "/.../flags"
+    const literal = parseRegexLiteral(val);
+    if (literal) {
+      return new RegExp(literal.source, literal.flags);
+    }
+    // Otherwise, treat the value as a raw pattern and default to case-insensitive
+    return new RegExp(val, 'i');
   } catch (e: any) {
     logger.warn('regex_cache.compile.error', { patternPreview: String(pattern).slice(0, 80), error: e?.message || String(e) });
     return null;
