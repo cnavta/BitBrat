@@ -60,6 +60,7 @@ Owner: @christophernavta
 7. Schema & Index Examples (informative)
 - Command example: matchType = { kind: 'command', values: ['greet','hello'], priority: 10 }
 - Regex example: matchType = { kind: 'regex', values: ['^so\\s+@?(?<user>[a-z0-9_]+)$'], priority: 20 }
+  - Values accept either raw pattern strings (e.g., "^so\\s+@?(?<user>[a-z0-9_]+)$") or full regex literals with flags (e.g., "/^so\\s+@?(?<user>[a-z0-9_]+)$/i"). When a literal form is used, its flags are respected; otherwise, the engine defaults to case-insensitive ('i').
 - Index: (matchType.kind == 'command' AND matchType.values array-contains term) ORDER BY matchType.priority ASC
 
 8. Downstream Behavior (unchanged)

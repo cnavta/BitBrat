@@ -19,11 +19,13 @@ describe('command parsing', () => {
     expect(parsed!.args).toEqual(['Alice', 'Bob']);
   });
 
-  it('processForParsing marks non-sigil messages as SKIP', () => {
+  it('processForParsing no longer requires a sigil (regex path may apply)', () => {
     const evt = makeEvent('hello world');
     const res = processForParsing(evt);
-    expect(res.action).toBe('skip');
-    expect(res.stepStatus).toBe('SKIP');
+    // Under vNext, absence of a sigil does not end the pipeline; regex path can still match.
+    expect(res.action).toBe('parsed');
+    expect(res.stepStatus).toBe('OK');
+    expect(res.parsed).toBeUndefined();
   });
 
   it('processForParsing returns parsed for sigil messages', () => {

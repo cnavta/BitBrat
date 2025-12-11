@@ -119,8 +119,10 @@ export function processForParsing(raw: any): ProcessResult {
   }
 
   if (!parsed) {
-    logger.debug('command_processor.parse.skip', { textPreview: text.slice(0, 64) });
-    return { action: 'skip', event: evt, stepStatus: 'SKIP', reason: 'no-command' };
+    // No sigil-prefix command parsed. This does NOT preclude regex matching.
+    // Only matchType.kind == 'command' requires a leading sigil. Proceed with pipeline.
+    logger.debug('command_processor.parse.no_sigil', { textPreview: text.slice(0, 64) });
+    return { action: 'parsed', event: evt, stepStatus: 'OK', reason: 'no-sigil' };
   }
 
   logger.info('command_processor.command.parsed', { name: parsed.name, args: parsed.args.length, sigil: parsed.sigil });
@@ -182,7 +184,9 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
   // Regex fallback
   if (!matched) {
     const cfg = getConfig();
-    const compiled = deps.getRegexCompiled();
+    const compiled = (deps.getRegexCompiled ? deps.getRegexCompiled() : []) as ReadonlyArray<{
+      ref: any; doc: any; patterns: RegExp[];
+    }>;
     // Apply message-length cap for regex evaluation, if configured
     const cap = Number((cfg as any).regexMaxMessageLength ?? 0) | 0;
     const textForRegex = cap > 0 && msgText.length > cap ? msgText.slice(0, cap) : msgText;
@@ -193,7 +197,9 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
     }
     outer: for (const entry of compiled) {
       for (const rx of entry.patterns) {
+        logger.debug('command_processor.regex.eval.try', { pattern: String(rx) });
         const m = textForRegex.match(rx);
+        logger.debug('command_processor.regex.eval.match', { matched: !!m, m });
         if (m) {
           matched = { ref: entry.ref, doc: entry.doc, kind: 'regex', regexInfo: { pattern: String(rx), match: m } };
           break outer;
