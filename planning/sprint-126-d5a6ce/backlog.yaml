@@ -161,3 +161,17 @@ items:
     acceptance:
       - Example command docs for matchType 'command' and 'regex'
       - Brief manual migration notes outlining field changes
+
+  - id: CPvNext-015
+    title: "Regex cache: live updates via Firestore onSnapshot"
+    priority: P0
+    status: todo
+    owner: Lead Implementor
+    dependsOn: [CPvNext-003]
+    acceptance:
+      - Register Firestore onSnapshot listener on the commands query where matchType.kind == 'regex'
+      - Rebuild the in-memory compiled regex cache on any add/update/delete event
+      - Perform initial load at startup before processing messages
+      - Errors are logged with context and retried with basic backoff; rapid updates may be debounced
+      - Observability: emit structured logs for refresh start/end and counts of patterns loaded
+      - Tests simulate add/update/delete via mocked onSnapshot to verify cache refresh behavior

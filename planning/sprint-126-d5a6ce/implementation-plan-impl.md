@@ -40,6 +40,7 @@
 - Regex path: evaluated only if no command match; first matching compiled pattern by priority yields annotation { pattern, groups, namedGroups }
 - Single match per message; deterministic tie-break (priority then doc id)
 - Regex safety limits implemented (max patterns, max message length, compile-time validation)
+- Regex cache must live-reload on any change to regex commands via a Firestore onSnapshot listener bound to matchType.kind == 'regex'; initial load on startup; errors logged with backoff; optional debounce for burst updates
 - Observability present: debug decisions, counters, and latency histograms hooks
 - Tests pass locally (jest) covering parser, ordering, policy gates, and regex named/positional groups
 - No references in production code to sigilOptional or termLocation remain
@@ -52,7 +53,7 @@
   - Policy gates (mocks): global/user cooldown and rate limit invoked before emit
 - Integration tests
   - End-to-end match to annotation/candidate with both command and regex flows
-  - Regex cache reload behavior (stub or mocked snapshot)
+  - Regex cache reload behavior via mocked Firestore onSnapshot events for add/update/delete; verify compiled cache is rebuilt and used
 - Performance tests (bounded)
   - Evaluate latency with N regex commands, assert under threshold on typical hardware
 

@@ -30,3 +30,18 @@
   - planning/sprint-126-d5a6ce/implementation-plan-impl.md
   - planning/sprint-126-d5a6ce/backlog.yaml
   - planning/sprint-126-d5a6ce/validate_deliverable.sh
+
+## 2025-12-11T20:05:00Z – Update docs to mandate onSnapshot for regex cache
+- Prompt: "Update documentation to specify that a Firestore onSnapshot listener must reload the regex cache on any change."
+- Interpretation: Amend Technical Architecture, Implementation Plan acceptance/testing, and Backlog to explicitly require an onSnapshot listener on the regex commands query; document initial load, error handling/backoff, and observability; add P0 backlog item.
+- Shell/Git:
+  - git add planning/sprint-126-d5a6ce/technical-architecture.md \
+            planning/sprint-126-d5a6ce/implementation-plan-impl.md \
+            planning/sprint-126-d5a6ce/backlog.yaml \
+            planning/sprint-126-d5a6ce/request-log.md
+  - git commit -m "sprint-126: docs—mandate Firestore onSnapshot for regex cache; update plan acceptance/testing and backlog"
+- Files touched:
+  - planning/sprint-126-d5a6ce/technical-architecture.md
+  - planning/sprint-126-d5a6ce/implementation-plan-impl.md
+  - planning/sprint-126-d5a6ce/backlog.yaml
+  - planning/sprint-126-d5a6ce/request-log.md

@@ -54,7 +54,7 @@ Owner: @christophernavta
 
 6. Safety & Performance
 - Regex safeguards: validate patterns at load time; cap message length; cap patterns/commands; consider RE2-based engine in follow-up.
-- Caching: in-memory cache for regex commands (and optionally a term index) with TTL or snapshot listener.
+- Caching: in-memory cache for regex commands (and optionally a term index). The processor MUST register a Firestore onSnapshot listener on the commands query (matchType.kind == 'regex') and rebuild the compiled regex cache on any add/update/delete. Perform an initial load at startup, handle errors with backoff and log context, and optionally debounce rapid successive rebuilds.
 - Observability: debug logs for decisions; counters for matches/blocks; histograms for latency; span attributes for kind, term, commandId.
 
 7. Schema & Index Examples (informative)
@@ -67,7 +67,7 @@ Owner: @christophernavta
 
 9. Testing Strategy (for implementation sprint)
 - Unit: multi-sigil parsing; term/args extraction; priority ordering; regex named and positional groups; policy gates; invalid regex skip.
-- Integration: end-to-end selection and emission; cache refresh on Firestore updates.
+- Integration: end-to-end selection and emission; cache refresh via onSnapshot events (add/update/delete) on regex commands.
 - Performance: latency under large regex sets.
 
 10. Migration Notes
@@ -81,6 +81,7 @@ Owner: @christophernavta
 12. Implementation Checklist (next sprint)
 - Update command-repo to new CommandDoc and lookups.
 - Add regex cache loader.
+- Add Firestore onSnapshot listener for regex commands query to live-reload cache on changes.
 - Modify processor to ALLOWED_SIGILS and new flow.
 - Add indexes and tests.
 - Update docs and examples.
@@ -89,3 +90,4 @@ Owner: @christophernavta
 - Only ALLOWED_SIGILS used; sigilOptional and termLocation removed from design.
 - Matching kinds: command then regex by priority; annotations include args or regex groups.
 - Data model and indexes defined; safety and observability called out; testing plan specified.
+- Regex cache refreshes on any change via Firestore onSnapshot listener bound to matchType.kind == 'regex'.
