@@ -1,0 +1,13 @@
+id: sprint-126-d5a6ce
+title: "Command Processor – Simplified Matching"
+goal: "Design the simplified two-kind command matching architecture (command | regex), remove per-command sigils/sigilOptional/termLocation, and define data model, processing flow, and testing/operability requirements."
+owner: "@christophernavta"
+createdAt: "2025-12-10T19:27:00Z"
+status: "planning"
+links:
+  pr: "" # will be added when created
+  branch: "feature/sprint-126-d5a6ce-command-processor-simplified-matching"
+notes: |
+  This sprint begins the re-architecture of command matching to prioritize simplicity and predictability.
+  ALLOWED_SIGILS are sourced from environment/config; commands no longer declare sigils or term locations.
+  Migration of existing commands will be handled manually in a later step.
