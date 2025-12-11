@@ -1,0 +1,168 @@
+version: 1
+title: "Trackable Backlog — Sprint 128: Modular LLM Personality (llm-bot)"
+SprintID: sprint-128-4f7a2c
+branch: feature/sprint-128-4f7a2c-llm-bot-personality-architecture
+
+notes:
+  - Goal: Implement modular personality injection into llm-bot via annotations and Firestore-backed personalities.
+  - Selection: name-based lookup where status == 'active', order by version DESC, limit 1; inline text overrides.
+  - Collection: /personalities with auto-generated IDs; fields {name, text, status, tags[], version, createdAt, updatedAt}.
+  - Flags: PERSONALITY_ENABLED, PERSONALITY_COLLECTION, PERSONALITY_MAX_CHARS, PERSONALITY_MAX_ANNOTATIONS,
+           PERSONALITY_COMPOSE_MODE, PERSONALITY_CACHE_TTL_MS, PERSONALITY_LOG_PREVIEW_CHARS.
+
+backlog:
+  - id: BB-128-01
+    sprint: 128
+    title: Sprint scaffolding confirmation and planning artifacts
+    description: Ensure sprint manifest, TA, plan, and validation wrapper exist and are linked.
+    files:
+      - planning/sprint-128-4f7a2c/
+    estimate: 0.1d
+    acceptance_criteria:
+      - Manifest, TA, implementation plan, validation wrapper present
+      - Request log updated with actions
+    dependencies: []
+    status: done
+
+  - id: BB-128-02
+    sprint: 128
+    title: Env/config flags for personality features
+    description: Add config schema and defaults for PERSONALITY_* flags; document in README/TA notes.
+    files:
+      - src/config/
+      - env/*/llm-bot.yaml
+      - src/apps/llm-bot-service.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - Flags parsed with safe defaults
+      - Disabled mode preserves existing behavior
+    dependencies: [BB-128-01]
+    status: planned
+
+  - id: BB-128-03
+    sprint: 128
+    title: PersonalityResolver module (name-based, active-only, version DESC)
+    description: Implement resolver with in-memory TTL cache, sanitation, and error handling.
+    files:
+      - src/services/llm-bot/personality-resolver.ts
+      - src/services/llm-bot/__tests__/personality-resolver.spec.ts
+    estimate: 0.6d
+    acceptance_criteria:
+      - Inline text path bypasses Firestore
+      - Firestore query: where name == payload.name and status == 'active', order by version DESC, limit 1
+      - Cache TTL honored; hits/misses measurable
+      - Malformed/missing handled gracefully with warnings
+    dependencies: [BB-128-02]
+    status: planned
+
+  - id: BB-128-04
+    sprint: 128
+    title: PromptComposer enhancement for personalities
+    description: Compose personalities into system prompt with modes append|prepend|replace, ordering, limits, and clamping.
+    files:
+      - src/services/llm-bot/prompt-composer.ts
+      - src/services/llm-bot/__tests__/prompt-composer.spec.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - Deterministic ordering by annotation.createdAt (asc) with limit PERSONALITY_MAX_ANNOTATIONS
+      - Clamps to PERSONALITY_MAX_CHARS per personality; safe concatenation
+      - Modes behave as specified; replace keeps minimal safety header
+    dependencies: [BB-128-03]
+    status: planned
+
+  - id: BB-128-05
+    sprint: 128
+    title: llm-bot pipeline integration
+    description: Wire resolver and composer into llm-bot flow before provider call; ensure feature flag gating.
+    files:
+      - src/apps/llm-bot-service.ts
+      - src/services/llm-bot/
+    estimate: 0.5d
+    acceptance_criteria:
+      - When enabled and annotations present, personalities incorporated into system prompt
+      - When disabled or absent, current behavior unchanged
+    dependencies: [BB-128-04]
+    status: planned
+
+  - id: BB-128-06
+    sprint: 128
+    title: Observability (logs + metrics + optional tracing)
+    description: Add structured logs and counters for resolution, cache hits/misses, clamping, drops; tracing spans if enabled.
+    files:
+      - src/services/llm-bot/personality-resolver.ts
+      - src/services/llm-bot/prompt-composer.ts
+      - src/common/logging/*
+    estimate: 0.35d
+    acceptance_criteria:
+      - Logs include name, selectedVersion, composeMode, counts
+      - Metrics exported and testable via unit tests or mocks
+    dependencies: [BB-128-05]
+    status: planned
+
+  - id: BB-128-07
+    sprint: 128
+    title: Security & Firestore rules check
+    description: Ensure least-privilege read access to /personalities; document rule snippet and service account usage.
+    files:
+      - firestore.rules
+      - documentation/
+    estimate: 0.2d
+    acceptance_criteria:
+      - Read-only scope validated for llm-bot
+      - Status and name fields indexed appropriately (index guidance noted)
+    dependencies: [BB-128-03]
+    status: planned
+
+  - id: BB-128-08
+    sprint: 128
+    title: Integration tests (end-to-end prompt composition)
+    description: Test event with personality annotations through llm-bot using mocked Firestore and LLM; verify system prompt.
+    files:
+      - src/apps/llm-bot-service.test.ts
+      - tests/llm-bot-service.spec.ts
+    estimate: 0.6d
+    acceptance_criteria:
+      - Inline-only, name-only, and mixed cases verified
+      - Disabled flag path matches current behavior
+    dependencies: [BB-128-05]
+    status: planned
+
+  - id: BB-128-09
+    sprint: 128
+    title: Validation script alignment
+    description: Ensure validate_deliverable.sh includes new tests and remains logically passable.
+    files:
+      - validate_deliverable.sh
+      - package.json
+    estimate: 0.1d
+    acceptance_criteria:
+      - npm test runs new unit and integration tests
+      - Script succeeds locally (sans infra when PROJECT_ID absent)
+    dependencies: [BB-128-08]
+    status: planned
+
+  - id: BB-128-10
+    sprint: 128
+    title: Documentation updates
+    description: Update TA notes, README/service docs with flags, usage, and troubleshooting.
+    files:
+      - planning/sprint-128-4f7a2c/technical-architecture.md
+      - documentation/
+    estimate: 0.2d
+    acceptance_criteria:
+      - Flags documented; example annotation payloads provided
+      - Sequence and fallback behavior explained
+    dependencies: [BB-128-06]
+    status: planned
+
+  - id: BB-128-11
+    sprint: 128
+    title: Publication (PR)
+    description: Commit, push branch, open GitHub PR; record PR URL in publication.yaml per protocol.
+    files:
+      - planning/sprint-128-4f7a2c/publication.yaml
+    estimate: 0.1d
+    acceptance_criteria:
+      - PR created or failure documented with reason
+    dependencies: [BB-128-09, BB-128-10]
+    status: planned
