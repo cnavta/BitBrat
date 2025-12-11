@@ -7,9 +7,10 @@
 - [x] Additional helpers: has_role, has_annotation, has_candidate, text_contains with tests
 - [x] RouterEngine integration test using operators
 - [x] Validation script logically passable; repo tests pass locally
+- [x] Publication (PR) created and recorded in publication.yaml
 
 ## Partial
-- [ ] Publication (PR) — pending credentials to push and open PR
+- [ ] None
 
 ## Deferred
 - [ ] None in this sprint

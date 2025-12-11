@@ -1,0 +1,15 @@
+id: sprint-128-4f7a2c
+title: "Modular LLM Personality Architecture"
+goal: |
+  Define a modular, annotation-driven mechanism for injecting dynamic personalities into the llm-bot system prompt.
+  Personalities are resolved from Firestore (/personalities) by ID or provided inline via event annotations, enabling
+  rule-based, contextual behavior with robust caching, observability, and safe fallbacks.
+owner: "@christophernavta"
+createdAt: "2025-12-11T18:12:00Z"
+status: "planning"
+links:
+  pr: "" # set after publication
+  branch: "feature/sprint-128-4f7a2c-llm-bot-personality-architecture"
+notes: |
+  Aligns to architecture.yaml precedence. No code changes until plan approval. This sprint focuses on architecture & plan
+  for personality injection; implementation follows in a subsequent step of this sprint after approval.

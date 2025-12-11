@@ -8,9 +8,10 @@ goal: |
   - Additional InternalEventV2-centric helpers as identified during design
 owner: "@lead-implementor"
 createdAt: "2025-12-11T15:46:00Z"
-status: "in-progress"
+status: "complete"
 links:
   branch: "feature/sprint-127-c711fe-jsonlogic-operators"
+  pr: "https://github.com/cnavta/BitBrat/pull/29"
 notes: |
   Follow AGENTS.md Sprint Protocol v2.4. Planning artifacts are authoritative for this sprint.
   Implementation waits for plan approval.
