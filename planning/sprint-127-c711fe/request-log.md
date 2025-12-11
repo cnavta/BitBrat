@@ -46,3 +46,11 @@
   - files:
     - src/apps/auth-service.ts (removed routingSlip mutation)
   - validation: build + tests green (124/126 suites passed; 326 tests passed, 10 skipped)
+
+- 2025-12-11T17:35:00Z | Close | Sprint marked complete; planning artifacts finalized
+  - files:
+    - planning/sprint-127-c711fe/sprint-manifest.yaml (status=complete; PR link)
+    - planning/sprint-127-c711fe/verification-report.md (publication marked complete)
+    - planning/sprint-127-c711fe/retro.md (added)
+    - planning/sprint-127-c711fe/key-learnings.md (added)
+  - validation: npm test passed (124/126 suites; 326 tests passed, 10 skipped)
