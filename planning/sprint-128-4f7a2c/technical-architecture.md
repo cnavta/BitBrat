@@ -10,9 +10,9 @@ The feature must be safe, observable, cacheable, and backward compatible.
 Requirements Summary
 - Event annotations include kind="personality" (already present in src/types/events.ts).
 - Annotation payload shape:
-  { id?: string, text?: string }
-  - id: Firestore doc ID under /personalities
-  - text: Inline personality text; overrides id if present
+  { name?: string, text?: string }
+  - name: Personality name used to select the latest active version from /personalities
+  - text: Inline personality text; overrides name if present
 - When detected, one or more personalities must be incorporated into the LLM system prompt.
 - Must support toggling feature and limiting size/quantity.
 - No behavior change if no personality annotation is present.
@@ -20,12 +20,12 @@ Requirements Summary
 Data Model
 - Firestore collection: /personalities
 - Document schema (proposed):
-  - id: string (document ID)
-  - name: string
+  - id: string (Firestore document ID; auto-generated; not used for selection)
+  - name: string (selection key)
   - text: string
   - status: active | inactive | archived (only active used)
   - tags: string[]
-  - version: number
+  - version: number (monotonic, higher is newer)
   - createdAt: string (ISO8601)
   - updatedAt: string (ISO8601)
 
@@ -36,7 +36,7 @@ Notes
 Interfaces & Types
 - events.ts already includes AnnotationKindV1 with 'personality'.
 - Internal type for decode/validation in llm-bot service:
-  type PersonalityAnnotationPayload = { id?: string; text?: string };
+  type PersonalityAnnotationPayload = { name?: string; text?: string };
 
 Configuration & Feature Flags (llm-bot)
 - PERSONALITY_ENABLED=true|false (default: true)
@@ -68,9 +68,12 @@ Token & Length Management
 
 Firestore Access Pattern
 - If payload.text exists: use it; no Firestore call.
-- Else if payload.id exists: fetch /personalities/{id} and cache the resolved document (id → {text, status, updatedAt}).
+- Else if payload.name exists: query /personalities where name == payload.name and status == 'active',
+  order by version desc, limit 1. Use the first result’s text.
+- Indexing: create a composite index on fields (name asc, status asc, version desc).
+- Cache key: name (optionally include version in cached value for observability).
 - Cache invalidation: TTL via PERSONALITY_CACHE_TTL_MS; evict on TTL.
-- On fetch error or missing doc: log warn and skip that personality.
+- On query error or no active result: log warn and skip that personality.
 
 Security
 - Read-only credentials for /personalities.
@@ -78,7 +81,7 @@ Security
 - Disallow HTML; consider Markdown or plaintext guidance only.
 
 Observability
-- Structured logs: eventId, annotationId, source, composeMode, counts, truncation.
+- Structured logs: eventId, annotationId, source, name, selectedVersion, composeMode, counts, truncation.
 - Metrics: personalities_resolved_total, personalities_failed_total, personalities_dropped_total, personality_cache_hit_total, personality_cache_miss_total.
 - Tracing: spans llm.personality.resolve and llm.prompt.compose (if tracing enabled).
 
@@ -111,7 +114,7 @@ Provider Scope
 - Provider: OpenAI (current). Composition is provider-agnostic.
 
 Acceptance Considerations
-- Unit tests: payload validation, Firestore resolution, inactive status handling, compose modes, ordering, clamping, cache hits/misses.
+- Unit tests: payload validation, Firestore name-based resolution (active only, version desc), compose modes, ordering, clamping, cache hits/misses.
 - Integration test: end-to-end event causing modified system prompt passed to LLM (mocked SDK).
 - Feature flag off path equals current production behavior.
 
