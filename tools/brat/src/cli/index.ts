@@ -34,18 +34,21 @@ interface GlobalFlags {
   ci?: boolean;
   imageTag?: string;
   repoName?: string;
+  envExplicit?: boolean;
 }
 
 export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: string[] } {
   const args = argv.slice(2);
-  const flags: GlobalFlags = { projectId: process.env.PROJECT_ID || 'twitch-452523', env: process.env.BITBRAT_ENV || 'prod', dryRun: false } as any;
+  // Do NOT default env to a hard-coded value; if BITBRAT_ENV is not set and --env is not provided,
+  // leave flags.env empty so that commands which require an env can enforce it explicitly.
+  const flags: GlobalFlags = { projectId: process.env.PROJECT_ID || 'twitch-452523', env: process.env.BITBRAT_ENV || '', dryRun: false } as any;
   const cmd: string[] = [];
   const rest: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--project-id') { flags.projectId = String(args[++i]); }
     else if (a === '--region') { flags.region = String(args[++i]); }
-    else if (a === '--env') { flags.env = String(args[++i]); }
+    else if (a === '--env') { flags.env = String(args[++i]); (flags as any).envExplicit = true; }
     else if (a === '--dry-run') { flags.dryRun = true; }
     else if (a === '--concurrency') { flags.concurrency = Number(args[++i]); }
     else if (a === '--json') { flags.json = true; }
@@ -85,7 +88,7 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
 }
 
 function printHelp() {
-  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n  brat deploy services --all [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--concurrency N] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat infra plan [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors [--env <name>] [--dry-run]\n  brat infra apply network|lb|connectors [--env <name>]\n  brat lb urlmap render --env <env> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <env> [--project-id <id>] [--dry-run]\n  brat apis enable --env <env> [--project-id <id>] [--dry-run] [--json]\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n`);
+  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n\n  # The following commands REQUIRE an environment: pass --env <name> or set BITBRAT_ENV\n  brat deploy services --all --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--concurrency N] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy service <name> --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy <name> --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat infra plan --env <name> [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply --env <name> [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors --env <name> [--dry-run]\n  brat infra apply network|lb|connectors --env <name>\n  brat lb urlmap render --env <name> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <name> [--project-id <id>] [--dry-run]\n  brat apis enable --env <name> [--project-id <id>] [--dry-run] [--json]\n\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n\nNotes:\n  - Provide --env or set BITBRAT_ENV. Common values: dev, prod.\n`);
 }
 
 async function cmdDoctor(flags: GlobalFlags) {
@@ -418,6 +421,12 @@ async function cmdInfra(action: 'plan' | 'apply', flags: GlobalFlags, envDir: st
 
 async function main() {
   const { cmd, flags, rest } = parseArgs(process.argv);
+  const requireEnv = (context: string) => {
+    if (!flags.env) {
+      console.error(`Environment is required for '${context}'. Specify --env <name> (e.g., dev, prod) or set BITBRAT_ENV.`);
+      process.exit(2);
+    }
+  };
   // Propagate commonly used flags into process.env so lower layers (e.g., config loader
   // and interpolation context) can resolve environment-aware values without requiring
   // every call site to thread flags explicitly.
@@ -445,6 +454,7 @@ async function main() {
     return;
   }
   if (c1 === 'deploy' && c2 === 'services') {
+    requireEnv('deploy services');
     await cmdDeployServices(flags);
     return;
   }
@@ -454,16 +464,19 @@ async function main() {
       console.error('Usage: brat deploy service <name> [--project-id <id>] [--region <r>] [--env <name>] [--dry-run]');
       process.exit(2);
     }
+    requireEnv(`deploy service ${serviceName}`);
     await cmdDeployServices(flags, serviceName);
     return;
   }
   // Alias: brat deploy <name>
   if (c1 === 'deploy' && c2 && c2 !== 'services') {
     const serviceName = c2;
+    requireEnv(`deploy ${serviceName}`);
     await cmdDeployServices(flags, serviceName);
     return;
   }
   if (c1 === 'apis' && c2 === 'enable') {
+    requireEnv('apis enable');
     const apis = getRequiredApis(flags.env);
     const res = await enableApis({ projectId: flags.projectId, env: flags.env, apis, dryRun: !!flags.dryRun });
     if (flags.json) console.log(JSON.stringify(res, null, 2));
@@ -488,6 +501,7 @@ async function main() {
   if (c1 === 'lb' && c2 === 'urlmap') {
     const c3 = cmd[2];
     if (c3 === 'render') {
+      requireEnv('lb urlmap render');
       const m = parseKeyValueFlags(rest);
       const out = m['out'];
       const result = renderAndWrite({ rootDir: process.cwd(), env: flags.env as any, projectId: flags.projectId, outFile: out });
@@ -496,6 +510,7 @@ async function main() {
       return;
     }
     if (c3 === 'import') {
+      requireEnv('lb urlmap import');
       const outPath = require('path').join(process.cwd(), 'infrastructure', 'cdktf', 'lb', 'url-maps', flags.env, 'url-map.yaml');
       const urlMapName = 'bitbrat-global-url-map';
       const res = await importUrlMap({ projectId: flags.projectId, env: flags.env as any, urlMapName, sourceYamlPath: outPath, dryRun: !!flags.dryRun });
@@ -505,6 +520,7 @@ async function main() {
     }
   }
   if (c1 === 'infra' && (c2 === 'plan' || c2 === 'apply')) {
+    requireEnv(`infra ${c2}`);
     // Support both flag-based and positional module selection (network | lb)
     const c3 = (cmd.length >= 3) ? cmd[2] : undefined;
     let moduleName: 'network' | 'load-balancer' | 'connectors' | undefined = undefined;
