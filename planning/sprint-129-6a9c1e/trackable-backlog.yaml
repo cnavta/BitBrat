@@ -100,4 +100,4 @@ backlog:
     acceptance_criteria:
       - PR created successfully, or failure reason documented and accepted
     dependencies: [BB-129-06]
-    status: in-progress
+    status: done

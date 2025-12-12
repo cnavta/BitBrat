@@ -56,7 +56,11 @@ function clamp(text: string, maxChars: number): string {
   return text.slice(0, maxChars);
 }
 
-function sortByCreatedAtAsc(a: AnnotationV1, b: AnnotationV1): number {
+function sortByScoreAsc(a: AnnotationV1, b: AnnotationV1): number {
+  const as = typeof a.score === 'number' && isFinite(a.score) ? a.score : Number.POSITIVE_INFINITY;
+  const bs = typeof b.score === 'number' && isFinite(b.score) ? b.score : Number.POSITIVE_INFINITY;
+  if (as !== bs) return as - bs; // ascending score
+  // tie-breaker: createdAt asc, then id asc for stability
   const at = Date.parse(a.createdAt || '') || 0;
   const bt = Date.parse(b.createdAt || '') || 0;
   if (at !== bt) return at - bt;
@@ -75,7 +79,7 @@ export async function resolvePersonalityParts(
   const { maxAnnotations, maxChars, cacheTtlMs } = opts;
   const selected = personalityAnns
     .slice() // do not mutate source
-    .sort(sortByCreatedAtAsc)
+    .sort(sortByScoreAsc)
     .slice(0, Math.max(0, maxAnnotations || 0));
 
   // Count dropped personalities due to maxAnnotations limit
