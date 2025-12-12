@@ -28,3 +28,11 @@ Rationale:
 - 2025-12-12T16:36-05:00 Plan created for CONFIG_DEFAULTS fallback in BaseServer.
 - 2025-12-12T16:37-05:00 Implemented BaseServer.CONFIG_DEFAULTS and getConfig() fallback to class defaults; secrets do not use defaults.
 - 2025-12-12T16:38-05:00 Ran build: success.
+
+- 2025-12-12T16:58-05:00 Plan: migrate llm-bot to BaseServer getters and defaults (CONFIG_DEFAULTS) approved.
+- 2025-12-12T17:05-05:00 Implemented llm-bot migration:
+  - src/apps/llm-bot-service.ts: added CONFIG_DEFAULTS; startup now uses BaseServer.getConfig for ports; handleLlmEvent prefers BaseServer getters when available.
+  - src/services/llm-bot/processor.ts: replaced process.env reads with server.getConfig/getSecret usage; passed API key to OpenAI caller; wired instance memory to server.
+  - src/services/llm-bot/instance-memory.ts: accepts optional BaseServer to read limits via getConfig; backwards compatible fallback to process.env.
+- 2025-12-12T17:09-05:00 Build succeeded.
+- 2025-12-12T17:12-05:00 Ran validate_deliverable.sh --scope llm-bot: all 16 llm-bot test suites passed.
