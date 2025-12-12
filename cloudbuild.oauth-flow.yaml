@@ -1,6 +1,15 @@
+substitutions:
   # Networking: enforce Internal & CLB ingress and attach VPC connector when provided
   _INGRESS: 'internal-and-cloud-load-balancing'
   _VPC_CONNECTOR: ''
+  # Env and secrets (populated by caller; left empty by default)
+  _ENV_VARS_FILE: ''
+  _ENV_VARS_ARG: ''
+  _SECRET_SET_ARG: ''
+  # Flags commonly provided by caller; set safe defaults
+  _ALLOW_UNAUTH: 'false'
+  _DRY_RUN: 'false'
+  _DOCKERFILE: 'Dockerfile.oauth-flow'
 steps:
   - id: 'Install deps'
     name: 'gcr.io/cloud-builders/npm'

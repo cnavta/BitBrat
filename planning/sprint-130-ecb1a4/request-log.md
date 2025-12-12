@@ -55,3 +55,8 @@ Rationale:
    - cloudbuild.oauth-flow.yaml prefers _ENV_VARS_FILE when present (cat file), falls back to _ENV_VARS_ARG with unescape.
  - 2025-12-12T17:52-05:00 Built repo (npm run build): success.
  - 2025-12-12T17:54-05:00 Dry-run brat deploy: substitutions include _ENV_VARS_FILE per service; _ENV_VARS_ARG is empty; no errors.
+ 
+  - 2025-12-12T17:59-05:00 Production error: Cloud Build YAML parse failure: "expected '<document start>', but found '<block mapping start>'" at cloudbuild.oauth-flow.yaml line 4.
+  - 2025-12-12T18:02-05:00 Root cause: YAML started with indented scalar keys at root (e.g., `_INGRESS`) instead of a valid top-level document; Cloud Build expects `substitutions:` map or proper document start.
+  - 2025-12-12T18:06-05:00 Fix: Added top-level `substitutions:` mapping and moved `_INGRESS`, `_VPC_CONNECTOR`, and defaults (`_ENV_VARS_FILE`, `_ENV_VARS_ARG`, `_SECRET_SET_ARG`, `_ALLOW_UNAUTH`, `_DRY_RUN`, `_DOCKERFILE`) under it. Verified structure: steps and images remain at root.
+  - 2025-12-12T18:10-05:00 Validation: `npm run build` OK; `npm run brat -- deploy services --env dev --project-id bitbrat-local --dry-run` prints sane substitutions per service and no YAML parse errors.
