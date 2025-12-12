@@ -5,10 +5,11 @@ const os = require('os');
 const yaml = require('js-yaml');
 
 function parseArgs(argv) {
-  const args = { env: process.env.BITBRAT_ENV || 'prod', format: 'json', onlyKeys: [] };
+  const args = { env: process.env.BITBRAT_ENV || 'prod', service: '', format: 'json', onlyKeys: [] };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--env') { args.env = argv[++i] || args.env; }
+    else if (a === '--service') { args.service = argv[++i] || ''; }
     else if (a === '--format') { args.format = argv[++i] || 'json'; }
     else if (a === '--only-keys') { const v = argv[++i] || ''; args.onlyKeys = v ? v.split(',').map(s => s.trim()).filter(Boolean) : []; }
     else if (a === '-h' || a === '--help') { args.help = true; }
@@ -17,7 +18,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: load-env --env <name> [--only-keys A,B] [--format json|env]\nMerges env/<name>/*.yaml and .secure.local into a single env object.\nOutputs JSON by default, or KEY=VAL lines when --format env.`);
+  console.log(`Usage: load-env --env <name> [--service <service-name>] [--only-keys A,B] [--format json|env]\nMerges env/<name>/global.yaml with an optional service-specific YAML (env/<name>/<service>.yaml).\nWhen --service is omitted, all service YAMLs under env/<name> are merged (legacy behavior).\nOutputs JSON by default, or KEY=VAL lines when --format env.`);
 }
 
 function loadYamlIfExists(filePath) {
@@ -89,18 +90,41 @@ function flattenToEnvLines(obj) {
   const envDir = path.join(repoRoot, 'env', args.env);
 
   const globalYaml = loadYamlIfExists(path.join(envDir, 'global.yaml'));
-  const infraYaml = loadYamlIfExists(path.join(envDir, 'infra.yaml'));
-  const serviceYaml = {};
-  if (fs.existsSync(envDir)) {
-    for (const file of fs.readdirSync(envDir)) {
-      if (!file.endsWith('.yaml')) continue;
-      if (file === 'global.yaml' || file === 'infra.yaml') continue;
-      const y = loadYamlIfExists(path.join(envDir, file));
-      Object.assign(serviceYaml, y || {});
+  let mergedServiceYaml = {};
+  if (args.service) {
+    // Only merge the YAML file that matches the service name (support a few common variants)
+    const svc = String(args.service).trim();
+    const candidates = [
+      `${svc}.yaml`,
+      `${svc.replace(/\s+/g, '-').toLowerCase()}.yaml`,
+      `${svc.replace(/\s+/g, '-')}.yaml`,
+    ];
+    for (const fname of candidates) {
+      const p = path.join(envDir, fname);
+      if (fs.existsSync(p)) {
+        mergedServiceYaml = loadYamlIfExists(p) || {};
+        break;
+      }
+    }
+  } else {
+    // Legacy behavior: merge all service YAMLs under the env directory (excluding global/infra)
+    if (fs.existsSync(envDir)) {
+      for (const file of fs.readdirSync(envDir)) {
+        if (!file.endsWith('.yaml')) continue;
+        if (file === 'global.yaml' || file === 'infra.yaml') continue;
+        const y = loadYamlIfExists(path.join(envDir, file));
+        Object.assign(mergedServiceYaml, y || {});
+      }
     }
   }
-  const secureEnv = loadSecureLocal(path.join(repoRoot, '.secure.local'));
-  let merged = mergeEnv(globalYaml, infraYaml, serviceYaml, secureEnv);
+
+  // Per clarified scope, do not automatically merge developer-local overrides into deploy-time env when --service is provided.
+  // Keep output strictly to global + service overlay content in that case.
+  let merged = mergeEnv(globalYaml, mergedServiceYaml);
+  if (!args.service) {
+    const secureEnv = loadSecureLocal(path.join(repoRoot, '.secure.local'));
+    merged = mergeEnv(merged, secureEnv);
+  }
 
   if (Array.isArray(args.onlyKeys) && args.onlyKeys.length > 0) {
     merged = Object.fromEntries(Object.entries(merged).filter(([k]) => args.onlyKeys.includes(k)));

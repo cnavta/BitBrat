@@ -1,14 +1,20 @@
 # Implementation Plan – sprint-130-ecb1a4
 
 ## Objective
-- Treat env vars defined in architecture.yaml as required keys only. Include all env vars from the selected environment overlay in Cloud Run deployments, excluding those provided via Secret Manager.
+- Treat env vars defined in architecture.yaml as required keys only.
+- Include environment variables per service using the clarified merge rule:
+  - env/<env>/global.yaml
+  - plus env/<env>/<service>.yaml (service-specific overrides global)
+  - exclude unrelated service YAMLs and infra.yaml from a given service’s env set.
+  - secrets provided via Secret Manager remain excluded from plain env.
 - Provide BaseServer convenience accessors for config/env: getConfig<T>(ENV_NAME) and getSecret<T>(ENV_NAME) to reduce direct process.env usage in services.
 - Introduce BaseServer.CONFIG_DEFAULTS for subclass-defined configuration defaults that getConfig(name) will honor when env is absent.
 
 ## Scope
 - In scope:
   - Update brat CLI deploy path to include all overlay env vars and validate required keys.
-  - Update infrastructure/deploy-cloud.sh multi-service path similarly.
+  - Update infrastructure/deploy-cloud.sh multi-service and single-service paths similarly and pass --service to loader.
+  - Update infrastructure/scripts/load-env.js to support --service and implement the merge precedence: global then service-specific.
   - Maintain secret handling: secrets map to Secret Manager and are excluded from plain env.
 - Out of scope:
   - Changes to architecture.yaml schema beyond semantics of env lists.

@@ -266,7 +266,8 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
     // New behavior: include ALL env vars from the environment overlay in deploy,
     // while treating env declared in architecture.yaml as required keys only.
     // So we load full overlay env (no filtering by svc.envKeys) and separately validate required keys.
-    const envKv = loadEnvKv(flags.env);
+    // Load env for this service: merge env/<env>/global.yaml + env/<env>/<service>.yaml (service overrides global)
+    const envKv = loadEnvKv(flags.env, svc.name);
     let secretMap = synthesizeSecretMapping(svc.secrets);
     if (secretMap) {
       try {

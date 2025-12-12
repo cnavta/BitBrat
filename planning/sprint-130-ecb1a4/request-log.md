@@ -65,3 +65,6 @@ Rationale:
   - 2025-12-12T18:18-05:00 Root cause: cloudbuild.oauth-flow.yaml referenced `${_BILLING}` for logging without providing a default, and brat CLI did not supply `_BILLING` in substitutions.
   - 2025-12-12T18:22-05:00 Fix applied: Added `_BILLING: 'instance'` to the YAML `substitutions:` block and included `_BILLING: 'instance'` in brat `computeDeploySubstitutions()`.
   - 2025-12-12T18:24-05:00 Validation: `npm run build` OK; brat dry-run deploy shows `_BILLING: 'instance'` present in substitutions for all services; no errors.
+
+  - 2025-12-12T18:45-05:00 Clarified env merge behavior implemented: each service now gets env/<env>/global.yaml + env/<env>/<service>.yaml (service overrides global). Brat CLI and deploy-cloud.sh updated to pass --service to loader.
+  - 2025-12-12T18:46-05:00 User signaled: "Sprint complete." Marking sprint as complete in sprint-manifest.yaml. All required artifacts present; PR #32 recorded in publication.yaml.
