@@ -3,7 +3,7 @@ title: "Env overlay inclusion for Cloud Run deploys"
 goal: "Treat architecture.yaml env lists as required only; include all env vars from environment overlays in Cloud Run deploys while excluding secrets."
 owner: "@lead-implementor"
 createdAt: "2025-12-12T15:41:00-05:00"
-status: "in-progress"
+status: "validating"
 links:
   pr: ""
   branch: "feature/sprint-130-ecb1a4-env-overlay-inclusion"
