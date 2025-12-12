@@ -283,11 +283,15 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
     // Validate that required env keys from architecture.yaml are present in the overlay
     try {
       if (svc.envKeys && svc.envKeys.length) {
+        // Certain keys are provided by the runtime (e.g., Cloud Run) and should not be required in overlays
+        const runtimeProvided = new Set<string>(['K_REVISION']);
         const present = new Set<string>((envKv || '')
           .split(';')
           .filter(Boolean)
           .map((p) => p.split('=')[0]));
-        const missing = (svc.envKeys || []).filter((k) => !present.has(k));
+        const missing = (svc.envKeys || [])
+          .filter((k) => !runtimeProvided.has(k))
+          .filter((k) => !present.has(k));
         if (missing.length) {
           const msg = `Missing required env keys for ${svc.name}: ${missing.join(', ')}. ` +
             'Provide these via env overlay or Secret Manager. Keys listed in architecture.yaml are REQUIRED.';

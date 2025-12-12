@@ -483,9 +483,16 @@ if [[ "$MULTI_MODE" == true ]]; then
       IFS=',' read -r -a _req_keys <<< "$ENV_KEYS_CSV_LOCAL"
       present_keys=$(printf "%s" "$ENV_KV_LOCAL" | tr ';' '\n' | awk -F'=' 'NF>=1 {print $1}')
       missing_keys=()
+      # Keys provided by the runtime (e.g., Cloud Run) should not be required in overlays
+      RUNTIME_PROVIDED_KEYS=("K_REVISION")
+      is_runtime_provided() { local key="$1"; for rk in "${RUNTIME_PROVIDED_KEYS[@]}"; do [[ "$rk" == "$key" ]] && return 0; done; return 1; }
       for rk in "${_req_keys[@]}"; do
         k_trimmed="${rk//[[:space:]]/}"
         [[ -z "$k_trimmed" ]] && continue
+        # Skip runtime-provided keys from validation
+        if is_runtime_provided "$k_trimmed"; then
+          continue
+        fi
         if ! printf "%s\n" $present_keys | grep -qx "$k_trimmed"; then
           missing_keys+=("$k_trimmed")
         fi
