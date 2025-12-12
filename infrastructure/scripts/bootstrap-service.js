@@ -56,17 +56,24 @@ function toPascal(name) {
   return parts.join('');
 }
 
-function generateAppSource(serviceName, stubPaths) {
+function generateAppSource(serviceName, stubPaths, consumedTopics = []) {
   const SERVICE_NAME = serviceName;
   const ClassName = `${toPascal(serviceName)}Server`;
   const explicitHandlers = Array.isArray(stubPaths) && stubPaths.length > 0
     ? stubPaths.map((p) => `    app.get('${p}', (_req: Request, res: Response) => { res.status(200).end(); });`).join('\n')
     : '';
+  const consumedList = Array.isArray(consumedTopics) ? consumedTopics : [];
+  const consumedDecl = consumedList.length
+    ? `const RAW_CONSUMED_TOPICS: string[] = ${JSON.stringify(consumedList, null, 2)};`
+    : `const RAW_CONSUMED_TOPICS: string[] = [];`;
   return `import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
+import type { InternalEventV2 } from '../types/events';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || '${SERVICE_NAME}';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
+
+${consumedDecl}
 
 class ${ClassName} extends BaseServer {
   constructor() {
@@ -77,6 +84,44 @@ class ${ClassName} extends BaseServer {
   private async setupApp(app: Express, _cfg: any) {
     // Architecture-specified explicit stub handlers (GET)
 ${explicitHandlers}
+
+    // Message subscriptions for consumed topics declared in architecture.yaml
+    try {
+      const instanceId =
+        process.env.K_REVISION ||
+        process.env.EGRESS_INSTANCE_ID ||
+        process.env.SERVICE_INSTANCE_ID ||
+        process.env.HOSTNAME ||
+        Math.random().toString(36).slice(2);
+      for (const raw of RAW_CONSUMED_TOPICS) {
+        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
+        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
+        try {
+          await this.onMessage<InternalEventV2>(
+            { destination, queue, ack: 'explicit' },
+            async (msg: InternalEventV2, _attributes, ctx) => {
+              try {
+                this.getLogger().info('${SERVICE_NAME}.message.received', {
+                  destination,
+                  type: (msg as any)?.type,
+                  correlationId: (msg as any)?.correlationId,
+                });
+                // TODO: implement domain behavior for this topic
+                await ctx.ack();
+              } catch (e: any) {
+                this.getLogger().error('${SERVICE_NAME}.message.handler_error', { destination, error: e?.message || String(e) });
+                await ctx.ack();
+              }
+            }
+          );
+          this.getLogger().info('${SERVICE_NAME}.subscribe.ok', { destination, queue });
+        } catch (e: any) {
+          this.getLogger().error('${SERVICE_NAME}.subscribe.error', { destination, queue, error: e?.message || String(e) });
+        }
+      }
+    } catch (e: any) {
+      this.getLogger().warn('${SERVICE_NAME}.subscribe.init_error', { error: e?.message || String(e) });
+    }
 
     // Example resource access patterns (uncomment and adapt):
     // const publisher = this.getResource<any>('publisher');
@@ -200,6 +245,7 @@ function main() {
   }
   const entry = svc.entry || `src/apps/${toKebab(serviceKey)}-service.ts`;
   const stubPaths = Array.isArray(svc.paths) ? svc.paths : [];
+  const consumedTopics = (svc.topics && Array.isArray(svc.topics.consumes)) ? svc.topics.consumes : [];
 
   const appTsPath = path.join(repoRoot, entry);
   const testTsPath = appTsPath.replace(/\.ts$/, '.test.ts');
@@ -207,7 +253,7 @@ function main() {
   const dockerfilePath = path.join(repoRoot, dockerfileName);
   const composePath = path.join(repoRoot, 'infrastructure', 'docker-compose', 'services', `${toKebab(serviceKey)}.compose.yaml`);
 
-  const appRes = writeFileSafe(appTsPath, generateAppSource(serviceKey, stubPaths), args.force);
+  const appRes = writeFileSafe(appTsPath, generateAppSource(serviceKey, stubPaths, consumedTopics), args.force);
   const testRes = writeFileSafe(testTsPath, generateTestSource(entry, stubPaths), args.force);
   const dockRes = writeFileSafe(dockerfilePath, generateDockerfile(serviceKey, entry), args.force);
   const composeRes = writeFileSafe(composePath, generateComposeSource(serviceKey), args.force);
