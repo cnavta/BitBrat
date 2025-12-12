@@ -7,7 +7,7 @@
  * - Subscribes via onSnapshot to keep cache up to date
  */
 import { logger } from '../../common/logging';
-import {AnnotationV1} from "@/types";
+import { AnnotationV1 } from '@/types';
 
 export interface RoutingStepRef {
   id: string;
@@ -35,6 +35,42 @@ function isObject(v: any): v is Record<string, any> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
 }
 
+function isAnnotation(v: any): v is AnnotationV1 {
+  return (
+    !!v &&
+    typeof v === 'object' &&
+    typeof v.id === 'string' &&
+    typeof v.kind === 'string' &&
+    typeof v.source === 'string' &&
+    typeof v.createdAt === 'string'
+  );
+}
+
+function sanitizeAnnotations(rawAnns: any, id: string): AnnotationV1[] | undefined {
+  if (!Array.isArray(rawAnns)) return undefined;
+  const out: AnnotationV1[] = [];
+  for (const a of rawAnns) {
+    if (isAnnotation(a)) {
+      // Shallow clone to avoid accidental mutation downstream
+      const clean: AnnotationV1 = {
+        id: String(a.id),
+        kind: String(a.kind),
+        source: String(a.source),
+        createdAt: String(a.createdAt),
+        confidence: typeof a.confidence === 'number' ? a.confidence : undefined,
+        label: typeof a.label === 'string' ? a.label : undefined,
+        value: typeof a.value === 'string' ? a.value : undefined,
+        score: typeof a.score === 'number' ? a.score : undefined,
+        payload: isObject(a.payload) ? (a.payload as Record<string, any>) : undefined,
+      };
+      out.push(clean);
+    } else if (a) {
+      logger.warn('rule_loader.annotation_invalid', { ruleId: id });
+    }
+  }
+  return out.length ? out : undefined;
+}
+
 function validateRule(raw: any, id: string): RuleDoc | null {
   if (!isObject(raw)) return null;
   if (raw.enabled !== true) return null; // only cache enabled
@@ -58,6 +94,7 @@ function validateRule(raw: any, id: string): RuleDoc | null {
   if (!Array.isArray(raw.routingSlip)) return null;
   const routingSlip = raw.routingSlip.filter((s: any) => isObject(s) && typeof s.nextTopic === 'string');
   if (routingSlip.length === 0) return null;
+  const annotations = sanitizeAnnotations(raw.annotations, id);
   return {
     id,
     enabled: true,
@@ -65,6 +102,7 @@ function validateRule(raw: any, id: string): RuleDoc | null {
     description: typeof raw.description === 'string' ? raw.description : undefined,
     logic: logicStr as string,
     routingSlip: routingSlip as RoutingStepRef[],
+    annotations,
     metadata: isObject(raw.metadata) ? (raw.metadata as Record<string, unknown>) : undefined,
   };
 }
