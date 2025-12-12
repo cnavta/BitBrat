@@ -36,3 +36,9 @@ Rationale:
   - src/services/llm-bot/instance-memory.ts: accepts optional BaseServer to read limits via getConfig; backwards compatible fallback to process.env.
 - 2025-12-12T17:09-05:00 Build succeeded.
 - 2025-12-12T17:12-05:00 Ran validate_deliverable.sh --scope llm-bot: all 16 llm-bot test suites passed.
+ - 2025-12-12T17:25-05:00 Found deploy failure due to treating K_REVISION as required overlay env var for ingress-egress.
+ - 2025-12-12T17:28-05:00 Fixed brat CLI required-key validation to ignore runtime-provided keys (K_REVISION).
+ - 2025-12-12T17:29-05:00 Fixed infrastructure/deploy-cloud.sh multi-service validation to skip K_REVISION when checking required keys.
+ - 2025-12-12T17:31-05:00 Updated BaseServer.ensureRequiredEnv() to exclude K_REVISION from required env checks.
+ - 2025-12-12T17:33-05:00 Built repo (npm run build): success.
+ - 2025-12-12T17:35-05:00 Dry-run deploy via brat CLI: no missing-key error for ingress-egress; substitutions printed as expected.

@@ -477,7 +477,11 @@ export class BaseServer {
    * Exits the process with code 1 if any are missing.
    */
   static ensureRequiredEnv(serviceName?: string): void {
-    const required = BaseServer.computeRequiredKeysFromArchitecture(serviceName);
+    // Exclude runtime-provided keys (e.g., Cloud Run-provided) from required validation
+    const runtimeProvided = new Set<string>(['K_REVISION']);
+    const required = BaseServer
+      .computeRequiredKeysFromArchitecture(serviceName)
+      .filter((k) => !runtimeProvided.has(k));
     if (!required || required.length === 0) return;
     const missing = required.filter((k) => !process.env[k] || String(process.env[k]).trim() === '');
     if (missing.length > 0) {
