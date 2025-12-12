@@ -92,12 +92,14 @@ backlog:
       - src/services/llm-bot/personality-resolver.ts
       - src/services/llm-bot/prompt-composer.ts
       - src/common/logging/*
+      - src/common/metrics.ts
+      - src/services/llm-bot/__tests__/personality-metrics.spec.ts
     estimate: 0.35d
     acceptance_criteria:
       - Logs include name, selectedVersion, composeMode, counts
       - Metrics exported and testable via unit tests or mocks
     dependencies: [BB-128-05]
-    status: planned
+    status: done
 
   - id: BB-128-07
     sprint: 128
@@ -111,7 +113,7 @@ backlog:
       - Read-only scope validated for llm-bot
       - Status and name fields indexed appropriately (index guidance noted)
     dependencies: [BB-128-03]
-    status: planned
+    status: done
 
   - id: BB-128-08
     sprint: 128
@@ -125,7 +127,7 @@ backlog:
       - Inline-only, name-only, and mixed cases verified
       - Disabled flag path matches current behavior
     dependencies: [BB-128-05]
-    status: planned
+    status: done
 
   - id: BB-128-09
     sprint: 128
@@ -139,7 +141,7 @@ backlog:
       - npm test runs new unit and integration tests
       - Script succeeds locally (sans infra when PROJECT_ID absent)
     dependencies: [BB-128-08]
-    status: planned
+    status: done
 
   - id: BB-128-10
     sprint: 128
@@ -153,7 +155,7 @@ backlog:
       - Flags documented; example annotation payloads provided
       - Sequence and fallback behavior explained
     dependencies: [BB-128-06]
-    status: planned
+    status: done
 
   - id: BB-128-11
     sprint: 128
@@ -165,4 +167,4 @@ backlog:
     acceptance_criteria:
       - PR created or failure documented with reason
     dependencies: [BB-128-09, BB-128-10]
-    status: planned
+    status: in-progress

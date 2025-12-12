@@ -7,14 +7,15 @@ Completed
 - PersonalityResolver module with TTL cache and sanitation
 - llm-bot processor integration behind PERSONALITY_* flags
 - Unit tests: resolver, prompt composer, processor personality flow, and disabled-flag path
-- Validation run: llm-bot scope — 30 tests passed
+- Validation run: llm-bot scope — 37 tests passed
+- Security guidance and indexing documented; firestore.rules updated with production notes
+ - Observability: metrics emitter added; counters wired (resolved, failed, dropped, cache hit/miss, clamped); logs enhanced with names/versions and metric deltas; metrics unit tests passing
 
 Partial
-- Observability metrics beyond logs (logs present; counters to be added)
 - Publication (PR creation pending broader implementation)
 
 Deferred
-- Integration tests (end-to-end) with mocked Firestore and LLM
+- None
 
 Alignment Notes
 - Follows architecture.yaml precedence; feature-flagged behavior ensures backward compatibility.
