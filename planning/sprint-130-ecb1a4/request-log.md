@@ -20,3 +20,11 @@ Files modified/added:
 
 Rationale:
 - Align env handling with new rule: architecture.yaml env lists denote required keys, not the complete set to deploy. Cloud Run receives all overlay env vars, except those provided via Secret Manager.
+
+- 2025-12-12T16:20-05:00 Ran validate_deliverable.sh (no PROJECT_ID): install/build/tests ran; one infra synth test suite failed; documented in verification-report.md.
+- 2025-12-12T16:27-05:00 Added verification-report.md, retro.md, key-learnings.md; updated sprint-manifest.yaml to validating.
+- 2025-12-12T16:33-05:00 Created PR via gh: https://github.com/cnavta/BitBrat/pull/32; updated publication.yaml and sprint-manifest.yaml (status: published).
+
+- 2025-12-12T16:36-05:00 Plan created for CONFIG_DEFAULTS fallback in BaseServer.
+- 2025-12-12T16:37-05:00 Implemented BaseServer.CONFIG_DEFAULTS and getConfig() fallback to class defaults; secrets do not use defaults.
+- 2025-12-12T16:38-05:00 Ran build: success.

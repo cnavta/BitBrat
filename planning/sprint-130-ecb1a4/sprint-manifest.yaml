@@ -3,9 +3,9 @@ title: "Env overlay inclusion for Cloud Run deploys"
 goal: "Treat architecture.yaml env lists as required only; include all env vars from environment overlays in Cloud Run deploys while excluding secrets."
 owner: "@lead-implementor"
 createdAt: "2025-12-12T15:41:00-05:00"
-status: "validating"
+status: "published"
 links:
-  pr: ""
+  pr: "https://github.com/cnavta/BitBrat/pull/32"
   branch: "feature/sprint-130-ecb1a4-env-overlay-inclusion"
 notes: |
   Implements new configuration handling: env vars defined in architecture.yaml are required, but the deploy includes all overlay-provided env vars. Secrets remain mapped via Secret Manager. Applies to both brat CLI deploy path and deploy-cloud.sh script.

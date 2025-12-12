@@ -3,6 +3,7 @@
 ## Objective
 - Treat env vars defined in architecture.yaml as required keys only. Include all env vars from the selected environment overlay in Cloud Run deployments, excluding those provided via Secret Manager.
 - Provide BaseServer convenience accessors for config/env: getConfig<T>(ENV_NAME) and getSecret<T>(ENV_NAME) to reduce direct process.env usage in services.
+- Introduce BaseServer.CONFIG_DEFAULTS for subclass-defined configuration defaults that getConfig(name) will honor when env is absent.
 
 ## Scope
 - In scope:
@@ -16,6 +17,7 @@
 ## Deliverables
 - Code changes in tools/brat/src/cli/index.ts and infrastructure/deploy-cloud.sh
 - Code changes in src/common/base-server.ts adding getConfig<T>() and getSecret<T>() helpers
+- Code changes in src/common/base-server.ts adding protected static CONFIG_DEFAULTS and getConfig() fallback behavior
 - Planning artifacts in planning/sprint-130-ecb1a4
 - Validation via existing validate_deliverable.sh
 
@@ -28,6 +30,7 @@
   - Return parsed env value with optional parser
   - Throw when required and missing; honor provided default
   - Are typed as protected for the single-value overloads
+  - Obey subclass defaults via BaseServer.CONFIG_DEFAULTS when env var is not present and no explicit default is provided
 
 ## Testing Strategy
 - Run npm build and tests.
