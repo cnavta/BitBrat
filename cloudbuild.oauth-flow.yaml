@@ -10,6 +10,8 @@ substitutions:
   _ALLOW_UNAUTH: 'false'
   _DRY_RUN: 'false'
   _DOCKERFILE: 'Dockerfile.oauth-flow'
+  # Billing mode for Cloud Run (display/logging). Default to instance to match architecture.yaml
+  _BILLING: 'instance'
 steps:
   - id: 'Install deps'
     name: 'gcr.io/cloud-builders/npm'
