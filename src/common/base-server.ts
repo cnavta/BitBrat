@@ -45,6 +45,13 @@ export interface BaseServerOptions {
  * - Provides helpers to read architecture.yaml and validate required env
  */
 export class BaseServer {
+  /**
+   * Class-level configuration defaults for env-backed values.
+   * Subclasses may override this to provide default values per CONFIG_KEY.
+   * Example:
+   *   static CONFIG_DEFAULTS = { PORT: 3000, LOG_LEVEL: 'info' };
+   */
+  protected static CONFIG_DEFAULTS: Record<string, any> = {};
   private readonly app: Express;
   private readonly serviceName: string;
   private readonly config: IConfig;
@@ -116,7 +123,7 @@ export class BaseServer {
   public getConfig<T = string>(name: string, opts?: EnvGetOptions<T>): T;
   getConfig(nameOrNothing?: any, opts?: EnvGetOptions<any>): any {
     if (typeof nameOrNothing === 'string') {
-      return this.readEnvValue(nameOrNothing, opts);
+      return this.readEnvValue(nameOrNothing, opts, true);
     }
     return this.config;
   }
@@ -128,11 +135,12 @@ export class BaseServer {
    * Throws if required and missing.
    */
   protected getSecret<T = string>(name: string, opts?: EnvGetOptions<T>): T {
-    return this.readEnvValue(name, opts);
+    // Do NOT use class defaults for secrets.
+    return this.readEnvValue(name, opts, false);
   }
 
   /** Internal helper to read an env var with basic required/default handling */
-  private readEnvValue<T = string>(name: string, opts?: EnvGetOptions<T>): T {
+  private readEnvValue<T = string>(name: string, opts?: EnvGetOptions<T>, useClassDefaults: boolean = true): T {
     const key = String(name || '').trim();
     if (!key) throw new Error('config_key_required');
     const raw = process.env[key];
@@ -140,6 +148,16 @@ export class BaseServer {
     const required = opts?.required !== false;
     if (!has) {
       if (opts && 'default' in (opts as any)) return (opts as any).default as T;
+      if (useClassDefaults) {
+        const Ctor = this.constructor as typeof BaseServer;
+        const clsDefaults = (Ctor && (Ctor as any).CONFIG_DEFAULTS) as Record<string, any> | undefined;
+        if (clsDefaults && Object.prototype.hasOwnProperty.call(clsDefaults, key)) {
+          const dv = clsDefaults[key];
+          // If a parser is provided and the default is a string, allow parsing; otherwise, return as-is
+          if (opts?.parser && typeof dv === 'string') return opts.parser(dv) as T;
+          return dv as T;
+        }
+      }
       if (required) {
         const svc = this.serviceName || process.env.SERVICE_NAME || 'service';
         throw new Error(`[${svc}] Missing required configuration: ${key}`);
