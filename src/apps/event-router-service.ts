@@ -71,10 +71,11 @@ class EventRouterServer extends BaseServer {
             // Wrap routing + publish in a child span for trace visibility
             const tracer = (this as any).getTracer?.();
             const run = async () => {
-              // Route using rules (first-match-wins, default path). RouterEngine now accepts V2.
-              const { slip, decision } = engine.route(v2In, ruleLoader.getRules());
-              v2In.routingSlip = slip;
-              const v2: InternalEventV2 = v2In;
+              // Route using rules (first-match-wins, default path). RouterEngine now returns an immutable evtOut.
+              const { slip, decision, evtOut } = engine.route(v2In, ruleLoader.getRules());
+              // Attach routing slip to the cloned event to preserve input immutability
+              evtOut.routingSlip = slip;
+              const v2: InternalEventV2 = evtOut;
 
             // Update observability counters
             try {

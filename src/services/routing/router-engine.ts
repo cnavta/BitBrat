@@ -1,4 +1,4 @@
-import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep } from '../../types/events';
+import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep, AnnotationV1 } from '../../types/events';
 import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
@@ -13,6 +13,7 @@ export interface RoutingDecisionMeta {
 export interface RouteResult {
   slip: RoutingStep[];
   decision: RoutingDecisionMeta;
+  evtOut: InternalEventV2;
 }
 
 export interface IJsonLogicEvaluator {
@@ -59,6 +60,12 @@ export class RouterEngine {
     // Build evaluation context directly from V2
     const ctx = this.evaluator.buildContext(evt);
 
+    // Prepare an immutable output copy; clone annotations array if present
+    const evtOut: InternalEventV2 = {
+      ...evt,
+      annotations: evt.annotations ? [...evt.annotations] : undefined,
+    };
+
     let chosen: RoutingStep[] | null = null;
     let meta: RoutingDecisionMeta | null = null;
 
@@ -70,6 +77,22 @@ export class RouterEngine {
           const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
           meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic };
           chosen = slip;
+          // Append annotations from rule if present
+          const anns: AnnotationV1[] | undefined = rule.annotations && rule.annotations.length ? rule.annotations : undefined;
+          if (anns && anns.length) {
+            const before = evtOut.annotations?.length || 0;
+            evtOut.annotations = [...(evtOut.annotations || []), ...anns];
+            const after = evtOut.annotations.length;
+            const appended = after - before;
+            if (appended > 0) {
+              logger.debug('router_engine.annotations_appended', {
+                ruleId: rule.id,
+                appended,
+                before,
+                after,
+              });
+            }
+          }
           break; // short-circuit on first match
         }
       } catch (e: any) {
@@ -82,7 +105,7 @@ export class RouterEngine {
       meta = { matched: false, selectedTopic: chosen[0].nextTopic! };
     }
 
-    return { slip: chosen, decision: meta! };
+    return { slip: chosen, decision: meta!, evtOut };
   }
 }
 

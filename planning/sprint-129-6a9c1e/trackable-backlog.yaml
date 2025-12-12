@@ -20,7 +20,7 @@ backlog:
       - Manifest, plan, backlog, request-log, and validate script exist and are coherent
       - Branch created and recorded
     dependencies: []
-    status: in-progress
+    status: done
 
   - id: BB-129-02
     sprint: 129
@@ -34,7 +34,7 @@ backlog:
       - RuleLoader exposes annotations when present
       - Invalid annotations are filtered and logged
     dependencies: [BB-129-01]
-    status: planned
+    status: done
 
   - id: BB-129-03
     sprint: 129
@@ -48,7 +48,7 @@ backlog:
       - Input event remains unchanged
       - Skips when rule has no annotations
     dependencies: [BB-129-02]
-    status: planned
+    status: done
 
   - id: BB-129-04
     sprint: 129
@@ -62,7 +62,7 @@ backlog:
       - Tests cover valid + malformed annotations and immutability
       - All tests pass via validate script
     dependencies: [BB-129-03]
-    status: planned
+    status: in-progress
 
   - id: BB-129-05
     sprint: 129
