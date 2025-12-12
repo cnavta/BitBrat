@@ -3,6 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import type { IConfig } from '../types';
+// Options for env-backed getters
+export type EnvParser<T> = (raw: string) => T;
+export interface EnvGetOptions<T> {
+  required?: boolean; // default true
+  default?: T;
+  parser?: EnvParser<T>;
+}
 import { buildConfig, safeConfig } from './config';
 import { Logger } from './logging';
 import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
@@ -100,9 +107,47 @@ export class BaseServer {
     return this.app;
   }
 
-  /** Returns the server's config */
-  getConfig(): IConfig {
+  /**
+   * Returns the full, validated service config object.
+   * Overload 1 (public): getConfig() -> IConfig
+   * Overload 2 (protected): getConfig<T>(name, opts?) -> fetches a single env-backed config value
+   */
+  public getConfig(): IConfig;
+  public getConfig<T = string>(name: string, opts?: EnvGetOptions<T>): T;
+  getConfig(nameOrNothing?: any, opts?: EnvGetOptions<any>): any {
+    if (typeof nameOrNothing === 'string') {
+      return this.readEnvValue(nameOrNothing, opts);
+    }
     return this.config;
+  }
+
+  /**
+   * Convenience accessor for secret-backed values. For phase 1, this simply reads
+   * from process.env just like getConfig(name), because Cloud Run maps secrets to
+   * environment variables at runtime.
+   * Throws if required and missing.
+   */
+  protected getSecret<T = string>(name: string, opts?: EnvGetOptions<T>): T {
+    return this.readEnvValue(name, opts);
+  }
+
+  /** Internal helper to read an env var with basic required/default handling */
+  private readEnvValue<T = string>(name: string, opts?: EnvGetOptions<T>): T {
+    const key = String(name || '').trim();
+    if (!key) throw new Error('config_key_required');
+    const raw = process.env[key];
+    const has = typeof raw === 'string' && raw.length > 0;
+    const required = opts?.required !== false;
+    if (!has) {
+      if (opts && 'default' in (opts as any)) return (opts as any).default as T;
+      if (required) {
+        const svc = this.serviceName || process.env.SERVICE_NAME || 'service';
+        throw new Error(`[${svc}] Missing required configuration: ${key}`);
+      }
+      return undefined as unknown as T;
+    }
+    if (opts?.parser) return opts.parser(raw!);
+    return raw as unknown as T;
   }
 
   /** Returns the server's service-scoped logger */
