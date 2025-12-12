@@ -92,8 +92,8 @@ function flattenMessagesForModel(messages: ChatMessage[] = []): string {
   return messages.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
 }
 
-async function callOpenAI(model: string, prompt: string, timeoutMs?: number): Promise<string> {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+async function callOpenAI(apiKey: string, model: string, prompt: string, timeoutMs?: number): Promise<string> {
+  const client = new OpenAI({ apiKey });
   const controller = timeoutMs ? new AbortController() : undefined;
   if (timeoutMs && controller) {
     setTimeout(() => controller.abort(), timeoutMs).unref?.();
@@ -127,7 +127,7 @@ export async function processEvent(
   const logger = (server as any).getLogger?.();
   const state: LlmGraphState = { event: evt };
 
-  const store = getInstanceMemoryStore();
+  const store = getInstanceMemoryStore(server);
   function memoryKeyFor(e: any): string {
     const channel = (e?.dispatch?.channel) || (e?.channel) || 'default';
     const userId = e?.user?.id || 'anon';
@@ -151,8 +151,8 @@ export async function processEvent(
         logger.debug('llm_bot.process_event.ingest_prompt', { correlationId: s.event.correlationId });
         const anns = Array.isArray(s.event.annotations) ? s.event.annotations : [];
         const combinedPrompt = buildCombinedPrompt(anns as any);
-        const maxMessages = Number(process.env.LLM_BOT_MEMORY_MAX_MESSAGES || '8');
-        const maxChars = Number(process.env.LLM_BOT_MEMORY_MAX_CHARS || '8000');
+        const maxMessages = server.getConfig<number>('LLM_BOT_MEMORY_MAX_MESSAGES', { default: 8, parser: (v) => Number(String(v)) });
+        const maxChars = server.getConfig<number>('LLM_BOT_MEMORY_MAX_CHARS', { default: 8000, parser: (v) => Number(String(v)) });
         // Start with any messages already in state (should be empty on first node)
         let messages: ChatMessage[] = Array.isArray(s.messages) ? [...(s.messages as ChatMessage[])] : [];
 
@@ -170,17 +170,22 @@ export async function processEvent(
 
         // Optionally include a system prompt as the very first message (with personalities if enabled)
         if (messages.length === 0) {
-          const sys = process.env.LLM_BOT_SYSTEM_PROMPT;
+          const sys = server.getConfig<string>('LLM_BOT_SYSTEM_PROMPT', { required: false });
           let finalSystem = sys || '';
-          const personalitiesEnabled = String(process.env.PERSONALITY_ENABLED || 'true').toLowerCase() !== 'false';
+          const personalitiesEnabled = (() => {
+            const v = server.getConfig<string>('PERSONALITY_ENABLED', { default: 'true' });
+            const s = String(v).toLowerCase();
+            if (s === 'false' || s === '0' || s === 'no') return false;
+            return true;
+          })();
           try {
             if (personalitiesEnabled) {
               const opts = {
-                maxAnnotations: Number(process.env.PERSONALITY_MAX_ANNOTATIONS || '3'),
-                maxChars: Number(process.env.PERSONALITY_MAX_CHARS || '4000'),
-                cacheTtlMs: Number(process.env.PERSONALITY_CACHE_TTL_MS || String(5 * 60 * 1000)),
+                maxAnnotations: server.getConfig<number>('PERSONALITY_MAX_ANNOTATIONS', { default: 3, parser: (v) => Number(String(v)) }),
+                maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v) => Number(String(v)) }),
+                cacheTtlMs: server.getConfig<number>('PERSONALITY_CACHE_TTL_MS', { default: 5 * 60 * 1000, parser: (v) => Number(String(v)) }),
               };
-              const collection = process.env.PERSONALITY_COLLECTION || 'personalities';
+              const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
               const fetchByName = async (name: string) => {
                 const db = getFirestore();
                 const snap = await db
@@ -196,11 +201,11 @@ export async function processEvent(
               };
               const before = metrics.snapshot();
               const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
-              const mode = (String(process.env.PERSONALITY_COMPOSE_MODE || 'append').toLowerCase() as ComposeMode) || 'append';
+              const mode = (String(server.getConfig<string>('PERSONALITY_COMPOSE_MODE', { default: 'append' })).toLowerCase() as ComposeMode) || 'append';
               const composed = composeSystemPrompt(sys, parts, mode);
               if (composed && composed.trim()) {
                 finalSystem = composed.trim();
-                const previewLen = Number(process.env.PERSONALITY_LOG_PREVIEW_CHARS || '160');
+                const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
                 const names = parts.map((p) => p.name).filter(Boolean);
                 const versions = parts.map((p) => p.version).filter((v) => typeof v === 'number');
                 const after = metrics.snapshot();
@@ -282,9 +287,12 @@ export async function processEvent(
       })
       .addNode('call_model', async (s: typeof LlmState.State) => {
         logger.debug('llm_bot.process_event.call_model', { correlationId: s.event.correlationId });
-        const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
-        const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || '15000');
-        const fn = deps?.callLLM || callOpenAI;
+        const model = server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-5-mini' });
+        const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 15000, parser: (v) => Number(String(v)) });
+        const fn = deps?.callLLM || ((m: string, p: string, t?: number) => {
+          const key = server.getConfig<string>('OPENAI_API_KEY');
+          return callOpenAI(key, m, p, t);
+        });
         const msgs = (s.messages as ChatMessage[]) || [];
         if (!s.combinedPrompt) return {}; // No prompt to act on
         const input = flattenMessagesForModel(msgs);
