@@ -66,6 +66,36 @@ function generateAppSource(serviceName, stubPaths, consumedTopics = []) {
   const consumedDecl = consumedList.length
     ? `const RAW_CONSUMED_TOPICS: string[] = ${JSON.stringify(consumedList, null, 2)};`
     : `const RAW_CONSUMED_TOPICS: string[] = [];`;
+  const perTopicSubscriptions = consumedList.length
+    ? consumedList.map((t) => `
+      { // subscription for ${t}
+        const raw = ${JSON.stringify(t)};
+        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
+        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
+        try {
+          await this.onMessage<InternalEventV2>(
+            { destination, queue, ack: 'explicit' },
+            async (msg: InternalEventV2, _attributes, ctx) => {
+              try {
+                this.getLogger().info('${SERVICE_NAME}.message.received', {
+                  destination,
+                  type: (msg as any)?.type,
+                  correlationId: (msg as any)?.correlationId,
+                });
+                // TODO: implement domain behavior for this topic
+                await ctx.ack();
+              } catch (e: any) {
+                this.getLogger().error('${SERVICE_NAME}.message.handler_error', { destination, error: e?.message || String(e) });
+                await ctx.ack();
+              }
+            }
+          );
+          this.getLogger().info('${SERVICE_NAME}.subscribe.ok', { destination, queue });
+        } catch (e: any) {
+          this.getLogger().error('${SERVICE_NAME}.subscribe.error', { destination, queue, error: e?.message || String(e) });
+        }
+      }`).join('\n')
+    : '';
   return `import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import type { InternalEventV2 } from '../types/events';
@@ -93,32 +123,7 @@ ${explicitHandlers}
         process.env.SERVICE_INSTANCE_ID ||
         process.env.HOSTNAME ||
         Math.random().toString(36).slice(2);
-      for (const raw of RAW_CONSUMED_TOPICS) {
-        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
-        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
-        try {
-          await this.onMessage<InternalEventV2>(
-            { destination, queue, ack: 'explicit' },
-            async (msg: InternalEventV2, _attributes, ctx) => {
-              try {
-                this.getLogger().info('${SERVICE_NAME}.message.received', {
-                  destination,
-                  type: (msg as any)?.type,
-                  correlationId: (msg as any)?.correlationId,
-                });
-                // TODO: implement domain behavior for this topic
-                await ctx.ack();
-              } catch (e: any) {
-                this.getLogger().error('${SERVICE_NAME}.message.handler_error', { destination, error: e?.message || String(e) });
-                await ctx.ack();
-              }
-            }
-          );
-          this.getLogger().info('${SERVICE_NAME}.subscribe.ok', { destination, queue });
-        } catch (e: any) {
-          this.getLogger().error('${SERVICE_NAME}.subscribe.error', { destination, queue, error: e?.message || String(e) });
-        }
-      }
+${perTopicSubscriptions}
     } catch (e: any) {
       this.getLogger().warn('${SERVICE_NAME}.subscribe.init_error', { error: e?.message || String(e) });
     }

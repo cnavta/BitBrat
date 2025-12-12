@@ -55,3 +55,27 @@
     - planning/sprint-129-6a9c1e/publication.yaml
   links:
     pr: https://github.com/cnavta/BitBrat/pull/31
+
+- timestamp: 2025-12-12T08:33:00Z
+  prompt: "Update bootstrap-service to generate onMessage stubs for consumed topics"
+  interpretation: "Extend service bootstrap generator so new services subscribe with this.onMessage<InternalEventV2>() for each topics.consumes entry from architecture.yaml, with logging-only handler bodies. Add unit tests."
+  commands:
+    - "edited infrastructure/scripts/bootstrap-service.js (emit RAW_CONSUMED_TOPICS and onMessage stubs)"
+    - "edited infrastructure/scripts/bootstrap-service.test.js (assert onMessage generation)"
+    - "npm run build && npm test"
+  files:
+    - infrastructure/scripts/bootstrap-service.js
+    - infrastructure/scripts/bootstrap-service.test.js
+
+- timestamp: 2025-12-12T08:42:00Z
+  prompt: "Change to per-topic subscriptions (no loop)"
+  interpretation: "Adjust generator to emit a distinct this.onMessage call for each configured topic rather than looping a single handler; update tests to assert no for-of loop and update existing generated service accordingly."
+  commands:
+    - "edited infrastructure/scripts/bootstrap-service.js (emit explicit per-topic subscription blocks)"
+    - "edited infrastructure/scripts/bootstrap-service.test.js (assert no for-of loop present)"
+    - "updated src/apps/persistence-service.ts to per-topic style"
+    - "./validate_deliverable.sh -s all"
+  files:
+    - infrastructure/scripts/bootstrap-service.js
+    - infrastructure/scripts/bootstrap-service.test.js
+    - src/apps/persistence-service.ts

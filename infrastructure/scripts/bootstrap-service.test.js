@@ -43,6 +43,8 @@ describe('bootstrap-service generators', () => {
     expect(src).toContain('await this.onMessage<InternalEventV2>(');
     // Contains instanceId resolution and queue naming logic
     expect(src).toContain("raw && raw.includes('{instanceId}')");
+    // Should NOT use a loop to subscribe; must emit distinct calls per topic
+    expect(src).not.toContain('for (const raw of RAW_CONSUMED_TOPICS)');
   });
 
   test('generateTestSource references entry module and emits stub path tests', () => {
