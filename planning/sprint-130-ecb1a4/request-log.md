@@ -42,3 +42,9 @@ Rationale:
  - 2025-12-12T17:31-05:00 Updated BaseServer.ensureRequiredEnv() to exclude K_REVISION from required env checks.
  - 2025-12-12T17:33-05:00 Built repo (npm run build): success.
  - 2025-12-12T17:35-05:00 Dry-run deploy via brat CLI: no missing-key error for ingress-egress; substitutions printed as expected.
+
+ - 2025-12-12T17:16-05:00 Production error reported: Cloud Build failed with "invalid .substitutions field: substitution key '@;BOT_USERNAME'" during services deploy.
+ - 2025-12-12T17:20-05:00 Root cause: unescaped commas (and equals/backslashes) inside _ENV_VARS_ARG substitution value (e.g., ALLOWED_SIGILS=!,@;...). gcloud parsed segments after comma as new substitution keys.
+ - 2025-12-12T17:28-05:00 Fix applied: Escape ',', '=' and '\\' in Cloud Build substitution values; unescape inside cloudbuild.oauth-flow.yaml before using _ENV_VARS_ARG/_SECRET_SET_ARG.
+ - 2025-12-12T17:31-05:00 Built repo (npm run build): success.
+ - 2025-12-12T17:31-05:00 Dry-run deploy via brat CLI: substitutions now render correctly; no parsing errors.
