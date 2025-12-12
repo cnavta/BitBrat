@@ -6,10 +6,10 @@ Completed
 - Sprint scaffolding (manifest, request log, validation wrapper)
 - PersonalityResolver module with TTL cache and sanitation
 - llm-bot processor integration behind PERSONALITY_* flags
-- Unit tests for resolver; full llm-bot test suite passing
+- Unit tests: resolver, prompt composer, processor personality flow, and disabled-flag path
+- Validation run: llm-bot scope — 30 tests passed
 
 Partial
-- Prompt composer tests (basic composition implemented; tests in progress)
 - Observability metrics beyond logs (logs present; counters to be added)
 - Publication (PR creation pending broader implementation)
 

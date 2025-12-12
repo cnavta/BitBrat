@@ -55,3 +55,12 @@
     - src/services/llm-bot/processor.ts (updated)
     - planning/sprint-128-4f7a2c/trackable-backlog.yaml (updated statuses)
     - planning/sprint-128-4f7a2c/sprint-manifest.yaml (status -> in-progress)
+
+- 2025-12-12T00:18:00Z
+  - Prompt: Continue implementation; ensure disabled flag path; update backlog appropriately
+  - Interpretation: Add explicit test for PERSONALITY_ENABLED=false path; run validation; mark BB-128-05 done
+  - Shell/Git:
+    - ./validate_deliverable.sh -s llm-bot
+  - Files:
+    - src/services/llm-bot/processor.personality-disabled.spec.ts (created)
+    - planning/sprint-128-4f7a2c/trackable-backlog.yaml (BB-128-05 -> done)
