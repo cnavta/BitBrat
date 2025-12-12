@@ -5,6 +5,12 @@
 - 2025-12-12T15:48-05:00 Updated infrastructure/deploy-cloud.sh to always include full overlay env, validate required keys, and skip deploy if missing (apply mode); warn in dry-run.
 - 2025-12-12T15:50-05:00 Built repo and ran tests: passing.
 
+- 2025-12-12T16:02-05:00 Implemented BaseServer convenience getters: getConfig<T>(name, opts?) and getSecret<T>(name, opts?).
+- 2025-12-12T16:03-05:00 Built repo and ran tests again: passing (no regressions).
+
+Files modified/added (continued):
+- src/common/base-server.ts
+
 Files modified/added:
 - tools/brat/src/cli/index.ts
 - infrastructure/deploy-cloud.sh
