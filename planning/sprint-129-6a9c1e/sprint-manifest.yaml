@@ -3,7 +3,7 @@ title: "Event Router – RuleDoc annotations propagation"
 goal: "Append RuleDoc.annotations to matched events immutably and route via routingSlip; deliver plan, backlog, tests, and implementation per AGENTS.md."
 owner: "@chrisnavta"
 createdAt: "2025-12-11T20:19:00Z"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/31"
   branch: "feature/sprint-129-6a9c1e-event-router-annotations"

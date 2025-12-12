@@ -263,7 +263,10 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
       }
     }
     // env and secrets
-    const envKv = loadEnvKv(flags.env, svc.envKeys);
+    // New behavior: include ALL env vars from the environment overlay in deploy,
+    // while treating env declared in architecture.yaml as required keys only.
+    // So we load full overlay env (no filtering by svc.envKeys) and separately validate required keys.
+    const envKv = loadEnvKv(flags.env);
     let secretMap = synthesizeSecretMapping(svc.secrets);
     if (secretMap) {
       try {
@@ -277,6 +280,28 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
         }
       }
     }
+    // Validate that required env keys from architecture.yaml are present in the overlay
+    try {
+      if (svc.envKeys && svc.envKeys.length) {
+        const present = new Set<string>((envKv || '')
+          .split(';')
+          .filter(Boolean)
+          .map((p) => p.split('=')[0]));
+        const missing = (svc.envKeys || []).filter((k) => !present.has(k));
+        if (missing.length) {
+          const msg = `Missing required env keys for ${svc.name}: ${missing.join(', ')}. ` +
+            'Provide these via env overlay or Secret Manager. Keys listed in architecture.yaml are REQUIRED.';
+          if (!flags.dryRun) {
+            throw new ConfigurationError(msg);
+          } else {
+            serviceLog.warn({ status: 'dry-run', missing }, msg);
+          }
+        }
+      }
+    } catch (e: any) {
+      throw e;
+    }
+
     const envFiltered = filterEnvKvAgainstSecrets(envKv, secretMap);
 
     // Compute effective allow-unauthenticated policy
