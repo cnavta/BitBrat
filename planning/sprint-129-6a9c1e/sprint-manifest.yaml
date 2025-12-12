@@ -1,0 +1,11 @@
+id: sprint-129-6a9c1e
+title: "Event Router – RuleDoc annotations propagation"
+goal: "Append RuleDoc.annotations to matched events immutably and route via routingSlip; deliver plan, backlog, tests, and implementation per AGENTS.md."
+owner: "@chrisnavta"
+createdAt: "2025-12-11T20:19:00Z"
+status: "planning"
+links:
+  pr: "" # to be added upon publication
+  branch: "feature/sprint-129-6a9c1e-event-router-annotations"
+notes: |
+  Sprint initiated to extend event-router so that when a rule matches, any annotations on the RuleDoc are appended to the event prior to forwarding along the routingSlip. Planning artifacts created for approval before coding per protocol.

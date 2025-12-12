@@ -6,10 +6,9 @@ goal: |
   rule-based, contextual behavior with robust caching, observability, and safe fallbacks.
 owner: "@christophernavta"
 createdAt: "2025-12-11T18:12:00Z"
-status: "in-progress"
+status: "complete"
 links:
-  pr: "" # set after publication
+  pr: "https://github.com/cnavta/BitBrat/pull/30"
   branch: "feature/sprint-128-4f7a2c-llm-bot-personality-architecture"
 notes: |
-  Aligns to architecture.yaml precedence. No code changes until plan approval. This sprint focuses on architecture & plan
-  for personality injection; implementation follows in a subsequent step of this sprint after approval.
+  Aligns to architecture.yaml precedence. Plan approved and implementation completed per backlog.
