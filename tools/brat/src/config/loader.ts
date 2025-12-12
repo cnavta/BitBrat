@@ -179,11 +179,14 @@ export function resolveServices(arch: Architecture): Record<string, ResolvedServ
   return out;
 }
 
-export function loadEnvKv(envName: string, serviceEnvKeys?: string[]): string {
+export function loadEnvKv(envName: string, serviceName?: string, serviceEnvKeys?: string[]): string {
   // Reuse existing Node loader script for parity in Phase 1
   const script = path.join(process.cwd(), 'infrastructure/scripts/load-env.js');
   const { spawnSync } = require('child_process');
   const args = ['--env', envName, '--format', 'kv'];
+  if (serviceName && String(serviceName).trim().length > 0) {
+    args.push('--service', String(serviceName));
+  }
   if (serviceEnvKeys && serviceEnvKeys.length) {
     args.push('--only-keys', serviceEnvKeys.join(','));
   }

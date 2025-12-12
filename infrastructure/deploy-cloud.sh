@@ -466,7 +466,7 @@ if [[ "$MULTI_MODE" == true ]]; then
     ENV_KEYS_CSV_LOCAL="${CFG_ENV_KEYS:-}"
     ENV_KV_LOCAL=""
     # New behavior: always load ALL env vars from overlay; use ENV_KEYS_CSV_LOCAL only for validation
-    ENV_KV_LOCAL=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format kv || echo "")
+    ENV_KV_LOCAL=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$svc" --format kv || echo "")
     # Trace env keys selected and prepared (names only; no values)
     if [[ -n "$ENV_KEYS_CSV_LOCAL" ]]; then
       echo "[deploy-cloud][$svc][env] ENV_KEYS: $ENV_KEYS_CSV_LOCAL"
@@ -614,11 +614,11 @@ TF_VARS_FILE="$TF_TMP_DIR/override.auto.tfvars.json"
 ENV_JSON="{}"
 ENV_KV=""
 if [[ -n "$ENV_KEYS_CSV" ]]; then
-  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format json --only-keys "$ENV_KEYS_CSV" || echo "{}")
-  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format kv --only-keys "$ENV_KEYS_CSV" || echo "")
+  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format json --only-keys "$ENV_KEYS_CSV" || echo "{}")
+  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format kv --only-keys "$ENV_KEYS_CSV" || echo "")
 else
-  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format json || echo "{}")
-  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format kv || echo "")
+  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format json || echo "{}")
+  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format kv || echo "")
 fi
 
 SECRETS_JSON="[]"
