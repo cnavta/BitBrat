@@ -308,6 +308,23 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
 
     const envFiltered = filterEnvKvAgainstSecrets(envKv, secretMap);
 
+    // To avoid Cloud Build --substitutions parsing issues with commas/equals inside env values,
+    // write the semicolon-delimited KV string to a file in the source tree and pass its path.
+    // The Cloud Build YAML will prefer reading ENV from this file when provided.
+    let envVarsFileRel = '';
+    try {
+      const cbDir = path.join(root, '.cloudbuild');
+      if (!fs.existsSync(cbDir)) fs.mkdirSync(cbDir, { recursive: true });
+      const safeName = String(svc.name).replace(/[^A-Za-z0-9_.-]+/g, '-');
+      envVarsFileRel = path.join('.cloudbuild', `env.${safeName}.kv`);
+      // Always write (overwrites any prior content), even when empty to keep behavior explicit
+      fs.writeFileSync(path.join(root, envVarsFileRel), envFiltered || '', 'utf8');
+    } catch (e: any) {
+      // If writing fails for any reason, fall back to passing the string via substitutions
+      envVarsFileRel = '';
+      log.warn({ service: svc.name, action: 'deploy.service', status: 'warn', reason: 'env-file-write-failed', error: e?.message || String(e) }, 'Falling back to _ENV_VARS_ARG substitution');
+    }
+
     // Compute effective allow-unauthenticated policy
     // Rules:
     // - Honor service.security.allowUnauthenticated when true
@@ -332,7 +349,8 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
       tag,
       allowUnauth: effectiveAllowUnauth,
       dockerfile,
-      envVarsArg: envFiltered,
+      envVarsArg: envVarsFileRel ? '' : envFiltered,
+      envVarsFile: envVarsFileRel,
       secretSetArg: secretMap,
       ingressPolicy,
       vpcConnectorName,
@@ -381,6 +399,7 @@ export interface DeploySubstitutionsInput {
   allowUnauth: boolean;
   dockerfile: string;
   envVarsArg: string;
+  envVarsFile?: string;
   secretSetArg: string;
   ingressPolicy: string;
   vpcConnectorName: string;
@@ -401,6 +420,7 @@ export function computeDeploySubstitutions(i: DeploySubstitutionsInput): Record<
     _ALLOW_UNAUTH: i.allowUnauth,
     _SECRET_SET_ARG: i.secretSetArg || '',
     _ENV_VARS_ARG: i.envVarsArg || '',
+    _ENV_VARS_FILE: i.envVarsFile || '',
     _DOCKERFILE: i.dockerfile,
     _INGRESS: i.ingressPolicy,
     _VPC_CONNECTOR: i.vpcConnectorName,

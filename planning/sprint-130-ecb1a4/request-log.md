@@ -48,3 +48,10 @@ Rationale:
  - 2025-12-12T17:28-05:00 Fix applied: Escape ',', '=' and '\\' in Cloud Build substitution values; unescape inside cloudbuild.oauth-flow.yaml before using _ENV_VARS_ARG/_SECRET_SET_ARG.
  - 2025-12-12T17:31-05:00 Built repo (npm run build): success.
  - 2025-12-12T17:31-05:00 Dry-run deploy via brat CLI: substitutions now render correctly; no parsing errors.
+
+ - 2025-12-12T17:41-05:00 Follow-up production error persisted in real deploy: Cloud Build still parsed substitution key from env var characters.
+ - 2025-12-12T17:48-05:00 Implemented robust fix: pass environment KVs via file instead of substitutions.
+   - tools/brat/src/cli/index.ts now writes .cloudbuild/env.<service>.kv and passes _ENV_VARS_FILE; leaves _ENV_VARS_ARG empty.
+   - cloudbuild.oauth-flow.yaml prefers _ENV_VARS_FILE when present (cat file), falls back to _ENV_VARS_ARG with unescape.
+ - 2025-12-12T17:52-05:00 Built repo (npm run build): success.
+ - 2025-12-12T17:54-05:00 Dry-run brat deploy: substitutions include _ENV_VARS_FILE per service; _ENV_VARS_ARG is empty; no errors.
