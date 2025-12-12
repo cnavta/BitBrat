@@ -1,8 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Emulator/local development rules — permissive for rapid iteration.
+    // DO NOT USE IN PRODUCTION.
     match /{document=**} {
-      allow read, write: if true; // Local emulator only; do not use in production
+      allow read, write: if true;
     }
+
+    // Production guidance (non-enforced here):
+    // In production, restrict client reads to the /personalities collection and disallow writes.
+    // Note: Admin SDK (used by llm-bot) bypasses rules and should be run under a least-privilege service account
+    // with read-only access to /personalities.
+    //
+    // match /personalities/{doc} {
+    //   allow read: if request.auth != null;
+    //   allow write: if false;
+    // }
   }
 }

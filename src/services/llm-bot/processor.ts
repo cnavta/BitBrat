@@ -5,6 +5,14 @@ import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
 import { resolvePersonalityParts, composeSystemPrompt, type ComposeMode } from './personality-resolver';
 import { getFirestore } from '../../common/firebase';
+import { metrics,
+  METRIC_PERSONALITIES_RESOLVED,
+  METRIC_PERSONALITIES_FAILED,
+  METRIC_PERSONALITIES_DROPPED,
+  METRIC_PERSONALITY_CACHE_HIT,
+  METRIC_PERSONALITY_CACHE_MISS,
+  METRIC_PERSONALITY_CLAMPED,
+} from '../../common/metrics';
 
 // Minimal LangGraph shim: we keep structure ready; can swap with real graph nodes later.
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string; createdAt: string };
@@ -186,15 +194,30 @@ export async function processEvent(
                 if (!doc) return undefined;
                 return doc.data() as any;
               };
+              const before = metrics.snapshot();
               const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
               const mode = (String(process.env.PERSONALITY_COMPOSE_MODE || 'append').toLowerCase() as ComposeMode) || 'append';
               const composed = composeSystemPrompt(sys, parts, mode);
               if (composed && composed.trim()) {
                 finalSystem = composed.trim();
                 const previewLen = Number(process.env.PERSONALITY_LOG_PREVIEW_CHARS || '160');
+                const names = parts.map((p) => p.name).filter(Boolean);
+                const versions = parts.map((p) => p.version).filter((v) => typeof v === 'number');
+                const after = metrics.snapshot();
+                const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
                 logger?.info?.('llm_bot.personality.composed', {
                   count: parts.length,
+                  names,
+                  versions,
                   mode,
+                  metrics: {
+                    resolved: delta(METRIC_PERSONALITIES_RESOLVED),
+                    failed: delta(METRIC_PERSONALITIES_FAILED),
+                    dropped: delta(METRIC_PERSONALITIES_DROPPED),
+                    cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
+                    cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
+                    clamped: delta(METRIC_PERSONALITY_CLAMPED),
+                  },
                   preview: preview(finalSystem, previewLen),
                   correlationId: s.event.correlationId,
                 });
