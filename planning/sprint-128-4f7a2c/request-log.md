@@ -35,3 +35,23 @@
   - Interpretation: Update TA to: Firestore auto-generated IDs; query by name where status=='active' order by version desc limit 1; add index guidance
   - Files:
     - planning/sprint-128-4f7a2c/technical-architecture.md (updated)
+
+- 2025-12-11T18:24:00Z
+  - Prompt: Create a prioritized, trackable YAML backlog
+  - Interpretation: Add sprint backlog with tasks, estimates, dependencies, and acceptance criteria
+  - Files:
+    - planning/sprint-128-4f7a2c/trackable-backlog.yaml (created)
+
+- 2025-12-12T00:03:00Z
+  - Prompt: Begin implementation per approved plan
+  - Interpretation: Implement PersonalityResolver, integrate into llm-bot processor with feature flags and Firestore name-based lookup; add unit tests; update backlog statuses and manifest
+  - Shell/Git:
+    - npm run build (via validate script)
+    - npm test -- src/services/llm-bot (via validate script)
+  - Files:
+    - src/services/llm-bot/personality-resolver.ts (created)
+    - src/services/llm-bot/prompt-composer.ts (created)
+    - src/services/llm-bot/__tests__/personality-resolver.spec.ts (created)
+    - src/services/llm-bot/processor.ts (updated)
+    - planning/sprint-128-4f7a2c/trackable-backlog.yaml (updated statuses)
+    - planning/sprint-128-4f7a2c/sprint-manifest.yaml (status -> in-progress)

@@ -3,6 +3,8 @@ import { StateGraph, END, Annotation } from '@langchain/langgraph';
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
+import { resolvePersonalityParts, composeSystemPrompt, type ComposeMode } from './personality-resolver';
+import { getFirestore } from '../../common/firebase';
 
 // Minimal LangGraph shim: we keep structure ready; can swap with real graph nodes later.
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string; createdAt: string };
@@ -158,11 +160,51 @@ export async function processEvent(
           logger?.warn?.('llm_bot.instance_memory.read_error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
         }
 
-        // Optionally include a system prompt as the very first message
+        // Optionally include a system prompt as the very first message (with personalities if enabled)
         if (messages.length === 0) {
           const sys = process.env.LLM_BOT_SYSTEM_PROMPT;
-          if (sys && sys.trim()) {
-            messages.push({ role: 'system', content: sys.trim(), createdAt: new Date().toISOString() });
+          let finalSystem = sys || '';
+          const personalitiesEnabled = String(process.env.PERSONALITY_ENABLED || 'true').toLowerCase() !== 'false';
+          try {
+            if (personalitiesEnabled) {
+              const opts = {
+                maxAnnotations: Number(process.env.PERSONALITY_MAX_ANNOTATIONS || '3'),
+                maxChars: Number(process.env.PERSONALITY_MAX_CHARS || '4000'),
+                cacheTtlMs: Number(process.env.PERSONALITY_CACHE_TTL_MS || String(5 * 60 * 1000)),
+              };
+              const collection = process.env.PERSONALITY_COLLECTION || 'personalities';
+              const fetchByName = async (name: string) => {
+                const db = getFirestore();
+                const snap = await db
+                  .collection(collection)
+                  .where('name', '==', name)
+                  .where('status', '==', 'active')
+                  .orderBy('version', 'desc')
+                  .limit(1)
+                  .get();
+                const doc = snap.docs[0];
+                if (!doc) return undefined;
+                return doc.data() as any;
+              };
+              const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
+              const mode = (String(process.env.PERSONALITY_COMPOSE_MODE || 'append').toLowerCase() as ComposeMode) || 'append';
+              const composed = composeSystemPrompt(sys, parts, mode);
+              if (composed && composed.trim()) {
+                finalSystem = composed.trim();
+                const previewLen = Number(process.env.PERSONALITY_LOG_PREVIEW_CHARS || '160');
+                logger?.info?.('llm_bot.personality.composed', {
+                  count: parts.length,
+                  mode,
+                  preview: preview(finalSystem, previewLen),
+                  correlationId: s.event.correlationId,
+                });
+              }
+            }
+          } catch (e: any) {
+            logger?.warn?.('llm_bot.personality.compose_error', { error: e?.message || String(e), correlationId: s.event.correlationId });
+          }
+          if (finalSystem && finalSystem.trim()) {
+            messages.push({ role: 'system', content: finalSystem.trim(), createdAt: new Date().toISOString() });
           }
         }
 
