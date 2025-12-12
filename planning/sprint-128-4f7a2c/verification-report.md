@@ -9,10 +9,11 @@ Completed
 - Unit tests: resolver, prompt composer, processor personality flow, and disabled-flag path
 - Validation run: llm-bot scope — 37 tests passed
 - Security guidance and indexing documented; firestore.rules updated with production notes
- - Observability: metrics emitter added; counters wired (resolved, failed, dropped, cache hit/miss, clamped); logs enhanced with names/versions and metric deltas; metrics unit tests passing
+- Observability: metrics emitter added; counters wired (resolved, failed, dropped, cache hit/miss, clamped); logs enhanced with names/versions and metric deltas; metrics unit tests passing
+- Publication: PR created — https://github.com/cnavta/BitBrat/pull/30
 
 Partial
-- Publication (PR creation pending broader implementation)
+- None
 
 Deferred
 - None

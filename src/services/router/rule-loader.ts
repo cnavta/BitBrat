@@ -7,6 +7,7 @@
  * - Subscribes via onSnapshot to keep cache up to date
  */
 import { logger } from '../../common/logging';
+import {AnnotationV1} from "@/types";
 
 export interface RoutingStepRef {
   id: string;
@@ -24,6 +25,7 @@ export interface RuleDoc {
   // Firestore stores JsonLogic as a JSON string (see sprint-127 change)
   logic: string;
   routingSlip: RoutingStepRef[];
+  annotations?: AnnotationV1[]; // Annotations to add to the event when matched.
   metadata?: Record<string, unknown>;
 }
 

@@ -1,0 +1,103 @@
+version: 1
+title: "Trackable Backlog — Sprint 129: Event Router Annotations"
+SprintID: sprint-129-6a9c1e
+branch: feature/sprint-129-6a9c1e-event-router-annotations
+
+notes:
+  - Goal: Append RuleDoc.annotations to events when a rule matches, without mutating input events.
+  - Behavior: Append-only; preserve existing annotations order; skip malformed entries with warnings.
+  - Logging: Log rule ID, count appended, and any skips.
+
+backlog:
+  - id: BB-129-01
+    sprint: 129
+    title: Sprint scaffolding and planning artifacts
+    description: Create sprint manifest, plan, backlog, request log, and validation wrapper per protocol.
+    files:
+      - planning/sprint-129-6a9c1e/
+    estimate: 0.15d
+    acceptance_criteria:
+      - Manifest, plan, backlog, request-log, and validate script exist and are coherent
+      - Branch created and recorded
+    dependencies: []
+    status: in-progress
+
+  - id: BB-129-02
+    sprint: 129
+    title: RuleDoc schema updates in rule-loader (annotations passthrough)
+    description: "Ensure RuleDoc includes optional annotations: AnnotationV1[]; validate minimally; ignore malformed with warn."
+    files:
+      - src/services/router/rule-loader.ts
+      - src/types/events.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - RuleLoader exposes annotations when present
+      - Invalid annotations are filtered and logged
+    dependencies: [BB-129-01]
+    status: planned
+
+  - id: BB-129-03
+    sprint: 129
+    title: RouterEngine event annotations propagation (immutable)
+    description: "On first matching rule, append RuleDoc.annotations to a cloned event and return it alongside routing slip."
+    files:
+      - src/services/routing/router-engine.ts
+    estimate: 0.35d
+    acceptance_criteria:
+      - route() returns evtOut with appended annotations
+      - Input event remains unchanged
+      - Skips when rule has no annotations
+    dependencies: [BB-129-02]
+    status: planned
+
+  - id: BB-129-04
+    sprint: 129
+    title: Tests — rule-loader and router-engine annotation behavior
+    description: "Add unit tests for schema handling, append behavior, order preservation, and immutability."
+    files:
+      - src/services/router/__tests__/rule-loader-annotations.spec.ts
+      - src/services/routing/__tests__/router-engine-annotations.spec.ts
+    estimate: 0.5d
+    acceptance_criteria:
+      - Tests cover valid + malformed annotations and immutability
+      - All tests pass via validate script
+    dependencies: [BB-129-03]
+    status: planned
+
+  - id: BB-129-05
+    sprint: 129
+    title: Integration-style test with mocked evaluator
+    description: "Force a rule match and verify annotations appended and routing slip selected; evaluator mocked."
+    files:
+      - tests/router-annotations-e2e.spec.ts
+    estimate: 0.35d
+    acceptance_criteria:
+      - End-to-end flow demonstrates annotation propagation
+      - No external services required
+    dependencies: [BB-129-04]
+    status: planned
+
+  - id: BB-129-06
+    sprint: 129
+    title: Validation script alignment
+    description: "Ensure validate_deliverable.sh executes new tests and remains logically passable."
+    files:
+      - validate_deliverable.sh
+      - package.json
+    estimate: 0.1d
+    acceptance_criteria:
+      - npm test runs and passes locally
+    dependencies: [BB-129-05]
+    status: planned
+
+  - id: BB-129-07
+    sprint: 129
+    title: Publication (PR) per protocol
+    description: "Commit all changes, push feature branch, create GitHub PR, record URL in publication.yaml."
+    files:
+      - planning/sprint-129-6a9c1e/publication.yaml
+    estimate: 0.1d
+    acceptance_criteria:
+      - PR created successfully, or failure reason documented and accepted
+    dependencies: [BB-129-06]
+    status: planned
