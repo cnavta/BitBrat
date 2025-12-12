@@ -82,7 +82,7 @@ backlog:
       - When enabled and annotations present, personalities incorporated into system prompt
       - When disabled or absent, current behavior unchanged
     dependencies: [BB-128-04]
-    status: in-progress
+    status: done
 
   - id: BB-128-06
     sprint: 128
