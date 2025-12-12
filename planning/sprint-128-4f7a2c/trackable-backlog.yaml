@@ -37,7 +37,7 @@ backlog:
       - Flags parsed with safe defaults
       - Disabled mode preserves existing behavior
     dependencies: [BB-128-01]
-    status: planned
+    status: done
 
   - id: BB-128-03
     sprint: 128
@@ -53,7 +53,7 @@ backlog:
       - Cache TTL honored; hits/misses measurable
       - Malformed/missing handled gracefully with warnings
     dependencies: [BB-128-02]
-    status: planned
+    status: done
 
   - id: BB-128-04
     sprint: 128
@@ -68,7 +68,7 @@ backlog:
       - Clamps to PERSONALITY_MAX_CHARS per personality; safe concatenation
       - Modes behave as specified; replace keeps minimal safety header
     dependencies: [BB-128-03]
-    status: planned
+    status: done
 
   - id: BB-128-05
     sprint: 128
@@ -82,7 +82,7 @@ backlog:
       - When enabled and annotations present, personalities incorporated into system prompt
       - When disabled or absent, current behavior unchanged
     dependencies: [BB-128-04]
-    status: planned
+    status: in-progress
 
   - id: BB-128-06
     sprint: 128

@@ -6,7 +6,7 @@ goal: |
   rule-based, contextual behavior with robust caching, observability, and safe fallbacks.
 owner: "@christophernavta"
 createdAt: "2025-12-11T18:12:00Z"
-status: "planning"
+status: "in-progress"
 links:
   pr: "" # set after publication
   branch: "feature/sprint-128-4f7a2c-llm-bot-personality-architecture"
