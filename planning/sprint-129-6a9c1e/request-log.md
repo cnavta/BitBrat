@@ -31,3 +31,16 @@
     - src/apps/event-router-service.ts
     - src/services/routing/__tests__/router-engine-annotations.spec.ts
     - src/services/router/__tests__/rule-loader-annotations.spec.ts
+
+- timestamp: 2025-12-11T21:03:00Z
+  prompt: "Continue implementation — add E2E test and align validation"
+  interpretation: "Add integration-style test with mocked evaluator to verify annotations propagation and routing slip; run validation; update backlog statuses to reflect completion of BB-129-05 and BB-129-06; set publication in progress."
+  commands:
+    - "added tests/router-annotations-e2e.spec.ts"
+    - "./validate_deliverable.sh -s all"
+    - "updated planning/sprint-129-6a9c1e/trackable-backlog.yaml (BB-129-05,06 done; 07 in-progress)"
+    - "updated planning/sprint-129-6a9c1e/publication.yaml (status in-progress)"
+  files:
+    - tests/router-annotations-e2e.spec.ts
+    - planning/sprint-129-6a9c1e/trackable-backlog.yaml
+    - planning/sprint-129-6a9c1e/publication.yaml
