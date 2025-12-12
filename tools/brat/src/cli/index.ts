@@ -424,6 +424,8 @@ export function computeDeploySubstitutions(i: DeploySubstitutionsInput): Record<
     _DOCKERFILE: i.dockerfile,
     _INGRESS: i.ingressPolicy,
     _VPC_CONNECTOR: i.vpcConnectorName,
+    // Ensure Cloud Build template key exists; architecture.yaml defaults to instance billing
+    _BILLING: 'instance',
   };
 }
 

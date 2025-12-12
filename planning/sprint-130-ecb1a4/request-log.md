@@ -60,3 +60,8 @@ Rationale:
   - 2025-12-12T18:02-05:00 Root cause: YAML started with indented scalar keys at root (e.g., `_INGRESS`) instead of a valid top-level document; Cloud Build expects `substitutions:` map or proper document start.
   - 2025-12-12T18:06-05:00 Fix: Added top-level `substitutions:` mapping and moved `_INGRESS`, `_VPC_CONNECTOR`, and defaults (`_ENV_VARS_FILE`, `_ENV_VARS_ARG`, `_SECRET_SET_ARG`, `_ALLOW_UNAUTH`, `_DRY_RUN`, `_DOCKERFILE`) under it. Verified structure: steps and images remain at root.
   - 2025-12-12T18:10-05:00 Validation: `npm run build` OK; `npm run brat -- deploy services --env dev --project-id bitbrat-local --dry-run` prints sane substitutions per service and no YAML parse errors.
+
+  - 2025-12-12T18:15-05:00 Production error: Cloud Build failed with "key in the template \"_BILLING\" is not matched in the substitution data".
+  - 2025-12-12T18:18-05:00 Root cause: cloudbuild.oauth-flow.yaml referenced `${_BILLING}` for logging without providing a default, and brat CLI did not supply `_BILLING` in substitutions.
+  - 2025-12-12T18:22-05:00 Fix applied: Added `_BILLING: 'instance'` to the YAML `substitutions:` block and included `_BILLING: 'instance'` in brat `computeDeploySubstitutions()`.
+  - 2025-12-12T18:24-05:00 Validation: `npm run build` OK; brat dry-run deploy shows `_BILLING: 'instance'` present in substitutions for all services; no errors.
