@@ -72,6 +72,8 @@ function rebuildFromSnapshot(snap: QuerySnapshot): void {
       // command-repo exports a normalize function internally only; re-normalize minimally here
       const mt = data?.matchType || {};
       const values = Array.isArray(mt.values) ? mt.values.map((v: any) => String(v)) : [];
+      const botPersonality = data?.bot?.personality;
+      const bot = typeof botPersonality === 'string' ? { personality: String(botPersonality) } : undefined;
       const entry: CommandDoc = {
         id: d.id,
         name: String(data.name || '').toLowerCase(),
@@ -79,6 +81,7 @@ function rebuildFromSnapshot(snap: QuerySnapshot): void {
         annotationKind: data.annotationKind,
         type: data.type || 'candidate',
         matchType: { kind: 'regex', values, priority: Number(mt.priority || 0) | 0 },
+        bot,
         templates: Array.isArray(data.templates)
           ? data.templates
               .map((t: any) => ({ id: String(t.id || ''), text: String(t.text || '') }))

@@ -226,6 +226,7 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
   // Helper: append personality annotation if CommandDoc.bot.personality is valid
   const maybeAppendPersonality = () => {
     try {
+      logger.debug('command_processor.personality.try', { doc });
       const raw = (doc as any)?.bot?.personality;
       if (raw == null) return; // absent is fine
       if (typeof raw !== 'string') {
@@ -239,6 +240,9 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
       }
       const ann = createAnnotation('personality', undefined, undefined, { name });
       appendAnnotation(evt, ann);
+      logger.info('command_processor.personality.added', {
+      evt
+    });
       logger.info('command_processor.personality.added', { id: doc.id, command: doc.name, personality: name });
     } catch (e: any) {
       logger.warn('command_processor.personality.error', { id: doc.id, name: doc.name, error: e?.message || String(e) });
