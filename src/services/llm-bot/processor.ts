@@ -3,6 +3,16 @@ import { StateGraph, END, Annotation } from '@langchain/langgraph';
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
+import { resolvePersonalityParts, composeSystemPrompt, type ComposeMode } from './personality-resolver';
+import { getFirestore } from '../../common/firebase';
+import { metrics,
+  METRIC_PERSONALITIES_RESOLVED,
+  METRIC_PERSONALITIES_FAILED,
+  METRIC_PERSONALITIES_DROPPED,
+  METRIC_PERSONALITY_CACHE_HIT,
+  METRIC_PERSONALITY_CACHE_MISS,
+  METRIC_PERSONALITY_CLAMPED,
+} from '../../common/metrics';
 
 // Minimal LangGraph shim: we keep structure ready; can swap with real graph nodes later.
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string; createdAt: string };
@@ -44,23 +54,37 @@ export function applyMemoryReducer(
   incoming: ChatMessage[] = [],
   limits: { maxMessages: number; maxChars: number }
 ): { messages: ChatMessage[]; trimmedByChars: number; trimmedByCount: number } {
-  const merged = [...existing, ...incoming];
+  // Preserve a leading system message from existing history so history trimming never drops it.
+  const hasLeadingSystem = existing.length > 0 && existing[0]?.role === 'system';
+  const systemMsg = hasLeadingSystem ? existing[0] : undefined;
+
+  // Only trim the non-system history + incoming
+  const history = hasLeadingSystem ? existing.slice(1) : existing.slice();
+  let work = [...history, ...incoming];
+
   let trimmedByChars = 0;
   let trimmedByCount = 0;
-  // Trim by chars (drop from oldest)
+
+  // Trim by chars (drop from oldest of history/incoming) while keeping system pinned at the front
   const maxChars = Math.max(0, limits.maxChars || 0);
-  let work = merged;
-  while (maxChars > 0 && totalChars(work) > maxChars && work.length > 0) {
+  const systemChars = systemMsg ? (systemMsg.content?.length || 0) : 0;
+  const totalWith = (arr: ChatMessage[]) => systemChars + totalChars(arr);
+  while (maxChars > 0 && totalWith(work) > maxChars && work.length > 0) {
     const dropped = work.shift();
     trimmedByChars += (dropped?.content?.length || 0);
   }
-  // Trim by count (keep last N)
+
+  // Trim by count (keep last N, reserving 1 slot for system if present)
   const maxMessages = Math.max(1, limits.maxMessages || 1);
-  if (work.length > maxMessages) {
-    trimmedByCount = work.length - maxMessages;
-    work = work.slice(-maxMessages);
+  const allowedHistoryCount = hasLeadingSystem ? Math.max(0, maxMessages - 1) : maxMessages;
+  if (work.length > allowedHistoryCount) {
+    trimmedByCount = work.length - allowedHistoryCount;
+    work = work.slice(-allowedHistoryCount);
   }
-  return { messages: work, trimmedByChars, trimmedByCount };
+
+  // Re-prepend the system if it existed
+  const out = hasLeadingSystem ? [systemMsg as ChatMessage, ...work] : work;
+  return { messages: out, trimmedByChars, trimmedByCount };
 }
 
 function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
@@ -82,8 +106,8 @@ function flattenMessagesForModel(messages: ChatMessage[] = []): string {
   return messages.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
 }
 
-async function callOpenAI(model: string, prompt: string, timeoutMs?: number): Promise<string> {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+async function callOpenAI(apiKey: string, model: string, prompt: string, timeoutMs?: number): Promise<string> {
+  const client = new OpenAI({ apiKey });
   const controller = timeoutMs ? new AbortController() : undefined;
   if (timeoutMs && controller) {
     setTimeout(() => controller.abort(), timeoutMs).unref?.();
@@ -117,7 +141,7 @@ export async function processEvent(
   const logger = (server as any).getLogger?.();
   const state: LlmGraphState = { event: evt };
 
-  const store = getInstanceMemoryStore();
+  const store = getInstanceMemoryStore(server);
   function memoryKeyFor(e: any): string {
     const channel = (e?.dispatch?.channel) || (e?.channel) || 'default';
     const userId = e?.user?.id || 'anon';
@@ -141,8 +165,8 @@ export async function processEvent(
         logger.debug('llm_bot.process_event.ingest_prompt', { correlationId: s.event.correlationId });
         const anns = Array.isArray(s.event.annotations) ? s.event.annotations : [];
         const combinedPrompt = buildCombinedPrompt(anns as any);
-        const maxMessages = Number(process.env.LLM_BOT_MEMORY_MAX_MESSAGES || '8');
-        const maxChars = Number(process.env.LLM_BOT_MEMORY_MAX_CHARS || '8000');
+        const maxMessages = server.getConfig<number>('LLM_BOT_MEMORY_MAX_MESSAGES', { default: 8, parser: (v) => Number(String(v)) });
+        const maxChars = server.getConfig<number>('LLM_BOT_MEMORY_MAX_CHARS', { default: 8000, parser: (v) => Number(String(v)) });
         // Start with any messages already in state (should be empty on first node)
         let messages: ChatMessage[] = Array.isArray(s.messages) ? [...(s.messages as ChatMessage[])] : [];
 
@@ -158,12 +182,73 @@ export async function processEvent(
           logger?.warn?.('llm_bot.instance_memory.read_error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
         }
 
-        // Optionally include a system prompt as the very first message
-        if (messages.length === 0) {
-          const sys = process.env.LLM_BOT_SYSTEM_PROMPT;
-          if (sys && sys.trim()) {
-            messages.push({ role: 'system', content: sys.trim(), createdAt: new Date().toISOString() });
+        // Always include a system prompt as the first message (with personalities if enabled),
+        // regardless of whether prior memory exists. This ensures personalities apply even with history.
+        const sys = server.getConfig<string>('LLM_BOT_SYSTEM_PROMPT', { required: false });
+        let finalSystem = sys || '';
+        const personalitiesEnabled = (() => {
+          const v = server.getConfig<string>('PERSONALITY_ENABLED', { default: 'true' });
+          const sflag = String(v).toLowerCase();
+          if (sflag === 'false' || sflag === '0' || sflag === 'no') return false;
+          return true;
+        })();
+        try {
+          if (personalitiesEnabled) {
+            const opts = {
+              maxAnnotations: server.getConfig<number>('PERSONALITY_MAX_ANNOTATIONS', { default: 3, parser: (v) => Number(String(v)) }),
+              maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v) => Number(String(v)) }),
+              cacheTtlMs: server.getConfig<number>('PERSONALITY_CACHE_TTL_MS', { default: 5 * 60 * 1000, parser: (v) => Number(String(v)) }),
+            };
+            const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
+            const fetchByName = async (name: string) => {
+              const db = getFirestore();
+              const snap = await db
+                .collection(collection)
+                .where('name', '==', name)
+                .where('status', '==', 'active')
+                .orderBy('version', 'desc')
+                .limit(1)
+                .get();
+              const doc = snap.docs[0];
+              if (!doc) return undefined;
+              return doc.data() as any;
+            };
+            const before = metrics.snapshot();
+            const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
+            const mode = (String(server.getConfig<string>('PERSONALITY_COMPOSE_MODE', { default: 'append' })).toLowerCase() as ComposeMode) || 'append';
+            const composed = composeSystemPrompt(sys, parts, mode);
+            if (composed && composed.trim()) {
+              finalSystem = composed.trim();
+              const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
+              const names = parts.map((p) => p.name).filter(Boolean);
+              const versions = parts.map((p) => p.version).filter((v) => typeof v === 'number');
+              const after = metrics.snapshot();
+              const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
+              logger?.info?.('llm_bot.personality.composed', {
+                count: parts.length,
+                names,
+                versions,
+                mode,
+                metrics: {
+                  resolved: delta(METRIC_PERSONALITIES_RESOLVED),
+                  failed: delta(METRIC_PERSONALITIES_FAILED),
+                  dropped: delta(METRIC_PERSONALITIES_DROPPED),
+                  cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
+                  cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
+                  clamped: delta(METRIC_PERSONALITY_CLAMPED),
+                },
+                preview: preview(finalSystem, previewLen),
+                correlationId: s.event.correlationId,
+              });
+            }
           }
+        } catch (e: any) {
+          logger?.warn?.('llm_bot.personality.compose_error', { error: e?.message || String(e), correlationId: s.event.correlationId });
+        }
+        if (finalSystem && finalSystem.trim()) {
+          // Ensure only one system message at the front
+          messages = messages.filter((m) => m.role !== 'system');
+          messages = [{ role: 'system', content: finalSystem.trim(), createdAt: new Date().toISOString() }, ...messages];
         }
 
         if (combinedPrompt) {
@@ -217,9 +302,12 @@ export async function processEvent(
       })
       .addNode('call_model', async (s: typeof LlmState.State) => {
         logger.debug('llm_bot.process_event.call_model', { correlationId: s.event.correlationId });
-        const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
-        const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || '15000');
-        const fn = deps?.callLLM || callOpenAI;
+        const model = server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-5-mini' });
+        const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 15000, parser: (v) => Number(String(v)) });
+        const fn = deps?.callLLM || ((m: string, p: string, t?: number) => {
+          const key = server.getConfig<string>('OPENAI_API_KEY');
+          return callOpenAI(key, m, p, t);
+        });
         const msgs = (s.messages as ChatMessage[]) || [];
         if (!s.combinedPrompt) return {}; // No prompt to act on
         const input = flattenMessagesForModel(msgs);

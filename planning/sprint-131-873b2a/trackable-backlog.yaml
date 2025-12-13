@@ -1,0 +1,130 @@
+version: 1
+title: "Trackable Backlog — Sprint 131: Command bot.personality Annotation"
+SprintID: sprint-131-873b2a
+branch: feature/sprint-131-873b2a-command-processor-bot-personality
+
+notes:
+  - Goal: Append a personality AnnotationV1 when a matched command's CommandDoc includes bot.personality.
+  - Behavior: Append-only; do not mutate unrelated event fields; tolerate missing/invalid personality gracefully.
+  - Logging: Log command id/name and personality used; warn on invalid values.
+
+backlog:
+  - id: BB-131-01
+    sprint: 131
+    title: Sprint scaffolding and planning artifacts
+    description: Create sprint manifest, plan, backlog, request log; create feature branch per protocol.
+    priority: 1
+    files:
+      - planning/sprint-131-873b2a/
+    estimate: 0.15d
+    acceptance_criteria:
+      - Manifest, plan, backlog, and request-log exist and are coherent
+      - Feature branch created and recorded in manifest
+    dependencies: []
+    status: done
+
+  - id: BB-131-02
+    sprint: 131
+    title: Processor behavior — add personality annotation when present
+    description: "In command-processor, detect CommandDoc.bot.personality and append AnnotationV1(kind='personality', payload.name) to event."
+    priority: 2
+    files:
+      - src/services/command-processor/processor.ts
+      - src/services/command-processor/annotation.ts
+      - src/services/command-processor/command-repo.ts
+    estimate: 0.35d
+    acceptance_criteria:
+      - On matched command with non-empty personality, event.annotations includes a new annotation
+      - kind='personality', source='command-processor', payload.name equals specified personality
+      - No annotation added if missing/empty/not a string
+      - Existing behavior (cooldowns/rate-limits/candidates) unchanged
+    dependencies: [BB-131-01]
+    status: done
+
+  - id: BB-131-03
+    sprint: 131
+    title: Unit tests — personality annotation behavior
+    description: "Add tests covering happy path, absent/invalid personality, and non-interference with other features."
+    priority: 3
+    files:
+      - tests/services/command-processor/personality-annotation.spec.ts
+    estimate: 0.4d
+    acceptance_criteria:
+      - Tests verify annotation content and count
+      - Tests verify no annotation when invalid or absent
+      - Tests pass via validate script
+    dependencies: [BB-131-02]
+    status: done
+
+  - id: BB-131-04
+    sprint: 131
+    title: Validation wrapper
+    description: Add sprint validate_deliverable.sh delegating to repo root script.
+    priority: 4
+    files:
+      - planning/sprint-131-873b2a/validate_deliverable.sh
+    estimate: 0.1d
+    acceptance_criteria:
+      - Script exists and delegates to ./validate_deliverable.sh
+    dependencies: [BB-131-01]
+    status: done
+
+  - id: BB-131-05
+    sprint: 131
+    title: Publication (PR) per protocol
+    description: Commit changes, push branch, create GitHub PR, record URL in publication.yaml.
+    priority: 5
+    files:
+      - planning/sprint-131-873b2a/publication.yaml
+    estimate: 0.1d
+    acceptance_criteria:
+      - PR created successfully, or failure reason documented and user-approved
+    dependencies: [BB-131-03, BB-131-04]
+    status: done
+
+  - id: BB-131-06
+    sprint: 131
+    title: Fix regex-cache normalization to include bot.personality
+    description: "Ensure regex-cache re-normalization carries over CommandDoc.bot.personality so maybeAppendPersonality sees it on regex matches."
+    priority: 1
+    files:
+      - src/services/command-processor/regex-cache.ts
+      - tests/services/command-processor/personality-annotation-regex.spec.ts
+    estimate: 0.2d
+    acceptance_criteria:
+      - When a regex-matched command has bot.personality in Firestore, a personality annotation is appended to the event
+      - Unit test covers regex path behavior
+    dependencies: [BB-131-02]
+    status: done
+
+  - id: BB-131-07
+    sprint: 131
+    title: LLM-bot applies personality even when memory exists
+    description: "Ensure the system prompt with composed personalities is included regardless of prior instance memory; add tests."
+    priority: 1
+    files:
+      - src/services/llm-bot/processor.ts
+      - tests/services/llm-bot/personality-with-memory.spec.ts
+    estimate: 0.3d
+    acceptance_criteria:
+      - With prior memory present, first message is a system prompt including composed personalities
+      - Unit test verifies personality text appears in system message and memory remains intact
+      - All tests pass
+    dependencies: []
+    status: done
+
+  - id: BB-131-08
+    sprint: 131
+    title: Pin system prompt during history trimming in llm-bot
+    description: "Ensure the system prompt (with personalities) is never trimmed by applyMemoryReducer; trim only history."
+    priority: 1
+    files:
+      - src/services/llm-bot/processor.ts
+      - src/services/llm-bot/reducer.spec.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - System prompt remains the first message after trimming by count or chars
+      - Only history messages are removed when limits are exceeded
+      - Unit tests cover count-based and char-based trimming with a leading system message
+    dependencies: []
+    status: done

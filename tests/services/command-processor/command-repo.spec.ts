@@ -56,4 +56,16 @@ describe('command-repo.findByNameOrAlias', () => {
     const res = await findByNameOrAlias('missing', db);
     expect(res).toBeNull();
   });
+
+  it('normalizes vNext fields: provides default matchType when absent', async () => {
+    const db = makeDb({
+      nameDoc: { name: 'alpha', /* legacy fields ignored */ templates: [{ id: 't1', text: 'x' }] },
+      aliasDoc: null,
+    });
+    const res = await findByNameOrAlias('alpha', db);
+    expect(res).not.toBeNull();
+    expect(res!.doc.matchType.kind).toBe('command');
+    expect(res!.doc.matchType.values).toContain('alpha');
+    expect(typeof res!.doc.matchType.priority).toBe('number');
+  });
 });

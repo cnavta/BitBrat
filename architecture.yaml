@@ -132,13 +132,14 @@ services:
       - LLM_BOT_INSTANCE_MEM_MAX_CHARS
       - LLM_BOT_INSTANCE_MEM_TTL_MS
 
-  finalizer:
+  persistence:
     active: false
-    description: "Finalizer service logs the final state of a message and makes sure any open requests are responded to."
-    entry: src/apps/finalizer-service.ts
+    description: "Persists and indexes events for later retrieval"
+    entry: src/apps/persistence-service.ts
     topics:
       consumes:
-        - internal.finalize.v1
+        - internal.persistence.initialize.v1
+        - internal.persistence.finalize.v1
 
   command-processor:
     active: true

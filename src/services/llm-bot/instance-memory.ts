@@ -1,5 +1,6 @@
 // Instance-scoped short-term memory store for llm-bot
 // Bounded by per-key limits and global key count; supports TTL eviction.
+import type { BaseServer } from '../../common/base-server';
 
 export type ChatMessage = { role: 'system'|'user'|'assistant'; content: string; createdAt: string };
 
@@ -80,12 +81,16 @@ export class InstanceMemoryStore {
 
 // Singleton for the process lifetime
 let __store: InstanceMemoryStore | null = null;
-export function getInstanceMemoryStore(): InstanceMemoryStore {
+export function getInstanceMemoryStore(server?: BaseServer): InstanceMemoryStore {
   if (!__store) {
-    const maxKeys = Number(process.env.LLM_BOT_INSTANCE_MEM_MAX_KEYS || '1000');
-    const maxMessagesPerKey = Number(process.env.LLM_BOT_INSTANCE_MEM_MAX_MSGS || '32');
-    const maxCharsPerKey = Number(process.env.LLM_BOT_INSTANCE_MEM_MAX_CHARS || '16000');
-    const ttlMs = Number(process.env.LLM_BOT_INSTANCE_MEM_TTL_MS || String(30 * 60 * 1000));
+    const readNum = (key: string, def: number) =>
+      server
+        ? server.getConfig<number>(key, { default: def, parser: (v) => Number(String(v)) })
+        : Number(process.env[key] || String(def));
+    const maxKeys = readNum('LLM_BOT_INSTANCE_MEM_MAX_KEYS', 1000);
+    const maxMessagesPerKey = readNum('LLM_BOT_INSTANCE_MEM_MAX_MSGS', 32);
+    const maxCharsPerKey = readNum('LLM_BOT_INSTANCE_MEM_MAX_CHARS', 16000);
+    const ttlMs = readNum('LLM_BOT_INSTANCE_MEM_TTL_MS', 30 * 60 * 1000);
     __store = new InstanceMemoryStore({ maxKeys, maxMessagesPerKey, maxCharsPerKey, ttlMs });
   }
   return __store;

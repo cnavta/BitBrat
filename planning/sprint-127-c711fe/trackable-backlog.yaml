@@ -1,0 +1,166 @@
+version: 1
+title: "Trackable Backlog — Sprint 127: JsonLogic helper operators for event-router"
+SprintID: sprint-127-c711fe
+branch: feature/sprint-127-c711fe-jsonlogic-operators
+
+notes:
+  - Goal: Add JsonLogic helper operators to simplify matching against InternalEventV2 in event-router.
+  - References:
+      - src/services/router/jsonlogic-evaluator.ts
+      - src/services/routing/router-engine.ts
+      - src/types/events.ts
+      - tests under src/services/router/__tests__/
+
+backlog:
+  - id: BB-127-01
+    sprint: 127
+    title: Sprint scaffolding and branch
+    description: |
+      Create sprint directory, feature branch, and manifest per AGENTS.md.
+    files:
+      - planning/sprint-127-c711fe/
+    estimate: 0.1d
+    acceptance_criteria:
+      - Sprint manifest exists with branch recorded
+      - Feature branch created and logged in request-log.md
+    dependencies: []
+    status: done
+
+  - id: BB-127-02
+    sprint: 127
+    title: Design operator set and registration strategy
+    description: |
+      Define the interface and registration lifecycle for custom JsonLogic operators; ensure idempotent registration.
+    files:
+      - src/services/router/jsonlogic-evaluator.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - Documented list of operators and signatures in code comments
+      - Registration function safe to call multiple times
+    dependencies: [BB-127-01]
+    status: done
+
+  - id: BB-127-03
+    sprint: 127
+    title: Implement ci_eq (case-insensitive text equality)
+    description: |
+      Add a JsonLogic operator ci_eq that returns true if two strings are equal ignoring case.
+    files:
+      - src/services/router/jsonlogic-evaluator.ts
+      - src/services/router/__tests__/jsonlogic-ci-eq.spec.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - ci_eq('Hello','hello') → true; ci_eq('a','b') → false
+      - Non-strings coerced safely; null/undefined handled gracefully
+      - Tests pass
+    dependencies: [BB-127-02]
+    status: done
+
+  - id: BB-127-04
+    sprint: 127
+    title: Implement re_test (regex test for text)
+    description: |
+      Add a JsonLogic operator re_test that tests a string against a regex pattern with optional flags; include safe caching.
+    files:
+      - src/services/router/jsonlogic-evaluator.ts
+      - src/services/router/__tests__/jsonlogic-re-test.spec.ts
+    estimate: 0.4d
+    acceptance_criteria:
+      - re_test('foo', 'f.*') → true; re_test('foo', ['^F','i']) → true
+      - Invalid patterns do not throw; return false
+      - Compiled regex cached by (pattern, flags)
+      - Tests pass
+    dependencies: [BB-127-02]
+    status: done
+
+  - id: BB-127-05
+    sprint: 127
+    title: Implement slip_complete (routing slip completion check)
+    description: |
+      Add a JsonLogic operator slip_complete that returns true when the event's routingSlip is fully complete.
+    files:
+      - src/services/router/jsonlogic-evaluator.ts
+      - src/services/router/__tests__/jsonlogic-slip-complete.spec.ts
+    estimate: 0.35d
+    acceptance_criteria:
+      - Returns true when all steps status === 'OK' OR terminal step (no nextTopic) is OK
+      - Returns false if any step is PENDING or ERROR or slip missing
+      - Tests pass
+    dependencies: [BB-127-02]
+    status: done
+
+  - id: BB-127-06
+    sprint: 127
+    title: Implement additional InternalEventV2 helpers
+    description: |
+      Add convenience operators for common matching: has_role, has_annotation, has_candidate, text_contains.
+    files:
+      - src/services/router/jsonlogic-evaluator.ts
+      - src/services/router/__tests__/jsonlogic-extra-ops.spec.ts
+    estimate: 0.6d
+    acceptance_criteria:
+      - has_role(evt.user.roles, 'mod') works within JsonLogic context
+      - has_annotation(event, key[, value]) returns true when annotation present
+      - has_candidate(event[, provider]) true when a candidate exists optionally filtered
+      - text_contains(value, needle[, ci]) supports case-insensitive option
+      - Tests pass
+    dependencies: [BB-127-02]
+    status: done
+
+  - id: BB-127-07
+    sprint: 127
+    title: Integration test via RouterEngine
+    description: |
+      Add an integration test ensuring the operators are usable inside rule.logic evaluated by RouterEngine.
+    files:
+      - src/services/routing/__tests__/router-engine-ops-integration.spec.ts
+    estimate: 0.35d
+    acceptance_criteria:
+      - Rule using ci_eq/re_test/slip_complete matches as expected
+      - No changes required to RouterEngine API
+      - Tests pass
+    dependencies: [BB-127-03, BB-127-04, BB-127-05]
+    status: done
+
+  - id: BB-127-08
+    sprint: 127
+    title: Validation script alignment
+    description: |
+      Ensure sprint validation script aligns to repo-level scripts and includes new tests.
+    files:
+      - planning/sprint-127-c711fe/validate_deliverable.sh
+      - package.json
+    estimate: 0.1d
+    acceptance_criteria:
+      - validate_deliverable.sh logically passable
+      - npm test includes new tests
+    dependencies: [BB-127-07]
+    status: done
+
+  - id: BB-127-09
+    sprint: 127
+    title: Documentation and examples
+    description: |
+      Add JSDoc and example JsonLogic snippets in tests and planning notes.
+    files:
+      - src/services/router/jsonlogic-evaluator.ts
+      - planning/sprint-127-c711fe/verification-report.md
+    estimate: 0.1d
+    acceptance_criteria:
+      - Operators documented via JSDoc with usage examples
+      - Verification report notes coverage
+    dependencies: [BB-127-03, BB-127-04, BB-127-05, BB-127-06]
+    status: done
+
+  - id: BB-127-10
+    sprint: 127
+    title: Publication (PR)
+    description: |
+      Commit, push branch, and open GitHub PR; record PR URL in publication.yaml per protocol.
+    files:
+      - planning/sprint-127-c711fe/publication.yaml
+    estimate: 0.1d
+    acceptance_criteria:
+      - PR created or failure documented per AGENTS.md
+    dependencies: [BB-127-08, BB-127-09]
+    status: done

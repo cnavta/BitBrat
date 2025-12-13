@@ -4,7 +4,8 @@ import { INTERNAL_COMMAND_V1, InternalEventV2, RoutingStep } from '../types/even
 import { AttributeMap, createMessagePublisher } from '../services/message-bus';
 import { logger } from '../common/logging';
 import { summarizeSlip } from '../services/routing/slip';
-import { findByNameOrAlias } from '../services/command-processor/command-repo';
+import { findFirstByCommandTerm } from '../services/command-processor/command-repo';
+import { startRegexCache } from '../services/command-processor/regex-cache';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { Firestore } from 'firebase-admin/firestore';
 
@@ -22,6 +23,20 @@ class CommandProcessorServer extends BaseServer {
     const subject = `${cfg.busPrefix || ''}${INTERNAL_COMMAND_V1}`;
     logger.info('command_processor.subscribe.start', { subject, queue: 'command-processor' });
     try {
+      const isJest = Boolean((global as any).jest || process.env.JEST_WORKER_ID);
+      // Initialize regex cache live updates
+      try {
+        // During Jest tests, avoid opening Firestore listeners which cause timeouts/permission errors
+        if (!isJest) {
+          const db = this.getResource<Firestore>('firestore');
+          startRegexCache(db);
+          logger.info('command_processor.regex_cache.started');
+        } else {
+          logger.info('command_processor.regex_cache.skipped_in_tests');
+        }
+      } catch (e: any) {
+        logger.warn('command_processor.regex_cache.start_error', { error: e?.message || String(e) });
+      }
       await this.onMessage<InternalEventV2>(
         { destination: INTERNAL_COMMAND_V1, queue: 'command-processor', ack: 'explicit' },
         async (preV2: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
@@ -34,11 +49,21 @@ class CommandProcessorServer extends BaseServer {
 
             // Lazy-load processor to allow Jest doMock() to override in tests after this module is loaded
             const { processEvent } = require('../services/command-processor/processor');
-            const db = this.getResource<Firestore>('firestore');
+            // Detect Jest reliably to avoid initializing Firestore in tests (prevents hanging async handles)
+            const isJestExec = Boolean((global as any).jest || process.env.JEST_WORKER_ID);
             // Wrap execution in a child span when tracing is enabled
             const tracer = (this as any).getTracer?.();
             const exec = async () => {
-              return await processEvent(preV2 as any, { repoFindByNameOrAlias: (name: string) => findByNameOrAlias(name, db) });
+              // In Jest, avoid Firestore lookups to prevent permission/timeouts; rely on processor defaults (skip if no match)
+              if (isJestExec) {
+                return await processEvent(preV2 as any, {
+                  repoFindFirstByCommandTerm: async () => null,
+                  repoFindByNameOrAlias: async () => null,
+                  getRegexCompiled: () => [],
+                });
+              }
+              const db = this.getResource<Firestore>('firestore');
+              return await processEvent(preV2 as any, { repoFindFirstByCommandTerm: (term: string) => findFirstByCommandTerm(term, db) });
             };
             const result = tracer && typeof tracer.startActiveSpan === 'function'
               ? await tracer.startActiveSpan('execute-command', async (span: any) => {

@@ -31,6 +31,22 @@ describe('bootstrap-service generators', () => {
     expect(src).not.toContain('app.listen(');
   });
 
+  test('generateAppSource emits onMessage stubs for consumed topics from architecture.yaml', () => {
+    const topics = ['internal.egress.v1.{instanceId}', 'internal.ingress.v1'];
+    const src = generateAppSource('ingress-egress', [], topics);
+    // Declares RAW_CONSUMED_TOPICS with provided topics
+    expect(src).toContain('const RAW_CONSUMED_TOPICS: string[]');
+    expect(src).toContain('internal.egress.v1.{instanceId}');
+    expect(src).toContain('internal.ingress.v1');
+    // Includes type import and onMessage generic handler
+    expect(src).toContain("import type { InternalEventV2 } from '../types/events'");
+    expect(src).toContain('await this.onMessage<InternalEventV2>(');
+    // Contains instanceId resolution and queue naming logic
+    expect(src).toContain("raw && raw.includes('{instanceId}')");
+    // Should NOT use a loop to subscribe; must emit distinct calls per topic
+    expect(src).not.toContain('for (const raw of RAW_CONSUMED_TOPICS)');
+  });
+
   test('generateTestSource references entry module and emits stub path tests', () => {
     const testSrc = generateTestSource('src/apps/ingress-egress-service.ts', ['/one', '/two', '/bar/:id', '/star/*']);
     expect(testSrc).toContain("import { createApp } from './ingress-egress-service'");

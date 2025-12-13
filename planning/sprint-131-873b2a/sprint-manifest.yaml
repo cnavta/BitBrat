@@ -1,0 +1,14 @@
+id: sprint-131-873b2a
+title: "Command Processor — bot.personality to Annotation"
+goal: "When a matched CommandDoc includes bot.personality, append a personality AnnotationV1 to the event."
+owner: "@lead-implementor"
+createdAt: "2025-12-12T23:54:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/33"
+  branch: "feature/sprint-131-873b2a-command-processor-bot-personality"
+notes: |
+  This sprint extends the command-processor so that commands can suggest a bot
+  personality via CommandDoc.bot.personality. When present on a matched command,
+  the processor should add an AnnotationV1 of kind "personality" with payload
+  { name: <personality-name> } to the event for downstream LLM processing.

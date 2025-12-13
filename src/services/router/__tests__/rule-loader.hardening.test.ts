@@ -15,7 +15,7 @@ describe('RuleLoader hardening', () => {
   });
 
   it('continues when subscribe throws', async () => {
-    const warmDocs = [{ id: 'x', data: () => ({ enabled: true, priority: 1, logic: {}, routingSlip: [{ id: 'r', nextTopic: 't' }] }) }];
+    const warmDocs = [{ id: 'x', data: () => ({ enabled: true, priority: 1, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't' }] }) }];
     const db = {
       collection: () => ({
         get: async () => ({ docs: warmDocs }),

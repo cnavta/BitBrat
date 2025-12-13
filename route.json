@@ -1,19 +1,8 @@
 {
   "enabled": true,
   "priority": 10,
-  "description": "Match exact CNJ (case-insensitive) → command-processor → llm-bot",
-  "logic": {
-    "or": [
-      { "==": [ { "var": "message.text" }, "CNJ" ] },
-      { "==": [ { "var": "message.text" }, "cnj" ] },
-      { "==": [ { "var": "message.text" }, "Cnj" ] },
-      { "==": [ { "var": "message.text" }, "cNj" ] },
-      { "==": [ { "var": "message.text" }, "cnJ" ] },
-      { "==": [ { "var": "message.text" }, "CNj" ] },
-      { "==": [ { "var": "message.text" }, "cNJ" ] },
-      { "==": [ { "var": "message.text" }, "CnJ" ] }
-    ]
-  },
+  "description": "Chuck Norris Joke!",
+  "logic": "{\"and\":[{\"re_test\":[{\"var\":\"message.text\"},[\"^cnj\",\"i\"]]},{\"!\":[{\"slip_complete\":[{\"var\":\"routingSlip\"}]}]}]}",
   "routingSlip": [
     {
       "id": "command-processor",
@@ -29,10 +18,5 @@
       "maxAttempts": 3,
       "attributes": { "origin": "event-router" }
     }
-  ],
-  "metadata": {
-    "createdAt": "2025-12-06T21:53:00.000Z",
-    "updatedAt": "2025-12-06T21:53:00.000Z",
-    "updatedBy": "assistant"
-  }
+  ]
 }
