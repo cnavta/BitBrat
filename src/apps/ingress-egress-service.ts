@@ -116,8 +116,41 @@ class IngressEgressServer extends BaseServer {
                   await ctx.ack();
                   return;
                 }
-                await this.twitchClient!.sendText(text);
-                logger.info('ingress-egress.egress.sent', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
+                const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
+                const publishFinalize = async (status: 'SENT' | 'FAILED', error?: { code: string; message?: string }) => {
+                  try {
+                    const cfg: any = this.getConfig?.() || {};
+                    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+                    const finalizeSubject = `${prefix}internal.persistence.finalize.v1`;
+                    const pubRes = this.getResource<PublisherResource>('publisher');
+                    const pub = pubRes?.create(finalizeSubject);
+                    if (pub) {
+                      const payload = {
+                        correlationId,
+                        destination: egressTopic,
+                        deliveredAt: new Date().toISOString(),
+                        status,
+                        error: error ? { code: error.code, message: error.message } : undefined,
+                      };
+                      await pub.publishJson(payload, { correlationId: String(correlationId || ''), type: 'egress.deliver.v1' });
+                      logger.info('ingress-egress.finalize.published', { correlationId, status });
+                    } else {
+                      logger.warn('ingress-egress.finalize.publisher_unavailable');
+                    }
+                  } catch (e: any) {
+                    logger.warn('ingress-egress.finalize.publish_error', { error: e?.message || String(e) });
+                  }
+                };
+
+                try {
+                  await this.twitchClient!.sendText(text);
+                  logger.info('ingress-egress.egress.sent', { correlationId });
+                  await publishFinalize('SENT');
+                } catch (e: any) {
+                  // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
+                  await publishFinalize('FAILED', { code: 'send_error', message: e?.message || String(e) });
+                  throw e;
+                }
               };
               if (tracer && typeof tracer.startActiveSpan === 'function') {
                 await tracer.startActiveSpan('deliver-egress', async (span: any) => {

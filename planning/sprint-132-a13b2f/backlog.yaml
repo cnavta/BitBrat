@@ -159,3 +159,15 @@ items:
       - Persistence service can persist events where optional fields are undefined
       - Undefined values are stripped from documents prior to Firestore writes
       - Tests cover undefined stripping and pass
+
+  - id: P1-E2E-012
+    title: Publish finalization event from ingress-egress after egress delivery
+    type: story
+    priority: P1
+    estimate: 2
+    status: done
+    dependencies: []
+    acceptance:
+      - After sending a response on egress, ingress-egress publishes to internal.persistence.finalize.v1
+      - Payload includes correlationId, destination, deliveredAt, status (SENT/FAILED)
+      - Unit test verifies finalize publish on success

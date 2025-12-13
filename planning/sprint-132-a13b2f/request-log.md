@@ -49,3 +49,9 @@ Planned next operations:
 - 2025-12-13T17:44:30Z | git | Executed: git add -A
 - 2025-12-13T17:44:40Z | git | Executed: git commit -m "sprint-132-a13b2f: sanitize Firestore writes to strip undefined; add tests; update request-log"
 - 2025-12-13T17:44:50Z | git | Executed: git push
+
+- 2025-12-13T18:39:20Z | code | Updated: src/apps/ingress-egress-service.ts (publish finalize to internal.persistence.finalize.v1 after egress)
+- 2025-12-13T18:39:25Z | tests | Added: src/apps/ingress-egress-service.finalize.spec.ts (verifies finalize publish on SENT)
+- 2025-12-13T18:39:30Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-E2E-012, status=done)
+- 2025-12-13T18:39:35Z | build | Ran: npm run build (success)
+- 2025-12-13T18:39:55Z | test | Ran: npm test -- src/apps/ingress-egress-service.finalize.spec.ts (pass)
