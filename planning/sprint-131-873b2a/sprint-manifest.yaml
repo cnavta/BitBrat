@@ -3,7 +3,7 @@ title: "Command Processor — bot.personality to Annotation"
 goal: "When a matched CommandDoc includes bot.personality, append a personality AnnotationV1 to the event."
 owner: "@lead-implementor"
 createdAt: "2025-12-12T23:54:00Z"
-status: "planning"
+status: "validating"
 links:
   pr: ""
   branch: "feature/sprint-131-873b2a-command-processor-bot-personality"

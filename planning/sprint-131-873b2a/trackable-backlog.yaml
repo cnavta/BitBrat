@@ -13,6 +13,7 @@ backlog:
     sprint: 131
     title: Sprint scaffolding and planning artifacts
     description: Create sprint manifest, plan, backlog, request log; create feature branch per protocol.
+    priority: 1
     files:
       - planning/sprint-131-873b2a/
     estimate: 0.15d
@@ -26,6 +27,7 @@ backlog:
     sprint: 131
     title: Processor behavior — add personality annotation when present
     description: "In command-processor, detect CommandDoc.bot.personality and append AnnotationV1(kind='personality', payload.name) to event."
+    priority: 2
     files:
       - src/services/command-processor/processor.ts
       - src/services/command-processor/annotation.ts
@@ -37,38 +39,41 @@ backlog:
       - No annotation added if missing/empty/not a string
       - Existing behavior (cooldowns/rate-limits/candidates) unchanged
     dependencies: [BB-131-01]
-    status: planned
+    status: done
 
   - id: BB-131-03
     sprint: 131
     title: Unit tests — personality annotation behavior
     description: "Add tests covering happy path, absent/invalid personality, and non-interference with other features."
+    priority: 3
     files:
-      - src/services/command-processor/__tests__/processor.personality-annotation.spec.ts
+      - tests/services/command-processor/personality-annotation.spec.ts
     estimate: 0.4d
     acceptance_criteria:
       - Tests verify annotation content and count
       - Tests verify no annotation when invalid or absent
       - Tests pass via validate script
     dependencies: [BB-131-02]
-    status: planned
+    status: done
 
   - id: BB-131-04
     sprint: 131
     title: Validation wrapper
     description: Add sprint validate_deliverable.sh delegating to repo root script.
+    priority: 4
     files:
       - planning/sprint-131-873b2a/validate_deliverable.sh
     estimate: 0.1d
     acceptance_criteria:
       - Script exists and delegates to ./validate_deliverable.sh
     dependencies: [BB-131-01]
-    status: planned
+    status: done
 
   - id: BB-131-05
     sprint: 131
     title: Publication (PR) per protocol
     description: Commit changes, push branch, create GitHub PR, record URL in publication.yaml.
+    priority: 5
     files:
       - planning/sprint-131-873b2a/publication.yaml
     estimate: 0.1d

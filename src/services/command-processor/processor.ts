@@ -222,6 +222,28 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
   } catch {
     logger.info('command_processor.command.matched', { name: doc.name, kind: matched.kind });
   }
+
+  // Helper: append personality annotation if CommandDoc.bot.personality is valid
+  const maybeAppendPersonality = () => {
+    try {
+      const raw = (doc as any)?.bot?.personality;
+      if (raw == null) return; // absent is fine
+      if (typeof raw !== 'string') {
+        logger.warn('command_processor.personality.invalid', { id: doc.id, name: doc.name, valueType: typeof raw });
+        return;
+      }
+      const name = raw.trim();
+      if (!name) {
+        logger.warn('command_processor.personality.invalid', { id: doc.id, name: doc.name, value: raw });
+        return;
+      }
+      const ann = createAnnotation('personality', undefined, undefined, { name });
+      appendAnnotation(evt, ann);
+      logger.info('command_processor.personality.added', { id: doc.id, command: doc.name, personality: name });
+    } catch (e: any) {
+      logger.warn('command_processor.personality.error', { id: doc.id, name: doc.name, error: e?.message || String(e) });
+    }
+  };
   // Policy defaults
   const cfg = getConfig();
   const defaults = {
@@ -286,6 +308,8 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
     const ann = createAnnotation(kind, doc.name, rendered, payload);
     appendAnnotation(evt, ann);
     logger.info('command_processor.effect.added', { effect: 'annotation', name: doc.name, kind });
+    // Personality annotation (append-only)
+    maybeAppendPersonality();
     return { action: 'produced', event: evt, stepStatus: 'OK' };
   }
 
@@ -332,5 +356,7 @@ export async function processEvent(raw: any, overrides?: Partial<ProcessorDeps>)
 
   // Backward-compatible log name expected by tests and dashboards
   logger.info('command_processor.candidate.added', { name: doc.name, templateId: choice.template.id });
+  // Personality annotation (append-only)
+  maybeAppendPersonality();
   return { action: 'produced', event: evt, stepStatus: 'OK' };
 }
