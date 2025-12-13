@@ -147,3 +147,15 @@ items:
     dependencies: []
     acceptance:
       - Brief proposal for embedding pipeline and query-time retrieval
+
+  - id: P1-BUG-011
+    title: Fix Firestore undefined write error by stripping undefined values
+    type: bug
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-INGRESS-002]
+    acceptance:
+      - Persistence service can persist events where optional fields are undefined
+      - Undefined values are stripped from documents prior to Firestore writes
+      - Tests cover undefined stripping and pass

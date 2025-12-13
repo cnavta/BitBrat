@@ -39,3 +39,13 @@ Planned next operations:
 - 2025-12-13T17:26:55Z | git | Executed: git add -A
 - 2025-12-13T17:27:05Z | git | Executed: git commit -m "sprint-132-a13b2f: mark idempotency strategy done; persistence validation green"
 - 2025-12-13T17:27:15Z | git | Executed: git push
+
+- 2025-12-13T17:43:00Z | bug | Observed Firestore error: Cannot use "undefined" as a Firestore value (field "annotations") during persistence write
+- 2025-12-13T17:43:10Z | code | Updated: src/services/persistence/model.ts (add stripUndefinedDeep and sanitize normalized docs)
+- 2025-12-13T17:43:15Z | code | Updated: src/services/persistence/store.ts (sanitize writes in upsert and finalize)
+- 2025-12-13T17:43:25Z | tests | Updated: src/services/persistence/model.spec.ts (use deep equality for raw, add undefined stripping test)
+- 2025-12-13T17:44:20Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 7 tests — PASS)
+
+- 2025-12-13T17:44:30Z | git | Executed: git add -A
+- 2025-12-13T17:44:40Z | git | Executed: git commit -m "sprint-132-a13b2f: sanitize Firestore writes to strip undefined; add tests; update request-log"
+- 2025-12-13T17:44:50Z | git | Executed: git push

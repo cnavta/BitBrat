@@ -1,6 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { InternalEventV2 } from '../../types/events';
-import { COLLECTION_EVENTS, EventDocV1, FinalizationUpdateV1, normalizeFinalizePayload, normalizeIngressEvent } from './model';
+import { COLLECTION_EVENTS, EventDocV1, FinalizationUpdateV1, normalizeFinalizePayload, normalizeIngressEvent, stripUndefinedDeep } from './model';
 
 export interface PersistenceStoreDeps {
   firestore: Firestore;
@@ -26,7 +26,7 @@ export class PersistenceStore {
     if (!doc.correlationId) throw new Error('missing_correlationId');
     const ref = this.docRef(doc.correlationId);
     // Use set with merge: true to ensure idempotency
-    await ref.set(doc as any, { merge: true });
+    await ref.set(stripUndefinedDeep(doc) as any, { merge: true });
     this.logger.info('persistence.upsert.ok', { correlationId: doc.correlationId, status: doc.status });
     return doc;
   }
@@ -49,7 +49,7 @@ export class PersistenceStore {
         metadata: update.metadata,
       },
     };
-    await ref.set(patch as any, { merge: true });
+    await ref.set(stripUndefinedDeep(patch) as any, { merge: true });
     this.logger.info('persistence.finalize.ok', { correlationId: update.correlationId, status: update.status });
     return update;
   }

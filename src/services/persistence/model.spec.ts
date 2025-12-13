@@ -21,7 +21,27 @@ describe('persistence/model', () => {
     expect(doc.egressDestination).toBe('egress://default');
     expect(doc.status).toBe('INGESTED');
     expect(typeof doc.ingestedAt).toBe('string');
-    expect(doc.raw).toBe(evt);
+    // Deep equality is sufficient; sanitizer may clone objects to strip undefineds
+    expect(doc.raw).toEqual(evt);
+  });
+
+  test('normalizeIngressEvent strips undefined properties recursively', () => {
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twitch',
+      correlationId: 'undef-1',
+      type: 'chat.message.v1',
+      // Explicit undefineds to simulate problematic payloads
+      annotations: undefined as any,
+      candidates: undefined as any,
+      message: { id: 'm1', role: 'user', text: 'hello', rawPlatformPayload: { foo: undefined as any } as any } as any,
+    } as any;
+    const doc = normalizeIngressEvent(evt);
+    // Should not include top-level annotations/candidates when undefined
+    expect('annotations' in (doc as any)).toBe(false);
+    expect('candidates' in (doc as any)).toBe(false);
+    // Nested undefined removed
+    expect('foo' in ((doc.message as any).rawPlatformPayload || {})).toBe(false);
   });
 
   test('normalizeFinalizePayload supports flat and nested shapes', () => {

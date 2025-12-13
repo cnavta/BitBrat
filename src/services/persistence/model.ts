@@ -36,9 +36,33 @@ export interface FinalizationUpdateV1 {
   metadata?: Record<string, any>;
 }
 
+/**
+ * Remove all properties with value === undefined recursively from objects/arrays.
+ * This prevents Firestore Admin SDK from rejecting writes with undefined values.
+ */
+export function stripUndefinedDeep<T>(value: T): T {
+  if (value === undefined) return value as any;
+  if (value === null) return value;
+  if (Array.isArray(value)) {
+    const arr = (value as any[]).map((v) => stripUndefinedDeep(v)).filter((v) => v !== undefined);
+    return arr as any;
+  }
+  if (typeof value === 'object') {
+    const out: any = {};
+    for (const [k, v] of Object.entries(value as any)) {
+      if (v === undefined) continue;
+      const sv = stripUndefinedDeep(v as any);
+      if (sv !== undefined) out[k] = sv;
+    }
+    return out;
+  }
+  return value as any;
+}
+
 export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
   const now = new Date().toISOString();
-  return {
+  // Build and sanitize to avoid undefined values in Firestore writes
+  const doc: EventDocV1 = {
     correlationId: String((evt as any)?.correlationId || ''),
     type: (evt as any)?.type,
     channel: (evt as any)?.channel,
@@ -52,6 +76,7 @@ export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
     ingestedAt: now,
     raw: evt,
   };
+  return stripUndefinedDeep(doc) as EventDocV1;
 }
 
 export function normalizeFinalizePayload(msg: any): FinalizationUpdateV1 {
