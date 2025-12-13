@@ -81,3 +81,18 @@ backlog:
       - PR created successfully, or failure reason documented and user-approved
     dependencies: [BB-131-03, BB-131-04]
     status: planned
+
+  - id: BB-131-06
+    sprint: 131
+    title: Fix regex-cache normalization to include bot.personality
+    description: "Ensure regex-cache re-normalization carries over CommandDoc.bot.personality so maybeAppendPersonality sees it on regex matches."
+    priority: 1
+    files:
+      - src/services/command-processor/regex-cache.ts
+      - tests/services/command-processor/personality-annotation-regex.spec.ts
+    estimate: 0.2d
+    acceptance_criteria:
+      - When a regex-matched command has bot.personality in Firestore, a personality annotation is appended to the event
+      - Unit test covers regex path behavior
+    dependencies: [BB-131-02]
+    status: done
