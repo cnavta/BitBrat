@@ -44,4 +44,22 @@ describe('PersistenceStore', () => {
     expect(setCall[1]).toEqual({ merge: true });
     expect(setCall[0]).toMatchObject({ status: 'FINALIZED', egress: { status: 'SENT', destination: 'egress://default' } });
   });
+
+  test('applyFinalization merges annotations and candidates when provided', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const now = new Date().toISOString();
+    await store.applyFinalization({
+      correlationId: 'c-3',
+      status: 'SENT',
+      annotations: [{ id: 'a1', kind: 'intent', source: 't', createdAt: now }],
+      candidates: [{ id: 'c1', kind: 'text', source: 't', createdAt: now, status: 'selected', priority: 1, text: 'hi' }],
+    });
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[1]).toEqual({ merge: true });
+    expect(Array.isArray(setCall[0].annotations)).toBe(true);
+    expect(Array.isArray(setCall[0].candidates)).toBe(true);
+    expect(setCall[0].candidates[0].status).toBe('selected');
+  });
 });

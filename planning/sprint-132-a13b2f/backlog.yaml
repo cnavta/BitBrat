@@ -171,3 +171,15 @@ items:
       - After sending a response on egress, ingress-egress publishes to internal.persistence.finalize.v1
       - Payload includes correlationId, destination, deliveredAt, status (SENT/FAILED)
       - Unit test verifies finalize publish on success
+
+  - id: P1-E2E-013
+    title: Egress finalize includes selected candidate and annotations; persistence saves them
+    type: story
+    priority: P1
+    estimate: 2
+    status: done
+    dependencies: [P1-FINALIZE-003, P1-E2E-012]
+    acceptance:
+      - Finalize payload from ingress-egress contains candidates (with selected marked) and annotations
+      - Persistence.applyFinalization merges candidates/annotations into event doc
+      - Tests cover finalize payload and persistence merge

@@ -131,6 +131,10 @@ class IngressEgressServer extends BaseServer {
                         deliveredAt: new Date().toISOString(),
                         status,
                         error: error ? { code: error.code, message: error.message } : undefined,
+                        // Include selections context so Persistence can record them
+                        // evtForDelivery has candidates with the selected one marked
+                        candidates: Array.isArray((evtForDelivery as any)?.candidates) ? (evtForDelivery as any).candidates : undefined,
+                        annotations: Array.isArray((evt as any)?.annotations) ? (evt as any).annotations : undefined,
                       };
                       await pub.publishJson(payload, { correlationId: String(correlationId || ''), type: 'egress.deliver.v1' });
                       logger.info('ingress-egress.finalize.published', { correlationId, status });

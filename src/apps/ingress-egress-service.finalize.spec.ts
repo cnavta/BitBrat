@@ -56,7 +56,14 @@ describe('ingress-egress finalize publish', () => {
     // For our test route we simulate via event delivering and the handler will call mocked publisher
     const ack = jest.fn(async () => {});
     const ctx = { ack };
-    const evt = { correlationId: 'fx-1', candidates: [{ id: 'c1', kind: 'text', source: 't', createdAt: new Date().toISOString(), status: 'proposed', priority: 1, text: 'hello' }] };
+    const evt = {
+      correlationId: 'fx-1',
+      annotations: [{ id: 'a1', kind: 'intent', source: 'unit', createdAt: new Date().toISOString(), label: 'greeting' }],
+      candidates: [
+        { id: 'c1', kind: 'text', source: 't', createdAt: new Date().toISOString(), status: 'proposed', priority: 1, text: 'hello' },
+        { id: 'c2', kind: 'text', source: 't', createdAt: new Date().toISOString(), status: 'proposed', priority: 2, text: 'alt' },
+      ],
+    };
     // Also stub send operation by monkey-patching the server instance method through prototype
     // Temporarily override TwitchIrcClient.prototype.sendText to resolve
     const twitch = require('../services/ingress/twitch');
@@ -72,5 +79,11 @@ describe('ingress-egress finalize publish', () => {
     expect(last).toBeTruthy();
     expect(last.correlationId).toBe('fx-1');
     expect(last.status).toBe('SENT');
+    // Finalize payload should include candidates with one marked selected and annotations
+    expect(Array.isArray(last.candidates)).toBe(true);
+    const selected = last.candidates.find((c: any) => c.status === 'selected');
+    expect(selected).toBeTruthy();
+    expect(Array.isArray(last.annotations)).toBe(true);
+    expect(last.annotations[0]?.id).toBe('a1');
   });
 });

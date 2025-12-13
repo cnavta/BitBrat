@@ -65,4 +65,20 @@ describe('persistence/model', () => {
     expect(nested.destination).toBe('d');
     expect(nested.status).toBe('SENT');
   });
+
+  test('normalizeFinalizePayload carries annotations and candidates when provided', () => {
+    const now = new Date().toISOString();
+    const out = normalizeFinalizePayload({
+      correlationId: 'c-x',
+      status: 'SENT',
+      annotations: [{ id: 'a1', kind: 'intent', source: 't', createdAt: now }],
+      candidates: [
+        { id: 'c1', kind: 'text', source: 't', createdAt: now, status: 'selected', priority: 1, text: 'hi' },
+      ],
+    });
+    expect(out.correlationId).toBe('c-x');
+    expect(Array.isArray(out.annotations)).toBe(true);
+    expect(Array.isArray(out.candidates)).toBe(true);
+    expect(out.candidates![0].status).toBe('selected');
+  });
 });

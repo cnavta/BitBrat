@@ -80,4 +80,27 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     expect(call[1]).toEqual({ merge: true });
     expect(call[0]).toMatchObject({ status: 'FINALIZED', egress: { status: 'SENT', destination: 'egress://default' } });
   });
+
+  test('finalize handler merges annotations and candidates from egress finalize payload', async () => {
+    const h = handlers.find((x) => x.destination === 'internal.persistence.finalize.v1');
+    expect(h).toBeTruthy();
+    const ack = jest.fn(async () => {});
+    const ctx = { ack };
+    const now = new Date().toISOString();
+    const msg = {
+      correlationId: 'it-3',
+      status: 'SENT',
+      annotations: [{ id: 'a1', kind: 'intent', source: 'unit', createdAt: now, label: 'greeting' }],
+      candidates: [
+        { id: 'c1', kind: 'text', source: 'unit', createdAt: now, status: 'selected', priority: 1, text: 'yo' },
+      ],
+    };
+    await h!.handler(msg, {}, ctx);
+    expect(ack).toHaveBeenCalled();
+    const call = firestore.__fns.set.mock.calls[firestore.__fns.set.mock.calls.length - 1];
+    expect(call[1]).toEqual({ merge: true });
+    expect(Array.isArray(call[0].annotations)).toBe(true);
+    expect(Array.isArray(call[0].candidates)).toBe(true);
+    expect(call[0].candidates[0].status).toBe('selected');
+  });
 });

@@ -40,6 +40,9 @@ export class PersistenceStore {
     const patch: Partial<EventDocV1> = {
       status: 'FINALIZED',
       finalizedAt,
+      // Carry forward annotations/candidates if provided by finalize payload
+      annotations: update.annotations,
+      candidates: update.candidates,
       egress: {
         destination: update.destination,
         deliveredAt: update.deliveredAt,

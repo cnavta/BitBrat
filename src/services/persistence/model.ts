@@ -34,6 +34,9 @@ export interface FinalizationUpdateV1 {
   status?: string; // e.g., SENT, FAILED
   error?: { code: string; message?: string } | null;
   metadata?: Record<string, any>;
+  /** Optional: carry forward annotations/candidates from egress path */
+  annotations?: any[];
+  candidates?: any[];
 }
 
 /**
@@ -86,6 +89,8 @@ export function normalizeFinalizePayload(msg: any): FinalizationUpdateV1 {
   const status = msg?.status || msg?.egress?.status || 'FINALIZED';
   const error = msg?.error || msg?.egress?.error || null;
   const metadata = msg?.metadata || msg?.egress?.metadata || undefined;
+  const annotations = Array.isArray(msg?.annotations) ? msg.annotations : Array.isArray(msg?.egress?.annotations) ? msg.egress.annotations : undefined;
+  const candidates = Array.isArray(msg?.candidates) ? msg.candidates : Array.isArray(msg?.egress?.candidates) ? msg.egress.candidates : undefined;
   return {
     correlationId: String(msg?.correlationId || ''),
     destination,
@@ -94,5 +99,7 @@ export function normalizeFinalizePayload(msg: any): FinalizationUpdateV1 {
     status,
     error,
     metadata,
+    annotations,
+    candidates,
   };
 }
