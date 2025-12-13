@@ -9,6 +9,8 @@ export interface EventDocV1 extends InternalEventV2 {
   ingestedAt: string; // ISO8601
   /** When the event was finalized (egress/response) */
   finalizedAt?: string; // ISO8601
+  /** Timestamp used by Firestore TTL to auto-expire documents */
+  ttl?: FirebaseFirestore.Timestamp;
   /** Ingress metadata: where, when and how the event entered the system */
   ingress?: {
     source?: string; // e.g., ingress.twitch
@@ -54,6 +56,9 @@ export function stripUndefinedDeep<T>(value: T): T {
     return arr as any;
   }
   if (typeof value === 'object') {
+    // Preserve non-plain objects (e.g., Firestore Timestamp, Date, custom classes)
+    const proto = Object.getPrototypeOf(value);
+    if (proto && proto !== Object.prototype) return value as any;
     const out: any = {};
     for (const [k, v] of Object.entries(value as any)) {
       if (v === undefined) continue;

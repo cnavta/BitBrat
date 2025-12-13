@@ -208,3 +208,15 @@ items:
       - EventDocV1 no longer defines a raw field
       - normalizeIngressEvent does not set raw
       - Tests updated accordingly and passing in persistence scope
+
+  - id: P1-DATA-016
+    title: Add ttl to EventDocV1 and set on finalization (+7 days)
+    type: story
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-FINALIZE-003]
+    acceptance:
+      - EventDocV1 defines ttl field suitable for Firestore TTL
+      - Persistence.applyFinalization sets ttl to deliveredAt + 7 days (or now + 7 days)
+      - Tests added to assert ttl behavior in unit and integration paths

@@ -1,4 +1,5 @@
 import type { InternalEventV2 } from '../../types/events';
+// Timestamp may not be a real Firestore Timestamp in unit tests; avoid hard dependency
 import { PersistenceStore } from './store';
 
 function makeFirestoreMock() {
@@ -43,6 +44,16 @@ describe('PersistenceStore', () => {
     const setCall = db.__fns.set.mock.calls[0];
     expect(setCall[1]).toEqual({ merge: true });
     expect(setCall[0]).toMatchObject({ status: 'FINALIZED', egress: { status: 'SENT', destination: 'egress://default' } });
+    // TTL should be 7 days after deliveredAt
+    const expected = new Date('2024-01-01T00:00:00Z');
+    expected.setUTCDate(expected.getUTCDate() + 7);
+    const ttlVal = setCall[0].ttl;
+    let iso: string | undefined;
+    if (ttlVal && typeof ttlVal.toDate === 'function') iso = ttlVal.toDate().toISOString();
+    else if (ttlVal instanceof Date) iso = ttlVal.toISOString();
+    else if (typeof ttlVal === 'string') iso = new Date(ttlVal).toISOString();
+    else iso = undefined;
+    expect(iso).toBe(expected.toISOString());
   });
 
   test('applyFinalization merges annotations and candidates when provided', async () => {

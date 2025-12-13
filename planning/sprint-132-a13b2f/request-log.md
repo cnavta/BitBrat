@@ -76,3 +76,12 @@ Planned next operations:
 2025-12-13T23:08:10Z | tests | Updated: src/services/persistence/model.spec.ts (remove raw assertion; assert absence)
 2025-12-13T23:08:35Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 10 tests — PASS)
 2025-12-13T23:08:45Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-DATA-015: Remove raw from EventDocV1 — status=done)
+
+2025-12-13T23:46:30Z | code | Updated: src/services/persistence/model.ts (add ttl field to EventDocV1; preserve non-plain objects in sanitizer)
+2025-12-13T23:46:50Z | code | Updated: src/services/persistence/store.ts (set ttl = deliveredAt + 7 days using Firestore Timestamp on finalization)
+2025-12-13T23:47:05Z | tests | Updated: src/services/persistence/store.spec.ts (assert ttl computed +7d)
+2025-12-13T23:47:20Z | tests | Updated: src/services/persistence/integration.spec.ts (assert ttl presence/+7d in finalize handler)
+2025-12-13T23:47:40Z | script | Ran: ./validate_deliverable.sh --scope persistence (initial run: 1 failing test due to sanitizer stripping Timestamp)
+2025-12-13T23:48:05Z | code | Updated: src/services/persistence/model.ts (adjust stripUndefinedDeep to retain non-plain objects like Firestore Timestamp)
+2025-12-13T23:48:30Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 10 tests — PASS)
+2025-12-13T23:48:45Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-DATA-016: TTL on events — status=done)

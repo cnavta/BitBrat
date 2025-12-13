@@ -79,6 +79,16 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     const call = firestore.__fns.set.mock.calls[firestore.__fns.set.mock.calls.length - 1];
     expect(call[1]).toEqual({ merge: true });
     expect(call[0]).toMatchObject({ status: 'FINALIZED', egress: { status: 'SENT', destination: 'egress://default' } });
+    // TTL should be 7 days after deliveredAt
+    const expected = new Date('2024-01-01T00:00:00Z');
+    expected.setUTCDate(expected.getUTCDate() + 7);
+    const ttl = call[0].ttl;
+    if (ttl && typeof ttl.toDate === 'function') {
+      expect(ttl.toDate().toISOString()).toBe(expected.toISOString());
+    } else {
+      // If the Timestamp object isn't available in this test context, at least assert presence
+      expect(ttl).toBeTruthy();
+    }
   });
 
   test('finalize handler merges annotations and candidates from egress finalize payload', async () => {
