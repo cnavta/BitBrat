@@ -19,6 +19,9 @@ export interface CommandDoc {
     values: string[];
     priority: number;
   },
+  bot?: {
+    personality: string; // Optionally, define a personality any downstream bots should use for this event.
+  },
   description?: string;
   templates: CommandTemplate[];
   cooldowns?: { globalMs?: number; perUserMs?: number };
@@ -46,6 +49,8 @@ function normalizeCommand(id: string, data: any): CommandDoc | null {
     : [];
   const rateMax = data?.rateLimit != null ? toInt(data.rateLimit.max) ?? 0 : undefined;
   const ratePer = data?.rateLimit != null ? toInt(data.rateLimit.perMs) ?? 60000 : undefined;
+  const botPersonality = data?.bot?.personality;
+  const bot = typeof botPersonality === 'string' ? { personality: String(botPersonality) } : undefined;
   return {
     id,
     name: String(data.name || '').toLowerCase(),
@@ -61,6 +66,7 @@ function normalizeCommand(id: string, data: any): CommandDoc | null {
           priority: toInt(data.matchType.priority) ?? 0,
         }
       : { kind: 'command', values: [String(data.name || '').toLowerCase()].filter(Boolean), priority: 0 },
+    bot,
     templates,
     cooldowns: data.cooldowns ? { globalMs: toInt(data.cooldowns.globalMs), perUserMs: toInt(data.cooldowns.perUserMs) } : undefined,
     rateLimit: data.rateLimit ? { max: rateMax as number, perMs: ratePer as number } : undefined,
