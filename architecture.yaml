@@ -138,7 +138,8 @@ services:
     entry: src/apps/persistence-service.ts
     topics:
       consumes:
-        - internal.persistence.v1
+        - internal.persistence.initialize.v1
+        - internal.persistence.finalize.v1
 
   command-processor:
     active: true
