@@ -112,3 +112,19 @@ backlog:
       - All tests pass
     dependencies: []
     status: done
+
+  - id: BB-131-08
+    sprint: 131
+    title: Pin system prompt during history trimming in llm-bot
+    description: "Ensure the system prompt (with personalities) is never trimmed by applyMemoryReducer; trim only history."
+    priority: 1
+    files:
+      - src/services/llm-bot/processor.ts
+      - src/services/llm-bot/reducer.spec.ts
+    estimate: 0.25d
+    acceptance_criteria:
+      - System prompt remains the first message after trimming by count or chars
+      - Only history messages are removed when limits are exceeded
+      - Unit tests cover count-based and char-based trimming with a leading system message
+    dependencies: []
+    status: done
