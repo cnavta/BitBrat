@@ -80,7 +80,7 @@ items:
     type: task
     priority: P1
     estimate: 3
-    status: todo
+    status: done
     dependencies: [P1-DATA-001]
     acceptance:
       - Document and implement keying strategy (correlationId primary)

@@ -33,3 +33,9 @@ Planned next operations:
 2025-12-13T17:21:30Z | git | Executed: git add -A
 2025-12-13T17:21:40Z | git | Executed: git commit -m "sprint-132-a13b2f: add persistence integration test; scope validator; update backlog statuses; all persistence tests passing"
 2025-12-13T17:21:55Z | git | Executed: git push -u origin feature/sprint-132-a13b2f-persistence-impl
+
+- 2025-12-13T17:26:25Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (mark P1-CORE-004 done)
+- 2025-12-13T17:26:45Z | script | Ran: ./validate_deliverable.sh --scope persistence (pass)
+- 2025-12-13T17:26:55Z | git | Executed: git add -A
+- 2025-12-13T17:27:05Z | git | Executed: git commit -m "sprint-132-a13b2f: mark idempotency strategy done; persistence validation green"
+- 2025-12-13T17:27:15Z | git | Executed: git push
