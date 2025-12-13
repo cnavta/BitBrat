@@ -67,3 +67,13 @@
 - 2025-12-13T02:46:00Z | Backlog update | Added and completed BB-131-07 (LLM-bot applies personality with memory)
   - files modified:
     - planning/sprint-131-873b2a/trackable-backlog.yaml
+
+- 2025-12-13T03:08:30Z | Fix | Pin system prompt during memory trimming (BB-131-08)
+  - files modified:
+    - src/services/llm-bot/processor.ts (applyMemoryReducer now preserves leading system message)
+    - src/services/llm-bot/reducer.spec.ts (added tests for count/char trimming with system)
+    - planning/sprint-131-873b2a/trackable-backlog.yaml (added BB-131-08 and marked done)
+  - commands:
+    - npm test --silent
+  - result: All tests passed (139 suites passed, 2 skipped; 371 tests total)
+  - interpretation: System/personality prompt remains first; only history is trimmed by chars/count.

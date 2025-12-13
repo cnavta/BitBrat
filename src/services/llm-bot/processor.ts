@@ -54,23 +54,37 @@ export function applyMemoryReducer(
   incoming: ChatMessage[] = [],
   limits: { maxMessages: number; maxChars: number }
 ): { messages: ChatMessage[]; trimmedByChars: number; trimmedByCount: number } {
-  const merged = [...existing, ...incoming];
+  // Preserve a leading system message from existing history so history trimming never drops it.
+  const hasLeadingSystem = existing.length > 0 && existing[0]?.role === 'system';
+  const systemMsg = hasLeadingSystem ? existing[0] : undefined;
+
+  // Only trim the non-system history + incoming
+  const history = hasLeadingSystem ? existing.slice(1) : existing.slice();
+  let work = [...history, ...incoming];
+
   let trimmedByChars = 0;
   let trimmedByCount = 0;
-  // Trim by chars (drop from oldest)
+
+  // Trim by chars (drop from oldest of history/incoming) while keeping system pinned at the front
   const maxChars = Math.max(0, limits.maxChars || 0);
-  let work = merged;
-  while (maxChars > 0 && totalChars(work) > maxChars && work.length > 0) {
+  const systemChars = systemMsg ? (systemMsg.content?.length || 0) : 0;
+  const totalWith = (arr: ChatMessage[]) => systemChars + totalChars(arr);
+  while (maxChars > 0 && totalWith(work) > maxChars && work.length > 0) {
     const dropped = work.shift();
     trimmedByChars += (dropped?.content?.length || 0);
   }
-  // Trim by count (keep last N)
+
+  // Trim by count (keep last N, reserving 1 slot for system if present)
   const maxMessages = Math.max(1, limits.maxMessages || 1);
-  if (work.length > maxMessages) {
-    trimmedByCount = work.length - maxMessages;
-    work = work.slice(-maxMessages);
+  const allowedHistoryCount = hasLeadingSystem ? Math.max(0, maxMessages - 1) : maxMessages;
+  if (work.length > allowedHistoryCount) {
+    trimmedByCount = work.length - allowedHistoryCount;
+    work = work.slice(-allowedHistoryCount);
   }
-  return { messages: work, trimmedByChars, trimmedByCount };
+
+  // Re-prepend the system if it existed
+  const out = hasLeadingSystem ? [systemMsg as ChatMessage, ...work] : work;
+  return { messages: out, trimmedByChars, trimmedByCount };
 }
 
 function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
