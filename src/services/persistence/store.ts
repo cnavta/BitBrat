@@ -38,9 +38,12 @@ export class PersistenceStore {
     if (!update.correlationId) throw new Error('missing_correlationId');
     const ref = this.docRef(update.correlationId);
     const finalizedAt = update.deliveredAt || new Date().toISOString();
-    // Compute TTL = 7 days after deliveredAt (or now)
+    // Compute TTL = N days after deliveredAt (or now), configurable via env PERSISTENCE_TTL_DAYS (default 7)
     const baseDate = new Date(update.deliveredAt || Date.now());
-    const expireAt = new Date(baseDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const ttlDaysEnv = process.env.PERSISTENCE_TTL_DAYS;
+    let ttlDays = parseInt(String(ttlDaysEnv ?? '7'), 10);
+    if (!isFinite(ttlDays) || ttlDays <= 0) ttlDays = 7;
+    const expireAt = new Date(baseDate.getTime() + ttlDays * 24 * 60 * 60 * 1000);
     const ttl = Timestamp.fromDate(expireAt);
     const patch: Partial<EventDocV1> = {
       status: 'FINALIZED',

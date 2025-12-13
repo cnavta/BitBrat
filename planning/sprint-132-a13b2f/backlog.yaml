@@ -220,3 +220,15 @@ items:
       - EventDocV1 defines ttl field suitable for Firestore TTL
       - Persistence.applyFinalization sets ttl to deliveredAt + 7 days (or now + 7 days)
       - Tests added to assert ttl behavior in unit and integration paths
+
+  - id: P1-CONFIG-017
+    title: Make TTL days configurable via ENV with default in ingress-egress CONFIG_DEFAULTS
+    type: task
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-DATA-016]
+    acceptance:
+      - Ingress-Egress service declares CONFIG_DEFAULTS.PERSISTENCE_TTL_DAYS: 7
+      - Persistence uses env PERSISTENCE_TTL_DAYS to compute TTL on finalization
+      - Unit test verifies env override adjusts TTL days

@@ -16,6 +16,11 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'ingress-egress';
 const PORT = buildConfig(process.env).port;
 
 class IngressEgressServer extends BaseServer {
+  // Declare default configuration values for this service
+  // Expose persistence TTL days so other components can align via ENV
+  protected static CONFIG_DEFAULTS: Record<string, any> = {
+    PERSISTENCE_TTL_DAYS: 7,
+  };
   private twitchClient: TwitchIrcClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
 

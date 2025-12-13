@@ -85,3 +85,9 @@ Planned next operations:
 2025-12-13T23:48:05Z | code | Updated: src/services/persistence/model.ts (adjust stripUndefinedDeep to retain non-plain objects like Firestore Timestamp)
 2025-12-13T23:48:30Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 10 tests — PASS)
 2025-12-13T23:48:45Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-DATA-016: TTL on events — status=done)
+
+2025-12-13T23:55:10Z | code | Updated: src/apps/ingress-egress-service.ts (add CONFIG_DEFAULTS with PERSISTENCE_TTL_DAYS=7)
+2025-12-13T23:55:30Z | code | Updated: src/services/persistence/store.ts (TTL uses env PERSISTENCE_TTL_DAYS with default 7)
+2025-12-13T23:55:50Z | tests | Updated: src/services/persistence/store.spec.ts (add test verifying env override for TTL days)
+2025-12-13T23:56:10Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 11 tests — PASS)
+2025-12-13T23:56:20Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-CONFIG-017: TTL days configurable via ENV — status=done)

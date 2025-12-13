@@ -56,6 +56,33 @@ describe('PersistenceStore', () => {
     expect(iso).toBe(expected.toISOString());
   });
 
+  test('applyFinalization honors PERSISTENCE_TTL_DAYS env override', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const prev = process.env.PERSISTENCE_TTL_DAYS;
+    process.env.PERSISTENCE_TTL_DAYS = '2';
+    try {
+      await store.applyFinalization({
+        correlationId: 'c-ttl-override',
+        deliveredAt: '2024-01-01T00:00:00Z',
+        status: 'SENT',
+      });
+      const setCall = db.__fns.set.mock.calls[0];
+      const expected = new Date('2024-01-01T00:00:00Z');
+      expected.setUTCDate(expected.getUTCDate() + 2);
+      const ttlVal = setCall[0].ttl;
+      let iso: string | undefined;
+      if (ttlVal && typeof ttlVal.toDate === 'function') iso = ttlVal.toDate().toISOString();
+      else if (ttlVal instanceof Date) iso = ttlVal.toISOString();
+      else if (typeof ttlVal === 'string') iso = new Date(ttlVal).toISOString();
+      else iso = undefined;
+      expect(iso).toBe(expected.toISOString());
+    } finally {
+      if (prev === undefined) delete process.env.PERSISTENCE_TTL_DAYS; else process.env.PERSISTENCE_TTL_DAYS = prev;
+    }
+  });
+
   test('applyFinalization merges annotations and candidates when provided', async () => {
     const db = makeFirestoreMock();
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
