@@ -133,12 +133,12 @@ services:
       - LLM_BOT_INSTANCE_MEM_TTL_MS
 
   persistence:
-    active: false
+    active: true
     description: "Persists and indexes events for later retrieval"
     entry: src/apps/persistence-service.ts
     topics:
       consumes:
-        - internal.persistence.initialize.v1
+        - internal.ingress.v1
         - internal.persistence.finalize.v1
 
   command-processor:
