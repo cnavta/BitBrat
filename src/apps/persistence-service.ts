@@ -1,6 +1,7 @@
 import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import type { InternalEventV2 } from '../types/events';
+import { PersistenceStore } from '../services/persistence/store';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'persistence';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -43,7 +44,13 @@ class PersistenceServer extends BaseServer {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                // TODO: implement domain behavior for this topic
+                const firestore = this.getResource<any>('firestore');
+                if (!firestore) {
+                  this.getLogger().warn('persistence.firestore.unavailable');
+                } else {
+                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
+                  await store.upsertIngressEvent(msg);
+                }
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -71,7 +78,13 @@ class PersistenceServer extends BaseServer {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                // TODO: implement domain behavior for this topic
+                const firestore = this.getResource<any>('firestore');
+                if (!firestore) {
+                  this.getLogger().warn('persistence.firestore.unavailable');
+                } else {
+                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
+                  await store.applyFinalization(msg as any);
+                }
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });

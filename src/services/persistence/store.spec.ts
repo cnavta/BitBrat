@@ -1,0 +1,47 @@
+import type { InternalEventV2 } from '../../types/events';
+import { PersistenceStore } from './store';
+
+function makeFirestoreMock() {
+  const set = jest.fn(async (_data, _opts) => {});
+  const doc = jest.fn((_id: string) => ({ set }));
+  const collection = jest.fn((_name: string) => ({ doc }));
+  return { collection, __fns: { set, doc, collection } } as any;
+}
+
+describe('PersistenceStore', () => {
+  test('upsertIngressEvent uses merge set with correlationId', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twitch',
+      correlationId: 'c-1',
+      type: 'chat.message.v1',
+      message: { id: 'm1', role: 'user', text: 'hi' },
+    } as any;
+    await store.upsertIngressEvent(evt);
+    expect(db.__fns.collection).toHaveBeenCalledWith('events');
+    expect(db.__fns.doc).toHaveBeenCalledWith('c-1');
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[1]).toEqual({ merge: true });
+    expect(setCall[0]).toMatchObject({ correlationId: 'c-1', status: 'INGESTED' });
+  });
+
+  test('applyFinalization writes FINALIZED patch and egress info', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    await store.applyFinalization({
+      correlationId: 'c-2',
+      destination: 'egress://default',
+      deliveredAt: '2024-01-01T00:00:00Z',
+      providerMessageId: 'pm-1',
+      status: 'SENT',
+      metadata: { ok: true },
+    });
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[1]).toEqual({ merge: true });
+    expect(setCall[0]).toMatchObject({ status: 'FINALIZED', egress: { status: 'SENT', destination: 'egress://default' } });
+  });
+});

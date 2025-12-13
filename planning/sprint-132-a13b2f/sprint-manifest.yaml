@@ -1,14 +1,14 @@
 id: sprint-132-a13b2f
-title: "Persistence Service – Planning and Backlog"
-goal: "Plan and prioritize the initial implementation of the persistence service for event storage and finalization updates."
+title: "Persistence Service – Implementation"
+goal: "Implement the persistence service to store ingress events and apply finalization updates, with tests and observability."
 owner: "Junie (AI Lead Implementor)"
 createdAt: "2025-12-13T11:35:00Z"
-status: "planning"
+status: "in-progress"
 links:
-  pr: "" # to be created after approval
-  branch: "feature/sprint-132-a13b2f-persistence-planning"
+  pr: "" # to be created after publication
+  branch: "feature/sprint-132-a13b2f-persistence-impl"
 notes: |
-  This sprint focuses on planning artifacts only (no production code changes):
-  - Create implementation plan for the persistence service
-  - Produce a prioritized, trackable YAML backlog
-  - Align to architecture.yaml and AGENTS.md v2.4
+  Implementation phase started following plan approval:
+  - Define data model and helpers
+  - Implement ingress and finalize consumers
+  - Add tests and update deployment scripts as needed

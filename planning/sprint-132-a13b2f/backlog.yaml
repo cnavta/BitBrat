@@ -35,7 +35,7 @@ items:
     type: task
     priority: P0
     estimate: 30m
-    status: todo
+    status: done
     owner: Lead Implementor
     acceptance:
       - validate_deliverable.sh exists and validates presence and YAML parse of manifest/backlog
@@ -45,7 +45,7 @@ items:
     type: story
     priority: P1
     estimate: 3
-    status: todo
+    status: done
     dependencies: []
     acceptance:
       - Documented schema for collections: events, with fields for correlationId, type, timestamps, payload, status, egress metadata
@@ -56,7 +56,7 @@ items:
     type: story
     priority: P1
     estimate: 5
-    status: todo
+    status: done
     dependencies: [P1-DATA-001]
     acceptance:
       - Message handler persists normalized event document
@@ -68,7 +68,7 @@ items:
     type: story
     priority: P1
     estimate: 5
-    status: todo
+    status: done
     dependencies: [P1-DATA-001]
     acceptance:
       - Handler updates final status and egress metadata
@@ -91,7 +91,7 @@ items:
     type: task
     priority: P1
     estimate: 3
-    status: todo
+    status: in-progress
     dependencies: [P1-DATA-001, P1-INGRESS-002]
     acceptance:
       - Jest tests for normalization, key generation, upsert
@@ -101,7 +101,7 @@ items:
     type: task
     priority: P1
     estimate: 5
-    status: todo
+    status: in-progress
     dependencies: [P1-INGRESS-002, P1-FINALIZE-003]
     acceptance:
       - Tests simulate message flow and verify Firestore writes/updates via mocks
