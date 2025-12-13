@@ -21,6 +21,11 @@ describe('persistence/model', () => {
     expect(doc.egressDestination).toBe('egress://default');
     expect(doc.status).toBe('INGESTED');
     expect(typeof doc.ingestedAt).toBe('string');
+    // Ingress metadata should be captured
+    expect(doc.ingress).toBeTruthy();
+    expect(doc.ingress!.source).toBe('ingress.twitch');
+    expect(doc.ingress!.destination).toBe('internal.ingress.v1');
+    expect(typeof doc.ingress!.receivedAt).toBe('string');
     // Deep equality is sufficient; sanitizer may clone objects to strip undefineds
     expect(doc.raw).toEqual(evt);
   });

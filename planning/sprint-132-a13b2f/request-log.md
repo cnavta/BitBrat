@@ -66,3 +66,8 @@ Planned next operations:
 - 2025-12-13T19:23:05Z | script | Ran: npm test -- src/apps/ingress-egress-service.finalize.spec.ts (pass)
 - 2025-12-13T19:23:10Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 10 tests — PASS)
 - 2025-12-13T19:23:20Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-E2E-013 and mark done)
+ 
+2025-12-13T22:49:40Z | code | Updated: src/services/persistence/model.ts (EventDocV1 now extends InternalEventV2; added ingress metadata; updated normalizeIngressEvent)
+2025-12-13T22:49:55Z | tests | Updated: src/services/persistence/model.spec.ts (assert ingress metadata on normalized doc)
+2025-12-13T22:50:05Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-DATA-014 and mark done)
+2025-12-13T22:50:27Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 10 tests — PASS)

@@ -183,3 +183,16 @@ items:
       - Finalize payload from ingress-egress contains candidates (with selected marked) and annotations
       - Persistence.applyFinalization merges candidates/annotations into event doc
       - Tests cover finalize payload and persistence merge
+      
+  - id: P1-DATA-014
+    title: Rework EventDocV1 to extend InternalEventV2 and add ingress/egress metadata
+    type: story
+    priority: P1
+    estimate: 3
+    status: done
+    dependencies: [P1-DATA-001, P1-INGRESS-002, P1-FINALIZE-003]
+    acceptance:
+      - EventDocV1 extends InternalEventV2 rather than duplicating fields
+      - Ingress writes include ingress metadata (source, receivedAt, destination)
+      - Finalization writes include egress metadata and update InternalEventV2 state (annotations/candidates)
+      - Tests updated and passing

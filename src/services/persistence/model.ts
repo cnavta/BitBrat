@@ -2,20 +2,25 @@ import type { InternalEventV2 } from '../../types/events';
 
 export const COLLECTION_EVENTS = 'events';
 
-export interface EventDocV1 {
-  correlationId: string;
-  type?: string;
-  channel?: string;
-  userId?: string;
-  message?: any;
-  annotations?: any[];
-  candidates?: any[];
-  errors?: any[];
-  egressDestination?: string;
+export interface EventDocV1 extends InternalEventV2 {
+  /** Overall processing status of the recorded event */
   status?: 'INGESTED' | 'FINALIZED' | 'ERROR' | string;
+  /** When the ingress was recorded */
   ingestedAt: string; // ISO8601
+  /** When the event was finalized (egress/response) */
   finalizedAt?: string; // ISO8601
+  /** Original ingress payload for debugging */
   raw?: any; // original event payload for debugging
+  /** Ingress metadata: where, when and how the event entered the system */
+  ingress?: {
+    source?: string; // e.g., ingress.twitch
+    receivedAt: string; // ISO8601
+    destination?: string; // e.g., internal.ingress.v1
+    transport?: string; // e.g., pubsub|nats
+    attributes?: Record<string, string>;
+    metadata?: Record<string, any>;
+  };
+  /** Finalization/Egress metadata: where, when and how the response was delivered */
   egress?: {
     destination?: string;
     deliveredAt?: string; // ISO8601
@@ -66,19 +71,16 @@ export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
   const now = new Date().toISOString();
   // Build and sanitize to avoid undefined values in Firestore writes
   const doc: EventDocV1 = {
-    correlationId: String((evt as any)?.correlationId || ''),
-    type: (evt as any)?.type,
-    channel: (evt as any)?.channel,
-    userId: (evt as any)?.userId,
-    message: (evt as any)?.message,
-    annotations: (evt as any)?.annotations,
-    candidates: (evt as any)?.candidates,
-    errors: (evt as any)?.errors,
-    egressDestination: (evt as any)?.egressDestination,
+    ...(evt as any),
     status: 'INGESTED',
     ingestedAt: now,
+    ingress: {
+      source: (evt as any)?.source,
+      receivedAt: now,
+      destination: 'internal.ingress.v1',
+    },
     raw: evt,
-  };
+  } as any;
   return stripUndefinedDeep(doc) as EventDocV1;
 }
 
