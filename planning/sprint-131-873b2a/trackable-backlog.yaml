@@ -80,7 +80,7 @@ backlog:
     acceptance_criteria:
       - PR created successfully, or failure reason documented and user-approved
     dependencies: [BB-131-03, BB-131-04]
-    status: planned
+    status: done
 
   - id: BB-131-06
     sprint: 131

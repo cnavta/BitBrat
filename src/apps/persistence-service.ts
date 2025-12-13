@@ -3,11 +3,6 @@ import { Express, Request, Response } from 'express';
 import type { InternalEventV2 } from '../types/events';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'persistence';
-const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
-
-const RAW_CONSUMED_TOPICS: string[] = [
-  "internal.persistence.v1"
-];
 
 class PersistenceServer extends BaseServer {
   constructor() {
@@ -28,8 +23,36 @@ class PersistenceServer extends BaseServer {
         process.env.HOSTNAME ||
         Math.random().toString(36).slice(2);
 
-      { // subscription for internal.persistence.v1
-        const raw = "internal.persistence.v1";
+      { // subscription for internal.persistence.initialize.v1
+        const raw = "internal.persistence.initialize.v1";
+        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
+        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
+        try {
+          await this.onMessage<InternalEventV2>(
+            { destination, queue, ack: 'explicit' },
+            async (msg: InternalEventV2, _attributes, ctx) => {
+              try {
+                this.getLogger().info('persistence.message.received', {
+                  destination,
+                  type: (msg as any)?.type,
+                  correlationId: (msg as any)?.correlationId,
+                });
+                // TODO: implement domain behavior for this topic
+                await ctx.ack();
+              } catch (e: any) {
+                this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
+                await ctx.ack();
+              }
+            }
+          );
+          this.getLogger().info('persistence.subscribe.ok', { destination, queue });
+        } catch (e: any) {
+          this.getLogger().error('persistence.subscribe.error', { destination, queue, error: e?.message || String(e) });
+        }
+      }
+
+      { // subscription for internal.persistence.finalize.v1
+        const raw = "internal.persistence.finalize.v1";
         const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
         const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
         try {
@@ -75,5 +98,6 @@ export function createApp() {
 if (require.main === module) {
   BaseServer.ensureRequiredEnv(SERVICE_NAME);
   const server = new PersistenceServer();
-  void server.start(PORT);
+  let port = server.getConfig<number>('SERVICE_PORT', { required: false, parser: (s) => parseInt(String(s), 10) });
+  void server.start(port);
 }
