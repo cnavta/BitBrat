@@ -196,3 +196,15 @@ items:
       - Ingress writes include ingress metadata (source, receivedAt, destination)
       - Finalization writes include egress metadata and update InternalEventV2 state (annotations/candidates)
       - Tests updated and passing
+
+  - id: P1-DATA-015
+    title: Remove raw property from EventDocV1 and normalizer
+    type: task
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-DATA-014]
+    acceptance:
+      - EventDocV1 no longer defines a raw field
+      - normalizeIngressEvent does not set raw
+      - Tests updated accordingly and passing in persistence scope

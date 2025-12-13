@@ -71,3 +71,8 @@ Planned next operations:
 2025-12-13T22:49:55Z | tests | Updated: src/services/persistence/model.spec.ts (assert ingress metadata on normalized doc)
 2025-12-13T22:50:05Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-DATA-014 and mark done)
 2025-12-13T22:50:27Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 10 tests — PASS)
+
+2025-12-13T23:07:40Z | code | Updated: src/services/persistence/model.ts (remove raw from EventDocV1; stop setting in normalizeIngressEvent)
+2025-12-13T23:08:10Z | tests | Updated: src/services/persistence/model.spec.ts (remove raw assertion; assert absence)
+2025-12-13T23:08:35Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 10 tests — PASS)
+2025-12-13T23:08:45Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-DATA-015: Remove raw from EventDocV1 — status=done)

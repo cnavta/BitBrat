@@ -26,8 +26,8 @@ describe('persistence/model', () => {
     expect(doc.ingress!.source).toBe('ingress.twitch');
     expect(doc.ingress!.destination).toBe('internal.ingress.v1');
     expect(typeof doc.ingress!.receivedAt).toBe('string');
-    // Deep equality is sufficient; sanitizer may clone objects to strip undefineds
-    expect(doc.raw).toEqual(evt);
+    // raw property removed from EventDocV1 to avoid duplication
+    expect('raw' in (doc as any)).toBe(false);
   });
 
   test('normalizeIngressEvent strips undefined properties recursively', () => {

@@ -9,8 +9,6 @@ export interface EventDocV1 extends InternalEventV2 {
   ingestedAt: string; // ISO8601
   /** When the event was finalized (egress/response) */
   finalizedAt?: string; // ISO8601
-  /** Original ingress payload for debugging */
-  raw?: any; // original event payload for debugging
   /** Ingress metadata: where, when and how the event entered the system */
   ingress?: {
     source?: string; // e.g., ingress.twitch
@@ -79,7 +77,6 @@ export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
       receivedAt: now,
       destination: 'internal.ingress.v1',
     },
-    raw: evt,
   } as any;
   return stripUndefinedDeep(doc) as EventDocV1;
 }
