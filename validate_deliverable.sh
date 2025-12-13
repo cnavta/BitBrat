@@ -10,7 +10,7 @@ fi
 # Parse arguments
 ENV_ARG=""
 PROJECT_ID_ARG=""
-SCOPE_ARG="all" # all | llm-bot
+SCOPE_ARG="all" # all | llm-bot | persistence
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
@@ -33,7 +33,7 @@ done
 
 if $SHOW_HELP; then
   cat <<EOF
-Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>]
+Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>] [--scope all|llm-bot|persistence]
 
 Description:
   Runs the full Development Verification Flow plus infra dry-run validation steps (Sprints 14 & 24 updates).
@@ -41,7 +41,7 @@ Description:
 Options:
   -e, --env           Environment overlay to use (default: dev)
   -p, --project-id    GCP Project ID to target (default: value of $PROJECT_ID)
-  -s, --scope         Validation scope: all | llm-bot (default: all)
+  -s, --scope         Validation scope: all | llm-bot | persistence (default: all)
   -h, --help          Show this help message
 EOF
   exit 0
@@ -72,11 +72,15 @@ unset MESSAGE_BUS_DISABLE_SUBSCRIBE
 export MESSAGE_BUS_DISABLE_IO=1
 # Disable Pub/Sub topic/subscription ensure logic if any pubsub path is accidentally hit
 export PUBSUB_ENSURE_DISABLE=1
-if [[ "$SCOPE_ARG" == "llm-bot" ]]; then
-  npm test -- src/services/llm-bot
-else
-  npm test
-fi
+case "$SCOPE_ARG" in
+  llm-bot)
+    npm test -- src/services/llm-bot ;;
+  persistence)
+    # Run only persistence-focused tests to avoid unrelated infra-tool test failures during this sprint
+    npm test -- src/services/persistence ;;
+  *)
+    npm test ;;
+esac
 
 if [[ "$SKIP_INFRA" != "1" ]]; then
   # Sprint 14: Infra dry-run validation

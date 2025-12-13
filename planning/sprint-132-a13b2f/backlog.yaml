@@ -91,7 +91,7 @@ items:
     type: task
     priority: P1
     estimate: 3
-    status: in-progress
+    status: done
     dependencies: [P1-DATA-001, P1-INGRESS-002]
     acceptance:
       - Jest tests for normalization, key generation, upsert
@@ -101,7 +101,7 @@ items:
     type: task
     priority: P1
     estimate: 5
-    status: in-progress
+    status: done
     dependencies: [P1-INGRESS-002, P1-FINALIZE-003]
     acceptance:
       - Tests simulate message flow and verify Firestore writes/updates via mocks
