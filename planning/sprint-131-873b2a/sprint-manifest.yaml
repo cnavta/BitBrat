@@ -5,7 +5,7 @@ owner: "@lead-implementor"
 createdAt: "2025-12-12T23:54:00Z"
 status: "complete"
 links:
-  pr: "https://github.com/cnavta/BitBrat/pull/new/feature/sprint-131-873b2a-command-processor-bot-personality"
+  pr: "https://github.com/cnavta/BitBrat/pull/33"
   branch: "feature/sprint-131-873b2a-command-processor-bot-personality"
 notes: |
   This sprint extends the command-processor so that commands can suggest a bot
