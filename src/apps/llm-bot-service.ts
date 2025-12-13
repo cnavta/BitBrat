@@ -129,7 +129,7 @@ class LlmBotServer extends BaseServer {
       try {
         const logger = this.getLogger();
         logger.info('llm_bot.received', { attributes });
-        logger.debug('llm_bot.received.data', {data: JSON.stringify(data, null, 2)});
+        logger.debug('llm_bot.received.annotations', {annotations:data.annotations});
 
         // Create a child span for processing for better trace visibility
         const tracer = (this as any).getTracer?.();

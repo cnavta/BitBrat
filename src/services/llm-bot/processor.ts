@@ -168,72 +168,73 @@ export async function processEvent(
           logger?.warn?.('llm_bot.instance_memory.read_error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
         }
 
-        // Optionally include a system prompt as the very first message (with personalities if enabled)
-        if (messages.length === 0) {
-          const sys = server.getConfig<string>('LLM_BOT_SYSTEM_PROMPT', { required: false });
-          let finalSystem = sys || '';
-          const personalitiesEnabled = (() => {
-            const v = server.getConfig<string>('PERSONALITY_ENABLED', { default: 'true' });
-            const s = String(v).toLowerCase();
-            if (s === 'false' || s === '0' || s === 'no') return false;
-            return true;
-          })();
-          try {
-            if (personalitiesEnabled) {
-              const opts = {
-                maxAnnotations: server.getConfig<number>('PERSONALITY_MAX_ANNOTATIONS', { default: 3, parser: (v) => Number(String(v)) }),
-                maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v) => Number(String(v)) }),
-                cacheTtlMs: server.getConfig<number>('PERSONALITY_CACHE_TTL_MS', { default: 5 * 60 * 1000, parser: (v) => Number(String(v)) }),
-              };
-              const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
-              const fetchByName = async (name: string) => {
-                const db = getFirestore();
-                const snap = await db
-                  .collection(collection)
-                  .where('name', '==', name)
-                  .where('status', '==', 'active')
-                  .orderBy('version', 'desc')
-                  .limit(1)
-                  .get();
-                const doc = snap.docs[0];
-                if (!doc) return undefined;
-                return doc.data() as any;
-              };
-              const before = metrics.snapshot();
-              const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
-              const mode = (String(server.getConfig<string>('PERSONALITY_COMPOSE_MODE', { default: 'append' })).toLowerCase() as ComposeMode) || 'append';
-              const composed = composeSystemPrompt(sys, parts, mode);
-              if (composed && composed.trim()) {
-                finalSystem = composed.trim();
-                const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
-                const names = parts.map((p) => p.name).filter(Boolean);
-                const versions = parts.map((p) => p.version).filter((v) => typeof v === 'number');
-                const after = metrics.snapshot();
-                const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
-                logger?.info?.('llm_bot.personality.composed', {
-                  count: parts.length,
-                  names,
-                  versions,
-                  mode,
-                  metrics: {
-                    resolved: delta(METRIC_PERSONALITIES_RESOLVED),
-                    failed: delta(METRIC_PERSONALITIES_FAILED),
-                    dropped: delta(METRIC_PERSONALITIES_DROPPED),
-                    cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
-                    cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
-                    clamped: delta(METRIC_PERSONALITY_CLAMPED),
-                  },
-                  preview: preview(finalSystem, previewLen),
-                  correlationId: s.event.correlationId,
-                });
-              }
+        // Always include a system prompt as the first message (with personalities if enabled),
+        // regardless of whether prior memory exists. This ensures personalities apply even with history.
+        const sys = server.getConfig<string>('LLM_BOT_SYSTEM_PROMPT', { required: false });
+        let finalSystem = sys || '';
+        const personalitiesEnabled = (() => {
+          const v = server.getConfig<string>('PERSONALITY_ENABLED', { default: 'true' });
+          const sflag = String(v).toLowerCase();
+          if (sflag === 'false' || sflag === '0' || sflag === 'no') return false;
+          return true;
+        })();
+        try {
+          if (personalitiesEnabled) {
+            const opts = {
+              maxAnnotations: server.getConfig<number>('PERSONALITY_MAX_ANNOTATIONS', { default: 3, parser: (v) => Number(String(v)) }),
+              maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v) => Number(String(v)) }),
+              cacheTtlMs: server.getConfig<number>('PERSONALITY_CACHE_TTL_MS', { default: 5 * 60 * 1000, parser: (v) => Number(String(v)) }),
+            };
+            const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
+            const fetchByName = async (name: string) => {
+              const db = getFirestore();
+              const snap = await db
+                .collection(collection)
+                .where('name', '==', name)
+                .where('status', '==', 'active')
+                .orderBy('version', 'desc')
+                .limit(1)
+                .get();
+              const doc = snap.docs[0];
+              if (!doc) return undefined;
+              return doc.data() as any;
+            };
+            const before = metrics.snapshot();
+            const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
+            const mode = (String(server.getConfig<string>('PERSONALITY_COMPOSE_MODE', { default: 'append' })).toLowerCase() as ComposeMode) || 'append';
+            const composed = composeSystemPrompt(sys, parts, mode);
+            if (composed && composed.trim()) {
+              finalSystem = composed.trim();
+              const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
+              const names = parts.map((p) => p.name).filter(Boolean);
+              const versions = parts.map((p) => p.version).filter((v) => typeof v === 'number');
+              const after = metrics.snapshot();
+              const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
+              logger?.info?.('llm_bot.personality.composed', {
+                count: parts.length,
+                names,
+                versions,
+                mode,
+                metrics: {
+                  resolved: delta(METRIC_PERSONALITIES_RESOLVED),
+                  failed: delta(METRIC_PERSONALITIES_FAILED),
+                  dropped: delta(METRIC_PERSONALITIES_DROPPED),
+                  cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
+                  cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
+                  clamped: delta(METRIC_PERSONALITY_CLAMPED),
+                },
+                preview: preview(finalSystem, previewLen),
+                correlationId: s.event.correlationId,
+              });
             }
-          } catch (e: any) {
-            logger?.warn?.('llm_bot.personality.compose_error', { error: e?.message || String(e), correlationId: s.event.correlationId });
           }
-          if (finalSystem && finalSystem.trim()) {
-            messages.push({ role: 'system', content: finalSystem.trim(), createdAt: new Date().toISOString() });
-          }
+        } catch (e: any) {
+          logger?.warn?.('llm_bot.personality.compose_error', { error: e?.message || String(e), correlationId: s.event.correlationId });
+        }
+        if (finalSystem && finalSystem.trim()) {
+          // Ensure only one system message at the front
+          messages = messages.filter((m) => m.role !== 'system');
+          messages = [{ role: 'system', content: finalSystem.trim(), createdAt: new Date().toISOString() }, ...messages];
         }
 
         if (combinedPrompt) {
