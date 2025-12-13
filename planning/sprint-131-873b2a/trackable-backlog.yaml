@@ -96,3 +96,19 @@ backlog:
       - Unit test covers regex path behavior
     dependencies: [BB-131-02]
     status: done
+
+  - id: BB-131-07
+    sprint: 131
+    title: LLM-bot applies personality even when memory exists
+    description: "Ensure the system prompt with composed personalities is included regardless of prior instance memory; add tests."
+    priority: 1
+    files:
+      - src/services/llm-bot/processor.ts
+      - tests/services/llm-bot/personality-with-memory.spec.ts
+    estimate: 0.3d
+    acceptance_criteria:
+      - With prior memory present, first message is a system prompt including composed personalities
+      - Unit test verifies personality text appears in system message and memory remains intact
+      - All tests pass
+    dependencies: []
+    status: done

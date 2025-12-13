@@ -50,3 +50,20 @@
 - 2025-12-13T21:16:00Z | Backlog update | Added and completed BB-131-06 (regex-cache personality normalization)
   - files modified:
     - planning/sprint-131-873b2a/trackable-backlog.yaml
+
+- 2025-12-13T02:44:00Z | Investigation | Personality not applied when prior memory exists
+  - observation: llm-bot only composed/added system+personality when messages.length===0; with memory, no system msg was added
+  - affected_path: src/services/llm-bot/processor.ts
+
+- 2025-12-13T02:45:15Z | Fix | Always prepend system prompt (with personalities) regardless of prior memory (BB-131-07)
+  - files modified:
+    - src/services/llm-bot/processor.ts (remove messages.length===0 gate; compose + unshift system; dedupe existing system)
+  - files added:
+    - tests/services/llm-bot/personality-with-memory.spec.ts (verifies system includes personality even with memory)
+  - commands:
+    - npm test --silent
+  - result: All tests passed (139 passed, 2 skipped)
+
+- 2025-12-13T02:46:00Z | Backlog update | Added and completed BB-131-07 (LLM-bot applies personality with memory)
+  - files modified:
+    - planning/sprint-131-873b2a/trackable-backlog.yaml
