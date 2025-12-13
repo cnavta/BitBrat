@@ -19,17 +19,17 @@ describe('RouterEngine', () => {
     const rules: RuleDoc[] = [
       {
         id: 'r0', enabled: true, priority: 5, description: 'non-match',
-        logic: { '==': [{ var: 'type' }, 'chat.message.v1'] } as any,
+        logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.message.v1'] }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.never.v1' }],
       },
       {
         id: 'r1', enabled: true, priority: 10, description: 'match',
-        logic: { '==': [{ var: 'type' }, 'chat.command.v1'] } as any,
+        logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.command.v1'] }),
         routingSlip: [{ id: 'router', v: '1', nextTopic: 'internal.llmbot.v1' }],
       },
       {
         id: 'r2', enabled: true, priority: 20, description: 'would also match but should be skipped',
-        logic: { '==': [{ var: 'type' }, 'chat.command.v1'] } as any,
+        logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.command.v1'] }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.other.v1' }],
       },
     ];
@@ -54,7 +54,7 @@ describe('RouterEngine', () => {
     const rules: RuleDoc[] = [
       {
         id: 'r0', enabled: true, priority: 1,
-        logic: { '==': [{ var: 'type' }, 'chat.message.v1'] } as any,
+        logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.message.v1'] }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.never.v1' }],
       },
     ];

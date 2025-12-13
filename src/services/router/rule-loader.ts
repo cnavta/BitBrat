@@ -7,6 +7,7 @@
  * - Subscribes via onSnapshot to keep cache up to date
  */
 import { logger } from '../../common/logging';
+import { AnnotationV1 } from '@/types';
 
 export interface RoutingStepRef {
   id: string;
@@ -21,8 +22,10 @@ export interface RuleDoc {
   enabled: boolean;
   priority: number;
   description?: string;
-  logic: Record<string, unknown>;
+  // Firestore stores JsonLogic as a JSON string (see sprint-127 change)
+  logic: string;
   routingSlip: RoutingStepRef[];
+  annotations?: AnnotationV1[]; // Annotations to add to the event when matched.
   metadata?: Record<string, unknown>;
 }
 
@@ -32,22 +35,74 @@ function isObject(v: any): v is Record<string, any> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
 }
 
+function isAnnotation(v: any): v is AnnotationV1 {
+  return (
+    !!v &&
+    typeof v === 'object' &&
+    typeof v.id === 'string' &&
+    typeof v.kind === 'string' &&
+    typeof v.source === 'string' &&
+    typeof v.createdAt === 'string'
+  );
+}
+
+function sanitizeAnnotations(rawAnns: any, id: string): AnnotationV1[] | undefined {
+  if (!Array.isArray(rawAnns)) return undefined;
+  const out: AnnotationV1[] = [];
+  for (const a of rawAnns) {
+    if (isAnnotation(a)) {
+      // Shallow clone to avoid accidental mutation downstream
+      const clean: AnnotationV1 = {
+        id: String(a.id),
+        kind: String(a.kind),
+        source: String(a.source),
+        createdAt: String(a.createdAt),
+        confidence: typeof a.confidence === 'number' ? a.confidence : undefined,
+        label: typeof a.label === 'string' ? a.label : undefined,
+        value: typeof a.value === 'string' ? a.value : undefined,
+        score: typeof a.score === 'number' ? a.score : undefined,
+        payload: isObject(a.payload) ? (a.payload as Record<string, any>) : undefined,
+      };
+      out.push(clean);
+    } else if (a) {
+      logger.warn('rule_loader.annotation_invalid', { ruleId: id });
+    }
+  }
+  return out.length ? out : undefined;
+}
+
 function validateRule(raw: any, id: string): RuleDoc | null {
   if (!isObject(raw)) return null;
   if (raw.enabled !== true) return null; // only cache enabled
   const priority = raw.priority;
   if (typeof priority !== 'number' || Number.isNaN(priority)) return null;
-  if (!isObject(raw.logic)) return null;
+  // Expect logic to be a JSON string; allow object for backward-compat by stringifying
+  let logicStr: string | null = null;
+  if (typeof raw.logic === 'string') {
+    const s = raw.logic.trim();
+    if (!s) return null;
+    logicStr = s;
+  } else if (isObject(raw.logic)) {
+    try {
+      logicStr = JSON.stringify(raw.logic);
+    } catch {
+      return null;
+    }
+  } else {
+    return null;
+  }
   if (!Array.isArray(raw.routingSlip)) return null;
   const routingSlip = raw.routingSlip.filter((s: any) => isObject(s) && typeof s.nextTopic === 'string');
   if (routingSlip.length === 0) return null;
+  const annotations = sanitizeAnnotations(raw.annotations, id);
   return {
     id,
     enabled: true,
     priority,
     description: typeof raw.description === 'string' ? raw.description : undefined,
-    logic: raw.logic as Record<string, unknown>,
+    logic: logicStr as string,
     routingSlip: routingSlip as RoutingStepRef[],
+    annotations,
     metadata: isObject(raw.metadata) ? (raw.metadata as Record<string, unknown>) : undefined,
   };
 }

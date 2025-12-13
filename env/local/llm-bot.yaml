@@ -1,0 +1,14 @@
+OPENAI_MODEL: gpt-4.1-mini
+OPENAI_TIMEOUT_MS: 60000
+OPENAI_MAX_RETRIES: 3
+LLM_BOT_ENABLED: true
+# Short-term memory configuration (dev defaults)
+LLM_BOT_MEMORY_MAX_MESSAGES: 8
+LLM_BOT_MEMORY_MAX_CHARS: 8000
+# Optional system prompt to appear as the first (system) turn in the transcript
+# Uncomment and customize as needed for local testing.
+LLM_BOT_SYSTEM_PROMPT: "You are BitBrat. You will receive a short-term transcript above. Prioritize recent turns and respond concisely."
+LLM_BOT_INSTANCE_MEM_MAX_KEYS: 1000
+LLM_BOT_INSTANCE_MEM_MAX_MSGS: 32
+LLM_BOT_INSTANCE_MEM_MAX_CHARS: 16000
+LLM_BOT_INSTANCE_MEM_TTL_MS: 3600000

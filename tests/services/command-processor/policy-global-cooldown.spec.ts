@@ -24,7 +24,7 @@ function makeRef(lastExecutionAt?: string) {
 
 describe('policy.globalCooldown', () => {
   it('computes effective cooldown with override and defaults', () => {
-    const doc: CommandDoc = { id: '1', name: 'test', templates: [] };
+    const doc: CommandDoc = { id: '1', name: 'test', templates: [], matchType: { kind: 'command', values: ['test'], priority: 0 } };
     expect(effectiveGlobalCooldownMs(doc, 0)).toBe(0);
     expect(effectiveGlobalCooldownMs({ ...doc, cooldowns: { globalMs: 5000 } }, 0)).toBe(5000);
     expect(effectiveGlobalCooldownMs(doc, 60000)).toBe(60000);
@@ -32,7 +32,7 @@ describe('policy.globalCooldown', () => {
 
   it('allows when cooldown disabled', async () => {
     const { ref, updates } = makeRef();
-    const doc: CommandDoc = { id: '1', name: 'test', templates: [], cooldowns: { globalMs: 0 } };
+    const doc: CommandDoc = { id: '1', name: 'test', templates: [], matchType: { kind: 'command', values: ['test'], priority: 0 }, cooldowns: { globalMs: 0 } };
     const now = new Date();
     const res = await checkAndUpdateGlobalCooldown(ref as any, doc, now, 0);
     expect(res.allowed).toBe(true);
@@ -43,7 +43,7 @@ describe('policy.globalCooldown', () => {
     const now = new Date('2025-01-01T00:00:10.000Z');
     const tenSecondsAgo = new Date('2025-01-01T00:00:01.000Z').toISOString();
     const { ref, updates } = makeRef(tenSecondsAgo);
-    const doc: CommandDoc = { id: '1', name: 't', templates: [], cooldowns: { globalMs: 15000 } };
+    const doc: CommandDoc = { id: '1', name: 't', templates: [], matchType: { kind: 'command', values: ['t'], priority: 0 }, cooldowns: { globalMs: 15000 } };
 
     // Within 15s window → blocked
     const blocked = await checkAndUpdateGlobalCooldown(ref as any, doc, now, 0);

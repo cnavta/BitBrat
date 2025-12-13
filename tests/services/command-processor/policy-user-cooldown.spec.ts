@@ -36,7 +36,7 @@ function makeRefForUser(lastExecutionAt?: string | null) {
 
 describe('policy.userCooldown', () => {
   it('computes effective per-user cooldown with override and defaults', () => {
-    const doc: CommandDoc = { id: '1', name: 'c', templates: [] };
+    const doc: CommandDoc = { id: '1', name: 'c', templates: [], matchType: { kind: 'command', values: ['c'], priority: 0 } };
     expect(effectivePerUserCooldownMs(doc, 0)).toBe(0);
     expect(effectivePerUserCooldownMs({ ...doc, cooldowns: { perUserMs: 3000 } }, 0)).toBe(3000);
     expect(effectivePerUserCooldownMs(doc, 5000)).toBe(5000);
@@ -44,7 +44,7 @@ describe('policy.userCooldown', () => {
 
   it('allows when per-user cooldown disabled', async () => {
     const { ref, updates, sets } = makeRefForUser(null);
-    const doc: CommandDoc = { id: '1', name: 'c', templates: [], cooldowns: { perUserMs: 0 } };
+    const doc: CommandDoc = { id: '1', name: 'c', templates: [], matchType: { kind: 'command', values: ['c'], priority: 0 }, cooldowns: { perUserMs: 0 } };
     const now = new Date();
     const res = await checkAndUpdateUserCooldown(ref as any, doc, 'user-1', now, 0);
     expect(res.allowed).toBe(true);
@@ -55,7 +55,7 @@ describe('policy.userCooldown', () => {
     const now = new Date('2025-01-01T00:00:10.000Z');
     const eightSecondsAgo = new Date('2025-01-01T00:00:02.000Z').toISOString();
     const { ref, updates, sets } = makeRefForUser(eightSecondsAgo);
-    const doc: CommandDoc = { id: '1', name: 'c', templates: [], cooldowns: { perUserMs: 15000 } };
+    const doc: CommandDoc = { id: '1', name: 'c', templates: [], matchType: { kind: 'command', values: ['c'], priority: 0 }, cooldowns: { perUserMs: 15000 } };
     const res = await checkAndUpdateUserCooldown(ref as any, doc, 'u-1', now, 0);
     expect(res.allowed).toBe(false);
     expect(updates.length + sets.length).toBe(0);
@@ -65,7 +65,7 @@ describe('policy.userCooldown', () => {
     const now = new Date('2025-01-01T00:00:20.000Z');
     // Simulate no existing record: lastExecutionAt is null meaning snap.exists === false
     const { ref, updates, sets } = makeRefForUser(null);
-    const doc: CommandDoc = { id: '1', name: 'c', templates: [], cooldowns: { perUserMs: 1000 } };
+    const doc: CommandDoc = { id: '1', name: 'c', templates: [], matchType: { kind: 'command', values: ['c'], priority: 0 }, cooldowns: { perUserMs: 1000 } };
     const res = await checkAndUpdateUserCooldown(ref as any, doc, 'u-2', now, 0);
     expect(res.allowed).toBe(true);
     // Should perform a write (set in this stub)

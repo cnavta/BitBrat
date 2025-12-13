@@ -13,11 +13,21 @@ export interface CloudBuildSubmitOptions {
   maxWaitMinutes?: number; // default 60
 }
 
+function escapeSubstitutionValue(val: string): string {
+  // Cloud Build --substitutions uses comma to separate pairs and '=' to split key/value.
+  // Values must escape ',', '=' and '\\' with a backslash to avoid being parsed as delimiters.
+  return String(val)
+    .replace(/\\/g, '\\\\')
+    .replace(/,/g, '\\,')
+    .replace(/=/g, '\\=');
+}
+
 function buildSubstitutionsArg(subs: Record<string, string | number | boolean>): string {
-  // Convert to _KEY=value format separated by commas
+  // Convert to _KEY=value format separated by commas with proper escaping of values
   const parts: string[] = [];
   for (const [k, v] of Object.entries(subs)) {
-    parts.push(`${k}=${String(v)}`);
+    const val = typeof v === 'string' ? escapeSubstitutionValue(v) : String(v);
+    parts.push(`${k}=${val}`);
   }
   return parts.join(',');
 }

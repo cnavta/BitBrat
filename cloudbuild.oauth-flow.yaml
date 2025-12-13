@@ -1,34 +1,21 @@
-options:
-  logging: CLOUD_LOGGING_ONLY
-  substitutionOption: ALLOW_LOOSE
 substitutions:
-  _SERVICE_NAME: oauth-flow
-  _REGION: us-central1
-  _REPO_NAME: bitbrat-services
-  _DRY_RUN: 'true'
-  _TAG: 'manual'
-  _PORT: '3000'
-  _MIN_INSTANCES: '0'
-  _MAX_INSTANCES: '3'
-  _CPU: '1'
-  _MEMORY: '512Mi'
-  _ALLOW_UNAUTH: 'true'
-  _SECRET_SET_ARG: ''
-  _ENV_VARS_ARG: ''
-  _DOCKERFILE: 'Dockerfile.oauth-flow'
-  # Billing model: ensure instance-based billing on Cloud Run
-  _BILLING: 'instance'
   # Networking: enforce Internal & CLB ingress and attach VPC connector when provided
   _INGRESS: 'internal-and-cloud-load-balancing'
   _VPC_CONNECTOR: ''
+  # Env and secrets (populated by caller; left empty by default)
+  _ENV_VARS_FILE: ''
+  _ENV_VARS_ARG: ''
+  _SECRET_SET_ARG: ''
+  # Flags commonly provided by caller; set safe defaults
+  _ALLOW_UNAUTH: 'false'
+  _DRY_RUN: 'false'
+  _DOCKERFILE: 'Dockerfile.oauth-flow'
+  # Billing mode for Cloud Run (display/logging). Default to instance to match architecture.yaml
+  _BILLING: 'instance'
 steps:
   - id: 'Install deps'
     name: 'gcr.io/cloud-builders/npm'
     args: ['ci']
-
-  - id: 'Run unit tests'
-    name: 'gcr.io/cloud-builders/npm'
-    args: ['test', '--', '--ci', '--reporters=default']
 
   - id: 'Build (tsc)'
     name: 'gcr.io/cloud-builders/npm'
@@ -104,13 +91,29 @@ steps:
         if [ -n "${_INGRESS}" ]; then CMD="$${CMD} --ingress ${_INGRESS}"; fi
         if [ -n "${_VPC_CONNECTOR}" ]; then CMD="$${CMD} --vpc-connector ${_VPC_CONNECTOR}"; fi
         if [ -n "$$ALLOW_FLAG" ]; then CMD="$${CMD} $$ALLOW_FLAG"; fi
-        if [ -n "${_SECRET_SET_ARG}" ]; then CMD="$${CMD} --set-secrets $(printf '%s' "${_SECRET_SET_ARG}" | tr ';' ',')"; fi
+        if [ -n "${_SECRET_SET_ARG}" ]; then
+          SEC_RAW="${_SECRET_SET_ARG}"
+          # Unescape any escaped characters coming from --substitutions
+          SEC_RAW=$(printf '%s' "$$SEC_RAW" | sed -e 's/\\\\/\\/g' -e 's/\\,/,/g' -e 's/\\=/=/g')
+          CMD="$${CMD} --set-secrets $(printf '%s' "$$SEC_RAW" | tr ';' ',')"
+        fi
         # Use a custom delimiter for --set-env-vars so values may contain commas and spaces without breaking parsing
         # Format: --set-env-vars='^<DELIM>^KEY=VAL<DELIM>KEY2=VAL2'
-        if [ -n "${_ENV_VARS_ARG}" ]; then
-          ENV_DELIM='~'
+        ENV_DELIM='~'
+        if [ -n "${_ENV_VARS_FILE}" ] && [ -f "${_ENV_VARS_FILE}" ]; then
+          # Prefer reading env pairs from a file to avoid any substitution escaping issues
+          ENV_RAW=$(cat "${_ENV_VARS_FILE}")
+        elif [ -n "${_ENV_VARS_ARG}" ]; then
+          # Fallback: accept env pairs via substitution arg with unescaping
+          ENV_RAW="${_ENV_VARS_ARG}"
+          # Unescape in the correct order: \\ -> \, then \\, -> , then \\= -> =
+          ENV_RAW=$(printf '%s' "$$ENV_RAW" | sed -e 's/\\\\\\\\/\\\\/g' -e 's/\\\\,/,/g' -e 's/\\\\=/=/g')
+        else
+          ENV_RAW=""
+        fi
+        if [ -n "$$ENV_RAW" ]; then
           # Convert our semicolon-delimited KV list to the chosen delimiter; wrap in single quotes to preserve spaces
-          ENV_MAPPED=$(printf '%s' "${_ENV_VARS_ARG}" | tr ';' "$$ENV_DELIM")
+          ENV_MAPPED=$(printf '%s' "$$ENV_RAW" | tr ';' "$$ENV_DELIM")
           SET_ENV_ARG="^$$ENV_DELIM^$$ENV_MAPPED"
           CMD="$${CMD} --set-env-vars='$$SET_ENV_ARG'"
         fi

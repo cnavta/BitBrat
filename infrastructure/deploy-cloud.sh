@@ -465,11 +465,8 @@ if [[ "$MULTI_MODE" == true ]]; then
     # Compute env and secrets arguments for CB
     ENV_KEYS_CSV_LOCAL="${CFG_ENV_KEYS:-}"
     ENV_KV_LOCAL=""
-    if [[ -n "$ENV_KEYS_CSV_LOCAL" ]]; then
-      ENV_KV_LOCAL=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format kv --only-keys "$ENV_KEYS_CSV_LOCAL" || echo "")
-    else
-      ENV_KV_LOCAL=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format kv || echo "")
-    fi
+    # New behavior: always load ALL env vars from overlay; use ENV_KEYS_CSV_LOCAL only for validation
+    ENV_KV_LOCAL=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$svc" --format kv || echo "")
     # Trace env keys selected and prepared (names only; no values)
     if [[ -n "$ENV_KEYS_CSV_LOCAL" ]]; then
       echo "[deploy-cloud][$svc][env] ENV_KEYS: $ENV_KEYS_CSV_LOCAL"
@@ -479,6 +476,35 @@ if [[ "$MULTI_MODE" == true ]]; then
       echo "[deploy-cloud][$svc][env] env keys to set: $ENV_KEYS_LIST"
     else
       echo "[deploy-cloud][$svc][env] No env key/values loaded for service."
+    fi
+    # Validate required env keys declared in architecture.yaml are present in overlay
+    BLOCK_DEPLOY_LOCAL=0
+    if [[ -n "$ENV_KEYS_CSV_LOCAL" ]]; then
+      IFS=',' read -r -a _req_keys <<< "$ENV_KEYS_CSV_LOCAL"
+      present_keys=$(printf "%s" "$ENV_KV_LOCAL" | tr ';' '\n' | awk -F'=' 'NF>=1 {print $1}')
+      missing_keys=()
+      # Keys provided by the runtime (e.g., Cloud Run) should not be required in overlays
+      RUNTIME_PROVIDED_KEYS=("K_REVISION")
+      is_runtime_provided() { local key="$1"; for rk in "${RUNTIME_PROVIDED_KEYS[@]}"; do [[ "$rk" == "$key" ]] && return 0; done; return 1; }
+      for rk in "${_req_keys[@]}"; do
+        k_trimmed="${rk//[[:space:]]/}"
+        [[ -z "$k_trimmed" ]] && continue
+        # Skip runtime-provided keys from validation
+        if is_runtime_provided "$k_trimmed"; then
+          continue
+        fi
+        if ! printf "%s\n" $present_keys | grep -qx "$k_trimmed"; then
+          missing_keys+=("$k_trimmed")
+        fi
+      done
+      if [[ ${#missing_keys[@]} -gt 0 ]]; then
+        if [[ "$APPLY" == true && "$DRY_RUN" == false ]]; then
+          echo "[deploy-cloud][$svc][env] ERROR: Missing required env keys (architecture.yaml): ${missing_keys[*]}" >&2
+          BLOCK_DEPLOY_LOCAL=1
+        else
+          echo "[deploy-cloud][$svc][env] DRY-RUN: would fail due to missing required env keys: ${missing_keys[*]}" >&2
+        fi
+      fi
     fi
     SECRET_SET_ARG_LOCAL="${CFG_SECRET_SET_ARG:-}"
     echo "[deploy-cloud][$svc][secrets] initial SECRET_SET_ARG from extractor: ${SECRET_SET_ARG_LOCAL:-<empty>}"
@@ -546,7 +572,11 @@ if [[ "$MULTI_MODE" == true ]]; then
       continue
     fi
     if [[ "$APPLY" == true && "$DRY_RUN" == false ]]; then
-      start_job "$svc" "$DOCKERFILE_LOCAL" "$ENV_KV_LOCAL" "$SECRET_SET_ARG_LOCAL" "$BUILD_TAG" "$REGION" "${CFG_PORT}" "${CFG_MIN_INSTANCES}" "${CFG_MAX_INSTANCES}" "${CFG_CPU}" "${CFG_MEMORY}" "${CFG_ALLOW_UNAUTH}"
+      if [[ "$BLOCK_DEPLOY_LOCAL" == 1 ]]; then
+        echo "[deploy-cloud][$svc] Skipping deploy due to missing required env keys."
+      else
+        start_job "$svc" "$DOCKERFILE_LOCAL" "$ENV_KV_LOCAL" "$SECRET_SET_ARG_LOCAL" "$BUILD_TAG" "$REGION" "${CFG_PORT}" "${CFG_MIN_INSTANCES}" "${CFG_MAX_INSTANCES}" "${CFG_CPU}" "${CFG_MEMORY}" "${CFG_ALLOW_UNAUTH}"
+      fi
       while [[ ${#PIDS[@]} -ge $MAX_CONCURRENCY ]]; do
         wait_one
       done
@@ -584,11 +614,11 @@ TF_VARS_FILE="$TF_TMP_DIR/override.auto.tfvars.json"
 ENV_JSON="{}"
 ENV_KV=""
 if [[ -n "$ENV_KEYS_CSV" ]]; then
-  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format json --only-keys "$ENV_KEYS_CSV" || echo "{}")
-  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format kv --only-keys "$ENV_KEYS_CSV" || echo "")
+  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format json --only-keys "$ENV_KEYS_CSV" || echo "{}")
+  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format kv --only-keys "$ENV_KEYS_CSV" || echo "")
 else
-  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format json || echo "{}")
-  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --format kv || echo "")
+  ENV_JSON=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format json || echo "{}")
+  ENV_KV=$(node infrastructure/scripts/load-env.js --env "$ENV_NAME" --service "$SERVICE_NAME" --format kv || echo "")
 fi
 
 SECRETS_JSON="[]"
