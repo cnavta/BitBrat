@@ -1,0 +1,12 @@
+id: sprint-133-7c29e1
+title: "User Context for LLM Bot – Phase 1 (Roles + Profile)"
+goal: "Design a technical architecture to provide LLM Bot with per-user context: username, role-derived prompts from /configs/bot/roles, and optional user description from Firestore."
+owner: "@christophernavta"
+createdAt: "2025-12-13T19:47:00Z"
+status: "validating"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/35"
+  branch: "feature/sprint-133-7c29e1-user-context-ta"
+notes: |
+  This sprint focuses on documentation (Technical Architecture) only. No code changes planned until Implementation Plan is explicitly approved per AGENTS.md.
+  Firestore is the system of record for roles (/configs/bot/roles) and user profile extensions (/users/{userId}).
