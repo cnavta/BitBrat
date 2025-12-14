@@ -8,3 +8,7 @@
 - 2025-12-14T11:05:00Z — Added unit test for append mode: src/services/llm-bot/__tests__/user-context.append.spec.ts.
 - 2025-12-14T11:07:00Z — Ran tests (scope=llm-bot): PASS.
 - 2025-12-14T11:10:00Z — Authored implementation plan and updated manifest to in-progress.
+- 2025-12-14T11:20:00Z — Created sprint validation script at planning/sprint-134-8d53c7/validate_deliverable.sh.
+- 2025-12-14T11:23:00Z — Ran sprint validation (scope=llm-bot): PASS. 17 test suites, 41 tests passed. Logged CI-safe env.
+- 2025-12-14T11:25:00Z — Created PR for feature branch: https://github.com/cnavta/BitBrat/pull/36. Updated publication.yaml and sprint-manifest links.pr.
+- 2025-12-14T11:26:00Z — Updated sprint-manifest status to published.
