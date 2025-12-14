@@ -1,0 +1,11 @@
+id: sprint-134-8d53c7
+title: "User Context for LLM Bot – Phase 2 (Implementation)"
+goal: "Implement per-user context in llm-bot: username, role-derived prompts from /configs/bot/roles, and optional user description."
+owner: "@christophernavta"
+createdAt: "2025-12-14T10:46:00Z"
+status: "in-progress"
+links:
+  pr: ""
+  branch: "feature/sprint-134-8d53c7-user-context-impl"
+notes: |
+  Implements TA from sprint-133. Adds roles/user fetch, composition, injection, flags, and tests.

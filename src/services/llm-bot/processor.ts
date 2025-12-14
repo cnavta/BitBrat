@@ -4,6 +4,7 @@ import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
 import { resolvePersonalityParts, composeSystemPrompt, type ComposeMode } from './personality-resolver';
+import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
 import { metrics,
   METRIC_PERSONALITIES_RESOLVED,
@@ -163,6 +164,40 @@ export async function processEvent(
     const graph = new StateGraph(LlmState)
       .addNode('ingest_prompt', async (s: typeof LlmState.State) => {
         logger.debug('llm_bot.process_event.ingest_prompt', { correlationId: s.event.correlationId });
+        // Optionally build user context annotation and attach before building combined prompt
+        const userCtxEnabled = (() => {
+          const v = server.getConfig<string>('USER_CONTEXT_ENABLED', { default: 'true' });
+          const sflag = String(v).toLowerCase();
+          return !(sflag === 'false' || sflag === '0' || sflag === 'no');
+        })();
+        if (userCtxEnabled) {
+          try {
+            const cfg = {
+              rolesPath: server.getConfig<string>('USER_CONTEXT_ROLES_PATH', { default: '/configs/bot/roles' }),
+              ttlMs: server.getConfig<number>('USER_CONTEXT_CACHE_TTL_MS', { default: 300000, parser: (v) => Number(String(v)) }),
+              includeDescription: (() => {
+                const v = server.getConfig<string>('USER_CONTEXT_DESCRIPTION_ENABLED', { default: 'true' });
+                const sflag = String(v).toLowerCase();
+                return !(sflag === 'false' || sflag === '0' || sflag === 'no');
+              })(),
+              maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v) => Number(String(v)) }),
+              injectionMode: (String(server.getConfig<string>('USER_CONTEXT_INJECTION_MODE', { default: 'append' })).toLowerCase() as any),
+            } as any;
+            const ann = await buildUserContextAnnotation(s.event, cfg);
+            if (ann) {
+              if (!Array.isArray(s.event.annotations)) s.event.annotations = [];
+              s.event.annotations.push(ann);
+              logger?.info?.('llm_bot.user_ctx.compose.end', {
+                correlationId: s.event.correlationId,
+                mode: cfg.injectionMode,
+                hasDescription: Boolean((ann.payload as any)?.description),
+                preview: (ann.value || (ann.payload as any)?.text || '').slice(0, server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v)=>Number(String(v)) })),
+              });
+            }
+          } catch (e: any) {
+            logger?.warn?.('llm_bot.user_ctx.compose.error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
+          }
+        }
         const anns = Array.isArray(s.event.annotations) ? s.event.annotations : [];
         const combinedPrompt = buildCombinedPrompt(anns as any);
         const maxMessages = server.getConfig<number>('LLM_BOT_MEMORY_MAX_MESSAGES', { default: 8, parser: (v) => Number(String(v)) });

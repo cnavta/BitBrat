@@ -117,6 +117,12 @@ class LlmBotServer extends BaseServer {
     PERSONALITY_COLLECTION: 'personalities',
     PERSONALITY_LOG_PREVIEW_CHARS: 160,
     PERSONALITY_COMPOSE_MODE: 'append',
+    // User context defaults (Phase 2)
+    USER_CONTEXT_ENABLED: true,
+    USER_CONTEXT_INJECTION_MODE: 'append',
+    USER_CONTEXT_CACHE_TTL_MS: 300000,
+    USER_CONTEXT_ROLES_PATH: '/configs/bot/roles',
+    USER_CONTEXT_DESCRIPTION_ENABLED: true,
   };
   constructor() {
     // Use a stable service name; env can override via logging/config elsewhere if needed
