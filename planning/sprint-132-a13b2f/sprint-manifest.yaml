@@ -3,12 +3,13 @@ title: "Persistence Service – Implementation"
 goal: "Implement the persistence service to store ingress events and apply finalization updates, with tests and observability."
 owner: "Junie (AI Lead Implementor)"
 createdAt: "2025-12-13T11:35:00Z"
-status: "in-progress"
+status: "complete"
 links:
-  pr: "" # to be created after publication
+  pr: "https://github.com/cnavta/BitBrat/pull/34"
   branch: "feature/sprint-132-a13b2f-persistence-impl"
 notes: |
-  Implementation phase started following plan approval:
-  - Define data model and helpers
-  - Implement ingress and finalize consumers
-  - Add tests and update deployment scripts as needed
+  Implementation phase completed:
+  - Data model defined; EventDocV1 extends InternalEventV2
+  - Ingress + finalize consumers implemented with Firestore persistence
+  - Undefined sanitizer added; TTL implemented (env-configurable, qos.ttl supported)
+  - Unit and integration tests added; PR created and artifacts published
