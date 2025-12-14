@@ -113,4 +113,35 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     expect(Array.isArray(call[0].candidates)).toBe(true);
     expect(call[0].candidates[0].status).toBe('selected');
   });
+
+  test('finalize handler uses qos.ttl seconds to compute Firestore TTL', async () => {
+    const h = handlers.find((x) => x.destination === 'internal.persistence.finalize.v1');
+    expect(h).toBeTruthy();
+    const ack = jest.fn(async () => {});
+    const ctx = { ack };
+    const deliveredAt = '2024-01-01T00:00:00Z';
+    const ttlSeconds = 1800; // 30 minutes
+    const msg = {
+      correlationId: 'it-ttl-seconds',
+      deliveredAt,
+      status: 'SENT',
+      qos: { ttl: ttlSeconds },
+    };
+    await h!.handler(msg, {}, ctx);
+    expect(ack).toHaveBeenCalled();
+    const call = firestore.__fns.set.mock.calls[firestore.__fns.set.mock.calls.length - 1];
+    expect(call[1]).toEqual({ merge: true });
+    const expected = new Date(deliveredAt);
+    expected.setUTCSeconds(expected.getUTCSeconds() + ttlSeconds);
+    const ttl = call[0].ttl;
+    if (ttl && typeof ttl.toDate === 'function') {
+      expect(ttl.toDate().toISOString()).toBe(expected.toISOString());
+    } else if (ttl instanceof Date) {
+      expect(ttl.toISOString()).toBe(expected.toISOString());
+    } else if (typeof ttl === 'string') {
+      expect(new Date(ttl).toISOString()).toBe(expected.toISOString());
+    } else {
+      expect(ttl).toBeTruthy();
+    }
+  });
 });

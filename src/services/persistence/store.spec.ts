@@ -100,4 +100,28 @@ describe('PersistenceStore', () => {
     expect(Array.isArray(setCall[0].candidates)).toBe(true);
     expect(setCall[0].candidates[0].status).toBe('selected');
   });
+
+  test('applyFinalization uses qos.ttl seconds when provided', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const deliveredAt = '2024-01-01T00:00:00Z';
+    const ttlSeconds = 3600; // 1 hour
+    await store.applyFinalization({
+      correlationId: 'c-qos',
+      deliveredAt,
+      status: 'SENT',
+      qos: { ttl: ttlSeconds },
+    } as any);
+    const setCall = db.__fns.set.mock.calls[0];
+    const expected = new Date(deliveredAt);
+    expected.setUTCSeconds(expected.getUTCSeconds() + ttlSeconds);
+    const ttlVal = setCall[0].ttl;
+    let iso: string | undefined;
+    if (ttlVal && typeof ttlVal.toDate === 'function') iso = ttlVal.toDate().toISOString();
+    else if (ttlVal instanceof Date) iso = ttlVal.toISOString();
+    else if (typeof ttlVal === 'string') iso = new Date(ttlVal).toISOString();
+    else iso = undefined;
+    expect(iso).toBe(expected.toISOString());
+  });
 });

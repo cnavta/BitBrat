@@ -232,3 +232,15 @@ items:
       - Ingress-Egress service declares CONFIG_DEFAULTS.PERSISTENCE_TTL_DAYS: 7
       - Persistence uses env PERSISTENCE_TTL_DAYS to compute TTL on finalization
       - Unit test verifies env override adjusts TTL days
+
+  - id: P1-QOS-018
+    title: Use qos.ttl seconds to set Firestore TTL on finalization
+    type: story
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-DATA-016, P1-CONFIG-017]
+    acceptance:
+      - If finalize payload includes qos.ttl (seconds), event ttl is set to deliveredAt + qos.ttl seconds
+      - Falls back to PERSISTENCE_TTL_DAYS when qos.ttl is missing/invalid
+      - Unit and integration tests verify qos.ttl behavior

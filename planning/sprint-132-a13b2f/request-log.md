@@ -91,3 +91,9 @@ Planned next operations:
 2025-12-13T23:55:50Z | tests | Updated: src/services/persistence/store.spec.ts (add test verifying env override for TTL days)
 2025-12-13T23:56:10Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 11 tests — PASS)
 2025-12-13T23:56:20Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-CONFIG-017: TTL days configurable via ENV — status=done)
+
+2025-12-14T00:02:20Z | code | Updated: src/services/persistence/store.ts (TTL uses qos.ttl seconds when present; fallback to env days)
+2025-12-14T00:02:40Z | tests | Updated: src/services/persistence/store.spec.ts (add test for qos.ttl seconds)
+2025-12-14T00:03:00Z | tests | Updated: src/services/persistence/integration.spec.ts (add integration test asserting qos.ttl seconds)
+2025-12-14T00:03:20Z | script | Ran: ./validate_deliverable.sh --scope persistence (3 suites, 13 tests — PASS)
+2025-12-14T00:03:35Z | backlog | Updated: planning/sprint-132-a13b2f/backlog.yaml (add P1-QOS-018: Use qos.ttl seconds for TTL — status=done)

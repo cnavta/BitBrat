@@ -172,6 +172,10 @@ export interface ErrorEntryV1 {
   at: string; // ISO8601
 }
 
+export interface QOSV1 {
+  ttl?: number; // seconds
+}
+
 /**
  * InternalEventV2 extends the EnvelopeV1 fields at the top level (no `envelope` nesting),
  * and adds normalized message metadata along with annotations and candidate replies.
@@ -184,6 +188,7 @@ export interface InternalEventV2 extends EnvelopeV1 {
   annotations?: AnnotationV1[];
   candidates?: CandidateV1[];
   errors?: ErrorEntryV1[];
+  qos?: QOSV1;
 }
 
 // Topic/Subject constants (keep identical across drivers)

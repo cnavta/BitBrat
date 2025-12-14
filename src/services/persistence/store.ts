@@ -38,12 +38,19 @@ export class PersistenceStore {
     if (!update.correlationId) throw new Error('missing_correlationId');
     const ref = this.docRef(update.correlationId);
     const finalizedAt = update.deliveredAt || new Date().toISOString();
-    // Compute TTL = N days after deliveredAt (or now), configurable via env PERSISTENCE_TTL_DAYS (default 7)
+    // Compute TTL: prefer qos.ttl (seconds) from the event if present, otherwise use env PERSISTENCE_TTL_DAYS (default 7)
     const baseDate = new Date(update.deliveredAt || Date.now());
-    const ttlDaysEnv = process.env.PERSISTENCE_TTL_DAYS;
-    let ttlDays = parseInt(String(ttlDaysEnv ?? '7'), 10);
-    if (!isFinite(ttlDays) || ttlDays <= 0) ttlDays = 7;
-    const expireAt = new Date(baseDate.getTime() + ttlDays * 24 * 60 * 60 * 1000);
+    const ttlSecondsRaw = rawMsg?.qos?.ttl;
+    const ttlSeconds = typeof ttlSecondsRaw === 'number' && isFinite(ttlSecondsRaw) && ttlSecondsRaw > 0 ? ttlSecondsRaw : null;
+    let expireAt: Date;
+    if (ttlSeconds != null) {
+      expireAt = new Date(baseDate.getTime() + ttlSeconds * 1000);
+    } else {
+      const ttlDaysEnv = process.env.PERSISTENCE_TTL_DAYS;
+      let ttlDays = parseInt(String(ttlDaysEnv ?? '7'), 10);
+      if (!isFinite(ttlDays) || ttlDays <= 0) ttlDays = 7;
+      expireAt = new Date(baseDate.getTime() + ttlDays * 24 * 60 * 60 * 1000);
+    }
     const ttl = Timestamp.fromDate(expireAt);
     const patch: Partial<EventDocV1> = {
       status: 'FINALIZED',
