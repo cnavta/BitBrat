@@ -75,6 +75,9 @@ export interface AssemblerConfig {
   headingLevel?: 1 | 2 | 3; // default 2
   showEmptySections?: boolean; // default true
   provider?: "openai" | "google"; // rendering target for adapters (used later)
+  // P-04: Token budgeting caps (character-based)
+  maxTotalChars?: number; // hard cap across all sections (optional)
+  sectionCaps?: Partial<Record<keyof AssembledPromptSections, number>>; // per-section caps
 }
 
 export interface AssembledPromptSections {
@@ -89,4 +92,12 @@ export interface AssembledPromptSections {
 export interface AssembledPrompt {
   text: string; // concatenated sections in canonical order
   sections: AssembledPromptSections;
+  // P-04: Truncation metadata
+  meta?: {
+    truncated: boolean;
+    totalChars: number;
+    maxTotalChars?: number;
+    sectionLengths: Record<keyof AssembledPromptSections, number>;
+    truncationNotes: string[];
+  };
 }

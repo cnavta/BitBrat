@@ -12,6 +12,7 @@ backlog:
     title: Implement canonical renderer (sections + sorting + fencing)
     description: Implement assemble() rendering System Prompt → Identity → Requesting User → Constraints → Task → Input
     priority: 1
+    status: completed
     dependsOn: [P-01]
     acceptance:
       - Deterministic output order
@@ -22,6 +23,7 @@ backlog:
     title: "Provider adapters: OpenAI and Google"
     description: Map assembled sections to provider-specific fields while preserving order
     priority: 1
+    status: completed
     dependsOn: [P-02]
     acceptance:
       - OpenAI: system includes System Prompt, Identity, Requesting User, Constraints; user includes Task + Input
@@ -35,6 +37,7 @@ backlog:
     acceptance:
       - Truncation respects do-not-drop rules
       - Result includes notes on truncation decisions
+    status: completed
 
   - id: P-05
     title: Unit and adapter tests
@@ -53,6 +56,7 @@ backlog:
     acceptance:
       - "`npm pack` produces expected artifact"
       - "Type declarations emitted and consumed by a sample ts file"
+    status: completed
 
   - id: P-07
     title: Optional CLI wrapper

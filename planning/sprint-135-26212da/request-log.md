@@ -22,6 +22,63 @@
 - Backlog updates:
   - P-01 marked as in-progress
 
+## 2025-12-15T18:06:00Z
+- Action: Implement P-02 – canonical renderer
+- Interpretation: Add assemble() with ordering, sorting, empty-section handling, and fencing
+- Files added/updated:
+  - src/common/prompt-assembly/assemble.ts (new)
+  - src/common/prompt-assembly/index.ts (export assemble)
+- Commands executed:
+  - npm run build
+  - npm test
+- Results:
+  - Build succeeded; tests passed (repository-wide)
+- Backlog updates:
+  - P-02 marked as completed
+
+## 2025-12-15T18:09:00Z
+- Action: Implement P-03 – provider adapters (OpenAI, Google)
+- Interpretation: Map assembled sections to provider-specific payloads
+- Files added:
+  - src/common/prompt-assembly/adapters/openai.ts (new)
+  - src/common/prompt-assembly/adapters/google.ts (new)
+  - src/common/prompt-assembly/index.ts (export adapters)
+- Commands executed:
+  - npm run build
+  - npm test
+- Results:
+  - Build succeeded; tests passed (repository-wide)
+- Backlog updates:
+  - P-03 marked as completed
+
+## 2025-12-15T18:17:00Z
+- Action: Implement P-04 – token budgeting & truncation
+- Interpretation: Added section/total caps to AssemblerConfig; implemented truncation order and meta in assemble()
+- Files updated:
+  - src/common/prompt-assembly/types.ts (config + meta types)
+  - src/common/prompt-assembly/assemble.ts (truncation logic)
+- Commands executed:
+  - npm run build
+  - npm test
+- Results:
+  - Build succeeded; tests passed (repository-wide)
+- Backlog updates:
+  - P-04 marked as completed
+
+## 2025-12-15T18:21:00Z
+- Action: Implement P-06 – packaging for independent distribution
+- Interpretation: Enabled declarations; added exports map, files whitelist, sideEffects; verified npm pack
+- Files updated:
+  - tsconfig.json (declaration emit)
+  - package.json (exports, types, sideEffects, files)
+- Commands executed:
+  - npm run build
+  - npm pack
+- Results:
+  - Build succeeded; tarball created with dist and typings
+- Backlog updates:
+  - P-06 marked as completed
+
 ## 2025-12-15T17:58:00Z
 - Action: Implement P-01 – library skeleton and types
 - Interpretation: Add core TypeScript types and public API barrel for prompt-assembly

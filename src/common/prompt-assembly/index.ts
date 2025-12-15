@@ -16,4 +16,6 @@ export type {
   AssembledPrompt,
 } from "./types";
 
-// Note: assemble(), adapters, and additional utilities will be added in P-02/P-03.
+export { assemble } from "./assemble";
+export { openaiAdapter } from "./adapters/openai";
+export { googleAdapter } from "./adapters/google";

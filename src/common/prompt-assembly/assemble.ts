@@ -1,0 +1,267 @@
+import {
+  AssembledPrompt,
+  AssembledPromptSections,
+  AssemblerConfig,
+  Constraint,
+  PromptSpec,
+  TaskAnnotation,
+} from "./types";
+
+function heading(label: string, level: 1 | 2 | 3 = 2): string {
+  const hashes = "#".repeat(level);
+  return `${hashes} [${label}]`;
+}
+
+function normalizePriority<T extends { priority?: 1 | 2 | 3 | 4 | 5 }>(items: T[] | undefined): (T & { priority: 1 | 2 | 3 | 4 | 5 })[] {
+  return (items ?? []).map((i) => ({ ...i, priority: (i.priority ?? 3) as 1 | 2 | 3 | 4 | 5 }));
+}
+
+function sortByPriority<T extends { priority: 1 | 2 | 3 | 4 | 5 }>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.priority - b.priority);
+}
+
+function truncateText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  if (max <= 1) return "…";
+  return text.slice(0, Math.max(0, max - 1)) + "…";
+}
+
+function renderSystemPrompt(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("System Prompt", cfg.headingLevel ?? 2)];
+  if (!spec.systemPrompt) {
+    if (cfg.showEmptySections ?? true) lines.push("- None provided.");
+    return lines.join("\n");
+  }
+  const sp = spec.systemPrompt;
+  if (sp.summary) lines.push(`- ${sp.summary}`);
+  if (sp.rules && sp.rules.length) {
+    for (const r of sp.rules) lines.push(`- ${r}`);
+  }
+  if (sp.sources && sp.sources.length) {
+    lines.push(`- Sources: ${sp.sources.join(", ")}`);
+  }
+  return lines.join("\n");
+}
+
+function renderIdentity(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("Identity", cfg.headingLevel ?? 2)];
+  const id = spec.identity;
+  if (!id) {
+    if (cfg.showEmptySections ?? true) lines.push("- None provided.");
+    return lines.join("\n");
+  }
+  if (id.name) lines.push(`- Name: ${id.name}`);
+  if (id.summary) lines.push(`- ${id.summary}`);
+  if (id.traits?.length) lines.push(`- Traits: ${id.traits.join(", ")}`);
+  if (id.tone) lines.push(`- Tone: ${id.tone}`);
+  if (id.styleGuidelines?.length) lines.push(`- Style: ${id.styleGuidelines.join("; ")}`);
+  return lines.join("\n");
+}
+
+function renderRequestingUser(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("Requesting User", cfg.headingLevel ?? 2)];
+  const u = spec.requestingUser;
+  if (!u) {
+    if (cfg.showEmptySections ?? true) lines.push("- None provided.");
+    return lines.join("\n");
+  }
+  if (u.handle) lines.push(`- Handle: ${u.handle}`);
+  if (u.roles?.length) lines.push(`- Roles: [${u.roles.join(", ")}]`);
+  if (u.locale || u.timezone) lines.push(`- Locale: ${u.locale ?? "n/a"}; TZ: ${u.timezone ?? "n/a"}`);
+  if (u.tier) lines.push(`- Tier: ${u.tier}`);
+  return lines.join("\n");
+}
+
+function renderConstraints(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("Constraints", cfg.headingLevel ?? 2)];
+  const constraints = sortByPriority(normalizePriority<Constraint>(spec.constraints));
+  if (!constraints.length) {
+    if (cfg.showEmptySections ?? true) lines.push("- None provided.");
+    return lines.join("\n");
+  }
+  for (const c of constraints) {
+    lines.push(`- (${c.priority}) ${c.text}`);
+  }
+  return lines.join("\n");
+}
+
+function renderTask(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("Task", cfg.headingLevel ?? 2)];
+  const tasks = sortByPriority(normalizePriority<TaskAnnotation>(spec.task));
+  for (const t of tasks) {
+    lines.push(`- (${t.priority}) ${t.instruction}`);
+  }
+  return lines.join("\n");
+}
+
+function fenceIfMultiline(text: string): string {
+  if (!text.includes("\n")) return text;
+  return ["~~~text", text, "~~~"].join("\n");
+}
+
+function renderInput(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("Input", cfg.headingLevel ?? 2)];
+  const payload = spec.input;
+  const uq = fenceIfMultiline(payload.userQuery);
+  lines.push(uq);
+  if (payload.context) {
+    lines.push("");
+    lines.push(fenceIfMultiline(payload.context));
+  }
+  return lines.join("\n");
+}
+
+export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): AssembledPrompt {
+  if (!spec || !spec.input || !spec.task || spec.task.length === 0) {
+    throw new Error("assemble(): PromptSpec requires at least one task and an input payload");
+  }
+  const cfg: AssemblerConfig = {
+    headingLevel: 2,
+    showEmptySections: true,
+    ...config,
+  };
+
+  // Prepare working copies for truncation logic (P-04)
+  const truncationNotes: string[] = [];
+  const workingSpec: PromptSpec = {
+    ...spec,
+    constraints: sortByPriority(normalizePriority<Constraint>(spec.constraints)),
+    task: sortByPriority(normalizePriority<TaskAnnotation>(spec.task)),
+    input: { ...spec.input },
+  };
+
+  // Apply per-section caps first where feasible
+  const caps = cfg.sectionCaps ?? {};
+  // Input: Prefer trimming context first
+  if (caps.input) {
+    const header = heading("Input", cfg.headingLevel ?? 2) + "\n";
+    const uq = workingSpec.input.userQuery;
+    const ctx = workingSpec.input.context ?? "";
+    const base = header.length + uq.length + (ctx ? 2 : 0); // include extra newline when context exists
+    if (header.length + uq.length + (ctx ? 2 + ctx.length : 0) > caps.input) {
+      if (ctx) {
+        const maxCtx = Math.max(0, caps.input - base);
+        const newCtx = truncateText(ctx, maxCtx);
+        if (newCtx.length < ctx.length) truncationNotes.push("Input.context truncated to meet section cap.");
+        workingSpec.input.context = newCtx;
+      } else {
+        // As last resort for section cap, trim userQuery tail
+        const maxUq = Math.max(0, caps.input - header.length);
+        const newUq = truncateText(uq, maxUq);
+        if (newUq.length < uq.length) truncationNotes.push("Input.userQuery truncated to meet section cap.");
+        workingSpec.input.userQuery = newUq;
+      }
+    }
+  }
+
+  // Task section cap: drop lowest-priority tasks until under cap
+  if (caps.task) {
+    // Rough estimate by rendering and adjusting
+    let taskText = renderTask(workingSpec, cfg);
+    while (taskText.length > caps.task && workingSpec.task.length > 1) {
+      const removed = workingSpec.task.pop(); // remove lowest-priority (last due to sorting)
+      if (removed) truncationNotes.push(`Dropped task(id:${removed.id ?? "?"}, p:${removed.priority ?? 3}) to meet section cap.`);
+      taskText = renderTask(workingSpec, cfg);
+    }
+  }
+
+  // Constraints section cap: drop lowest-priority constraints until under cap
+  if (caps.constraints) {
+    let consText = renderConstraints(workingSpec, cfg);
+    while (consText.length > caps.constraints && (workingSpec.constraints?.length ?? 0) > 0) {
+      workingSpec.constraints = workingSpec.constraints?.slice(0, -1);
+      truncationNotes.push("Dropped lowest-priority constraint to meet section cap.");
+      consText = renderConstraints(workingSpec, cfg);
+    }
+  }
+
+  // Render sections after section-level adjustments
+  let sections: AssembledPromptSections = {
+    systemPrompt: renderSystemPrompt(workingSpec, cfg),
+    identity: renderIdentity(workingSpec, cfg),
+    requestingUser: renderRequestingUser(workingSpec, cfg),
+    constraints: renderConstraints(workingSpec, cfg),
+    task: renderTask(workingSpec, cfg),
+    input: renderInput(workingSpec, cfg),
+  };
+
+  // Compute totals
+  const sectionLengths = {
+    systemPrompt: sections.systemPrompt.length,
+    identity: sections.identity.length,
+    requestingUser: sections.requestingUser.length,
+    constraints: sections.constraints.length,
+    task: sections.task.length,
+    input: sections.input.length,
+  } as Record<keyof AssembledPromptSections, number>;
+  const joiners = 5 * 2; // five double newlines between six sections => length of joiners is approximate (10 chars)
+  let totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+
+  // Apply maxTotalChars by trimming in the defined order
+  if (cfg.maxTotalChars && totalChars > cfg.maxTotalChars) {
+    // 1) Trim Input.context entirely before touching anything else
+    if (workingSpec.input.context) {
+      workingSpec.input = { ...workingSpec.input, context: "" };
+      truncationNotes.push("Removed Input.context to satisfy total cap.");
+      sections.input = renderInput(workingSpec, cfg);
+      sectionLengths.input = sections.input.length;
+      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+    }
+
+    // 2) Drop lowest-priority tasks
+    while (cfg.maxTotalChars && totalChars > cfg.maxTotalChars && workingSpec.task.length > 1) {
+      const removed = workingSpec.task.pop();
+      if (removed) truncationNotes.push(`Dropped task(id:${removed.id ?? "?"}, p:${removed.priority ?? 3}) to satisfy total cap.`);
+      sections.task = renderTask(workingSpec, cfg);
+      sectionLengths.task = sections.task.length;
+      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+    }
+
+    // 3) Drop lowest-priority constraints
+    while (cfg.maxTotalChars && totalChars > cfg.maxTotalChars && (workingSpec.constraints?.length ?? 0) > 0) {
+      workingSpec.constraints = workingSpec.constraints?.slice(0, -1);
+      truncationNotes.push("Dropped lowest-priority constraint to satisfy total cap.");
+      sections.constraints = renderConstraints(workingSpec, cfg);
+      sectionLengths.constraints = sections.constraints.length;
+      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+    }
+
+    // Never drop System Prompt; preserve Identity if provided (we already never touch them)
+    // As last resort, trim the tail of Input.userQuery
+    if (cfg.maxTotalChars && totalChars > cfg.maxTotalChars) {
+      const header = heading("Input", cfg.headingLevel ?? 2) + "\n";
+      // reconstruct input body without context (already removed if needed)
+      const uq = workingSpec.input.userQuery;
+      const allowed = Math.max(0, cfg.maxTotalChars - (
+        sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + ("\n\n".length * 5) + header.length
+      ));
+      const newUq = truncateText(uq, allowed);
+      if (newUq.length < uq.length) truncationNotes.push("Input.userQuery truncated to satisfy total cap.");
+      workingSpec.input.userQuery = newUq;
+      sections.input = renderInput(workingSpec, cfg);
+      sectionLengths.input = sections.input.length;
+      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+    }
+  }
+
+  const text = [
+    sections.systemPrompt,
+    sections.identity,
+    sections.requestingUser,
+    sections.constraints,
+    sections.task,
+    sections.input,
+  ].join("\n\n");
+
+  const meta = {
+    truncated: truncationNotes.length > 0,
+    totalChars,
+    maxTotalChars: cfg.maxTotalChars,
+    sectionLengths,
+    truncationNotes,
+  } as AssembledPrompt["meta"];
+
+  return { text, sections, meta };
+}
+
+export type { PromptSpec };
