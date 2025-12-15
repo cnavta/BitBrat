@@ -21,3 +21,17 @@
   - planning/sprint-135-26212da/retro.md (placeholder)
 - Backlog updates:
   - P-01 marked as in-progress
+
+## 2025-12-15T17:58:00Z
+- Action: Implement P-01 – library skeleton and types
+- Interpretation: Add core TypeScript types and public API barrel for prompt-assembly
+- Files added:
+  - src/common/prompt-assembly/types.ts
+  - src/common/prompt-assembly/index.ts
+- Commands executed:
+  - npm run build
+  - npm test
+- Results:
+  - Build succeeded; tests passed (repository-wide)
+- Backlog updates:
+  - P-01 marked as completed
