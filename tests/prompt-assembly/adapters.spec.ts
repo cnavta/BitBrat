@@ -37,12 +37,15 @@ describe("provider adapters", () => {
   it("maps to Google systemInstruction + contents", () => {
     const assembled = assemble(spec, cfg);
     const payload = googleAdapter(assembled);
-    expect(payload.systemInstruction).toContain("[System Prompt]");
-    expect(payload.systemInstruction).toContain("[Constraints]");
+    const sys = payload.systemInstruction as any;
+    const sysText = typeof sys === "string" ? sys : sys?.parts?.[0]?.text ?? "";
+    expect(sysText).toContain("[System Prompt]");
+    expect(sysText).toContain("[Constraints]");
     expect(Array.isArray(payload.contents)).toBe(true);
-    const content = payload.contents[0];
-    expect(content.role).toBe("user");
-    expect(content.parts[0].text).toContain("[Task]");
-    expect(content.parts[0].text).toContain("[Input]");
+    const content = payload.contents?.[0];
+    expect(content?.role).toBe("user");
+    const text = content?.parts?.[0]?.text ?? "";
+    expect(text).toContain("[Task]");
+    expect(text).toContain("[Input]");
   });
 });

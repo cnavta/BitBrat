@@ -22,7 +22,7 @@ describe("assemble() – truncation and caps", () => {
       ],
       input: { userQuery: "Hello" },
     };
-    const { sections, meta } = assemble(spec, { sectionCaps: { task: 40 } });
+    const { sections, meta } = assemble(spec, { sectionCaps: { task: 20 } });
     expect(sections.task).toContain("High");
     // Either trimmed down or the low-priority entry removed
     expect(meta?.truncated).toBe(true);
