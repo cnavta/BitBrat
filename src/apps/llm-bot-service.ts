@@ -44,6 +44,25 @@ export function computeIdempotency(prompt: string, correlationId?: string): stri
 /** Append assistant text candidate to event */
 export function appendAssistantCandidate(evt: InternalEventV2, text: string, model?: string): void {
   if (!Array.isArray(evt.candidates)) evt.candidates = [];
+  const unwrapped = (() => {
+    let t = String(text ?? '').trim();
+    if (!t) return t;
+    const pairs: Array<[string, string]> = [["\"", "\""], ["'", "'"], ["“", "”"], ["‘", "’"], ["`", "`"]];
+    let changed = true;
+    let guard = 0;
+    while (changed && guard < 2) {
+      changed = false;
+      for (const [o, c] of pairs) {
+        if (t.length >= 2 && t.startsWith(o) && t.endsWith(c)) {
+          t = t.slice(o.length, t.length - c.length).trim();
+          changed = true;
+          break;
+        }
+      }
+      guard++;
+    }
+    return t;
+  })();
   const candidate: CandidateV1 = {
     id: 'cand-' + (evt.correlationId || Date.now().toString(36)),
     kind: 'text',
@@ -51,7 +70,7 @@ export function appendAssistantCandidate(evt: InternalEventV2, text: string, mod
     createdAt: new Date().toISOString(),
     status: 'proposed',
     priority: 10,
-    text,
+    text: unwrapped,
     reason: model ? `model:${model}` : 'llm-bot.basic',
   };
   evt.candidates.push(candidate);

@@ -107,6 +107,30 @@ function flattenMessagesForModel(messages: ChatMessage[] = []): string {
   return messages.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
 }
 
+/**
+ * Remove a single pair of wrapping quotes from a string if present.
+ * Supports common pairs: '""', "''", '“”', '‘’', and backticks. Trims whitespace at the ends.
+ */
+function unwrapQuoted(input: string): string {
+  let t = String(input ?? '').trim();
+  if (!t) return t;
+  const pairs: Array<[string, string]> = [["\"", "\""], ["'", "'"], ["“", "”"], ["‘", "’"], ["`", "`"]];
+  let changed = true;
+  let guard = 0;
+  while (changed && guard < 2) { // unwrap at most twice to handle cases like "\"hi\""
+    changed = false;
+    for (const [o, c] of pairs) {
+      if (t.length >= 2 && t.startsWith(o) && t.endsWith(c)) {
+        t = t.slice(o.length, t.length - c.length).trim();
+        changed = true;
+        break;
+      }
+    }
+    guard++;
+  }
+  return t;
+}
+
 async function callOpenAI(apiKey: string, model: string, prompt: string, timeoutMs?: number): Promise<string> {
   const client = new OpenAI({ apiKey });
   const controller = timeoutMs ? new AbortController() : undefined;
@@ -370,17 +394,18 @@ export async function processEvent(
           const llmText = await fn(model, input, isFinite(timeoutMs) ? timeoutMs : undefined);
           const durationMs = Date.now() - startedAt;
           const trimmed = String(llmText || '').trim();
+          const unwrapped = unwrapQuoted(trimmed);
           logger?.debug?.('openai.response', {
             correlationId: corr,
             model,
             durationMs,
-            outputChars: trimmed.length,
-            outputPreview: preview(trimmed),
+            outputChars: unwrapped.length,
+            outputPreview: preview(unwrapped),
           });
-          const out: Partial<typeof LlmState.State> = { llmText: trimmed } as any;
+          const out: Partial<typeof LlmState.State> = { llmText: unwrapped } as any;
           // Only append assistant message if non-empty to avoid blank turns in memory
-          if (trimmed) {
-            const assistantMsg = toAssistant(trimmed);
+          if (unwrapped) {
+            const assistantMsg = toAssistant(unwrapped);
             (out as any).messages = [...msgs, assistantMsg];
             // Persist assistant turn to instance store
             try {

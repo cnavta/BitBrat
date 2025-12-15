@@ -45,4 +45,20 @@ describe('egress selection', () => {
     const legacy: any = { payload: { text: 'legacy text' } };
     expect(extractEgressTextFromEvent(legacy)).toBe('legacy text');
   });
+
+  test('extractEgressTextFromEvent unwraps surrounding quotes from candidate text', () => {
+    const evt: any = {
+      candidates: [
+        { id: 'q', kind: 'text', source: 'svc', createdAt: '2025-01-01T00:00:00Z', status: 'proposed', priority: 1, text: '"Hello there"' },
+      ],
+    };
+    expect(extractEgressTextFromEvent(evt)).toBe('Hello there');
+  });
+
+  test('extractEgressTextFromEvent unwraps quotes for legacy payloads', () => {
+    const legacy1: any = { message: { rawPlatformPayload: { text: '"Hi Twitch"' } } };
+    expect(extractEgressTextFromEvent(legacy1)).toBe('Hi Twitch');
+    const legacy2: any = { payload: { text: '“Quoted smart”' } };
+    expect(extractEgressTextFromEvent(legacy2)).toBe('Quoted smart');
+  });
 });

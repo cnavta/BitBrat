@@ -6,6 +6,27 @@ function toDate(value?: string): number {
   return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
 }
 
+function unwrapQuoted(input: string | undefined | null): string | undefined {
+  if (input == null) return input as any;
+  let t = String(input).trim();
+  if (!t) return t;
+  const pairs: Array<[string, string]> = [["\"", "\""], ["'", "'"], ["“", "”"], ["‘", "’"], ["`", "`"]];
+  let changed = true;
+  let guard = 0;
+  while (changed && guard < 2) {
+    changed = false;
+    for (const [o, c] of pairs) {
+      if (t.length >= 2 && t.startsWith(o) && t.endsWith(c)) {
+        t = t.slice(o.length, t.length - c.length).trim();
+        changed = true;
+        break;
+      }
+    }
+    guard++;
+  }
+  return t;
+}
+
 export function selectBestCandidate(candidates: CandidateV1[] | undefined | null): CandidateV1 | null {
   if (!Array.isArray(candidates) || candidates.length === 0) return null;
   const sorted = [...candidates].sort((a, b) => {
@@ -30,14 +51,14 @@ export function extractEgressTextFromEvent(evt: InternalEventV2 | any): string |
     // Prefer V2 candidates when present
     const candidates = (evt && evt.candidates) as CandidateV1[] | undefined;
     const best = selectBestCandidate(candidates);
-    const text = best?.text;
+    const text = unwrapQuoted(best?.text);
     if (typeof text === 'string' && text.trim()) return text.trim();
 
     // Fallback to potential legacy shapes inside raw platform payload
-    const legacy1 = evt?.message?.rawPlatformPayload?.chat?.text ?? evt?.message?.rawPlatformPayload?.text;
+    const legacy1 = unwrapQuoted(evt?.message?.rawPlatformPayload?.chat?.text ?? evt?.message?.rawPlatformPayload?.text);
     if (typeof legacy1 === 'string' && legacy1.trim()) return legacy1.trim();
     // Fallback to pre-V2 legacy event shapes that carried payload at root
-    const legacy2 = evt?.payload?.chat?.text ?? evt?.payload?.text;
+    const legacy2 = unwrapQuoted(evt?.payload?.chat?.text ?? evt?.payload?.text);
     if (typeof legacy2 === 'string' && legacy2.trim()) return legacy2.trim();
     return null;
   } catch {
