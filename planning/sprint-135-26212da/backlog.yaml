@@ -3,6 +3,7 @@ backlog:
     title: Create library skeleton and types
     description: Set up `src/common/prompt-assembly/` and define all public types per spec
     priority: 1
+    status: in-progress
     acceptance:
       - Types compile and export from package index
       - Public API surfaces only intended types
