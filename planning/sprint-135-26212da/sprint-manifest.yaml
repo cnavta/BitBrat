@@ -3,9 +3,9 @@ title: "Prompt Assembly Library – Implementation"
 goal: "Implement a reusable, independently distributable prompt assembly library with System Prompt layer and provider adapters, then integrate guidance into BitBrat Platform."
 owner: "@Lead-Implementor"
 createdAt: "2025-12-15T15:55:00Z"
-status: "in-progress"
+status: "complete"
 links:
-  pr: "" # to be filled after publication
+  pr: "https://github.com/cnavta/BitBrat/pull/38"
   branch: "feature/sprint-135-26212da-prompt-assembly"
 notes: |
   - Precedence: architecture.yaml > AGENTS.md > everything else.

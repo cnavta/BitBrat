@@ -3,7 +3,7 @@
 ## Abstract
 Standardize how prompts are constructed across the BitBrat Platform so that every LLM request follows the same, explicit structure:
 
-Identity → Requesting User → Constraints → Task → Input
+System Prompt → Identity → Requesting User → Constraints → Task → Input
 
 This document specifies the canonical order, section formatting, validation rules, provider mappings (OpenAI and Google), and a thin TypeScript assembly layer that enforces the standard without vendor lock‑in.
 
@@ -20,23 +20,27 @@ This document specifies the canonical order, section formatting, validation rule
 ## Canonical Structure
 Sections MUST appear in the following order. Sections are OPTIONAL except where noted. If omitted, the assembler MUST still render explicit section boundaries with an empty body unless configured otherwise.
 
-1) Identity (aka “Personality”) — optional but preferred
+1) System Prompt — optional but preferred
+- Purpose: Immutable laws of the system and safety/tone defaults. Acts as the highest‑priority, non‑negotiable guardrails (e.g., precedence order, safety rules, architectural constraints, tone defaults).
+- Examples: “Follow architecture.yaml precedence”, “Adhere to AGENTS.md immutable laws”, “Never output secrets”, “Professional tone unless otherwise specified”.
+
+2) Identity (aka “Personality”) — optional but preferred
 - Purpose: Prime the model with persona, role, tone, and operating stance.
 - Examples: “You are a Staff Engineer…”, traits, tone, style guides.
 
-2) Requesting User — optional
+3) Requesting User — optional
 - Purpose: Provide minimal, safe context about the human/agent requesting the action (role, tier, locale), never secrets.
 - Examples: displayName, roles, locale, timezone, platform/tier.
 
-3) Constraints — optional
+4) Constraints — optional
 - Purpose: Non‑negotiable rules/guardrails; formatting constraints; safety and policy notes; architectural alignment (e.g., follow architecture.yaml).
 - Model guidance: Treat as hard constraints that qualify all later tasks.
 
-4) Task — required
+5) Task — required
 - Purpose: Prioritized Prompt Annotations (PPA): ordered instructions, acceptance criteria, and output formatting.
 - Model guidance: Execute tasks in priority order; if conflicts, the higher priority wins.
 
-5) Input — required
+6) Input — required
 - Purpose: The raw user query with any attached content.
 - Model guidance: Treat as the immediate query; do not override constraints/tasks.
 
@@ -47,6 +51,7 @@ To maximize clarity to the LLM while remaining provider‑agnostic, use dual sig
 
 Example section header pattern (H2 by default):
 
+## [System Prompt]
 ## [Identity]
 ## [Requesting User]
 ## [Constraints]
@@ -58,7 +63,7 @@ Within each section, prefer bullet points and short declarative sentences. Wrap 
 ## Rendering Rules
 - The assembler MUST always render sections in the canonical order, even if some are empty.
 - The assembler MUST sort Constraints and Task annotations by ascending priority (1 = highest).
-- When no Identity is provided, render the [Identity] header with a note: “None provided.” unless configured to hide empty sections.
+- When no System Prompt or Identity is provided, render their headers with a note: “None provided.” unless configured to hide empty sections.
 - The assembler MUST escape or fence user‑provided text in Input to avoid tag collisions.
 - The assembler SHOULD support toggling section visibility (e.g., hide empty Requesting User) via config, but order integrity is non‑negotiable.
 
@@ -67,6 +72,12 @@ A minimal library to live under src/common/prompt-assembly/ (implementation to f
 
 ### Core Types (conceptual)
 ~~~ts
+export interface SystemPrompt {
+  summary?: string;          // 1–2 lines describing the immutable rule set
+  rules: string[];           // e.g., ["Follow architecture.yaml precedence", "Never leak secrets"]
+  sources?: string[];        // e.g., ["architecture.yaml", "AGENTS.md v2.4"]
+}
+
 export interface Identity {
   personaId?: string;
   name?: string;
@@ -117,6 +128,7 @@ export interface InputPayload {
 }
 
 export interface PromptSpec {
+  systemPrompt?: SystemPrompt;
   identity?: Identity;
   requestingUser?: RequestingUser;
   constraints?: Constraint[];
@@ -133,6 +145,7 @@ export interface AssemblerConfig {
 export interface AssembledPrompt {
   text: string; // concatenated sections in canonical order
   sections: {
+    systemPrompt: string;
     identity: string;
     requestingUser: string;
     constraints: string;
@@ -145,7 +158,7 @@ export interface AssembledPrompt {
 ### Assembly Algorithm (summary)
 1. Normalize inputs; default priorities to 3.
 2. Sort constraints and tasks by ascending priority.
-3. Render each section using a shared heading template and optional explicit [Section] tags.
+3. Render each section (including [System Prompt]) using a shared heading template and optional explicit [Section] tags.
 4. Fence Input (~~~text) when multi‑line.
 5. Join sections with double newlines.
 
@@ -153,11 +166,11 @@ export interface AssembledPrompt {
 The assembler produces a provider‑neutral text plus provider‑specific mappings to preserve the global order:
 
 - OpenAI (Responses/Chat Completions)
-  - system: [Identity] + [Requesting User] + [Constraints]
+  - system: [System Prompt] + [Identity] + [Requesting User] + [Constraints]
   - user: [Task] + [Input]
 
 - Google (Gemini / Vertex AI)
-  - systemInstruction: [Identity] + [Requesting User] + [Constraints]
+  - systemInstruction: [System Prompt] + [Identity] + [Requesting User] + [Constraints]
   - contents (user role): [Task] + [Input]
 
 This mapping preserves the canonical order across provider semantics while leveraging their system‑message features.
@@ -173,16 +186,22 @@ This mapping preserves the canonical order across provider semantics while lever
 - Include a simple length guard in the assembler: 
   - maxChars per section (configurable)
   - hard cap on total characters
-- If truncation is required, prefer trimming Input context first, then lower‑priority tasks, then lower‑priority constraints; never drop Identity if provided.
+- If truncation is required, prefer trimming Input context first, then lower‑priority tasks, then lower‑priority constraints; never drop System Prompt, and never drop Identity if provided.
 - Future work: pluggable token estimators.
 
 ## Security and Privacy
 - Do not include secrets in any section.
+- System Prompt should encode immutable rules and safety posture; it MUST NOT include secrets or environment‑specific keys.
 - The Requesting User section should avoid PII beyond what’s necessary (handle, displayName, roles). The current sprint has no additional redaction requirements.
 
 ## Examples
 ### Example 1 – Architecture Persona with Structured Output
 ~~~
+## [System Prompt]
+- (1) Precedence: architecture.yaml > AGENTS.md > everything else.
+- (2) Safety: Do not reveal secrets or internal tokens. Refuse requests that violate policy.
+- (3) Defaults: Professional tone; concise; use Markdown with code blocks where relevant.
+
 ## [Identity]
 - Role: Staff Engineer
 - Tone: Professional, precise
@@ -212,7 +231,34 @@ We are standardizing our prompt pipeline to Identity → Constraints → Task �
 ## Integration Guidance
 - Primary integration targets: src/apps/llm-bot-service.ts and src/apps/command-processor-service.ts
 - Use the assembler to build provider payloads; do not splice raw strings in services.
-- Configure Identity and system‑level Constraints via environment/config (e.g., LLM_BOT_SYSTEM_PROMPT, architecture.yaml references).
+- Configure System Prompt, Identity, and system‑level Constraints via environment/config (e.g., LLM_BOT_SYSTEM_PROMPT, and references to architecture.yaml and AGENTS.md).
+
+## Reusability and Distribution
+- Packaging: Implement the assembler as a standalone, framework‑agnostic TypeScript package (e.g., `@bitbrat/prompt-assembly`). Publishable to an internal registry or npm.
+- API Surface: Keep the public API limited to core types (`SystemPrompt`, `Identity`, `RequestingUser`, `Constraint`, `TaskAnnotation`, `InputPayload`, `PromptSpec`, `AssemblerConfig`, `AssembledPrompt`) and `assemble()` plus provider adapters.
+- Zero Runtime Dependencies: Prefer zero or minimal dependencies. If needed (e.g., schema validation), make them optional/peer to avoid lock‑in.
+- Tree‑Shakable: Use ES modules and export per‑adapter entry points (e.g., `openaiAdapter`, `googleAdapter`) so consumers only import what they need.
+- Config Injection: Do not hard‑code BitBrat paths or policies. Accept `systemPrompt`/constraints via inputs; reference `architecture.yaml` and `AGENTS.md` only in examples and docs.
+- Versioning & SemVer: Use semantic versioning and changelogs to enable safe adoption across services.
+- Testing: Ship unit tests with provider mapping fixtures; do not require BitBrat repositories to run.
+- Typings: First‑class TypeScript typings; emit `.d.ts` in the package.
+- CLI (optional): Provide a thin CLI wrapper (e.g., `npx prompt-assembly render --spec spec.json`) that delegates to the library for quick, external use.
+
+## Migration Guide: 5 → 6 Sections
+- Previous canonical order: Identity → Requesting User → Constraints → Task → Input
+- New canonical order: System Prompt → Identity → Requesting User → Constraints → Task → Input
+- Actions for teams:
+  - Move immutable rules, safety defaults, and precedence notes into [System Prompt]. Keep policy/formatting constraints in [Constraints].
+  - Update provider payload mappers to include [System Prompt] within `system`/`systemInstruction` alongside [Identity], [Requesting User], and [Constraints].
+  - Reconfirm truncation expectations: never drop [System Prompt]; preserve [Identity] when provided; prefer trimming [Input.context] first.
+  - Validate updated prompts against examples and adapter tests.
+
+## Package Usage (Internal Monorepo)
+- Import via subpath export:
+  - `import { assemble, openaiAdapter, googleAdapter } from "bitbrat-platform/prompt-assembly"`
+- Build and pack for independent distribution (dry-run):
+  - `npm run build && npm pack`
+- Types are emitted and tree-shakable exports enable minimal bundles.
 
 ## Roadmap
 - v1 (this sprint): Documentation and plan; no code changes.

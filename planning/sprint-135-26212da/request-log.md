@@ -79,6 +79,53 @@
 - Backlog updates:
   - P-06 marked as completed
 
+## 2025-12-15T18:33:00Z
+- Action: Implement P-05 – add unit tests for assembly, adapters, truncation
+- Interpretation: New Jest specs validating ordering, fencing, adapter partitioning, and truncation flow
+- Files added:
+  - tests/prompt-assembly/assemble.spec.ts
+  - tests/prompt-assembly/adapters.spec.ts
+  - tests/prompt-assembly/truncation.spec.ts
+- Commands executed:
+  - npm run build
+  - npm test
+- Results:
+  - All tests passed (repo-wide). 148 suites passed, 2 skipped.
+- Backlog updates:
+  - P-05 marked as completed
+
+## 2025-12-15T18:40:00Z
+- Action: Implement P-08/P-09 – docs & integration guidance
+- Interpretation: Updated technical architecture with Migration Guide (5→6) and Package Usage; tests serve as compilation examples
+- Files updated:
+  - documentation/technical-architecture/prompt-assembly-v1.md (Migration Guide & Package Usage sections)
+- Backlog updates:
+  - P-08 marked as completed
+  - P-09 marked as completed
+
+## 2025-12-15T18:48:00Z
+- Action: Run sprint validation (P-10)
+- Interpretation: Executed planning/sprint-135-26212da/validate_deliverable.sh
+- Commands executed:
+  - bash planning/sprint-135-26212da/validate_deliverable.sh
+- Results:
+  - npm ci, build, tests: succeeded
+  - local up/down: executed (no-op)
+  - cloud dry-run: succeeded
+- Backlog updates:
+  - P-10 marked as completed
+
+## 2025-12-15T18:52:00Z
+- Action: Publish feature branch and create PR
+- Interpretation: Pushed branch and created GitHub PR via gh CLI
+- Commands executed:
+  - git push --set-upstream origin feature/sprint-135-26212da-prompt-assembly
+  - gh pr create --title "Sprint sprint-135-26212da Deliverables – Prompt Assembly" --base main --head feature/sprint-135-26212da-prompt-assembly
+- Results:
+  - PR created: https://github.com/cnavta/BitBrat/pull/38
+- Artifacts updated:
+  - planning/sprint-135-26212da/publication.yaml (status: created; pr_url set)
+
 ## 2025-12-15T17:58:00Z
 - Action: Implement P-01 – library skeleton and types
 - Interpretation: Add core TypeScript types and public API barrel for prompt-assembly

@@ -47,6 +47,7 @@ backlog:
     acceptance:
       - All tests pass locally and in CI
       - Golden outputs verified for adapters
+    status: completed
 
   - id: P-06
     title: Packaging for independent distribution
@@ -73,6 +74,7 @@ backlog:
     dependsOn: [P-02, P-03]
     acceptance:
       - Docs published in repo and referenced from technical architecture
+    status: completed
 
   - id: P-09
     title: Integration guidance and sample
@@ -81,6 +83,7 @@ backlog:
     dependsOn: [P-03]
     acceptance:
       - Example compiles against package and runs a sample assembly
+    status: completed
 
   - id: P-10
     title: CI validation & publish dry-run
@@ -90,3 +93,4 @@ backlog:
     acceptance:
       - CI passes
       - Dry-run artifact validated
+    status: completed
