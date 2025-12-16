@@ -1,0 +1,97 @@
+backlog:
+  - id: P-01
+    title: Create library skeleton and types
+    description: Set up `src/common/prompt-assembly/` and define all public types per spec
+    priority: 1
+    status: complete
+    acceptance:
+      - Types compile and export from package index
+      - Public API surfaces only intended types
+
+  - id: P-02
+    title: Implement canonical renderer (sections + sorting + fencing)
+    description: Implement assemble() rendering System Prompt → Identity → Requesting User → Constraints → Task → Input
+    priority: 1
+    status: not-started
+    dependsOn: [P-01]
+    acceptance:
+      - Deterministic output order
+      - Empty section notes rendered when configured
+      - Constraints and tasks sorted asc by priority
+
+  - id: P-03
+    title: "Provider adapters: OpenAI and Google"
+    description: Map assembled sections to provider-specific fields while preserving order
+    priority: 1
+    status: not-started
+    dependsOn: [P-02]
+    acceptance:
+      - OpenAI: system includes System Prompt, Identity, Requesting User, Constraints; user includes Task + Input
+      - Google: systemInstruction includes System Prompt, Identity, Requesting User, Constraints; contents(user) includes Task + Input
+
+  - id: P-04
+    title: Token budgeting and truncation strategy
+    description: Implement configurable caps and truncation order with metadata
+    priority: 2
+    status: not-started
+    dependsOn: [P-02]
+    acceptance:
+      - Truncation respects do-not-drop rules
+      - Result includes notes on truncation decisions
+
+  - id: P-05
+    title: Unit and adapter tests
+    description: Jest tests covering assembly, adapters, and truncation
+    priority: 1
+    status: not-started
+    dependsOn: [P-03, P-04]
+    acceptance:
+      - All tests pass locally and in CI
+      - Golden outputs verified for adapters
+
+  - id: P-06
+    title: Packaging for independent distribution
+    description: Configure package.json, exports, typings; zero/minimal deps; tree-shakable
+    priority: 1
+    status: not-started
+    dependsOn: [P-01, P-02, P-03]
+    acceptance:
+      - "`npm pack` produces expected artifact"
+      - "Type declarations emitted and consumed by a sample ts file"
+
+  - id: P-07
+    title: Optional CLI wrapper
+    description: Thin CLI to render from a JSON spec, delegating to the library
+    priority: 3
+    status: not-started
+    dependsOn: [P-02]
+    acceptance:
+      - CLI prints assembled text and supports provider selection
+
+  - id: P-08
+    title: Documentation and migration notes
+    description: README usage, examples, and 5→6 section migration guide
+    priority: 2
+    status: not-started
+    dependsOn: [P-02, P-03]
+    acceptance:
+      - Docs published in repo and referenced from technical architecture
+
+  - id: P-09
+    title: Integration guidance and sample
+    description: Show integration snippet for llm-bot-service and command-processor-service
+    priority: 2
+    status: not-started
+    dependsOn: [P-03]
+    acceptance:
+      - Example compiles against package and runs a sample assembly
+
+  - id: P-10
+    title: CI validation & publish dry-run
+    description: Ensure validate_deliverable.sh builds and tests; perform npm publish dry-run
+    priority: 2
+    status: not-started
+    dependsOn: [P-05, P-06]
+    acceptance:
+      - CI passes
+      - Dry-run artifact validated

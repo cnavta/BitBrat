@@ -6,6 +6,9 @@ import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './inst
 import { resolvePersonalityParts, composeSystemPrompt, type ComposeMode } from './personality-resolver';
 import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
+import { assemble } from '../../common/prompt-assembly/assemble';
+import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
+import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser, AssemblerConfig } from '../../common/prompt-assembly/types';
 import { metrics,
   METRIC_PERSONALITIES_RESOLVED,
   METRIC_PERSONALITIES_FAILED,
@@ -103,8 +106,16 @@ function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
   return combined.trim() || undefined;
 }
 
-function flattenMessagesForModel(messages: ChatMessage[] = []): string {
-  return messages.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
+function formatHistoryForContext(messages: ChatMessage[] = []): string | undefined {
+  // Exclude leading system and empty lines; oldest to newest
+  const nonSystem = (messages || []).filter((m) => m.role !== 'system');
+  if (nonSystem.length === 0) return undefined;
+  const body = nonSystem
+    .map((m) => `(${m.role}) ${m.content}`)
+    .join('\n');
+  const header = 'Conversation History (oldest to newest):';
+  const fenced = `~~~text\n${header}\n${body}\n~~~`;
+  return fenced;
 }
 
 /**
@@ -183,6 +194,9 @@ export async function processEvent(
       combinedPrompt: Annotation<string | undefined>(),
       messages: Annotation<ChatMessage[] | undefined>(),
       llmText: Annotation<string | undefined>(),
+      promptSpec: Annotation<PromptSpec | undefined>(),
+      systemText: Annotation<string | undefined>(),
+      userTurns: Annotation<string[] | undefined>(),
     });
 
     const graph = new StateGraph(LlmState)
@@ -310,6 +324,7 @@ export async function processEvent(
           messages = [{ role: 'system', content: finalSystem.trim(), createdAt: new Date().toISOString() }, ...messages];
         }
 
+        let userTurns: string[] = [];
         if (combinedPrompt) {
           // Build one HumanMessage from the base event message (if present),
           // then one per prompt annotation (sorted) for better trimming behavior
@@ -334,6 +349,9 @@ export async function processEvent(
             if (!(baseText && t === baseText)) incoming.push(toHuman(t));
           }
 
+          // Capture individual user turns for legacy-marked input formatting
+          userTurns = incoming.filter((m) => m.role === 'user').map((m) => m.content);
+
           const { messages: reduced, trimmedByChars, trimmedByCount } = applyMemoryReducer(messages, incoming, {
             maxMessages: isFinite(maxMessages) ? maxMessages : 8,
             maxChars: isFinite(maxChars) ? maxChars : 8000,
@@ -357,7 +375,54 @@ export async function processEvent(
           }
         }
 
-        return { combinedPrompt, messages };
+        // Build PromptSpec (LLM-01) from current event + personalities + memory
+        const baseText = (s.event as any)?.message?.text ? String((s.event as any).message.text).trim() : '';
+        // Map annotations to TaskAnnotation[] (default priority=3; sorted earlier by createdAt)
+        const taskAnns: PATask[] = (() => {
+          const promptAnns = (anns as any[])?.filter((a) => a?.kind === 'prompt' && (a.value || a.payload?.text)) || [];
+          const out: PATask[] = [];
+          for (const p of promptAnns) {
+            const t = String(p.value || p.payload?.text || '').trim();
+            if (!t) continue;
+            out.push({ id: p.id, priority: 3, instruction: t, required: true });
+          }
+          return out;
+        })();
+
+        // RequestingUser mapping (best-effort)
+        const ru: PARequestingUser | undefined = (() => {
+          const u = (s.event as any)?.user || {};
+          const anyRoles = Array.isArray((u as any).roles) ? (u as any).roles : undefined;
+          const obj: PARequestingUser = {
+            userId: (u as any)?.id,
+            handle: (u as any)?.handle || (u as any)?.username || undefined,
+            displayName: (u as any)?.displayName || (u as any)?.name || undefined,
+            roles: anyRoles,
+            locale: (u as any)?.locale,
+            timezone: (u as any)?.timezone,
+            tier: (u as any)?.tier,
+          };
+          const hasAny = Object.values(obj).some((v) => Boolean(v) && (Array.isArray(v) ? v.length > 0 : true));
+          return hasAny ? obj : undefined;
+        })();
+
+        const historyCtx = formatHistoryForContext(messages);
+
+        const systemPrompt = finalSystem && finalSystem.trim()
+          ? { summary: 'LLM Bot System Rules', rules: [finalSystem.trim()], sources: ['architecture.yaml', 'AGENTS.md v2.4'] }
+          : undefined;
+
+        const promptSpec: PromptSpec | undefined = (taskAnns.length > 0 || baseText)
+          ? {
+              systemPrompt,
+              // LLM-04 will populate identity/constraints in a subsequent task
+              task: taskAnns.length > 0 ? taskAnns : [{ instruction: 'Answer the user query', priority: 3, required: true }],
+              input: { userQuery: baseText || combinedPrompt || '', context: historyCtx },
+              requestingUser: ru,
+            }
+          : undefined;
+
+        return { combinedPrompt, messages, promptSpec, systemText: finalSystem, userTurns };
       })
       .addNode('call_model', async (s: typeof LlmState.State) => {
         logger.debug('llm_bot.process_event.call_model', { correlationId: s.event.correlationId });
@@ -367,15 +432,21 @@ export async function processEvent(
           const key = server.getConfig<string>('OPENAI_API_KEY');
           return callOpenAI(key, m, p, t);
         });
+        if (!s.combinedPrompt) return {}; // No prompt to act on (legacy gating retained)
+        const spec = (s.promptSpec as PromptSpec | undefined);
+        if (!spec) return {};
+        const cfg: AssemblerConfig = { headingLevel: 2, showEmptySections: true };
+        const assembled = assemble(spec, cfg);
+        const payload = openaiAdapter(assembled);
+        // Build request input by flattening current messages for backward compatibility
         const msgs = (s.messages as ChatMessage[]) || [];
-        if (!s.combinedPrompt) return {}; // No prompt to act on
-        const input = flattenMessagesForModel(msgs);
+        const input = msgs.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
         const corr = s.event.correlationId;
         const startedAt = Date.now();
         // Backward-compatible input logging for operational visibility
         logger?.debug?.('llm_bot.call_model.input_stats', {
           correlationId: corr,
-          messageCount: msgs.length,
+          messageCount: 2,
           charCount: input.length,
         });
         logger?.debug?.('llm_bot.call_model.input_preview', {
@@ -386,7 +457,7 @@ export async function processEvent(
           correlationId: corr,
           model,
           timeoutMs: isFinite(timeoutMs) ? timeoutMs : undefined,
-          messageCount: msgs.length,
+          messageCount: 2,
           inputChars: input.length,
           inputPreview: preview(input),
         });
@@ -406,6 +477,7 @@ export async function processEvent(
           // Only append assistant message if non-empty to avoid blank turns in memory
           if (unwrapped) {
             const assistantMsg = toAssistant(unwrapped);
+            const msgs = (s.messages as ChatMessage[]) || [];
             (out as any).messages = [...msgs, assistantMsg];
             // Persist assistant turn to instance store
             try {
