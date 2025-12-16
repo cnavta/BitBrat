@@ -18,6 +18,7 @@ describe("assemble() – canonical rendering", () => {
       "## [System Prompt]",
       "## [Identity]",
       "## [Requesting User]",
+      "## [Conversation State / History]",
       "## [Constraints]",
       "## [Task]",
       "## [Input]",
@@ -45,6 +46,7 @@ describe("assemble() – canonical rendering", () => {
     expect(sections.systemPrompt).toContain("None provided");
     expect(sections.identity).toContain("None provided");
     expect(sections.requestingUser).toContain("None provided");
+    expect(sections.conversationState).toContain("None provided");
     expect(sections.constraints).toContain("None provided");
   });
 

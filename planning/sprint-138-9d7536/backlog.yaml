@@ -13,7 +13,7 @@ backlog:
     title: Update assemble() to render Conversation State / History
     description: Render summary-first, optional fenced transcript per renderMode; join sections in canonical v2 order.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [PASM-V2-01]
     acceptance:
       - Canonical text includes [Conversation State / History] between Requesting User and Constraints

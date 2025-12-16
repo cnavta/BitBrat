@@ -80,8 +80,31 @@ function renderConversationState(spec: PromptSpec, cfg: AssemblerConfig): string
     if (cfg.showEmptySections ?? true) lines.push("- None provided.");
     return lines.join("\n");
   }
-  if (cs.summary) lines.push(`- ${cs.summary}`);
-  // Transcript rendering and truncation policies will be implemented in PASM-V2-02/03.
+
+  const mode = cs.renderMode ?? "summary";
+
+  // Summary-first rendering
+  if (cs.summary && (mode === "summary" || mode === "both")) {
+    // Support multi-line summaries by splitting into bullets
+    const parts = cs.summary.split("\n").filter(Boolean);
+    for (const part of parts) lines.push(`- ${part}`);
+  }
+
+  // Optional fenced transcript
+  const shouldRenderTranscript = !!cs.transcript && (mode === "transcript" || mode === "both");
+  if (shouldRenderTranscript && cs.transcript && cs.transcript.length) {
+    const roleLabel = (r: "user" | "assistant" | "tool") =>
+      r === "user" ? "U" : r === "assistant" ? "A" : "T";
+    const linesTx = cs.transcript.map((item) => `${roleLabel(item.role)}: ${item.content}`);
+    lines.push("~~~text");
+    lines.push(...linesTx);
+    lines.push("~~~");
+  }
+
+  if (!cs.summary && !shouldRenderTranscript) {
+    if (cfg.showEmptySections ?? true) lines.push("- None provided.");
+  }
+
   return lines.join("\n");
 }
 
@@ -209,8 +232,15 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     task: sections.task.length,
     input: sections.input.length,
   } as Record<keyof AssembledPromptSections, number>;
-  const joiners = 5 * 2; // keep v1 joiners for now (Conversation State not yet included in text)
-  let totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+  let totalChars = [
+    sections.systemPrompt,
+    sections.identity,
+    sections.requestingUser,
+    sections.conversationState,
+    sections.constraints,
+    sections.task,
+    sections.input,
+  ].join("\n\n").length;
 
   // Apply maxTotalChars by trimming in the defined order
   if (cfg.maxTotalChars && totalChars > cfg.maxTotalChars) {
@@ -220,7 +250,15 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       truncationNotes.push("Removed Input.context to satisfy total cap.");
       sections.input = renderInput(workingSpec, cfg);
       sectionLengths.input = sections.input.length;
-      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+      totalChars = [
+        sections.systemPrompt,
+        sections.identity,
+        sections.requestingUser,
+        sections.conversationState,
+        sections.constraints,
+        sections.task,
+        sections.input,
+      ].join("\n\n").length;
     }
 
     // 2) Drop lowest-priority tasks
@@ -229,7 +267,15 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       if (removed) truncationNotes.push(`Dropped task(id:${removed.id ?? "?"}, p:${removed.priority ?? 3}) to satisfy total cap.`);
       sections.task = renderTask(workingSpec, cfg);
       sectionLengths.task = sections.task.length;
-      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+      totalChars = [
+        sections.systemPrompt,
+        sections.identity,
+        sections.requestingUser,
+        sections.conversationState,
+        sections.constraints,
+        sections.task,
+        sections.input,
+      ].join("\n\n").length;
     }
 
     // 3) Drop lowest-priority constraints
@@ -238,7 +284,15 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       truncationNotes.push("Dropped lowest-priority constraint to satisfy total cap.");
       sections.constraints = renderConstraints(workingSpec, cfg);
       sectionLengths.constraints = sections.constraints.length;
-      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+      totalChars = [
+        sections.systemPrompt,
+        sections.identity,
+        sections.requestingUser,
+        sections.conversationState,
+        sections.constraints,
+        sections.task,
+        sections.input,
+      ].join("\n\n").length;
     }
 
     // Never drop System Prompt; preserve Identity if provided (we already never touch them)
@@ -247,15 +301,34 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       const header = heading("Input", cfg.headingLevel ?? 2) + "\n";
       // reconstruct input body without context (already removed if needed)
       const uq = workingSpec.input.userQuery;
-      const allowed = Math.max(0, cfg.maxTotalChars - (
-        sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + ("\n\n".length * 5) + header.length
-      ));
+      const allowed = Math.max(
+        0,
+        (cfg.maxTotalChars ?? 0) - (
+          // All sections except Input body (we add header back below)
+          [
+            sections.systemPrompt,
+            sections.identity,
+            sections.requestingUser,
+            sections.conversationState,
+            sections.constraints,
+            sections.task,
+          ].join("\n\n").length + "\n\n".length + header.length
+        )
+      );
       const newUq = truncateText(uq, allowed);
       if (newUq.length < uq.length) truncationNotes.push("Input.userQuery truncated to satisfy total cap.");
       workingSpec.input.userQuery = newUq;
       sections.input = renderInput(workingSpec, cfg);
       sectionLengths.input = sections.input.length;
-      totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
+      totalChars = [
+        sections.systemPrompt,
+        sections.identity,
+        sections.requestingUser,
+        sections.conversationState,
+        sections.constraints,
+        sections.task,
+        sections.input,
+      ].join("\n\n").length;
     }
   }
 
@@ -263,7 +336,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     sections.systemPrompt,
     sections.identity,
     sections.requestingUser,
-    // v2 note: Conversation State will be inserted here in PASM-V2-02
+    sections.conversationState,
     sections.constraints,
     sections.task,
     sections.input,
