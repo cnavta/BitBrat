@@ -5,6 +5,8 @@ export type {
   SystemPrompt,
   Identity,
   RequestingUser,
+  ConversationStateItem,
+  ConversationState,
   Constraint,
   FormatSpec,
   TaskAnnotation,

@@ -72,6 +72,19 @@ function renderRequestingUser(spec: PromptSpec, cfg: AssemblerConfig): string {
   return lines.join("\n");
 }
 
+// v2 scaffold: Conversation State / History (placeholder rendering)
+function renderConversationState(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("Conversation State / History", cfg.headingLevel ?? 2)];
+  const cs = spec.conversationState;
+  if (!cs) {
+    if (cfg.showEmptySections ?? true) lines.push("- None provided.");
+    return lines.join("\n");
+  }
+  if (cs.summary) lines.push(`- ${cs.summary}`);
+  // Transcript rendering and truncation policies will be implemented in PASM-V2-02/03.
+  return lines.join("\n");
+}
+
 function renderConstraints(spec: PromptSpec, cfg: AssemblerConfig): string {
   const lines: string[] = [heading("Constraints", cfg.headingLevel ?? 2)];
   const constraints = sortByPriority(normalizePriority<Constraint>(spec.constraints));
@@ -180,6 +193,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     systemPrompt: renderSystemPrompt(workingSpec, cfg),
     identity: renderIdentity(workingSpec, cfg),
     requestingUser: renderRequestingUser(workingSpec, cfg),
+    conversationState: renderConversationState(workingSpec, cfg),
     constraints: renderConstraints(workingSpec, cfg),
     task: renderTask(workingSpec, cfg),
     input: renderInput(workingSpec, cfg),
@@ -190,11 +204,12 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     systemPrompt: sections.systemPrompt.length,
     identity: sections.identity.length,
     requestingUser: sections.requestingUser.length,
+    conversationState: sections.conversationState.length,
     constraints: sections.constraints.length,
     task: sections.task.length,
     input: sections.input.length,
   } as Record<keyof AssembledPromptSections, number>;
-  const joiners = 5 * 2; // five double newlines between six sections => length of joiners is approximate (10 chars)
+  const joiners = 5 * 2; // keep v1 joiners for now (Conversation State not yet included in text)
   let totalChars = sections.systemPrompt.length + sections.identity.length + sections.requestingUser.length + sections.constraints.length + sections.task.length + sections.input.length + ("\n\n".length * 5);
 
   // Apply maxTotalChars by trimming in the defined order
@@ -248,6 +263,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     sections.systemPrompt,
     sections.identity,
     sections.requestingUser,
+    // v2 note: Conversation State will be inserted here in PASM-V2-02
     sections.constraints,
     sections.task,
     sections.input,

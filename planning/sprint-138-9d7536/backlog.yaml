@@ -3,7 +3,7 @@ backlog:
     title: Add ConversationState types and section to PromptSpec/AssembledPrompt
     description: Implement ConversationState and ConversationStateItem types; extend PromptSpec and AssembledPrompt; update AssemblerConfig if needed.
     priority: 1
-    status: todo
+    status: in_progress
     acceptance:
       - Types compile and export from src/common/prompt-assembly
       - Identity type retained; display label renders as "Assistant Identity"

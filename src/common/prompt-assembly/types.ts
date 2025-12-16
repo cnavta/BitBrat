@@ -2,6 +2,23 @@
 
 export type Priority = 1 | 2 | 3 | 4 | 5; // 1 = highest
 
+// v2: Conversation State / History
+export interface ConversationStateItem {
+  role: "user" | "assistant" | "tool";
+  content: string; // one logical message (already sanitized)
+  at?: string; // ISO timestamp (optional)
+}
+
+export interface ConversationState {
+  summary?: string; // concise state summary (preferred)
+  transcript?: ConversationStateItem[]; // trimmed recent items (optional)
+  retention?: {
+    maxMessages?: number; // e.g., 8
+    maxChars?: number; // e.g., 4000
+  };
+  renderMode?: "summary" | "transcript" | "both"; // default: "summary"
+}
+
 export interface SystemPrompt {
   summary?: string; // 1–2 lines describing the immutable rule set
   rules: string[]; // e.g., ["Follow architecture.yaml precedence", "Never leak secrets"]
@@ -66,6 +83,8 @@ export interface PromptSpec {
   systemPrompt?: SystemPrompt;
   identity?: Identity;
   requestingUser?: RequestingUser;
+  // v2: New first-class section for short-term memory/state
+  conversationState?: ConversationState;
   constraints?: Constraint[];
   task: TaskAnnotation[]; // at least one
   input: InputPayload; // required
@@ -84,6 +103,7 @@ export interface AssembledPromptSections {
   systemPrompt: string;
   identity: string;
   requestingUser: string;
+  conversationState: string; // v2
   constraints: string;
   task: string;
   input: string;
