@@ -24,7 +24,7 @@ backlog:
     title: Truncation and token budgeting updates for v2
     description: Implement preservation order and guards; summarize/trim transcript first; log truncation meta (counts/char reductions).
     priority: 1
-    status: todo
+    status: done
     dependsOn: [PASM-V2-02]
     acceptance:
       - Preservation order matches spec (System Prompt, Identity, Constraints, Conversation State, Tasks, Input)

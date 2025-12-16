@@ -166,6 +166,9 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     input: { ...spec.input },
   };
 
+  // Placeholder for post-render section overrides (compression without mutating spec deeply)
+  const sectionsPlaceholder: Partial<AssembledPromptSections> = {};
+
   // Apply per-section caps first where feasible
   const caps = cfg.sectionCaps ?? {};
   // Input: Prefer trimming context first
@@ -201,15 +204,34 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     }
   }
 
-  // Constraints section cap: drop lowest-priority constraints until under cap
-  if (caps.constraints) {
-    let consText = renderConstraints(workingSpec, cfg);
-    while (consText.length > caps.constraints && (workingSpec.constraints?.length ?? 0) > 0) {
-      workingSpec.constraints = workingSpec.constraints?.slice(0, -1);
-      truncationNotes.push("Dropped lowest-priority constraint to meet section cap.");
-      consText = renderConstraints(workingSpec, cfg);
+  // Conversation State section cap: prefer trimming transcript items first
+  if (caps.conversationState && workingSpec.conversationState) {
+    let csRendered = renderConversationState(workingSpec, cfg);
+    if (csRendered.length > caps.conversationState) {
+      if (workingSpec.conversationState.transcript?.length) {
+        // Trim earliest transcript items until we fit
+        while (
+          csRendered.length > caps.conversationState &&
+          (workingSpec.conversationState?.transcript?.length ?? 0) > 0
+        ) {
+          workingSpec.conversationState!.transcript = workingSpec.conversationState!.transcript!.slice(1);
+          csRendered = renderConversationState(workingSpec, cfg);
+        }
+        truncationNotes.push("ConversationState.transcript truncated to meet section cap.");
+      }
+      // If still too long (e.g., long summary), compress rendered text as last resort
+      if (csRendered.length > caps.conversationState) {
+        const header = heading("Conversation State / History", cfg.headingLevel ?? 2) + "\n";
+        const body = csRendered.slice(header.length);
+        const compressedBody = truncateText(body, Math.max(0, caps.conversationState - header.length));
+        sectionsPlaceholder.conversationState = header + compressedBody; // will be applied after rendering
+        truncationNotes.push("ConversationState section compressed to meet section cap.");
+      }
     }
   }
+
+  // Constraints section cap: DO NOT drop constraints in v2. Compress wording instead.
+  // We'll apply compression after initial render based on measured length.
 
   // Render sections after section-level adjustments
   let sections: AssembledPromptSections = {
@@ -221,6 +243,18 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     task: renderTask(workingSpec, cfg),
     input: renderInput(workingSpec, cfg),
   };
+
+  // Post-render section compression placeholders (set above) get applied here
+  // Using a small holder object to avoid re-rendering everything repeatedly
+  if (typeof (sectionsPlaceholder as any) !== "undefined") {
+    if (sectionsPlaceholder.conversationState) sections.conversationState = sectionsPlaceholder.conversationState;
+  }
+
+  // Apply constraints section cap by compressing, never dropping
+  if (caps.constraints && sections.constraints.length > caps.constraints) {
+    sections.constraints = truncateText(sections.constraints, caps.constraints);
+    truncationNotes.push("Constraints section compressed to meet section cap (no items dropped).");
+  }
 
   // Compute totals
   const sectionLengths = {
@@ -242,7 +276,12 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     sections.input,
   ].join("\n\n").length;
 
-  // Apply maxTotalChars by trimming in the defined order
+  // Apply maxTotalChars by trimming in the defined order (v2):
+  // 1) Remove Input.context
+  // 2) Trim ConversationState.transcript
+  // 3) Drop lower-priority tasks
+  // 4) (Never drop Constraints or System Prompt/Identity)
+  // 5) Trim Input.userQuery tail as last resort
   if (cfg.maxTotalChars && totalChars > cfg.maxTotalChars) {
     // 1) Trim Input.context entirely before touching anything else
     if (workingSpec.input.context) {
@@ -261,29 +300,40 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       ].join("\n\n").length;
     }
 
-    // 2) Drop lowest-priority tasks
+    // 2) Trim ConversationState.transcript (prefer summarization over raw transcript)
+    if (
+      cfg.maxTotalChars &&
+      totalChars > cfg.maxTotalChars &&
+      workingSpec.conversationState?.transcript?.length
+    ) {
+      // Iteratively remove earliest items to keep most recent exchanges
+      while (
+        cfg.maxTotalChars &&
+        totalChars > cfg.maxTotalChars &&
+        (workingSpec.conversationState?.transcript?.length ?? 0) > 0
+      ) {
+        workingSpec.conversationState!.transcript = workingSpec.conversationState!.transcript!.slice(1);
+        sections.conversationState = renderConversationState(workingSpec, cfg);
+        sectionLengths.conversationState = sections.conversationState.length;
+        totalChars = [
+          sections.systemPrompt,
+          sections.identity,
+          sections.requestingUser,
+          sections.conversationState,
+          sections.constraints,
+          sections.task,
+          sections.input,
+        ].join("\n\n").length;
+      }
+      truncationNotes.push("ConversationState.transcript truncated to satisfy total cap.");
+    }
+
+    // 3) Drop lowest-priority tasks
     while (cfg.maxTotalChars && totalChars > cfg.maxTotalChars && workingSpec.task.length > 1) {
       const removed = workingSpec.task.pop();
       if (removed) truncationNotes.push(`Dropped task(id:${removed.id ?? "?"}, p:${removed.priority ?? 3}) to satisfy total cap.`);
       sections.task = renderTask(workingSpec, cfg);
       sectionLengths.task = sections.task.length;
-      totalChars = [
-        sections.systemPrompt,
-        sections.identity,
-        sections.requestingUser,
-        sections.conversationState,
-        sections.constraints,
-        sections.task,
-        sections.input,
-      ].join("\n\n").length;
-    }
-
-    // 3) Drop lowest-priority constraints
-    while (cfg.maxTotalChars && totalChars > cfg.maxTotalChars && (workingSpec.constraints?.length ?? 0) > 0) {
-      workingSpec.constraints = workingSpec.constraints?.slice(0, -1);
-      truncationNotes.push("Dropped lowest-priority constraint to satisfy total cap.");
-      sections.constraints = renderConstraints(workingSpec, cfg);
-      sectionLengths.constraints = sections.constraints.length;
       totalChars = [
         sections.systemPrompt,
         sections.identity,

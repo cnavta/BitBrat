@@ -2,6 +2,49 @@ import { assemble } from "../../src/common/prompt-assembly/assemble";
 import type { PromptSpec, AssemblerConfig } from "../../src/common/prompt-assembly/types";
 
 describe("assemble() – truncation and caps", () => {
+  it("trims ConversationState transcript before dropping tasks for total cap", () => {
+    const transcript = Array.from({ length: 12 }).map((_, i) => ({
+      role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      content: `message-${i} ${"x".repeat(80)}`,
+    }));
+
+    const spec: PromptSpec = {
+      systemPrompt: { rules: ["Follow"] },
+      conversationState: {
+        summary: "Recent dialog relevant to the task.",
+        transcript,
+        renderMode: "both",
+      },
+      constraints: [
+        { priority: 1, text: "Hard rule" },
+      ],
+      task: [
+        { id: "a", priority: 1, instruction: "High" },
+        { id: "b", priority: 2, instruction: "Next" },
+      ],
+      input: { userQuery: "Hello" },
+    };
+    const { meta } = assemble(spec, { maxTotalChars: 600 });
+    expect(meta?.truncated).toBe(true);
+    expect(meta?.truncationNotes.some((n) => n.includes("ConversationState.transcript truncated"))).toBe(true);
+  });
+
+  it("compresses Constraints section for section cap without dropping items", () => {
+    const spec: PromptSpec = {
+      task: [{ priority: 1, instruction: "Do it" }],
+      input: { userQuery: "Q" },
+      constraints: [
+        { priority: 1, text: "Rule A very long text ".repeat(5).trim() },
+        { priority: 2, text: "Rule B very long text ".repeat(5).trim() },
+        { priority: 3, text: "Rule C very long text ".repeat(5).trim() },
+      ],
+    };
+    const { sections, meta } = assemble(spec, { sectionCaps: { constraints: 80 } });
+    expect(sections.constraints.length).toBeLessThanOrEqual(80);
+    expect(sections.constraints.startsWith("## [Constraints]")).toBe(true);
+    expect(meta?.truncated).toBe(true);
+    expect(meta?.truncationNotes.some((n) => n.includes("Constraints section compressed"))).toBe(true);
+  });
   it("trims Input.context before other elements for section cap", () => {
     const spec: PromptSpec = {
       task: [{ priority: 1, instruction: "Do it" }],

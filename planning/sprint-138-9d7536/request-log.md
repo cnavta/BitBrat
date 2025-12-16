@@ -61,3 +61,22 @@
     - git add src/common/prompt-assembly/assemble.ts tests/prompt-assembly/assemble.spec.ts planning/sprint-138-9d7536/backlog.yaml
     - git commit -m "sprint-138 PASM-V2-02: render Conversation State/History; include in canonical text; update tests; mark backlog done"
     - git push
+
+- 2025-12-16T23:48:30Z — Executed (PASM-V2-03 in progress)
+  Context: Implement v2 truncation/budgeting rules: preserve System/Identity/Constraints; trim conversation transcript first; add tests; update backlog.
+  Files modified:
+    - src/common/prompt-assembly/assemble.ts
+    - tests/prompt-assembly/truncation.spec.ts
+    - planning/sprint-138-9d7536/backlog.yaml (status PASM-V2-03 → in_progress)
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - Test Suites: 149 passed, 2 skipped (151 total)
+    - Tests: 391 passed, 10 skipped (401 total)
+
+- 2025-12-16T23:49:20Z — Executed (PASM-V2-03 done)
+  Context: Mark PASM-V2-03 done; commit and push changes.
+  Commands to run:
+    - git add src/common/prompt-assembly/assemble.ts tests/prompt-assembly/truncation.spec.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
+    - git commit -m "sprint-138 PASM-V2-03: v2 truncation order (transcript-first); preserve constraints; add tests; update backlog/log"
+    - git push
