@@ -15,21 +15,25 @@ export interface GooglePayload {
 }
 
 /**
- * Maps assembled sections to Google (Gemini/Vertex) payload.
- * systemInstruction = [System Prompt + Identity + Requesting User + Constraints]
- * contents(user)    = [Task + Input]
+ * Maps assembled sections to Google (Gemini/Vertex) payload (v2 mapping).
+ * systemInstruction = [System Prompt + Assistant Identity]
+ * contents(user)    = [Requesting User + Conversation State/History + Constraints + Task + Input]
  */
 export function googleAdapter(assembled: AssembledPrompt): GooglePayload {
   const systemText = [
     assembled.sections.systemPrompt,
     assembled.sections.identity,
-    assembled.sections.requestingUser,
-    assembled.sections.constraints,
   ]
     .filter(Boolean)
     .join("\n\n");
 
-  const userText = [assembled.sections.task, assembled.sections.input]
+  const userText = [
+    assembled.sections.requestingUser,
+    assembled.sections.conversationState,
+    assembled.sections.constraints,
+    assembled.sections.task,
+    assembled.sections.input,
+  ]
     .filter(Boolean)
     .join("\n\n");
 

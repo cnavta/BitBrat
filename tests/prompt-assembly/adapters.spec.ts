@@ -29,7 +29,8 @@ describe("provider adapters", () => {
     expect(sys).toBeTruthy();
     expect(user).toBeTruthy();
     expect(sys!.content).toContain("[System Prompt]");
-    expect(sys!.content).toContain("[Constraints]");
+    expect(sys!.content).not.toContain("[Constraints]");
+    expect(user!.content).toContain("[Constraints]");
     expect(user!.content).toContain("[Task]");
     expect(user!.content).toContain("[Input]");
   });
@@ -40,11 +41,12 @@ describe("provider adapters", () => {
     const sys = payload.systemInstruction as any;
     const sysText = typeof sys === "string" ? sys : sys?.parts?.[0]?.text ?? "";
     expect(sysText).toContain("[System Prompt]");
-    expect(sysText).toContain("[Constraints]");
+    expect(sysText).not.toContain("[Constraints]");
     expect(Array.isArray(payload.contents)).toBe(true);
     const content = payload.contents?.[0];
     expect(content?.role).toBe("user");
     const text = content?.parts?.[0]?.text ?? "";
+    expect(text).toContain("[Constraints]");
     expect(text).toContain("[Task]");
     expect(text).toContain("[Input]");
   });

@@ -35,7 +35,7 @@ backlog:
     title: OpenAI adapter mapping update
     description: Map system=[System Prompt+Assistant Identity]; user=[Requesting User+Conversation State/History+Constraints+Task+Input].
     priority: 1
-    status: todo
+    status: done
     dependsOn: [PASM-V2-02]
     acceptance:
       - messages[0].role=system; messages[1].role=user
@@ -45,7 +45,7 @@ backlog:
     title: Google adapter mapping update
     description: Map systemInstruction=[System Prompt+Assistant Identity]; contents(user)=[Requesting User+Conversation State/History+Constraints+Task+Input].
     priority: 1
-    status: todo
+    status: done
     dependsOn: [PASM-V2-02]
     acceptance:
       - Mapped payload preserves order; golden fixtures pass
@@ -54,7 +54,7 @@ backlog:
     title: Adapter fixture tests (OpenAI/Google)
     description: Golden tests verifying payload shapes and section ordering for both providers.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [PASM-V2-04, PASM-V2-05]
     acceptance:
       - Tests pass locally and in CI; diffs highlight ordering regressions

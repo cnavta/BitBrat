@@ -80,3 +80,34 @@
     - git add src/common/prompt-assembly/assemble.ts tests/prompt-assembly/truncation.spec.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
     - git commit -m "sprint-138 PASM-V2-03: v2 truncation order (transcript-first); preserve constraints; add tests; update backlog/log"
     - git push
+
+- 2025-12-16T23:52:10Z — Executed (PASM-V2-04, PASM-V2-05 in progress)
+  Context: Update provider adapters to v2 mapping.
+  Files modified:
+    - src/common/prompt-assembly/adapters/openai.ts (system=[System+Identity]; user=[RequestingUser+ConversationState+Constraints+Task+Input])
+    - src/common/prompt-assembly/adapters/google.ts (systemInstruction=[System+Identity]; contents(user)=[RequestingUser+ConversationState+Constraints+Task+Input])
+  Notes:
+    - Began adapter changes; tests to be added/updated in PASM-V2-06.
+
+- 2025-12-16T23:53:05Z — Executed (PASM-V2-06 in progress)
+  Context: Add adapter tests and update legacy expectations to v2 mapping.
+  Files modified:
+    - tests/prompt-assembly/adapters/openai.spec.ts (new)
+    - tests/prompt-assembly/adapters/google.spec.ts (new)
+    - tests/prompt-assembly/openai-adapter.spec.ts (updated expectations)
+    - tests/prompt-assembly/adapters.spec.ts (updated expectations)
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - Initial run: 2 failed suites (legacy tests expecting old mapping)
+    - After updating legacy tests: all tests passing
+
+- 2025-12-16T23:53:20Z — Executed (PASM-V2-04/05/06 done)
+  Context: Mark adapter updates and tests done; update backlog; commit and push.
+  Files modified:
+    - planning/sprint-138-9d7536/backlog.yaml (PASM-V2-04=done, PASM-V2-05=done, PASM-V2-06=done)
+    - planning/sprint-138-9d7536/request-log.md (this log)
+  Commands to run:
+    - git add src/common/prompt-assembly/adapters/*.ts tests/prompt-assembly/adapters/*.ts tests/prompt-assembly/*adapter*.spec.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
+    - git commit -m "sprint-138 PASM-V2-04/05/06: update OpenAI/Google adapters to v2; add adapter tests; update legacy tests; mark backlog done; log"
+    - git push
