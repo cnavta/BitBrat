@@ -136,6 +136,21 @@
 - Backlog updates:
   - P-07 marked as in-progress
 
+## 2025-12-15T19:07:00Z
+- Action: Complete P-07 – CLI wrapper
+- Interpretation: Wired CLI into validation; added docs; verified help and sample runs
+- Files updated:
+  - planning/sprint-135-26212da/validate_deliverable.sh (CLI smoke tests)
+  - documentation/technical-architecture/prompt-assembly-v1.md (CLI usage)
+- Commands executed:
+  - npm run build
+  - node dist/tools/prompt-assembly/src/cli/index.js --help
+  - echo '{"task":[{"priority":1,"instruction":"Echo"}],"input":{"userQuery":"Hi"}}' | node dist/tools/prompt-assembly/src/cli/index.js --stdin --provider none
+- Results:
+  - CLI help prints; canonical text rendered; OpenAI payload mapping verified
+- Backlog updates:
+  - P-07 marked as completed
+
 ## 2025-12-15T17:58:00Z
 - Action: Implement P-01 – library skeleton and types
 - Interpretation: Add core TypeScript types and public API barrel for prompt-assembly
