@@ -1,0 +1,166 @@
+backlog:
+  - id: PASM-V2-01
+    title: Add ConversationState types and section to PromptSpec/AssembledPrompt
+    description: Implement ConversationState and ConversationStateItem types; extend PromptSpec and AssembledPrompt; update AssemblerConfig if needed.
+    priority: 1
+    status: todo
+    acceptance:
+      - Types compile and export from src/common/prompt-assembly
+      - Identity type retained; display label renders as "Assistant Identity"
+      - New fields covered in type-level tests
+
+  - id: PASM-V2-02
+    title: Update assemble() to render Conversation State / History
+    description: Render summary-first, optional fenced transcript per renderMode; join sections in canonical v2 order.
+    priority: 1
+    status: todo
+    dependsOn: [PASM-V2-01]
+    acceptance:
+      - Canonical text includes [Conversation State / History] between Requesting User and Constraints
+      - Summary bullets render before transcript
+      - Transcript fenced with ~~~text and truncation markers when applicable
+
+  - id: PASM-V2-03
+    title: Truncation and token budgeting updates for v2
+    description: Implement preservation order and guards; summarize/trim transcript first; log truncation meta (counts/char reductions).
+    priority: 1
+    status: todo
+    dependsOn: [PASM-V2-02]
+    acceptance:
+      - Preservation order matches spec (System Prompt, Identity, Constraints, Conversation State, Tasks, Input)
+      - Logs include per-section lengths and truncation notes
+      - Unit tests cover trimming decisions
+
+  - id: PASM-V2-04
+    title: OpenAI adapter mapping update
+    description: Map system=[System Prompt+Assistant Identity]; user=[Requesting User+Conversation State/History+Constraints+Task+Input].
+    priority: 1
+    status: todo
+    dependsOn: [PASM-V2-02]
+    acceptance:
+      - messages[0].role=system; messages[1].role=user
+      - Golden fixtures validate ordering and content boundaries
+
+  - id: PASM-V2-05
+    title: Google adapter mapping update
+    description: Map systemInstruction=[System Prompt+Assistant Identity]; contents(user)=[Requesting User+Conversation State/History+Constraints+Task+Input].
+    priority: 1
+    status: todo
+    dependsOn: [PASM-V2-02]
+    acceptance:
+      - Mapped payload preserves order; golden fixtures pass
+
+  - id: PASM-V2-06
+    title: Adapter fixture tests (OpenAI/Google)
+    description: Golden tests verifying payload shapes and section ordering for both providers.
+    priority: 1
+    status: todo
+    dependsOn: [PASM-V2-04, PASM-V2-05]
+    acceptance:
+      - Tests pass locally and in CI; diffs highlight ordering regressions
+
+  - id: PASM-V2-07
+    title: CLI updates for v2 rendering
+    description: Update tools/prompt-assembly CLI to support conversationState fields, renderMode flags, and empty-section visibility.
+    priority: 2
+    status: todo
+    dependsOn: [PASM-V2-02]
+    acceptance:
+      - CLI reads spec with conversationState and renders canonical/provider payloads
+      - Flags: --provider, --show-empty-sections, --heading-level, plus optional --render-mode=summary|transcript|both
+
+  - id: PASM-V2-08
+    title: Assemble() unit tests for Conversation State / History
+    description: Tests for summary-only, transcript-only, both modes, and empty states; ordering and fencing behavior.
+    priority: 2
+    status: todo
+    dependsOn: [PASM-V2-02, PASM-V2-03]
+    acceptance:
+      - Snapshot/golden tests validate section content and order
+
+  - id: PASM-V2-09
+    title: "llm-bot: map recent exchanges to conversationState"
+    description: In src/services/llm-bot/processor.ts, build conversationState from recent user/assistant/tool exchanges with retention caps.
+    priority: 1
+    status: todo
+    dependsOn:
+      - PASM-V2-01
+      - PASM-V2-02
+    acceptance:
+      - PromptSpec.conversationState populated when history available
+      - Retention policies respected (maxMessages/maxChars)
+
+  - id: PASM-V2-10
+    title: "llm-bot: migrate history out of Input.context with fallback"
+    description: Stop injecting conversation history into Input.context; add temporary shim mapping Input.context→conversationState if present (warn/deprecate).
+    priority: 1
+    status: todo
+    dependsOn:
+      - PASM-V2-09
+    acceptance:
+      - No duplicate history in Input.context
+      - Deprecation warning logged once per process
+
+  - id: PASM-V2-11
+    title: Observability and safe logging
+    description: Log assembly meta (section lengths, truncation decisions) without secrets or full transcripts; redact PII where configured.
+    priority: 2
+    status: todo
+    dependsOn: [PASM-V2-03]
+    acceptance:
+      - Logs present with safe previews; no raw transcripts
+
+  - id: PASM-V2-12
+    title: Basic redaction utilities for conversationState transcripts
+    description: Provide minimal helpers to redact obvious secrets/PII patterns before rendering or logging.
+    priority: 3
+    status: todo
+    dependsOn: [PASM-V2-02]
+    acceptance:
+      - Unit tests for redaction patterns; applied prior to render/log
+
+  - id: PASM-V2-13
+    title: Documentation and runbook updates
+    description: Update integration docs and runbook to reflect v2 adoption path and provider mappings.
+    priority: 2
+    status: todo
+    dependsOn: [PASM-V2-04, PASM-V2-05, PASM-V2-09]
+    acceptance:
+      - Docs show examples and migration guidance; references to v1 Input.context history removed or marked deprecated
+
+  - id: PASM-V2-14
+    title: "Validation script: add CLI smoke for conversationState"
+    description: Update validate_deliverable.sh to render a minimal PromptSpec with conversationState via CLI.
+    priority: 3
+    status: todo
+    dependsOn:
+      - PASM-V2-07
+    acceptance:
+      - Script runs locally in CI and prints canonical text without error
+
+  - id: PASM-V2-15
+    title: Provider mapping edge cases (tool role, timestamps)
+    description: Verify transcript items with role=tool and optional timestamps are handled consistently; exclude timestamps from payload unless needed.
+    priority: 3
+    status: todo
+    dependsOn: [PASM-V2-06]
+    acceptance:
+      - Tests verify correctness for tool messages and timestamp handling
+
+  - id: PASM-V2-16
+    title: Backward compatibility and labels
+    description: Ensure label renders as [Assistant Identity] while keeping type/interface name Identity; maintain external API stability.
+    priority: 2
+    status: todo
+    dependsOn: [PASM-V2-02]
+    acceptance:
+      - Render label updated; no breaking changes in types
+
+  - id: PASM-V2-17
+    title: Package versioning and CHANGELOG
+    description: Bump package version and add changelog entries for v2.1 features and migration notes.
+    priority: 3
+    status: todo
+    dependsOn: [PASM-V2-06, PASM-V2-08, PASM-V2-09]
+    acceptance:
+      - CHANGELOG updated; package.json version bumped
