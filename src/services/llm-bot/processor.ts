@@ -490,6 +490,7 @@ export async function processEvent(
           correlationId: corr,
           preview: preview(assembled.text),
         });
+        console.debug('llm_bot.assembly.raw', assembled.text);
         const payload = openaiAdapter(assembled);
         // LLM-05: Hard cutover – build request input from adapter payload preserving canonical order
         const sysContent = payload.messages[0]?.content || '';
