@@ -244,6 +244,16 @@ We are standardizing our prompt pipeline to Identity → Constraints → Task �
 - Typings: First‑class TypeScript typings; emit `.d.ts` in the package.
 - CLI (optional): Provide a thin CLI wrapper (e.g., `npx prompt-assembly render --spec spec.json`) that delegates to the library for quick, external use.
 
+### CLI Usage
+- Install/build: `npm run build` (bin is published at `prompt-assembly`).
+- Basic: `prompt-assembly --spec spec.json` → prints assembled canonical text.
+- Stdin: `cat spec.json | prompt-assembly --stdin --provider openai` → prints OpenAI payload JSON.
+- Flags:
+  - `--provider openai|google|none` (default: none for canonical text)
+  - `--show-empty-sections` `--heading-level 1|2|3`
+  - `--max-total-chars <n>` and per-section caps: `--cap-systemPrompt|identity|requestingUser|constraints|task|input <n>`
+  - `--out <file>` to write to a file
+
 ## Migration Guide: 5 → 6 Sections
 - Previous canonical order: Identity → Requesting User → Constraints → Task → Input
 - New canonical order: System Prompt → Identity → Requesting User → Constraints → Task → Input

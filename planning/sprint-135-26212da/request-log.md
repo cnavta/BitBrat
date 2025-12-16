@@ -126,6 +126,16 @@
 - Artifacts updated:
   - planning/sprint-135-26212da/publication.yaml (status: created; pr_url set)
 
+## 2025-12-15T19:00:00Z
+- Action: Start P-07 – Optional CLI wrapper
+- Interpretation: Add thin CLI to render from a JSON spec and support provider selection
+- Files added:
+  - tools/prompt-assembly/src/cli/index.ts
+- Files updated:
+  - package.json (bin mapping for prompt-assembly)
+- Backlog updates:
+  - P-07 marked as in-progress
+
 ## 2025-12-15T17:58:00Z
 - Action: Implement P-01 – library skeleton and types
 - Interpretation: Add core TypeScript types and public API barrel for prompt-assembly
