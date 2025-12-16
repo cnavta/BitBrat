@@ -233,6 +233,32 @@ We are standardizing our prompt pipeline to Identity → Constraints → Task �
 - Use the assembler to build provider payloads; do not splice raw strings in services.
 - Configure System Prompt, Identity, and system‑level Constraints via environment/config (e.g., LLM_BOT_SYSTEM_PROMPT, and references to architecture.yaml and AGENTS.md).
 
+### LLM Bot Integration Notes (Prompt Assembly v1)
+- Processor constructs PromptSpec: System Prompt → Identity → Requesting User → Constraints → Task → Input.
+- Personalities map into Identity (summary) and Constraints (policy/formatting hints); immutable rules remain in System Prompt.
+- Provider payloads are built via adapters:
+  - OpenAI: system = [System+Identity+RequestingUser+Constraints], user = [Task+Input]
+  - Google: systemInstruction = [System+Identity+RequestingUser+Constraints], contents(user) = [Task+Input]
+- Short‑term memory is preserved by injecting a fenced Conversation History into Input.context.
+- Observability: logs include assembly meta (section lengths, truncation notes) and safe previews; OpenAI request/response logs are summarized (model, char counts, preview) — no secrets or full payloads printed.
+
+#### Quick CLI Debugging Examples
+Use the thin CLI to render a PromptSpec for debugging:
+
+Minimal PromptSpec (canonical text):
+```
+echo '{"task":[{"instruction":"Summarize"}],"input":{"userQuery":"Hello"}}' \
+  | prompt-assembly --stdin --provider none
+```
+
+OpenAI-mapped payload:
+```
+echo '{"task":[{"instruction":"Summarize"}],"input":{"userQuery":"Hello"}}' \
+  | prompt-assembly --stdin --provider openai
+```
+
+See documentation/runbooks/llm-bot-prompt-assembly.md for llm-bot configuration and troubleshooting.
+
 ## Reusability and Distribution
 - Packaging: Implement the assembler as a standalone, framework‑agnostic TypeScript package (e.g., `@bitbrat/prompt-assembly`). Publishable to an internal registry or npm.
 - API Surface: Keep the public API limited to core types (`SystemPrompt`, `Identity`, `RequestingUser`, `Constraint`, `TaskAnnotation`, `InputPayload`, `PromptSpec`, `AssemblerConfig`, `AssembledPrompt`) and `assemble()` plus provider adapters.

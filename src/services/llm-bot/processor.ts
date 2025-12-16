@@ -3,7 +3,7 @@ import { StateGraph, END, Annotation } from '@langchain/langgraph';
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
-import { resolvePersonalityParts, composeSystemPrompt, type ComposeMode } from './personality-resolver';
+import { resolvePersonalityParts } from './personality-resolver';
 import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
 import { assemble } from '../../common/prompt-assembly/assemble';
@@ -154,14 +154,11 @@ async function callOpenAI(apiKey: string, model: string, prompt: string, timeout
     input: prompt,
     max_output_tokens: 1024,
   };
-
-  console.debug('openai.request.raw', JSON.stringify(requestBody));
   // IMPORTANT: pass AbortSignal via the fetch options (2nd param), NOT in the request body
   const resp = await (client as any).responses.create(
     requestBody,
     controller ? { signal: controller.signal } : undefined
   );
-  console.debug('openai.response.raw', JSON.stringify(resp));
   const text = (resp as any)?.output?.[0]?.content?.[0]?.text
     ?? (resp as any)?.output_text
     ?? (resp as any)?.choices?.[0]?.message?.content
@@ -265,6 +262,9 @@ export async function processEvent(
           if (sflag === 'false' || sflag === '0' || sflag === 'no') return false;
           return true;
         })();
+        // LLM-04: Resolve personalities but map into Identity & Constraints instead of composing System
+        let resolvedIdentitySummary: string | undefined;
+        let resolvedConstraints: Array<{ text: string; priority?: number; tags?: string[]; source?: 'system'|'policy'|'runtime' }>|undefined;
         try {
           if (personalitiesEnabled) {
             const opts = {
@@ -288,32 +288,52 @@ export async function processEvent(
             };
             const before = metrics.snapshot();
             const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
-            const mode = (String(server.getConfig<string>('PERSONALITY_COMPOSE_MODE', { default: 'append' })).toLowerCase() as ComposeMode) || 'append';
-            const composed = composeSystemPrompt(sys, parts, mode);
-            if (composed && composed.trim()) {
-              finalSystem = composed.trim();
-              const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
-              const names = parts.map((p) => p.name).filter(Boolean);
-              const versions = parts.map((p) => p.version).filter((v) => typeof v === 'number');
-              const after = metrics.snapshot();
-              const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
-              logger?.info?.('llm_bot.personality.composed', {
-                count: parts.length,
-                names,
-                versions,
-                mode,
-                metrics: {
-                  resolved: delta(METRIC_PERSONALITIES_RESOLVED),
-                  failed: delta(METRIC_PERSONALITIES_FAILED),
-                  dropped: delta(METRIC_PERSONALITIES_DROPPED),
-                  cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
-                  cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
-                  clamped: delta(METRIC_PERSONALITY_CLAMPED),
-                },
-                preview: preview(finalSystem, previewLen),
-                correlationId: s.event.correlationId,
-              });
+            // Do NOT compose into system; instead, build identity summary and constraints from parts
+            const texts: string[] = [];
+            const constraints: typeof resolvedConstraints = [];
+            for (const p of parts) {
+              const t = String((p as any)?.text || (p as any)?.payload?.text || (p as any)?.summary || '').trim();
+              if (t) {
+                texts.push(t);
+                // naive extraction of constraint-like lines (policy/format hints)
+                const lines = t.split(/\r?\n/);
+                for (const line of lines) {
+                  const l = line.trim();
+                  if (!l) continue;
+                  // Heuristics: lines that look like rules
+                  if (/^(?:-\s*)?\(?\d+\)?\s*|^(?:-\s*)?(?:Do not|Never|Always|Must|Should|Format|Output)/i.test(l)) {
+                    const clean = l.replace(/^[-\s]*/, '').trim();
+                    constraints.push({ text: clean, priority: 3, tags: ['policy'], source: 'policy' });
+                  }
+                }
+              } else if ((p as any)?.name) {
+                texts.push(String((p as any).name));
+              }
             }
+            resolvedIdentitySummary = texts.filter(Boolean).join('\n\n');
+            resolvedConstraints = (constraints && constraints.length > 0) ? constraints : undefined;
+
+            const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
+            const names = parts.map((p) => (p as any).name).filter(Boolean);
+            const versions = parts.map((p) => (p as any).version).filter((v) => typeof v === 'number');
+            const after = metrics.snapshot();
+            const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
+            logger?.info?.('llm_bot.personality.mapped', {
+              count: parts.length,
+              names,
+              versions,
+              metrics: {
+                resolved: delta(METRIC_PERSONALITIES_RESOLVED),
+                failed: delta(METRIC_PERSONALITIES_FAILED),
+                dropped: delta(METRIC_PERSONALITIES_DROPPED),
+                cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
+                cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
+                clamped: delta(METRIC_PERSONALITY_CLAMPED),
+              },
+              identityPreview: preview(resolvedIdentitySummary || '', previewLen),
+              constraintsCount: resolvedConstraints?.length || 0,
+              correlationId: s.event.correlationId,
+            });
           }
         } catch (e: any) {
           logger?.warn?.('llm_bot.personality.compose_error', { error: e?.message || String(e), correlationId: s.event.correlationId });
@@ -409,13 +429,30 @@ export async function processEvent(
         const historyCtx = formatHistoryForContext(messages);
 
         const systemPrompt = finalSystem && finalSystem.trim()
-          ? { summary: 'LLM Bot System Rules', rules: [finalSystem.trim()], sources: ['architecture.yaml', 'AGENTS.md v2.4'] }
+          ? {
+              summary: 'LLM Bot System Rules',
+              rules: [
+                finalSystem.trim(),
+                'Precedence: architecture.yaml > AGENTS.md > everything else.',
+                'Safety: Do not reveal secrets or internal tokens. Refuse requests that violate policy.',
+              ],
+              sources: ['architecture.yaml', 'AGENTS.md v2.4'],
+            }
           : undefined;
 
         const promptSpec: PromptSpec | undefined = (taskAnns.length > 0 || baseText)
           ? {
               systemPrompt,
-              // LLM-04 will populate identity/constraints in a subsequent task
+              identity: (() => {
+                if (personalitiesEnabled && resolvedIdentitySummary && resolvedIdentitySummary.trim()) {
+                  return { summary: resolvedIdentitySummary.trim() };
+                }
+                return undefined;
+              })(),
+              constraints: (() => {
+                if (personalitiesEnabled && resolvedConstraints && resolvedConstraints.length > 0) return resolvedConstraints as any;
+                return undefined;
+              })(),
               task: taskAnns.length > 0 ? taskAnns : [{ instruction: 'Answer the user query', priority: 3, required: true }],
               input: { userQuery: baseText || combinedPrompt || '', context: historyCtx },
               requestingUser: ru,
@@ -436,12 +473,35 @@ export async function processEvent(
         const spec = (s.promptSpec as PromptSpec | undefined);
         if (!spec) return {};
         const cfg: AssemblerConfig = { headingLevel: 2, showEmptySections: true };
-        const assembled = assemble(spec, cfg);
-        const payload = openaiAdapter(assembled);
-        // Build request input by flattening current messages for backward compatibility
-        const msgs = (s.messages as ChatMessage[]) || [];
-        const input = msgs.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
         const corr = s.event.correlationId;
+        const assembled = assemble(spec, cfg);
+        // LLM-07: Log assembly meta and safe preview (no secrets)
+        if (assembled?.meta) {
+          logger?.debug?.('llm_bot.assembly.meta', {
+            correlationId: corr,
+            truncated: assembled.meta.truncated,
+            totalChars: assembled.meta.totalChars,
+            maxTotalChars: assembled.meta.maxTotalChars,
+            sectionLengths: assembled.meta.sectionLengths,
+            truncationNotes: (assembled.meta.truncationNotes || []).slice(0, 3),
+          });
+        }
+        logger?.debug?.('llm_bot.assembly.preview', {
+          correlationId: corr,
+          preview: preview(assembled.text),
+        });
+        const payload = openaiAdapter(assembled);
+        // LLM-05: Hard cutover – build request input from adapter payload preserving canonical order
+        const sysContent = payload.messages[0]?.content || '';
+        const userContent = payload.messages[1]?.content || '';
+        const input = [`(system) ${sysContent}`, `(user) ${userContent}`].join('\n\n').trim();
+        // LLM-07: Adapter payload stats
+        logger?.debug?.('llm_bot.adapter.payload_stats', {
+          correlationId: corr,
+          messageCount: 2,
+          systemChars: sysContent.length,
+          userChars: userContent.length,
+        });
         const startedAt = Date.now();
         // Backward-compatible input logging for operational visibility
         logger?.debug?.('llm_bot.call_model.input_stats', {

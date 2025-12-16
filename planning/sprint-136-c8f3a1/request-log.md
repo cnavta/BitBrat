@@ -12,6 +12,36 @@
 
 ---
 
+- Timestamp: 2025-12-16T21:20:00Z
+- Prompt summary: "Implement remaining backlog items (LLM-07..LLM-10)"
+- Interpretation: Add observability logs; remove legacy compose/flatten usage; update validation script with assembly smoke step; document runbooks and integration notes.
+- Shell/Git commands executed:
+  - npm test
+- Files modified/created:
+  - src/services/llm-bot/processor.ts → added assembly/meta + payload stats logs; removed composeSystemPrompt import/usage; removed raw OpenAI request/response logs
+  - validate_deliverable.sh → added Prompt Assembly smoke steps; enabled set -euo pipefail
+  - documentation/technical-architecture/prompt-assembly-v1.md → added llm-bot integration notes and CLI examples
+  - documentation/runbooks/llm-bot-prompt-assembly.md (new) → runbook with config, observability, CLI, troubleshooting
+  - planning/sprint-136-c8f3a1/backlog.yaml → LLM-07..10 marked complete
+- Test results:
+  - All tests passing (151 suites: 149 passed, 2 skipped; 399 tests: 389 passed, 10 skipped)
+
+- Timestamp: 2025-12-16T21:12:00Z
+- Prompt summary: "Implement LLM-04, LLM-05, and LLM-06"
+- Interpretation: Map personalities to Identity & Constraints; hard cutover to assemble()+openaiAdapter; update tests with golden checks.
+- Shell/Git commands executed:
+  - npm test
+- Files modified:
+  - src/services/llm-bot/processor.ts → LLM-04 mapping (Identity/Constraints) and LLM-05 hard cutover to adapter-built input
+  - src/services/llm-bot/processor.personality.spec.ts → updated expectations for Task/Input and system aggregation
+  - src/services/llm-bot/processor.personality-disabled.spec.ts → updated expectations for system aggregation and section headers
+  - src/services/llm-bot/__tests__/processor.personality-name.spec.ts → updated expectations for system aggregation and section headers
+  - src/services/llm-bot/processor.memory.spec.ts → assertions adapted to Task/Input and Input.context trimming
+  - tests/prompt-assembly/openai-adapter.spec.ts (new) → golden adapter mapping (system/user roles + headers)
+  - planning/sprint-136-c8f3a1/backlog.yaml → LLM-02/04/05/06 marked complete
+- Test results:
+  - All tests passing (149 passed, 0 failed; 2 skipped)
+
 - Timestamp: 2025-12-16T15:40:00Z
 - Prompt summary: "Revise planning docs to remove any requirements for feature flagging or rollback; clean conversion."
 - Interpretation: Update sprint-136-c8f3a1 planning to remove feature flag/rollback references and enforce hard cutover.

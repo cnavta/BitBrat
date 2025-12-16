@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # Enforce running from repo root
 if [[ ! -f "package.json" || ! -f "architecture.yaml" ]]; then
@@ -81,6 +81,15 @@ case "$SCOPE_ARG" in
   *)
     npm test ;;
 esac
+
+# LLM-09: Prompt Assembly smoke step (must not error)
+echo "🧪 Prompt Assembly smoke (canonical text) ..."
+echo '{"task":[{"instruction":"Echo"}],"input":{"userQuery":"ping"}}' \
+  | node dist/tools/prompt-assembly/src/cli/index.js --stdin --provider none >/dev/null
+
+echo "🧪 Prompt Assembly smoke (OpenAI adapter) ..."
+echo '{"task":[{"instruction":"Echo"}],"input":{"userQuery":"ping"}}' \
+  | node dist/tools/prompt-assembly/src/cli/index.js --stdin --provider openai >/dev/null
 
 if [[ "$SKIP_INFRA" != "1" ]]; then
   # Sprint 14: Infra dry-run validation

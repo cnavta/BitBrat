@@ -60,11 +60,14 @@ describe('llm-bot processor with name-based personality (Firestore lookup)', () 
       },
     });
     expect(status).toBe('OK');
-    // Should include base system prompt and the DB-resolved text
-    expect(capturedInput).toContain('(system) BASE');
+    // Should include a system section and the base system prompt text and the DB-resolved text (mapped into Identity under system)
+    expect(capturedInput).toContain('(system)');
+    expect(capturedInput).toContain('BASE');
     expect(capturedInput).toContain('DBTEXT');
-    // And it should include the user turns
-    expect(capturedInput).toContain('(user) hello');
-    expect(capturedInput).toContain('(user) Say hi');
+    // And it should include Task and Input sections containing the prompt and base text
+    expect(capturedInput).toContain('## [Task]');
+    expect(capturedInput).toContain('Say hi');
+    expect(capturedInput).toContain('## [Input]');
+    expect(capturedInput).toContain('hello');
   });
 });
