@@ -12,7 +12,7 @@ backlog:
     title: Implement generic /oauth/:provider/:identity routes
     description: Build mountOAuthRoutes() controller for start, callback, refresh, status using ProviderRegistry and token store.
     priority: 1
-    status: in_progress
+    status: done
     dependsOn: [OF-MP-01]
     acceptance:
       - Endpoints mounted under /oauth/:provider/:identity/*

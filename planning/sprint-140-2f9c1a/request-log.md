@@ -57,3 +57,14 @@
   - Files:
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-01 -> done)
     - package source files under src/services/oauth/* (added)
+
+- 2025-12-17T13:41:00Z
+  - Prompt: "Continue implementation of the plan; complete OF-MP-02 with tests"
+  - Interpretation: Add controller tests for generic OAuth routes; ensure start/callback/refresh/status behaviors; finalize routes.
+  - Commands:
+    - (file ops) add src/services/oauth/routes.test.ts
+    - npm test
+    - git add -A && git commit -m "test(oauth): add controller tests for generic routes; feat(oauth): finalize generic mount behavior; complete OF-MP-02"
+  - Files:
+    - src/services/oauth/routes.test.ts (created)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-02 -> done)
