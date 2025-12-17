@@ -68,7 +68,7 @@ backlog:
     title: Unit tests – envelope and filters
     description: Tests for DiscordEnvelopeBuilder and message filters (guild/channel, bot ignore) with mocked discord.js events.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [IE-DIS-03, IE-DIS-04]
     acceptance:
       - Jest tests pass locally and in CI; no network usage

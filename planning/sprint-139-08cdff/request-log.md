@@ -129,3 +129,18 @@ role: Architect
     - npm test
     - git add src/apps/ingress-egress-service.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-07 add /_debug/discord (sanitized snapshot); backlog updated; build+tests ok"
+
+- 2025-12-17T15:38:00Z | IE-DIS-08
+  - Prompt: "Implement IE-DIS-08 – unit tests for Discord envelope and filters (no network I/O)."
+  - Interpretation: Add Jest tests for DiscordEnvelopeBuilder mapping and DiscordIngressClient filters using a virtual jest mock for discord.js and NODE_ENV override to bypass disabled guard.
+  - Files created:
+    - src/services/ingress/discord/envelope-builder.spec.ts
+    - src/services/ingress/discord/discord-ingress-client.spec.ts
+  - Files modified:
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-08 → done)
+    - planning/sprint-139-08cdff/request-log.md (this file)
+  - Commands executed:
+    - npx jest --runTestsByPath src/services/ingress/discord/discord-ingress-client.spec.ts -t publishes --verbose
+    - npm test
+    - git add src/services/ingress/discord/*.spec.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-08 unit tests for Discord envelope+filters; backlog updated; tests pass"
