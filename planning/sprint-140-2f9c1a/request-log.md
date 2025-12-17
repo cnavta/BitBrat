@@ -169,3 +169,19 @@
     - infrastructure/scripts/extract-config.test.ts (updated)
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-09 -> done)
     - test logs: 161 passed, 2 skipped (no failures)
+
+- 2025-12-17T23:25:00Z
+  - Prompt: "Please implement OF-MP-14 and OF-MP-15 to completion."
+  - Interpretation: Add migration utility for legacy Twitch tokens to V2 schema and enhance oauth-flow observability with structured logs and per-provider/identity counters.
+  - Commands:
+    - (file ops) add tools/migrate-tokens.ts
+    - (file ops) update src/services/oauth/routes.ts (structured logs + counters)
+    - (file ops) update package.json (add migrate:tokens script)
+    - npm run build
+    - npm test
+  - Files:
+    - tools/migrate-tokens.ts (created)
+    - src/services/oauth/routes.ts (updated)
+    - package.json (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-14/15 -> done)
+    - test logs: 165 passed, 2 skipped (no failures)

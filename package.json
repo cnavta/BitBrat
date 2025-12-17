@@ -28,7 +28,8 @@
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
     "bootstrap:service": "node ./infrastructure/scripts/bootstrap-service.js",
     "brat": "node dist/tools/brat/src/cli/index.js",
-    "firestore:upsert": "node dist/tools/firestore-upsert.js"
+    "firestore:upsert": "node dist/tools/firestore-upsert.js",
+    "migrate:tokens": "node dist/tools/migrate-tokens.js"
   },
   "bin": {
     "prompt-assembly": "dist/tools/prompt-assembly/src/cli/index.js"

@@ -21,6 +21,8 @@ function makeCfg(overrides: Partial<IConfig> = {}): IConfig {
 describe('DiscordIngressClient token resolver and rotation', () => {
   afterEach(() => {
     jest.useRealTimers();
+    // Ensure no timers leak into other test files
+    try { jest.clearAllTimers(); } catch {}
     jest.clearAllMocks();
   });
 

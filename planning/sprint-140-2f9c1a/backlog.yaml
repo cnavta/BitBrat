@@ -125,7 +125,7 @@ backlog:
     title: Optional migration script for Twitch tokens
     description: Add tools/migrate-tokens.ts to copy existing Twitch docs into authTokens/twitch/* or document read-compat approach.
     priority: 3
-    status: todo
+    status: done
     acceptance:
       - Script runs locally with FIRESTORE_EMULATOR; no-ops safely in prod
 
@@ -133,7 +133,7 @@ backlog:
     title: Observability — structured logs and counters
     description: Ensure oauth-flow routes and Discord ingress emit structured logs and increment counters per provider/identity.
     priority: 3
-    status: todo
+    status: done
     acceptance:
       - Logs present for each route path; no tokens/secrets in logs
 
