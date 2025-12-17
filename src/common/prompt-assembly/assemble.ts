@@ -44,7 +44,8 @@ function renderSystemPrompt(spec: PromptSpec, cfg: AssemblerConfig): string {
 }
 
 function renderIdentity(spec: PromptSpec, cfg: AssemblerConfig): string {
-  const lines: string[] = [heading("Identity", cfg.headingLevel ?? 2)];
+  // v2 label update: render as [Assistant Identity] while keeping type name Identity
+  const lines: string[] = [heading("Assistant Identity", cfg.headingLevel ?? 2)];
   const id = spec.identity;
   if (!id) {
     if (cfg.showEmptySections ?? true) lines.push("- None provided.");

@@ -30,9 +30,9 @@ describe("openaiAdapter – v2 mapping", () => {
     const system = payload.messages[0].content;
     const user = payload.messages[1].content;
 
-    // System should ONLY contain System Prompt and Identity
+    // System should ONLY contain System Prompt and Assistant Identity
     expect(system).toContain("## [System Prompt]");
-    expect(system).toContain("## [Identity]");
+    expect(system).toContain("## [Assistant Identity]");
     expect(system).not.toContain("## [Requesting User]");
     expect(system).not.toContain("## [Conversation State / History]");
     expect(system).not.toContain("## [Constraints]");
@@ -55,8 +55,8 @@ describe("openaiAdapter – v2 mapping", () => {
       last = idx;
     }
 
-    // User should not contain System Prompt or Identity
+    // User should not contain System Prompt or Assistant Identity
     expect(user).not.toContain("## [System Prompt]");
-    expect(user).not.toContain("## [Identity]");
+    expect(user).not.toContain("## [Assistant Identity]");
   });
 });

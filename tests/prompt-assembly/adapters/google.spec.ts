@@ -24,7 +24,7 @@ describe("googleAdapter – v2 mapping", () => {
       : payload.systemInstruction.parts[0].text;
 
     expect(systemText).toContain("## [System Prompt]");
-    expect(systemText).toContain("## [Identity]");
+    expect(systemText).toContain("## [Assistant Identity]");
     expect(systemText).not.toContain("## [Requesting User]");
     expect(systemText).not.toContain("## [Conversation State / History]");
     expect(systemText).not.toContain("## [Constraints]");
@@ -49,6 +49,6 @@ describe("googleAdapter – v2 mapping", () => {
     }
 
     expect(userText).not.toContain("## [System Prompt]");
-    expect(userText).not.toContain("## [Identity]");
+    expect(userText).not.toContain("## [Assistant Identity]");
   });
 });

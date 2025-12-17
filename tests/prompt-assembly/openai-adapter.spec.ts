@@ -22,7 +22,7 @@ describe("openaiAdapter – maps canonical sections to system/user", () => {
     const sys = payload.messages[0].content;
     const usr = payload.messages[1].content;
     expect(sys).toContain("## [System Prompt]");
-    expect(sys).toContain("## [Identity]");
+    expect(sys).toContain("## [Assistant Identity]");
     expect(sys).not.toContain("## [Requesting User]");
     expect(sys).not.toContain("## [Constraints]");
     expect(usr).toContain("## [Requesting User]");

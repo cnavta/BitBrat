@@ -16,7 +16,7 @@ describe("assemble() – canonical rendering", () => {
     const { text } = assemble(baseSpec, cfg);
     const order = [
       "## [System Prompt]",
-      "## [Identity]",
+      "## [Assistant Identity]",
       "## [Requesting User]",
       "## [Conversation State / History]",
       "## [Constraints]",

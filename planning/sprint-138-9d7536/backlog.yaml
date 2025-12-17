@@ -142,7 +142,7 @@ backlog:
     title: Provider mapping edge cases (tool role, timestamps)
     description: Verify transcript items with role=tool and optional timestamps are handled consistently; exclude timestamps from payload unless needed.
     priority: 3
-    status: todo
+    status: done
     dependsOn: [PASM-V2-06]
     acceptance:
       - Tests verify correctness for tool messages and timestamp handling
@@ -151,7 +151,7 @@ backlog:
     title: Backward compatibility and labels
     description: Ensure label renders as [Assistant Identity] while keeping type/interface name Identity; maintain external API stability.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [PASM-V2-02]
     acceptance:
       - Render label updated; no breaking changes in types

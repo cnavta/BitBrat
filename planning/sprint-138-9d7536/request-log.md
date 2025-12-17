@@ -199,3 +199,42 @@
         tests/prompt-assembly/redaction.spec.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
     - git commit -m "sprint-138 PASM-V2-11/12: safe logging (no raw transcripts); add redaction utils + tests; update backlog/log"
     - git push
+
+- 2025-12-17T01:14:40Z — Executed (PASM-V2-16 in progress)
+  Context: Update assembler label from [Identity] to [Assistant Identity]; adjust tests expecting label.
+  Files modified:
+    - src/common/prompt-assembly/assemble.ts — change heading label
+    - tests/prompt-assembly/assemble.spec.ts — expect [Assistant Identity]
+    - tests/prompt-assembly/openai-adapter.spec.ts — expect [Assistant Identity]
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - 1–2 failing tests (label expectations) identified and fixed.
+
+- 2025-12-17T01:16:50Z — Executed (PASM-V2-15 in progress)
+  Context: Add edge-case tests for tool role and timestamp exclusion across adapters.
+  Files added:
+    - tests/prompt-assembly/adapters/edge-cases.spec.ts — verifies T: marker and no timestamps; OpenAI/Google payloads
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - Initial pass for new tests; one legacy test failed due to label rename.
+
+- 2025-12-17T01:18:30Z — Executed (PASM-V2-16 done)
+  Context: Finalize label rename updates in Google adapter test.
+  Files modified:
+    - tests/prompt-assembly/adapters/google.spec.ts — expect [Assistant Identity]
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - All tests passing: 154 passed, 2 skipped (156 total); 403 passed, 10 skipped (413 total)
+
+- 2025-12-17T01:19:20Z — Executed (PASM-V2-15/16 done)
+  Context: Update backlog statuses and commit/push.
+  Files modified:
+    - planning/sprint-138-9d7536/backlog.yaml (PASM-V2-15=done, PASM-V2-16=done)
+  Commands to run:
+    - git add src/common/prompt-assembly/assemble.ts tests/prompt-assembly/*.spec.ts tests/prompt-assembly/adapters/*.spec.ts \
+        planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
+    - git commit -m "sprint-138 PASM-V2-15/16: add edge-case tool/timestamp tests; rename label to [Assistant Identity]; update tests; mark backlog done"
+    - git push
