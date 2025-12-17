@@ -123,6 +123,22 @@
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-05/06/07 -> done)
     - test logs: 161 passed, 2 skipped (no failures)
 
+- 2025-12-17T21:33:00Z
+  - Prompt: "Please implement OF-MP-10 and OF-MP-11 to completion."
+  - Interpretation: Add unit tests for TwitchAdapter (authorize/exchange/refresh via mocks) and FirestoreAuthTokenStore V2 (get/put, updatedAt, legacy fallback); run Jest; fix issues; update backlog and log.
+  - Commands:
+    - (file ops) add src/services/oauth/providers/twitch-adapter.test.ts
+    - (file ops) add src/services/oauth/auth-token-store.test.ts
+    - npm test
+    - (file ops) update src/services/oauth/auth-token-store.test.ts (fix v2 path assumptions)
+    - npm test
+    - git add -A && git commit -m "test(oauth): add TwitchAdapter unit tests (OF-MP-10); test(auth-store): add FirestoreAuthTokenStore V2 tests (OF-MP-11); fix test v2 path; mark backlog done"
+  - Files:
+    - src/services/oauth/providers/twitch-adapter.test.ts (created)
+    - src/services/oauth/auth-token-store.test.ts (created, updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-10/11 -> done)
+    - test logs: 163 passed, 2 skipped (no failures)
+
 - 2025-12-17T20:05:00Z
   - Prompt: "Please implement and run tests for the registry and controller"
   - Interpretation: Complete OF-MP-09 by adding/validating unit tests for ProviderRegistry and generic OAuth controller, including token-store interactions; fix type and infra test expectations to reflect Discord config additions.

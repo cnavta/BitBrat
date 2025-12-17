@@ -89,7 +89,7 @@ backlog:
     title: Unit tests — TwitchAdapter
     description: Tests for Twitch authorize/callback/refresh logic via mocks; no external HTTP.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [OF-MP-03]
     acceptance:
       - Token persisted with expected fields; legacy and generic routes behavior validated
@@ -98,7 +98,7 @@ backlog:
     title: Unit tests — FirestoreTokenStore new schema
     description: Tests for get/put by provider+identity, updatedAt behavior, and read-compat for Twitch.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [OF-MP-05]
     acceptance:
       - CRUD operations verified with emulator/mocks; schema fields respected
