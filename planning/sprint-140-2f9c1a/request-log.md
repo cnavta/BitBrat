@@ -139,6 +139,21 @@
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-10/11 -> done)
     - test logs: 163 passed, 2 skipped (no failures)
 
+- 2025-12-17T22:05:00Z
+  - Prompt: "Please implement OF-MP-12 and OF-MP-13 to completion."
+  - Interpretation: Add ingress tests for Discord token resolver + rotation (mocked store, fake timers) and integration tests for generic Twitch OAuth endpoints (HTTP server with mocked fetch) covering start/callback/status. Update backlog and log; commit.
+  - Commands:
+    - (file ops) add src/services/ingress/discord/discord-ingress-client.test.ts
+    - (file ops) add src/services/oauth/oauth-flow.integration.test.ts
+    - npm test
+    - (file ops) update planning/sprint-140-2f9c1a/backlog.yaml (OF-MP-12/13 -> done)
+    - git add -A && git commit -m "test(ingress/discord): add token resolver + rotation tests (OF-MP-12); test(oauth): add generic Twitch OAuth integration tests for start/callback/status (OF-MP-13); chore(backlog): mark OF-MP-12/13 done"
+  - Files:
+    - src/services/ingress/discord/discord-ingress-client.test.ts (created)
+    - src/services/oauth/oauth-flow.integration.test.ts (created)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-12/13 -> done)
+    - test logs: 165 passed, 2 skipped (no failures)
+
 - 2025-12-17T20:05:00Z
   - Prompt: "Please implement and run tests for the registry and controller"
   - Interpretation: Complete OF-MP-09 by adding/validating unit tests for ProviderRegistry and generic OAuth controller, including token-store interactions; fix type and infra test expectations to reflect Discord config additions.

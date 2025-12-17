@@ -107,7 +107,7 @@ backlog:
     title: Ingress tests — Discord token resolver and rotation
     description: Tests for DiscordIngressClient using mocked ITokenStore; verify fallback and rotation handling.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [OF-MP-07]
     acceptance:
       - Login chooses correct token source; reconnect invoked on token change
@@ -116,7 +116,7 @@ backlog:
     title: Integration tests — oauth-flow endpoints (Twitch)
     description: End-to-end route tests for start/callback/status using HTTP server with mocks for external calls.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [OF-MP-02, OF-MP-03, OF-MP-05]
     acceptance:
       - HTTP 200/302 as expected; tokens saved; legacy paths unchanged
