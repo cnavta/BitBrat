@@ -7,13 +7,14 @@
 - In scope
   - Provider registry and generic /oauth/:provider/:identity routes
   - Twitch adapter migration into adapter interface (backward-compatible existing routes)
-  - Discord adapter (bot token handling; optional user OAuth groundwork)
+  - Discord adapter (bot token handling; user OAuth deferred)
   - Token store schema updates (authTokens/{provider}/{identity})
   - Discord ingress changes to read token from store with feature flag
   - Tests and documentation
 - Out of scope
   - UI for account linking
   - Cross-provider SSO and advanced consent
+  - Discord user-level OAuth this sprint
 
 ## Deliverables
 - Code changes in oauth-flow (routes, adapters) and ingress (Discord token resolution)

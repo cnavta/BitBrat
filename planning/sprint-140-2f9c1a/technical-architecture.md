@@ -146,9 +146,14 @@ type TokenPayload = {
 - Multi‑provider complexity: keep adapters thin; reuse shared controller logic.
 
 ## Open Questions
-- Do we need user‑level Discord OAuth this sprint, or only bot gateway auth? (Proposed: bot gateway auth via token store; user OAuth optional groundwork.)
-- Preferred token store collection path and naming? (Proposed: authTokens/{provider}/{identity})
-- Owner for sprint manifest (GitHub handle)?
+- (Resolved) Discord scope: Only bot gateway token flow is in scope for this sprint; user-level OAuth is deferred.
+- (Resolved) Token store path: Approved — authTokens/{provider}/{identity}.
+- (Resolved) Owner: @christophernavta.
+
+## Decisions
+- Proceed with bot-only Discord integration for ingress; store bot token under provider=discord, identity=bot.
+- Keep user-level Discord OAuth out of scope for this sprint, but retain adapter hooks for future support.
+- Use Firestore path authTokens/{provider}/{identity} for all providers.
 
 ## Next Steps (pending approval)
 1) Add implementation-plan.md for approval
