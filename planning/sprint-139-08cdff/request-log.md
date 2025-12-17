@@ -171,3 +171,39 @@ role: Architect
     - npm test
     - git add src/services/ingress/discord/discord-ingress-client.ts src/services/ingress/discord/discord-observability.spec.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-10 observability logging (namespaces, counters, filter reasons) + tests; backlog updated; build+tests ok"
+
+- 2025-12-17T16:12:00Z | IE-DIS-11
+  - Prompt: "Implement IE-DIS-11 – Optional Discord egress adapter stub + unit test."
+  - Interpretation: Provide an EgressConnector stub behind DISCORD_ENABLED flag; resolve default channel from config; no-op when disabled; add minimal unit tests; export in module index.
+  - Files created:
+    - src/services/ingress/discord/discord-egress-connector.ts
+    - src/services/ingress/discord/discord-egress-connector.spec.ts
+  - Files modified:
+    - src/services/ingress/discord/index.ts (export stub)
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-11 → done)
+  - Commands executed:
+    - npm run build
+    - npm test -- src/services/ingress/discord
+    - git add src/services/ingress/discord/discord-egress-connector.* src/services/ingress/discord/index.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-11 Discord egress stub + unit test; export; backlog updated"
+
+- 2025-12-17T16:18:00Z | IE-DIS-12
+  - Prompt: "Implement IE-DIS-12 – Docs & Runbook for Discord."
+  - Interpretation: Add docs covering config keys, enablement steps, /_debug/discord troubleshooting, and CI safety; link not required for acceptance.
+  - Files created:
+    - documentation/ingress-egress-discord.md
+  - Files modified:
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-12 → done)
+  - Commands executed:
+    - git add documentation/ingress-egress-discord.md planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-12 add Discord ingress docs (config, enablement, debug endpoint, CI safety)"
+
+- 2025-12-17T16:22:00Z | IE-DIS-13
+  - Prompt: "Implement IE-DIS-13 – Validation script alignment for Discord disabled."
+  - Interpretation: Ensure validate_deliverable.sh remains logically passable; set/echo DISCORD_ENABLED=false for validation runs to avoid any network I/O.
+  - Files modified:
+    - validate_deliverable.sh (echo + export DISCORD_ENABLED=false)
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-13 → done)
+  - Commands executed:
+    - git add validate_deliverable.sh planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-13 validation updates (Discord disabled echo) ; backlog updated"

@@ -66,6 +66,10 @@ echo "🧪 Running tests (scope=$SCOPE_ARG)..."
 export CI=1
 # Ensure CI uses a zero-I/O message bus to avoid any network connections (@google-cloud/pubsub or NATS)
 export MESSAGE_BUS_DRIVER=${MESSAGE_BUS_DRIVER:-noop}
+# Ensure Discord connector is disabled during validation to prevent any network I/O
+export DISCORD_ENABLED=${DISCORD_ENABLED:-false}
+# Report Discord validation state for transparency
+echo "🔒 Discord validation state: DISCORD_ENABLED=$DISCORD_ENABLED"
 # Allow tests to control subscription behavior themselves; do not force-disable globally here
 unset MESSAGE_BUS_DISABLE_SUBSCRIBE
 # Disable any message bus network I/O at the factory level

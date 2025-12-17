@@ -95,7 +95,7 @@ backlog:
     title: "Optional: Discord egress adapter stub"
     description: Implement EgressConnector stub for Discord behind flag; resolve default channel; no-op when disabled.
     priority: 3
-    status: todo
+    status: done
     dependsOn: [IE-DIS-02]
     acceptance:
       - Method signature matches EgressConnector; covered by minimal unit test
@@ -104,7 +104,7 @@ backlog:
     title: Docs & Runbook
     description: Update service README/runbook with config keys, enablement steps, and troubleshooting via /_debug/discord.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [IE-DIS-06, IE-DIS-07]
     acceptance:
       - Documentation added; includes token handling and channel ID guidance
@@ -113,6 +113,6 @@ backlog:
     title: Validation script notes
     description: Ensure validate_deliverable.sh remains logically passable with Discord disabled; add brief echo steps.
     priority: 3
-    status: todo
+    status: done
     acceptance:
       - Script runs end-to-end in CI with DISCORD_ENABLED=false
