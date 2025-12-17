@@ -220,6 +220,20 @@ class IngressEgressServer extends BaseServer {
       const snapshot = this.twitchClient!.getSnapshot();
       res.status(200).json({ snapshot, egressTopic });
     });
+
+    // IE-DIS-07: Discord debug endpoint exposing sanitized connector snapshot (no secrets)
+    this.onHTTPRequest('/_debug/discord', (_req: Request, res: Response) => {
+      try {
+        const manager = this.connectorManager;
+        const snapshots = manager ? manager.getSnapshot() : {} as any;
+        const discordSnap = (snapshots as any)?.discord || { state: 'DISCONNECTED' };
+        // Sanitize: remove any unexpected sensitive fields if present
+        const { token, botToken, secret, ...safe } = (discordSnap || {}) as Record<string, unknown>;
+        res.status(200).json({ snapshot: safe, egressTopic });
+      } catch (e: any) {
+        res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
+      }
+    });
   }
 }
 

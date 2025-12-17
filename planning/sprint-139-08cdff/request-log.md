@@ -117,3 +117,15 @@ role: Architect
     - npm run build
     - git add src/services/ingress/twitch/connector-adapter.ts src/apps/ingress-egress-service.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-06 wire ConnectorManager, register Twitch+Discord; preserve Twitch egress; build ok"
+
+- 2025-12-17T15:30:00Z | IE-DIS-07
+  - Prompt: "Implement IE-DIS-07 – Add /_debug/discord endpoint."
+  - Interpretation: Add HTTP route in ingress-egress-service.ts exposing sanitized ConnectorManager snapshot for Discord (no secrets); include counters, guildId, channelIds, lastError; keep independent of Twitch.
+  - Files modified:
+    - src/apps/ingress-egress-service.ts (added /_debug/discord endpoint)
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-07 → done)
+  - Commands executed:
+    - npm run build
+    - npm test
+    - git add src/apps/ingress-egress-service.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-07 add /_debug/discord (sanitized snapshot); backlog updated; build+tests ok"

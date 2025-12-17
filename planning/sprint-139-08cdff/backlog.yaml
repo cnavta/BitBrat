@@ -59,7 +59,7 @@ backlog:
     title: Add /_debug/discord endpoint
     description: Expose Discord connector snapshot without secrets; include counters, guild/channel IDs, lastError.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [IE-DIS-03]
     acceptance:
       - GET /_debug/discord returns 200 with snapshot JSON
