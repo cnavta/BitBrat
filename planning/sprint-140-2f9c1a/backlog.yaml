@@ -22,7 +22,7 @@ backlog:
     title: Migrate Twitch to TwitchAdapter
     description: Implement TwitchAdapter behind the new interface using existing logic; support authorize, exchange, refresh.
     priority: 1
-    status: todo
+    status: in_progress
     dependsOn: [OF-MP-01, OF-MP-02]
     acceptance:
       - Legacy /oauth/twitch/{bot,broadcaster} still work unchanged
