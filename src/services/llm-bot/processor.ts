@@ -447,6 +447,11 @@ export async function processEvent(
         })();
         const conversationState = (() => {
           if (convoTranscript.length === 0 && !convoSummary) return undefined;
+          // Allow env override for renderMode
+          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'summary' }) || 'summary').toLowerCase();
+          const renderMode = (renderModeEnv === 'both' || renderModeEnv === 'transcript' || renderModeEnv === 'summary')
+            ? (renderModeEnv as 'both'|'transcript'|'summary')
+            : 'summary';
           return {
             summary: convoSummary || undefined,
             // Default to summary-first; transcript optionally included for richer context
@@ -455,7 +460,7 @@ export async function processEvent(
               maxMessages: isFinite(maxMessages) ? maxMessages : 8,
               maxChars: isFinite(maxChars) ? maxChars : 8000,
             },
-            renderMode: 'summary',
+            renderMode,
           } as PromptSpec['conversationState'];
         })();
 
