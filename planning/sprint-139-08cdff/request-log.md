@@ -157,3 +157,17 @@ role: Architect
     - npm test
     - git add src/services/ingress/discord/discord-integration.spec.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-09 integration tests (disabled mode + publish path); backlog updated; tests green"
+
+- 2025-12-17T16:02:00Z | IE-DIS-10
+  - Prompt: "Implement IE-DIS-10 – Observability logging and counters."
+  - Interpretation: Align Discord logs to ingress-egress.discord.*; add lifecycle and message logs (received/filtered/published/error); maintain counters including filtered; ensure secrets never logged; add unit tests.
+  - Files modified:
+    - src/services/ingress/discord/discord-ingress-client.ts (log namespaces, filter logs, counters.filtered, published log)
+    - src/services/ingress/discord/discord-observability.spec.ts (new tests)
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-10 → done)
+    - planning/sprint-139-08cdff/request-log.md (this file)
+  - Commands executed:
+    - npm run build
+    - npm test
+    - git add src/services/ingress/discord/discord-ingress-client.ts src/services/ingress/discord/discord-observability.spec.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-10 observability logging (namespaces, counters, filter reasons) + tests; backlog updated; build+tests ok"

@@ -86,7 +86,7 @@ backlog:
     title: Observability logging and counters
     description: Add logging namespace ingress-egress.discord.*; maintain counters in snapshot; redact sensitive fields.
     priority: 3
-    status: todo
+    status: done
     dependsOn: [IE-DIS-03]
     acceptance:
       - Logs present for lifecycle and message handling; tokens never logged

@@ -49,7 +49,7 @@ export class DiscordIngressClient implements IngressConnector {
   async start(): Promise<void> {
     const disabled = !this.cfg.discordEnabled || process.env.NODE_ENV === 'test';
     if (disabled) {
-      logger.debug('discord.ingress.disabled');
+      logger.debug('ingress-egress.discord.disabled');
       // Emulate ready state without network I/O
       this.snapshot.state = 'CONNECTED';
       return;
@@ -79,6 +79,7 @@ export class DiscordIngressClient implements IngressConnector {
     }
 
     this.snapshot.state = 'CONNECTING';
+    logger.info('ingress-egress.discord.start', { guildId, channelsCount: channels.length });
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
@@ -91,22 +92,45 @@ export class DiscordIngressClient implements IngressConnector {
     this.client.once('ready', () => {
       this.snapshot.state = 'CONNECTED';
       this.snapshot.lastError = null;
-      logger.info('discord.ingress.ready', { guildId, channelsCount: channels.length });
+      logger.info('ingress-egress.discord.ready', { guildId, channelsCount: channels.length });
     });
 
     this.client.on('error', (err: any) => {
       this.snapshot.state = this.disconnecting ? 'DISCONNECTED' : 'ERROR';
       this.snapshot.lastError = { message: err?.message || String(err) };
-      logger.error('discord.ingress.error', { error: err?.message || String(err) });
+      logger.error('ingress-egress.discord.error', { error: err?.message || String(err) });
     });
 
     this.client.on('messageCreate', async (msg: any) => {
       try {
         // Filters: guild, channels, bot ignore, require text content
-        if (!msg?.guild || msg.guild.id !== guildId) return;
-        if (!channels.includes(msg.channel?.id)) return;
-        if (!msg.content || typeof msg.content !== 'string') return;
-        if (msg.author?.bot) return;
+        const chId = String(msg?.channel?.id || '');
+        const auId = String(msg?.author?.id || '');
+        logger.debug('ingress-egress.discord.message.received', { guildId, channelId: chId, authorId: auId, length: (msg?.content?.length || 0) });
+        if (!msg?.guild || msg.guild.id !== guildId) {
+          this.snapshot.counters = this.snapshot.counters || {};
+          (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
+          logger.debug('ingress-egress.discord.message.filtered', { reason: 'guild_mismatch', guildId: msg?.guild?.id, expectedGuildId: guildId });
+          return;
+        }
+        if (!channels.includes(msg.channel?.id)) {
+          this.snapshot.counters = this.snapshot.counters || {};
+          (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
+          logger.debug('ingress-egress.discord.message.filtered', { reason: 'channel_not_allowed', channelId: chId });
+          return;
+        }
+        if (!msg.content || typeof msg.content !== 'string') {
+          this.snapshot.counters = this.snapshot.counters || {};
+          (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
+          logger.debug('ingress-egress.discord.message.filtered', { reason: 'non_text' });
+          return;
+        }
+        if (msg.author?.bot) {
+          this.snapshot.counters = this.snapshot.counters || {};
+          (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
+          logger.debug('ingress-egress.discord.message.filtered', { reason: 'bot' });
+          return;
+        }
 
         const meta: DiscordMessageMeta = {
           guildId,
@@ -128,12 +152,15 @@ export class DiscordIngressClient implements IngressConnector {
           const evt = this.builder.build(meta, { egressDestination: this.options.egressDestinationTopic });
           await this.publisher.publish(evt);
           this.snapshot.counters!.published = (this.snapshot.counters!.published || 0) + 1;
+          try {
+            logger.info('ingress-egress.discord.message.published', { correlationId: (evt as any)?.correlationId, channelId: meta.channelId });
+          } catch {}
         });
       } catch (e: any) {
         this.snapshot.counters = this.snapshot.counters || {};
         this.snapshot.counters.failed = (this.snapshot.counters.failed || 0) + 1;
         this.snapshot.lastError = { message: e?.message || String(e) };
-        logger.error('discord.ingress.handle_error', { error: e?.message || String(e) });
+        logger.error('ingress-egress.discord.message.error', { error: e?.message || String(e) });
       }
     });
 
@@ -149,6 +176,6 @@ export class DiscordIngressClient implements IngressConnector {
     } catch {}
     this.client = null;
     this.snapshot.state = 'DISCONNECTED';
-    logger.debug('discord.ingress.stopped');
+    logger.debug('ingress-egress.discord.stopped');
   }
 }
