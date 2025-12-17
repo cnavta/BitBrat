@@ -13,7 +13,7 @@ backlog:
     title: Define connector interfaces and manager
     description: Create IngressConnector, IngressPublisher, EnvelopeBuilder<T>, EgressConnector interfaces and a ConnectorManager to load/start/stop connectors by config.
     priority: 1
-    status: todo
+    status: done
     acceptance:
       - Interfaces exported under src/services/ingress/core
       - Manager can start/stop connectors independently; snapshot API returns per-connector state

@@ -49,3 +49,17 @@ role: Architect
     - npm run build  # ensure types compile
     - git add src/types/index.ts src/common/config.ts env/*/ingress-egress.yaml .cloudbuild/env.ingress-egress.kv planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-01 Discord config + env stubs; redact token; KV placeholder; build ok"
+
+- 2025-12-17T15:15:00Z | IE-DIS-02
+  - Prompt: "Implement IE-DIS-02 – define connector interfaces and manager."
+  - Interpretation: Create core interfaces (IngressConnector, IngressPublisher, EnvelopeBuilder<T>, EgressConnector) and a ConnectorManager with register/start/stop/snapshot; export from core index.
+  - Files created:
+    - src/services/ingress/core/interfaces.ts
+    - src/services/ingress/core/connector-manager.ts
+    - src/services/ingress/core/index.ts
+  - Files modified:
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-02 → done)
+  - Commands executed:
+    - npm run build  # ensure types compile
+    - git add src/services/ingress/core/* planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-02 connector interfaces + manager; compile ok"
