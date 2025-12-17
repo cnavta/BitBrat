@@ -144,3 +144,16 @@ role: Architect
     - npm test
     - git add src/services/ingress/discord/*.spec.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-08 unit tests for Discord envelope+filters; backlog updated; tests pass"
+
+- 2025-12-17T15:50:30Z | IE-DIS-09
+  - Prompt: "Implement IE-DIS-09 – integration tests for disabled mode startup & publish path (no network I/O)."
+  - Interpretation: Add integration tests ensuring DiscordIngressClient.start() in disabled mode avoids loading discord.js and reaches CONNECTED; add publish-path test using a virtual discord.js mock and a mock publisher to assert InternalEventV2 publish with egressDestination.
+  - Files created:
+    - src/services/ingress/discord/discord-integration.spec.ts
+  - Files modified:
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-09 → done)
+    - planning/sprint-139-08cdff/request-log.md (this file)
+  - Commands executed:
+    - npm test
+    - git add src/services/ingress/discord/discord-integration.spec.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-09 integration tests (disabled mode + publish path); backlog updated; tests green"

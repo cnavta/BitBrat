@@ -77,7 +77,7 @@ backlog:
     title: Integration tests – disabled mode startup & publish path
     description: Validate connector start in disabled mode and publication to internal.ingress.v1 via mock PublisherResource.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [IE-DIS-06]
     acceptance:
       - Tests assert no network calls occurred; publish called with expected payload
