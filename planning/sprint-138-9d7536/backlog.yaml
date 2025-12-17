@@ -94,7 +94,7 @@ backlog:
     title: "llm-bot: migrate history out of Input.context with fallback"
     description: Stop injecting conversation history into Input.context; add temporary shim mapping Input.context→conversationState if present (warn/deprecate).
     priority: 1
-    status: todo
+    status: done
     dependsOn:
       - PASM-V2-09
     acceptance:

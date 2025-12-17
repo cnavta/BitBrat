@@ -29,6 +29,9 @@ type LlmGraphState = {
   error?: Error;
 };
 
+// PASM-V2-10: one-time deprecation warning flag for legacy Input.context history injection
+let warnedInputContextHistory = false;
+
 function preview(text: string, max = 200): string {
   const s = String(text || '');
   if (s.length <= max) return s;
@@ -426,6 +429,7 @@ export async function processEvent(
           return hasAny ? obj : undefined;
         })();
 
+        // Legacy history-in-Input.context (v1) — compute but do not inject anymore (PASM-V2-10)
         const historyCtx = formatHistoryForContext(messages);
         // PASM-V2-09: Build conversationState from recent exchanges
         const convoTranscript = (messages || [])
@@ -480,12 +484,21 @@ export async function processEvent(
                 return undefined;
               })(),
               task: taskAnns.length > 0 ? taskAnns : [{ instruction: 'Answer the user query', priority: 3, required: true }],
-              // PASM-V2-09: populate conversationState (v2); keep legacy Input.context for now (will migrate in PASM-V2-10)
+              // PASM-V2-09/10: populate conversationState (v2) and stop injecting history into Input.context
               conversationState,
-              input: { userQuery: baseText || combinedPrompt || '', context: historyCtx },
+              input: { userQuery: baseText || combinedPrompt || '' },
               requestingUser: ru,
             }
           : undefined;
+
+        // PASM-V2-10: Deprecation warning (once) when legacy history context existed
+        if (!warnedInputContextHistory && historyCtx && historyCtx.trim().length > 0) {
+          warnedInputContextHistory = true;
+          logger?.warn?.('llm_bot.deprecation.input_context_history', {
+            correlationId: s.event.correlationId,
+            note: 'Conversation history is no longer injected into Input.context. It is now rendered under [Conversation State / History].',
+          });
+        }
 
         return { combinedPrompt, messages, promptSpec, systemText: finalSystem, userTurns };
       })

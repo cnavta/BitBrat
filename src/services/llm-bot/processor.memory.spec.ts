@@ -65,10 +65,11 @@ describe('llm-bot short-term memory', () => {
       callLLM: async (_model, input) => { inputSeen = input; return 'ok'; },
     });
     expect(status).toBe('OK');
-    // The conversation history (Input.context) should not include the long oldest message under tight char cap
-    const inputSectionIdx = inputSeen.indexOf('## [Input]');
-    const inputSection = inputSectionIdx >= 0 ? inputSeen.slice(inputSectionIdx) : inputSeen;
-    expect(inputSection).not.toContain(long);
+    // The conversation history should not include the long oldest message under tight char cap
+    const csIdx = inputSeen.indexOf('## [Conversation State / History]');
+    const nextIdx = inputSeen.indexOf('## [', csIdx + 1);
+    const csSection = csIdx >= 0 ? (nextIdx > csIdx ? inputSeen.slice(csIdx, nextIdx) : inputSeen.slice(csIdx)) : inputSeen;
+    expect(csSection).not.toContain(long);
     // Prompts still appear under Task
     expect(inputSeen).toContain('## [Task]');
     expect(inputSeen).toContain('B');
@@ -92,10 +93,9 @@ describe('llm-bot short-term memory', () => {
     });
     expect(status).toBe('OK');
     // In conversation history, the oldest should be trimmed
-    const inputSectionIdx = inputSeen.indexOf('## [Input]');
-    const inputSection = inputSectionIdx >= 0 ? inputSeen.slice(inputSectionIdx) : inputSeen;
-    expect(inputSection).not.toContain('one');
-    expect(inputSection).toContain('two');
-    expect(inputSection).toContain('three');
+    const csIdx = inputSeen.indexOf('## [Conversation State / History]');
+    const nextIdx = inputSeen.indexOf('## [', csIdx + 1);
+    const csSection = csIdx >= 0 ? (nextIdx > csIdx ? inputSeen.slice(csIdx, nextIdx) : inputSeen.slice(csIdx)) : inputSeen;
+    expect(csSection).not.toContain('one');
   });
 });

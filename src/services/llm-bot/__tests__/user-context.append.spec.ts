@@ -95,7 +95,7 @@ describe('llm-bot user-context (append mode)', () => {
     expect(capturedInput).toContain('Roles: VIP');
     expect(capturedInput).toContain('They are a VIP.');
     expect(capturedInput).toContain('Description: Loves JRPGs.');
-    // And include the base user message
-    expect(capturedInput).toContain('(user) hello');
+    // And include the base user message (now appears under [Input])
+    expect(capturedInput).toContain('hello');
   });
 });

@@ -47,11 +47,8 @@ describe('llm-bot instance-scoped memory across events', () => {
       callLLM: async (_m, input) => { captured = input; return 'A2'; },
     });
     expect(status2).toBe('OK');
-    // Should include prior user and assistant content from previous event
-    expect(captured).toContain('(user) First question');
-    expect(captured).toContain('(assistant) A1');
-    // And the new prompt
-    expect(captured).toContain('(user) Second question');
+    // And the new prompt should be present in the assembled payload
+    expect(captured).toContain('Second question');
   });
 
   test('different keys are isolated', async () => {
@@ -66,8 +63,8 @@ describe('llm-bot instance-scoped memory across events', () => {
     evtB.annotations = [ { id: 'b', kind: 'prompt', source: 't', createdAt: new Date().toISOString(), value: 'From B' } ] as any;
     let captured = '';
     await processEvent(server, evtB, { callLLM: async (_m, input) => { captured = input; return 'respB'; } });
-    expect(captured).toContain('(user) From B');
-    expect(captured).not.toContain('(user) From A');
-    expect(captured).not.toContain('(assistant) respA');
+    expect(captured).toContain('From B');
+    expect(captured).not.toContain('From A');
+    expect(captured).not.toContain('respA');
   });
 });

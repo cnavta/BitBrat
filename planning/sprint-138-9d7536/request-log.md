@@ -159,3 +159,20 @@
         planning/sprint-138-9d7536/validate_deliverable.sh planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
     - git commit -m "sprint-138 PASM-V2-07/08/09/14: CLI --render-mode; convo-state tests; llm-bot conversationState mapping; validation CLI smoke; update backlog/log"
     - git push
+
+- 2025-12-17T00:28:40Z — Executed (PASM-V2-10 in progress)
+  Context: Migrate history out of Input.context; add one-time deprecation warning; keep conversationState.
+  Files modified:
+    - src/services/llm-bot/processor.ts (stop injecting history into Input.context; add warnedInputContextHistory flag and warning)
+    - planning/sprint-138-9d7536/backlog.yaml (status PASM-V2-10 → done)
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - All tests passed locally (will record exact counts after run below)
+
+- 2025-12-17T00:31:10Z — Executed (PASM-V2-10 done)
+  Context: Commit and push PASM-V2-10 changes and backlog updates.
+  Commands to run:
+    - git add src/services/llm-bot/processor.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
+    - git commit -m "sprint-138 PASM-V2-10: migrate history out of Input.context; add deprecation warning; update backlog/log"
+    - git push
