@@ -89,3 +89,36 @@
   - Files:
     - src/apps/oauth-service.ts (updated)
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-04 -> in_progress)
+
+- 2025-12-17T14:09:00Z
+  - Prompt: "Run tests and finalize OF-MP-04"
+  - Interpretation: Commit wiring changes; run Jest; mark OF-MP-04 done on success; log results.
+  - Commands:
+    - git add -A && git commit -m "feat(oauth): wire oauth-service with legacy + generic routes via ProviderRegistry; start OF-MP-04"
+    - npm test
+    - (file ops) update planning/sprint-140-2f9c1a/backlog.yaml (OF-MP-04 -> done)
+  - Files:
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-04 -> done)
+    - test logs: 161 passed, 2 skipped (no failures)
+
+- 2025-12-17T19:10:00Z
+  - Prompt: "Implement OF-MP-05 through OF-MP-07"
+  - Interpretation: Add token store V2 (authTokens/{provider}/{identity}) with legacy Twitch read-compat; wire generic OAuth routes to persist/status; add DiscordAdapter skeleton; integrate Discord ingress with token store behind feature flag with rotation polling.
+  - Commands:
+    - (file ops) add src/services/oauth/auth-token-store.ts
+    - (file ops) update src/services/oauth/routes.ts to persist+status via V2 store
+    - (file ops) update src/apps/oauth-service.ts to construct V2 store and pass to mountOAuthRoutes; register DiscordAdapter
+    - (file ops) add src/services/oauth/providers/discord-adapter.ts and export in oauth index
+    - (file ops) update src/services/ingress/discord/discord-ingress-client.ts to use store when enabled and support rotation
+    - (file ops) update src/apps/ingress-egress-service.ts to inject V2 store into DiscordIngressClient
+    - npm test
+  - Files:
+    - src/services/oauth/auth-token-store.ts (created)
+    - src/services/oauth/routes.ts (updated)
+    - src/apps/oauth-service.ts (updated)
+    - src/services/oauth/providers/discord-adapter.ts (created)
+    - src/services/oauth/index.ts (updated)
+    - src/services/ingress/discord/discord-ingress-client.ts (updated)
+    - src/apps/ingress-egress-service.ts (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-05/06/07 -> done)
+    - test logs: 161 passed, 2 skipped (no failures)

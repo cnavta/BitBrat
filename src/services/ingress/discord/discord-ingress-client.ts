@@ -2,6 +2,7 @@ import { logger } from '../../../common/logging';
 import type { ConnectorSnapshot, EnvelopeBuilder, IngressConnector, IngressPublisher } from '../core';
 import type { IConfig } from '../../../types';
 import { startActiveSpan } from '../../../common/tracing';
+import type { IAuthTokenStoreV2 } from '../../oauth/auth-token-store';
 
 export type DiscordConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -27,12 +28,15 @@ export class DiscordIngressClient implements IngressConnector {
   private client: any | null = null;
   private disconnecting = false;
   private snapshot: ConnectorSnapshot = { state: 'DISCONNECTED', counters: { received: 0, published: 0, failed: 0 } };
+  private tokenPollTimer: NodeJS.Timeout | null = null;
+  private currentToken: string | null = null;
 
   constructor(
     private readonly builder: EnvelopeBuilder<DiscordMessageMeta>,
     private readonly publisher: IngressPublisher,
     private readonly cfg: IConfig,
-    private readonly options: { egressDestinationTopic?: string } = {}
+    private readonly options: { egressDestinationTopic?: string } = {},
+    private readonly tokenStore?: IAuthTokenStoreV2
   ) {
     this.snapshot.guildId = cfg.discordGuildId;
     this.snapshot.channelIds = (cfg.discordChannels || []).slice();
@@ -55,7 +59,7 @@ export class DiscordIngressClient implements IngressConnector {
       return;
     }
 
-    const token = (this.cfg.discordBotToken || '').trim();
+    const token = await this.resolveToken();
     const guildId = (this.cfg.discordGuildId || '').trim();
     const channels = (this.cfg.discordChannels || []).slice();
     if (!token || !guildId || channels.length === 0) {
@@ -165,11 +169,17 @@ export class DiscordIngressClient implements IngressConnector {
     });
 
     await this.client.login(token);
+    this.currentToken = token;
+    this.startTokenPoll();
   }
 
   async stop(): Promise<void> {
     this.disconnecting = true;
     try {
+      if (this.tokenPollTimer) {
+        clearInterval(this.tokenPollTimer);
+        this.tokenPollTimer = null;
+      }
       if (this.client && typeof this.client.destroy === 'function') {
         await this.client.destroy();
       }
@@ -177,5 +187,64 @@ export class DiscordIngressClient implements IngressConnector {
     this.client = null;
     this.snapshot.state = 'DISCONNECTED';
     logger.debug('ingress-egress.discord.stopped');
+  }
+
+  private async resolveToken(): Promise<string> {
+    const useStore = !!this.cfg.discordUseTokenStore;
+    if (useStore && this.tokenStore) {
+      try {
+        const doc = await this.tokenStore.getAuthToken('discord', 'bot');
+        const tok = (doc?.accessToken || '').trim();
+        if (tok) return tok;
+      } catch (e: any) {
+        logger.error('ingress-egress.discord.token.resolve.error', { error: e?.message || String(e) });
+      }
+      if (!this.cfg.discordAllowEnvFallback) {
+        this.snapshot.state = 'ERROR';
+        this.snapshot.lastError = { message: 'discord_token_missing_in_store' } as any;
+        throw new Error('discord_token_missing_in_store');
+      }
+    }
+    return (this.cfg.discordBotToken || '').trim();
+  }
+
+  private startTokenPoll() {
+    if (!this.cfg.discordUseTokenStore || !this.tokenStore) return;
+    const intervalMs = Math.max(10_000, Number(this.cfg.discordTokenPollMs || 60_000));
+    this.tokenPollTimer = setInterval(async () => {
+      try {
+        const doc = await this.tokenStore!.getAuthToken('discord', 'bot');
+        const next = (doc?.accessToken || '').trim();
+        if (next && this.currentToken && next !== this.currentToken) {
+          logger.info('ingress-egress.discord.token.rotated');
+          await this.reconnect(next);
+        }
+      } catch (e: any) {
+        logger.warn('ingress-egress.discord.token.poll_error', { error: e?.message || String(e) });
+      }
+    }, intervalMs);
+  }
+
+  private async reconnect(newToken: string) {
+    try {
+      if (!this.client) return;
+      this.disconnecting = true;
+      try { await this.client.destroy(); } catch {}
+      this.disconnecting = false;
+      // Recreate client and re-login with new token
+      const Client = require('discord.js').Client;
+      const GatewayIntentBits = require('discord.js').GatewayIntentBits;
+      const Partials = require('discord.js').Partials;
+      this.client = new Client({
+        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+        partials: [Partials.Channel, Partials.Message],
+      });
+      this.currentToken = newToken;
+      await this.client.login(newToken);
+      logger.info('ingress-egress.discord.reconnected');
+    } catch (e: any) {
+      this.snapshot.lastError = { message: e?.message || String(e) } as any;
+      logger.error('ingress-egress.discord.reconnect.error', { error: e?.message || String(e) });
+    }
   }
 }

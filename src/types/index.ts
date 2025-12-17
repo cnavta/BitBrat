@@ -86,6 +86,19 @@ export interface IConfig {
   discordGuildId?: string;
   /** Allowlisted Discord channel IDs to listen in */
   discordChannels?: string[];
+  /** If true, Discord ingress will read bot token from token store V2 (authTokens/discord/bot) */
+  discordUseTokenStore?: boolean;
+  /** If true, and store does not have a token, fallback to env discordBotToken */
+  discordAllowEnvFallback?: boolean;
+  /** Optional poll interval in ms to check for Discord bot token rotation; default 60000 */
+  discordTokenPollMs?: number;
+
+  /** Optional Discord OAuth client id (used for adapter skeleton) */
+  discordClientId?: string;
+  /** Optional Discord OAuth redirect URI (used for adapter skeleton) */
+  discordRedirectUri?: string;
+  /** Optional Discord OAuth scopes (used for adapter skeleton) */
+  discordOauthScopes?: string[];
 }
 
 export interface TwitchTokenData {

@@ -4,12 +4,13 @@ import { logger } from '../../common/logging';
 import { ProviderRegistry } from './provider-registry';
 import type { OAuthProvider } from './types';
 import { verifyState } from '../twitch-oauth';
+import type { IAuthTokenStoreV2 } from './auth-token-store';
 
 function wantsJson(req: Request): boolean {
   return (req.query as any).mode === 'json' || (req.headers.accept || '').includes('application/json');
 }
 
-export function mountOAuthRoutes(app: Express, cfg: IConfig, registry: ProviderRegistry, basePath = '/oauth') {
+export function mountOAuthRoutes(app: Express, cfg: IConfig, registry: ProviderRegistry, basePath = '/oauth', tokenStore?: IAuthTokenStoreV2) {
   const base = basePath.replace(/\/$/, '');
 
   // Start – returns provider authorize URL (JSON or redirect)
@@ -30,7 +31,7 @@ export function mountOAuthRoutes(app: Express, cfg: IConfig, registry: ProviderR
     }
   });
 
-  // Callback – validate state and delegate to provider adapter (token persistence wired in later step)
+  // Callback – validate state and delegate to provider adapter; persist token in store when available
   app.get(`${base}/:provider/:identity/callback`, async (req: Request, res: Response) => {
     try {
       const providerKey = String(req.params.provider || '').toLowerCase();
@@ -42,8 +43,24 @@ export function mountOAuthRoutes(app: Express, cfg: IConfig, registry: ProviderR
       const provider: OAuthProvider = registry.resolve(providerKey);
       // Redirect URI resolution is provider-specific; allow adapter to compute when not provided
       const token = await provider.exchangeCodeForToken({ code, redirectUri: '', identity });
-      // Persistence to token store will be added with OF-MP-05
-      return res.status(200).json({ ok: true, provider: providerKey, identity, stored: false, tokenType: token?.tokenType || 'oauth' });
+      let stored = false;
+      if (tokenStore) {
+        try {
+          await tokenStore.putAuthToken(providerKey, identity, {
+            tokenType: token?.tokenType || 'oauth',
+            accessToken: token.accessToken,
+            refreshToken: token.refreshToken,
+            expiresAt: token.expiresAt,
+            scope: token.scope,
+            providerUserId: token.providerUserId,
+            metadata: token.metadata,
+          });
+          stored = true;
+        } catch (e: any) {
+          logger.error('oauth.routes.callback.store.error', { error: e?.message || String(e) });
+        }
+      }
+      return res.status(200).json({ ok: true, provider: providerKey, identity, stored, tokenType: token?.tokenType || 'oauth' });
     } catch (e: any) {
       const msg = e?.message || String(e);
       const code = msg.startsWith('unknown_provider:') ? 404 : 500;
@@ -67,8 +84,18 @@ export function mountOAuthRoutes(app: Express, cfg: IConfig, registry: ProviderR
     }
   });
 
-  // Status – placeholder for token presence/info (wired with token store in OF-MP-05)
-  app.get(`${base}/:provider/:identity/status`, async (_req: Request, res: Response) => {
-    return res.status(200).json({ ok: true, status: 'unknown' });
+  // Status – return presence/info from token store when available
+  app.get(`${base}/:provider/:identity/status`, async (req: Request, res: Response) => {
+    try {
+      const providerKey = String(req.params.provider || '').toLowerCase();
+      const identity = String(req.params.identity || '');
+      if (!tokenStore) return res.status(200).json({ ok: true, status: 'unknown' });
+      const doc = await tokenStore.getAuthToken(providerKey, identity);
+      if (!doc) return res.status(200).json({ ok: true, status: 'absent' });
+      return res.status(200).json({ ok: true, status: 'present', expiresAt: doc.expiresAt || null, scope: doc.scope || [], tokenType: doc.tokenType });
+    } catch (e: any) {
+      logger.error('oauth.routes.status.error', { error: e?.message || String(e) });
+      return res.status(500).json({ ok: false, status: 'error' });
+    }
   });
 }

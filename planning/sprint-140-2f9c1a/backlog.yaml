@@ -32,7 +32,7 @@ backlog:
     title: Wire oauth-service with legacy and generic routes
     description: Update oauth-service.ts to mount legacy Twitch routes and the new generic routes using ProviderRegistry and token stores.
     priority: 1
-    status: in_progress
+    status: done
     dependsOn: [OF-MP-02, OF-MP-03]
     acceptance:
       - Service boots without errors; routes visible; health endpoints unaffected
@@ -41,7 +41,7 @@ backlog:
     title: Token store model update (authTokens/{provider}/{identity})
     description: Extend ITokenStore and FirestoreTokenStore to support provider+identity addressing and token metadata per architecture.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [OF-MP-01]
     acceptance:
       - get/put operations by provider+identity persist schema fields and updatedAt
@@ -51,7 +51,7 @@ backlog:
     title: DiscordAdapter skeleton (authorize URL only)
     description: Provide Discord adapter with getAuthorizeUrl for future user OAuth; no code exchange required this sprint.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [OF-MP-01, OF-MP-02]
     acceptance:
       - Adapter registered and resolvable; start endpoint returns an authorize URL
@@ -60,7 +60,7 @@ backlog:
     title: Discord ingress – token store integration (feature-flagged)
     description: Inject token resolver using ITokenStore; when discordUseTokenStore=true, read authTokens/discord/bot and login; fallback to env token if allowed; support rotation reload.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [OF-MP-05]
     acceptance:
       - With flag on and token present, client.login() uses store token

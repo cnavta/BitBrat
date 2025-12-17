@@ -5,6 +5,7 @@ import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twit
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
 import { ConnectorManager } from '../services/ingress/core';
 import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
+import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
@@ -88,7 +89,8 @@ class IngressEgressServer extends BaseServer {
     try {
       const dBuilder = new DiscordEnvelopeBuilder();
       const dPublisher = createDiscordIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
-      const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic });
+      const dTokenStore = new FirestoreAuthTokenStore({ db });
+      const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic }, dTokenStore);
       manager.register('discord', dClient);
     } catch (e: any) {
       // Defensive: if Discord modules fail to construct, keep Twitch operational
