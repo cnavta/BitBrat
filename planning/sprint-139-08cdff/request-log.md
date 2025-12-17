@@ -92,3 +92,28 @@ role: Architect
     - npm run build  # ensure types compile
     - git add src/services/ingress/discord/* src/services/ingress/core/interfaces.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-04 Discord envelope builder + client integration; compile ok"
+
+- 2025-12-17T15:55:00Z | IE-DIS-05
+  - Prompt: "Implement IE-DIS-05 – DiscordIngressPublisher wrapper."
+  - Interpretation: Thin wrapper over PublisherResource to publish to ${BUS_PREFIX}internal.ingress.v1 with safe attributes.
+  - Files created:
+    - src/services/ingress/discord/publisher.ts
+  - Files modified:
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-05 → done)
+  - Commands executed:
+    - npm run build
+    - git add src/services/ingress/discord/publisher.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-05 Discord ingress publisher; build ok"
+
+- 2025-12-17T16:05:00Z | IE-DIS-06
+  - Prompt: "Implement IE-DIS-06 – Wire ConnectorManager into ingress-egress app; register Twitch + Discord; preserve Twitch egress."
+  - Interpretation: Add ConnectorManager, register Twitch via adapter and Discord client; start connectors; keep existing egress subscription/sendText.
+  - Files created:
+    - src/services/ingress/twitch/connector-adapter.ts
+  - Files modified:
+    - src/apps/ingress-egress-service.ts
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-06 → done)
+  - Commands executed:
+    - npm run build
+    - git add src/services/ingress/twitch/connector-adapter.ts src/apps/ingress-egress-service.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-06 wire ConnectorManager, register Twitch+Discord; preserve Twitch egress; build ok"

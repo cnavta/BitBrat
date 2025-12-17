@@ -41,7 +41,7 @@ backlog:
     title: DiscordIngressPublisher wrapper
     description: Thin wrapper over PublisherResource to publish to internal.ingress.v1 with correlation and safe attributes.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [IE-DIS-02]
     acceptance:
       - Publishes JSON to BUS_PREFIX+internal.ingress.v1
@@ -50,7 +50,7 @@ backlog:
     title: Wire ConnectorManager into ingress-egress app
     description: Instantiate manager in ingress-egress-service.ts; register Twitch and Discord based on config; keep Twitch egress unchanged.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [IE-DIS-01, IE-DIS-02, IE-DIS-03, IE-DIS-04, IE-DIS-05]
     acceptance:
       - Service boots with connectors; Twitch behavior preserved; Discord disabled by default

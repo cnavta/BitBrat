@@ -2,6 +2,9 @@ import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import { TwitchIrcClient, TwitchEnvelopeBuilder, ConfigTwitchCredentialsProvider, FirestoreTwitchCredentialsProvider } from '../services/ingress/twitch';
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
+import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
+import { ConnectorManager } from '../services/ingress/core';
+import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
@@ -23,6 +26,7 @@ class IngressEgressServer extends BaseServer {
   };
   private twitchClient: TwitchIrcClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
+  private connectorManager: ConnectorManager | null = null;
 
   constructor() {
     super({ serviceName: SERVICE_NAME });
@@ -76,10 +80,28 @@ class IngressEgressServer extends BaseServer {
       egressDestinationTopic: egressTopic, // ensure envelope.egressDestination is set on publish
     });
 
-    // Start the client (will be a no-op connection in tests)
-    this.twitchClient.start?.().catch((e) => {
-      logger.error('[ingress-egress] twitchClient.start error', e?.message || e);
-    });
+    // Connector Manager wiring (register Twitch + Discord; preserve existing Twitch egress path)
+    const manager = new ConnectorManager({ logger });
+    if (this.twitchClient) {
+      manager.register('twitch', new TwitchConnectorAdapter(this.twitchClient));
+    }
+    try {
+      const dBuilder = new DiscordEnvelopeBuilder();
+      const dPublisher = createDiscordIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
+      const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic });
+      manager.register('discord', dClient);
+    } catch (e: any) {
+      // Defensive: if Discord modules fail to construct, keep Twitch operational
+      logger.warn('ingress-egress.discord.register_failed', { error: e?.message || String(e) });
+    }
+
+    // Start connectors (individual connectors handle disabled/test guards internally)
+    try {
+      await manager.start();
+      this.connectorManager = manager;
+    } catch (e: any) {
+      logger.error('ingress-egress.connectors.start_error', { error: e?.message || String(e) });
+    }
 
     // Subscribe to this instance's egress subject and deliver text via Twitch IRC
     const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
