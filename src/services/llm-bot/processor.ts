@@ -9,6 +9,7 @@ import { getFirestore } from '../../common/firebase';
 import { assemble } from '../../common/prompt-assembly/assemble';
 import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
 import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser, AssemblerConfig } from '../../common/prompt-assembly/types';
+import { redactText } from '../../common/prompt-assembly/redaction';
 import { metrics,
   METRIC_PERSONALITIES_RESOLVED,
   METRIC_PERSONALITIES_FAILED,
@@ -33,7 +34,7 @@ type LlmGraphState = {
 let warnedInputContextHistory = false;
 
 function preview(text: string, max = 200): string {
-  const s = String(text || '');
+  const s = redactText(String(text || ''));
   if (s.length <= max) return s;
   return s.slice(0, max) + `…(+${s.length - max})`;
 }
@@ -531,7 +532,7 @@ export async function processEvent(
           correlationId: corr,
           preview: preview(assembled.text),
         });
-        console.debug('llm_bot.assembly.raw', assembled.text);
+        // Do not log full assembled text to avoid leaking sensitive data or transcripts
         const payload = openaiAdapter(assembled);
         // LLM-05: Hard cutover – build request input from adapter payload preserving canonical order
         const sysContent = payload.messages[0]?.content || '';

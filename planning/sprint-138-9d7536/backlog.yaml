@@ -105,7 +105,7 @@ backlog:
     title: Observability and safe logging
     description: Log assembly meta (section lengths, truncation decisions) without secrets or full transcripts; redact PII where configured.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [PASM-V2-03]
     acceptance:
       - Logs present with safe previews; no raw transcripts
@@ -114,7 +114,7 @@ backlog:
     title: Basic redaction utilities for conversationState transcripts
     description: Provide minimal helpers to redact obvious secrets/PII patterns before rendering or logging.
     priority: 3
-    status: todo
+    status: done
     dependsOn: [PASM-V2-02]
     acceptance:
       - Unit tests for redaction patterns; applied prior to render/log

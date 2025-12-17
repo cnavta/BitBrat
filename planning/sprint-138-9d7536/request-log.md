@@ -176,3 +176,26 @@
     - git add src/services/llm-bot/processor.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
     - git commit -m "sprint-138 PASM-V2-10: migrate history out of Input.context; add deprecation warning; update backlog/log"
     - git push
+
+- 2025-12-17T01:01:20Z — Executed (PASM-V2-11/12 in progress)
+  Context: Implement observability/safe logging and basic redaction utilities.
+  Files modified/added:
+    - src/common/prompt-assembly/redaction.ts (new) — redactText() for emails/keys/tokens/card-like numbers
+    - src/common/prompt-assembly/index.ts — export redactText
+    - src/services/llm-bot/processor.ts — use redacted preview in logs; remove raw assembled text logging
+    - tests/prompt-assembly/redaction.spec.ts (new) — unit tests for redaction patterns
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - Initial: 1 failing test (AWS key pattern sample too short); fixed test string to match pattern; re-ran tests → all green
+
+- 2025-12-17T01:06:10Z — Executed (PASM-V2-11/12 done)
+  Context: Mark PASM-V2-11 and PASM-V2-12 done; update backlog and log; commit and push.
+  Files modified:
+    - planning/sprint-138-9d7536/backlog.yaml (PASM-V2-11=done, PASM-V2-12=done)
+    - planning/sprint-138-9d7536/request-log.md (this log)
+  Commands to run:
+    - git add src/common/prompt-assembly/redaction.ts src/common/prompt-assembly/index.ts src/services/llm-bot/processor.ts \
+        tests/prompt-assembly/redaction.spec.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
+    - git commit -m "sprint-138 PASM-V2-11/12: safe logging (no raw transcripts); add redaction utils + tests; update backlog/log"
+    - git push

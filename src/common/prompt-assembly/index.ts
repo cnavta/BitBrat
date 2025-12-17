@@ -21,3 +21,4 @@ export type {
 export { assemble } from "./assemble";
 export { openaiAdapter } from "./adapters/openai";
 export { googleAdapter } from "./adapters/google";
+export { redactText } from "./redaction";
