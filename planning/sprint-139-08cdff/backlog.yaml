@@ -22,7 +22,7 @@ backlog:
     title: Implement DiscordIngressClient (discord.js)
     description: Implement login/ready/messageCreate with guild/channel filtering; ignore bot and non-text messages; guard network I/O when disabled.
     priority: 1
-    status: todo
+    status: in_progress
     dependsOn: [IE-DIS-01, IE-DIS-02]
     acceptance:
       - When DISCORD_ENABLED=false, no network calls are attempted
