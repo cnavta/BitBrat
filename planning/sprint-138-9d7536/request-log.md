@@ -238,3 +238,13 @@
         planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
     - git commit -m "sprint-138 PASM-V2-15/16: add edge-case tool/timestamp tests; rename label to [Assistant Identity]; update tests; mark backlog done"
     - git push
+- 2025-12-17T05:55:00Z — Executed (Observability refinement)
+  Context: User reported CS log shows 3 exchanges but short length/no ellipsis; add transcript preview fields.
+  Files modified:
+    - src/services/llm-bot/processor.ts — extend llm_bot.assembly.conversation_state with transcriptPresent/transcriptCount/transcriptLength/transcriptPreview; add CONVERSATION_STATE_PREVIEW_MAX support
+  Commands to run:
+    - git add src/services/llm-bot/processor.ts planning/sprint-138-9d7536/request-log.md
+    - git commit -m "llm-bot: add transcript preview to conversation_state log; configurable preview max"
+    - git push
+  Outcome:
+    - Code compiles locally; tests unaffected. Expect logs to include redacted transcript preview with ellipsis when truncated.

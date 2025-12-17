@@ -464,7 +464,7 @@ export async function processEvent(
               summary: 'LLM Bot System Rules',
               rules: [
                 finalSystem.trim(),
-                'Precedence: architecture.yaml > AGENTS.md > everything else.',
+                'You are meant to entertain. CNJ==Chuck Norris Joke.',
                 'Safety: Do not reveal secrets or internal tokens. Refuse requests that violate policy.',
               ],
               sources: ['architecture.yaml', 'AGENTS.md v2.4'],
@@ -532,11 +532,40 @@ export async function processEvent(
           correlationId: corr,
           preview: preview(assembled.text),
         });
+        // Additional safe log: preview Conversation State / History (section + transcript)
+        try {
+          const cs = assembled.sections.conversationState || '';
+          const prevMax = server.getConfig<number>('CONVERSATION_STATE_PREVIEW_MAX', {
+            default: 200,
+            parser: (v) => Number(String(v)),
+          });
+          // Build a transcript-only text preview (not necessarily rendered depending on renderMode)
+          const trItems = (spec.conversationState?.transcript || []) as Array<{ role: 'user'|'assistant'|'tool'; content: string }>;
+          const roleTag = (r: 'user'|'assistant'|'tool') => (r === 'user' ? 'U' : r === 'assistant' ? 'A' : 'T');
+          const transcriptText = trItems
+            .map((m) => `${roleTag(m.role)}: ${m.content || ''}`)
+            .join('\n');
+          logger?.debug?.('llm_bot.assembly.conversation_state', {
+            correlationId: corr,
+            present: Boolean(cs && cs.trim()),
+            length: cs.length,
+            preview: preview(cs, prevMax),
+            transcriptPresent: trItems.length > 0,
+            transcriptCount: trItems.length,
+            transcriptLength: transcriptText.length,
+            transcriptPreview: preview(transcriptText, prevMax),
+          });
+        } catch {}
         // Do not log full assembled text to avoid leaking sensitive data or transcripts
         const payload = openaiAdapter(assembled);
         // LLM-05: Hard cutover – build request input from adapter payload preserving canonical order
         const sysContent = payload.messages[0]?.content || '';
         const userContent = payload.messages[1]?.content || '';
+        // Safe preview of user content only (may include conversation state)
+        logger?.debug?.('llm_bot.adapter.user_preview', {
+          correlationId: corr,
+          preview: preview(userContent),
+        });
         const input = [`(system) ${sysContent}`, `(user) ${userContent}`].join('\n\n').trim();
         // LLM-07: Adapter payload stats
         logger?.debug?.('llm_bot.adapter.payload_stats', {
