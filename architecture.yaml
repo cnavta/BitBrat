@@ -59,6 +59,14 @@ services:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
       - OAUTH_STATE_SECRET
+      # Discord OAuth (user-level flows optional; prep for future)
+      - DISCORD_CLIENT_ID
+      - DISCORD_CLIENT_SECRET
+    env:
+      # Optional explicit redirect URI override for Discord OAuth callbacks
+      - DISCORD_REDIRECT_URI
+      # Optional scopes list for Discord OAuth (space/comma separated)
+      - DISCORD_OAUTH_SCOPES
 
   ingress-egress:
     active: true
@@ -76,9 +84,18 @@ services:
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
+      # Discord bot token (used when discordUseTokenStore=false or as fallback)
+      - DISCORD_BOT_TOKEN
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS
+      # Discord configuration and rollout flags
+      - DISCORD_ENABLED
+      - DISCORD_GUILD_ID
+      - DISCORD_CHANNELS
+      - DISCORD_USE_TOKEN_STORE
+      - DISCORD_ALLOW_ENV_FALLBACK
+      - DISCORD_TOKEN_POLL_MS
       # Optional instance identity for per-instance egress topic.
       # The service resolves instanceId via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated
       # Only K_REVISION is listed here because it is auto-provided by Cloud Run when present.

@@ -122,3 +122,19 @@
     - src/apps/ingress-egress-service.ts (updated)
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-05/06/07 -> done)
     - test logs: 161 passed, 2 skipped (no failures)
+
+- 2025-12-17T20:05:00Z
+  - Prompt: "Please implement and run tests for the registry and controller"
+  - Interpretation: Complete OF-MP-09 by adding/validating unit tests for ProviderRegistry and generic OAuth controller, including token-store interactions; fix type and infra test expectations to reflect Discord config additions.
+  - Commands:
+    - (file ops) update src/services/oauth/routes.test.ts (add status present/absent + stored=true cases)
+    - (file ops) update src/types/index.ts (add discordClientSecret)
+    - (file ops) update infrastructure/scripts/extract-config.test.ts (include DISCORD_* env and secrets)
+    - npm test
+    - git add -A && git commit -m "test(oauth): complete OF-MP-09 registry+controller tests; add token-store status tests; fix config types and infra expectations for Discord"
+  - Files:
+    - src/services/oauth/routes.test.ts (updated)
+    - src/types/index.ts (updated)
+    - infrastructure/scripts/extract-config.test.ts (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-09 -> done)
+    - test logs: 161 passed, 2 skipped (no failures)

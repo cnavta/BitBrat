@@ -6,6 +6,7 @@ import { ProviderRegistry } from './provider-registry';
 import type { OAuthProvider, TokenPayload } from './types';
 import type { IConfig } from '../../types';
 import { generateState } from '../twitch-oauth';
+import type { IAuthTokenStoreV2, AuthTokenDoc } from './auth-token-store';
 
 function makeApp(registry: ProviderRegistry, cfg: IConfig) {
   const app = express();
@@ -98,5 +99,46 @@ describe('mountOAuthRoutes (generic)', () => {
     const res = await request(app).post('/oauth/mockprov/bot/refresh');
     expect(res.status).toBe(501);
     expect(res.body).toMatchObject({ error: 'not_supported' });
+  });
+
+  test('GET /oauth/:provider/:identity/status returns absent when no token in store', async () => {
+    const reg = new ProviderRegistry();
+    reg.register(makeMockProvider());
+    const app = express();
+    const emptyStore: IAuthTokenStoreV2 = {
+      async getAuthToken() { return null; },
+      async putAuthToken() { /* no-op */ },
+    };
+    // mount with token store
+    mountOAuthRoutes(app as any, baseCfg, reg, '/oauth', emptyStore);
+
+    const res = await request(app).get('/oauth/mockprov/bot/status');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, status: 'absent' });
+  });
+
+  test('Callback persists token to store and status shows present', async () => {
+    const reg = new ProviderRegistry();
+    reg.register(makeMockProvider());
+    const app = express();
+    let saved: AuthTokenDoc | null = null;
+    const memStore: IAuthTokenStoreV2 = {
+      async getAuthToken(provider: string, identity: string) {
+        return (saved && saved.provider === provider && saved.identity === identity) ? saved : null;
+      },
+      async putAuthToken(provider: string, identity: string, token: any) {
+        saved = { provider, identity, updatedAt: new Date().toISOString(), ...(token as any) };
+      },
+    };
+    mountOAuthRoutes(app as any, baseCfg, reg, '/oauth', memStore);
+    const state = generateState(baseCfg);
+
+    const cb = await request(app).get(`/oauth/mockprov/bot/callback?code=abc&state=${encodeURIComponent(state)}`);
+    expect(cb.status).toBe(200);
+    expect(cb.body).toMatchObject({ ok: true, provider: 'mockprov', identity: 'bot', stored: true });
+
+    const statusRes = await request(app).get('/oauth/mockprov/bot/status');
+    expect(statusRes.status).toBe(200);
+    expect(statusRes.body).toMatchObject({ ok: true, status: 'present' });
   });
 });

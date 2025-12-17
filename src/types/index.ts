@@ -95,6 +95,8 @@ export interface IConfig {
 
   /** Optional Discord OAuth client id (used for adapter skeleton) */
   discordClientId?: string;
+  /** Optional Discord OAuth client secret (used for adapter skeleton) */
+  discordClientSecret?: string;
   /** Optional Discord OAuth redirect URI (used for adapter skeleton) */
   discordRedirectUri?: string;
   /** Optional Discord OAuth scopes (used for adapter skeleton) */

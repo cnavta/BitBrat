@@ -71,7 +71,7 @@ backlog:
     title: Config & secrets updates for Discord and flags
     description: Update architecture.yaml/env to include DISCORD_CLIENT_ID/SECRET/REDIRECT_URI, DISCORD_BOT_TOKEN, DISCORD_USE_TOKEN_STORE; update Cloud Build KV stubs.
     priority: 2
-    status: todo
+    status: done
     acceptance:
       - Env templates updated under env/*; cloudbuild kv placeholders added
       - Config builder exposes values; types updated
@@ -80,7 +80,7 @@ backlog:
     title: Unit tests — registry and controller
     description: Tests for ProviderRegistry and mountOAuthRoutes controller behavior (state validation, unknown provider error paths).
     priority: 1
-    status: todo
+    status: done
     dependsOn: [OF-MP-01, OF-MP-02]
     acceptance:
       - Jest tests pass; coverage includes happy and error paths
