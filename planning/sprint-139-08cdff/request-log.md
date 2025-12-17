@@ -77,3 +77,18 @@ role: Architect
     - npm run build  # ensure types compile
     - git add package.json src/services/ingress/discord/* planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
     - git commit -m "sprint-139-08cdff: IE-DIS-03 Discord ingress client scaffold; disabled guard; build ok"
+
+- 2025-12-17T15:35:00Z | IE-DIS-04
+  - Prompt: "Implement IE-DIS-04 – DiscordEnvelopeBuilder mapping and integration."
+  - Interpretation: Create builder mapping Discord meta → InternalEventV2; add annotations.source=discord; support egressDestination via opts; wire client to pass opts; export module; build.
+  - Files created:
+    - src/services/ingress/discord/envelope-builder.ts
+  - Files modified:
+    - src/services/ingress/core/interfaces.ts (EnvelopeBuilder signature adds optional opts)
+    - src/services/ingress/discord/discord-ingress-client.ts (pass egressDestination to builder)
+    - src/services/ingress/discord/index.ts (export builder)
+    - planning/sprint-139-08cdff/backlog.yaml (IE-DIS-04 → done)
+  - Commands executed:
+    - npm run build  # ensure types compile
+    - git add src/services/ingress/discord/* src/services/ingress/core/interfaces.ts planning/sprint-139-08cdff/backlog.yaml planning/sprint-139-08cdff/request-log.md
+    - git commit -m "sprint-139-08cdff: IE-DIS-04 Discord envelope builder + client integration; compile ok"

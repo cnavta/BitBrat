@@ -125,10 +125,7 @@ export class DiscordIngressClient implements IngressConnector {
         this.snapshot.counters.received = (this.snapshot.counters.received || 0) + 1;
 
         await startActiveSpan('discord-ingress-receive', async () => {
-          const evt = this.builder.build(meta);
-          if (!evt.egressDestination && this.options.egressDestinationTopic) {
-            (evt as any).egressDestination = this.options.egressDestinationTopic;
-          }
+          const evt = this.builder.build(meta, { egressDestination: this.options.egressDestinationTopic });
           await this.publisher.publish(evt);
           this.snapshot.counters!.published = (this.snapshot.counters!.published || 0) + 1;
         });

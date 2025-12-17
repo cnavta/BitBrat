@@ -20,7 +20,10 @@ export interface IngressPublisher {
 }
 
 export interface EnvelopeBuilder<TMeta> {
-  build(meta: TMeta): InternalEventV2;
+  build(
+    meta: TMeta,
+    opts?: { uuid?: () => string; nowIso?: () => string; egressDestination?: string }
+  ): InternalEventV2;
 }
 
 export interface EgressConnector {

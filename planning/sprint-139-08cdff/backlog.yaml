@@ -32,7 +32,7 @@ backlog:
     title: Implement DiscordEnvelopeBuilder
     description: Map Discord meta to InternalEventV2; set annotations.source=discord; set egressDestination per instance.
     priority: 1
-    status: todo
+    status: done
     dependsOn: [IE-DIS-02]
     acceptance:
       - Unit tests validate field mapping, text content, and egressDestination assignment
