@@ -3,7 +3,7 @@ title: "Prompt Assembly v2 – Conversation State/History Integration"
 goal: "Add Conversation State/History as a first-class layer in the prompt assembly framework and produce the technical architecture for adoption."
 owner: "Junie (LLM Agent)"
 createdAt: "2025-12-16T17:18:00Z"
-status: "planning"
+status: "complete"
 links:
   pr: ""
   branch: "feature/sprint-137-9b7e21-conversation-state-layer"

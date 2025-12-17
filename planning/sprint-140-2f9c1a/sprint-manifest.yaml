@@ -1,0 +1,13 @@
+id: sprint-140-2f9c1a
+title: "Multi-Provider OAuth: Add Discord + Pluggable Providers"
+goal: "Extend oauth-flow to support multiple providers; implement Discord; ensure Discord ingress uses unified auth tokens."
+owner: "@christophernavta"
+createdAt: "2025-12-17T13:00:00Z"
+status: "planning"
+links:
+  pr: ""
+  branch: "feature/sprint-140-2f9c1a-oauth-multi-provider"
+notes: |
+  Sprint initiated to generalize OAuth support beyond Twitch. First provider addition is Discord. Discord
+  gateway uses bot token (not code grant), so we will store bot token in token store and enable Discord
+  ingress to source credentials from there with a safe fallback to env token during rollout.
