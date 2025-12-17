@@ -79,3 +79,13 @@
     - src/services/oauth/providers/twitch-adapter.ts (created)
     - src/services/oauth/index.ts (updated)
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-03 -> in_progress)
+
+- 2025-12-17T14:06:00Z
+  - Prompt: "Continue implementing the plan; wire oauth-service with legacy and generic routes (OF-MP-04)"
+  - Interpretation: Preserve legacy Twitch mounts and add ProviderRegistry + generic routes with TwitchAdapter registered.
+  - Commands:
+    - (file ops) update src/apps/oauth-service.ts to mount generic routes via ProviderRegistry; keep legacy mounts
+    - (file ops) update planning/sprint-140-2f9c1a/backlog.yaml (OF-MP-04 -> in_progress)
+  - Files:
+    - src/apps/oauth-service.ts (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-04 -> in_progress)

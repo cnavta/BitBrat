@@ -32,7 +32,7 @@ backlog:
     title: Wire oauth-service with legacy and generic routes
     description: Update oauth-service.ts to mount legacy Twitch routes and the new generic routes using ProviderRegistry and token stores.
     priority: 1
-    status: todo
+    status: in_progress
     dependsOn: [OF-MP-02, OF-MP-03]
     acceptance:
       - Service boots without errors; routes visible; health endpoints unaffected
