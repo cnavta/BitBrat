@@ -77,6 +77,15 @@ export interface IConfig {
   busPrefix?: string;
   /** Default max retries for publishers */
   publishMaxRetries?: number;
+
+  /** Discord integration master switch */
+  discordEnabled?: boolean;
+  /** Discord bot token (sensitive) */
+  discordBotToken?: string; // secret
+  /** Single Discord guild (server) to operate in */
+  discordGuildId?: string;
+  /** Allowlisted Discord channel IDs to listen in */
+  discordChannels?: string[];
 }
 
 export interface TwitchTokenData {

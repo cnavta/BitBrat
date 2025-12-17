@@ -3,7 +3,7 @@ backlog:
     title: Extend config for Discord (flags, token, guild, channels)
     description: Add discordEnabled, discordBotToken, discordGuildId, discordChannels to central config and env stubs for ingress-egress.
     priority: 1
-    status: todo
+    status: done
     acceptance:
       - Config type compiles and values available via buildConfig()
       - Env files updated under env/{local,dev,prod}/ingress-egress.yaml

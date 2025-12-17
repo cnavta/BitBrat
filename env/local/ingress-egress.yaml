@@ -1,2 +1,8 @@
 TWITCH_BOT_USERNAME: "bitbrat_the_ai"
 TWITCH_CHANNELS: "gonj_the_unjust"
+# Discord integration (disabled by default locally)
+DISCORD_ENABLED: "false"
+# Single guild ID to operate in (e.g., 123456789012345678)
+DISCORD_GUILD_ID: ""
+# Comma-separated list of channel IDs to listen in (e.g., 111,222)
+DISCORD_CHANNELS: ""

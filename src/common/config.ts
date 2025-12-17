@@ -68,6 +68,12 @@ const ConfigSchema = z.object({
 
   busPrefix: z.string().optional(),
   publishMaxRetries: z.coerce.number().int().min(1).optional(),
+
+  // Discord configuration
+  discordEnabled: z.boolean().optional(),
+  discordBotToken: z.string().optional(),
+  discordGuildId: z.string().optional(),
+  discordChannels: z.array(z.string()).default([]),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -112,6 +118,12 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
 
     busPrefix: env.BUS_PREFIX,
     publishMaxRetries: env.PUBLISH_MAX_RETRIES ? Number(env.PUBLISH_MAX_RETRIES) : undefined,
+
+    // Discord
+    discordEnabled: parseBool(env.DISCORD_ENABLED, false),
+    discordBotToken: env.DISCORD_BOT_TOKEN,
+    discordGuildId: env.DISCORD_GUILD_ID,
+    discordChannels: parseList(env.DISCORD_CHANNELS),
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last
@@ -141,12 +153,13 @@ export function resetConfig(): void {
 
 /** Safe representation of config for logging: redacts secrets. */
 export function safeConfig(cfg: IConfig = getConfig()): Record<string, unknown> {
-  const { twitchClientSecret, oauthStateSecret, twitchBotAccessToken, ...rest } = cfg;
+  const { twitchClientSecret, oauthStateSecret, twitchBotAccessToken, discordBotToken, ...rest } = cfg;
   return {
     ...rest,
     twitchClientSecret: twitchClientSecret ? '***REDACTED***' : undefined,
     oauthStateSecret: oauthStateSecret ? '***REDACTED***' : undefined,
     twitchBotAccessToken: twitchBotAccessToken ? '***REDACTED***' : undefined,
+    discordBotToken: discordBotToken ? '***REDACTED***' : undefined,
   };
 }
 
