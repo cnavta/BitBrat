@@ -111,3 +111,51 @@
     - git add src/common/prompt-assembly/adapters/*.ts tests/prompt-assembly/adapters/*.ts tests/prompt-assembly/*adapter*.spec.ts planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
     - git commit -m "sprint-138 PASM-V2-04/05/06: update OpenAI/Google adapters to v2; add adapter tests; update legacy tests; mark backlog done; log"
     - git push
+
+ - 2025-12-17T00:05:10Z — Executed (PASM-V2-07 in progress)
+  Context: Update CLI to support --render-mode for conversationState; update help text.
+  Files modified:
+    - tools/prompt-assembly/src/cli/index.ts (added --render-mode; exported parseArgs; help updated)
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - Test Suites: 152 passed, 2 skipped (154 total)
+    - Tests: 396 passed, 10 skipped (406 total)
+
+ - 2025-12-17T00:08:40Z — Executed (PASM-V2-08 done)
+  Context: Add assemble() tests for Conversation State / History (summary-only, transcript-only, both).
+  Files added:
+    - tests/prompt-assembly/conversation-state.spec.ts
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - Test Suites: 152 passed, 2 skipped (154 total)
+    - Tests: 396 passed, 10 skipped (406 total)
+
+ - 2025-12-17T00:14:20Z — Executed (PASM-V2-09 done)
+  Context: Populate PromptSpec.conversationState in llm-bot processor from recent exchanges with retention caps.
+  Files modified:
+    - src/services/llm-bot/processor.ts (conversationState summary/transcript; retention; default renderMode=summary)
+  Commands executed:
+    - npm test --silent
+  Outcome:
+    - Test Suites: 152 passed, 2 skipped (154 total)
+    - Tests: 396 passed, 10 skipped (406 total)
+
+ - 2025-12-17T00:18:10Z — Executed (PASM-V2-14 done)
+  Context: Update validation script with CLI smoke rendering conversationState.
+  Files modified:
+    - planning/sprint-138-9d7536/validate_deliverable.sh
+  Notes:
+    - Uses built CLI: node dist/tools/prompt-assembly/src/cli/index.js --stdin --provider none
+
+ - 2025-12-17T00:19:00Z — Executed (Planning updates)
+  Context: Update backlog statuses and commit/push changes.
+  Files modified:
+    - planning/sprint-138-9d7536/backlog.yaml (PASM-V2-07=done, PASM-V2-08=done, PASM-V2-09=done, PASM-V2-14=done)
+    - planning/sprint-138-9d7536/request-log.md (this log)
+  Commands to run:
+    - git add tools/prompt-assembly/src/cli/index.ts tests/prompt-assembly/conversation-state.spec.ts src/services/llm-bot/processor.ts \
+        planning/sprint-138-9d7536/validate_deliverable.sh planning/sprint-138-9d7536/backlog.yaml planning/sprint-138-9d7536/request-log.md
+    - git commit -m "sprint-138 PASM-V2-07/08/09/14: CLI --render-mode; convo-state tests; llm-bot conversationState mapping; validation CLI smoke; update backlog/log"
+    - git push

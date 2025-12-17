@@ -63,7 +63,7 @@ backlog:
     title: CLI updates for v2 rendering
     description: Update tools/prompt-assembly CLI to support conversationState fields, renderMode flags, and empty-section visibility.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [PASM-V2-02]
     acceptance:
       - CLI reads spec with conversationState and renders canonical/provider payloads
@@ -73,7 +73,7 @@ backlog:
     title: Assemble() unit tests for Conversation State / History
     description: Tests for summary-only, transcript-only, both modes, and empty states; ordering and fencing behavior.
     priority: 2
-    status: todo
+    status: done
     dependsOn: [PASM-V2-02, PASM-V2-03]
     acceptance:
       - Snapshot/golden tests validate section content and order
@@ -82,7 +82,7 @@ backlog:
     title: "llm-bot: map recent exchanges to conversationState"
     description: In src/services/llm-bot/processor.ts, build conversationState from recent user/assistant/tool exchanges with retention caps.
     priority: 1
-    status: todo
+    status: done
     dependsOn:
       - PASM-V2-01
       - PASM-V2-02
@@ -132,7 +132,7 @@ backlog:
     title: "Validation script: add CLI smoke for conversationState"
     description: Update validate_deliverable.sh to render a minimal PromptSpec with conversationState via CLI.
     priority: 3
-    status: todo
+    status: done
     dependsOn:
       - PASM-V2-07
     acceptance:

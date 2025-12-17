@@ -14,6 +14,7 @@ interface Args {
   provider: Provider;
   showEmptySections?: boolean;
   headingLevel?: 1 | 2 | 3;
+  renderMode?: "summary" | "transcript" | "both";
   out?: string;
   maxTotalChars?: number;
   capSystemPrompt?: number;
@@ -38,6 +39,7 @@ Options:
   --spec <file>             Path to JSON file containing PromptSpec
   --stdin                   Read PromptSpec JSON from stdin
   --provider <p>            Provider mapping: openai | google | none (default: none)
+  --render-mode <m>         Conversation state rendering: summary | transcript | both (default: summary)
   --show-empty-sections     Render notes for empty optional sections (default: true)
   --heading-level <n>       Heading level: 1|2|3 (default: 2)
   --max-total-chars <n>     Hard cap on total characters (optional)
@@ -54,7 +56,7 @@ Options:
   console.log(help.trim());
 }
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
   const args: Args = { provider: "none" } as Args;
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -68,6 +70,9 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--provider":
         args.provider = (next() as Provider) ?? "none";
+        break;
+      case "--render-mode":
+        args.renderMode = next() as any;
         break;
       case "--show-empty-sections":
         args.showEmptySections = true;
@@ -148,6 +153,22 @@ async function main() {
       console.error("Error: Provide --spec <file> or --stdin");
       printHelp();
       process.exit(2);
+    }
+
+    // Optional override of conversationState.renderMode from CLI
+    if (args.renderMode) {
+      const rm = args.renderMode;
+      if (rm !== "summary" && rm !== "transcript" && rm !== "both") {
+        console.error(`Error: Invalid --render-mode: ${rm}`);
+        process.exit(2);
+      }
+      specObj = {
+        ...specObj,
+        conversationState: {
+          ...(specObj?.conversationState ?? {}),
+          renderMode: rm,
+        },
+      } as PromptSpec;
     }
 
     const cfg: AssemblerConfig = {

@@ -427,6 +427,32 @@ export async function processEvent(
         })();
 
         const historyCtx = formatHistoryForContext(messages);
+        // PASM-V2-09: Build conversationState from recent exchanges
+        const convoTranscript = (messages || [])
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({ role: (m.role as 'user'|'assistant'|'tool'), content: m.content }));
+        const convoSummary = (() => {
+          const total = convoTranscript.length;
+          const lastUser = [...convoTranscript].reverse().find((m) => m.role === 'user')?.content || '';
+          const lastPreview = lastUser ? (lastUser.length > 160 ? (lastUser.slice(0, 160) + '…') : lastUser) : '';
+          const parts: string[] = [];
+          parts.push(`Recent exchanges: ${total}`);
+          if (lastPreview) parts.push(`Latest user: ${lastPreview}`);
+          return parts.join('\n');
+        })();
+        const conversationState = (() => {
+          if (convoTranscript.length === 0 && !convoSummary) return undefined;
+          return {
+            summary: convoSummary || undefined,
+            // Default to summary-first; transcript optionally included for richer context
+            transcript: convoTranscript.length > 0 ? convoTranscript : undefined,
+            retention: {
+              maxMessages: isFinite(maxMessages) ? maxMessages : 8,
+              maxChars: isFinite(maxChars) ? maxChars : 8000,
+            },
+            renderMode: 'summary',
+          } as PromptSpec['conversationState'];
+        })();
 
         const systemPrompt = finalSystem && finalSystem.trim()
           ? {
@@ -454,6 +480,8 @@ export async function processEvent(
                 return undefined;
               })(),
               task: taskAnns.length > 0 ? taskAnns : [{ instruction: 'Answer the user query', priority: 3, required: true }],
+              // PASM-V2-09: populate conversationState (v2); keep legacy Input.context for now (will migrate in PASM-V2-10)
+              conversationState,
               input: { userQuery: baseText || combinedPrompt || '', context: historyCtx },
               requestingUser: ru,
             }
