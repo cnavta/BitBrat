@@ -41,13 +41,15 @@ export class DiscordAdapter implements OAuthProvider {
     const { identity, state } = params;
     if (!this.cfg.discordClientId) throw new Error('Missing DISCORD_CLIENT_ID');
     const redirectUri = params.redirectUri || this.computeRedirectUri(identity);
-    const scopes = (params.scopes && params.scopes.length ? params.scopes : (this.cfg.discordOauthScopes || ['bot'])).join(' ');
+    const scopes = (params.scopes && params.scopes.length ? params.scopes : (this.cfg.discordOauthScopes && this.cfg.discordOauthScopes.length ? this.cfg.discordOauthScopes : ['bot', 'applications.commands'])).join(' ');
+    const permissions = this.cfg.discordOauthPermissions || 379968; // Default: view channels, send messages, read history, embed links, attach files, add reactions, use external emojis
     const qs = new URLSearchParams({
       client_id: this.cfg.discordClientId,
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: scopes,
       state,
+      permissions: String(permissions),
     });
     return `https://discord.com/oauth2/authorize?${qs.toString()}`;
   }

@@ -81,6 +81,7 @@ const ConfigSchema = z.object({
   discordClientSecret: z.string().optional(),
   discordRedirectUri: z.string().optional(),
   discordOauthScopes: z.array(z.string()).default([]),
+  discordOauthPermissions: z.coerce.number().int().min(0).optional(),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -138,6 +139,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     discordClientSecret: env.DISCORD_CLIENT_SECRET,
     discordRedirectUri: env.DISCORD_REDIRECT_URI,
     discordOauthScopes: parseList(env.DISCORD_OAUTH_SCOPES),
+    discordOauthPermissions: env.DISCORD_OAUTH_PERMISSIONS ? Number(env.DISCORD_OAUTH_PERMISSIONS) : undefined,
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last

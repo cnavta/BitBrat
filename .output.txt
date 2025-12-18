@@ -1,0 +1,203 @@
+🔧 Installing dependencies...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+added 823 packages, and audited 824 packages in 7s
+150 packages are looking for funding
+  run `npm fund` for details
+4 vulnerabilities (2 moderate, 2 high)
+To address all issues, run:
+  npm audit fix
+Run `npm audit` for details.
+🧱 Building project...
+> bitbrat-platform@1.0.0 build
+> tsc -p tsconfig.json
+🧪 Running unit tests...
+(node:91825) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/__tests__/discord-config.test.ts
+(node:91824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/services/oauth/providers/discord-adapter.test.ts
+Test Suites: 2 passed, 2 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        1.761 s, estimated 2 s
+Ran all test suites matching /src\/services\/oauth\/providers\/discord-adapter.test.ts|src\/common\/__tests__\/discord-config.test.ts/i.
+🧪 Running all relevant tests...
+(node:91915) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/__tests__/discord-config.test.ts
+(node:91924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/firebase.test.ts
+(node:91914) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/services/oauth/providers/discord-adapter.test.ts
+(node:91925) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/services/oauth/auth-token-store.test.ts
+ PASS  src/common/retry.test.ts
+ PASS  src/common/logging.test.ts
+(node:91923) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/__tests__/base-server-yaml.test.ts (5.249 s)
+ PASS  src/common/feature-flags.test.ts
+ PASS  src/services/oauth/provider-registry.test.ts
+(node:91920) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/base-server.logger.test.ts (5.373 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-18T15:49:54.432Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.449Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.450Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.454Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.454Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.454Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/__tests__/logging-trace-correlation.spec.ts
+ PASS  src/common/config.test.ts
+ PASS  src/services/oauth/providers/twitch-adapter.test.ts
+(node:91921) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/base-server.debug-config.test.ts (5.666 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-18T15:49:54.708Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.726Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.726Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+(node:91919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/__tests__/base-server-helpers.test.ts (5.719 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-18T15:49:54.749Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.759Z","service":"test","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.759Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.760Z","service":"test","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/ping"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.760Z","service":"test","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/echo"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.776Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.776Z","service":"test","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.776Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+(node:91913) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91918) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91917) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/services/oauth/oauth-flow.integration.test.ts (5.752 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-18T15:49:54.810Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"twitch","identity":"bot","mode":"redirect"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.823Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"twitch","identity":"bot","mode":"json"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.827Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.callback.success","provider":"twitch","identity":"bot","stored":true,"tokenType":"***","providerUserId":"u-123"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.830Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.status","provider":"twitch","identity":"bot","status":"present"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/oauth/routes.test.ts (5.789 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-18T15:49:54.806Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"mockprov","identity":"bot","mode":"json"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.822Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"mockprov","identity":"bot","mode":"redirect"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-18T15:49:54.824Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"oauth.routes.start.error","error":"unknown_provider:unknown"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at src/services/oauth/routes.ts:43:14
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at next (node_modules/router/lib/route.js:157:13)
+      at Route.dispatch (node_modules/router/lib/route.js:117:3)
+      at handle (node_modules/router/index.js:435:11)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at node_modules/router/index.js:295:15
+      at param (node_modules/router/index.js:600:14)
+      at param (node_modules/router/index.js:610:14)
+      at param (node_modules/router/index.js:610:14)
+      at processParams (node_modules/router/index.js:664:3)
+      at next (node_modules/router/index.js:291:5)
+      at router.handle (node_modules/router/index.js:186:3)
+      at app.handle (node_modules/express/lib/application.js:177:15)
+      at Server.app (node_modules/express/lib/express.js:38:9)
+    console.log
+      {"ts":"2025-12-18T15:49:54.829Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.callback.success","provider":"mockprov","identity":"bot","stored":false,"tokenType":"***"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.833Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.status","provider":"mockprov","identity":"bot","status":"absent"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.834Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.callback.success","provider":"mockprov","identity":"bot","stored":true,"tokenType":"***"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.835Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.status","provider":"mockprov","identity":"bot","status":"present"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/base-server.test.ts (5.74 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-18T15:49:54.802Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.811Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.812Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.831Z","service":"custom","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.831Z","service":"custom","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-18T15:49:54.831Z","service":"custom","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+Test Suites: 18 passed, 18 total
+Tests:       1 skipped, 54 passed, 55 total
+Snapshots:   0 total
+Time:        6.485 s
+Ran all test suites matching /src\/common|src\/services\/oauth/i.
+✅ Validation complete.

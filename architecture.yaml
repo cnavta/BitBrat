@@ -67,6 +67,8 @@ services:
       - DISCORD_REDIRECT_URI
       # Optional scopes list for Discord OAuth (space/comma separated)
       - DISCORD_OAUTH_SCOPES
+      # Optional permissions bitmask for Discord OAuth
+      - DISCORD_OAUTH_PERMISSIONS
 
   ingress-egress:
     active: true

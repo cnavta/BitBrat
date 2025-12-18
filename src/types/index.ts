@@ -101,6 +101,8 @@ export interface IConfig {
   discordRedirectUri?: string;
   /** Optional Discord OAuth scopes (used for adapter skeleton) */
   discordOauthScopes?: string[];
+  /** Optional Discord OAuth permissions (bitmask, used for bot authorization) */
+  discordOauthPermissions?: number;
 }
 
 export interface TwitchTokenData {
