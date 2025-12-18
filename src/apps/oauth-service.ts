@@ -6,6 +6,8 @@ import { BaseServer } from '../common/base-server';
 import type { Logger } from '../common/logging';
 import type { Firestore } from 'firebase-admin/firestore';
 import { api } from '../common/tracing';
+import { mountOAuthRoutes, ProviderRegistry, TwitchAdapter, DiscordAdapter } from '../services/oauth';
+import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
 
 // Avoid direct env usage in app code; use a stable service name and central Config for port
 const SERVICE_NAME = 'oauth-flow';
@@ -42,9 +44,25 @@ class OauthServer extends BaseServer {
       const db = this.getResource<Firestore>('firestore');
       const botStore: ITokenStore = this.options?.botStore || new FirestoreTokenStore(cfg.tokenDocPath!, db);
       const broadcasterStore: ITokenStore = this.options?.broadcasterStore || new FirestoreTokenStore(cfg.broadcasterTokenDocPath!, db);
-      // Mount routes for both identities
+
+      // 1) Preserve legacy Twitch routes for backward compatibility
       mountTwitchOAuthRoutes(app, cfg, botStore, '/oauth/twitch/bot');
       mountTwitchOAuthRoutes(app, cfg, broadcasterStore, '/oauth/twitch/broadcaster');
+
+      // 2) Mount new generic provider routes via ProviderRegistry (Twitch adapter registered)
+      const registry = new ProviderRegistry();
+      registry.register(new TwitchAdapter(cfg));
+      registry.register(new DiscordAdapter(cfg));
+      const v2Store = new FirestoreAuthTokenStore({
+        db,
+        legacyFallback: {
+          twitch: {
+            bot: cfg.tokenDocPath || 'oauth/twitch/bot',
+            broadcaster: cfg.broadcasterTokenDocPath || 'oauth/twitch/broadcaster',
+          },
+        },
+      });
+      mountOAuthRoutes(app, cfg, registry, '/oauth', v2Store);
     } catch (e) {
       const log: Logger | undefined = (app as any).locals?.logger;
       if (log) {

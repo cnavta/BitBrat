@@ -16,5 +16,14 @@ service cloud.firestore {
     //   allow read: if request.auth != null;
     //   allow write: if false;
     // }
+
+    // Users collection guidance:
+    // Application services (server-side/Admin SDK) should own writes to /users only.
+    // End-user clients should NOT have direct write access to /users.
+    // Example (hardened) production stance:
+    // match /users/{doc} {
+    //   allow read: if false;            // or restrict to privileged viewer roles
+    //   allow write: if false;           // all writes via Admin SDK/service account
+    // }
   }
 }

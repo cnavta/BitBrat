@@ -1,8 +1,15 @@
 import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import type { InternalEventV2 } from '../types/events';
+import { PersistenceStore } from '../services/persistence/store';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'persistence';
+const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
+
+const RAW_CONSUMED_TOPICS: string[] = [
+  "internal.ingress.v1",
+  "internal.persistence.finalize.v1"
+];
 
 class PersistenceServer extends BaseServer {
   constructor() {
@@ -23,8 +30,8 @@ class PersistenceServer extends BaseServer {
         process.env.HOSTNAME ||
         Math.random().toString(36).slice(2);
 
-      { // subscription for internal.persistence.initialize.v1
-        const raw = "internal.persistence.initialize.v1";
+      { // subscription for internal.ingress.v1
+        const raw = "internal.ingress.v1";
         const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
         const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
         try {
@@ -37,7 +44,13 @@ class PersistenceServer extends BaseServer {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                // TODO: implement domain behavior for this topic
+                const firestore = this.getResource<any>('firestore');
+                if (!firestore) {
+                  this.getLogger().warn('persistence.firestore.unavailable');
+                } else {
+                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
+                  await store.upsertIngressEvent(msg);
+                }
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -65,7 +78,13 @@ class PersistenceServer extends BaseServer {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                // TODO: implement domain behavior for this topic
+                const firestore = this.getResource<any>('firestore');
+                if (!firestore) {
+                  this.getLogger().warn('persistence.firestore.unavailable');
+                } else {
+                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
+                  await store.applyFinalization(msg as any);
+                }
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -98,6 +117,5 @@ export function createApp() {
 if (require.main === module) {
   BaseServer.ensureRequiredEnv(SERVICE_NAME);
   const server = new PersistenceServer();
-  let port = server.getConfig<number>('SERVICE_PORT', { required: false, parser: (s) => parseInt(String(s), 10) });
-  void server.start(port);
+  void server.start(PORT);
 }

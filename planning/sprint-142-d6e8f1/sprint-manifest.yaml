@@ -1,0 +1,11 @@
+id: sprint-142-d6e8f1
+title: "Fix Discord OAuth Flow – loadArchitectureYaml issue"
+goal: "Investigate why BaseServer.loadArchitectureYaml() returns null in the oauth-flow service and fix the Discord OAuth flow."
+owner: "@christophernavta"
+createdAt: "2025-12-18T10:35:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/42"
+  branch: "feature/sprint-142-d6e8f1-fix-discord-oauth-flow"
+notes: |
+  The user reported that BaseServer.loadArchitectureYaml returns null, preventing Discord oauth flow from working.

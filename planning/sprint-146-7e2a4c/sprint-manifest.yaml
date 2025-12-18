@@ -1,0 +1,12 @@
+id: sprint-146-7e2a4c
+title: "Fix Discord Egress Routing Source Detection"
+goal: "Ensure Discord responses are correctly routed to Discord client by preserving original source and robustifying detection."
+owner: "@christophernavta"
+createdAt: "2025-12-18T17:45:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/46"
+  branch: "feature/sprint-146-7e2a4c-fix-discord-routing-source"
+notes: |
+  Found that command-processor was overwriting event source, causing Twitch fallback.
+  Also robustified ingress-egress to handle V1 events and check annotations.

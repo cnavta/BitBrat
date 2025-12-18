@@ -60,8 +60,10 @@ describe('twitch-oauth helpers', () => {
   it('getAuthUrl prefers architecture.yaml load balancer default_domain when present', () => {
     const spy = jest.spyOn(BaseServer as any, 'loadArchitectureYaml').mockReturnValue({
       infrastructure: {
-        'main-load-balancer': {
-          routing: { default_domain: 'api.test.local' },
+        resources: {
+          'main-load-balancer': {
+            routing: { default_domain: 'api.test.local' },
+          },
         },
       },
     });

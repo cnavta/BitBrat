@@ -1,0 +1,246 @@
+# Prioritized Trackable YAML Backlog – sprint-132-a13b2f
+
+meta:
+  sprint: sprint-132-a13b2f
+  owner: Junie
+  createdAt: 2025-12-13T11:35:00Z
+  notes: |
+    The backlog enumerates planning tasks (P0) completed in this sprint and
+    implementation tasks prioritized for subsequent sprints. Each item has a
+    stable id, priority, estimate, dependencies, and acceptance criteria.
+
+items:
+  - id: P0-PLAN-001
+    title: Create sprint implementation plan
+    type: task
+    priority: P0
+    estimate: 1h
+    status: done
+    owner: Lead Implementor
+    acceptance:
+      - implementation-plan.md exists and covers Objective, Scope, Deliverables, Acceptance, Testing, Deployment, Dependencies, DoD
+
+  - id: P0-PLAN-002
+    title: Produce prioritized YAML backlog
+    type: task
+    priority: P0
+    estimate: 1h
+    status: done
+    owner: Lead Implementor
+    acceptance:
+      - backlog.yaml exists with ids, priorities, estimates, dependencies, acceptance
+
+  - id: P0-PLAN-003
+    title: Add sprint validation script for planning deliverables
+    type: task
+    priority: P0
+    estimate: 30m
+    status: done
+    owner: Lead Implementor
+    acceptance:
+      - validate_deliverable.sh exists and validates presence and YAML parse of manifest/backlog
+
+  - id: P1-DATA-001
+    title: Define Firestore data model for events and finalization
+    type: story
+    priority: P1
+    estimate: 3
+    status: done
+    dependencies: []
+    acceptance:
+      - Documented schema for collections: events, with fields for correlationId, type, timestamps, payload, status, egress metadata
+      - Migration/TTL approach documented (even if deferred)
+
+  - id: P1-INGRESS-002
+    title: Implement consumer for internal.ingress.v1 (persist event)
+    type: story
+    priority: P1
+    estimate: 5
+    status: done
+    dependencies: [P1-DATA-001]
+    acceptance:
+      - Message handler persists normalized event document
+      - Idempotent on correlationId (upsert)
+      - Structured logs emitted with correlationId
+
+  - id: P1-FINALIZE-003
+    title: Implement consumer for internal.persistence.finalize.v1 (update final state)
+    type: story
+    priority: P1
+    estimate: 5
+    status: done
+    dependencies: [P1-DATA-001]
+    acceptance:
+      - Handler updates final status and egress metadata
+      - Safe if called before initial persist (creates stub then updates)
+      - Idempotent and handles retries
+
+  - id: P1-CORE-004
+    title: Idempotency and key strategy
+    type: task
+    priority: P1
+    estimate: 3
+    status: done
+    dependencies: [P1-DATA-001]
+    acceptance:
+      - Document and implement keying strategy (correlationId primary)
+      - Upsert operations verified in tests
+
+  - id: P1-TEST-005
+    title: Unit tests for normalization and persistence helpers
+    type: task
+    priority: P1
+    estimate: 3
+    status: done
+    dependencies: [P1-DATA-001, P1-INGRESS-002]
+    acceptance:
+      - Jest tests for normalization, key generation, upsert
+
+  - id: P1-TEST-006
+    title: Integration tests with mocked Firestore and messaging
+    type: task
+    priority: P1
+    estimate: 5
+    status: done
+    dependencies: [P1-INGRESS-002, P1-FINALIZE-003]
+    acceptance:
+      - Tests simulate message flow and verify Firestore writes/updates via mocks
+
+  - id: P2-OBS-007
+    title: Observability and metrics hooks
+    type: task
+    priority: P2
+    estimate: 3
+    status: todo
+    dependencies: []
+    acceptance:
+      - Add counters/timers around persistence/update paths
+      - Structured logs include destination and correlationId
+
+  - id: P2-DEPLOY-008
+    title: Deployment and CI updates for persistence service
+    type: task
+    priority: P2
+    estimate: 3
+    status: todo
+    dependencies: []
+    acceptance:
+      - Cloud Build pipeline validates build and tests for persistence
+      - Cloud Run config aligns with architecture.yaml deploymentDefaults
+
+  - id: P3-DOC-009
+    title: Service documentation (README, runbooks)
+    type: task
+    priority: P3
+    estimate: 2
+    status: todo
+    dependencies: [P1-INGRESS-002, P1-FINALIZE-003]
+    acceptance:
+      - README explains data model, topics, env vars, and validation steps
+
+  - id: P4-RND-010
+    title: Design spike – embeddings and search index
+    type: spike
+    priority: P4
+    estimate: 3
+    status: deferred
+    dependencies: []
+    acceptance:
+      - Brief proposal for embedding pipeline and query-time retrieval
+
+  - id: P1-BUG-011
+    title: Fix Firestore undefined write error by stripping undefined values
+    type: bug
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-INGRESS-002]
+    acceptance:
+      - Persistence service can persist events where optional fields are undefined
+      - Undefined values are stripped from documents prior to Firestore writes
+      - Tests cover undefined stripping and pass
+
+  - id: P1-E2E-012
+    title: Publish finalization event from ingress-egress after egress delivery
+    type: story
+    priority: P1
+    estimate: 2
+    status: done
+    dependencies: []
+    acceptance:
+      - After sending a response on egress, ingress-egress publishes to internal.persistence.finalize.v1
+      - Payload includes correlationId, destination, deliveredAt, status (SENT/FAILED)
+      - Unit test verifies finalize publish on success
+
+  - id: P1-E2E-013
+    title: Egress finalize includes selected candidate and annotations; persistence saves them
+    type: story
+    priority: P1
+    estimate: 2
+    status: done
+    dependencies: [P1-FINALIZE-003, P1-E2E-012]
+    acceptance:
+      - Finalize payload from ingress-egress contains candidates (with selected marked) and annotations
+      - Persistence.applyFinalization merges candidates/annotations into event doc
+      - Tests cover finalize payload and persistence merge
+      
+  - id: P1-DATA-014
+    title: Rework EventDocV1 to extend InternalEventV2 and add ingress/egress metadata
+    type: story
+    priority: P1
+    estimate: 3
+    status: done
+    dependencies: [P1-DATA-001, P1-INGRESS-002, P1-FINALIZE-003]
+    acceptance:
+      - EventDocV1 extends InternalEventV2 rather than duplicating fields
+      - Ingress writes include ingress metadata (source, receivedAt, destination)
+      - Finalization writes include egress metadata and update InternalEventV2 state (annotations/candidates)
+      - Tests updated and passing
+
+  - id: P1-DATA-015
+    title: Remove raw property from EventDocV1 and normalizer
+    type: task
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-DATA-014]
+    acceptance:
+      - EventDocV1 no longer defines a raw field
+      - normalizeIngressEvent does not set raw
+      - Tests updated accordingly and passing in persistence scope
+
+  - id: P1-DATA-016
+    title: Add ttl to EventDocV1 and set on finalization (+7 days)
+    type: story
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-FINALIZE-003]
+    acceptance:
+      - EventDocV1 defines ttl field suitable for Firestore TTL
+      - Persistence.applyFinalization sets ttl to deliveredAt + 7 days (or now + 7 days)
+      - Tests added to assert ttl behavior in unit and integration paths
+
+  - id: P1-CONFIG-017
+    title: Make TTL days configurable via ENV with default in ingress-egress CONFIG_DEFAULTS
+    type: task
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-DATA-016]
+    acceptance:
+      - Ingress-Egress service declares CONFIG_DEFAULTS.PERSISTENCE_TTL_DAYS: 7
+      - Persistence uses env PERSISTENCE_TTL_DAYS to compute TTL on finalization
+      - Unit test verifies env override adjusts TTL days
+
+  - id: P1-QOS-018
+    title: Use qos.ttl seconds to set Firestore TTL on finalization
+    type: story
+    priority: P1
+    estimate: 1
+    status: done
+    dependencies: [P1-DATA-016, P1-CONFIG-017]
+    acceptance:
+      - If finalize payload includes qos.ttl (seconds), event ttl is set to deliveredAt + qos.ttl seconds
+      - Falls back to PERSISTENCE_TTL_DAYS when qos.ttl is missing/invalid
+      - Unit and integration tests verify qos.ttl behavior

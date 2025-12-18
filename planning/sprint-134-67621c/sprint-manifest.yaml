@@ -1,0 +1,13 @@
+id: sprint-134-67621c
+title: "Prompt Assembly Standardization"
+goal: "Standardize prompt generation pipeline to Identity → Constraints → Task → Input; define a thin TypeScript assembly layer and formatting for OpenAI & Google."
+owner: "@christophernavta"
+createdAt: "2025-12-15T13:30:00Z"
+status: "complete"
+links:
+  pr: ""
+  branch: "feature/sprint-134-67621c-prompt-assembly-standardization"
+notes: |
+  Sprint created per AGENTS.md Sprint Protocol v2.4.
+  Focus is documentation-first: Technical Architecture for prompt assembly.
+  Coding (TS layer) begins only after plan/doc approval.

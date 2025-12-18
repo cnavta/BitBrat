@@ -1,0 +1,4 @@
+pr_url: ""
+branch: "feature/sprint-140-2f9c1a-oauth-multi-provider"
+status: "skipped"
+reason: "Force complete sprint — PR creation intentionally skipped per AGENTS.md §2.10"

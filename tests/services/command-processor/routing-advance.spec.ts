@@ -107,7 +107,7 @@ describe('command-processor routing advancement', () => {
     // Attributes should include type, correlationId, source
     expect(published[0].attrs.type).toBe(v2.type);
     expect(published[0].attrs.correlationId).toBe(v2.correlationId);
-    expect(published[0].attrs.source).toBe(v2.source);
+    expect(published[0].attrs.source).toBe('command-processor');
   });
 
   it('publishes to egressDestination when no pending steps remain', async () => {

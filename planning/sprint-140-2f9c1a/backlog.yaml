@@ -1,0 +1,163 @@
+backlog:
+  - id: OF-MP-01
+    title: Define OAuthProvider interface and ProviderRegistry
+    description: Create provider interface and registry to resolve providers by key (twitch, discord) with shared OAuth types/helpers.
+    priority: 1
+    status: done
+    acceptance:
+      - Interface and registry compile and are exported under src/services/oauth/*
+      - Unit tests cover registry register/resolve and error on unknown provider
+
+  - id: OF-MP-02
+    title: Implement generic /oauth/:provider/:identity routes
+    description: Build mountOAuthRoutes() controller for start, callback, refresh, status using ProviderRegistry and token store.
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-01]
+    acceptance:
+      - Endpoints mounted under /oauth/:provider/:identity/*
+      - State validation enforced; safe logging with no secret leakage
+
+  - id: OF-MP-03
+    title: Migrate Twitch to TwitchAdapter
+    description: Implement TwitchAdapter behind the new interface using existing logic; support authorize, exchange, refresh.
+    priority: 1
+    status: in_progress
+    dependsOn: [OF-MP-01, OF-MP-02]
+    acceptance:
+      - Legacy /oauth/twitch/{bot,broadcaster} still work unchanged
+      - New generic routes /oauth/twitch/:identity function equivalently
+
+  - id: OF-MP-04
+    title: Wire oauth-service with legacy and generic routes
+    description: Update oauth-service.ts to mount legacy Twitch routes and the new generic routes using ProviderRegistry and token stores.
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-02, OF-MP-03]
+    acceptance:
+      - Service boots without errors; routes visible; health endpoints unaffected
+
+  - id: OF-MP-05
+    title: Token store model update (authTokens/{provider}/{identity})
+    description: Extend ITokenStore and FirestoreTokenStore to support provider+identity addressing and token metadata per architecture.
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-01]
+    acceptance:
+      - get/put operations by provider+identity persist schema fields and updatedAt
+      - Read-compat for existing Twitch tokens OR documented migration path
+
+  - id: OF-MP-06
+    title: DiscordAdapter skeleton (authorize URL only)
+    description: Provide Discord adapter with getAuthorizeUrl for future user OAuth; no code exchange required this sprint.
+    priority: 2
+    status: done
+    dependsOn: [OF-MP-01, OF-MP-02]
+    acceptance:
+      - Adapter registered and resolvable; start endpoint returns an authorize URL
+
+  - id: OF-MP-07
+    title: Discord ingress – token store integration (feature-flagged)
+    description: Inject token resolver using ITokenStore; when discordUseTokenStore=true, read authTokens/discord/bot and login; fallback to env token if allowed; support rotation reload.
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-05]
+    acceptance:
+      - With flag on and token present, client.login() uses store token
+      - If store empty and fallback enabled, env token is used; otherwise ERROR state
+      - Rotation triggers reconnect without service restart (via method or timer)
+
+  - id: OF-MP-08
+    title: Config & secrets updates for Discord and flags
+    description: Update architecture.yaml/env to include DISCORD_CLIENT_ID/SECRET/REDIRECT_URI, DISCORD_BOT_TOKEN, DISCORD_USE_TOKEN_STORE; update Cloud Build KV stubs.
+    priority: 2
+    status: done
+    acceptance:
+      - Env templates updated under env/*; cloudbuild kv placeholders added
+      - Config builder exposes values; types updated
+
+  - id: OF-MP-09
+    title: Unit tests — registry and controller
+    description: Tests for ProviderRegistry and mountOAuthRoutes controller behavior (state validation, unknown provider error paths).
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-01, OF-MP-02]
+    acceptance:
+      - Jest tests pass; coverage includes happy and error paths
+
+  - id: OF-MP-10
+    title: Unit tests — TwitchAdapter
+    description: Tests for Twitch authorize/callback/refresh logic via mocks; no external HTTP.
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-03]
+    acceptance:
+      - Token persisted with expected fields; legacy and generic routes behavior validated
+
+  - id: OF-MP-11
+    title: Unit tests — FirestoreTokenStore new schema
+    description: Tests for get/put by provider+identity, updatedAt behavior, and read-compat for Twitch.
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-05]
+    acceptance:
+      - CRUD operations verified with emulator/mocks; schema fields respected
+
+  - id: OF-MP-12
+    title: Ingress tests — Discord token resolver and rotation
+    description: Tests for DiscordIngressClient using mocked ITokenStore; verify fallback and rotation handling.
+    priority: 1
+    status: done
+    dependsOn: [OF-MP-07]
+    acceptance:
+      - Login chooses correct token source; reconnect invoked on token change
+
+  - id: OF-MP-13
+    title: Integration tests — oauth-flow endpoints (Twitch)
+    description: End-to-end route tests for start/callback/status using HTTP server with mocks for external calls.
+    priority: 2
+    status: done
+    dependsOn: [OF-MP-02, OF-MP-03, OF-MP-05]
+    acceptance:
+      - HTTP 200/302 as expected; tokens saved; legacy paths unchanged
+
+  - id: OF-MP-14
+    title: Optional migration script for Twitch tokens
+    description: Add tools/migrate-tokens.ts to copy existing Twitch docs into authTokens/twitch/* or document read-compat approach.
+    priority: 3
+    status: done
+    acceptance:
+      - Script runs locally with FIRESTORE_EMULATOR; no-ops safely in prod
+
+  - id: OF-MP-15
+    title: Observability — structured logs and counters
+    description: Ensure oauth-flow routes and Discord ingress emit structured logs and increment counters per provider/identity.
+    priority: 3
+    status: done
+    acceptance:
+      - Logs present for each route path; no tokens/secrets in logs
+
+  - id: OF-MP-16
+    title: Update validate_deliverable.sh
+    description: Ensure validation installs, builds, tests; starts local where applicable; discord disabled by default; includes cloud dry-run step.
+    priority: 2
+    status: todo
+    acceptance:
+      - Script is logically passable in CI and local; no external creds required
+
+  - id: OF-MP-17
+    title: Documentation & runbook updates
+    description: Update architecture.yaml notes, env samples, and README/runbook for oauth-flow and ingress.
+    priority: 2
+    status: todo
+    acceptance:
+      - Docs describe routes, token store path, flags, and rotation procedures
+
+  - id: OF-MP-18
+    title: Publication — PR creation
+    description: Commit and push feature branch; create GitHub PR; record URL in publication.yaml; update sprint manifest status.
+    priority: 2
+    status: todo
+    dependsOn: [OF-MP-01, OF-MP-02, OF-MP-03, OF-MP-05, OF-MP-07]
+    acceptance:
+      - PR exists with summary; link recorded; planning artifacts included

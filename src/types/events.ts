@@ -104,6 +104,8 @@ export interface EnvelopeV1 {
     displayName?: string;
     roles?: string[];
     status?: string;
+    notes?: string; // Ad-hoc notes about this user sourced from Firebase.
+    tags?: string[]; // Internal tags, such as FIRST_ALLTIME_MESSAGE, FIRST_SESSION_MESSAGE, NEW_USER, etc.
   };
   /** Optional: added by Auth service (User Enrichment v1) */
   auth?: {
@@ -172,6 +174,10 @@ export interface ErrorEntryV1 {
   at: string; // ISO8601
 }
 
+export interface QOSV1 {
+  ttl?: number; // seconds
+}
+
 /**
  * InternalEventV2 extends the EnvelopeV1 fields at the top level (no `envelope` nesting),
  * and adds normalized message metadata along with annotations and candidate replies.
@@ -184,6 +190,7 @@ export interface InternalEventV2 extends EnvelopeV1 {
   annotations?: AnnotationV1[];
   candidates?: CandidateV1[];
   errors?: ErrorEntryV1[];
+  qos?: QOSV1;
 }
 
 // Topic/Subject constants (keep identical across drivers)

@@ -59,6 +59,16 @@ services:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
       - OAUTH_STATE_SECRET
+      # Discord OAuth (user-level flows optional; prep for future)
+      - DISCORD_CLIENT_ID
+      - DISCORD_CLIENT_SECRET
+    env:
+      # Optional explicit redirect URI override for Discord OAuth callbacks
+      - DISCORD_REDIRECT_URI
+      # Optional scopes list for Discord OAuth (space/comma separated)
+      - DISCORD_OAUTH_SCOPES
+      # Optional permissions bitmask for Discord OAuth
+      - DISCORD_OAUTH_PERMISSIONS
 
   ingress-egress:
     active: true
@@ -76,9 +86,17 @@ services:
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
+      - DISCORD_BOT_TOKEN
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS
+      # Discord configuration and rollout flags
+      - DISCORD_ENABLED
+      - DISCORD_GUILD_ID
+      - DISCORD_CHANNELS
+      - DISCORD_USE_TOKEN_STORE
+      - DISCORD_ALLOW_ENV_FALLBACK
+      - DISCORD_TOKEN_POLL_MS
       # Optional instance identity for per-instance egress topic.
       # The service resolves instanceId via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated
       # Only K_REVISION is listed here because it is auto-provided by Cloud Run when present.
@@ -133,12 +151,12 @@ services:
       - LLM_BOT_INSTANCE_MEM_TTL_MS
 
   persistence:
-    active: false
+    active: true
     description: "Persists and indexes events for later retrieval"
     entry: src/apps/persistence-service.ts
     topics:
       consumes:
-        - internal.persistence.initialize.v1
+        - internal.ingress.v1
         - internal.persistence.finalize.v1
 
   command-processor:

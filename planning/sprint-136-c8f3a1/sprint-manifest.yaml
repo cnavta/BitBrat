@@ -1,0 +1,13 @@
+id: sprint-136-c8f3a1
+title: "LLM Bot Migration to Prompt Assembly v1"
+goal: "Migrate llm-bot to fully use the standardized Prompt Assembly framework (System Prompt → Identity → Requesting User → Constraints → Task → Input) with OpenAI adapter, preserving existing behavior and memory semantics."
+owner: "@Lead-Implementor"
+createdAt: "2025-12-16T15:32:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/39"
+  branch: "feature/sprint-136-c8f3a1-llm-bot-migration"
+notes: |
+  - Precedence: architecture.yaml > AGENTS.md > everything else.
+  - Integrate src/common/prompt-assembly assemble() and openaiAdapter() into llm-bot.
+  - Preserve short-term memory behavior and logging; avoid vendor lock-in.

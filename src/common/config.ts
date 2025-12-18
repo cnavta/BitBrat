@@ -68,6 +68,20 @@ const ConfigSchema = z.object({
 
   busPrefix: z.string().optional(),
   publishMaxRetries: z.coerce.number().int().min(1).optional(),
+
+  // Discord configuration
+  discordEnabled: z.boolean().optional(),
+  discordBotToken: z.string().optional(),
+  discordGuildId: z.string().optional(),
+  discordChannels: z.array(z.string()).default([]),
+  discordUseTokenStore: z.boolean().optional(),
+  discordAllowEnvFallback: z.boolean().optional(),
+  discordTokenPollMs: z.coerce.number().int().min(0).optional(),
+  discordClientId: z.string().optional(),
+  discordClientSecret: z.string().optional(),
+  discordRedirectUri: z.string().optional(),
+  discordOauthScopes: z.array(z.string()).default([]),
+  discordOauthPermissions: z.coerce.number().int().min(0).optional(),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -112,6 +126,20 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
 
     busPrefix: env.BUS_PREFIX,
     publishMaxRetries: env.PUBLISH_MAX_RETRIES ? Number(env.PUBLISH_MAX_RETRIES) : undefined,
+
+    // Discord
+    discordEnabled: parseBool(env.DISCORD_ENABLED, false),
+    discordBotToken: env.DISCORD_BOT_TOKEN,
+    discordGuildId: env.DISCORD_GUILD_ID,
+    discordChannels: parseList(env.DISCORD_CHANNELS),
+    discordUseTokenStore: parseBool(env.DISCORD_USE_TOKEN_STORE, false),
+    discordAllowEnvFallback: parseBool(env.DISCORD_ALLOW_ENV_FALLBACK, true),
+    discordTokenPollMs: env.DISCORD_TOKEN_POLL_MS ? Number(env.DISCORD_TOKEN_POLL_MS) : undefined,
+    discordClientId: env.DISCORD_CLIENT_ID,
+    discordClientSecret: env.DISCORD_CLIENT_SECRET,
+    discordRedirectUri: env.DISCORD_REDIRECT_URI,
+    discordOauthScopes: parseList(env.DISCORD_OAUTH_SCOPES),
+    discordOauthPermissions: env.DISCORD_OAUTH_PERMISSIONS ? Number(env.DISCORD_OAUTH_PERMISSIONS) : undefined,
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last
@@ -141,12 +169,14 @@ export function resetConfig(): void {
 
 /** Safe representation of config for logging: redacts secrets. */
 export function safeConfig(cfg: IConfig = getConfig()): Record<string, unknown> {
-  const { twitchClientSecret, oauthStateSecret, twitchBotAccessToken, ...rest } = cfg;
+  const { twitchClientSecret, oauthStateSecret, twitchBotAccessToken, discordBotToken, discordClientSecret, ...rest } = cfg;
   return {
     ...rest,
     twitchClientSecret: twitchClientSecret ? '***REDACTED***' : undefined,
     oauthStateSecret: oauthStateSecret ? '***REDACTED***' : undefined,
     twitchBotAccessToken: twitchBotAccessToken ? '***REDACTED***' : undefined,
+    discordBotToken: discordBotToken ? '***REDACTED***' : undefined,
+    discordClientSecret: discordClientSecret ? '***REDACTED***' : undefined,
   };
 }
 

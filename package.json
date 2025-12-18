@@ -3,7 +3,22 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
-  "types": "dist/types/index.d.ts",
+  "types": "dist/src/common/prompt-assembly/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "require": "./dist/index.js"
+    },
+    "./prompt-assembly": {
+      "types": "./dist/src/common/prompt-assembly/index.d.ts",
+      "require": "./dist/src/common/prompt-assembly/index.js"
+    }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "lint": "eslint . --ext .ts",
     "build": "tsc -p tsconfig.json",
@@ -13,7 +28,11 @@
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
     "bootstrap:service": "node ./infrastructure/scripts/bootstrap-service.js",
     "brat": "node dist/tools/brat/src/cli/index.js",
-    "firestore:upsert": "node dist/tools/firestore-upsert.js"
+    "firestore:upsert": "node dist/tools/firestore-upsert.js",
+    "migrate:tokens": "node dist/tools/migrate-tokens.js"
+  },
+  "bin": {
+    "prompt-assembly": "dist/tools/prompt-assembly/src/cli/index.js"
   },
   "keywords": [],
   "author": "chris@ix-n.com",
@@ -25,6 +44,7 @@
     "@opentelemetry/resources": "^1.26.0",
     "@opentelemetry/sdk-trace-node": "^1.26.0",
     "@opentelemetry/semantic-conventions": "^1.26.0",
+    "discord.js": "^14.16.3",
     "@twurple/auth": "^7.4.0",
     "@twurple/chat": "^7.4.0",
     "express": "^5.1.0",

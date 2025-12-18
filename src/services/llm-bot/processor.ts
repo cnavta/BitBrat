@@ -3,8 +3,13 @@ import { StateGraph, END, Annotation } from '@langchain/langgraph';
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
-import { resolvePersonalityParts, composeSystemPrompt, type ComposeMode } from './personality-resolver';
+import { resolvePersonalityParts } from './personality-resolver';
+import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
+import { assemble } from '../../common/prompt-assembly/assemble';
+import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
+import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser, AssemblerConfig } from '../../common/prompt-assembly/types';
+import { redactText } from '../../common/prompt-assembly/redaction';
 import { metrics,
   METRIC_PERSONALITIES_RESOLVED,
   METRIC_PERSONALITIES_FAILED,
@@ -25,8 +30,11 @@ type LlmGraphState = {
   error?: Error;
 };
 
+// PASM-V2-10: one-time deprecation warning flag for legacy Input.context history injection
+let warnedInputContextHistory = false;
+
 function preview(text: string, max = 200): string {
-  const s = String(text || '');
+  const s = redactText(String(text || ''));
   if (s.length <= max) return s;
   return s.slice(0, max) + `…(+${s.length - max})`;
 }
@@ -102,8 +110,40 @@ function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
   return combined.trim() || undefined;
 }
 
-function flattenMessagesForModel(messages: ChatMessage[] = []): string {
-  return messages.map((m) => `(${m.role}) ${m.content}`).join('\n\n').trim();
+function formatHistoryForContext(messages: ChatMessage[] = []): string | undefined {
+  // Exclude leading system and empty lines; oldest to newest
+  const nonSystem = (messages || []).filter((m) => m.role !== 'system');
+  if (nonSystem.length === 0) return undefined;
+  const body = nonSystem
+    .map((m) => `(${m.role}) ${m.content}`)
+    .join('\n');
+  const header = 'Conversation History (oldest to newest):';
+  const fenced = `~~~text\n${header}\n${body}\n~~~`;
+  return fenced;
+}
+
+/**
+ * Remove a single pair of wrapping quotes from a string if present.
+ * Supports common pairs: '""', "''", '“”', '‘’', and backticks. Trims whitespace at the ends.
+ */
+function unwrapQuoted(input: string): string {
+  let t = String(input ?? '').trim();
+  if (!t) return t;
+  const pairs: Array<[string, string]> = [["\"", "\""], ["'", "'"], ["“", "”"], ["‘", "’"], ["`", "`"]];
+  let changed = true;
+  let guard = 0;
+  while (changed && guard < 2) { // unwrap at most twice to handle cases like "\"hi\""
+    changed = false;
+    for (const [o, c] of pairs) {
+      if (t.length >= 2 && t.startsWith(o) && t.endsWith(c)) {
+        t = t.slice(o.length, t.length - c.length).trim();
+        changed = true;
+        break;
+      }
+    }
+    guard++;
+  }
+  return t;
 }
 
 async function callOpenAI(apiKey: string, model: string, prompt: string, timeoutMs?: number): Promise<string> {
@@ -118,14 +158,11 @@ async function callOpenAI(apiKey: string, model: string, prompt: string, timeout
     input: prompt,
     max_output_tokens: 1024,
   };
-
-  console.debug('openai.request.raw', JSON.stringify(requestBody));
   // IMPORTANT: pass AbortSignal via the fetch options (2nd param), NOT in the request body
   const resp = await (client as any).responses.create(
     requestBody,
     controller ? { signal: controller.signal } : undefined
   );
-  console.debug('openai.response.raw', JSON.stringify(resp));
   const text = (resp as any)?.output?.[0]?.content?.[0]?.text
     ?? (resp as any)?.output_text
     ?? (resp as any)?.choices?.[0]?.message?.content
@@ -158,11 +195,48 @@ export async function processEvent(
       combinedPrompt: Annotation<string | undefined>(),
       messages: Annotation<ChatMessage[] | undefined>(),
       llmText: Annotation<string | undefined>(),
+      promptSpec: Annotation<PromptSpec | undefined>(),
+      systemText: Annotation<string | undefined>(),
+      userTurns: Annotation<string[] | undefined>(),
     });
 
     const graph = new StateGraph(LlmState)
       .addNode('ingest_prompt', async (s: typeof LlmState.State) => {
         logger.debug('llm_bot.process_event.ingest_prompt', { correlationId: s.event.correlationId });
+        // Optionally build user context annotation and attach before building combined prompt
+        const userCtxEnabled = (() => {
+          const v = server.getConfig<string>('USER_CONTEXT_ENABLED', { default: 'true' });
+          const sflag = String(v).toLowerCase();
+          return !(sflag === 'false' || sflag === '0' || sflag === 'no');
+        })();
+        if (userCtxEnabled) {
+          try {
+            const cfg = {
+              rolesPath: server.getConfig<string>('USER_CONTEXT_ROLES_PATH', { default: '/configs/bot/roles' }),
+              ttlMs: server.getConfig<number>('USER_CONTEXT_CACHE_TTL_MS', { default: 300000, parser: (v) => Number(String(v)) }),
+              includeDescription: (() => {
+                const v = server.getConfig<string>('USER_CONTEXT_DESCRIPTION_ENABLED', { default: 'true' });
+                const sflag = String(v).toLowerCase();
+                return !(sflag === 'false' || sflag === '0' || sflag === 'no');
+              })(),
+              maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v) => Number(String(v)) }),
+              injectionMode: (String(server.getConfig<string>('USER_CONTEXT_INJECTION_MODE', { default: 'append' })).toLowerCase() as any),
+            } as any;
+            const ann = await buildUserContextAnnotation(s.event, cfg);
+            if (ann) {
+              if (!Array.isArray(s.event.annotations)) s.event.annotations = [];
+              s.event.annotations.push(ann);
+              logger?.info?.('llm_bot.user_ctx.compose.end', {
+                correlationId: s.event.correlationId,
+                mode: cfg.injectionMode,
+                hasDescription: Boolean((ann.payload as any)?.description),
+                preview: (ann.value || (ann.payload as any)?.text || '').slice(0, server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v)=>Number(String(v)) })),
+              });
+            }
+          } catch (e: any) {
+            logger?.warn?.('llm_bot.user_ctx.compose.error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
+          }
+        }
         const anns = Array.isArray(s.event.annotations) ? s.event.annotations : [];
         const combinedPrompt = buildCombinedPrompt(anns as any);
         const maxMessages = server.getConfig<number>('LLM_BOT_MEMORY_MAX_MESSAGES', { default: 8, parser: (v) => Number(String(v)) });
@@ -192,6 +266,9 @@ export async function processEvent(
           if (sflag === 'false' || sflag === '0' || sflag === 'no') return false;
           return true;
         })();
+        // LLM-04: Resolve personalities but map into Identity & Constraints instead of composing System
+        let resolvedIdentitySummary: string | undefined;
+        let resolvedConstraints: Array<{ text: string; priority?: number; tags?: string[]; source?: 'system'|'policy'|'runtime' }>|undefined;
         try {
           if (personalitiesEnabled) {
             const opts = {
@@ -215,32 +292,52 @@ export async function processEvent(
             };
             const before = metrics.snapshot();
             const parts = await resolvePersonalityParts(anns as any as AnnotationV1[], opts, { fetchByName, logger });
-            const mode = (String(server.getConfig<string>('PERSONALITY_COMPOSE_MODE', { default: 'append' })).toLowerCase() as ComposeMode) || 'append';
-            const composed = composeSystemPrompt(sys, parts, mode);
-            if (composed && composed.trim()) {
-              finalSystem = composed.trim();
-              const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
-              const names = parts.map((p) => p.name).filter(Boolean);
-              const versions = parts.map((p) => p.version).filter((v) => typeof v === 'number');
-              const after = metrics.snapshot();
-              const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
-              logger?.info?.('llm_bot.personality.composed', {
-                count: parts.length,
-                names,
-                versions,
-                mode,
-                metrics: {
-                  resolved: delta(METRIC_PERSONALITIES_RESOLVED),
-                  failed: delta(METRIC_PERSONALITIES_FAILED),
-                  dropped: delta(METRIC_PERSONALITIES_DROPPED),
-                  cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
-                  cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
-                  clamped: delta(METRIC_PERSONALITY_CLAMPED),
-                },
-                preview: preview(finalSystem, previewLen),
-                correlationId: s.event.correlationId,
-              });
+            // Do NOT compose into system; instead, build identity summary and constraints from parts
+            const texts: string[] = [];
+            const constraints: typeof resolvedConstraints = [];
+            for (const p of parts) {
+              const t = String((p as any)?.text || (p as any)?.payload?.text || (p as any)?.summary || '').trim();
+              if (t) {
+                texts.push(t);
+                // naive extraction of constraint-like lines (policy/format hints)
+                const lines = t.split(/\r?\n/);
+                for (const line of lines) {
+                  const l = line.trim();
+                  if (!l) continue;
+                  // Heuristics: lines that look like rules
+                  if (/^(?:-\s*)?\(?\d+\)?\s*|^(?:-\s*)?(?:Do not|Never|Always|Must|Should|Format|Output)/i.test(l)) {
+                    const clean = l.replace(/^[-\s]*/, '').trim();
+                    constraints.push({ text: clean, priority: 3, tags: ['policy'], source: 'policy' });
+                  }
+                }
+              } else if ((p as any)?.name) {
+                texts.push(String((p as any).name));
+              }
             }
+            resolvedIdentitySummary = texts.filter(Boolean).join('\n\n');
+            resolvedConstraints = (constraints && constraints.length > 0) ? constraints : undefined;
+
+            const previewLen = server.getConfig<number>('PERSONALITY_LOG_PREVIEW_CHARS', { default: 160, parser: (v) => Number(String(v)) });
+            const names = parts.map((p) => (p as any).name).filter(Boolean);
+            const versions = parts.map((p) => (p as any).version).filter((v) => typeof v === 'number');
+            const after = metrics.snapshot();
+            const delta = (k: string) => Math.max(0, (after[k] || 0) - (before[k] || 0));
+            logger?.info?.('llm_bot.personality.mapped', {
+              count: parts.length,
+              names,
+              versions,
+              metrics: {
+                resolved: delta(METRIC_PERSONALITIES_RESOLVED),
+                failed: delta(METRIC_PERSONALITIES_FAILED),
+                dropped: delta(METRIC_PERSONALITIES_DROPPED),
+                cacheHit: delta(METRIC_PERSONALITY_CACHE_HIT),
+                cacheMiss: delta(METRIC_PERSONALITY_CACHE_MISS),
+                clamped: delta(METRIC_PERSONALITY_CLAMPED),
+              },
+              identityPreview: preview(resolvedIdentitySummary || '', previewLen),
+              constraintsCount: resolvedConstraints?.length || 0,
+              correlationId: s.event.correlationId,
+            });
           }
         } catch (e: any) {
           logger?.warn?.('llm_bot.personality.compose_error', { error: e?.message || String(e), correlationId: s.event.correlationId });
@@ -251,6 +348,7 @@ export async function processEvent(
           messages = [{ role: 'system', content: finalSystem.trim(), createdAt: new Date().toISOString() }, ...messages];
         }
 
+        let userTurns: string[] = [];
         if (combinedPrompt) {
           // Build one HumanMessage from the base event message (if present),
           // then one per prompt annotation (sorted) for better trimming behavior
@@ -275,6 +373,9 @@ export async function processEvent(
             if (!(baseText && t === baseText)) incoming.push(toHuman(t));
           }
 
+          // Capture individual user turns for legacy-marked input formatting
+          userTurns = incoming.filter((m) => m.role === 'user').map((m) => m.content);
+
           const { messages: reduced, trimmedByChars, trimmedByCount } = applyMemoryReducer(messages, incoming, {
             maxMessages: isFinite(maxMessages) ? maxMessages : 8,
             maxChars: isFinite(maxChars) ? maxChars : 8000,
@@ -298,7 +399,114 @@ export async function processEvent(
           }
         }
 
-        return { combinedPrompt, messages };
+        // Build PromptSpec (LLM-01) from current event + personalities + memory
+        const baseText = (s.event as any)?.message?.text ? String((s.event as any).message.text).trim() : '';
+        // Map annotations to TaskAnnotation[] (default priority=3; sorted earlier by createdAt)
+        const taskAnns: PATask[] = (() => {
+          const promptAnns = (anns as any[])?.filter((a) => a?.kind === 'prompt' && (a.value || a.payload?.text)) || [];
+          const out: PATask[] = [];
+          for (const p of promptAnns) {
+            const t = String(p.value || p.payload?.text || '').trim();
+            if (!t) continue;
+            out.push({ id: p.id, priority: 3, instruction: t, required: true });
+          }
+          return out;
+        })();
+
+        // RequestingUser mapping (best-effort)
+        const ru: PARequestingUser | undefined = (() => {
+          const u = (s.event as any)?.user || {};
+          const anyRoles = Array.isArray((u as any).roles) ? (u as any).roles : undefined;
+          const obj: PARequestingUser = {
+            userId: (u as any)?.id,
+            handle: (u as any)?.handle || (u as any)?.username || undefined,
+            displayName: (u as any)?.displayName || (u as any)?.name || undefined,
+            roles: anyRoles,
+            locale: (u as any)?.locale,
+            timezone: (u as any)?.timezone,
+            tier: (u as any)?.tier,
+          };
+          const hasAny = Object.values(obj).some((v) => Boolean(v) && (Array.isArray(v) ? v.length > 0 : true));
+          return hasAny ? obj : undefined;
+        })();
+
+        // Legacy history-in-Input.context (v1) — compute but do not inject anymore (PASM-V2-10)
+        const historyCtx = formatHistoryForContext(messages);
+        // PASM-V2-09: Build conversationState from recent exchanges
+        const convoTranscript = (messages || [])
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({ role: (m.role as 'user'|'assistant'|'tool'), content: m.content }));
+        const convoSummary = (() => {
+          const total = convoTranscript.length;
+          const lastUser = [...convoTranscript].reverse().find((m) => m.role === 'user')?.content || '';
+          const lastPreview = lastUser ? (lastUser.length > 160 ? (lastUser.slice(0, 160) + '…') : lastUser) : '';
+          const parts: string[] = [];
+          parts.push(`Recent exchanges: ${total}`);
+          if (lastPreview) parts.push(`Latest user: ${lastPreview}`);
+          return parts.join('\n');
+        })();
+        const conversationState = (() => {
+          if (convoTranscript.length === 0 && !convoSummary) return undefined;
+          // Allow env override for renderMode
+          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'summary' }) || 'summary').toLowerCase();
+          const renderMode = (renderModeEnv === 'both' || renderModeEnv === 'transcript' || renderModeEnv === 'summary')
+            ? (renderModeEnv as 'both'|'transcript'|'summary')
+            : 'summary';
+          return {
+            summary: convoSummary || undefined,
+            // Default to summary-first; transcript optionally included for richer context
+            transcript: convoTranscript.length > 0 ? convoTranscript : undefined,
+            retention: {
+              maxMessages: isFinite(maxMessages) ? maxMessages : 8,
+              maxChars: isFinite(maxChars) ? maxChars : 8000,
+            },
+            renderMode,
+          } as PromptSpec['conversationState'];
+        })();
+
+        const systemPrompt = finalSystem && finalSystem.trim()
+          ? {
+              summary: 'LLM Bot System Rules',
+              rules: [
+                finalSystem.trim(),
+                'You are meant to entertain. CNJ==Chuck Norris Joke.',
+                'Safety: Do not reveal secrets or internal tokens. Refuse requests that violate policy.',
+              ],
+              sources: ['architecture.yaml', 'AGENTS.md v2.4'],
+            }
+          : undefined;
+
+        const promptSpec: PromptSpec | undefined = (taskAnns.length > 0 || baseText)
+          ? {
+              systemPrompt,
+              identity: (() => {
+                if (personalitiesEnabled && resolvedIdentitySummary && resolvedIdentitySummary.trim()) {
+                  return { summary: resolvedIdentitySummary.trim() };
+                }
+                return undefined;
+              })(),
+              constraints: (() => {
+                if (personalitiesEnabled && resolvedConstraints && resolvedConstraints.length > 0) return resolvedConstraints as any;
+                return undefined;
+              })(),
+              task: taskAnns.length > 0 ? taskAnns : [{ instruction: 'Answer the user query', priority: 3, required: true }],
+              // PASM-V2-09/10: populate conversationState (v2) and stop injecting history into Input.context
+              conversationState,
+              input: { userQuery: baseText || combinedPrompt || '' },
+              requestingUser: ru,
+            }
+          : undefined;
+
+        // PASM-V2-10: Deprecation warning (once) when legacy history context existed
+        if (!warnedInputContextHistory && historyCtx && historyCtx.trim().length > 0) {
+          warnedInputContextHistory = true;
+          logger?.warn?.('llm_bot.deprecation.input_context_history', {
+            correlationId: s.event.correlationId,
+            note: 'Conversation history is no longer injected into Input.context. It is now rendered under [Conversation State / History].',
+          });
+        }
+
+        return { combinedPrompt, messages, promptSpec, systemText: finalSystem, userTurns };
       })
       .addNode('call_model', async (s: typeof LlmState.State) => {
         logger.debug('llm_bot.process_event.call_model', { correlationId: s.event.correlationId });
@@ -308,15 +516,74 @@ export async function processEvent(
           const key = server.getConfig<string>('OPENAI_API_KEY');
           return callOpenAI(key, m, p, t);
         });
-        const msgs = (s.messages as ChatMessage[]) || [];
-        if (!s.combinedPrompt) return {}; // No prompt to act on
-        const input = flattenMessagesForModel(msgs);
+        if (!s.combinedPrompt) return {}; // No prompt to act on (legacy gating retained)
+        const spec = (s.promptSpec as PromptSpec | undefined);
+        if (!spec) return {};
+        const cfg: AssemblerConfig = { headingLevel: 2, showEmptySections: true };
         const corr = s.event.correlationId;
+        const assembled = assemble(spec, cfg);
+        // LLM-07: Log assembly meta and safe preview (no secrets)
+        if (assembled?.meta) {
+          logger?.debug?.('llm_bot.assembly.meta', {
+            correlationId: corr,
+            truncated: assembled.meta.truncated,
+            totalChars: assembled.meta.totalChars,
+            maxTotalChars: assembled.meta.maxTotalChars,
+            sectionLengths: assembled.meta.sectionLengths,
+            truncationNotes: (assembled.meta.truncationNotes || []).slice(0, 3),
+          });
+        }
+        logger?.debug?.('llm_bot.assembly.preview', {
+          correlationId: corr,
+          preview: preview(assembled.text),
+        });
+        // Additional safe log: preview Conversation State / History (section + transcript)
+        try {
+          const cs = assembled.sections.conversationState || '';
+          const prevMax = server.getConfig<number>('CONVERSATION_STATE_PREVIEW_MAX', {
+            default: 200,
+            parser: (v) => Number(String(v)),
+          });
+          // Build a transcript-only text preview (not necessarily rendered depending on renderMode)
+          const trItems = (spec.conversationState?.transcript || []) as Array<{ role: 'user'|'assistant'|'tool'; content: string }>;
+          const roleTag = (r: 'user'|'assistant'|'tool') => (r === 'user' ? 'U' : r === 'assistant' ? 'A' : 'T');
+          const transcriptText = trItems
+            .map((m) => `${roleTag(m.role)}: ${m.content || ''}`)
+            .join('\n');
+          logger?.debug?.('llm_bot.assembly.conversation_state', {
+            correlationId: corr,
+            present: Boolean(cs && cs.trim()),
+            length: cs.length,
+            preview: preview(cs, prevMax),
+            transcriptPresent: trItems.length > 0,
+            transcriptCount: trItems.length,
+            transcriptLength: transcriptText.length,
+            transcriptPreview: preview(transcriptText, prevMax),
+          });
+        } catch {}
+        // Do not log full assembled text to avoid leaking sensitive data or transcripts
+        const payload = openaiAdapter(assembled);
+        // LLM-05: Hard cutover – build request input from adapter payload preserving canonical order
+        const sysContent = payload.messages[0]?.content || '';
+        const userContent = payload.messages[1]?.content || '';
+        // Safe preview of user content only (may include conversation state)
+        logger?.debug?.('llm_bot.adapter.user_preview', {
+          correlationId: corr,
+          preview: preview(userContent),
+        });
+        const input = [`(system) ${sysContent}`, `(user) ${userContent}`].join('\n\n').trim();
+        // LLM-07: Adapter payload stats
+        logger?.debug?.('llm_bot.adapter.payload_stats', {
+          correlationId: corr,
+          messageCount: 2,
+          systemChars: sysContent.length,
+          userChars: userContent.length,
+        });
         const startedAt = Date.now();
         // Backward-compatible input logging for operational visibility
         logger?.debug?.('llm_bot.call_model.input_stats', {
           correlationId: corr,
-          messageCount: msgs.length,
+          messageCount: 2,
           charCount: input.length,
         });
         logger?.debug?.('llm_bot.call_model.input_preview', {
@@ -327,7 +594,7 @@ export async function processEvent(
           correlationId: corr,
           model,
           timeoutMs: isFinite(timeoutMs) ? timeoutMs : undefined,
-          messageCount: msgs.length,
+          messageCount: 2,
           inputChars: input.length,
           inputPreview: preview(input),
         });
@@ -335,17 +602,19 @@ export async function processEvent(
           const llmText = await fn(model, input, isFinite(timeoutMs) ? timeoutMs : undefined);
           const durationMs = Date.now() - startedAt;
           const trimmed = String(llmText || '').trim();
+          const unwrapped = unwrapQuoted(trimmed);
           logger?.debug?.('openai.response', {
             correlationId: corr,
             model,
             durationMs,
-            outputChars: trimmed.length,
-            outputPreview: preview(trimmed),
+            outputChars: unwrapped.length,
+            outputPreview: preview(unwrapped),
           });
-          const out: Partial<typeof LlmState.State> = { llmText: trimmed } as any;
+          const out: Partial<typeof LlmState.State> = { llmText: unwrapped } as any;
           // Only append assistant message if non-empty to avoid blank turns in memory
-          if (trimmed) {
-            const assistantMsg = toAssistant(trimmed);
+          if (unwrapped) {
+            const assistantMsg = toAssistant(unwrapped);
+            const msgs = (s.messages as ChatMessage[]) || [];
             (out as any).messages = [...msgs, assistantMsg];
             // Persist assistant turn to instance store
             try {

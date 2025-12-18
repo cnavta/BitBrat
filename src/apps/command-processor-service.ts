@@ -86,8 +86,9 @@ class CommandProcessorServer extends BaseServer {
               return;
             }
 
-            // Align attribute expectations: set event.source to this service before forwarding
-            v2.source = SERVICE_NAME;
+            // Align attribute expectations: preserve original source if present, fallback to this service for attributes
+            // But do NOT overwrite the payload's source property as it's used for egress routing.
+            // v2.source = SERVICE_NAME; // DEPRECATED: Do not overwrite payload source.
 
             // Advance using BaseServer helper (optionally sets current step status, idempotency, attributes, tracing)
             await (this as any).next(v2, result.stepStatus);
