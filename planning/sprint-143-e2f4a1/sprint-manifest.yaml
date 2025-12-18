@@ -3,8 +3,9 @@ title: "Update Discord OAuth Permissions"
 goal: "Ensure the Discord OAuth flow grants the bot sufficient permissions to join channels and chat."
 owner: "@christophernavta"
 createdAt: "2025-12-18T10:48:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/43"
   branch: "feature/sprint-143-e2f4a1-update-discord-permissions"
 notes: |
   The user wants to make sure the Discord bot has enough permissions.
