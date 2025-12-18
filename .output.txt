@@ -1,0 +1,641 @@
+🔧 Installing dependencies...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+added 823 packages, and audited 824 packages in 7s
+150 packages are looking for funding
+  run `npm fund` for details
+4 vulnerabilities (2 moderate, 2 high)
+To address all issues, run:
+  npm audit fix
+Run `npm audit` for details.
+🧱 Building project...
+> bitbrat-platform@1.0.0 build
+> tsc -p tsconfig.json
+🧪 Running routing tests...
+  console.log
+    {"ts":"2025-12-18T17:43:54.848Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.866Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.867Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.868Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.868Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.870Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.872Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.976Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.980Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"internal.ingress.v1","batching":{"maxMessages":100,"maxMilliseconds":20},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.981Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.982Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.983Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-djk6hzj4","queue":"ingress-egress.proc-djk6hzj4"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.983Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.984Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-djk6hzj4","queue":"ingress-egress.proc-djk6hzj4"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:54.985Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-djk6hzj4","subscription":"internal.egress.v1.proc-djk6hzj4.ingress-egress.proc-djk6hzj4","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.483Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-1","candidateId":"cand-1","priority":1,"createdAt":"2025-12-18T17:43:55.482Z"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.485Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-1","source":"ingress.discord","isDiscord":true}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.487Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-1","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.489Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.490Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.490Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.491Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.491Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.492Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.492Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.492Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.492Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-vfx32drr","queue":"ingress-egress.proc-vfx32drr"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.492Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.493Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-vfx32drr","queue":"ingress-egress.proc-vfx32drr"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.493Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-vfx32drr","subscription":"internal.egress.v1.proc-vfx32drr.ingress-egress.proc-vfx32drr","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.993Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-3","candidateId":"cand-3","priority":1,"createdAt":"2025-12-18T17:43:55.993Z"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.994Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-3","source":"command-processor","isDiscord":true}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.995Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-3","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.995Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.996Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.996Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.997Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.997Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.998Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.998Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.998Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.998Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-qs98c75k","queue":"ingress-egress.proc-qs98c75k"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.999Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.999Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-qs98c75k","queue":"ingress-egress.proc-qs98c75k"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:55.999Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-qs98c75k","subscription":"internal.egress.v1.proc-qs98c75k.ingress-egress.proc-qs98c75k","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.500Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-v1","source":"ingress.discord","isDiscord":true}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.500Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-v1","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.501Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.502Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.502Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.503Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.503Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.503Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.504Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.504Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.504Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-nbn2ionm","queue":"ingress-egress.proc-nbn2ionm"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.504Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.504Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-nbn2ionm","queue":"ingress-egress.proc-nbn2ionm"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:56.505Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-nbn2ionm","subscription":"internal.egress.v1.proc-nbn2ionm.ingress-egress.proc-nbn2ionm","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:57.004Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-2","candidateId":"cand-2","priority":1,"createdAt":"2025-12-18T17:43:57.004Z"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:57.005Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-2","source":"ingress.twitch","isDiscord":false}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-18T17:43:57.006Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-2","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/__tests__/ingress-egress-routing.test.ts
+  IngressEgressServer routing
+    ✓ should send Discord responses to Discord instead of Twitch (642 ms)
+    ✓ should route to Discord if source is missing but Discord annotation is present (506 ms)
+    ✓ should route to Discord if it is a V1 event with Discord source (506 ms)
+    ✓ should send Twitch responses to Twitch (505 ms)
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        3.572 s
+Ran all test suites matching /src\/apps\/__tests__\/ingress-egress-routing.test.ts/i.
+Jest did not exit one second after the test run has completed.
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.
+  console.warn
+    {"ts":"2025-12-18T17:44:59.817Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"internal.egress.v1.proc-nbn2ionm","error":"Total timeout of API google.pubsub.v1.Publisher exceeded 60000 milliseconds retrying error Error: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error  before any response was received. : Previous errors : [{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: }]"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From src/apps/__tests__/ingress-egress-routing.test.ts.
+      at new SubscriberClient (node_modules/@google-cloud/pubsub/src/v1/subscriber_client.ts:162:21)
+      at PubSub.getClientAsync_ (node_modules/@google-cloud/pubsub/src/pubsub.ts:1316:19)
+  console.warn
+    {"ts":"2025-12-18T17:44:59.831Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"internal.egress.v1.proc-nbn2ionm","subscription":"internal.egress.v1.proc-nbn2ionm.ingress-egress.proc-nbn2ionm","error":"this._gaxModule.GrpcClient is not a constructor"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:44:59.832Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.egress.v1.proc-nbn2ionm.ingress-egress.proc-nbn2ionm"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:290:12)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:44:59.834Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-nbn2ionm","queue":"ingress-egress.proc-nbn2ionm"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:313:19)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:44:59.835Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-nbn2ionm"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:229:16)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:44:59.835Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:236:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:44:59.837Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:242:10)
+  console.error
+    {"ts":"2025-12-18T17:44:59.853Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"pubsub.subscription.error","subscription":"internal.egress.v1.proc-nbn2ionm.ingress-egress.proc-nbn2ionm","details":"TypeError: this._gaxModule.GrpcClient is not a constructor"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at Subscription.onError (src/services/message-bus/pubsub-driver.ts:372:14)
+      at Subscriber.<anonymous> (node_modules/@google-cloud/pubsub/src/subscription.ts:338:32)
+      at MessageStream.<anonymous> (node_modules/@google-cloud/pubsub/src/subscriber.ts:1181:32)
+  console.warn
+    {"ts":"2025-12-18T17:45:03.628Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"internal.egress.v1.proc-vfx32drr","error":"Total timeout of API google.pubsub.v1.Publisher exceeded 60000 milliseconds retrying error Error: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error  before any response was received. : Previous errors : [{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: }]"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  console.warn
+    {"ts":"2025-12-18T17:45:03.631Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"internal.egress.v1.proc-vfx32drr","subscription":"internal.egress.v1.proc-vfx32drr.ingress-egress.proc-vfx32drr","error":"this._gaxModule.GrpcClient is not a constructor"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:03.632Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.egress.v1.proc-vfx32drr.ingress-egress.proc-vfx32drr"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:290:12)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:03.635Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-vfx32drr","queue":"ingress-egress.proc-vfx32drr"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:313:19)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:03.636Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-vfx32drr"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:229:16)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:03.636Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:236:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:03.637Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:242:10)
+  console.error
+    {"ts":"2025-12-18T17:45:03.638Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"pubsub.subscription.error","subscription":"internal.egress.v1.proc-vfx32drr.ingress-egress.proc-vfx32drr","details":"TypeError: this._gaxModule.GrpcClient is not a constructor"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at Subscription.onError (src/services/message-bus/pubsub-driver.ts:372:14)
+      at Subscriber.<anonymous> (node_modules/@google-cloud/pubsub/src/subscription.ts:338:32)
+      at MessageStream.<anonymous> (node_modules/@google-cloud/pubsub/src/subscriber.ts:1181:32)
+  console.warn
+    {"ts":"2025-12-18T17:45:06.627Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"internal.egress.v1.proc-qs98c75k","error":"Total timeout of API google.pubsub.v1.Publisher exceeded 60000 milliseconds retrying error Error: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error  before any response was received. : Previous errors : [{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: }]"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  console.warn
+    {"ts":"2025-12-18T17:45:06.629Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"internal.egress.v1.proc-qs98c75k","subscription":"internal.egress.v1.proc-qs98c75k.ingress-egress.proc-qs98c75k","error":"this._gaxModule.GrpcClient is not a constructor"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:06.630Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.egress.v1.proc-qs98c75k.ingress-egress.proc-qs98c75k"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:290:12)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:06.631Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-qs98c75k","queue":"ingress-egress.proc-qs98c75k"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:313:19)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:06.631Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-qs98c75k"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:229:16)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:06.633Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:236:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:06.633Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:242:10)
+  console.error
+    {"ts":"2025-12-18T17:45:06.634Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"pubsub.subscription.error","subscription":"internal.egress.v1.proc-qs98c75k.ingress-egress.proc-qs98c75k","details":"TypeError: this._gaxModule.GrpcClient is not a constructor"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at Subscription.onError (src/services/message-bus/pubsub-driver.ts:372:14)
+      at Subscriber.<anonymous> (node_modules/@google-cloud/pubsub/src/subscription.ts:338:32)
+      at MessageStream.<anonymous> (node_modules/@google-cloud/pubsub/src/subscriber.ts:1181:32)
+  console.warn
+    {"ts":"2025-12-18T17:45:17.564Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"internal.egress.v1.proc-djk6hzj4","error":"Total timeout of API google.pubsub.v1.Publisher exceeded 60000 milliseconds retrying error Error: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error  before any response was received. : Previous errors : [{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: },{message: 2 UNKNOWN: Getting metadata from plugin failed with error: Unexpected Gaxios Error, code: 2, details: , note: }]"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  console.warn
+    {"ts":"2025-12-18T17:45:17.566Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"internal.egress.v1.proc-djk6hzj4","subscription":"internal.egress.v1.proc-djk6hzj4.ingress-egress.proc-djk6hzj4","error":"this._gaxModule.GrpcClient is not a constructor"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:17.567Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.egress.v1.proc-djk6hzj4.ingress-egress.proc-djk6hzj4"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:290:12)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:289:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:17.568Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-djk6hzj4","queue":"ingress-egress.proc-djk6hzj4"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:313:19)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:117:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:17.569Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-djk6hzj4"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:229:16)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:17.569Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:236:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-18T17:45:17.570Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/CustomConsole.js:141:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:251:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:242:10)
+  console.error
+    {"ts":"2025-12-18T17:45:17.571Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"pubsub.subscription.error","subscription":"internal.egress.v1.proc-djk6hzj4.ingress-egress.proc-djk6hzj4","details":"TypeError: this._gaxModule.GrpcClient is not a constructor"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at Subscription.onError (src/services/message-bus/pubsub-driver.ts:372:14)
+      at Subscriber.<anonymous> (node_modules/@google-cloud/pubsub/src/subscription.ts:338:32)
+      at MessageStream.<anonymous> (node_modules/@google-cloud/pubsub/src/subscriber.ts:1181:32)

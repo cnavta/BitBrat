@@ -178,8 +178,11 @@ export class IngressEgressServer extends BaseServer {
                 };
 
                 try {
-                  const source = (evt?.source || '').toLowerCase();
-                  if (source.includes('discord')) {
+                  const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
+                  const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
+                  const isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+
+                  if (isDiscord) {
                     if (this.discordClient) {
                       await this.discordClient.sendText(text, evt.channel);
                     } else {
@@ -189,7 +192,7 @@ export class IngressEgressServer extends BaseServer {
                     // Default to Twitch (matches legacy behavior)
                     await this.twitchClient!.sendText(text, evt.channel);
                   }
-                  logger.info('ingress-egress.egress.sent', { correlationId, source });
+                  logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord });
                   await publishFinalize('SENT');
                 } catch (e: any) {
                   // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack

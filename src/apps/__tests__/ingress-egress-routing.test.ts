@@ -104,10 +104,90 @@ describe('IngressEgressServer routing', () => {
     // Execute the handler
     await egressHandler(discordEvent, {}, ctx);
 
-    // CURRENT BEHAVIOR (BUG): It calls Twitch even for Discord events
-    // EXPECTED BEHAVIOR: It should call Discord
     expect(mockTwitchClient.sendText).not.toHaveBeenCalled();
     expect(mockDiscordClient.sendText).toHaveBeenCalledWith('Hello Discord', 'discord-channel-1');
+  });
+
+  it('should route to Discord if source is missing but Discord annotation is present', async () => {
+    // Manually trigger the egress handler
+    const egressHandler = (server as any).onMessage.mock.calls.find(
+      (call: any) => call[0].destination?.startsWith('internal.egress.v1')
+    )?.[1];
+
+    const genericEvent: InternalEventV2 = {
+      v: '1',
+      source: 'command-processor', // Generic source
+      correlationId: 'corr-3',
+      type: 'chat.message.v1',
+      channel: 'discord-channel-id',
+      message: {
+        id: 'msg-3',
+        role: 'assistant',
+        text: 'Command Response',
+      },
+      annotations: [
+        {
+          id: 'ann-1',
+          kind: 'custom',
+          source: 'discord', // Discord annotation!
+          createdAt: new Date().toISOString(),
+        }
+      ],
+      candidates: [
+        {
+          id: 'cand-3',
+          kind: 'text',
+          source: 'llm-bot',
+          createdAt: new Date().toISOString(),
+          status: 'proposed',
+          priority: 1,
+          text: 'Command Response',
+        }
+      ]
+    } as any;
+
+    const ctx = {
+      ack: jest.fn().mockResolvedValue(undefined),
+      nack: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Execute the handler
+    await egressHandler(genericEvent, {}, ctx);
+
+    // Should now route to Discord because of the annotation
+    expect(mockTwitchClient.sendText).not.toHaveBeenCalled();
+    expect(mockDiscordClient.sendText).toHaveBeenCalledWith('Command Response', 'discord-channel-id');
+  });
+
+  it('should route to Discord if it is a V1 event with Discord source', async () => {
+    // Manually trigger the egress handler
+    const egressHandler = (server as any).onMessage.mock.calls.find(
+      (call: any) => call[0].destination?.startsWith('internal.egress.v1')
+    )?.[1];
+
+    const v1Event = {
+      envelope: {
+        v: '1',
+        source: 'ingress.discord',
+        correlationId: 'corr-v1',
+      },
+      type: 'chat.message.v1',
+      channel: 'discord-v1-chan',
+      payload: {
+        text: 'Hello V1 Discord',
+      }
+    };
+
+    const ctx = {
+      ack: jest.fn().mockResolvedValue(undefined),
+      nack: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Execute the handler
+    await egressHandler(v1Event, {}, ctx);
+
+    expect(mockTwitchClient.sendText).not.toHaveBeenCalled();
+    expect(mockDiscordClient.sendText).toHaveBeenCalledWith('Hello V1 Discord', 'discord-v1-chan');
   });
 
   it('should send Twitch responses to Twitch', async () => {
