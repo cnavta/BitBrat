@@ -1,3 +1,7 @@
 SERVICE_NAME: oauth-flow
 SERVICE_PORT: 3000
 OAUTH_FLOW_HOST_PORT: 3001
+
+# Discord OAuth (optional for this sprint)
+DISCORD_REDIRECT_URI: ""
+DISCORD_OAUTH_SCOPES: "bot"

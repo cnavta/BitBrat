@@ -442,6 +442,7 @@ export class BaseServer {
         path.resolve(process.cwd(), 'architecture.yaml'),
         path.resolve(__dirname, '../../architecture.yaml'),
         path.resolve(__dirname, '../../../architecture.yaml'),
+        path.resolve(__dirname, '../../../../architecture.yaml'),
       ];
       for (const p of candidates) {
         if (fs.existsSync(p)) {

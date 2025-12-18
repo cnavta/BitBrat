@@ -1,0 +1,101 @@
+backlog:
+  - id: LLM-01
+    title: Map llm-bot event → PromptSpec (System/Identity/User/Constraints/Task/Input)
+    description: Build PromptSpec in processor.ts using config, personalities, user context, and base message
+    priority: 1
+    status: complete
+    acceptance:
+      - PromptSpec constructed with canonical sections present
+      - Tasks sorted by createdAt/order mapped to priority where available (default=3)
+      - Input.userQuery set to the immediate user/base text; multi-line fenced
+      - RequestingUser populated from event/user context when available
+
+  - id: LLM-02
+    title: Integrate assemble() and openaiAdapter() in llm-bot
+    description: Replace flattening logic with assemble()+openaiAdapter() to build OpenAI messages
+    priority: 1
+    status: complete
+    dependsOn: [LLM-01]
+    acceptance:
+      - OpenAI payload built via adapter with messages[0].role === system and messages[1].role === user
+      - Canonical order preserved in both sections and payload
+      - Legacy path removed
+
+  - id: LLM-03
+    title: Preserve short-term memory via Input.context (fenced "Conversation History")
+    description: Inject reduced recent conversation history into PromptSpec.input.context; keep trimming behavior
+    priority: 1
+    status: complete
+    dependsOn: [LLM-01]
+    acceptance:
+      - History appears in Input.context fenced with ~~~text markers
+      - Trimming respects existing char and count limits; logs include trimming stats
+      - No duplicate system messages; single system section via adapter
+
+  - id: LLM-04
+    title: Personalities → Identity & Constraints mapping
+    description: Map resolved personality parts into Identity.summary/traits/tone and Constraints for formatting/policy; immutable rules to System Prompt
+    priority: 1
+    status: complete
+    dependsOn: [LLM-01]
+    acceptance:
+      - Identity populated when personalities enablement is on
+      - Constraints include policy/formatting guardrails derived from personalities where applicable
+      - System Prompt includes immutable rules from config (architecture.yaml precedence, safety)
+
+  - id: LLM-05
+    title: "Hard cutover: remove legacy flattening path and toggles"
+    description: Delete any legacy prompt-flattening code and remove the LLM_BOT_ASSEMBLY_ENABLED concept if present; migrate fully to assemble()+adapter
+    priority: 1
+    status: complete
+    acceptance:
+      - No LLM_BOT_ASSEMBLY_ENABLED (or similar) config used or documented
+      - Legacy flattening path and helpers deleted
+      - Only assemble()+adapter path remains
+
+  - id: LLM-06
+    title: Update tests for llm-bot with golden outputs
+    description: Unit tests for PromptSpec mapping; adapter payload shape; integration test for processEvent()
+    priority: 1
+    status: complete
+    dependsOn: [LLM-01, LLM-02, LLM-03, LLM-04]
+    acceptance:
+      - New tests pass locally and in CI
+      - Golden checks verify section order and provider mapping
+
+  - id: LLM-07
+    title: Logging and observability updates
+    description: Add debug logs for section lengths, truncation meta, payload sizes, and previews
+    priority: 2
+    status: complete
+    acceptance:
+      - Logs show assembled preview and meta without leaking secrets
+      - OpenAI request/response summaries preserved
+
+  - id: LLM-08
+    title: Backward compatibility and deprecation path
+    description: Remove direct composeSystemPrompt usage in processor; adapt personality-resolver outputs to new mapping
+    priority: 2
+    status: complete
+    dependsOn: [LLM-04]
+    acceptance:
+      - No broken imports; old path removed
+      - Personality cache/metrics remain intact
+
+  - id: LLM-09
+    title: Validation pipeline updates
+    description: Ensure validate_deliverable.sh exercises build/test and includes a simple assembly smoke step
+    priority: 3
+    status: complete
+    acceptance:
+      - Script logically passable and aligned with project-wide DoD
+      - Smoke assembly step prints without error
+
+  - id: LLM-10
+    title: Operational runbook and integration notes
+    description: Document config keys, clean cutover notes (no rollback/feature flag), and troubleshooting
+    priority: 3
+    status: complete
+    acceptance:
+      - README/tech-arch integration section updated with llm-bot specifics
+      - Includes examples using tools/prompt-assembly CLI for debugging

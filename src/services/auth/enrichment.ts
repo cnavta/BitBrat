@@ -1,5 +1,6 @@
 import { InternalEventV2 } from '../../types/events';
 import type { UserRepo, AuthUserDoc } from './user-repo';
+import {logger} from "../../common/logging";
 
 export interface EnrichOptions {
   provider?: string;
@@ -38,6 +39,9 @@ export interface EnrichResult {
   event: InternalEventV2;
   matched: boolean;
   userRef?: string;
+  created?: boolean;
+  isFirstMessage?: boolean;
+  isNewSession?: boolean;
 }
 
 /** Pure enrichment function: queries repo and returns updated event copy with envelope.user/auth set. */
@@ -52,28 +56,94 @@ export async function enrichEvent(
   // Shallow copy event to avoid mutating caller references
   const evt: InternalEventV2 = { ...event };
 
-  const id = resolveCandidateId(evt);
+  const rawId = resolveCandidateId(evt);
   const email = resolveCandidateEmail(evt);
+  const compositeId = provider && rawId ? `${provider}:${rawId}` : rawId;
 
   let doc: AuthUserDoc | null = null;
-  if (id) {
-    doc = await repo.getById(id);
+  if (compositeId) {
+    doc = await repo.getById(compositeId);
   }
   if (!doc && email) {
     doc = await repo.getByEmail(email);
   }
 
+  // Helper to compute transient tags for this event
+  const computeTags = (created: boolean, isFirstMessage: boolean, isNewSession: boolean, persistent?: string[]) => {
+    const tags = new Set<string>();
+    if (provider) tags.add(`PROVIDER_${provider.toUpperCase()}`);
+    if (created) {
+      tags.add('NEW_USER');
+      tags.add('FIRST_ALLTIME_MESSAGE');
+      tags.add('FIRST_SESSION_MESSAGE');
+    } else {
+      if (isFirstMessage) tags.add('FIRST_ALLTIME_MESSAGE');
+      if (isNewSession) tags.add('FIRST_SESSION_MESSAGE');
+      if (!isFirstMessage) tags.add('RETURNING_USER');
+    }
+    for (const t of persistent || []) tags.add(t);
+    return Array.from(tags);
+  };
+
+  // Update existing user path (or fallback email match)
   if (doc) {
-    (evt as any).user = pick<AuthUserDoc>(doc, ['id', 'email', 'displayName', 'roles', 'status']) as any;
+    logger.debug('auth.user.update', { userRef: `users/${doc.id}` });
+    // If repo can update counters/session, do it and prefer merged doc
+    let created = false;
+    let isFirstMessage = false;
+    let isNewSession = false;
+    let didEnsure = false;
+    if (typeof (repo as any).ensureUserOnMessage === 'function' && compositeId) {
+      try {
+        const res = await (repo as any).ensureUserOnMessage(compositeId, { provider, providerUserId: rawId, email: doc.email, displayName: doc.displayName }, nowIso);
+        doc = res.doc;
+        created = res.created;
+        isFirstMessage = res.isFirstMessage;
+        isNewSession = res.isNewSession;
+        didEnsure = true;
+      } catch {
+        // non-fatal; proceed with existing doc
+      }
+    }
+
+    const effectiveDoc = doc as AuthUserDoc;
+    const userOut: any = pick<AuthUserDoc>(effectiveDoc, ['id', 'email', 'displayName', 'roles', 'status', 'notes']) as any;
+    if (didEnsure) {
+      userOut.tags = computeTags(created, isFirstMessage, isNewSession, Array.isArray((effectiveDoc as any).tags) ? (effectiveDoc as any).tags : undefined);
+    }
+    (evt as any).user = userOut;
     (evt as any).auth = {
       v: '1',
       method: 'enrichment',
       matched: true,
       at: nowIso,
       ...(provider ? { provider } : {}),
-      userRef: `users/${doc.id}`,
+      userRef: `users/${effectiveDoc.id}`,
     };
-    return { event: evt, matched: true, userRef: `users/${doc.id}` };
+    return { event: evt, matched: true, userRef: `users/${effectiveDoc.id}`, created, isFirstMessage, isNewSession };
+  }
+
+  // Not found: try to create a new user if we have provider+id and repo supports it
+  if (!doc && compositeId && typeof (repo as any).ensureUserOnMessage === 'function') {
+    logger.debug('auth.user.create', { compositeId });
+    try {
+      const res = await (repo as any).ensureUserOnMessage(compositeId, { provider, providerUserId: rawId, email, displayName: undefined }, nowIso);
+      const createdDoc: AuthUserDoc = res.doc;
+      const userOut: any = pick<AuthUserDoc>(createdDoc, ['id', 'email', 'displayName', 'roles', 'status', 'notes']) as any;
+      userOut.tags = computeTags(true, true, true, Array.isArray((createdDoc as any).tags) ? (createdDoc as any).tags : undefined);
+      (evt as any).user = userOut;
+      (evt as any).auth = {
+        v: '1',
+        method: 'enrichment',
+        matched: true,
+        at: nowIso,
+        ...(provider ? { provider } : {}),
+        userRef: `users/${createdDoc.id}`,
+      };
+      return { event: evt, matched: true, userRef: `users/${createdDoc.id}`, created: true, isFirstMessage: true, isNewSession: true };
+    } catch {
+      // fall through to unmatched
+    }
   }
 
   // Unmatched path

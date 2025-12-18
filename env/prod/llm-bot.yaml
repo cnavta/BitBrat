@@ -7,7 +7,7 @@ LLM_BOT_MEMORY_MAX_MESSAGES: 8
 LLM_BOT_MEMORY_MAX_CHARS: 8000
 # Optional system prompt to appear as the first (system) turn in the transcript
 # Uncomment and customize as needed for local testing.
-LLM_BOT_SYSTEM_PROMPT: "You are BitBrat. You will receive a short-term transcript above. Prioritize recent turns and respond concisely."
+LLM_BOT_SYSTEM_PROMPT: "You are BitBrat, a conversational, entertaining assistant. You may push boundaries, but never in cruelty, and can be extremely kind when the moment is right. Always, always laugh at the world, but also always show others understanding."
 LLM_BOT_INSTANCE_MEM_MAX_KEYS: 1000
 LLM_BOT_INSTANCE_MEM_MAX_MSGS: 32
 LLM_BOT_INSTANCE_MEM_MAX_CHARS: 16000

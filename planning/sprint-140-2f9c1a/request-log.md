@@ -1,0 +1,203 @@
+# Sprint Request Log — sprint-140-2f9c1a
+
+- 2025-12-17T13:00:00Z
+  - Prompt: "Start sprint" (sprint kickoff)
+  - Interpretation: Initialize new sprint per AGENTS.md §2.2; scaffold planning dir and branch; add architecture doc.
+  - Commands:
+    - git checkout -b feature/sprint-140-2f9c1a-oauth-multi-provider
+  - Files:
+    - planning/sprint-140-2f9c1a/sprint-manifest.yaml (created)
+
+- 2025-12-17T13:02:00Z
+  - Prompt: "Create technical architecture document for multi-provider OAuth (add Discord)"
+  - Interpretation: Add planning artifacts and author technical-architecture.md; keep within Planning phase.
+  - Commands:
+    - (file ops) planning files created/updated
+  - Files:
+    - planning/sprint-140-2f9c1a/technical-architecture.md (created)
+    - planning/sprint-140-2f9c1a/implementation-plan.md (created)
+
+- 2025-12-17T13:05:00Z
+  - Prompt: "Commit planning artifacts to feature branch"
+  - Interpretation: Stage and commit new sprint files on feature branch. Note: commit includes some pre-existing local changes.
+  - Commands:
+    - git add -A && git commit -m "chore(sprint-140-2f9c1a): start sprint, add technical architecture and planning docs for multi-provider OAuth (Discord)"
+  - Files:
+    - planning/sprint-140-2f9c1a/* (created)
+    - other pre-existing modified files included in commit (no changes authored in this step)
+
+- 2025-12-17T13:15:00Z
+  - Prompt: "Analyze architecture and create Sprint Implementation Plan and backlog.yaml"
+  - Interpretation: Expand implementation-plan.md into a detailed execution plan and add prioritized backlog.yaml per AGENTS.md; no service code changes.
+  - Commands:
+    - (file ops) update implementation-plan.md; create backlog.yaml
+  - Files:
+    - planning/sprint-140-2f9c1a/implementation-plan.md (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (created)
+
+- 2025-12-17T13:26:00Z
+  - Prompt: "Begin implementation; keep backlog updated"
+  - Interpretation: Start OF-MP-01 (provider interface/registry) and OF-MP-02 (generic routes scaffold); update backlog statuses; add initial unit test.
+  - Commands:
+    - (file ops) add src/services/oauth/*; update backlog
+  - Files:
+    - src/services/oauth/types.ts (created)
+    - src/services/oauth/provider-registry.ts (created)
+    - src/services/oauth/index.ts (created)
+    - src/services/oauth/routes.ts (created)
+    - src/services/oauth/provider-registry.test.ts (created)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-01/02 -> in_progress)
+
+- 2025-12-17T13:30:00Z
+  - Prompt: "Run tests and commit foundations"
+  - Interpretation: Execute jest to validate new tests; mark OF-MP-01 done; commit changes.
+  - Commands:
+    - npm test
+    - git add -A && git commit -m "feat(oauth): add provider interface/registry and generic routes scaffold; mark OF-MP-01 done"
+  - Files:
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-01 -> done)
+    - package source files under src/services/oauth/* (added)
+
+- 2025-12-17T13:41:00Z
+  - Prompt: "Continue implementation of the plan; complete OF-MP-02 with tests"
+  - Interpretation: Add controller tests for generic OAuth routes; ensure start/callback/refresh/status behaviors; finalize routes.
+  - Commands:
+    - (file ops) add src/services/oauth/routes.test.ts
+    - npm test
+    - git add -A && git commit -m "test(oauth): add controller tests for generic routes; feat(oauth): finalize generic mount behavior; complete OF-MP-02"
+  - Files:
+    - src/services/oauth/routes.test.ts (created)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-02 -> done)
+
+- 2025-12-17T13:48:00Z
+  - Prompt: "Continue implementation; begin OF-MP-03 TwitchAdapter"
+  - Interpretation: Implement TwitchAdapter adapter with authorize URL, code exchange (mapping), and refresh support; export via oauth index; update backlog to in_progress.
+  - Commands:
+    - (file ops) add src/services/oauth/providers/twitch-adapter.ts; update src/services/oauth/index.ts
+    - (file ops) update planning/sprint-140-2f9c1a/backlog.yaml (OF-MP-03 -> in_progress)
+  - Files:
+    - src/services/oauth/providers/twitch-adapter.ts (created)
+    - src/services/oauth/index.ts (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-03 -> in_progress)
+
+- 2025-12-17T14:06:00Z
+  - Prompt: "Continue implementing the plan; wire oauth-service with legacy and generic routes (OF-MP-04)"
+  - Interpretation: Preserve legacy Twitch mounts and add ProviderRegistry + generic routes with TwitchAdapter registered.
+  - Commands:
+    - (file ops) update src/apps/oauth-service.ts to mount generic routes via ProviderRegistry; keep legacy mounts
+    - (file ops) update planning/sprint-140-2f9c1a/backlog.yaml (OF-MP-04 -> in_progress)
+  - Files:
+    - src/apps/oauth-service.ts (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-04 -> in_progress)
+
+- 2025-12-17T14:09:00Z
+  - Prompt: "Run tests and finalize OF-MP-04"
+  - Interpretation: Commit wiring changes; run Jest; mark OF-MP-04 done on success; log results.
+  - Commands:
+    - git add -A && git commit -m "feat(oauth): wire oauth-service with legacy + generic routes via ProviderRegistry; start OF-MP-04"
+    - npm test
+    - (file ops) update planning/sprint-140-2f9c1a/backlog.yaml (OF-MP-04 -> done)
+  - Files:
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-04 -> done)
+    - test logs: 161 passed, 2 skipped (no failures)
+
+- 2025-12-17T19:10:00Z
+  - Prompt: "Implement OF-MP-05 through OF-MP-07"
+  - Interpretation: Add token store V2 (authTokens/{provider}/{identity}) with legacy Twitch read-compat; wire generic OAuth routes to persist/status; add DiscordAdapter skeleton; integrate Discord ingress with token store behind feature flag with rotation polling.
+  - Commands:
+    - (file ops) add src/services/oauth/auth-token-store.ts
+    - (file ops) update src/services/oauth/routes.ts to persist+status via V2 store
+    - (file ops) update src/apps/oauth-service.ts to construct V2 store and pass to mountOAuthRoutes; register DiscordAdapter
+    - (file ops) add src/services/oauth/providers/discord-adapter.ts and export in oauth index
+    - (file ops) update src/services/ingress/discord/discord-ingress-client.ts to use store when enabled and support rotation
+    - (file ops) update src/apps/ingress-egress-service.ts to inject V2 store into DiscordIngressClient
+    - npm test
+  - Files:
+    - src/services/oauth/auth-token-store.ts (created)
+    - src/services/oauth/routes.ts (updated)
+    - src/apps/oauth-service.ts (updated)
+    - src/services/oauth/providers/discord-adapter.ts (created)
+    - src/services/oauth/index.ts (updated)
+    - src/services/ingress/discord/discord-ingress-client.ts (updated)
+    - src/apps/ingress-egress-service.ts (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-05/06/07 -> done)
+    - test logs: 161 passed, 2 skipped (no failures)
+
+- 2025-12-17T21:33:00Z
+  - Prompt: "Please implement OF-MP-10 and OF-MP-11 to completion."
+  - Interpretation: Add unit tests for TwitchAdapter (authorize/exchange/refresh via mocks) and FirestoreAuthTokenStore V2 (get/put, updatedAt, legacy fallback); run Jest; fix issues; update backlog and log.
+  - Commands:
+    - (file ops) add src/services/oauth/providers/twitch-adapter.test.ts
+    - (file ops) add src/services/oauth/auth-token-store.test.ts
+    - npm test
+    - (file ops) update src/services/oauth/auth-token-store.test.ts (fix v2 path assumptions)
+    - npm test
+    - git add -A && git commit -m "test(oauth): add TwitchAdapter unit tests (OF-MP-10); test(auth-store): add FirestoreAuthTokenStore V2 tests (OF-MP-11); fix test v2 path; mark backlog done"
+  - Files:
+    - src/services/oauth/providers/twitch-adapter.test.ts (created)
+    - src/services/oauth/auth-token-store.test.ts (created, updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-10/11 -> done)
+    - test logs: 163 passed, 2 skipped (no failures)
+
+- 2025-12-17T22:05:00Z
+  - Prompt: "Please implement OF-MP-12 and OF-MP-13 to completion."
+  - Interpretation: Add ingress tests for Discord token resolver + rotation (mocked store, fake timers) and integration tests for generic Twitch OAuth endpoints (HTTP server with mocked fetch) covering start/callback/status. Update backlog and log; commit.
+  - Commands:
+    - (file ops) add src/services/ingress/discord/discord-ingress-client.test.ts
+    - (file ops) add src/services/oauth/oauth-flow.integration.test.ts
+    - npm test
+    - (file ops) update planning/sprint-140-2f9c1a/backlog.yaml (OF-MP-12/13 -> done)
+    - git add -A && git commit -m "test(ingress/discord): add token resolver + rotation tests (OF-MP-12); test(oauth): add generic Twitch OAuth integration tests for start/callback/status (OF-MP-13); chore(backlog): mark OF-MP-12/13 done"
+  - Files:
+    - src/services/ingress/discord/discord-ingress-client.test.ts (created)
+    - src/services/oauth/oauth-flow.integration.test.ts (created)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-12/13 -> done)
+    - test logs: 165 passed, 2 skipped (no failures)
+
+- 2025-12-17T20:05:00Z
+  - Prompt: "Please implement and run tests for the registry and controller"
+  - Interpretation: Complete OF-MP-09 by adding/validating unit tests for ProviderRegistry and generic OAuth controller, including token-store interactions; fix type and infra test expectations to reflect Discord config additions.
+  - Commands:
+    - (file ops) update src/services/oauth/routes.test.ts (add status present/absent + stored=true cases)
+    - (file ops) update src/types/index.ts (add discordClientSecret)
+    - (file ops) update infrastructure/scripts/extract-config.test.ts (include DISCORD_* env and secrets)
+    - npm test
+    - git add -A && git commit -m "test(oauth): complete OF-MP-09 registry+controller tests; add token-store status tests; fix config types and infra expectations for Discord"
+  - Files:
+    - src/services/oauth/routes.test.ts (updated)
+    - src/types/index.ts (updated)
+    - infrastructure/scripts/extract-config.test.ts (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-09 -> done)
+    - test logs: 161 passed, 2 skipped (no failures)
+
+- 2025-12-17T23:25:00Z
+  - Prompt: "Please implement OF-MP-14 and OF-MP-15 to completion."
+  - Interpretation: Add migration utility for legacy Twitch tokens to V2 schema and enhance oauth-flow observability with structured logs and per-provider/identity counters.
+  - Commands:
+    - (file ops) add tools/migrate-tokens.ts
+    - (file ops) update src/services/oauth/routes.ts (structured logs + counters)
+    - (file ops) update package.json (add migrate:tokens script)
+    - npm run build
+    - npm test
+  - Files:
+    - tools/migrate-tokens.ts (created)
+    - src/services/oauth/routes.ts (updated)
+    - package.json (updated)
+    - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-14/15 -> done)
+    - test logs: 165 passed, 2 skipped (no failures)
+
+- 2025-12-17T23:59:00Z
+  - Prompt: "Force sprint complete"
+  - Interpretation: Close sprint under AGENTS.md §2.10 Force Completion. Create verification-report.md, retro.md, key-learnings.md, publication.yaml (PR skipped), update sprint-manifest status to complete, and log the action.
+  - Commands:
+    - (file ops) add planning/sprint-140-2f9c1a/verification-report.md
+    - (file ops) add planning/sprint-140-2f9c1a/retro.md
+    - (file ops) add planning/sprint-140-2f9c1a/key-learnings.md
+    - (file ops) add planning/sprint-140-2f9c1a/publication.yaml (status=skipped)
+    - (file ops) update planning/sprint-140-2f9c1a/sprint-manifest.yaml (status=complete)
+  - Files:
+    - planning/sprint-140-2f9c1a/verification-report.md (created)
+    - planning/sprint-140-2f9c1a/retro.md (created)
+    - planning/sprint-140-2f9c1a/key-learnings.md (created)
+    - planning/sprint-140-2f9c1a/publication.yaml (created)
+    - planning/sprint-140-2f9c1a/sprint-manifest.yaml (updated: status=complete)

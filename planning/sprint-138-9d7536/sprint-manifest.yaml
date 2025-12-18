@@ -1,0 +1,12 @@
+id: sprint-138-9d7536
+title: "Prompt Assembly v2.1 – Implementation"
+goal: "Implement Conversation State / History layer across library, adapters, CLI, and llm-bot per v2 tech-arch."
+owner: "Junie (LLM Agent)"
+createdAt: "2025-12-16T17:54:00Z"
+status: "in-progress"
+links:
+  pr: ""
+  branch: "feature/sprint-138-9d7536-prompt-assembly-v2-implementation"
+notes: |
+  Approved plan and backlog; executing per Sprint Protocol v2.4.
+  Constraints: follow architecture.yaml precedence; never log secrets; tests required.

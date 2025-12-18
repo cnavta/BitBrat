@@ -1,0 +1,118 @@
+backlog:
+  - id: IE-DIS-01
+    title: Extend config for Discord (flags, token, guild, channels)
+    description: Add discordEnabled, discordBotToken, discordGuildId, discordChannels to central config and env stubs for ingress-egress.
+    priority: 1
+    status: done
+    acceptance:
+      - Config type compiles and values available via buildConfig()
+      - Env files updated under env/{local,dev,prod}/ingress-egress.yaml
+      - .cloudbuild/env.ingress-egress.kv has DISCORD_BOT_TOKEN key placeholder
+
+  - id: IE-DIS-02
+    title: Define connector interfaces and manager
+    description: Create IngressConnector, IngressPublisher, EnvelopeBuilder<T>, EgressConnector interfaces and a ConnectorManager to load/start/stop connectors by config.
+    priority: 1
+    status: done
+    acceptance:
+      - Interfaces exported under src/services/ingress/core
+      - Manager can start/stop connectors independently; snapshot API returns per-connector state
+
+  - id: IE-DIS-03
+    title: Implement DiscordIngressClient (discord.js)
+    description: Implement login/ready/messageCreate with guild/channel filtering; ignore bot and non-text messages; guard network I/O when disabled.
+    priority: 1
+    status: in_progress
+    dependsOn: [IE-DIS-01, IE-DIS-02]
+    acceptance:
+      - When DISCORD_ENABLED=false, no network calls are attempted
+      - On allowed messages, publisher.publish() is invoked with InternalEventV2
+
+  - id: IE-DIS-04
+    title: Implement DiscordEnvelopeBuilder
+    description: Map Discord meta to InternalEventV2; set annotations.source=discord; set egressDestination per instance.
+    priority: 1
+    status: done
+    dependsOn: [IE-DIS-02]
+    acceptance:
+      - Unit tests validate field mapping, text content, and egressDestination assignment
+
+  - id: IE-DIS-05
+    title: DiscordIngressPublisher wrapper
+    description: Thin wrapper over PublisherResource to publish to internal.ingress.v1 with correlation and safe attributes.
+    priority: 2
+    status: done
+    dependsOn: [IE-DIS-02]
+    acceptance:
+      - Publishes JSON to BUS_PREFIX+internal.ingress.v1
+
+  - id: IE-DIS-06
+    title: Wire ConnectorManager into ingress-egress app
+    description: Instantiate manager in ingress-egress-service.ts; register Twitch and Discord based on config; keep Twitch egress unchanged.
+    priority: 1
+    status: done
+    dependsOn: [IE-DIS-01, IE-DIS-02, IE-DIS-03, IE-DIS-04, IE-DIS-05]
+    acceptance:
+      - Service boots with connectors; Twitch behavior preserved; Discord disabled by default
+
+  - id: IE-DIS-07
+    title: Add /_debug/discord endpoint
+    description: Expose Discord connector snapshot without secrets; include counters, guild/channel IDs, lastError.
+    priority: 2
+    status: done
+    dependsOn: [IE-DIS-03]
+    acceptance:
+      - GET /_debug/discord returns 200 with snapshot JSON
+
+  - id: IE-DIS-08
+    title: Unit tests – envelope and filters
+    description: Tests for DiscordEnvelopeBuilder and message filters (guild/channel, bot ignore) with mocked discord.js events.
+    priority: 1
+    status: done
+    dependsOn: [IE-DIS-03, IE-DIS-04]
+    acceptance:
+      - Jest tests pass locally and in CI; no network usage
+
+  - id: IE-DIS-09
+    title: Integration tests – disabled mode startup & publish path
+    description: Validate connector start in disabled mode and publication to internal.ingress.v1 via mock PublisherResource.
+    priority: 2
+    status: done
+    dependsOn: [IE-DIS-06]
+    acceptance:
+      - Tests assert no network calls occurred; publish called with expected payload
+
+  - id: IE-DIS-10
+    title: Observability logging and counters
+    description: Add logging namespace ingress-egress.discord.*; maintain counters in snapshot; redact sensitive fields.
+    priority: 3
+    status: done
+    dependsOn: [IE-DIS-03]
+    acceptance:
+      - Logs present for lifecycle and message handling; tokens never logged
+
+  - id: IE-DIS-11
+    title: "Optional: Discord egress adapter stub"
+    description: Implement EgressConnector stub for Discord behind flag; resolve default channel; no-op when disabled.
+    priority: 3
+    status: done
+    dependsOn: [IE-DIS-02]
+    acceptance:
+      - Method signature matches EgressConnector; covered by minimal unit test
+
+  - id: IE-DIS-12
+    title: Docs & Runbook
+    description: Update service README/runbook with config keys, enablement steps, and troubleshooting via /_debug/discord.
+    priority: 2
+    status: done
+    dependsOn: [IE-DIS-06, IE-DIS-07]
+    acceptance:
+      - Documentation added; includes token handling and channel ID guidance
+
+  - id: IE-DIS-13
+    title: Validation script notes
+    description: Ensure validate_deliverable.sh remains logically passable with Discord disabled; add brief echo steps.
+    priority: 3
+    status: done
+    acceptance:
+      - Script runs end-to-end in CI with DISCORD_ENABLED=false

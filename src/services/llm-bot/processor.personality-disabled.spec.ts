@@ -44,11 +44,14 @@ describe('llm-bot processor with personality disabled', () => {
       },
     });
     expect(status).toBe('OK');
-    // Should contain the base system prompt but not the personality text
-    expect(capturedInput).toContain('(system) BASE');
+    // Should contain a system section and the base system prompt text but not the personality text
+    expect(capturedInput).toContain('(system)');
+    expect(capturedInput).toContain('BASE');
     expect(capturedInput).not.toContain('PERS');
-    // Should include user turns
-    expect(capturedInput).toContain('(user) hello');
-    expect(capturedInput).toContain('(user) Say hi');
+    // User content should include Task and Input sections
+    expect(capturedInput).toContain('## [Task]');
+    expect(capturedInput).toContain('Say hi');
+    expect(capturedInput).toContain('## [Input]');
+    expect(capturedInput).toContain('hello');
   });
 });

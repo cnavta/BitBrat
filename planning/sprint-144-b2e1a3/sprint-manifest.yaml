@@ -1,0 +1,11 @@
+id: sprint-144-b2e1a3
+title: "Re-introduce Discord Bot Token"
+goal: "Re-introduce Discord Bot Token support in ingress-egress service and architecture.yaml."
+owner: "@christophernavta"
+createdAt: "2025-12-18T11:30:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-144-b2e1a3-reintroduce-discord-bot-token"
+notes: |
+  The goal is to allow using a static DISCORD_BOT_TOKEN again, potentially as a fallback or primary source, 
+  restoring it to architecture.yaml secrets and ensuring the ingress-egress service respects it.

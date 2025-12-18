@@ -44,11 +44,14 @@ describe('llm-bot processor with personality', () => {
       },
     });
     expect(status).toBe('OK');
-    // System portion should contain BASE + PERS (append)
-    expect(capturedInput).toContain('(system) BASE');
+    // System portion should contain BASE and personality text mapped into Identity (aggregated under system via adapter)
+    expect(capturedInput).toContain('(system)');
+    expect(capturedInput).toContain('BASE');
     expect(capturedInput).toContain('PERS');
-    // And it should include the user turns for base text and prompt
-    expect(capturedInput).toContain('(user) hello');
-    expect(capturedInput).toContain('(user) Say hi');
+    // User content should include Task and Input sections with the prompt and base text
+    expect(capturedInput).toContain('## [Task]');
+    expect(capturedInput).toContain('Say hi');
+    expect(capturedInput).toContain('## [Input]');
+    expect(capturedInput).toContain('hello');
   });
 });

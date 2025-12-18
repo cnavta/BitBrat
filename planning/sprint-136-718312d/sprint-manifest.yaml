@@ -1,0 +1,13 @@
+id: sprint-136-718312d
+title: "llm-bot Migration to Prompt Assembly"
+goal: "Migrate llm-bot to the six-section Prompt Assembly framework with feature-flag safety, adapter integration, truncation logging, and tests."
+owner: "@Lead-Implementor"
+createdAt: "2025-12-16T00:00:00Z"
+status: "in-progress"
+links:
+  pr: ""  # to be set on publication
+  branch: "feature/sprint-136-718312d-llm-bot-migration"
+notes: |
+  - Precedence: architecture.yaml > AGENTS.md > everything else.
+  - Feature-flagged rollout: off | dry-run | on.
+  - Canonical order: System Prompt → Identity → Requesting User → Constraints → Task → Input.

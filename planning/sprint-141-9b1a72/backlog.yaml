@@ -1,0 +1,119 @@
+- id: AUTH-101
+  title: Create Firestore users repository (CRUD + transactions)
+  priority: P1
+  size: M
+  labels: [auth, firestore, repo]
+  dependsOn: []
+  status: done
+
+- id: AUTH-102
+  title: Provider adapter to resolve provider + providerUserId from events
+  priority: P1
+  size: S
+  labels: [auth, ingress, adapter]
+  dependsOn: []
+  status: done
+
+- id: AUTH-103
+  title: Config flags for enrichment (enable/disable, dry-run)
+  priority: P2
+  size: S
+  labels: [config, feature-flag]
+  dependsOn: []
+  status: todo
+
+- id: AUTH-201
+  title: Lookup user by `${provider}:${providerUserId}` in Firestore
+  priority: P1
+  size: S
+  labels: [auth, firestore]
+  dependsOn: [AUTH-101, AUTH-102]
+  status: done
+
+- id: AUTH-202
+  title: Create user doc on first-seen with initialized counters
+  priority: P1
+  size: M
+  labels: [auth, firestore]
+  dependsOn: [AUTH-201]
+  status: done
+
+- id: AUTH-203
+  title: Update timestamps and counters on message
+  priority: P1
+  size: S
+  labels: [auth]
+  dependsOn: [AUTH-201]
+  status: done
+
+- id: AUTH-204
+  title: Implement 24h inactivity session boundary and sessionId generation
+  priority: P1
+  size: M
+  labels: [auth, session]
+  dependsOn: [AUTH-201]
+  status: done
+
+- id: AUTH-205
+  title: Tagging logic (NEW_USER, FIRST_ALLTIME_MESSAGE, FIRST_SESSION_MESSAGE, RETURNING_USER)
+  priority: P1
+  size: M
+  labels: [auth, tags]
+  dependsOn: [AUTH-202, AUTH-204]
+  status: done
+
+- id: AUTH-206
+  title: Envelope augmentation (EnvelopeV1.user + EnvelopeV1.auth)
+  priority: P1
+  size: S
+  labels: [auth, contracts]
+  dependsOn: [AUTH-205]
+  status: done
+
+- id: AUTH-301
+  title: Unit tests for tagging and session boundary
+  priority: P1
+  size: M
+  labels: [tests, unit]
+  dependsOn: [AUTH-205]
+  status: in-progress
+
+- id: AUTH-302
+  title: Firestore emulator integration tests (create vs update paths)
+  priority: P1
+  size: M
+  labels: [tests, integration, firestore]
+  dependsOn: [AUTH-202, AUTH-203]
+  status: todo
+
+- id: AUTH-303
+  title: Contract tests for envelope enrichment fields
+  priority: P2
+  size: S
+  labels: [tests, contract]
+  dependsOn: [AUTH-206]
+  status: todo
+
+- id: AUTH-401
+  title: Structured logging and metrics counters
+  priority: P2
+  size: S
+  labels: [observability]
+  dependsOn: [AUTH-206]
+  status: done
+
+- id: AUTH-402
+  title: Firestore security rules review/updates for users/* writes
+  priority: P2
+  size: S
+  labels: [security, firestore]
+  dependsOn: [AUTH-101]
+  status: done
+
+- id: AUTH-501
+  title: Sprint validation run and documentation updates
+  priority: P2
+  size: S
+  labels: [validation, docs]
+  dependsOn: [AUTH-301, AUTH-302, AUTH-303]
+  status: todo

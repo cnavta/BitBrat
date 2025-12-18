@@ -2,6 +2,10 @@ import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import { TwitchIrcClient, TwitchEnvelopeBuilder, ConfigTwitchCredentialsProvider, FirestoreTwitchCredentialsProvider } from '../services/ingress/twitch';
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
+import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
+import { ConnectorManager } from '../services/ingress/core';
+import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
+import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
@@ -15,9 +19,16 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'ingress-egress';
 // Use centralized configuration for port instead of reading env directly in app code
 const PORT = buildConfig(process.env).port;
 
-class IngressEgressServer extends BaseServer {
+export class IngressEgressServer extends BaseServer {
+  // Declare default configuration values for this service
+  // Expose persistence TTL days so other components can align via ENV
+  protected static CONFIG_DEFAULTS: Record<string, any> = {
+    PERSISTENCE_TTL_DAYS: 7,
+  };
   private twitchClient: TwitchIrcClient | null = null;
+  private discordClient: DiscordIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
+  private connectorManager: ConnectorManager | null = null;
 
   constructor() {
     super({ serviceName: SERVICE_NAME });
@@ -71,10 +82,30 @@ class IngressEgressServer extends BaseServer {
       egressDestinationTopic: egressTopic, // ensure envelope.egressDestination is set on publish
     });
 
-    // Start the client (will be a no-op connection in tests)
-    this.twitchClient.start?.().catch((e) => {
-      logger.error('[ingress-egress] twitchClient.start error', e?.message || e);
-    });
+    // Connector Manager wiring (register Twitch + Discord; preserve existing Twitch egress path)
+    const manager = new ConnectorManager({ logger });
+    if (this.twitchClient) {
+      manager.register('twitch', new TwitchConnectorAdapter(this.twitchClient));
+    }
+    try {
+      const dBuilder = new DiscordEnvelopeBuilder();
+      const dPublisher = createDiscordIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
+      const dTokenStore = new FirestoreAuthTokenStore({ db });
+      const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic }, dTokenStore);
+      this.discordClient = dClient;
+      manager.register('discord', dClient);
+    } catch (e: any) {
+      // Defensive: if Discord modules fail to construct, keep Twitch operational
+      logger.warn('ingress-egress.discord.register_failed', { error: e?.message || String(e) });
+    }
+
+    // Start connectors (individual connectors handle disabled/test guards internally)
+    try {
+      await manager.start();
+      this.connectorManager = manager;
+    } catch (e: any) {
+      logger.error('ingress-egress.connectors.start_error', { error: e?.message || String(e) });
+    }
 
     // Subscribe to this instance's egress subject and deliver text via Twitch IRC
     const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
@@ -116,8 +147,58 @@ class IngressEgressServer extends BaseServer {
                   await ctx.ack();
                   return;
                 }
-                await this.twitchClient!.sendText(text);
-                logger.info('ingress-egress.egress.sent', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
+                const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
+                const publishFinalize = async (status: 'SENT' | 'FAILED', error?: { code: string; message?: string }) => {
+                  try {
+                    const cfg: any = this.getConfig?.() || {};
+                    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+                    const finalizeSubject = `${prefix}internal.persistence.finalize.v1`;
+                    const pubRes = this.getResource<PublisherResource>('publisher');
+                    const pub = pubRes?.create(finalizeSubject);
+                    if (pub) {
+                      const payload = {
+                        correlationId,
+                        destination: egressTopic,
+                        deliveredAt: new Date().toISOString(),
+                        status,
+                        error: error ? { code: error.code, message: error.message } : undefined,
+                        // Include selections context so Persistence can record them
+                        // evtForDelivery has candidates with the selected one marked
+                        candidates: Array.isArray((evtForDelivery as any)?.candidates) ? (evtForDelivery as any).candidates : undefined,
+                        annotations: Array.isArray((evt as any)?.annotations) ? (evt as any).annotations : undefined,
+                      };
+                      await pub.publishJson(payload, { correlationId: String(correlationId || ''), type: 'egress.deliver.v1' });
+                      logger.info('ingress-egress.finalize.published', { correlationId, status });
+                    } else {
+                      logger.warn('ingress-egress.finalize.publisher_unavailable');
+                    }
+                  } catch (e: any) {
+                    logger.warn('ingress-egress.finalize.publish_error', { error: e?.message || String(e) });
+                  }
+                };
+
+                try {
+                  const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
+                  const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
+                  const isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+
+                  if (isDiscord) {
+                    if (this.discordClient) {
+                      await this.discordClient.sendText(text, evt.channel);
+                    } else {
+                      throw new Error('discord_client_not_available');
+                    }
+                  } else {
+                    // Default to Twitch (matches legacy behavior)
+                    await this.twitchClient!.sendText(text, evt.channel);
+                  }
+                  logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord });
+                  await publishFinalize('SENT');
+                } catch (e: any) {
+                  // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
+                  await publishFinalize('FAILED', { code: 'send_error', message: e?.message || String(e) });
+                  throw e;
+                }
               };
               if (tracer && typeof tracer.startActiveSpan === 'function') {
                 await tracer.startActiveSpan('deliver-egress', async (span: any) => {
@@ -155,6 +236,20 @@ class IngressEgressServer extends BaseServer {
     this.onHTTPRequest('/_debug/twitch', (_req: Request, res: Response) => {
       const snapshot = this.twitchClient!.getSnapshot();
       res.status(200).json({ snapshot, egressTopic });
+    });
+
+    // IE-DIS-07: Discord debug endpoint exposing sanitized connector snapshot (no secrets)
+    this.onHTTPRequest('/_debug/discord', (_req: Request, res: Response) => {
+      try {
+        const manager = this.connectorManager;
+        const snapshots = manager ? manager.getSnapshot() : {} as any;
+        const discordSnap = (snapshots as any)?.discord || { state: 'DISCONNECTED' };
+        // Sanitize: remove any unexpected sensitive fields if present
+        const { token, botToken, secret, ...safe } = (discordSnap || {}) as Record<string, unknown>;
+        res.status(200).json({ snapshot: safe, egressTopic });
+      } catch (e: any) {
+        res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
+      }
     });
   }
 }
