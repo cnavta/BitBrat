@@ -15,7 +15,7 @@ Extend the auth/enrichment flow to:
 
 ## High-Level Flow
 1) Message arrives via ingress (Discord/Twitch)
-2) Event Router forwards to Auth/Enrichment service
+2) Auth/Enrichment service listens for the message from ingress
 3) Enrichment service:
    - Resolves provider and providerUserId from the envelope/platform payload
    - Looks up Firestore user doc keyed by provider+providerUserId
@@ -23,7 +23,7 @@ Extend the auth/enrichment flow to:
    - Updates counters and session fields
    - Computes tags and reads notes
    - Writes EnvelopeV1.user and EnvelopeV1.auth metadata
-4) Downstream services receive enriched event
+4) Downstream services such as event-router receive enriched event
 
 ## Data Model
 

@@ -104,6 +104,8 @@ export interface EnvelopeV1 {
     displayName?: string;
     roles?: string[];
     status?: string;
+    notes?: string; // Ad-hoc notes about this user sourced from Firebase.
+    tags?: string[]; // Internal tags, such as FIRST_ALLTIME_MESSAGE, FIRST_SESSION_MESSAGE, NEW_USER, etc.
   };
   /** Optional: added by Auth service (User Enrichment v1) */
   auth?: {

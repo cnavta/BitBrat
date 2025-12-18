@@ -185,3 +185,19 @@
     - package.json (updated)
     - planning/sprint-140-2f9c1a/backlog.yaml (updated: OF-MP-14/15 -> done)
     - test logs: 165 passed, 2 skipped (no failures)
+
+- 2025-12-17T23:59:00Z
+  - Prompt: "Force sprint complete"
+  - Interpretation: Close sprint under AGENTS.md §2.10 Force Completion. Create verification-report.md, retro.md, key-learnings.md, publication.yaml (PR skipped), update sprint-manifest status to complete, and log the action.
+  - Commands:
+    - (file ops) add planning/sprint-140-2f9c1a/verification-report.md
+    - (file ops) add planning/sprint-140-2f9c1a/retro.md
+    - (file ops) add planning/sprint-140-2f9c1a/key-learnings.md
+    - (file ops) add planning/sprint-140-2f9c1a/publication.yaml (status=skipped)
+    - (file ops) update planning/sprint-140-2f9c1a/sprint-manifest.yaml (status=complete)
+  - Files:
+    - planning/sprint-140-2f9c1a/verification-report.md (created)
+    - planning/sprint-140-2f9c1a/retro.md (created)
+    - planning/sprint-140-2f9c1a/key-learnings.md (created)
+    - planning/sprint-140-2f9c1a/publication.yaml (created)
+    - planning/sprint-140-2f9c1a/sprint-manifest.yaml (updated: status=complete)

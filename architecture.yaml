@@ -84,8 +84,6 @@ services:
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
-      # Discord bot token (used when discordUseTokenStore=false or as fallback)
-      - DISCORD_BOT_TOKEN
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS

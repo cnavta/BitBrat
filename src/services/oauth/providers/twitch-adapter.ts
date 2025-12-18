@@ -17,7 +17,7 @@ function resolveLbBaseUrl(): string | null {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { BaseServer } = require('../../../common/base-server');
     const arch: any = BaseServer.loadArchitectureYaml?.();
-    const domainRaw: string | undefined = arch?.infrastructure?.['main-load-balancer']?.routing?.default_domain;
+    const domainRaw: string | undefined = arch?.infrastructure?.resources?.['main-load-balancer']?.routing?.default_domain;
     if (domainRaw && typeof domainRaw === 'string') {
       const domain = interpolateEnv(domainRaw);
       if (domain) return `https://${domain}`;

@@ -1,5 +1,6 @@
 import { InternalEventV2 } from '../../types/events';
 import type { UserRepo, AuthUserDoc } from './user-repo';
+import {logger} from "../../common/logging";
 
 export interface EnrichOptions {
   provider?: string;
@@ -38,6 +39,9 @@ export interface EnrichResult {
   event: InternalEventV2;
   matched: boolean;
   userRef?: string;
+  created?: boolean;
+  isFirstMessage?: boolean;
+  isNewSession?: boolean;
 }
 
 /** Pure enrichment function: queries repo and returns updated event copy with envelope.user/auth set. */
@@ -83,6 +87,7 @@ export async function enrichEvent(
 
   // Update existing user path (or fallback email match)
   if (doc) {
+    logger.debug('auth.user.update', { userRef: `users/${doc.id}` });
     // If repo can update counters/session, do it and prefer merged doc
     let created = false;
     let isFirstMessage = false;
@@ -115,11 +120,12 @@ export async function enrichEvent(
       ...(provider ? { provider } : {}),
       userRef: `users/${effectiveDoc.id}`,
     };
-    return { event: evt, matched: true, userRef: `users/${effectiveDoc.id}` };
+    return { event: evt, matched: true, userRef: `users/${effectiveDoc.id}`, created, isFirstMessage, isNewSession };
   }
 
   // Not found: try to create a new user if we have provider+id and repo supports it
   if (!doc && compositeId && typeof (repo as any).ensureUserOnMessage === 'function') {
+    logger.debug('auth.user.create', { compositeId });
     try {
       const res = await (repo as any).ensureUserOnMessage(compositeId, { provider, providerUserId: rawId, email, displayName: undefined }, nowIso);
       const createdDoc: AuthUserDoc = res.doc;
@@ -134,7 +140,7 @@ export async function enrichEvent(
         ...(provider ? { provider } : {}),
         userRef: `users/${createdDoc.id}`,
       };
-      return { event: evt, matched: true, userRef: `users/${createdDoc.id}` };
+      return { event: evt, matched: true, userRef: `users/${createdDoc.id}`, created: true, isFirstMessage: true, isNewSession: true };
     } catch {
       // fall through to unmatched
     }

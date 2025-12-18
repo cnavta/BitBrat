@@ -3,7 +3,7 @@ title: "Auth User Enrichment v1 – Notes & Tags"
 goal: "Extend auth to enrich EnvelopeV1.user with notes and tags; establish user/session tagging; and create Firestore user docs per ingress source."
 owner: "@christophernavta"
 createdAt: "2025-12-17T20:29:00Z"
-status: "planning"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/41"
   branch: "feature/sprint-141-9b1a72-auth-user-enrichment"
