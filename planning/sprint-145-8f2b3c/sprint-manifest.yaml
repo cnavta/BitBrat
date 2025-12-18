@@ -3,8 +3,9 @@ title: "Fix Discord responses being sent via Twitch"
 goal: "Investigate and fix the issue where responses to Discord messages are incorrectly sent to Twitch."
 owner: "@christophernavta"
 createdAt: "2025-12-18T12:05:00Z"
-status: "verifying"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/45"
   branch: "feature/sprint-145-8f2b3c-fix-discord-responses-via-twitch"
 notes: |
   The user reports that Discord messages are getting Twitch responses. 
