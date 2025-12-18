@@ -1,0 +1,12 @@
+id: sprint-147-3f8a1b
+title: "Fix Test Regressions in Extract Config and Command Processor"
+goal: "Remediate failing tests in extract-config and routing-advance caused by recent configuration and source-handling changes."
+owner: "@christophernavta"
+createdAt: "2025-12-18T12:47:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-147-3f8a1b-fix-test-regressions"
+notes: |
+  Failing tests:
+  1. infrastructure/scripts/extract-config.test.ts - missing DISCORD_OAUTH_PERMISSIONS in expectation.
+  2. tests/services/command-processor/routing-advance.spec.ts - source attribute mismatch.
