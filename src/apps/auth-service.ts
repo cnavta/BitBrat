@@ -53,7 +53,7 @@ class AuthServer extends BaseServer {
             // Create a child span for enrichment and publish for better trace visibility
             const tracer = (this as any).getTracer?.();
             const run = async () => {
-              const { event: enrichedV2Initial, matched, userRef } = await enrichEvent(asV2, userRepo, {
+              const { event: enrichedV2Initial, matched, userRef, created, isFirstMessage, isNewSession } = await enrichEvent(asV2, userRepo, {
                 provider: (asV2 as any)?.source?.split('.')?.[1],
               });
 
@@ -64,6 +64,9 @@ class AuthServer extends BaseServer {
               if (matched) {
                 counters.increment('auth.enrich.matched');
                 logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef, outputSubject });
+                if (created) counters.increment('auth.enrich.created_user');
+                if (isFirstMessage) counters.increment('auth.enrich.first_message');
+                if (isNewSession) counters.increment('auth.enrich.new_session');
               } else {
                 counters.increment('auth.enrich.unmatched');
                 logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });

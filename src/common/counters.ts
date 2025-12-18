@@ -10,6 +10,9 @@ export type CounterKey =
   | 'auth.enrich.matched'
   | 'auth.enrich.unmatched'
   | 'auth.enrich.errors'
+  | 'auth.enrich.created_user'
+  | 'auth.enrich.first_message'
+  | 'auth.enrich.new_session'
   | 'message_publisher.publish.ok'
   | 'message_publisher.publish.error'
   | 'message_consumer.dedupe.drop';
@@ -25,6 +28,9 @@ class Counters {
     'auth.enrich.matched': 0,
     'auth.enrich.unmatched': 0,
     'auth.enrich.errors': 0,
+    'auth.enrich.created_user': 0,
+    'auth.enrich.first_message': 0,
+    'auth.enrich.new_session': 0,
     'message_publisher.publish.ok': 0,
     'message_publisher.publish.error': 0,
     'message_consumer.dedupe.drop': 0,
