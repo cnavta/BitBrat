@@ -1,5 +1,5 @@
 import { logger } from '../../../common/logging';
-import type { ConnectorSnapshot, EnvelopeBuilder, IngressConnector, IngressPublisher } from '../core';
+import type { ConnectorSnapshot, EnvelopeBuilder, IngressConnector, IngressPublisher, EgressConnector } from '../core';
 import type { IConfig } from '../../../types';
 import { startActiveSpan } from '../../../common/tracing';
 import type { IAuthTokenStoreV2 } from '../../oauth/auth-token-store';
@@ -24,7 +24,7 @@ export interface DiscordMessageMeta {
   raw?: Record<string, unknown>;
 }
 
-export class DiscordIngressClient implements IngressConnector {
+export class DiscordIngressClient implements IngressConnector, EgressConnector {
   private client: any | null = null;
   private disconnecting = false;
   private snapshot: ConnectorSnapshot = { state: 'DISCONNECTED', counters: { received: 0, published: 0, failed: 0 } };
@@ -40,6 +40,30 @@ export class DiscordIngressClient implements IngressConnector {
   ) {
     this.snapshot.guildId = cfg.discordGuildId;
     this.snapshot.channelIds = (cfg.discordChannels || []).slice();
+  }
+
+  async sendText(text: string, channelId?: string): Promise<void> {
+    if (!this.client || this.snapshot.state !== 'CONNECTED') {
+      logger.warn('ingress-egress.discord.egress.failed_client_not_connected', { state: this.snapshot.state });
+      throw new Error('discord_client_not_connected');
+    }
+    const targetId = channelId || (this.cfg.discordChannels && this.cfg.discordChannels[0]);
+    if (!targetId) {
+      logger.warn('ingress-egress.discord.egress.failed_no_target_channel');
+      throw new Error('discord_no_target_channel');
+    }
+    try {
+      const channel = await this.client.channels.fetch(targetId);
+      if (!channel || !('send' in channel)) {
+        logger.warn('ingress-egress.discord.egress.failed_channel_not_found', { channelId: targetId });
+        throw new Error('discord_channel_not_found_or_no_send_perm');
+      }
+      await (channel as any).send(text);
+      logger.debug('ingress-egress.discord.egress.sent', { channelId: targetId, length: text.length });
+    } catch (e: any) {
+      logger.error('ingress-egress.discord.egress.error', { channelId: targetId, error: e?.message || String(e) });
+      throw e;
+    }
   }
 
   getSnapshot(): ConnectorSnapshot {

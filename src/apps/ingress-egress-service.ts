@@ -19,13 +19,14 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'ingress-egress';
 // Use centralized configuration for port instead of reading env directly in app code
 const PORT = buildConfig(process.env).port;
 
-class IngressEgressServer extends BaseServer {
+export class IngressEgressServer extends BaseServer {
   // Declare default configuration values for this service
   // Expose persistence TTL days so other components can align via ENV
   protected static CONFIG_DEFAULTS: Record<string, any> = {
     PERSISTENCE_TTL_DAYS: 7,
   };
   private twitchClient: TwitchIrcClient | null = null;
+  private discordClient: DiscordIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
 
@@ -91,6 +92,7 @@ class IngressEgressServer extends BaseServer {
       const dPublisher = createDiscordIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
       const dTokenStore = new FirestoreAuthTokenStore({ db });
       const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic }, dTokenStore);
+      this.discordClient = dClient;
       manager.register('discord', dClient);
     } catch (e: any) {
       // Defensive: if Discord modules fail to construct, keep Twitch operational
@@ -176,8 +178,18 @@ class IngressEgressServer extends BaseServer {
                 };
 
                 try {
-                  await this.twitchClient!.sendText(text);
-                  logger.info('ingress-egress.egress.sent', { correlationId });
+                  const source = (evt?.source || '').toLowerCase();
+                  if (source.includes('discord')) {
+                    if (this.discordClient) {
+                      await this.discordClient.sendText(text, evt.channel);
+                    } else {
+                      throw new Error('discord_client_not_available');
+                    }
+                  } else {
+                    // Default to Twitch (matches legacy behavior)
+                    await this.twitchClient!.sendText(text, evt.channel);
+                  }
+                  logger.info('ingress-egress.egress.sent', { correlationId, source });
                   await publishFinalize('SENT');
                 } catch (e: any) {
                   // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
