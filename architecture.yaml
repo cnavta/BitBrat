@@ -86,6 +86,7 @@ services:
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
+      - DISCORD_BOT_TOKEN
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS

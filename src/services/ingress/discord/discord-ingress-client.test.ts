@@ -37,6 +37,13 @@ describe('DiscordIngressClient token resolver and rotation', () => {
     expect(tokenStore.getAuthToken).toHaveBeenCalledWith('discord', 'bot');
   });
 
+  test('resolveToken uses env token directly when store disabled', async () => {
+    const cfg = makeCfg({ discordUseTokenStore: false, discordBotToken: 'DIRECT_TOKEN' });
+    const client = new DiscordIngressClient(builder, publisher, cfg);
+    const tok = await (client as any).resolveToken();
+    expect(tok).toBe('DIRECT_TOKEN');
+  });
+
   test('resolveToken falls back to env token when store empty and fallback enabled', async () => {
     const cfg = makeCfg({ discordUseTokenStore: true, discordAllowEnvFallback: true, discordBotToken: 'ENV_TOKEN' });
     const tokenStore: any = { getAuthToken: jest.fn(async () => null) };
