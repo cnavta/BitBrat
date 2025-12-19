@@ -7,6 +7,7 @@ FILES=(
   "planning/sprint-151-a2b3c4/sprint-manifest.yaml"
   "planning/sprint-151-a2b3c4/implementation-plan.md"
   "planning/sprint-151-a2b3c4/architecture-enrichment.md"
+  "planning/sprint-151-a2b3c4/backlog.yaml"
   "planning/sprint-151-a2b3c4/request-log.md"
 )
 
