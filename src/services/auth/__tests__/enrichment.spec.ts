@@ -18,27 +18,27 @@ describe('enrichEvent()', () => {
 
   test('matched by id populates user and auth.matched=true', async () => {
     const repo: UserRepo = {
-      getById: async (id: string) => ({ id, email: 'a@b.c', displayName: 'Alice' } as AuthUserDoc),
+      getById: async (id: string) => ({ id, email: 'a@b.c', displayName: 'Alice', roles: [] } as AuthUserDoc),
       getByEmail: async () => null,
     };
     const evt = makeEvent({ correlationId: 'c-2', user: { id: 'u-1' } as any });
     const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'twitch' });
     expect(res.matched).toBe(true);
     expect(res.userRef).toBe('users/twitch:u-1');
-    expect((res.event as any).user).toEqual({ id: 'twitch:u-1', email: 'a@b.c', displayName: 'Alice' });
+    expect((res.event as any).user).toEqual({ id: 'twitch:u-1', email: 'a@b.c', displayName: 'Alice', roles: [] });
     expect((res.event as any).auth).toEqual({ v: '1', method: 'enrichment', matched: true, at: fixedNow(), provider: 'twitch', userRef: 'users/twitch:u-1' });
   });
 
   test('fallback to email when id not found', async () => {
     const repo: UserRepo = {
       getById: async () => null,
-      getByEmail: async (email: string) => ({ id: 'u-2', email, displayName: 'Bob' } as AuthUserDoc),
+      getByEmail: async (email: string) => ({ id: 'u-2', email, displayName: 'Bob', roles: [] } as AuthUserDoc),
     };
     const evt = makeEvent({ correlationId: 'c-3', user: { email: 'b@c.d' } as any });
     const res = await enrichEvent(evt, repo, { now: fixedNow });
     expect(res.matched).toBe(true);
     expect(res.userRef).toBe('users/u-2');
-    expect((res.event as any).user).toEqual({ id: 'u-2', email: 'b@c.d', displayName: 'Bob' });
+    expect((res.event as any).user).toEqual({ id: 'u-2', email: 'b@c.d', displayName: 'Bob', roles: [] });
     expect((res.event as any).auth?.matched).toBe(true);
   });
 
@@ -55,7 +55,7 @@ describe('enrichEvent()', () => {
   });
 
   test('creates new user and sets tags when repo supports ensureUserOnMessage', async () => {
-    const createdDoc: AuthUserDoc = { id: 'twitch:u-9', displayName: 'Newbie' } as any;
+    const createdDoc: AuthUserDoc = { id: 'twitch:u-9', displayName: 'Newbie', roles: [] } as any;
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async () => null,
@@ -71,5 +71,73 @@ describe('enrichEvent()', () => {
     expect(Array.isArray(userOut.tags)).toBe(true);
     expect(userOut.tags).toEqual(expect.arrayContaining(['NEW_USER', 'FIRST_ALLTIME_MESSAGE', 'FIRST_SESSION_MESSAGE', 'PROVIDER_TWITCH']));
     expect((res.event as any).auth).toEqual({ v: '1', method: 'enrichment', matched: true, at: fixedNow(), provider: 'twitch', userRef: 'users/twitch:u-9' });
+  });
+
+  test('maps Twitch mod and subscriber flags correctly', async () => {
+    const repo: UserRepo = {
+      getById: async () => null,
+      getByEmail: async () => null,
+      ensureUserOnMessage: async (id, data) => ({
+        doc: { id, ...data, roles: data.roles || [] } as any,
+        created: true,
+        isFirstMessage: true,
+        isNewSession: true
+      }),
+    };
+    const evt = makeEvent({
+      message: {
+        id: 'm-twitch',
+        role: 'user',
+        text: 'hello',
+        rawPlatformPayload: {
+          isMod: true,
+          isSubscriber: true,
+          badges: ['vip'],
+          user: { login: 'alice', displayName: 'Alice' }
+        }
+      } as any,
+      userId: '123'
+    });
+
+    const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'twitch' });
+    expect(res.matched).toBe(true);
+    const userOut = (res.event as any).user;
+    expect(userOut.roles).toEqual(expect.arrayContaining(['moderator', 'subscriber', 'vip']));
+    expect(userOut.rolesMeta.twitch).toEqual(expect.arrayContaining(['moderator', 'subscriber', 'vip']));
+    expect(userOut.profile.username).toBe('alice');
+  });
+
+  test('maps Discord roles and owner correctly', async () => {
+    process.env.DISCORD_MOD_ROLES = 'AdminRole,ModRole';
+    const repo: UserRepo = {
+      getById: async () => null,
+      getByEmail: async () => null,
+      ensureUserOnMessage: async (id, data) => ({
+        doc: { id, ...data, roles: data.roles || [] } as any,
+        created: true,
+        isFirstMessage: true,
+        isNewSession: true
+      }),
+    };
+    const evt = makeEvent({
+      message: {
+        id: 'm-discord',
+        role: 'user',
+        text: 'hello',
+        rawPlatformPayload: {
+          authorName: 'bob',
+          roles: ['ModRole', 'SomeOtherRole'],
+          isOwner: true
+        }
+      } as any,
+      userId: '456'
+    });
+
+    const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'discord' });
+    expect(res.matched).toBe(true);
+    const userOut = (res.event as any).user;
+    expect(userOut.roles).toEqual(expect.arrayContaining(['moderator', 'broadcaster']));
+    expect(userOut.rolesMeta.discord).toEqual(expect.arrayContaining(['ModRole', 'SomeOtherRole', 'owner']));
+    expect(userOut.profile.username).toBe('bob');
   });
 });

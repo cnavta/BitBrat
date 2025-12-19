@@ -3,7 +3,7 @@ title: "User Data Enrichment from Source Platforms"
 goal: "Identify and document additional user properties from Twitch and Discord (username, mod, subscriber flags) and plan their mapping to the internal user model."
 owner: "@junie"
 createdAt: "2025-12-19T15:52:00Z"
-status: "published"
+status: "validating"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/51"
   branch: "feature/sprint-151-a2b3c4-user-data-enrichment"

@@ -27,3 +27,23 @@
   - `planning/sprint-151-a2b3c4/backlog.yaml` (Created)
   - `planning/sprint-151-a2b3c4/implementation-plan.md` (Updated to Sprint Execution Plan)
   - `planning/sprint-151-a2b3c4/validate_deliverable.sh` (Updated)
+
+## [2025-12-19T17:02:00Z] - Implementation Phase
+- **Prompt summary**: Plan approved, begin implementation.
+- **Actions**: 
+  - Updated `AuthUserDoc` and `UserRepo` in `user-repo.ts` (ENR-01).
+  - Updated `FirestoreUserRepo` with merging logic (ENR-02).
+  - Updated `enrichment.ts` with Twitch and Discord mapping (ENR-03, ENR-04, ENR-05).
+  - Updated Discord ingress to capture `isOwner` (ENR-04).
+  - Updated unit tests `enrichment.spec.ts` (ENR-06).
+  - Created `user-repo.test.ts` for integration-ish testing (ENR-07).
+- **Files modified or created**:
+  - `src/services/auth/user-repo.ts`
+  - `src/services/auth/enrichment.ts`
+  - `src/services/ingress/discord/discord-ingress-client.ts`
+  - `src/services/ingress/discord/envelope-builder.ts`
+  - `src/services/auth/__tests__/enrichment.spec.ts`
+  - `src/services/auth/__tests__/user-repo.test.ts`
+  - `planning/sprint-151-a2b3c4/backlog.yaml`
+  - `planning/sprint-151-a2b3c4/verification-report.md`
+  - `planning/sprint-151-a2b3c4/request-log.md`

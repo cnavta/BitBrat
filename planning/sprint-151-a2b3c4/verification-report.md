@@ -1,19 +1,22 @@
 # Deliverable Verification – sprint-151-a2b3c4
 
 ## Completed
-- [x] Initialized sprint 151 with manifest and request log.
-- [x] Researched Twitch and Discord platform capabilities for user metadata.
-- [x] Created Technical Architecture Documentation (`architecture-enrichment.md`).
-- [x] Created Sprint Execution Plan (`implementation-plan.md`) with detailed strategy.
-- [x] Created `backlog.yaml` with prioritized implementation tasks (ENR-01 to ENR-08).
-- [x] Verified existence of all planning artifacts via `validate_deliverable.sh`.
+- [x] Update AuthUserDoc and UserRepo interfaces (ENR-01)
+- [x] Update FirestoreUserRepo implementation (ENR-02)
+- [x] Implement Twitch enrichment logic (ENR-03)
+- [x] Implement Discord enrichment logic (ENR-04)
+- [x] Implement Discord Role Normalization mapping (ENR-05)
+- [x] Update unit tests for enrichment logic (ENR-06)
+- [x] Integration tests for user persistence (ENR-07)
+- [x] Final validation and documentation update (ENR-08)
 
 ## Partial
-- None.
+- None
 
 ## Deferred
-- Code implementation and testing are deferred to the execution phase of the sprint.
+- None
 
 ## Alignment Notes
-- The architecture aligns with existing `InternalEventV2` structures where Twitch `isMod` and `isSubscriber` flags are already present in `rawPlatformPayload`.
-- Discord mapping will require a configurable role list to normalize server-specific roles to platform-wide "moderator" status.
+- Discord role normalization currently uses environment variable `DISCORD_MOD_ROLES`.
+- Discord owner identification added to `DiscordIngressClient` and `DiscordEnvelopeBuilder`.
+- All tests for `auth` service pass with the new schema.
