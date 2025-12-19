@@ -1,0 +1,11 @@
+id: sprint-148-9f1a2b
+title: "Fix Cloud Run Deployment Quoting"
+goal: "Fix unrecognized argument errors during Cloud Run deployment caused by unescaped quotes in environment variables."
+owner: "Junie"
+createdAt: "2025-12-19T11:42:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-148-9f1a2b-fix-deploy-quoting"
+notes: |
+  The LLM_BOT_SYSTEM_PROMPT contains single quotes which break the current eval-based deployment in cloudbuild.oauth-flow.yaml.
+  Refactoring to use bash arrays for gcloud arguments will resolve this.

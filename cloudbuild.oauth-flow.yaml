@@ -76,26 +76,26 @@ steps:
           ALLOW_FLAG="--allow-unauthenticated"
         fi
 
-        # Build command as a string to ensure correct parsing by the shell
-        CMD="gcloud run deploy ${_SERVICE_NAME} \
-          --image $$IMAGE \
-          --region ${_REGION} \
+        # Build command as an array to ensure correct parsing of arguments with spaces and quotes
+        CMD=(run deploy "${_SERVICE_NAME}" \
+          --image "$$IMAGE" \
+          --region "${_REGION}" \
           --platform managed \
-          --port ${_PORT} \
-          --min-instances ${_MIN_INSTANCES} \
-          --max-instances ${_MAX_INSTANCES} \
-          --cpu ${_CPU} --memory ${_MEMORY} \
+          --port "${_PORT}" \
+          --min-instances "${_MIN_INSTANCES}" \
+          --max-instances "${_MAX_INSTANCES}" \
+          --cpu "${_CPU}" --memory "${_MEMORY}" \
           --execution-environment gen2 \
-          --no-cpu-throttling"
+          --no-cpu-throttling)
 
-        if [ -n "${_INGRESS}" ]; then CMD="$${CMD} --ingress ${_INGRESS}"; fi
-        if [ -n "${_VPC_CONNECTOR}" ]; then CMD="$${CMD} --vpc-connector ${_VPC_CONNECTOR}"; fi
-        if [ -n "$$ALLOW_FLAG" ]; then CMD="$${CMD} $$ALLOW_FLAG"; fi
+        if [ -n "${_INGRESS}" ]; then CMD+=("--ingress" "${_INGRESS}"); fi
+        if [ -n "${_VPC_CONNECTOR}" ]; then CMD+=("--vpc-connector" "${_VPC_CONNECTOR}"); fi
+        if [ -n "$$ALLOW_FLAG" ]; then CMD+=("$$ALLOW_FLAG"); fi
         if [ -n "${_SECRET_SET_ARG}" ]; then
           SEC_RAW="${_SECRET_SET_ARG}"
           # Unescape any escaped characters coming from --substitutions
           SEC_RAW=$(printf '%s' "$$SEC_RAW" | sed -e 's/\\\\/\\/g' -e 's/\\,/,/g' -e 's/\\=/=/g')
-          CMD="$${CMD} --set-secrets $(printf '%s' "$$SEC_RAW" | tr ';' ',')"
+          CMD+=("--set-secrets" "$(printf '%s' "$$SEC_RAW" | tr ';' ',')")
         fi
         # Use a custom delimiter for --set-env-vars so values may contain commas and spaces without breaking parsing
         # Format: --set-env-vars='^<DELIM>^KEY=VAL<DELIM>KEY2=VAL2'
@@ -112,14 +112,14 @@ steps:
           ENV_RAW=""
         fi
         if [ -n "$$ENV_RAW" ]; then
-          # Convert our semicolon-delimited KV list to the chosen delimiter; wrap in single quotes to preserve spaces
+          # Convert our semicolon-delimited KV list to the chosen delimiter
           ENV_MAPPED=$(printf '%s' "$$ENV_RAW" | tr ';' "$$ENV_DELIM")
           SET_ENV_ARG="^$$ENV_DELIM^$$ENV_MAPPED"
-          CMD="$${CMD} --set-env-vars='$$SET_ENV_ARG'"
+          CMD+=("--set-env-vars" "$$SET_ENV_ARG")
         fi
 
-        echo "Executing: $$CMD"
-        eval "$$CMD"
+        echo "Executing: gcloud $${CMD[*]}"
+        gcloud "$${CMD[@]}"
 
         # Explicitly ensure IAM binding for unauthenticated access when requested
         if [ "${_ALLOW_UNAUTH}" = "true" ]; then

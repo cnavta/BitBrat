@@ -1,0 +1,13 @@
+backlog:
+  - id: FIX-001
+    title: "Refactor cloudbuild.oauth-flow.yaml to use bash arrays"
+    status: "complete"
+    priority: "high"
+  - id: FIX-002
+    title: "Verify quoting logic with test script"
+    status: "complete"
+    priority: "high"
+  - id: FIX-003
+    title: "Commit and push changes"
+    status: "todo"
+    priority: "medium"

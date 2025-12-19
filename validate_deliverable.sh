@@ -86,6 +86,13 @@ case "$SCOPE_ARG" in
     npm test ;;
 esac
 
+# Sprint 148: Quoting logic verification
+if [[ -f "planning/sprint-148-9f1a2b/test-quoting.sh" ]]; then
+  echo "🧪 Quoting logic verification..."
+  chmod +x planning/sprint-148-9f1a2b/test-quoting.sh
+  ./planning/sprint-148-9f1a2b/test-quoting.sh
+fi
+
 # LLM-09: Prompt Assembly smoke step (must not error)
 echo "🧪 Prompt Assembly smoke (canonical text) ..."
 echo '{"task":[{"instruction":"Echo"}],"input":{"userQuery":"ping"}}' \

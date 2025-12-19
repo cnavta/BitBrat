@@ -104,6 +104,7 @@ planning/
   sprint-7-a13b2f/
     sprint-manifest.yaml
     implementation-plan.md
+    backlog.yaml
     request-log.md
     validate_deliverable.sh
     verification-report.md
@@ -250,10 +251,10 @@ echo "✅ Validation complete."
 
 `verification-report.md` must summarize:
 
-- Completed items  
+- Completed backlog items  
 - Partial implementations  
 - Deferred items  
-- Deviations from the implementation plan  
+- Deviations from the implementation plan and backlog.yaml
 
 Example:
 
@@ -261,15 +262,18 @@ Example:
 # Deliverable Verification – sprint-X-Y
 
 ## Completed
-- [x] Twitch event handler implemented
-- [x] Tests created
-- [x] Cloud Build config added
+- [x] BL-001 - Twitch event handler implemented
+- [x] BL-002 - Tests created
+- [x] BL-003 - Cloud Build config added
 
 ## Partial
-- [ ] Observability integration (stubbed)
+- [ ] BL-004 - Observability integration (stubbed)
 
 ## Deferred
-- [ ] Multi-region deployment
+- [ ] BL-005 - Multi-region deployment
+
+## Deviations from backlog.yaml
+- [x] Resolved production issue with message formatting
 
 ## Alignment Notes
 - Added health endpoint not originally specified

@@ -1,0 +1,37 @@
+{
+  "and": [
+    {
+      "or": [
+        {
+          "text_contains": [
+            {
+              "var": "message.text"
+            },
+            "@bitbrat_the_ai",
+            true
+          ]
+        },
+        {
+          "text_contains": [
+            {
+              "var": "message.text"
+            },
+            "@bitbrat",
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "!": [
+        {
+          "slip_complete": [
+            {
+              "var": "routingSlip"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

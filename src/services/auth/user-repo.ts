@@ -1,5 +1,6 @@
 import { getFirestore } from '../../common/firebase';
 import type { Firestore } from 'firebase-admin/firestore';
+import {logger} from "../../common/logging";
 
 export interface AuthUserDoc {
   id: string;
@@ -49,10 +50,8 @@ export class FirestoreUserRepo implements UserRepo {
     const data = snap.data() as any;
     return {
       id: snap.id,
-      email: data?.email,
-      displayName: data?.displayName,
+      ...data,
       roles: Array.isArray(data?.roles) ? data.roles : undefined,
-      status: data?.status,
     };
   }
 
@@ -65,10 +64,8 @@ export class FirestoreUserRepo implements UserRepo {
     const data = doc.data() as any;
     return {
       id: doc.id,
-      email: data?.email,
-      displayName: data?.displayName,
+      ...data,
       roles: Array.isArray(data?.roles) ? data.roles : undefined,
-      status: data?.status,
     };
   }
 
@@ -77,6 +74,7 @@ export class FirestoreUserRepo implements UserRepo {
     data: { provider?: string; providerUserId?: string; displayName?: string; email?: string },
     nowIso: string
   ): Promise<{ doc: AuthUserDoc; created: boolean; isFirstMessage: boolean; isNewSession: boolean }> {
+    logger.debug('auth.user.ensureUserOnMessage', { userId: id })
     const db = this.db || getFirestore();
     const ref = db.collection(this.collectionName).doc(id);
     const snap = await ref.get();
@@ -97,7 +95,15 @@ export class FirestoreUserRepo implements UserRepo {
         lastSessionActivityAt: nowIso,
         ...(providerTag ? { tags: [providerTag] } : {}),
       };
-      await ref.set(initial, { merge: true });
+      logger.debug('auth.user.ensureUserOnMessage.newUser', { userId: id, initial })
+      try {
+        await ref.set(initial, {merge: true}).then(e =>
+          logger.debug('auth.user.ensureUserOnMessage.newUser.set.complete', { userId: id, doc: e }));
+      } catch (e) {
+        logger.error('auth.user.ensureUserOnMessage.newUser.error', { userId: id, error: e })
+        throw e;
+      }
+      logger.debug('auth.user.ensureUserOnMessage.newUser.done', { userId: id })
       return {
         doc: { id, ...initial },
         created: true,
