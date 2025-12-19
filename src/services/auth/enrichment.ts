@@ -141,8 +141,8 @@ export async function enrichEvent(
         userRef: `users/${createdDoc.id}`,
       };
       return { event: evt, matched: true, userRef: `users/${createdDoc.id}`, created: true, isFirstMessage: true, isNewSession: true };
-    } catch {
-      // fall through to unmatched
+    } catch(e: any) {
+      logger.debug('auth.user.create.failed', { compositeId, error: e?.message || String(e) })
     }
   }
 

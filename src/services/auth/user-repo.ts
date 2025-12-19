@@ -32,6 +32,14 @@ export interface UserRepo {
   ): Promise<{ doc: AuthUserDoc; created: boolean; isFirstMessage: boolean; isNewSession: boolean }>;
 }
 
+function removeUndefined(obj: any): any {
+  const out: any = {};
+  for (const k in obj) {
+    if (obj[k] !== undefined) out[k] = obj[k];
+  }
+  return out;
+}
+
 /** Firestore-backed user repository */
 export class FirestoreUserRepo implements UserRepo {
   private readonly collectionName: string;
@@ -97,7 +105,7 @@ export class FirestoreUserRepo implements UserRepo {
         lastSessionActivityAt: nowIso,
         ...(providerTag ? { tags: [providerTag] } : {}),
       };
-      await ref.set(initial, { merge: true });
+      await ref.set(removeUndefined(initial), { merge: true });
       return {
         doc: { id, ...initial },
         created: true,
@@ -126,7 +134,7 @@ export class FirestoreUserRepo implements UserRepo {
       update.lastSessionId = `sess_${id}_${Math.random().toString(36).slice(2, 8)}`;
       update.lastSessionStartedAt = nowIso;
     }
-    await ref.set(update, { merge: true });
+    await ref.set(removeUndefined(update), { merge: true });
 
     const merged = { id, ...dataExisting, ...update } as AuthUserDoc;
     return {
