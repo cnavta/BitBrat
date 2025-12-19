@@ -6,8 +6,9 @@ import { getLogCorrelationFields } from './tracing';
  * are masked. For strings that look like secrets (e.g., start with sk- or sk_), mask even if key not matched.
  * This function returns a new object and does not mutate the input.
  */
-export function redactSecrets<T>(input: T): T {
+export function redactSecrets<T>(input: T, maxDepth = 10): T {
   const SENSITIVE_KEY = /(key|token|secret|password|authorization|cookie|auth)/i;
+  const visited = new WeakSet();
 
   const maskString = (s: string): string => {
     if (!s) return '***';
@@ -30,23 +31,30 @@ export function redactSecrets<T>(input: T): T {
 
   const isPlainObject = (o: any) => o && typeof o === 'object' && !Array.isArray(o);
 
-  const redactAny = (value: any, keyPath: string[] = []): any => {
+  const redactAny = (value: any, keyPath: string[] = [], depth = 0): any => {
     if (value == null) return value;
+    if (depth > maxDepth) return '[Max Depth Reached]';
+
+    if (typeof value === 'object') {
+      if (visited.has(value)) return '[Circular]';
+      visited.add(value);
+    }
+
     if (typeof value === 'string') {
       const key = keyPath[keyPath.length - 1] || '';
       if (SENSITIVE_KEY.test(key) || looksLikeSecret(value)) return maskString(value);
       return value;
     }
-    if (Array.isArray(value)) return value.map((v, idx) => redactAny(v, [...keyPath, String(idx)]));
+    if (Array.isArray(value)) return value.map((v, idx) => redactAny(v, [...keyPath, String(idx)], depth + 1));
     if (isPlainObject(value)) {
       const out: Record<string, any> = {};
       for (const [k, v] of Object.entries(value)) {
         if (SENSITIVE_KEY.test(k)) {
           if (typeof v === 'string') out[k] = maskString(v);
-          else if (v && typeof v === 'object') out[k] = redactAny(v, [...keyPath, k]);
+          else if (v && typeof v === 'object') out[k] = redactAny(v, [...keyPath, k], depth + 1);
           else out[k] = '***';
         } else {
-          out[k] = redactAny(v, [...keyPath, k]);
+          out[k] = redactAny(v, [...keyPath, k], depth + 1);
         }
       }
       return out as any;

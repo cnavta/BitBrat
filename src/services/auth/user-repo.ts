@@ -1,5 +1,6 @@
 import { getFirestore } from '../../common/firebase';
 import type { Firestore } from 'firebase-admin/firestore';
+import { logger } from '../../common/logging';
 
 export interface AuthUserDoc {
   id: string;
@@ -77,9 +78,11 @@ export class FirestoreUserRepo implements UserRepo {
     data: { provider?: string; providerUserId?: string; displayName?: string; email?: string },
     nowIso: string
   ): Promise<{ doc: AuthUserDoc; created: boolean; isFirstMessage: boolean; isNewSession: boolean }> {
+    logger.debug('auth.user.ensureUserOnMessage', { userId: id });
     const db = this.db || getFirestore();
     const ref = db.collection(this.collectionName).doc(id);
     const snap = await ref.get();
+    logger.debug('auth.user.ensureUserOnMessage.get', { userId: id, exists: snap.exists });
     const providerTag = data.provider ? `PROVIDER_${String(data.provider).toUpperCase()}` : undefined;
     if (!snap.exists) {
       const initial: any = {
@@ -97,7 +100,9 @@ export class FirestoreUserRepo implements UserRepo {
         lastSessionActivityAt: nowIso,
         ...(providerTag ? { tags: [providerTag] } : {}),
       };
+      logger.debug('auth.user.ensureUserOnMessage.newUser', { userId: id });
       await ref.set(initial, { merge: true });
+      logger.debug('auth.user.ensureUserOnMessage.newUser.done', { userId: id });
       return {
         doc: { id, ...initial },
         created: true,

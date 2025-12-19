@@ -1,0 +1,17 @@
+backlog:
+  - id: LOG-001
+    title: "Handle circular references in redactSecrets"
+    status: "todo"
+    priority: "high"
+  - id: LOG-002
+    title: "Implement maximum depth limit in redactSecrets"
+    status: "todo"
+    priority: "medium"
+  - id: AUTH-001
+    title: "Remove raw DocumentSnapshot logging in user-repo.ts"
+    status: "todo"
+    priority: "high"
+  - id: TEST-001
+    title: "Add unit tests for redactSecrets fixes"
+    status: "todo"
+    priority: "high"

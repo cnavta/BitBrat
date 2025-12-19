@@ -33,6 +33,34 @@ describe('redactSecrets', () => {
     const out = redactSecrets(input) as any;
     expect(out.something).not.toBe(input.something);
   });
+
+  it('handles circular references without crashing', () => {
+    const a: any = { name: 'a' };
+    const b: any = { name: 'b', a };
+    a.b = b;
+
+    // This should not throw "Maximum call stack size exceeded"
+    expect(() => redactSecrets(a)).not.toThrow();
+
+    const out = redactSecrets(a) as any;
+    expect(out.name).toBe('a');
+    expect(out.b).toBeDefined();
+    expect(out.b.name).toBe('b');
+    expect(out.b.a).toBe('[Circular]');
+  });
+
+  it('handles deep objects by truncating at max depth', () => {
+    const createDeep = (depth: number): any => {
+      if (depth === 0) return { leaf: true };
+      return { child: createDeep(depth - 1) };
+    };
+
+    const deep = createDeep(20); // Default max depth is 10
+    const out = redactSecrets(deep) as any;
+
+    // Verify it doesn't crash and truncates
+    expect(out.child.child.child.child.child.child.child.child.child.child.child).toBe('[Max Depth Reached]');
+  });
 });
 
 describe('Logger redaction integration', () => {
