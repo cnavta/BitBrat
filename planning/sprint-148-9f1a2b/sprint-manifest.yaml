@@ -3,8 +3,9 @@ title: "Fix Cloud Run Deployment Quoting"
 goal: "Fix unrecognized argument errors during Cloud Run deployment caused by unescaped quotes in environment variables."
 owner: "Junie"
 createdAt: "2025-12-19T11:42:00Z"
-status: "planning"
+status: "published"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/48"
   branch: "feature/sprint-148-9f1a2b-fix-deploy-quoting"
 notes: |
   The LLM_BOT_SYSTEM_PROMPT contains single quotes which break the current eval-based deployment in cloudbuild.oauth-flow.yaml.
