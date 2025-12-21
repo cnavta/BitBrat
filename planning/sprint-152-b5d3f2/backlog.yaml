@@ -80,6 +80,8 @@ items:
         note: "Remediated Cloud Run subscription issues by fixing user context/moderator configuration."
       - at: 2025-12-21T05:40:00Z
         note: "Fixed remaining 'no token found' errors for channel.update by implementing bot token aliasing for broadcasters."
+      - at: 2025-12-21T14:10:00Z
+        note: "Refined auth strategy to use real broadcaster tokens from /oauth/twitch/broadcaster/token when available."
 
   - id: TASK-152-005
     title: "Integrate EventSubClient into IngressEgressServer"

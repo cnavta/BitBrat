@@ -28,6 +28,8 @@ export interface TwitchChatAuth {
 export interface ITwitchCredentialsProvider {
   /** Resolve chat auth for the given channel login or id. Implementation may accept either. */
   getChatAuth(loginOrChannel: string): Promise<TwitchChatAuth>;
+  /** Resolve broadcaster auth from a known path (e.g., /oauth/twitch/broadcaster/token) if available. */
+  getBroadcasterAuth?(loginOrChannel: string): Promise<TwitchChatAuth | null>;
   /** Optional hook for persisting refreshed tokens (used with Twurple RefreshingAuthProvider). */
   saveRefreshedToken?(token: TwitchTokenData): Promise<void>;
 }
@@ -68,6 +70,11 @@ export class EnvTwitchCredentialsProvider implements ITwitchCredentialsProvider 
     }
     return { accessToken, userId: userId || undefined, login };
   }
+
+  async getBroadcasterAuth(_loginOrChannel: string): Promise<TwitchChatAuth | null> {
+    // Env provider doesn't currently distinguish broadcaster tokens in env
+    return null;
+  }
 }
 
 /**
@@ -91,6 +98,10 @@ export class ConfigTwitchCredentialsProvider implements ITwitchCredentialsProvid
     }
     return { accessToken, userId: userId || undefined, login };
   }
+
+  async getBroadcasterAuth(_loginOrChannel: string): Promise<TwitchChatAuth | null> {
+    return null;
+  }
 }
 
 /**
@@ -101,10 +112,12 @@ export class ConfigTwitchCredentialsProvider implements ITwitchCredentialsProvid
  */
 export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsProvider {
   private readonly store: FirestoreTokenStore;
+  private readonly broadcasterStore: FirestoreTokenStore;
   private readonly loginHint?: string;
 
   constructor(private readonly cfg: IConfig, store?: FirestoreTokenStore) {
     this.store = store || new FirestoreTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot');
+    this.broadcasterStore = new FirestoreTokenStore('oauth/twitch/broadcaster');
     this.loginHint = cfg.twitchBotUsername;
   }
 
@@ -125,7 +138,25 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
     };
   }
 
+  async getBroadcasterAuth(loginOrChannel: string): Promise<TwitchChatAuth | null> {
+    const token = await this.broadcasterStore.getToken();
+    if (!token || !token.accessToken) {
+      return null;
+    }
+    return {
+      accessToken: token.accessToken,
+      userId: token.userId ?? undefined,
+      login: loginOrChannel.toLowerCase(),
+      refreshToken: token.refreshToken ?? null,
+      scope: token.scope ?? [],
+      expiresIn: token.expiresIn ?? null,
+      obtainmentTimestamp: token.obtainmentTimestamp ?? null,
+    };
+  }
+
   async saveRefreshedToken(token: TwitchTokenData): Promise<void> {
+    // We don't know for sure which store to save to without a userId check or similar
+    // But for now, we assume the bot token is the one being refreshed most often by this service
     await this.store.setToken(token);
   }
 }

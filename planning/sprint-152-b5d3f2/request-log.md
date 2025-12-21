@@ -40,3 +40,14 @@
 - **Files modified or created**:
   - `src/services/ingress/twitch/eventsub-client.ts`
   - `src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+
+## [2025-12-21T14:05:00Z] - Refinement: Use Broadcaster Token for EventSub
+- **Prompt summary**: Query Firestore for /oauth/twitch/broadcaster/token for the userId and use it for EventSub subscriptions.
+- **Interpretation**: Instead of always aliasing the bot token, we should use the actual broadcaster token if available in the specific Firestore path.
+- **Shell/git commands executed**:
+  - `npm test src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+  - `./validate_deliverable.sh`
+- **Files modified or created**:
+  - `src/services/ingress/twitch/credentials-provider.ts`
+  - `src/services/ingress/twitch/eventsub-client.ts`
+  - `src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`

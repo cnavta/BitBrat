@@ -19,20 +19,16 @@ jest.mock('@twurple/auth', () => ({
 
 const mockGetUserByName = jest.fn();
 const mockOnChannelFollow = jest.fn();
-const mockOnChannelUpdate = jest.fn().mockImplementation(async (userId, handler) => {
+const mockOnChannelUpdate = jest.fn().mockImplementation(async (userId, _handler) => {
   // Simulate Twurple's behavior: it eventually calls apiClient.asUser(broadcasterId)
-  // because that's how it's implemented in EventSubChannelUpdateSubscription
-  await mockAsUser('broadcaster-id', (ctx: any) => ctx.eventSub.subscribeToChannelUpdateEvents('broadcaster-id'));
+  await mockAsUser(userId, (ctx: any) => ctx.eventSub.subscribeToChannelUpdateEvents(userId));
 });
 
 const mockAsUser = jest.fn().mockImplementation(async (userId, cb) => {
-  if (userId === 'broadcaster-id') {
-    // Simulate Twurple's internal check: it tries to get a token for the user
-    // In our mock, we check if addUser was called for this userId
-    const userFound = mockAddUser.mock.calls.some(call => call[0] === 'broadcaster-id');
-    if (!userFound) {
-      throw new Error(`Tried to make an API call with a user context for user ID ${userId} but no token was found`);
-    }
+  // Simulate Twurple's internal check: it tries to get a token for the user
+  const userFound = mockAddUser.mock.calls.some(call => call[0] === userId);
+  if (!userFound) {
+    throw new Error(`Tried to make an API call with a user context for user ID ${userId} but no token was found`);
   }
   return cb({
     eventSub: {
@@ -87,6 +83,7 @@ describe('TwitchEventSubClient Repro', () => {
         expiresIn: 3600,
         obtainmentTimestamp: Date.now(),
       }),
+      getBroadcasterAuth: jest.fn().mockResolvedValue(null),
       saveRefreshedToken: jest.fn().mockResolvedValue(undefined),
     } as any;
 
@@ -123,5 +120,32 @@ describe('TwitchEventSubClient Repro', () => {
     await client.start();
 
     expect(mockOnChannelUpdate).toHaveBeenCalledWith('broadcaster-id', expect.any(Function));
+  });
+
+  it('uses broadcaster token from Firestore when available', async () => {
+    mockGetUserByName.mockResolvedValue({ id: 'real-broadcaster-id', name: 'realbroadcaster' });
+    (mockCredsProvider.getBroadcasterAuth as jest.Mock).mockResolvedValue({
+      accessToken: 'broadcaster-token',
+      userId: 'real-broadcaster-id',
+      login: 'realbroadcaster',
+    });
+
+    const client = new TwitchEventSubClient(mockPublisher, ['realbroadcaster'], {
+      cfg: mockConfig,
+      credentialsProvider: mockCredsProvider,
+    });
+
+    await client.start();
+
+    // Verify broadcaster token was added to authProvider
+    expect(mockAddUser).toHaveBeenCalledWith('real-broadcaster-id', expect.objectContaining({
+      accessToken: 'broadcaster-token'
+    }), expect.any(Array));
+
+    // Verify aliasing was NOT called for this broadcaster (because we have their real token)
+    // The first addUser call is for the bot, the second for the broadcaster from getBroadcasterAuth.
+    // If aliasing happened, there would be a third call.
+    const broadcasterCalls = mockAddUser.mock.calls.filter(call => call[0] === 'real-broadcaster-id');
+    expect(broadcasterCalls.length).toBe(1);
   });
 });

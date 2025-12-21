@@ -72,6 +72,22 @@ export class TwitchEventSubClient {
         scope: auth.scope || [],
       }, ['chat', 'eventsub']);
 
+      // Attempt to load the primary broadcaster token if available (Sprint 152 update)
+      const broadcasterAuth = typeof this.options.credentialsProvider.getBroadcasterAuth === 'function'
+        ? await this.options.credentialsProvider.getBroadcasterAuth(this.channels[0])
+        : null;
+      
+      if (broadcasterAuth && broadcasterAuth.userId) {
+        logger.info('twitch.eventsub.broadcaster_auth_found', { userId: broadcasterAuth.userId });
+        authProvider.addUser(broadcasterAuth.userId, {
+          accessToken: broadcasterAuth.accessToken,
+          refreshToken: broadcasterAuth.refreshToken || null,
+          expiresIn: broadcasterAuth.expiresIn ?? null,
+          obtainmentTimestamp: broadcasterAuth.obtainmentTimestamp ?? 0,
+          scope: broadcasterAuth.scope || [],
+        }, ['chat', 'eventsub']);
+      }
+
       const apiClient = new ApiClient({ authProvider });
 
       this.listener = new EventSubWsListener({ apiClient });
@@ -87,11 +103,12 @@ export class TwitchEventSubClient {
 
         const userId = user.id;
 
-        // Register the bot's token for the broadcaster's ID as well.
+        // Register the bot's token for the broadcaster's ID as well if no real broadcaster token was found.
         // This is a workaround for Twurple v7.4.0 where some EventSub v2 subscriptions
         // (like channel.update) hardcode the broadcaster's ID as the user context
         // for the API call, even if no special scopes are required.
-        if (userId !== auth.userId) {
+        if (userId !== auth.userId && (!broadcasterAuth || broadcasterAuth.userId !== userId)) {
+          logger.info('twitch.eventsub.aliasing_bot_token', { broadcasterId: userId, botId: auth.userId });
           authProvider.addUser(userId, {
             accessToken: auth.accessToken,
             refreshToken: auth.refreshToken || null,
