@@ -210,3 +210,18 @@ items:
     log:
       - at: 2025-12-21T15:45:00Z
         note: "Updated default scope lists in twitch-adapter.ts and twitch-oauth.ts. Added to architecture.yaml."
+
+  - id: BL-153-13
+    title: "Fix Infrastructure Config Test"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-153-12]
+    blocked_reason: null
+    acceptance:
+      - "extract-config.test.ts passes with TWITCH_OAUTH_SCOPES included"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T15:55:00Z
+        note: "Updated expected ENV_KEYS in extract-config.test.ts."

@@ -79,3 +79,11 @@
   - `src/services/twitch-oauth.ts`
   - `architecture.yaml`
   - `test-scopes.ts` (temp verification script)
+
+## [2025-12-21T15:55:00Z] Fix Infrastructure Test Failure
+- **Prompt summary**: Fix test failure in `extract-config.test.ts` due to `TWITCH_OAUTH_SCOPES` addition.
+- **Interpretation**: Updated the expected `ENV_KEYS` in `infrastructure/scripts/extract-config.test.ts` to include the newly added environment variable.
+- **Shell/git commands executed**:
+  - `npx jest infrastructure/scripts/extract-config.test.ts`
+- **Files modified or created**:
+  - `infrastructure/scripts/extract-config.test.ts`
