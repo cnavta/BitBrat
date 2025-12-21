@@ -50,6 +50,8 @@ jest.mock('@twurple/eventsub-ws', () => ({
   EventSubWsListener: jest.fn().mockImplementation(() => ({
     onChannelFollow: mockOnChannelFollow,
     onChannelUpdate: mockOnChannelUpdate,
+    onStreamOnline: jest.fn(),
+    onStreamOffline: jest.fn(),
     start: jest.fn(),
     stop: jest.fn(),
   })),

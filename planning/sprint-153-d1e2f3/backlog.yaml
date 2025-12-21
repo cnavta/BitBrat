@@ -109,3 +109,19 @@ items:
     log:
       - at: 2025-12-21T13:20:00Z
         note: "Permissions and latency handled via generic metadata support in status updates."
+
+  - id: BL-153-07
+    title: "Remove Heartbeat Noise"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-153-02]
+    blocked_reason: null
+    acceptance:
+      - "Periodic system.source.status publication removed from ingress-egress-service"
+      - "Pub/Sub noise reduced"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T13:05:00Z
+        note: "Removed heartbeat loop to satisfy user request regarding noise."

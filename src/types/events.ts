@@ -203,6 +203,7 @@ export interface InternalEventV2 extends EnvelopeV1 {
   type: InternalEventType;
   channel?: string; // #channel if applicable
   userId?: string; // optional twitch user id, etc.
+  payload?: Record<string, any>; // Optional: fallback for system or non-message events
   message?: MessageV1; // Optional: present for chat/text events
   externalEvent?: ExternalEventV1; // Optional: present for behavioral events
   annotations?: AnnotationV1[];

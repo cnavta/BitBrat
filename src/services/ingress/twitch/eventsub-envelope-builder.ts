@@ -151,7 +151,6 @@ export class EventSubEnvelopeBuilder {
       channel: `#${event.broadcasterName}`,
       userId: event.broadcasterId,
       externalEvent,
-      payload: externalEvent.payload, // Flattened for easier access
     };
   }
 
@@ -194,7 +193,6 @@ export class EventSubEnvelopeBuilder {
       channel: `#${event.broadcasterName}`,
       userId: event.broadcasterId,
       externalEvent,
-      payload: externalEvent.payload,
     };
   }
 }

@@ -16,3 +16,12 @@
 - **Files modified or created**:
   - `planning/sprint-153-d1e2f3/execution-plan.md`
   - `planning/sprint-153-d1e2f3/backlog.yaml`
+
+## [2025-12-21T13:05:00Z] Remove Periodic Heartbeats
+- **Prompt summary**: Remove the heartbeat message that is continually published to reduce Pub/Sub noise.
+- **Interpretation**: Disabled the periodic `system.source.status` publication in `ingress-egress-service.ts`.
+- **Shell/git commands executed**:
+  - `npm run build`
+  - `npx jest src/apps/ingress-egress-service.test.ts`
+- **Files modified or created**:
+  - `src/apps/ingress-egress-service.ts`

@@ -36,7 +36,6 @@ export class IngressEgressServer extends BaseServer {
   private discordClient: DiscordIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     super({ serviceName: SERVICE_NAME });
@@ -121,7 +120,6 @@ export class IngressEgressServer extends BaseServer {
     try {
       await manager.start();
       this.connectorManager = manager;
-      this.startHeartbeat(cfg);
     } catch (e: any) {
       logger.error('ingress-egress.connectors.start_error', { error: e?.message || String(e) });
     }
@@ -271,82 +269,10 @@ export class IngressEgressServer extends BaseServer {
       }
     });
   }
-  private async publishStatus(platform: string, id: string, snapshot: any) {
-    try {
-      const pubRes = this.getResource<PublisherResource>('publisher');
-      // Topic according to architecture.yaml
-      const topic = 'internal.ingress.v1';
-      const cfg: any = this.getConfig?.() || {};
-      const prefix = cfg.busPrefix || '';
-      const publisher = pubRes?.create(`${prefix}${topic}`);
-      
-      if (publisher) {
-        const payload = {
-          source: `${platform}:${id}`,
-          platform,
-          id,
-          status: snapshot.state,
-          metrics: snapshot.counters,
-          lastError: snapshot.lastError,
-          displayName: snapshot.displayName || snapshot.botName, // vary by connector
-          metadata: snapshot.metadata,
-        };
 
-        await publisher.publishJson(payload, {
-          correlationId: `heartbeat-${platform}-${id}-${Date.now()}`,
-          type: 'system.source.status',
-          source: `ingress.${platform}`,
-        });
-      }
-    } catch (e: any) {
-      logger.warn('ingress-egress.publish_status.error', { platform, id, error: e?.message || String(e) });
-    }
-  }
-
-  private startHeartbeat(cfg: any) {
-    const intervalMs = parseInt(process.env.HEARTBEAT_INTERVAL_MS || '60000', 10);
-    logger.info('ingress-egress.heartbeat.start', { intervalMs });
-
-    this.heartbeatTimer = setInterval(async () => {
-      if (!this.connectorManager) return;
-      const snapshots = this.connectorManager.getSnapshot();
-
-      for (const [name, snapshot] of Object.entries(snapshots)) {
-        // We need to resolve platform and ID from connector name or snapshot
-        // For now, let's assume 'twitch', 'discord', etc.
-        let platform = name.split('-')[0]; // e.g. twitch-eventsub -> twitch
-        let id = 'unknown';
-
-        if (platform === 'twitch') {
-          id = (snapshot as any).userId || (snapshot as any).channelId || cfg.twitchBotUsername || 'bot';
-          
-          // Enhanced: Auth Health (Phase 5)
-          // Snapshot from TwitchIrcClient or EventSub doesn't explicitly have authStatus, 
-          // but we can infer it if state is ERROR and lastError is about auth.
-          if (snapshot.state === 'ERROR' && (snapshot.lastError?.message?.toLowerCase().includes('auth') || snapshot.lastError?.message?.toLowerCase().includes('token'))) {
-            (snapshot as any).authStatus = 'EXPIRED';
-          } else if (snapshot.state === 'CONNECTED') {
-            (snapshot as any).authStatus = 'VALID';
-          }
-        } else if (platform === 'discord') {
-          id = (snapshot as any).guildId || 'bot';
-          if (snapshot.state === 'CONNECTED') {
-            (snapshot as any).authStatus = 'VALID';
-          }
-        }
-
-        await this.publishStatus(platform, id, snapshot);
-      }
-    }, intervalMs);
-  }
-
-  public async stop(port?: number): Promise<void> {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
+  public async stop(): Promise<void> {
     // ... rest of stop logic if any, but BaseServer handles mostly
-    await super.stop(port);
+    await super.close();
   }
 }
 
@@ -357,10 +283,8 @@ export function createApp() {
 
 if (require.main === module) {
   BaseServer.ensureRequiredEnv(SERVICE_NAME);
-  const app = createApp();
-  app.listen(PORT, () => {
-    logger.info('[ingress-egress] listening on port ' + PORT);
-  });
+  const server = new IngressEgressServer();
+  void server.start(PORT);
 }
 
 // text extraction now lives in services/egress/selection.ts

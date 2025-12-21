@@ -114,7 +114,7 @@ export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
  * Normalizes system.source.status events into a SourceDocV1 patch.
  */
 export function normalizeSourceStatus(evt: InternalEventV2): Partial<SourceDocV1> {
-  const payload = evt.payload || {};
+  const payload = evt.payload || evt.externalEvent?.payload || {};
   const now = new Date().toISOString();
   
   const patch: Partial<SourceDocV1> = {
@@ -142,7 +142,7 @@ export function normalizeSourceStatus(evt: InternalEventV2): Partial<SourceDocV1
  * Normalizes system.stream.online/offline events into a SourceDocV1 patch.
  */
 export function normalizeStreamEvent(evt: InternalEventV2): Partial<SourceDocV1> {
-  const payload = evt.payload || {};
+  const payload = evt.payload || evt.externalEvent?.payload || {};
   const now = new Date().toISOString();
   const isOnline = evt.type === 'system.stream.online';
 
