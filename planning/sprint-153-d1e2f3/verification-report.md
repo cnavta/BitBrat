@@ -8,6 +8,7 @@
 - [x] Fixed EventSub `stream.online` schema mismatch (startedAt vs startDate)
 - [x] Fixed Twitch bot token overwrite/hijacking issue
 - [x] Added `TWITCH_BOT_USER_ID` recovery safeguard
+- [x] Adjusted default Twitch OAuth scopes to include EventSub and permission requirements
 
 ## Partial
 - [ ] Multi-broadcaster support (currently assumes single broadcaster store)

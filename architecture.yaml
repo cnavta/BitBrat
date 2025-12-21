@@ -69,6 +69,8 @@ services:
       - DISCORD_OAUTH_SCOPES
       # Optional permissions bitmask for Discord OAuth
       - DISCORD_OAUTH_PERMISSIONS
+      # Optional scopes list for Twitch OAuth (space/comma separated)
+      - TWITCH_OAUTH_SCOPES
 
   ingress-egress:
     active: true

@@ -192,3 +192,21 @@ items:
     log:
       - at: 2025-12-21T15:30:00Z
         note: "Implemented logic to distinguish between bot and broadcaster refreshes, protecting bot identity."
+
+  - id: BL-153-12
+    title: "Adjust Default OAuth Scopes for Twitch Bot"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-153-01]
+    blocked_reason: null
+    acceptance:
+      - "Default Twitch scopes include moderator:read:followers (EventSub follow v2)"
+      - "Default Twitch scopes include moderation:read (Bot permission check)"
+      - "Default Twitch scopes include bits:read and moderator:read:shoutouts (Supported EventTypes)"
+      - "TWITCH_OAUTH_SCOPES added to architecture.yaml"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T15:45:00Z
+        note: "Updated default scope lists in twitch-adapter.ts and twitch-oauth.ts. Added to architecture.yaml."

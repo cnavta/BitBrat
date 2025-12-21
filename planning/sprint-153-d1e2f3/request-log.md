@@ -68,3 +68,14 @@
 - **Files modified or created**:
   - `src/services/ingress/twitch/credentials-provider.ts`
   - `src/services/ingress/twitch/__tests__/token-overwrite.spec.ts`
+
+## [2025-12-21T15:45:00Z] Adjust Default OAuth Scopes for Twitch Bot
+- **Prompt summary**: Adjust the default OAuth claims on the bot to include any that we've added with the new EventSub events.
+- **Interpretation**: Updated default scope lists to include `moderator:read:followers` (for `channel.follow` v2) and other required scopes for bot permissions and supported event types (`moderation:read`, `bits:read`, `moderator:read:shoutouts`, `user:read:email`). Added `TWITCH_OAUTH_SCOPES` to `architecture.yaml`.
+- **Shell/git commands executed**:
+  - `npx ts-node --transpile-only test-scopes.ts`
+- **Files modified or created**:
+  - `src/services/oauth/providers/twitch-adapter.ts`
+  - `src/services/twitch-oauth.ts`
+  - `architecture.yaml`
+  - `test-scopes.ts` (temp verification script)
