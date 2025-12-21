@@ -160,6 +160,8 @@ services:
       consumes:
         - internal.ingress.v1
         - internal.persistence.finalize.v1
+        - internal.deadletter.v1
+        - internal.router.dlq.v1
 
   command-processor:
     active: true

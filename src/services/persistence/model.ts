@@ -53,6 +53,15 @@ export interface EventDocV1 extends InternalEventV2 {
     error?: { code: string; message?: string } | null;
     metadata?: Record<string, any>;
   };
+  /** Dead-letter metadata: failure context for terminal errors */
+  deadletter?: {
+    reason: string;
+    error: { code: string; message?: string } | null;
+    lastStepId?: string;
+    originalType?: string;
+    slipSummary?: string;
+    at: string; // ISO8601
+  };
 }
 
 export interface FinalizationUpdateV1 {
@@ -182,4 +191,25 @@ export function normalizeFinalizePayload(msg: any): FinalizationUpdateV1 {
     annotations,
     candidates,
   };
+}
+
+/**
+ * Normalizes a DLQ event payload into a patch for EventDocV1.
+ */
+export function normalizeDeadLetterPayload(msg: any): Partial<EventDocV1> {
+  const now = new Date().toISOString();
+  const payload = msg?.payload || {};
+
+  return stripUndefinedDeep({
+    status: 'ERROR',
+    finalizedAt: now,
+    deadletter: {
+      reason: payload.reason || 'unknown',
+      error: payload.error || null,
+      lastStepId: payload.lastStepId,
+      originalType: payload.originalType,
+      slipSummary: payload.slipSummary,
+      at: now,
+    },
+  });
 }
