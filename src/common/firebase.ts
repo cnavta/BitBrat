@@ -19,7 +19,9 @@ export function configureFirestore(databaseId?: string) {
     configuredDbId = databaseId.trim();
     // If already initialized, re-bind cached instance to the new database id
     if (initialized) {
-      cachedDb = gfs(configuredDbId);
+      const db = gfs(configuredDbId);
+      db.settings({ ignoreUndefinedProperties: true });
+      cachedDb = db;
       logger.debug('firestore.rebound', { databaseId: configuredDbId });
     }
   }
@@ -45,7 +47,9 @@ export function getFirestore() {
       // Admin SDK uses ADC by default when available (service account key or Workload Identity)
     });
     // Bind Firestore to the named database (multi-database support)
-    cachedDb = gfs(databaseId);
+    const db = gfs(databaseId);
+    db.settings({ ignoreUndefinedProperties: true });
+    cachedDb = db;
     initialized = true;
     logger.debug('firestore.initialized');
   }

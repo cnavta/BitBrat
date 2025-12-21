@@ -1,6 +1,12 @@
 import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
-import { TwitchIrcClient, TwitchEnvelopeBuilder, ConfigTwitchCredentialsProvider, FirestoreTwitchCredentialsProvider } from '../services/ingress/twitch';
+import {
+  TwitchIrcClient,
+  TwitchEnvelopeBuilder,
+  ConfigTwitchCredentialsProvider,
+  FirestoreTwitchCredentialsProvider,
+  TwitchEventSubClient
+} from '../services/ingress/twitch';
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
 import { ConnectorManager } from '../services/ingress/core';
@@ -26,9 +32,12 @@ export class IngressEgressServer extends BaseServer {
     PERSISTENCE_TTL_DAYS: 7,
   };
   private twitchClient: TwitchIrcClient | null = null;
+  private twitchEventSubClient: TwitchEventSubClient | null = null;
   private discordClient: DiscordIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
+  private lastStates: Record<string, string> = {};
+  private statusTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     super({ serviceName: SERVICE_NAME });
@@ -82,10 +91,20 @@ export class IngressEgressServer extends BaseServer {
       egressDestinationTopic: egressTopic, // ensure envelope.egressDestination is set on publish
     });
 
+    // Create the EventSub client
+    this.twitchEventSubClient = new TwitchEventSubClient(publisher, cfg.twitchChannels || [], {
+      cfg,
+      credentialsProvider: credsProvider,
+      egressDestinationTopic: egressTopic,
+    });
+
     // Connector Manager wiring (register Twitch + Discord; preserve existing Twitch egress path)
     const manager = new ConnectorManager({ logger });
     if (this.twitchClient) {
       manager.register('twitch', new TwitchConnectorAdapter(this.twitchClient));
+    }
+    if (this.twitchEventSubClient) {
+      manager.register('twitch-eventsub', new TwitchConnectorAdapter(this.twitchEventSubClient as any));
     }
     try {
       const dBuilder = new DiscordEnvelopeBuilder();
@@ -251,6 +270,82 @@ export class IngressEgressServer extends BaseServer {
         res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
       }
     });
+
+    // Start status change monitoring
+    this.startStatusMonitoring();
+  }
+
+  private startStatusMonitoring() {
+    if (this.statusTimer) return;
+    // Perform an initial check immediately to record baseline
+    this.checkStatusChanges().catch(e => logger.warn('ingress-egress.initial_status_check_failed', { error: e.message }));
+    // Then check periodically for changes
+    this.statusTimer = setInterval(() => this.checkStatusChanges(), 15000); // Check every 15s
+  }
+
+  private async checkStatusChanges() {
+    if (!this.connectorManager) return;
+    const snapshots = this.connectorManager.getSnapshot();
+    for (const [name, snap] of Object.entries(snapshots)) {
+      const state = (snap as any).state;
+      if (this.lastStates[name] !== state) {
+        logger.info('ingress-egress.status_change', { name, from: this.lastStates[name] || 'NONE', to: state });
+        this.lastStates[name] = state;
+        await this.publishStatus(name, snap);
+      }
+    }
+  }
+
+  private async publishStatus(name: string, snap: any) {
+    try {
+      const pubRes = this.getResource<PublisherResource>('publisher');
+      if (!pubRes) return;
+
+      const cfg = this.getConfig();
+      const prefix = cfg.busPrefix || '';
+      const subject = `internal.ingress.v1`;
+      const publisher = pubRes.create(`${prefix}${subject}`);
+
+      // Derive platform and id
+      const platform = name.split('-')[0]; // 'twitch' from 'twitch' or 'twitch-eventsub'
+      const id = (snap as any).id || (platform === 'twitch' ? process.env.TWITCH_BOT_USERNAME : undefined) || name;
+
+      const evt: any = {
+        v: '1',
+        source: `ingress.${name}`,
+        correlationId: `status-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: 'system.source.status',
+        payload: {
+          platform,
+          id,
+          status: snap.state,
+          displayName: (snap as any).displayName || name,
+          metrics: snap.counters,
+          lastError: snap.lastError,
+          authStatus: (snap as any).authStatus || 'VALID',
+          metadata: {
+            ...snap
+          }
+        }
+      };
+
+      await publisher.publishJson(evt, {
+        type: 'system.source.status',
+        source: SERVICE_NAME,
+        correlationId: evt.correlationId
+      });
+    } catch (e: any) {
+      logger.warn('ingress-egress.publish_status_failed', { name, error: e.message });
+    }
+  }
+
+  public async stop(): Promise<void> {
+    if (this.statusTimer) {
+      clearInterval(this.statusTimer);
+      this.statusTimer = null;
+    }
+    // ... rest of stop logic if any, but BaseServer handles mostly
+    await super.close();
   }
 }
 
@@ -261,10 +356,8 @@ export function createApp() {
 
 if (require.main === module) {
   BaseServer.ensureRequiredEnv(SERVICE_NAME);
-  const app = createApp();
-  app.listen(PORT, () => {
-    logger.info('[ingress-egress] listening on port ' + PORT);
-  });
+  const server = new IngressEgressServer();
+  void server.start(PORT);
 }
 
 // text extraction now lives in services/egress/selection.ts

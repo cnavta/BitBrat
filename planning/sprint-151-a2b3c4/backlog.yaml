@@ -1,0 +1,97 @@
+sprint: sprint-151-a2b3c4
+title: "User Data Enrichment from Source Platforms"
+status: planning
+owner: Lead Implementor
+items:
+  - id: ENR-01
+    title: "Update AuthUserDoc and UserRepo interfaces"
+    priority: 1
+    status: done
+    estimate: 1
+    depends_on: []
+    acceptance_criteria:
+      - "AuthUserDoc includes profile and rolesMeta objects"
+      - "roles is mandatory string[]"
+      - "ensureUserOnMessage signature updated to accept new fields"
+    tags: [schema, types]
+
+  - id: ENR-02
+    title: "Update FirestoreUserRepo implementation"
+    priority: 2
+    status: done
+    estimate: 2
+    depends_on: [ENR-01]
+    acceptance_criteria:
+      - "ensureUserOnMessage persists profile and rolesMeta"
+      - "Merging logic for rolesMeta ensures platform-specific roles are preserved"
+      - "getById and getByEmail return the full AuthUserDoc"
+    tags: [repo, firestore]
+
+  - id: ENR-03
+    title: "Implement Twitch enrichment logic"
+    priority: 3
+    status: done
+    estimate: 2
+    depends_on: [ENR-02]
+    acceptance_criteria:
+      - "Extracts isMod, isSubscriber, and badges from rawPlatformPayload"
+      - "Maps Twitch flags to normalized roles (moderator, subscriber, broadcaster, vip)"
+      - "Persists login as profile.username"
+    tags: [enrichment, twitch]
+
+  - id: ENR-04
+    title: "Implement Discord enrichment logic"
+    priority: 4
+    status: done
+    estimate: 2
+    depends_on: [ENR-02]
+    acceptance_criteria:
+      - "Extracts roles from Discord rawPlatformPayload"
+      - "Identifies server owner status"
+      - "Persists username as profile.username"
+    tags: [enrichment, discord]
+
+  - id: ENR-05
+    title: "Implement Discord Role Normalization mapping"
+    priority: 5
+    status: done
+    estimate: 2
+    depends_on: [ENR-04]
+    acceptance_criteria:
+      - "Configurable mapping via DISCORD_MOD_ROLES (comma-separated names/IDs)"
+      - "Correctly normalizes Discord roles to 'moderator'"
+    tags: [config, discord]
+
+  - id: ENR-06
+    title: "Update unit tests for enrichment logic"
+    priority: 6
+    status: done
+    estimate: 2
+    depends_on: [ENR-03, ENR-04, ENR-05]
+    acceptance_criteria:
+      - "enrichment.spec.ts covers Twitch mod/sub/vip/broadcaster mapping"
+      - "enrichment.spec.ts covers Discord role-to-moderator mapping"
+      - "Tests verify the final user object in the enriched event"
+    tags: [tests, unit]
+
+  - id: ENR-07
+    title: "Integration tests for user persistence"
+    priority: 7
+    status: done
+    estimate: 2
+    depends_on: [ENR-02]
+    acceptance_criteria:
+      - "Verify Firestore document structure after multiple enrichments"
+      - "Verify merging of rolesMeta from different platforms"
+    tags: [tests, integration]
+
+  - id: ENR-08
+    title: "Final validation and documentation update"
+    priority: 8
+    status: done
+    estimate: 1
+    depends_on: [ENR-06, ENR-07]
+    acceptance_criteria:
+      - "validate_deliverable.sh passes"
+      - "request-log.md and verification-report.md updated"
+    tags: [ci, docs]

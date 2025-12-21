@@ -1,0 +1,93 @@
+meta:
+  backlog_id: sprint-154-e4f5g6-backlog
+  updated_at: 2025-12-21
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-154-e4f5g6
+  start: 2025-12-21
+  end: 2026-01-04
+  wip_limit: 3
+  goal: "Enable persistence service to handle DLQs and finalize events with error states."
+
+items:
+  - id: BL-001
+    title: "Update architecture.yaml service definition"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "persistence service consumes internal.deadletter.v1"
+      - "persistence service consumes internal.router.dlq.v1"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T16:30:00Z
+        note: "Added DLQ topics to persistence service in architecture.yaml"
+
+  - id: BL-002
+    title: "Update Persistence Data Models"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "EventDocV1 includes deadletter field"
+      - "normalizeDeadLetter function implemented in model.ts"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T16:32:00Z
+        note: "Extended EventDocV1 and implemented normalizeDeadLetterPayload in model.ts"
+
+  - id: BL-003
+    title: "Implement applyDeadLetter in PersistenceStore"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "applyDeadLetter updates Firestore document with status ERROR"
+      - "applyDeadLetter populates deadletter field"
+      - "Method is idempotent"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T16:35:00Z
+        note: "Implemented applyDeadLetter method in PersistenceStore"
+
+  - id: BL-004
+    title: "Update Persistence Service handlers"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001, BL-003]
+    blocked_reason: null
+    acceptance:
+      - "Subscriptions added for DLQ topics"
+      - "Messages routed to applyDeadLetter"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T16:38:00Z
+        note: "Added message subscriptions for DLQ topics in persistence-service.ts"
+
+  - id: BL-005
+    title: "Testing and Validation"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-004]
+    blocked_reason: null
+    acceptance:
+      - "Unit tests for applyDeadLetter pass"
+      - "validate_deliverable.sh exists and passes"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T16:45:00Z
+        note: "Created unit tests in store.spec.ts and validate_deliverable.sh. All tests passed."

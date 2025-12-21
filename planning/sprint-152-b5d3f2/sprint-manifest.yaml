@@ -1,0 +1,12 @@
+id: sprint-152-b5d3f2
+title: "Twitch EventSub WebSocket Integration (Part 1)"
+goal: "Establish Twitch EventSub WebSocket connection, listen for channel.update/follow, and normalize to InternalEventV2."
+owner: "Junie (AI Architect)"
+createdAt: "2025-12-20T22:19:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-152-b5d3f2-twitch-eventsub-websocket"
+notes: |
+  Initial support for Twitch EventSub via WebSockets.
+  Focus on channel.update and channel.follow events.
+  Requires extending InternalEventV2 to support non-message behavioral events.

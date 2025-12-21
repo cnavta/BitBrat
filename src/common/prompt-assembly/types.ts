@@ -42,6 +42,7 @@ export interface RequestingUser {
   locale?: string; // BCP-47, e.g., "en-US"
   timezone?: string; // IANA TZ
   tier?: string; // e.g., "pro", "free"
+  notes?: string; // Ad hoc notes about user
 }
 
 export interface Constraint {

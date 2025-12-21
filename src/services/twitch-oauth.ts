@@ -8,7 +8,19 @@ function hmacSHA256(secret: string, data: string) {
 }
 
 function buildAuthUrl(cfg: IConfig, state: string, redirectUri: string): string {
-  const defaultScopes = ['chat:read','chat:edit','channel:read:subscriptions','user:read:follows','moderator:read:followers','channel:read:vips', 'channel:read:redemptions'];
+  const defaultScopes = [
+    'chat:read',
+    'chat:edit',
+    'channel:read:subscriptions',
+    'user:read:follows',
+    'moderator:read:followers',
+    'channel:read:vips',
+    'channel:read:redemptions',
+    'moderation:read',
+    'bits:read',
+    'moderator:read:shoutouts',
+    'user:read:email',
+  ];
   const scopes = (cfg.twitchScopes && cfg.twitchScopes.length ? cfg.twitchScopes : defaultScopes).join(' ');
   const params = new URLSearchParams({
     client_id: cfg.twitchClientId || '',

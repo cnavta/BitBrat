@@ -425,6 +425,7 @@ export async function processEvent(
             locale: (u as any)?.locale,
             timezone: (u as any)?.timezone,
             tier: (u as any)?.tier,
+            notes: u?.notes
           };
           const hasAny = Object.values(obj).some((v) => Boolean(v) && (Array.isArray(v) ? v.length > 0 : true));
           return hasAny ? obj : undefined;

@@ -70,6 +70,7 @@ function renderRequestingUser(spec: PromptSpec, cfg: AssemblerConfig): string {
   if (u.roles?.length) lines.push(`- Roles: [${u.roles.join(", ")}]`);
   if (u.locale || u.timezone) lines.push(`- Locale: ${u.locale ?? "n/a"}; TZ: ${u.timezone ?? "n/a"}`);
   if (u.tier) lines.push(`- Tier: ${u.tier}`);
+  if (u.notes) lines.push(`- Notes: ${u.notes}`);
   return lines.join("\n");
 }
 

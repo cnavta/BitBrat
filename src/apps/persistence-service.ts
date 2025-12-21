@@ -8,7 +8,9 @@ const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10
 
 const RAW_CONSUMED_TOPICS: string[] = [
   "internal.ingress.v1",
-  "internal.persistence.finalize.v1"
+  "internal.persistence.finalize.v1",
+  "internal.deadletter.v1",
+  "internal.router.dlq.v1"
 ];
 
 class PersistenceServer extends BaseServer {
@@ -49,7 +51,13 @@ class PersistenceServer extends BaseServer {
                   this.getLogger().warn('persistence.firestore.unavailable');
                 } else {
                   const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.upsertIngressEvent(msg);
+                  
+                  // Route system events to upsertSourceState, others to upsertIngressEvent
+                  if (msg.type?.startsWith('system.')) {
+                    await store.upsertSourceState(msg);
+                  } else {
+                    await store.upsertIngressEvent(msg);
+                  }
                 }
                 await ctx.ack();
               } catch (e: any) {
@@ -84,6 +92,74 @@ class PersistenceServer extends BaseServer {
                 } else {
                   const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
                   await store.applyFinalization(msg as any);
+                }
+                await ctx.ack();
+              } catch (e: any) {
+                this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
+                await ctx.ack();
+              }
+            }
+          );
+          this.getLogger().info('persistence.subscribe.ok', { destination, queue });
+        } catch (e: any) {
+          this.getLogger().error('persistence.subscribe.error', { destination, queue, error: e?.message || String(e) });
+        }
+      }
+
+      { // subscription for internal.deadletter.v1
+        const raw = "internal.deadletter.v1";
+        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
+        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
+        try {
+          await this.onMessage<any>(
+            { destination, queue, ack: 'explicit' },
+            async (msg: any, _attributes, ctx) => {
+              try {
+                this.getLogger().info('persistence.message.received', {
+                  destination,
+                  type: msg?.type,
+                  correlationId: msg?.correlationId || msg?.envelope?.correlationId,
+                });
+                const firestore = this.getResource<any>('firestore');
+                if (!firestore) {
+                  this.getLogger().warn('persistence.firestore.unavailable');
+                } else {
+                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
+                  await store.applyDeadLetter(msg);
+                }
+                await ctx.ack();
+              } catch (e: any) {
+                this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
+                await ctx.ack();
+              }
+            }
+          );
+          this.getLogger().info('persistence.subscribe.ok', { destination, queue });
+        } catch (e: any) {
+          this.getLogger().error('persistence.subscribe.error', { destination, queue, error: e?.message || String(e) });
+        }
+      }
+
+      { // subscription for internal.router.dlq.v1
+        const raw = "internal.router.dlq.v1";
+        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
+        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
+        try {
+          await this.onMessage<any>(
+            { destination, queue, ack: 'explicit' },
+            async (msg: any, _attributes, ctx) => {
+              try {
+                this.getLogger().info('persistence.message.received', {
+                  destination,
+                  type: msg?.type,
+                  correlationId: msg?.correlationId || msg?.envelope?.correlationId,
+                });
+                const firestore = this.getResource<any>('firestore');
+                if (!firestore) {
+                  this.getLogger().warn('persistence.firestore.unavailable');
+                } else {
+                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
+                  await store.applyDeadLetter(msg);
                 }
                 await ctx.ack();
               } catch (e: any) {

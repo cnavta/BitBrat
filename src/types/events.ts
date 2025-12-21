@@ -70,6 +70,10 @@ export type InternalEventType =
   | 'llm.response.v1'
   | 'router.route.v1'
   | 'egress.deliver.v1'
+  | 'twitch.eventsub.v1'
+  | 'system.source.status'
+  | 'system.stream.online'
+  | 'system.stream.offline'
   | string;
 
 export type RoutingStatus = 'PENDING' | 'OK' | 'ERROR' | 'SKIP';
@@ -179,6 +183,19 @@ export interface QOSV1 {
 }
 
 /**
+ * Sprint 152 — Behavioral Event Support
+ */
+export interface ExternalEventV1 {
+  id: string; // Platform-specific event ID
+  source: string; // e.g., "twitch.eventsub"
+  kind: string; // e.g., "channel.follow", "channel.update"
+  version: string; // Event schema version from the platform
+  createdAt: string; // ISO8601
+  payload: Record<string, any>; // Normalized platform-specific data
+  rawPayload?: Record<string, any>; // Optional original platform payload
+}
+
+/**
  * InternalEventV2 extends the EnvelopeV1 fields at the top level (no `envelope` nesting),
  * and adds normalized message metadata along with annotations and candidate replies.
  */
@@ -186,7 +203,9 @@ export interface InternalEventV2 extends EnvelopeV1 {
   type: InternalEventType;
   channel?: string; // #channel if applicable
   userId?: string; // optional twitch user id, etc.
-  message: MessageV1;
+  payload?: Record<string, any>; // Optional: fallback for system or non-message events
+  message?: MessageV1; // Optional: present for chat/text events
+  externalEvent?: ExternalEventV1; // Optional: present for behavioral events
   annotations?: AnnotationV1[];
   candidates?: CandidateV1[];
   errors?: ErrorEntryV1[];

@@ -5,8 +5,21 @@ export interface AuthUserDoc {
   id: string;
   email?: string;
   displayName?: string;
-  roles?: string[];
+  roles: string[];
   status?: string;
+
+  profile?: {
+    username: string;
+    description?: string;
+    avatarUrl?: string;
+    updatedAt: string;
+  };
+
+  rolesMeta?: {
+    twitch?: string[];
+    discord?: string[];
+  };
+
   // Enrichment v1 extensions (optional/persistent)
   notes?: string;
   tags?: string[];
@@ -27,9 +40,25 @@ export interface UserRepo {
   /** Optional: upsert user and update counters/session on message arrival. Implemented when backed by Firestore. */
   ensureUserOnMessage?(
     id: string,
-    data: { provider?: string; providerUserId?: string; displayName?: string; email?: string },
+    data: {
+      provider?: string;
+      providerUserId?: string;
+      displayName?: string;
+      email?: string;
+      profile?: AuthUserDoc['profile'];
+      roles?: string[];
+      rolesMeta?: AuthUserDoc['rolesMeta'];
+    },
     nowIso: string
   ): Promise<{ doc: AuthUserDoc; created: boolean; isFirstMessage: boolean; isNewSession: boolean }>;
+}
+
+function removeUndefined(obj: any): any {
+  const out: any = {};
+  for (const k in obj) {
+    if (obj[k] !== undefined) out[k] = obj[k];
+  }
+  return out;
 }
 
 /** Firestore-backed user repository */
@@ -51,8 +80,10 @@ export class FirestoreUserRepo implements UserRepo {
       id: snap.id,
       email: data?.email,
       displayName: data?.displayName,
-      roles: Array.isArray(data?.roles) ? data.roles : undefined,
+      roles: Array.isArray(data?.roles) ? data.roles : [],
       status: data?.status,
+      profile: data?.profile,
+      rolesMeta: data?.rolesMeta,
     };
   }
 
@@ -67,14 +98,24 @@ export class FirestoreUserRepo implements UserRepo {
       id: doc.id,
       email: data?.email,
       displayName: data?.displayName,
-      roles: Array.isArray(data?.roles) ? data.roles : undefined,
+      roles: Array.isArray(data?.roles) ? data.roles : [],
       status: data?.status,
+      profile: data?.profile,
+      rolesMeta: data?.rolesMeta,
     };
   }
 
   async ensureUserOnMessage(
     id: string,
-    data: { provider?: string; providerUserId?: string; displayName?: string; email?: string },
+    data: {
+      provider?: string;
+      providerUserId?: string;
+      displayName?: string;
+      email?: string;
+      profile?: AuthUserDoc['profile'];
+      roles?: string[];
+      rolesMeta?: AuthUserDoc['rolesMeta'];
+    },
     nowIso: string
   ): Promise<{ doc: AuthUserDoc; created: boolean; isFirstMessage: boolean; isNewSession: boolean }> {
     const db = this.db || getFirestore();
@@ -87,6 +128,9 @@ export class FirestoreUserRepo implements UserRepo {
         providerUserId: data.providerUserId,
         email: data.email,
         displayName: data.displayName,
+        roles: data.roles || [],
+        profile: data.profile,
+        rolesMeta: data.rolesMeta,
         firstSeenAt: nowIso,
         lastSeenAt: nowIso,
         lastMessageAt: nowIso,
@@ -97,7 +141,7 @@ export class FirestoreUserRepo implements UserRepo {
         lastSessionActivityAt: nowIso,
         ...(providerTag ? { tags: [providerTag] } : {}),
       };
-      await ref.set(initial, { merge: true });
+      await ref.set(removeUndefined(initial), { merge: true });
       return {
         doc: { id, ...initial },
         created: true,
@@ -115,18 +159,38 @@ export class FirestoreUserRepo implements UserRepo {
 
     const messageCountAllTime = (dataExisting?.messageCountAllTime || 0) + 1;
     const sessionCount = (dataExisting?.sessionCount || 0) + (isNewSession ? 1 : 0);
+
+    // Merge roles and rolesMeta
+    const mergedRoles = new Set<string>(dataExisting?.roles || []);
+    if (data.roles) {
+      data.roles.forEach(r => mergedRoles.add(r));
+    }
+
+    const mergedRolesMeta = { ...(dataExisting?.rolesMeta || {}) };
+    if (data.rolesMeta) {
+      if (data.rolesMeta.twitch) mergedRolesMeta.twitch = data.rolesMeta.twitch;
+      if (data.rolesMeta.discord) mergedRolesMeta.discord = data.rolesMeta.discord;
+    }
+
     const update: any = {
       lastSeenAt: nowIso,
       lastMessageAt: nowIso,
       lastSessionActivityAt: nowIso,
       messageCountAllTime,
       sessionCount,
+      roles: Array.from(mergedRoles),
+      rolesMeta: mergedRolesMeta,
     };
+
+    if (data.displayName) update.displayName = data.displayName;
+    if (data.email) update.email = data.email;
+    if (data.profile) update.profile = data.profile;
+
     if (isNewSession) {
       update.lastSessionId = `sess_${id}_${Math.random().toString(36).slice(2, 8)}`;
       update.lastSessionStartedAt = nowIso;
     }
-    await ref.set(update, { merge: true });
+    await ref.set(removeUndefined(update), { merge: true });
 
     const merged = { id, ...dataExisting, ...update } as AuthUserDoc;
     return {

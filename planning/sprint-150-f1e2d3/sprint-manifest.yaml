@@ -1,0 +1,12 @@
+id: sprint-150-f1e2d3
+title: "Fix Firestore Undefined Field Error in Auth Service"
+goal: "Prevent Firestore 'Value for argument \"data\" is not a valid Firestore document' errors caused by undefined 'email' fields during user creation/update."
+owner: "@christophernavta"
+createdAt: "2025-12-19T14:55:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/50"
+  branch: "feature/sprint-150-f1e2d3-fix-firestore-undefined-email"
+notes: |
+  Error: Value for argument "data" is not a valid Firestore document. Cannot use "undefined" as a Firestore value (found in field "email").
+  Occurs in Auth service during user creation.

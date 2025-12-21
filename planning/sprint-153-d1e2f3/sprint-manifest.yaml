@@ -1,0 +1,11 @@
+id: sprint-153-d1e2f3
+title: "Source State Awareness & Firestore Integration"
+goal: "Establish platform-wide awareness of ingress source status (Twitch/Discord) and stream status, persisted in Firestore."
+owner: "Junie (AI Architect)"
+createdAt: "2025-12-21T12:28:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-153-d1e2f3-source-state-architecture"
+notes: |
+  Focus on architectural design for tracking source connectivity and stream status.
+  Initial implementation includes Twitch stream.online/offline events.

@@ -21,6 +21,7 @@ export interface DiscordMessageMeta {
   createdAt?: string;
   mentions?: string[];
   roles?: string[];
+  isOwner?: boolean;
   raw?: Record<string, unknown>;
 }
 
@@ -170,6 +171,7 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
           createdAt: msg.createdAt ? new Date(msg.createdAt).toISOString() : new Date().toISOString(),
           mentions: Array.isArray(msg.mentions?.users ? [...msg.mentions.users.keys()] : []) ? [...msg.mentions.users.keys()] : undefined,
           roles: Array.isArray(msg.member?.roles ? [...msg.member.roles.cache.keys()] : []) ? [...msg.member.roles.cache.keys()] : undefined,
+          isOwner: msg.guild?.ownerId === msg.author?.id,
           raw: undefined,
         };
 

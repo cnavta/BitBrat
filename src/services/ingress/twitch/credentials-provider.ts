@@ -28,6 +28,8 @@ export interface TwitchChatAuth {
 export interface ITwitchCredentialsProvider {
   /** Resolve chat auth for the given channel login or id. Implementation may accept either. */
   getChatAuth(loginOrChannel: string): Promise<TwitchChatAuth>;
+  /** Resolve broadcaster auth from a known path (e.g., /oauth/twitch/broadcaster/token) if available. */
+  getBroadcasterAuth?(loginOrChannel: string): Promise<TwitchChatAuth | null>;
   /** Optional hook for persisting refreshed tokens (used with Twurple RefreshingAuthProvider). */
   saveRefreshedToken?(token: TwitchTokenData): Promise<void>;
 }
@@ -68,6 +70,11 @@ export class EnvTwitchCredentialsProvider implements ITwitchCredentialsProvider 
     }
     return { accessToken, userId: userId || undefined, login };
   }
+
+  async getBroadcasterAuth(_loginOrChannel: string): Promise<TwitchChatAuth | null> {
+    // Env provider doesn't currently distinguish broadcaster tokens in env
+    return null;
+  }
 }
 
 /**
@@ -91,6 +98,10 @@ export class ConfigTwitchCredentialsProvider implements ITwitchCredentialsProvid
     }
     return { accessToken, userId: userId || undefined, login };
   }
+
+  async getBroadcasterAuth(_loginOrChannel: string): Promise<TwitchChatAuth | null> {
+    return null;
+  }
 }
 
 /**
@@ -101,10 +112,14 @@ export class ConfigTwitchCredentialsProvider implements ITwitchCredentialsProvid
  */
 export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsProvider {
   private readonly store: FirestoreTokenStore;
+  private readonly broadcasterStore: FirestoreTokenStore;
   private readonly loginHint?: string;
+  private botUserId?: string;
+  private broadcasterUserId?: string;
 
   constructor(private readonly cfg: IConfig, store?: FirestoreTokenStore) {
     this.store = store || new FirestoreTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot');
+    this.broadcasterStore = new FirestoreTokenStore('oauth/twitch/broadcaster');
     this.loginHint = cfg.twitchBotUsername;
   }
 
@@ -113,6 +128,9 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
     const login = (this.loginHint || loginOrChannel || '').toLowerCase();
     if (!token || !token.accessToken) {
       throw new Error('FirestoreTwitchCredentialsProvider: no token in store');
+    }
+    if (token.userId) {
+      this.botUserId = token.userId;
     }
     return {
       accessToken: token.accessToken,
@@ -125,7 +143,38 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
     };
   }
 
+  async getBroadcasterAuth(loginOrChannel: string): Promise<TwitchChatAuth | null> {
+    const token = await this.broadcasterStore.getToken();
+    if (!token || !token.accessToken) {
+      return null;
+    }
+    if (token.userId) {
+      this.broadcasterUserId = token.userId;
+    }
+    return {
+      accessToken: token.accessToken,
+      userId: token.userId ?? undefined,
+      login: loginOrChannel.toLowerCase(),
+      refreshToken: token.refreshToken ?? null,
+      scope: token.scope ?? [],
+      expiresIn: token.expiresIn ?? null,
+      obtainmentTimestamp: token.obtainmentTimestamp ?? null,
+    };
+  }
+
   async saveRefreshedToken(token: TwitchTokenData): Promise<void> {
-    await this.store.setToken(token);
+    const botId = this.cfg.twitchBotUserId || this.botUserId;
+    if (token.userId && token.userId === this.broadcasterUserId) {
+      await this.broadcasterStore.setToken(token);
+    } else if (botId) {
+      // If we know the bot's userId, ensure we don't overwrite it with an aliased ID
+      await this.store.setToken({
+        ...token,
+        userId: botId,
+      });
+    } else {
+      // Fallback: save as is if we haven't loaded the bot token yet
+      await this.store.setToken(token);
+    }
   }
 }
