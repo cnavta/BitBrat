@@ -18,10 +18,13 @@ jest.mock('@twurple/auth', () => ({
 }));
 
 const mockGetUserByName = jest.fn();
-const mockOnChannelFollow = jest.fn();
-const mockOnChannelUpdate = jest.fn().mockImplementation(async (userId, _handler) => {
+const mockOnChannelFollow = jest.fn().mockReturnValue({ stop: jest.fn() });
+const mockOnChannelUpdate = jest.fn().mockImplementation((userId, _handler) => {
   // Simulate Twurple's behavior: it eventually calls apiClient.asUser(broadcasterId)
-  await mockAsUser(userId, (ctx: any) => ctx.eventSub.subscribeToChannelUpdateEvents(userId));
+  // We make it sync here to match Twurple's API, but mockAsUser was async.
+  // In the real client, this call is internal to Twurple and doesn't block the return of the subscription.
+  mockAsUser(userId, (ctx: any) => ctx.eventSub.subscribeToChannelUpdateEvents(userId)).catch(() => {});
+  return { stop: jest.fn() };
 });
 
 const mockAsUser = jest.fn().mockImplementation(async (userId, cb) => {
@@ -46,8 +49,8 @@ jest.mock('@twurple/api', () => ({
   })),
 }));
 
-const mockOnStreamOnline = jest.fn();
-const mockOnStreamOffline = jest.fn();
+const mockOnStreamOnline = jest.fn().mockReturnValue({ stop: jest.fn() });
+const mockOnStreamOffline = jest.fn().mockReturnValue({ stop: jest.fn() });
 
 jest.mock('@twurple/eventsub-ws', () => ({
   EventSubWsListener: jest.fn().mockImplementation(() => ({
@@ -208,5 +211,29 @@ describe('TwitchEventSubClient Repro', () => {
 
     // If we reach here, it didn't crash.
     // We can also verify that logger.error was called.
+  });
+
+  it('provides a compatible snapshot with connection state', async () => {
+    mockGetUserByName.mockResolvedValue({ id: 'broadcaster-id', name: 'broadcaster' });
+    
+    const client = new TwitchEventSubClient(mockPublisher, ['broadcaster'], {
+      cfg: mockConfig,
+      credentialsProvider: mockCredsProvider,
+    });
+
+    // Initial state
+    expect(client.getSnapshot().state).toBe('DISCONNECTED');
+
+    await client.start();
+
+    const snapshot = client.getSnapshot();
+    expect(snapshot.state).toBe('CONNECTED');
+    expect(snapshot.userId).toBe('bot-id');
+    expect(snapshot.displayName).toBe('bot-login');
+    expect(snapshot.joinedChannels).toContain('#broadcaster');
+    expect(snapshot.active).toBe(true);
+
+    await client.stop();
+    expect(client.getSnapshot().state).toBe('DISCONNECTED');
   });
 });

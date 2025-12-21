@@ -31,6 +31,8 @@ export class TwitchConnectorAdapter implements IngressConnector {
     const s: TwitchIrcDebugSnapshot = this.client.getSnapshot();
     return {
       state: mapState(s.state),
+      id: s.userId,
+      displayName: s.displayName,
       lastError: s.lastError || undefined,
       counters: s.counters || undefined,
       joinedChannels: Array.isArray(s.joinedChannels) ? [...s.joinedChannels] : [],

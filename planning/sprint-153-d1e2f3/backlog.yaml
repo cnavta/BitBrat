@@ -141,3 +141,37 @@ items:
     log:
       - at: 2025-12-21T13:35:00Z
         note: "Fixed crash in stream.online handler and added defensive error handling."
+
+  - id: BL-153-09
+    title: "Restore Firestore Persistence for Source State"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-153-04, BL-153-07]
+    blocked_reason: null
+    acceptance:
+      - "normalizeStreamEvent includes platform and id"
+      - "system.source.status published on state change in ingress-egress"
+      - "Verified persistence of stream status via tests"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T14:10:00Z
+        note: "Fixed missing fields in persistence model and re-introduced event-driven status updates."
+
+  - id: BL-153-10
+    title: "Fix EventSub ERROR state in Firestore"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-153-03, BL-153-09]
+    blocked_reason: null
+    acceptance:
+      - "TwitchEventSubClient tracks connection state"
+      - "TwitchEventSubClient snapshot includes state, userId, and displayName"
+      - "TwitchConnectorAdapter correctly maps EventSub state (not defaulting to ERROR)"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T14:20:00Z
+        note: "Added state tracking to TwitchEventSubClient to fix incorrect ERROR status in Firestore."

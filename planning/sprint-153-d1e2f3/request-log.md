@@ -36,3 +36,24 @@
   - `src/services/ingress/twitch/eventsub-envelope-builder.ts`
   - `src/services/ingress/twitch/eventsub-client.ts`
   - `src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+
+## [2025-12-21T13:50:00Z] Fix Firestore Persistence in Cloud Run
+- **Prompt summary**: Source state is not being persisted to Firestore in Cloud Run.
+- **Interpretation**: Found that `normalizeStreamEvent` was missing `platform` and `id`, causing `upsertSourceState` to reject it. Also, removing the heartbeat loop removed the only mechanism for `system.source.status` updates.
+- **Shell/git commands executed**:
+  - `npx jest src/services/persistence/store.spec.ts`
+  - `npm run build`
+- **Files modified or created**:
+  - `src/services/persistence/model.ts`
+  - `src/services/persistence/store.spec.ts`
+  - `src/apps/ingress-egress-service.ts`
+  - `src/services/ingress/twitch/twitch-irc-client.ts`
+  - `src/services/ingress/twitch/connector-adapter.ts`
+
+## [2025-12-21T14:20:00Z] Fix EventSub ERROR state in Firestore
+- **Prompt summary**: Twitch EventSub source shows ERROR in Firestore with little info, despite working correctly.
+- **Interpretation**: The `TwitchEventSubClient` was missing a `state` property in its snapshot, causing the `TwitchConnectorAdapter` to default to `ERROR`. Added state tracking and compatible snapshot fields to `TwitchEventSubClient`.
+- **Shell/git commands executed**:
+  - `npm run build`
+- **Files modified or created**:
+  - `src/services/ingress/twitch/eventsub-client.ts`

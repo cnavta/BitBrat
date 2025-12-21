@@ -124,4 +124,37 @@ describe('PersistenceStore', () => {
     else iso = undefined;
     expect(iso).toBe(expected.toISOString());
   });
+
+  test('upsertSourceState handles stream online/offline events', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twitch.eventsub',
+      type: 'system.stream.online',
+      correlationId: 'c-stream-1',
+      userId: '12345',
+      externalEvent: {
+        source: 'twitch.eventsub',
+        payload: {
+          broadcasterId: '12345',
+          broadcasterLogin: 'testuser',
+          viewer_count: 100
+        }
+      }
+    } as any;
+    
+    await store.upsertSourceState(evt);
+    expect(db.__fns.collection).toHaveBeenCalledWith('sources');
+    expect(db.__fns.doc).toHaveBeenCalledWith('twitch:12345');
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[0]).toMatchObject({
+      platform: 'twitch',
+      id: '12345',
+      streamStatus: 'ONLINE',
+      viewerCount: 100
+    });
+  });
 });

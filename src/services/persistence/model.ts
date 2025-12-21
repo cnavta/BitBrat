@@ -146,7 +146,13 @@ export function normalizeStreamEvent(evt: InternalEventV2): Partial<SourceDocV1>
   const now = new Date().toISOString();
   const isOnline = evt.type === 'system.stream.online';
 
+  // Derive platform and id
+  const platform = payload.platform || evt.externalEvent?.source?.split('.')[0] || evt.source?.split('.')[1] || 'unknown';
+  const id = payload.id || payload.broadcasterId || evt.userId || (payload.source && payload.source.includes(':') ? payload.source.split(':')[1] : undefined);
+
   const patch: Partial<SourceDocV1> = {
+    platform,
+    id,
     streamStatus: isOnline ? 'ONLINE' : 'OFFLINE',
     lastStreamUpdate: now,
     viewerCount: payload.viewer_count,

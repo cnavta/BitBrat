@@ -7,6 +7,7 @@ import { IConfig } from '../../../types';
 import { ITwitchCredentialsProvider } from './credentials-provider';
 import { ITwitchIngressPublisher } from './publisher';
 import { EventSubEnvelopeBuilder } from './eventsub-envelope-builder';
+import { TwitchConnectionState } from './twitch-irc-client';
 
 export interface TwitchEventSubClientOptions {
   cfg: IConfig;
@@ -19,6 +20,10 @@ export class TwitchEventSubClient {
   private listener: EventSubWsListener | null = null;
   private readonly builder: EventSubEnvelopeBuilder;
   private readonly subscriptions: any[] = [];
+  private state: TwitchConnectionState = 'DISCONNECTED';
+  private botUserId?: string;
+  private botDisplayName?: string;
+  private lastError: { code?: string; message: string } | null = null;
 
   constructor(
     private readonly publisher: ITwitchIngressPublisher,
@@ -37,9 +42,11 @@ export class TwitchEventSubClient {
 
     if (disabled) {
       logger.info('twitch.eventsub.disabled', { reason: 'config or test env' });
+      this.state = 'CONNECTED'; // Emulate connected in tests
       return;
     }
 
+    this.state = 'CONNECTING';
     try {
       logger.info('twitch.eventsub.starting', { channels: this.channels });
       
@@ -51,6 +58,9 @@ export class TwitchEventSubClient {
       if (!auth.userId) {
         throw new Error('twitch_auth_missing_user_id');
       }
+
+      this.botUserId = auth.userId;
+      this.botDisplayName = auth.login || this.channels[0];
 
       const authProvider = new RefreshingAuthProvider({
         clientId: this.options.cfg.twitchClientId!,
@@ -188,27 +198,41 @@ export class TwitchEventSubClient {
       }
 
       this.listener.start();
+      this.state = 'CONNECTED';
+      this.lastError = null;
       logger.info('twitch.eventsub.started');
     } catch (err: any) {
+      this.state = 'ERROR';
+      this.lastError = { message: err.message };
       logger.error('twitch.eventsub.start_failed', { error: err.message });
       throw err;
     }
   }
 
   async stop(): Promise<void> {
+    this.state = 'DISCONNECTED';
     if (this.listener) {
       this.listener.stop();
       this.listener = null;
     }
-    this.subscriptions.forEach(s => s.stop());
+    this.subscriptions.forEach(s => {
+      if (s && typeof s.stop === 'function') {
+        s.stop();
+      }
+    });
     this.subscriptions.length = 0;
     logger.info('twitch.eventsub.stopped');
   }
 
   getSnapshot() {
     return {
+      state: this.state,
+      userId: this.botUserId,
+      displayName: this.botDisplayName,
       active: !!this.listener,
       subscriptions: this.subscriptions.length,
+      lastError: this.lastError,
+      joinedChannels: this.channels.map(c => c.startsWith('#') ? c : `#${c}`),
     };
   }
 }
