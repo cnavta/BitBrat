@@ -1,6 +1,12 @@
 import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
-import { TwitchIrcClient, TwitchEnvelopeBuilder, ConfigTwitchCredentialsProvider, FirestoreTwitchCredentialsProvider } from '../services/ingress/twitch';
+import {
+  TwitchIrcClient,
+  TwitchEnvelopeBuilder,
+  ConfigTwitchCredentialsProvider,
+  FirestoreTwitchCredentialsProvider,
+  TwitchEventSubClient
+} from '../services/ingress/twitch';
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
 import { ConnectorManager } from '../services/ingress/core';
@@ -26,6 +32,7 @@ export class IngressEgressServer extends BaseServer {
     PERSISTENCE_TTL_DAYS: 7,
   };
   private twitchClient: TwitchIrcClient | null = null;
+  private twitchEventSubClient: TwitchEventSubClient | null = null;
   private discordClient: DiscordIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
@@ -82,10 +89,20 @@ export class IngressEgressServer extends BaseServer {
       egressDestinationTopic: egressTopic, // ensure envelope.egressDestination is set on publish
     });
 
+    // Create the EventSub client
+    this.twitchEventSubClient = new TwitchEventSubClient(publisher, cfg.twitchChannels || [], {
+      cfg,
+      credentialsProvider: credsProvider,
+      egressDestinationTopic: egressTopic,
+    });
+
     // Connector Manager wiring (register Twitch + Discord; preserve existing Twitch egress path)
     const manager = new ConnectorManager({ logger });
     if (this.twitchClient) {
       manager.register('twitch', new TwitchConnectorAdapter(this.twitchClient));
+    }
+    if (this.twitchEventSubClient) {
+      manager.register('twitch-eventsub', new TwitchConnectorAdapter(this.twitchEventSubClient as any));
     }
     try {
       const dBuilder = new DiscordEnvelopeBuilder();

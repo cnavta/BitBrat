@@ -20,6 +20,17 @@ describe('ingress-egress finalize publish', () => {
       handlers.push({ destination, handler });
       return () => {};
     });
+
+    // Mock TwitchEventSubClient to avoid starting it during finalize tests
+    jest.mock('../services/ingress/twitch', () => ({
+      ...jest.requireActual('../services/ingress/twitch'),
+      TwitchEventSubClient: jest.fn().mockImplementation(() => ({
+        start: jest.fn().mockResolvedValue(undefined),
+        stop: jest.fn().mockResolvedValue(undefined),
+        getSnapshot: jest.fn().mockReturnValue({ active: false, subscriptions: 0 })
+      }))
+    }));
+
     // Mock publisher resource to capture finalize publish calls
     jest.spyOn(BaseServer.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
       const key = args[0] as string;

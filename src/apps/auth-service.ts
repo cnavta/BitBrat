@@ -74,6 +74,7 @@ class AuthServer extends BaseServer {
 
               const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
               publisher.publishJson(enrichedV2, pubAttrs);
+              logger.debug('auth.publish', { event: enrichedV2 });
               logger.info('auth.publish.ok', { subject: outputSubject });
             };
             if (tracer && typeof tracer.startActiveSpan === 'function') {

@@ -22,6 +22,8 @@ function resolveCandidateId(evt: InternalEventV2): string | undefined {
     (typeof anyEvt.userId === 'string' ? anyEvt.userId : undefined) ||
     anyEvt?.message?.rawPlatformPayload?.userId ||
     anyEvt?.message?.rawPlatformPayload?.user?.id ||
+    anyEvt?.externalEvent?.payload?.userId ||
+    anyEvt?.externalEvent?.payload?.broadcasterId ||
     undefined
   );
 }
@@ -199,20 +201,21 @@ export async function enrichEvent(
 }
 
 function mapTwitchEnrichment(evt: InternalEventV2, nowIso: string) {
-  const payload = (evt as any).message?.rawPlatformPayload || {};
+  const messagePayload = (evt as any).message?.rawPlatformPayload || {};
+  const externalPayload = (evt as any).externalEvent?.payload || {};
   const roles: string[] = [];
   const twitchRoles: string[] = [];
 
-  if (payload.isMod) {
+  if (messagePayload.isMod) {
     roles.push('moderator');
     twitchRoles.push('moderator');
   }
-  if (payload.isSubscriber) {
+  if (messagePayload.isSubscriber) {
     roles.push('subscriber');
     twitchRoles.push('subscriber');
   }
 
-  const badges = payload.badges || [];
+  const badges = messagePayload.badges || [];
   if (badges.includes('broadcaster')) {
     roles.push('broadcaster');
     twitchRoles.push('broadcaster');
@@ -223,9 +226,9 @@ function mapTwitchEnrichment(evt: InternalEventV2, nowIso: string) {
   }
 
   return {
-    displayName: payload.user?.displayName,
+    displayName: messagePayload.user?.displayName || externalPayload.userDisplayName || externalPayload.broadcasterDisplayName,
     profile: {
-      username: payload.user?.login || '',
+      username: messagePayload.user?.login || externalPayload.userLogin || externalPayload.broadcasterLogin || '',
       updatedAt: nowIso,
     },
     roles,

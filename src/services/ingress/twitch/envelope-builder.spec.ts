@@ -32,16 +32,16 @@ describe('TwitchEnvelopeBuilder', () => {
     expect(evt.type).toBe('chat.message.v1');
     expect(evt.channel).toBe('#bitbrat');
     expect(evt.userId).toBe('123');
-    expect(evt.message.text).toBe('Hello 👋');
-    expect(evt.message.id).toBe('abc');
-    expect(evt.message.rawPlatformPayload?.user?.login).toBe('someuser');
-    expect(evt.message.rawPlatformPayload?.user?.displayName).toBe('SomeUser');
-    expect(evt.message.rawPlatformPayload?.roomId).toBe('456');
-    expect(evt.message.rawPlatformPayload?.color).toBe('#AABBCC');
-    expect(evt.message.rawPlatformPayload?.badges).toEqual(['subscriber']);
-    expect(evt.message.rawPlatformPayload?.isSubscriber).toBe(true);
-    expect(evt.message.rawPlatformPayload?.emotes).toEqual([{ id: '25', start: 6, end: 7 }]);
-    expect(evt.message.rawPlatformPayload?.timestamp).toBe(fixedNow);
+    expect(evt.message?.text).toBe('Hello 👋');
+    expect(evt.message?.id).toBe('abc');
+    expect(evt.message?.rawPlatformPayload?.user?.login).toBe('someuser');
+    expect(evt.message?.rawPlatformPayload?.user?.displayName).toBe('SomeUser');
+    expect(evt.message?.rawPlatformPayload?.roomId).toBe('456');
+    expect(evt.message?.rawPlatformPayload?.color).toBe('#AABBCC');
+    expect(evt.message?.rawPlatformPayload?.badges).toEqual(['subscriber']);
+    expect(evt.message?.rawPlatformPayload?.isSubscriber).toBe(true);
+    expect(evt.message?.rawPlatformPayload?.emotes).toEqual([{ id: '25', start: 6, end: 7 }]);
+    expect(evt.message?.rawPlatformPayload?.timestamp).toBe(fixedNow);
   });
 
   it('normalizes channel to include # and tolerates missing optionals', () => {
@@ -52,8 +52,8 @@ describe('TwitchEnvelopeBuilder', () => {
     } as any;
     const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
     expect(evt.channel).toBe('#room');
-    expect(evt.message.id).toBeDefined();
-    expect(evt.message.rawPlatformPayload?.badges).toEqual([]);
-    expect(evt.message.rawPlatformPayload?.raw).toEqual({});
+    expect(evt.message?.id).toBeDefined();
+    expect(evt.message?.rawPlatformPayload?.badges).toEqual([]);
+    expect(evt.message?.rawPlatformPayload?.raw).toEqual({});
   });
 });

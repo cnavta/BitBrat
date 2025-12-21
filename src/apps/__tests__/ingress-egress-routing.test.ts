@@ -10,10 +10,17 @@ const mockTwitchClient = {
   getSnapshot: jest.fn().mockReturnValue({ state: 'CONNECTED' }),
 };
 
+const mockTwitchEventSubClient = {
+  start: jest.fn().mockResolvedValue(undefined),
+  stop: jest.fn().mockResolvedValue(undefined),
+  getSnapshot: jest.fn().mockReturnValue({ active: true, subscriptions: 1 }),
+};
+
 // We need to bypass the constructor or at least make sure it doesn't fail
 jest.mock('../../services/ingress/twitch', () => ({
   ...jest.requireActual('../../services/ingress/twitch'),
   TwitchIrcClient: jest.fn().mockImplementation(() => mockTwitchClient),
+  TwitchEventSubClient: jest.fn().mockImplementation(() => mockTwitchEventSubClient),
 }));
 
 // Mock the Discord client as well

@@ -1,0 +1,140 @@
+import { EventSubWsListener } from '@twurple/eventsub-ws';
+import { EventSubListener } from '@twurple/eventsub-base';
+import { ApiClient } from '@twurple/api';
+import { RefreshingAuthProvider } from '@twurple/auth';
+import { logger } from '../../../common/logging';
+import { IConfig } from '../../../types';
+import { ITwitchCredentialsProvider } from './credentials-provider';
+import { ITwitchIngressPublisher } from './publisher';
+import { EventSubEnvelopeBuilder } from './eventsub-envelope-builder';
+
+export interface TwitchEventSubClientOptions {
+  cfg: IConfig;
+  credentialsProvider: ITwitchCredentialsProvider;
+  egressDestinationTopic?: string;
+  disableConnect?: boolean;
+}
+
+export class TwitchEventSubClient {
+  private listener: EventSubWsListener | null = null;
+  private readonly builder: EventSubEnvelopeBuilder;
+  private readonly subscriptions: any[] = [];
+
+  constructor(
+    private readonly publisher: ITwitchIngressPublisher,
+    private readonly channels: string[],
+    private readonly options: TwitchEventSubClientOptions
+  ) {
+    this.builder = new EventSubEnvelopeBuilder();
+  }
+
+  async start(): Promise<void> {
+    const disabled =
+      this.options.disableConnect === true ||
+      process.env.NODE_ENV === 'test' ||
+      this.options.cfg.twitchEnabled === false ||
+      this.options.cfg.twitchDisableConnect === true;
+
+    if (disabled) {
+      logger.info('twitch.eventsub.disabled', { reason: 'config or test env' });
+      return;
+    }
+
+    try {
+      logger.info('twitch.eventsub.starting', { channels: this.channels });
+      
+      // We need a broadcaster's ID to subscribe to their events.
+      // For now, we assume the credentialsProvider can give us the auth for the first channel in the list
+      // as a starting point, but EventSub usually needs a User ID.
+      const auth = await this.options.credentialsProvider.getChatAuth(this.channels[0]);
+      
+      if (!auth.userId) {
+        throw new Error('twitch_auth_missing_user_id');
+      }
+
+      const authProvider = new RefreshingAuthProvider({
+        clientId: this.options.cfg.twitchClientId!,
+        clientSecret: this.options.cfg.twitchClientSecret!,
+      });
+
+      // If the provider supports saving refreshed tokens, hook it up
+      if (typeof this.options.credentialsProvider.saveRefreshedToken === 'function') {
+        authProvider.onRefresh(async (_userId, tokenData) => {
+          await this.options.credentialsProvider.saveRefreshedToken!(tokenData as any);
+        });
+      }
+
+      await authProvider.addUserForToken({
+        accessToken: auth.accessToken,
+        refreshToken: auth.refreshToken || null,
+        expiresIn: auth.expiresIn ?? null,
+        obtainmentTimestamp: auth.obtainmentTimestamp ?? 0,
+        scope: auth.scope || [],
+      }, ['chat']);
+
+      const apiClient = new ApiClient({ authProvider });
+
+      this.listener = new EventSubWsListener({ apiClient });
+      
+      // Setup subscriptions for each channel
+      for (const channel of this.channels) {
+        // Resolve user ID for the channel
+        const user = await apiClient.users.getUserByName(channel);
+        if (!user) {
+          logger.warn('twitch.eventsub.user_not_found', { channel });
+          continue;
+        }
+
+        const userId = user.id;
+
+        // channel.follow (v2)
+        // Note: v2 requires moderator:read:followers
+        const followSub = this.listener.onChannelFollow(userId, userId, (event: any) => {
+          logger.info('twitch.eventsub.event.follow', { channel, from: event.userName });
+          const internalEvent = this.builder.buildFollow(event as any, {
+            finalizationDestination: this.options.egressDestinationTopic
+          });
+          this.publisher.publish(internalEvent).catch(err => {
+            logger.error('twitch.eventsub.publish_failed', { kind: 'follow', error: err.message });
+          });
+        });
+        this.subscriptions.push(followSub);
+
+        // channel.update
+        const updateSub = this.listener.onChannelUpdate(userId, (event: any) => {
+          logger.info('twitch.eventsub.event.update', { channel, title: event.streamTitle });
+          const internalEvent = this.builder.buildUpdate(event as any, {
+            finalizationDestination: this.options.egressDestinationTopic
+          });
+          this.publisher.publish(internalEvent).catch(err => {
+            logger.error('twitch.eventsub.publish_failed', { kind: 'update', error: err.message });
+          });
+        });
+        this.subscriptions.push(updateSub);
+      }
+
+      this.listener.start();
+      logger.info('twitch.eventsub.started');
+    } catch (err: any) {
+      logger.error('twitch.eventsub.start_failed', { error: err.message });
+      throw err;
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.listener) {
+      this.listener.stop();
+      this.listener = null;
+    }
+    this.subscriptions.forEach(s => s.stop());
+    this.subscriptions.length = 0;
+    logger.info('twitch.eventsub.stopped');
+  }
+
+  getSnapshot() {
+    return {
+      active: !!this.listener,
+      subscriptions: this.subscriptions.length,
+    };
+  }
+}

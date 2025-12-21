@@ -140,4 +140,46 @@ describe('enrichEvent()', () => {
     expect(userOut.rolesMeta.discord).toEqual(expect.arrayContaining(['ModRole', 'SomeOtherRole', 'owner']));
     expect(userOut.profile.username).toBe('bob');
   });
+
+  test('resolves candidate from externalEvent follow', async () => {
+    const repo: UserRepo = {
+      getById: async (id: string) => ({ id, email: 'follow@twitch.tv', displayName: 'Follower', roles: [] } as AuthUserDoc),
+      getByEmail: async () => null,
+    };
+    const evt: any = {
+      v: '1',
+      source: 'ingress.twitch.eventsub',
+      correlationId: 'c-follow',
+      type: 'twitch.eventsub.v1',
+      externalEvent: {
+        kind: 'channel.follow',
+        payload: { userId: 'follow-123', userLogin: 'follower', userDisplayName: 'Follower' }
+      }
+    };
+    const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'twitch' });
+    expect(res.matched).toBe(true);
+    expect(res.userRef).toBe('users/twitch:follow-123');
+    expect((res.event as any).user.displayName).toBe('Follower');
+  });
+
+  test('resolves candidate from externalEvent update (broadcaster)', async () => {
+    const repo: UserRepo = {
+      getById: async (id: string) => ({ id, email: 'host@twitch.tv', displayName: 'TheHost', roles: [] } as AuthUserDoc),
+      getByEmail: async () => null,
+    };
+    const evt: any = {
+      v: '1',
+      source: 'ingress.twitch.eventsub',
+      correlationId: 'c-update',
+      type: 'twitch.eventsub.v1',
+      externalEvent: {
+        kind: 'channel.update',
+        payload: { broadcasterId: 'host-999', broadcasterLogin: 'thehost', broadcasterDisplayName: 'TheHost' }
+      }
+    };
+    const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'twitch' });
+    expect(res.matched).toBe(true);
+    expect(res.userRef).toBe('users/twitch:host-999');
+    expect((res.event as any).user.displayName).toBe('TheHost');
+  });
 });
