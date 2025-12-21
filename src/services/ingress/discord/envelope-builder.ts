@@ -36,6 +36,7 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
           authorName: meta.authorName,
           mentions: meta.mentions || [],
           roles: meta.roles || [],
+          isOwner: !!meta.isOwner,
           timestamp: nowIso(),
         },
       },

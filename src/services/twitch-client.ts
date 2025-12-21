@@ -142,18 +142,18 @@ export class TwitchClient implements ITwitchClient {
     );
 
     // Persist every refresh so other subsystems (e.g., EventSub) see fresh tokens and userId.
-    provider.onRefresh(async (_userId, newTokenData) => {
+    provider.onRefresh(async (userId, newTokenData) => {
       this.diag.tokenLastRefreshTs = Date.now();
-      let userId: string | null = null;
+      let validatedUserId: string | null = null;
       try {
-        // Validate to discover user_id and to record last validation status for diagnostics.
+        // Validate to record last validation status for diagnostics.
         const vResp = await fetch('https://id.twitch.tv/oauth2/validate', {
           headers: { Authorization: `OAuth ${newTokenData.accessToken}` },
         });
         this.diag.tokenLastValidateTs = Date.now();
         if (vResp.ok) {
           const v = await vResp.json() as Record<string, any>;
-          userId = v?.user_id ? String(v.user_id) : null;
+          validatedUserId = v?.user_id ? String(v.user_id) : null;
           this.diag.tokenLastValidateError = null;
         } else {
           const vText = await vResp.text();
@@ -169,7 +169,7 @@ export class TwitchClient implements ITwitchClient {
         expiresIn: newTokenData.expiresIn ?? null,
         obtainmentTimestamp: newTokenData.obtainmentTimestamp ?? null,
         scope: newTokenData.scope ?? [],
-        userId,
+        userId: validatedUserId || userId || null,
       };
       await this.opts.tokenStore.setToken(updated);
       logger.info('Twitch token refreshed and stored');

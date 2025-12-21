@@ -1,0 +1,152 @@
+meta:
+  backlog_id: sprint-152-b5d3f2-backlog
+  updated_at: 2025-12-20
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-152-b5d3f2
+  start: 2025-12-20
+  end: 2025-12-27
+  wip_limit: 3
+  goal: "Twitch EventSub WebSocket Integration (Part 1)"
+
+items:
+  - id: TASK-152-001
+    title: "Dependency Update: Add @twurple/eventsub-ws"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "package.json contains @twurple/eventsub-ws"
+      - "npm install succeeds"
+    updated_at: 2025-12-20
+    log:
+      - at: 2025-12-20T23:15:00Z
+        note: "Added @twurple/eventsub-ws and ran npm install."
+
+  - id: TASK-152-002
+    title: "Event Schema Evolution: InternalEventV2 & ExternalEventV1"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "ExternalEventV1 interface defined in src/types/events.ts"
+      - "InternalEventV2 modified (message optional, externalEvent added)"
+      - "Project compiles without errors"
+    updated_at: 2025-12-20
+    log:
+      - at: 2025-12-20T23:18:00Z
+        note: "Defined ExternalEventV1 and updated InternalEventV2 in src/types/events.ts. Project compiles."
+
+  - id: TASK-152-003
+    title: "Implement EventSubEnvelopeBuilder"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [TASK-152-002]
+    blocked_reason: null
+    acceptance:
+      - "EventSubEnvelopeBuilder correctly maps Twurple events to InternalEventV2"
+      - "Unit tests pass"
+    updated_at: 2025-12-20
+    log:
+      - at: 2025-12-20T23:22:00Z
+        note: "Implemented EventSubEnvelopeBuilder and added unit tests. Tests pass."
+
+  - id: TASK-152-004
+    title: "Implement TwitchEventSubClient"
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [TASK-152-001, TASK-152-003]
+    blocked_reason: null
+    acceptance:
+      - "TwitchEventSubClient manages WebSocket connection via @twurple/eventsub-ws"
+      - "Client handles subscriptions for channel.follow and channel.update"
+      - "Unit tests pass (mocked Twurple)"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-20T23:30:00Z
+        note: "Implemented TwitchEventSubClient and integrated it into IngressEgressServer."
+      - at: 2025-12-21T05:25:00Z
+        note: "Remediated Cloud Run subscription issues by fixing user context/moderator configuration."
+      - at: 2025-12-21T05:40:00Z
+        note: "Fixed remaining 'no token found' errors for channel.update by implementing bot token aliasing for broadcasters."
+      - at: 2025-12-21T14:10:00Z
+        note: "Refined auth strategy to use real broadcaster tokens from /oauth/twitch/broadcaster/token when available."
+      - at: 2025-12-21T16:40:00Z
+        note: "Remediated bot token userId nulling in Firestore by fixing onRefresh handlers."
+
+  - id: TASK-152-005
+    title: "Integrate EventSubClient into IngressEgressServer"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [TASK-152-004]
+    blocked_reason: null
+    acceptance:
+      - "IngressEgressServer initializes TwitchEventSubClient"
+      - "Events are published to internal.ingress.v1"
+      - "Integration tests pass"
+    updated_at: 2025-12-20
+    log:
+      - at: 2025-12-20T23:30:00Z
+        note: "Wired TwitchEventSubClient into IngressEgressServer and registered it with ConnectorManager."
+
+  - id: TASK-152-006
+    title: "Update Auth Enrichment for Behavioral Events"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [TASK-152-002]
+    blocked_reason: null
+    acceptance:
+      - "enrichEvent correctly resolves candidate ID from externalEvent"
+      - "Events are enriched with user/auth data"
+      - "Unit tests pass"
+    updated_at: 2025-12-20
+    log:
+      - at: 2025-12-20T23:35:00Z
+        note: "Updated enrichEvent logic to handle behavioral events. Added and verified unit tests."
+
+  - id: TASK-152-007
+    title: "Update validate_deliverable.sh"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [TASK-152-005]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh covers new tests and build"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T04:15:00Z
+        note: "Verified build and tests via validate_deliverable.sh. Fixed regressions in existing tests."
+
+  - id: TASK-152-008
+    title: "Sprint Verification & Retro"
+    priority: P3
+    status: done
+    effort: S
+    owner: agent
+    deps: [TASK-152-001, TASK-152-002, TASK-152-003, TASK-152-004, TASK-152-005, TASK-152-006, TASK-152-007]
+    blocked_reason: null
+    acceptance:
+      - "Verification report generated"
+      - "Retro and key learnings documented"
+      - "PR created"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T04:20:00Z
+        note: "Sprint verification completed. PR #52 created."

@@ -37,6 +37,10 @@ function defaultTwitchScopes(cfg: IConfig): string[] {
         'moderator:read:followers',
         'channel:read:vips',
         'channel:read:redemptions',
+        'moderation:read',
+        'bits:read',
+        'moderator:read:shoutouts',
+        'user:read:email',
       ]);
 }
 

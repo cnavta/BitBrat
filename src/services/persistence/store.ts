@@ -1,7 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { InternalEventV2 } from '../../types/events';
-import { COLLECTION_EVENTS, EventDocV1, FinalizationUpdateV1, normalizeFinalizePayload, normalizeIngressEvent, stripUndefinedDeep } from './model';
+import { COLLECTION_EVENTS, COLLECTION_SOURCES, EventDocV1, FinalizationUpdateV1, normalizeDeadLetterPayload, normalizeFinalizePayload, normalizeIngressEvent, normalizeSourceStatus, normalizeStreamEvent, stripUndefinedDeep } from './model';
 
 export interface PersistenceStoreDeps {
   firestore: Firestore;
@@ -71,5 +71,57 @@ export class PersistenceStore {
     await ref.set(stripUndefinedDeep(patch) as any, { merge: true });
     this.logger.info('persistence.finalize.ok', { correlationId: update.correlationId, status: update.status });
     return update;
+  }
+
+  /** Apply dead-letter update. Creates stub doc if not present. Idempotent. */
+  async applyDeadLetter(rawMsg: any): Promise<void> {
+    const correlationId = String(rawMsg?.correlationId || rawMsg?.envelope?.correlationId || '');
+    if (!correlationId) {
+      this.logger.warn('persistence.deadletter.missing_correlationId', { type: rawMsg?.type });
+      return;
+    }
+
+    const patch = normalizeDeadLetterPayload(rawMsg);
+    const ref = this.docRef(correlationId);
+
+    // Compute TTL: use env PERSISTENCE_TTL_DAYS (default 7)
+    const baseDate = new Date();
+    const ttlDaysEnv = process.env.PERSISTENCE_TTL_DAYS;
+    let ttlDays = parseInt(String(ttlDaysEnv ?? '7'), 10);
+    if (!isFinite(ttlDays) || ttlDays <= 0) ttlDays = 7;
+    const expireAt = new Date(baseDate.getTime() + ttlDays * 24 * 60 * 60 * 1000);
+    const ttl = Timestamp.fromDate(expireAt);
+
+    const fullPatch = {
+      ...patch,
+      ttl,
+    };
+
+    await ref.set(stripUndefinedDeep(fullPatch) as any, { merge: true });
+    this.logger.info('persistence.deadletter.ok', { correlationId, reason: (patch as any).deadletter?.reason });
+  }
+
+  /**
+   * Upsert source status/state into the 'sources' collection.
+   */
+  async upsertSourceState(evt: InternalEventV2): Promise<void> {
+    let patch: any;
+    if (evt.type === 'system.source.status') {
+      patch = normalizeSourceStatus(evt);
+    } else if (evt.type === 'system.stream.online' || evt.type === 'system.stream.offline') {
+      patch = normalizeStreamEvent(evt);
+    }
+
+    if (!patch || !patch.platform || !patch.id) {
+      this.logger.warn('persistence.upsert_source.invalid_payload', { type: evt.type, platform: patch?.platform, id: patch?.id });
+      return;
+    }
+
+    const docId = `${patch.platform}:${patch.id}`;
+    const ref = this.db.collection(COLLECTION_SOURCES).doc(docId);
+    
+    // Use merge: true to update only the fields present in the patch
+    await ref.set(stripUndefinedDeep(patch), { merge: true });
+    this.logger.info('persistence.upsert_source.ok', { docId, type: evt.type });
   }
 }

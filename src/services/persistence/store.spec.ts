@@ -124,4 +124,88 @@ describe('PersistenceStore', () => {
     else iso = undefined;
     expect(iso).toBe(expected.toISOString());
   });
+
+  test('upsertSourceState handles stream online/offline events', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twitch.eventsub',
+      type: 'system.stream.online',
+      correlationId: 'c-stream-1',
+      userId: '12345',
+      externalEvent: {
+        source: 'twitch.eventsub',
+        payload: {
+          broadcasterId: '12345',
+          broadcasterLogin: 'testuser',
+          viewer_count: 100
+        }
+      }
+    } as any;
+    
+    await store.upsertSourceState(evt);
+    expect(db.__fns.collection).toHaveBeenCalledWith('sources');
+    expect(db.__fns.doc).toHaveBeenCalledWith('twitch:12345');
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[0]).toMatchObject({
+      platform: 'twitch',
+      id: '12345',
+      streamStatus: 'ONLINE',
+      viewerCount: 100
+    });
+  });
+
+  test('applyDeadLetter writes ERROR patch and deadletter info', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const now = new Date().toISOString();
+    await store.applyDeadLetter({
+      envelope: { correlationId: 'c-dlq-1' },
+      type: 'router.deadletter.v1',
+      payload: {
+        reason: 'no_route',
+        error: { code: 'ROUTING_FAILED', message: 'No matches' },
+        lastStepId: 'step-1',
+        slipSummary: 'ingress -> ?',
+      },
+    });
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[1]).toEqual({ merge: true });
+    expect(setCall[0]).toMatchObject({
+      status: 'ERROR',
+      deadletter: {
+        reason: 'no_route',
+        error: { code: 'ROUTING_FAILED' },
+        lastStepId: 'step-1',
+      },
+    });
+    expect(setCall[0].finalizedAt).toBeDefined();
+    expect(setCall[0].ttl).toBeDefined();
+  });
+
+  test('applyDeadLetter works with correlationId at top level', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    await store.applyDeadLetter({
+      correlationId: 'c-dlq-2',
+      payload: { reason: 'worker_fail' },
+    });
+    expect(db.__fns.doc).toHaveBeenCalledWith('c-dlq-2');
+  });
+
+  test('applyDeadLetter logs warning and skips if no correlationId', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    await store.applyDeadLetter({
+      payload: { reason: 'lost' },
+    });
+    expect(db.__fns.set).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith('persistence.deadletter.missing_correlationId', expect.any(Object));
+  });
 });

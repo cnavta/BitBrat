@@ -24,7 +24,7 @@ describe('common/firebase getFirestore()', () => {
 
   it('initializes admin once and binds to default database id when not configured', async () => {
     const fa = require('firebase-admin/firestore') as { getFirestore: jest.Mock };
-    fa.getFirestore.mockReturnValue({ db: true });
+    fa.getFirestore.mockReturnValue({ settings: jest.fn() });
 
     const { getFirestore } = await import('./firebase');
 
@@ -35,11 +35,12 @@ describe('common/firebase getFirestore()', () => {
     expect(admin.initializeApp).toHaveBeenCalledTimes(1);
     expect(fa.getFirestore).toHaveBeenCalledWith('twitch');
     expect(db1).toBe(db2);
+    expect(db1.settings).toHaveBeenCalledWith({ ignoreUndefinedProperties: true });
   });
 
   it('uses configured databaseId when provided via configureFirestore()', async () => {
     const fa = require('firebase-admin/firestore') as { getFirestore: jest.Mock };
-    fa.getFirestore.mockReturnValue({ db: true });
+    fa.getFirestore.mockReturnValue({ settings: jest.fn() });
 
     const mod = await import('./firebase');
     mod.configureFirestore('(default)');

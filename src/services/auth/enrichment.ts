@@ -22,6 +22,8 @@ function resolveCandidateId(evt: InternalEventV2): string | undefined {
     (typeof anyEvt.userId === 'string' ? anyEvt.userId : undefined) ||
     anyEvt?.message?.rawPlatformPayload?.userId ||
     anyEvt?.message?.rawPlatformPayload?.user?.id ||
+    anyEvt?.externalEvent?.payload?.userId ||
+    anyEvt?.externalEvent?.payload?.broadcasterId ||
     undefined
   );
 }
@@ -88,6 +90,14 @@ export async function enrichEvent(
   // Update existing user path (or fallback email match)
   if (doc) {
     logger.debug('auth.user.update', { userRef: `users/${doc.id}` });
+
+    let enrichmentData: any = {};
+    if (provider === 'twitch') {
+      enrichmentData = mapTwitchEnrichment(evt, nowIso);
+    } else if (provider === 'discord') {
+      enrichmentData = mapDiscordEnrichment(evt, nowIso);
+    }
+
     // If repo can update counters/session, do it and prefer merged doc
     let created = false;
     let isFirstMessage = false;
@@ -95,19 +105,32 @@ export async function enrichEvent(
     let didEnsure = false;
     if (typeof (repo as any).ensureUserOnMessage === 'function' && compositeId) {
       try {
-        const res = await (repo as any).ensureUserOnMessage(compositeId, { provider, providerUserId: rawId, email: doc.email, displayName: doc.displayName }, nowIso);
+        const res = await (repo as any).ensureUserOnMessage(
+          compositeId,
+          {
+            provider,
+            providerUserId: rawId,
+            email: doc.email,
+            displayName: enrichmentData.displayName || doc.displayName,
+            profile: enrichmentData.profile,
+            roles: enrichmentData.roles,
+            rolesMeta: enrichmentData.rolesMeta,
+          },
+          nowIso
+        );
         doc = res.doc;
         created = res.created;
         isFirstMessage = res.isFirstMessage;
         isNewSession = res.isNewSession;
         didEnsure = true;
-      } catch {
+      } catch (e: any) {
+        logger.debug('auth.user.update.failed', { compositeId, error: e?.message || String(e) });
         // non-fatal; proceed with existing doc
       }
     }
 
     const effectiveDoc = doc as AuthUserDoc;
-    const userOut: any = pick<AuthUserDoc>(effectiveDoc, ['id', 'email', 'displayName', 'roles', 'status', 'notes']) as any;
+    const userOut: any = pick<AuthUserDoc>(effectiveDoc, ['id', 'email', 'displayName', 'roles', 'status', 'notes', 'profile', 'rolesMeta']) as any;
     if (didEnsure) {
       userOut.tags = computeTags(created, isFirstMessage, isNewSession, Array.isArray((effectiveDoc as any).tags) ? (effectiveDoc as any).tags : undefined);
     }
@@ -126,10 +149,30 @@ export async function enrichEvent(
   // Not found: try to create a new user if we have provider+id and repo supports it
   if (!doc && compositeId && typeof (repo as any).ensureUserOnMessage === 'function') {
     logger.debug('auth.user.create', { compositeId });
+
+    let enrichmentData: any = {};
+    if (provider === 'twitch') {
+      enrichmentData = mapTwitchEnrichment(evt, nowIso);
+    } else if (provider === 'discord') {
+      enrichmentData = mapDiscordEnrichment(evt, nowIso);
+    }
+
     try {
-      const res = await (repo as any).ensureUserOnMessage(compositeId, { provider, providerUserId: rawId, email, displayName: undefined }, nowIso);
+      const res = await (repo as any).ensureUserOnMessage(
+        compositeId,
+        {
+          provider,
+          providerUserId: rawId,
+          email,
+          displayName: enrichmentData.displayName,
+          profile: enrichmentData.profile,
+          roles: enrichmentData.roles,
+          rolesMeta: enrichmentData.rolesMeta,
+        },
+        nowIso
+      );
       const createdDoc: AuthUserDoc = res.doc;
-      const userOut: any = pick<AuthUserDoc>(createdDoc, ['id', 'email', 'displayName', 'roles', 'status', 'notes']) as any;
+      const userOut: any = pick<AuthUserDoc>(createdDoc, ['id', 'email', 'displayName', 'roles', 'status', 'notes', 'profile', 'rolesMeta']) as any;
       userOut.tags = computeTags(true, true, true, Array.isArray((createdDoc as any).tags) ? (createdDoc as any).tags : undefined);
       (evt as any).user = userOut;
       (evt as any).auth = {
@@ -141,8 +184,8 @@ export async function enrichEvent(
         userRef: `users/${createdDoc.id}`,
       };
       return { event: evt, matched: true, userRef: `users/${createdDoc.id}`, created: true, isFirstMessage: true, isNewSession: true };
-    } catch {
-      // fall through to unmatched
+    } catch (e: any) {
+      logger.debug('auth.user.create.failed', { compositeId, error: e?.message || String(e) });
     }
   }
 
@@ -155,4 +198,80 @@ export async function enrichEvent(
     ...(provider ? { provider } : {}),
   };
   return { event: evt, matched: false };
+}
+
+function mapTwitchEnrichment(evt: InternalEventV2, nowIso: string) {
+  const messagePayload = (evt as any).message?.rawPlatformPayload || {};
+  const externalPayload = (evt as any).externalEvent?.payload || {};
+  const roles: string[] = [];
+  const twitchRoles: string[] = [];
+
+  if (messagePayload.isMod) {
+    roles.push('moderator');
+    twitchRoles.push('moderator');
+  }
+  if (messagePayload.isSubscriber) {
+    roles.push('subscriber');
+    twitchRoles.push('subscriber');
+  }
+
+  const badges = messagePayload.badges || [];
+  if (badges.includes('broadcaster')) {
+    roles.push('broadcaster');
+    twitchRoles.push('broadcaster');
+  }
+  if (badges.includes('vip')) {
+    roles.push('vip');
+    twitchRoles.push('vip');
+  }
+
+  return {
+    displayName: messagePayload.user?.displayName || externalPayload.userDisplayName || externalPayload.broadcasterDisplayName,
+    profile: {
+      username: messagePayload.user?.login || externalPayload.userLogin || externalPayload.broadcasterLogin || '',
+      updatedAt: nowIso,
+    },
+    roles,
+    rolesMeta: {
+      twitch: twitchRoles,
+    },
+  };
+}
+
+function mapDiscordEnrichment(evt: InternalEventV2, nowIso: string) {
+  const payload = (evt as any).message?.rawPlatformPayload || {};
+  const roles: string[] = [];
+  const discordRoles: string[] = payload.roles || [];
+
+  // Discord role normalization
+  const modRolesEnv = process.env.DISCORD_MOD_ROLES || 'Moderator,Admin,Staff';
+  const modRoles = modRolesEnv.split(',').map(r => r.trim().toLowerCase());
+
+  // Check roles IDs or names if available
+  // In the current Discord payload, we have role IDs.
+  // Ideally we'd have role names too, but if not, we check IDs.
+  const hasModRole = discordRoles.some(r => modRoles.includes(r.toLowerCase()));
+
+  // In DiscordIngressClient, we don't currently have guild owner info in meta, but we planned it.
+  // Let's check if it's there.
+  if (payload.isOwner) {
+    roles.push('broadcaster'); // Map server owner to broadcaster role internally
+    discordRoles.push('owner');
+  }
+
+  if (hasModRole) {
+    roles.push('moderator');
+  }
+
+  return {
+    displayName: payload.authorName,
+    profile: {
+      username: payload.authorName || '',
+      updatedAt: nowIso,
+    },
+    roles,
+    rolesMeta: {
+      discord: discordRoles,
+    },
+  };
 }
