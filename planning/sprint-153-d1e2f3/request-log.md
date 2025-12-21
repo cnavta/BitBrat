@@ -57,3 +57,14 @@
   - `npm run build`
 - **Files modified or created**:
   - `src/services/ingress/twitch/eventsub-client.ts`
+
+## [2025-12-21T15:15:00Z] Fix Twitch Bot Token Overwrite
+- **Prompt summary**: Twitch bot token's userId repeatedly get overwritten with the broadcaster's ID in Cloud Run. Bot responses are coming from the broadcaster's account.
+- **Interpretation**: `FirestoreTwitchCredentialsProvider` was saving all refreshes to the bot store unconditionally. When an aliased bot token (used by EventSub) or a real broadcaster token refreshed, it overwrote the bot's document.
+- **Shell/git commands executed**:
+  - `npx jest src/services/ingress/twitch/__tests__/token-overwrite.spec.ts`
+  - `npm test`
+  - `npm run build`
+- **Files modified or created**:
+  - `src/services/ingress/twitch/credentials-provider.ts`
+  - `src/services/ingress/twitch/__tests__/token-overwrite.spec.ts`

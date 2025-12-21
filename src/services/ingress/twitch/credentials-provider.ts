@@ -114,6 +114,8 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
   private readonly store: FirestoreTokenStore;
   private readonly broadcasterStore: FirestoreTokenStore;
   private readonly loginHint?: string;
+  private botUserId?: string;
+  private broadcasterUserId?: string;
 
   constructor(private readonly cfg: IConfig, store?: FirestoreTokenStore) {
     this.store = store || new FirestoreTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot');
@@ -126,6 +128,9 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
     const login = (this.loginHint || loginOrChannel || '').toLowerCase();
     if (!token || !token.accessToken) {
       throw new Error('FirestoreTwitchCredentialsProvider: no token in store');
+    }
+    if (token.userId) {
+      this.botUserId = token.userId;
     }
     return {
       accessToken: token.accessToken,
@@ -143,6 +148,9 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
     if (!token || !token.accessToken) {
       return null;
     }
+    if (token.userId) {
+      this.broadcasterUserId = token.userId;
+    }
     return {
       accessToken: token.accessToken,
       userId: token.userId ?? undefined,
@@ -155,8 +163,18 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
   }
 
   async saveRefreshedToken(token: TwitchTokenData): Promise<void> {
-    // We don't know for sure which store to save to without a userId check or similar
-    // But for now, we assume the bot token is the one being refreshed most often by this service
-    await this.store.setToken(token);
+    const botId = this.cfg.twitchBotUserId || this.botUserId;
+    if (token.userId && token.userId === this.broadcasterUserId) {
+      await this.broadcasterStore.setToken(token);
+    } else if (botId) {
+      // If we know the bot's userId, ensure we don't overwrite it with an aliased ID
+      await this.store.setToken({
+        ...token,
+        userId: botId,
+      });
+    } else {
+      // Fallback: save as is if we haven't loaded the bot token yet
+      await this.store.setToken(token);
+    }
   }
 }
