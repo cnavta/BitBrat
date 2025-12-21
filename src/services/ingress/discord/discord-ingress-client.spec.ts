@@ -98,7 +98,10 @@ describe('DiscordIngressClient filters', () => {
     expect(published.length).toBe(1);
     expect(published[0].source).toBe('ingress.discord');
     expect(published[0].message.text).toBe('hi');
-    expect(published[0].egressDestination).toBe('internal.egress.v1.test');
+    expect(published[0].egress).toEqual({
+      destination: 'internal.egress.v1.test',
+      type: 'discord'
+    });
   });
 
   it('ignores messages from other guilds', async () => {

@@ -16,7 +16,7 @@ import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
 import { AttributeMap } from '../services/message-bus';
-import { INTERNAL_EGRESS_V1 } from '../types/events';
+import { INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1 } from '../types/events';
 import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../services/egress/selection';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -88,7 +88,7 @@ export class IngressEgressServer extends BaseServer {
     this.twitchClient = new TwitchIrcClient(envelopeBuilder, publisher, cfg.twitchChannels, {
       cfg,
       credentialsProvider: credsProvider,
-      egressDestinationTopic: egressTopic, // ensure envelope.egressDestination is set on publish
+      egressDestinationTopic: egressTopic, // ensure envelope.egress is set on publish
     });
 
     // Create the EventSub client
@@ -131,132 +131,35 @@ export class IngressEgressServer extends BaseServer {
     if (isTestEnv) {
       logger.debug('ingress-egress.egress_subscribe.disabled_for_tests');
     } else {
+      // 1. Instance-specific listener
       logger.info('ingress-egress.egress_subscribe.start', { subject: egressSubject, queue: `ingress-egress.${instanceId}` });
       try {
         await this.onMessage<any>(
           { destination: egressTopic, queue: `ingress-egress.${instanceId}`, ack: 'explicit' },
           async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
-            try {
-              const tracer = (this as any).getTracer?.();
-              const run = async () => {
-                logger.debug('ingress-egress.egress_subscribe.received_event', { event: evt });
-                // Mark selected candidate on V2 events (if candidates exist) and log rationale
-                let evtForDelivery: any = evt;
-                try {
-                  if (evt && Array.isArray(evt.candidates) && evt.candidates.length > 0) {
-                    const best = selectBestCandidate(evt.candidates);
-                    if (best) {
-                      logger.info('ingress-egress.egress.candidate_selected', {
-                        correlationId: evt?.correlationId || evt?.envelope?.correlationId,
-                        candidateId: best.id,
-                        priority: best.priority,
-                        confidence: best.confidence,
-                        createdAt: best.createdAt,
-                      });
-                    }
-                    evtForDelivery = markSelectedCandidate(evt);
-                  }
-                } catch (e: any) {
-                  logger.debug('ingress-egress.egress.candidate_mark_skip', { reason: e?.message || String(e) });
-                }
-
-                const text = extractEgressTextFromEvent(evtForDelivery);
-                if (!text) {
-                  logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
-                  await ctx.ack();
-                  return;
-                }
-                const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
-                const publishFinalize = async (status: 'SENT' | 'FAILED', error?: { code: string; message?: string }) => {
-                  try {
-                    const cfg: any = this.getConfig?.() || {};
-                    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
-                    const finalizeSubject = `${prefix}internal.persistence.finalize.v1`;
-                    const pubRes = this.getResource<PublisherResource>('publisher');
-                    const pub = pubRes?.create(finalizeSubject);
-                    if (pub) {
-                      const payload = {
-                        correlationId,
-                        destination: egressTopic,
-                        deliveredAt: new Date().toISOString(),
-                        status,
-                        error: error ? { code: error.code, message: error.message } : undefined,
-                        // Include selections context so Persistence can record them
-                        // evtForDelivery has candidates with the selected one marked
-                        candidates: Array.isArray((evtForDelivery as any)?.candidates) ? (evtForDelivery as any).candidates : undefined,
-                        annotations: Array.isArray((evt as any)?.annotations) ? (evt as any).annotations : undefined,
-                      };
-                      await pub.publishJson(payload, { correlationId: String(correlationId || ''), type: 'egress.deliver.v1' });
-                      logger.info('ingress-egress.finalize.published', { correlationId, status });
-                    } else {
-                      logger.warn('ingress-egress.finalize.publisher_unavailable');
-                    }
-                  } catch (e: any) {
-                    logger.warn('ingress-egress.finalize.publish_error', { error: e?.message || String(e) });
-                  }
-                };
-
-                try {
-                  const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
-                  const egress = evt?.egress || evt?.envelope?.egress;
-                  const egressType = egress?.type;
-                  
-                  // Use new discriminator if available, fallback to legacy source/annotation check
-                  let isDiscord = egressType === 'discord';
-                  if (!egressType) {
-                    const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
-                    const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
-                    isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
-                  }
-
-                  if (isDiscord) {
-                    if (this.discordClient) {
-                      await this.discordClient.sendText(text, evt.channel);
-                    } else {
-                      throw new Error('discord_client_not_available');
-                    }
-                  } else {
-                    // Default to Twitch (matches legacy behavior or explicit twitch:irc)
-                    await this.twitchClient!.sendText(text, evt.channel);
-                  }
-                  logger.info('ingress-egress.egress.sent', { correlationId, egressType, isDiscord });
-                  await publishFinalize('SENT');
-                } catch (e: any) {
-                  const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
-                  // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
-                  await publishFinalize('FAILED', { code: 'send_error', message: e?.message || String(e) });
-                  throw e;
-                }
-              };
-              if (tracer && typeof tracer.startActiveSpan === 'function') {
-                await tracer.startActiveSpan('deliver-egress', async (span: any) => {
-                  try {
-                    await run();
-                  } finally {
-                    span.end();
-                  }
-                });
-              } else {
-                await run();
-              }
-              await ctx.ack();
-            } catch (e: any) {
-              const msg = e?.message || String(e);
-              // JSON parse errors or other non-retryable conditions → ack
-              if (/json|unexpected token|position \d+/i.test(msg)) {
-                logger.error('ingress-egress.egress.json_error', { subject: egressSubject, error: msg });
-                await ctx.ack();
-              } else {
-                // Bootstrap behavior: log and ack to avoid retry loops for now
-                logger.error('ingress-egress.egress.process_error', { subject: egressSubject, error: msg });
-                await ctx.ack();
-              }
-            }
+            await this.handleEgressDelivery(evt, ctx, egressTopic);
           }
         );
         logger.info('ingress-egress.egress_subscribe.ok', { subject: egressSubject });
       } catch (e: any) {
         logger.error('ingress-egress.egress_subscribe.error', { subject: egressSubject, error: e?.message || String(e) });
+      }
+
+      // 2. Generic egress listener (EL-003)
+      const genericTopic = INTERNAL_EGRESS_V1;
+      const genericQueue = 'ingress-egress.generic';
+      const genericSubject = `${cfg.busPrefix || ''}${genericTopic}`;
+      logger.info('ingress-egress.generic_subscribe.start', { subject: genericSubject, queue: genericQueue });
+      try {
+        await this.onMessage<any>(
+          { destination: genericTopic, queue: genericQueue, ack: 'explicit' },
+          async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+            await this.handleEgressDelivery(evt, ctx, genericTopic);
+          }
+        );
+        logger.info('ingress-egress.generic_subscribe.ok', { subject: genericSubject });
+      } catch (e: any) {
+        logger.error('ingress-egress.generic_subscribe.error', { subject: genericSubject, error: e?.message || String(e) });
       }
     }
 
@@ -282,6 +185,160 @@ export class IngressEgressServer extends BaseServer {
 
     // Start status change monitoring
     this.startStatusMonitoring();
+  }
+
+  private async handleEgressDelivery(evt: any, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }, subscriptionTopic: string) {
+    try {
+      const tracer = (this as any).getTracer?.();
+      const run = async () => {
+        logger.debug('ingress-egress.egress.received', { topic: subscriptionTopic, correlationId: evt?.correlationId });
+
+        // Mark selected candidate on V2 events (if candidates exist) and log rationale
+        let evtForDelivery: any = evt;
+        try {
+          if (evt && Array.isArray(evt.candidates) && evt.candidates.length > 0) {
+            const best = selectBestCandidate(evt.candidates);
+            if (best) {
+              logger.info('ingress-egress.egress.candidate_selected', {
+                correlationId: evt?.correlationId || evt?.envelope?.correlationId,
+                candidateId: best.id,
+                priority: best.priority,
+                confidence: best.confidence,
+                createdAt: best.createdAt,
+              });
+            }
+            evtForDelivery = markSelectedCandidate(evt);
+          }
+        } catch (e: any) {
+          logger.debug('ingress-egress.egress.candidate_mark_skip', { reason: e?.message || String(e) });
+        }
+
+        const text = extractEgressTextFromEvent(evtForDelivery);
+        const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
+
+        if (!text) {
+          logger.warn('ingress-egress.egress.invalid_payload', { correlationId });
+          await ctx.ack();
+          return;
+        }
+
+        const publishFinalize = async (status: 'SENT' | 'FAILED', error?: { code: string; message?: string }) => {
+          try {
+            const cfg: any = this.getConfig?.() || {};
+            const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+            const finalizeSubject = `${prefix}internal.persistence.finalize.v1`;
+            const pubRes = this.getResource<PublisherResource>('publisher');
+            const pub = pubRes?.create(finalizeSubject);
+            if (pub) {
+              const payload = {
+                correlationId,
+                destination: subscriptionTopic,
+                deliveredAt: new Date().toISOString(),
+                status,
+                error: error ? { code: error.code, message: error.message } : undefined,
+                // Include selections context so Persistence can record them
+                candidates: Array.isArray((evtForDelivery as any)?.candidates) ? (evtForDelivery as any).candidates : undefined,
+                annotations: Array.isArray((evt as any)?.annotations) ? (evt as any).annotations : undefined,
+              };
+              await pub.publishJson(payload, { correlationId: String(correlationId || ''), type: 'egress.deliver.v1' });
+              logger.info('ingress-egress.finalize.published', { correlationId, status });
+            } else {
+              logger.warn('ingress-egress.finalize.publisher_unavailable');
+            }
+          } catch (e: any) {
+            logger.warn('ingress-egress.finalize.publish_error', { error: e?.message || String(e) });
+          }
+        };
+
+        const publishDLQ = async (reason: string, error?: any) => {
+          try {
+            const cfg: any = this.getConfig?.() || {};
+            const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+            const dlqSubject = `${prefix}${INTERNAL_DEADLETTER_V1}`;
+            const pubRes = this.getResource<PublisherResource>('publisher');
+            const pub = pubRes?.create(dlqSubject);
+            if (pub) {
+              const payload = {
+                correlationId,
+                type: evt.type,
+                payload: {
+                  reason,
+                  error: error ? { code: error.code || 'error', message: error.message || String(error) } : null,
+                  originalType: evt.type,
+                }
+              };
+              await pub.publishJson(payload, { correlationId: String(correlationId || ''), type: 'system.deadletter.v1' });
+              logger.info('ingress-egress.egress.dlq_published', { correlationId, reason });
+            }
+          } catch (e: any) {
+            logger.warn('ingress-egress.egress.dlq_publish_error', { error: e?.message || String(e) });
+          }
+        };
+
+        try {
+          const egress = evt?.egress || evt?.envelope?.egress;
+          const egressType = egress?.type;
+          
+          // Discriminator-first routing (EL-002)
+          let targetPlatform: 'discord' | 'twitch' | null = null;
+          if (egressType === 'discord') {
+            targetPlatform = 'discord';
+          } else if (egressType === 'twitch:irc') {
+            targetPlatform = 'twitch';
+          } else {
+            // Fallback heuristics for legacy events
+            const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
+            const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
+            const isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+            targetPlatform = isDiscord ? 'discord' : 'twitch';
+          }
+
+          if (targetPlatform === 'discord') {
+            if (this.discordClient) {
+              await this.discordClient.sendText(text, evt.channel);
+            } else {
+              await publishDLQ('EGRESS_CLIENT_UNAVAILABLE', { code: 'discord_not_configured', message: 'Discord client not initialized' });
+              await ctx.ack();
+              return;
+            }
+          } else {
+            // Default to Twitch
+            if (this.twitchClient) {
+              await this.twitchClient.sendText(text, evt.channel);
+            } else {
+              await publishDLQ('EGRESS_CLIENT_UNAVAILABLE', { code: 'twitch_not_configured', message: 'Twitch client not initialized' });
+              await ctx.ack();
+              return;
+            }
+          }
+
+          logger.info('ingress-egress.egress.sent', { correlationId, platform: targetPlatform, egressType });
+          await publishFinalize('SENT');
+        } catch (e: any) {
+          // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
+          await publishFinalize('FAILED', { code: 'send_error', message: e?.message || String(e) });
+          throw e;
+        }
+      };
+
+      if (tracer && typeof tracer.startActiveSpan === 'function') {
+        await tracer.startActiveSpan('deliver-egress', async (span: any) => {
+          try { await run(); } finally { span.end(); }
+        });
+      } else {
+        await run();
+      }
+      await ctx.ack();
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      // JSON parse errors or other non-retryable conditions → ack
+      if (/json|unexpected token|position \d+/i.test(msg)) {
+        logger.error('ingress-egress.egress.json_error', { topic: subscriptionTopic, error: msg });
+      } else {
+        logger.error('ingress-egress.egress.process_error', { topic: subscriptionTopic, error: msg });
+      }
+      await ctx.ack(); // Ack to prevent retry loops for unrecoverable delivery errors
+    }
   }
 
   private startStatusMonitoring() {

@@ -498,7 +498,7 @@ export class BaseServer {
   /**
    * Protected helper: advance the event to the next routing destination.
    * - Finds the first pending step (status not in OK|SKIP).
-   * - If no pending step, falls back to egressDestination when present.
+   * - If no pending step, falls back to egress destination when present.
    * - Publishes with standard attributes and emits tracing/logging.
    * - Idempotent per in-memory event instance: subsequent calls are no-ops unless the prior publish failed.
    */
@@ -577,7 +577,7 @@ export class BaseServer {
   }
 
   /**
-   * Protected helper: bypass routing slip and publish directly to egressDestination.
+   * Protected helper: bypass routing slip and publish directly to egress destination.
    * - Idempotent per in-memory event instance.
    */
   protected async complete(event: InternalEventV2, stepStatus?: RoutingStatus): Promise<void> {

@@ -1,0 +1,87 @@
+meta:
+  backlog_id: egress-listener-enhancement
+  updated_at: 2025-12-21
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-156
+  start: 2025-12-21
+  goal: "Implement generic egress listener and unified delivery handler with DLQ fallback"
+
+items:
+  - id: EL-001
+    title: "Extract handleEgressDelivery unified handler"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "Logic extracted from instance listener to private handleEgressDelivery"
+      - "Existing functionality for instance-specific topics is preserved"
+    updated_at: 2025-12-21
+    log: []
+
+  - id: EL-002
+    title: "Implement Discriminator-First Routing"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [EL-001]
+    acceptance:
+      - "egress.type used as primary routing signal"
+      - "Fallback heuristics work for legacy events"
+    updated_at: 2025-12-21
+    log: []
+
+  - id: EL-003
+    title: "Register Generic Egress Listener"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [EL-001]
+    acceptance:
+      - "Service subscribes to internal.egress.v1"
+      - "Uses ingress-egress.generic shared queue"
+    updated_at: 2025-12-21
+    log: []
+
+  - id: EL-004
+    title: "Implement Dead Letter Queue (DLQ) fallback"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [EL-001]
+    acceptance:
+      - "Terminal failures publish to internal.deadletter.v1"
+      - "Payload includes correlationId and failure reason"
+    updated_at: 2025-12-21
+    log: []
+
+  - id: EL-005
+    title: "Update architecture.yaml"
+    priority: P2
+    status: todo
+    effort: XS
+    owner: agent
+    deps: []
+    acceptance:
+      - "Generic internal.egress.v1 topic added to consumes list"
+    updated_at: 2025-12-21
+    log: []
+
+  - id: EL-006
+    title: "Generic routing integration tests"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [EL-003, EL-004]
+    acceptance:
+      - "Integration tests confirm delivery via generic topic"
+      - "Failure scenarios verified against DLQ"
+    updated_at: 2025-12-21
+    log: []
