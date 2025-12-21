@@ -49,7 +49,13 @@ class PersistenceServer extends BaseServer {
                   this.getLogger().warn('persistence.firestore.unavailable');
                 } else {
                   const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.upsertIngressEvent(msg);
+                  
+                  // Route system events to upsertSourceState, others to upsertIngressEvent
+                  if (msg.type?.startsWith('system.')) {
+                    await store.upsertSourceState(msg);
+                  } else {
+                    await store.upsertIngressEvent(msg);
+                  }
                 }
                 await ctx.ack();
               } catch (e: any) {

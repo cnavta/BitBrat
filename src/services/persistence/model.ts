@@ -1,6 +1,30 @@
 import type { InternalEventV2 } from '../../types/events';
 
 export const COLLECTION_EVENTS = 'events';
+export const COLLECTION_SOURCES = 'sources';
+
+export interface SourceDocV1 {
+  id: string; // e.g., "123456"
+  platform: 'twitch' | 'discord' | 'kick' | string;
+  displayName?: string;
+  status: 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
+  streamStatus?: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
+  lastStatusUpdate: string; // ISO8601
+  lastStreamUpdate?: string; // ISO8601
+  lastError?: { code?: string; message: string; at: string } | null;
+  metrics?: {
+    messagesIn?: number;
+    messagesOut?: number;
+    errors?: number;
+    reconnects?: number;
+    lastHeartbeat?: string; // ISO8601
+  };
+  metadata?: Record<string, any>;
+  authStatus?: 'VALID' | 'EXPIRED' | 'REVOKED';
+  viewerCount?: number;
+  permissions?: string[];
+  latencyMs?: number;
+}
 
 export interface EventDocV1 extends InternalEventV2 {
   /** Overall processing status of the recorded event */
@@ -84,6 +108,52 @@ export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
     },
   } as any;
   return stripUndefinedDeep(doc) as EventDocV1;
+}
+
+/**
+ * Normalizes system.source.status events into a SourceDocV1 patch.
+ */
+export function normalizeSourceStatus(evt: InternalEventV2): Partial<SourceDocV1> {
+  const payload = evt.payload || {};
+  const now = new Date().toISOString();
+  
+  const patch: Partial<SourceDocV1> = {
+    platform: payload.platform,
+    id: payload.id || payload.source?.split(':')[1],
+    status: payload.status,
+    displayName: payload.displayName,
+    lastStatusUpdate: now,
+    metrics: payload.metrics ? {
+      ...payload.metrics,
+      lastHeartbeat: now,
+    } : undefined,
+    lastError: payload.lastError ? {
+      ...payload.lastError,
+      at: payload.lastError.at || now,
+    } : undefined,
+    metadata: payload.metadata,
+    authStatus: payload.authStatus,
+  };
+
+  return stripUndefinedDeep(patch);
+}
+
+/**
+ * Normalizes system.stream.online/offline events into a SourceDocV1 patch.
+ */
+export function normalizeStreamEvent(evt: InternalEventV2): Partial<SourceDocV1> {
+  const payload = evt.payload || {};
+  const now = new Date().toISOString();
+  const isOnline = evt.type === 'system.stream.online';
+
+  const patch: Partial<SourceDocV1> = {
+    streamStatus: isOnline ? 'ONLINE' : 'OFFLINE',
+    lastStreamUpdate: now,
+    viewerCount: payload.viewer_count,
+    metadata: payload, // Store the full payload as metadata for now
+  };
+
+  return stripUndefinedDeep(patch);
 }
 
 export function normalizeFinalizePayload(msg: any): FinalizationUpdateV1 {

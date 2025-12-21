@@ -3,7 +3,7 @@ title: "Twitch EventSub WebSocket Integration (Part 1)"
 goal: "Establish Twitch EventSub WebSocket connection, listen for channel.update/follow, and normalize to InternalEventV2."
 owner: "Junie (AI Architect)"
 createdAt: "2025-12-20T22:19:00Z"
-status: "in-progress"
+status: "complete"
 links:
   branch: "feature/sprint-152-b5d3f2-twitch-eventsub-websocket"
 notes: |

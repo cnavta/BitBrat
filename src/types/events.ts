@@ -71,6 +71,9 @@ export type InternalEventType =
   | 'router.route.v1'
   | 'egress.deliver.v1'
   | 'twitch.eventsub.v1'
+  | 'system.source.status'
+  | 'system.stream.online'
+  | 'system.stream.offline'
   | string;
 
 export type RoutingStatus = 'PENDING' | 'OK' | 'ERROR' | 'SKIP';

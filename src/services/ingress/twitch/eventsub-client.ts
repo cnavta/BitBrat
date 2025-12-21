@@ -145,6 +145,30 @@ export class TwitchEventSubClient {
           });
         });
         this.subscriptions.push(updateSub);
+
+        // stream.online
+        const onlineSub = this.listener.onStreamOnline(userId, (event: any) => {
+          logger.info('twitch.eventsub.event.stream_online', { channel, streamId: event.id });
+          const internalEvent = this.builder.buildStreamOnline(event as any, {
+            finalizationDestination: this.options.egressDestinationTopic
+          });
+          this.publisher.publish(internalEvent).catch(err => {
+            logger.error('twitch.eventsub.publish_failed', { kind: 'stream.online', error: err.message });
+          });
+        });
+        this.subscriptions.push(onlineSub);
+
+        // stream.offline
+        const offlineSub = this.listener.onStreamOffline(userId, (event: any) => {
+          logger.info('twitch.eventsub.event.stream_offline', { channel });
+          const internalEvent = this.builder.buildStreamOffline(event as any, {
+            finalizationDestination: this.options.egressDestinationTopic
+          });
+          this.publisher.publish(internalEvent).catch(err => {
+            logger.error('twitch.eventsub.publish_failed', { kind: 'stream.offline', error: err.message });
+          });
+        });
+        this.subscriptions.push(offlineSub);
       }
 
       this.listener.start();

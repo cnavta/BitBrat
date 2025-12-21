@@ -1,7 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { InternalEventV2 } from '../../types/events';
-import { COLLECTION_EVENTS, EventDocV1, FinalizationUpdateV1, normalizeFinalizePayload, normalizeIngressEvent, stripUndefinedDeep } from './model';
+import { COLLECTION_EVENTS, COLLECTION_SOURCES, EventDocV1, FinalizationUpdateV1, normalizeFinalizePayload, normalizeIngressEvent, normalizeSourceStatus, normalizeStreamEvent, stripUndefinedDeep } from './model';
 
 export interface PersistenceStoreDeps {
   firestore: Firestore;
@@ -71,5 +71,29 @@ export class PersistenceStore {
     await ref.set(stripUndefinedDeep(patch) as any, { merge: true });
     this.logger.info('persistence.finalize.ok', { correlationId: update.correlationId, status: update.status });
     return update;
+  }
+
+  /**
+   * Upsert source status/state into the 'sources' collection.
+   */
+  async upsertSourceState(evt: InternalEventV2): Promise<void> {
+    let patch: any;
+    if (evt.type === 'system.source.status') {
+      patch = normalizeSourceStatus(evt);
+    } else if (evt.type === 'system.stream.online' || evt.type === 'system.stream.offline') {
+      patch = normalizeStreamEvent(evt);
+    }
+
+    if (!patch || !patch.platform || !patch.id) {
+      this.logger.warn('persistence.upsert_source.invalid_payload', { type: evt.type, platform: patch?.platform, id: patch?.id });
+      return;
+    }
+
+    const docId = `${patch.platform}:${patch.id}`;
+    const ref = this.db.collection(COLLECTION_SOURCES).doc(docId);
+    
+    // Use merge: true to update only the fields present in the patch
+    await ref.set(stripUndefinedDeep(patch), { merge: true });
+    this.logger.info('persistence.upsert_source.ok', { docId, type: evt.type });
   }
 }

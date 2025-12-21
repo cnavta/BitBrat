@@ -1,0 +1,111 @@
+meta:
+  backlog_id: sprint-153-backlog
+  updated_at: 2025-12-21
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-153-d1e2f3
+  start: 2025-12-21
+  end: 2026-01-04
+  wip_limit: 3
+  goal: "Establish platform-wide awareness of ingress source status and stream status in Firestore."
+
+items:
+  - id: BL-153-01
+    title: "Foundation: Contracts & Schema"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "InternalEventV2 extended with system.source.status, system.stream.online, system.stream.offline"
+      - "Firestore 'sources' collection schema defined in TypeScript"
+      - "Normalization helpers added to persistence model"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T12:40:00Z
+        note: "Contracts extended and schema defined."
+
+  - id: BL-153-02
+    title: "Ingress Connectivity Heartbeats"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-153-01]
+    blocked_reason: null
+    acceptance:
+      - "ingress-egress service emits system.source.status events periodically"
+      - "Immediate status update on connector ERROR or DISCONNECTED"
+      - "Heartbeats include basic metrics (messagesIn, messagesOut)"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T12:50:00Z
+        note: "Heartbeat logic added to ingress-egress-service.ts."
+
+  - id: BL-153-03
+    title: "Twitch Stream Lifecycle Integration"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-153-01]
+    blocked_reason: null
+    acceptance:
+      - "TwitchEventSubClient subscribes to stream.online and stream.offline"
+      - "Twitch events are mapped to InternalEventV2 and published to internal bus"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T13:00:00Z
+        note: "EventSub subscriptions for stream.online/offline implemented."
+
+  - id: BL-153-04
+    title: "State Persistence to Firestore"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-153-02, BL-153-03]
+    blocked_reason: null
+    acceptance:
+      - "persistence service updates 'sources' collection on system events"
+      - "Firestore document ID follows {platform}:{id} format"
+      - "Metrics are aggregated correctly in the source document"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T13:10:00Z
+        note: "PersistenceStore extended to handle 'sources' collection."
+
+  - id: BL-153-05
+    title: "Enhanced Metrics: Auth & Viewers"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-153-04]
+    blocked_reason: null
+    acceptance:
+      - "Authentication health status (VALID/EXPIRED/REVOKED) tracked in Firestore"
+      - "Viewer count updated periodically while stream is ONLINE"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T13:15:00Z
+        note: "Auth status tracking added to heartbeat loop."
+
+  - id: BL-153-06
+    title: "Advanced Metrics: Permissions & Latency"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-153-04]
+    blocked_reason: null
+    acceptance:
+      - "Bot permissions (MODERATOR, etc.) stored in source metadata"
+      - "Average latency tracked and updated in Firestore"
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T13:20:00Z
+        note: "Permissions and latency handled via generic metadata support in status updates."
