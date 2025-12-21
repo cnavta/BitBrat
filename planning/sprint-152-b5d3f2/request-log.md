@@ -20,3 +20,23 @@
 - **Files modified or created**:
   - `planning/sprint-152-b5d3f2/backlog.yaml`
   - `planning/sprint-152-b5d3f2/implementation-plan.md`
+
+## [2025-12-21T05:20:00Z] - Remediation: EventSub Subscription Auth Fix
+- **Prompt summary**: Investigate and remediate EventSub subscription errors in Cloud Run.
+- **Interpretation**: The "no token found" errors indicate misconfigured user context in Twurple. Need to ensure the bot's token is correctly registered and used as moderator.
+- **Shell/git commands executed**:
+  - `npm test src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+  - `./validate_deliverable.sh`
+- **Files modified or created**:
+  - `src/services/ingress/twitch/eventsub-client.ts`
+  - `src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+
+## [2025-12-21T05:45:00Z] - Remediation: EventSub channel.update Auth Fix
+- **Prompt summary**: Address remaining "no token found" errors for channel.update in Cloud Run.
+- **Interpretation**: Twurple's onChannelUpdate hardcodes the broadcaster ID as the user context, which fails for the bot. Implemented token aliasing to register the bot's token under the broadcaster's ID.
+- **Shell/git commands executed**:
+  - `npm test src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+  - `./validate_deliverable.sh`
+- **Files modified or created**:
+  - `src/services/ingress/twitch/eventsub-client.ts`
+  - `src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`

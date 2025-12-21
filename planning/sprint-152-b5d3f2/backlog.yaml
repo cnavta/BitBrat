@@ -72,10 +72,14 @@ items:
       - "TwitchEventSubClient manages WebSocket connection via @twurple/eventsub-ws"
       - "Client handles subscriptions for channel.follow and channel.update"
       - "Unit tests pass (mocked Twurple)"
-    updated_at: 2025-12-20
+    updated_at: 2025-12-21
     log:
       - at: 2025-12-20T23:30:00Z
         note: "Implemented TwitchEventSubClient and integrated it into IngressEgressServer."
+      - at: 2025-12-21T05:25:00Z
+        note: "Remediated Cloud Run subscription issues by fixing user context/moderator configuration."
+      - at: 2025-12-21T05:40:00Z
+        note: "Fixed remaining 'no token found' errors for channel.update by implementing bot token aliasing for broadcasters."
 
   - id: TASK-152-005
     title: "Integrate EventSubClient into IngressEgressServer"
@@ -114,20 +118,22 @@ items:
   - id: TASK-152-007
     title: "Update validate_deliverable.sh"
     priority: P2
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: [TASK-152-005]
     blocked_reason: null
     acceptance:
       - "validate_deliverable.sh covers new tests and build"
-    updated_at: 2025-12-20
-    log: []
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T04:15:00Z
+        note: "Verified build and tests via validate_deliverable.sh. Fixed regressions in existing tests."
 
   - id: TASK-152-008
     title: "Sprint Verification & Retro"
     priority: P3
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: [TASK-152-001, TASK-152-002, TASK-152-003, TASK-152-004, TASK-152-005, TASK-152-006, TASK-152-007]
@@ -136,5 +142,7 @@ items:
       - "Verification report generated"
       - "Retro and key learnings documented"
       - "PR created"
-    updated_at: 2025-12-20
-    log: []
+    updated_at: 2025-12-21
+    log:
+      - at: 2025-12-21T04:20:00Z
+        note: "Sprint verification completed. PR #52 created."

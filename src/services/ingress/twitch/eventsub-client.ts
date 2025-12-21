@@ -64,13 +64,13 @@ export class TwitchEventSubClient {
         });
       }
 
-      await authProvider.addUserForToken({
+      authProvider.addUser(auth.userId, {
         accessToken: auth.accessToken,
         refreshToken: auth.refreshToken || null,
         expiresIn: auth.expiresIn ?? null,
         obtainmentTimestamp: auth.obtainmentTimestamp ?? 0,
         scope: auth.scope || [],
-      }, ['chat']);
+      }, ['chat', 'eventsub']);
 
       const apiClient = new ApiClient({ authProvider });
 
@@ -87,9 +87,23 @@ export class TwitchEventSubClient {
 
         const userId = user.id;
 
+        // Register the bot's token for the broadcaster's ID as well.
+        // This is a workaround for Twurple v7.4.0 where some EventSub v2 subscriptions
+        // (like channel.update) hardcode the broadcaster's ID as the user context
+        // for the API call, even if no special scopes are required.
+        if (userId !== auth.userId) {
+          authProvider.addUser(userId, {
+            accessToken: auth.accessToken,
+            refreshToken: auth.refreshToken || null,
+            expiresIn: auth.expiresIn ?? null,
+            obtainmentTimestamp: auth.obtainmentTimestamp ?? 0,
+            scope: auth.scope || [],
+          }, ['chat', 'eventsub']);
+        }
+
         // channel.follow (v2)
         // Note: v2 requires moderator:read:followers
-        const followSub = this.listener.onChannelFollow(userId, userId, (event: any) => {
+        const followSub = this.listener.onChannelFollow(userId, auth.userId, (event: any) => {
           logger.info('twitch.eventsub.event.follow', { channel, from: event.userName });
           const internalEvent = this.builder.buildFollow(event as any, {
             finalizationDestination: this.options.egressDestinationTopic
