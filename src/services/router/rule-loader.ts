@@ -7,7 +7,7 @@
  * - Subscribes via onSnapshot to keep cache up to date
  */
 import { logger } from '../../common/logging';
-import { AnnotationV1 } from '@/types';
+import {AnnotationV1, EgressV1} from '@/types';
 
 export interface RoutingStepRef {
   id: string;
@@ -26,6 +26,7 @@ export interface RuleDoc {
   logic: string;
   routingSlip: RoutingStepRef[];
   annotations?: AnnotationV1[]; // Annotations to add to the event when matched.
+  egress?: EgressV1; // Optional egress override. If an egress exists, a match on this rule replaces it, otherwise the egress is just added to the event matched
   metadata?: Record<string, unknown>;
 }
 

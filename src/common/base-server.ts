@@ -519,7 +519,7 @@ export class BaseServer {
     const idxPending = slip.findIndex((s) => s && s.status === 'PENDING');
     // If no pending step, fallback to egress
     if (idxPending < 0) {
-      const destRaw = (event as any).egressDestination as string | undefined;
+      const destRaw = event.egress?.destination;
       const cfg: any = (this as any).getConfig?.() || {};
       const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
       const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
@@ -591,8 +591,7 @@ export class BaseServer {
       return;
     }
     (event as any)[COMPLETE_MARK] = true;
-
-    const destRaw = (event as any).egressDestination as string | undefined;
+    const destRaw = event.egress?.destination;
     const cfg: any = (this as any).getConfig?.() || {};
     const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
     const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);

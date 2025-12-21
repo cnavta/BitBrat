@@ -1,4 +1,4 @@
-import { InternalEventV2 } from '../../../types/events';
+import { InternalEventV2, EgressV1 } from '../../../types/events';
 import crypto from 'crypto';
 
 /**
@@ -29,6 +29,8 @@ export interface IrcMessageMeta {
 export interface EnvelopeBuilderOptions {
   /** Optional override for finalization topic. */
   finalizationDestination?: string;
+  /** Optional egress config */
+  egress?: EgressV1;
   /** Optional function to generate UUIDs; defaults to crypto.randomUUID */
   uuid?: () => string;
   /** Optional timestamp supplier for testability; defaults to new Date().toISOString() */
@@ -70,6 +72,7 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
       source: 'ingress.twitch',
       correlationId,
       traceId,
+      egress: opts?.egress,
       routingSlip: [],
       type: 'chat.message.v1',
       channel,

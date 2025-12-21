@@ -1,12 +1,12 @@
 import crypto from 'crypto';
 import type { EnvelopeBuilder } from '../core';
-import type { InternalEventV2 } from '../../../types/events';
+import type { InternalEventV2, EgressV1 } from '../../../types/events';
 import type { DiscordMessageMeta } from './discord-ingress-client';
 
 export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMeta> {
   build(
     meta: DiscordMessageMeta,
-    opts?: { uuid?: () => string; nowIso?: () => string; egressDestination?: string }
+    opts?: { uuid?: () => string; nowIso?: () => string; egress?: EgressV1 }
   ): InternalEventV2 {
     const uuid = opts?.uuid || crypto.randomUUID;
     const nowIso = opts?.nowIso || (() => new Date().toISOString());
@@ -20,7 +20,7 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
       correlationId,
       traceId,
       routingSlip: [],
-      egressDestination: opts?.egressDestination,
+      egress: opts?.egress,
       type: 'chat.message.v1',
       channel: meta.channelId, // optional; for Discord, we use channel ID
       userId: meta.authorId,

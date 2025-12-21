@@ -137,7 +137,10 @@ export class TwitchEventSubClient {
           try {
             logger.info('twitch.eventsub.event.follow', { channel, from: event.userName });
             const internalEvent = this.builder.buildFollow(event as any, {
-              finalizationDestination: this.options.egressDestinationTopic
+              egress: this.options.egressDestinationTopic ? {
+                destination: this.options.egressDestinationTopic,
+                type: 'twitch:irc'
+              } : undefined
             });
             this.publisher.publish(internalEvent).catch(err => {
               logger.error('twitch.eventsub.publish_failed', { kind: 'follow', error: err.message });
@@ -153,7 +156,10 @@ export class TwitchEventSubClient {
           try {
             logger.info('twitch.eventsub.event.update', { channel, title: event.streamTitle });
             const internalEvent = this.builder.buildUpdate(event as any, {
-              finalizationDestination: this.options.egressDestinationTopic
+              egress: this.options.egressDestinationTopic ? {
+                destination: this.options.egressDestinationTopic,
+                type: 'twitch:irc'
+              } : undefined
             });
             this.publisher.publish(internalEvent).catch(err => {
               logger.error('twitch.eventsub.publish_failed', { kind: 'update', error: err.message });
@@ -169,7 +175,10 @@ export class TwitchEventSubClient {
           try {
             logger.info('twitch.eventsub.event.stream_online', { channel, streamId: event.id });
             const internalEvent = this.builder.buildStreamOnline(event as any, {
-              finalizationDestination: this.options.egressDestinationTopic
+              egress: this.options.egressDestinationTopic ? {
+                destination: this.options.egressDestinationTopic,
+                type: 'twitch:irc'
+              } : undefined
             });
             this.publisher.publish(internalEvent).catch(err => {
               logger.error('twitch.eventsub.publish_failed', { kind: 'stream.online', error: err.message });
@@ -185,7 +194,10 @@ export class TwitchEventSubClient {
           try {
             logger.info('twitch.eventsub.event.stream_offline', { channel });
             const internalEvent = this.builder.buildStreamOffline(event as any, {
-              finalizationDestination: this.options.egressDestinationTopic
+              egress: this.options.egressDestinationTopic ? {
+                destination: this.options.egressDestinationTopic,
+                type: 'twitch:irc'
+              } : undefined
             });
             this.publisher.publish(internalEvent).catch(err => {
               logger.error('twitch.eventsub.publish_failed', { kind: 'stream.offline', error: err.message });

@@ -338,11 +338,12 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
 
     try {
       await startActiveSpan('ingress-receive', async () => {
-        const evtV2: InternalEventV2 = this.builder.build(msg);
-        // Ensure egressDestination is set for downstream responses to route back to this instance
-        if (!evtV2.egressDestination && this.egressDestinationTopic) {
-          (evtV2 as any).egressDestination = this.egressDestinationTopic;
-        }
+        const evtV2: InternalEventV2 = this.builder.build(msg, {
+          egress: this.egressDestinationTopic ? {
+            destination: this.egressDestinationTopic,
+            type: 'twitch:irc'
+          } : undefined
+        });
         await this.publisher.publish(evtV2);
         counters.published = (counters.published || 0) + 1;
       });

@@ -1,4 +1,4 @@
-import type { InternalEventV2 } from '../../../types/events';
+import type { InternalEventV2, EgressV1 } from '../../../types/events';
 
 export type ConnectorState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -22,7 +22,7 @@ export interface IngressPublisher {
 export interface EnvelopeBuilder<TMeta> {
   build(
     meta: TMeta,
-    opts?: { uuid?: () => string; nowIso?: () => string; egressDestination?: string }
+    opts?: { uuid?: () => string; nowIso?: () => string; egress?: EgressV1 }
   ): InternalEventV2;
 }
 

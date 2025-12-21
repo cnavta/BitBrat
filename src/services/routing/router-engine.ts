@@ -77,6 +77,15 @@ export class RouterEngine {
           const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
           meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic };
           chosen = slip;
+          // Enrich egress if rule defines one
+          if (rule.egress) {
+            evtOut.egress = rule.egress;
+            logger.debug('router_engine.egress_enriched', {
+              ruleId: rule.id,
+              type: rule.egress.type,
+              destination: rule.egress.destination,
+            });
+          }
           // Append annotations from rule if present
           const anns: AnnotationV1[] | undefined = rule.annotations && rule.annotations.length ? rule.annotations : undefined;
           if (anns && anns.length) {

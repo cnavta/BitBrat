@@ -1,0 +1,12 @@
+id: sprint-155-a8c2d4
+title: "Enhanced Egress Routing"
+goal: "Allow events to come in on one source but out via another by enhancing egress routing capabilities."
+owner: "Junie"
+createdAt: "2025-12-21T17:31:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-155-a8c2d4-egress-routing-enhancement"
+notes: |
+  Refactor EnvelopeV1 to use EgressV1 instead of egressDestination string.
+  Update event-router for egress enrichment.
+  Update ingress-egress service for discriminator-based routing.

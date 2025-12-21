@@ -84,7 +84,7 @@ describe('BaseServer routing helpers', () => {
       { id: 'router', status: 'OK', nextTopic: 'internal.router.done.v1' },
       { id: 'bot', status: 'SKIP', nextTopic: 'internal.bot.requests.v1' },
     ] as any;
-    const evt = makeEvent({ routingSlip: steps, egressDestination: 'internal.egress.v1' });
+    const evt = makeEvent({ routingSlip: steps, egress: { destination: 'internal.egress.v1', type: 'twitch:irc' } });
 
     await server.nextPublic(evt);
 
@@ -93,7 +93,7 @@ describe('BaseServer routing helpers', () => {
   });
 
   test('complete() publishes to egressDestination', async () => {
-    const evt = makeEvent({ egressDestination: 'internal.egress.v1' });
+    const evt = makeEvent({ egress: { destination: 'internal.egress.v1', type: 'twitch:irc' } });
     await server.completePublic(evt);
     expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
   });
@@ -102,7 +102,7 @@ describe('BaseServer routing helpers', () => {
     const steps: RoutingStep[] = [
       { id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' },
     ] as any;
-    const evt = makeEvent({ routingSlip: steps, egressDestination: 'internal.egress.v1' });
+    const evt = makeEvent({ routingSlip: steps, egress: { destination: 'internal.egress.v1', type: 'twitch:irc' } });
     await server.completePublic(evt, 'SKIP');
     expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
     expect((evt.routingSlip as RoutingStep[])[0].status).toBe('SKIP');

@@ -92,6 +92,13 @@ export interface RoutingStep {
   notes?: string;
 }
 
+type EgressV1Type = 'twitch:irc' | 'discord';
+
+export interface EgressV1 {
+  destination: string; // Egress destination for external responses
+  type: EgressV1Type; // Type of egress destination being requested.
+}
+
 export interface EnvelopeV1 {
   v: '1';
   source: string; // e.g., "ingress.twitch"
@@ -99,7 +106,7 @@ export interface EnvelopeV1 {
   traceId?: string; // w3c trace id
   replyTo?: string; // topic for direct reply if not default
   timeoutAt?: string; // optional absolute timeout for the end-to-end processing
-  egressDestination?: string; // Destination that can to route external responses for a message, gernerally the ingress-egress instance the message arrived on.
+  egress?: EgressV1; // Destination that can to route external responses for a message, gernerally the ingress-egress instance the message arrived on.
   routingSlip?: RoutingStep[]; // at least one step after routing
   /** Optional: added by Auth service (User Enrichment v1) */
   user?: {

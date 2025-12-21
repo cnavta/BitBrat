@@ -127,7 +127,7 @@ export class IngressEgressServer extends BaseServer {
     }
 
     // Subscribe to this instance's egress subject and deliver text via Twitch IRC
-    const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
+    const isTestEnv = (process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1') && process.env.FORCE_SUBSCRIBE !== '1';
     if (isTestEnv) {
       logger.debug('ingress-egress.egress_subscribe.disabled_for_tests');
     } else {
@@ -197,9 +197,17 @@ export class IngressEgressServer extends BaseServer {
                 };
 
                 try {
-                  const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
-                  const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
-                  const isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+                  const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
+                  const egress = evt?.egress || evt?.envelope?.egress;
+                  const egressType = egress?.type;
+                  
+                  // Use new discriminator if available, fallback to legacy source/annotation check
+                  let isDiscord = egressType === 'discord';
+                  if (!egressType) {
+                    const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
+                    const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
+                    isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+                  }
 
                   if (isDiscord) {
                     if (this.discordClient) {
@@ -208,12 +216,13 @@ export class IngressEgressServer extends BaseServer {
                       throw new Error('discord_client_not_available');
                     }
                   } else {
-                    // Default to Twitch (matches legacy behavior)
+                    // Default to Twitch (matches legacy behavior or explicit twitch:irc)
                     await this.twitchClient!.sendText(text, evt.channel);
                   }
-                  logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord });
+                  logger.info('ingress-egress.egress.sent', { correlationId, egressType, isDiscord });
                   await publishFinalize('SENT');
                 } catch (e: any) {
+                  const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
                   // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
                   await publishFinalize('FAILED', { code: 'send_error', message: e?.message || String(e) });
                   throw e;

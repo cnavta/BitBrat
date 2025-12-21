@@ -1,5 +1,6 @@
 import { DiscordEnvelopeBuilder } from './envelope-builder';
 import type { DiscordMessageMeta } from './discord-ingress-client';
+import { EgressV1 } from '../../../types';
 
 describe('DiscordEnvelopeBuilder', () => {
   const builder = new DiscordEnvelopeBuilder();
@@ -22,7 +23,8 @@ describe('DiscordEnvelopeBuilder', () => {
       raw: { foo: 'bar' },
     };
 
-    const evt = builder.build(meta, { uuid, nowIso: () => fixedNow, egressDestination: 'internal.egress.v1.proc123' });
+    const egress: EgressV1 = { destination: 'internal.egress.v1.proc123', type: 'discord' };
+    const evt = builder.build(meta, { uuid, nowIso: () => fixedNow, egress });
     expect(evt.v).toBe('1');
     expect(evt.source).toBe('ingress.discord');
     expect(evt.correlationId).toBe('u1');
@@ -30,7 +32,7 @@ describe('DiscordEnvelopeBuilder', () => {
     expect(evt.type).toBe('chat.message.v1');
     expect(evt.channel).toBe('c1');
     expect(evt.userId).toBe('u42');
-    expect(evt.egressDestination).toBe('internal.egress.v1.proc123');
+    expect(evt.egress).toEqual(egress);
     expect(evt.message?.id).toBe('m1');
     expect(evt.message?.role).toBe('user');
     expect(evt.message?.text).toBe('Hello from Discord');

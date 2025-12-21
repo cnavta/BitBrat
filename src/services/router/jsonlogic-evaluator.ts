@@ -30,6 +30,7 @@ export interface EvalContext {
   payload: Record<string, any>;
   v?: string;
   source?: string;
+  egress?: any;
   correlationId?: string;
   traceId?: string;
   message?: any;
@@ -51,6 +52,7 @@ export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number)
     user: (evt as any).user,
     v: (evt as any).v,
     source: (evt as any).source,
+    egress: (evt as any).egress,
     correlationId: (evt as any).correlationId,
     traceId: (evt as any).traceId,
     message: (evt as any).message,
