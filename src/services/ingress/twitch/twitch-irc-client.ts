@@ -171,22 +171,22 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
         authProvider = new RefreshingAuthProvider({
           clientId,
           clientSecret,
-          onRefresh: async (newToken: any) => {
-            try {
-              if (this.credentialsProvider?.saveRefreshedToken) {
-                await this.credentialsProvider.saveRefreshedToken({
-                  accessToken: newToken.accessToken,
-                  refreshToken: newToken.refreshToken,
-                  scope: newToken.scope,
-                  expiresIn: newToken.expiresIn,
-                  obtainmentTimestamp: newToken.obtainmentTimestamp,
-                  userId: (newToken as any).userId ?? undefined,
-                });
-              }
-            } catch (err: any) {
-              logger.warn('Failed to persist refreshed Twitch token', { error: err?.message || String(err) });
+        });
+        authProvider.onRefresh(async (userId: string, newToken: any) => {
+          try {
+            if (this.credentialsProvider?.saveRefreshedToken) {
+              await this.credentialsProvider.saveRefreshedToken({
+                accessToken: newToken.accessToken,
+                refreshToken: newToken.refreshToken,
+                scope: newToken.scope,
+                expiresIn: newToken.expiresIn,
+                obtainmentTimestamp: newToken.obtainmentTimestamp,
+                userId,
+              });
             }
-          },
+          } catch (err: any) {
+            logger.warn('Failed to persist refreshed Twitch token', { error: err?.message || String(err) });
+          }
         });
         // add the user token to provider for chat scope
         await authProvider.addUserForToken({

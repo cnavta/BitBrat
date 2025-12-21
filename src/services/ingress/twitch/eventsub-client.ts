@@ -59,8 +59,11 @@ export class TwitchEventSubClient {
 
       // If the provider supports saving refreshed tokens, hook it up
       if (typeof this.options.credentialsProvider.saveRefreshedToken === 'function') {
-        authProvider.onRefresh(async (_userId, tokenData) => {
-          await this.options.credentialsProvider.saveRefreshedToken!(tokenData as any);
+        authProvider.onRefresh(async (userId, tokenData) => {
+          await this.options.credentialsProvider.saveRefreshedToken!({
+            ...(tokenData as any),
+            userId,
+          });
         });
       }
 

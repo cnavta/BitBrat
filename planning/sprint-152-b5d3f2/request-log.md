@@ -51,3 +51,14 @@
   - `src/services/ingress/twitch/credentials-provider.ts`
   - `src/services/ingress/twitch/eventsub-client.ts`
   - `src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+
+## [2025-12-21T16:45:00Z] - Remediation: Fix bot token userId nulling
+- **Prompt summary**: The ingress-egress service seems to be nulling out the userId for the bot token in Firestore when run.
+- **Interpretation**: The `onRefresh` handlers were not passing the `userId` to the token store, causing `FirestoreTokenStore` to overwrite the existing `userId` with `null`.
+- **Shell/git commands executed**:
+  - `npm test src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+  - `./validate_deliverable.sh`
+- **Files modified or created**:
+  - `src/services/ingress/twitch/eventsub-client.ts`
+  - `src/services/ingress/twitch/twitch-irc-client.ts`
+  - `src/services/twitch-client.ts`

@@ -82,6 +82,8 @@ items:
         note: "Fixed remaining 'no token found' errors for channel.update by implementing bot token aliasing for broadcasters."
       - at: 2025-12-21T14:10:00Z
         note: "Refined auth strategy to use real broadcaster tokens from /oauth/twitch/broadcaster/token when available."
+      - at: 2025-12-21T16:40:00Z
+        note: "Remediated bot token userId nulling in Firestore by fixing onRefresh handlers."
 
   - id: TASK-152-005
     title: "Integrate EventSubClient into IngressEgressServer"

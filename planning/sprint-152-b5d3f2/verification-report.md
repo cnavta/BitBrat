@@ -17,6 +17,7 @@
 
 ## Alignment Notes
 - Remediated "no token found" errors in Cloud Run by ensuring bot tokens are correctly registered and aliased for broadcaster IDs where Twurple requires a specific user context (e.g., `channel.update.v2`).
+- Remediated "userId nulling" issue in Firestore by ensuring `onRefresh` handlers correctly pass the `userId` to the token store.
 - Refined the authentication strategy to prefer real broadcaster tokens from `/oauth/twitch/broadcaster/token` when available, falling back to bot token aliasing only when necessary.
 - Standardized Twurple dependencies to version `^7.4.0` to maintain compatibility across the project.
 - Mocked `TwitchEventSubClient` in existing integration tests to ensure stability without requiring real Twitch credentials.
