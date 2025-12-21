@@ -124,49 +124,65 @@ export class TwitchEventSubClient {
         // channel.follow (v2)
         // Note: v2 requires moderator:read:followers
         const followSub = this.listener.onChannelFollow(userId, auth.userId, (event: any) => {
-          logger.info('twitch.eventsub.event.follow', { channel, from: event.userName });
-          const internalEvent = this.builder.buildFollow(event as any, {
-            finalizationDestination: this.options.egressDestinationTopic
-          });
-          this.publisher.publish(internalEvent).catch(err => {
-            logger.error('twitch.eventsub.publish_failed', { kind: 'follow', error: err.message });
-          });
+          try {
+            logger.info('twitch.eventsub.event.follow', { channel, from: event.userName });
+            const internalEvent = this.builder.buildFollow(event as any, {
+              finalizationDestination: this.options.egressDestinationTopic
+            });
+            this.publisher.publish(internalEvent).catch(err => {
+              logger.error('twitch.eventsub.publish_failed', { kind: 'follow', error: err.message });
+            });
+          } catch (err: any) {
+            logger.error('twitch.eventsub.handler_error', { kind: 'follow', channel, error: err.message, stack: err.stack });
+          }
         });
         this.subscriptions.push(followSub);
 
         // channel.update
         const updateSub = this.listener.onChannelUpdate(userId, (event: any) => {
-          logger.info('twitch.eventsub.event.update', { channel, title: event.streamTitle });
-          const internalEvent = this.builder.buildUpdate(event as any, {
-            finalizationDestination: this.options.egressDestinationTopic
-          });
-          this.publisher.publish(internalEvent).catch(err => {
-            logger.error('twitch.eventsub.publish_failed', { kind: 'update', error: err.message });
-          });
+          try {
+            logger.info('twitch.eventsub.event.update', { channel, title: event.streamTitle });
+            const internalEvent = this.builder.buildUpdate(event as any, {
+              finalizationDestination: this.options.egressDestinationTopic
+            });
+            this.publisher.publish(internalEvent).catch(err => {
+              logger.error('twitch.eventsub.publish_failed', { kind: 'update', error: err.message });
+            });
+          } catch (err: any) {
+            logger.error('twitch.eventsub.handler_error', { kind: 'update', channel, error: err.message, stack: err.stack });
+          }
         });
         this.subscriptions.push(updateSub);
 
         // stream.online
         const onlineSub = this.listener.onStreamOnline(userId, (event: any) => {
-          logger.info('twitch.eventsub.event.stream_online', { channel, streamId: event.id });
-          const internalEvent = this.builder.buildStreamOnline(event as any, {
-            finalizationDestination: this.options.egressDestinationTopic
-          });
-          this.publisher.publish(internalEvent).catch(err => {
-            logger.error('twitch.eventsub.publish_failed', { kind: 'stream.online', error: err.message });
-          });
+          try {
+            logger.info('twitch.eventsub.event.stream_online', { channel, streamId: event.id });
+            const internalEvent = this.builder.buildStreamOnline(event as any, {
+              finalizationDestination: this.options.egressDestinationTopic
+            });
+            this.publisher.publish(internalEvent).catch(err => {
+              logger.error('twitch.eventsub.publish_failed', { kind: 'stream.online', error: err.message });
+            });
+          } catch (err: any) {
+            logger.error('twitch.eventsub.handler_error', { kind: 'stream.online', channel, error: err.message, stack: err.stack });
+          }
         });
         this.subscriptions.push(onlineSub);
 
         // stream.offline
         const offlineSub = this.listener.onStreamOffline(userId, (event: any) => {
-          logger.info('twitch.eventsub.event.stream_offline', { channel });
-          const internalEvent = this.builder.buildStreamOffline(event as any, {
-            finalizationDestination: this.options.egressDestinationTopic
-          });
-          this.publisher.publish(internalEvent).catch(err => {
-            logger.error('twitch.eventsub.publish_failed', { kind: 'stream.offline', error: err.message });
-          });
+          try {
+            logger.info('twitch.eventsub.event.stream_offline', { channel });
+            const internalEvent = this.builder.buildStreamOffline(event as any, {
+              finalizationDestination: this.options.egressDestinationTopic
+            });
+            this.publisher.publish(internalEvent).catch(err => {
+              logger.error('twitch.eventsub.publish_failed', { kind: 'stream.offline', error: err.message });
+            });
+          } catch (err: any) {
+            logger.error('twitch.eventsub.handler_error', { kind: 'stream.offline', channel, error: err.message, stack: err.stack });
+          }
         });
         this.subscriptions.push(offlineSub);
       }

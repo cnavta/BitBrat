@@ -117,26 +117,29 @@ export class EventSubEnvelopeBuilder {
       broadcasterName: string;
       broadcasterDisplayName: string;
       type: 'live' | 'playlist' | 'watch_party' | 'premiere' | 'rerun' | string;
-      startedAt: Date;
+      startDate: Date;
     },
     opts?: EnvelopeBuilderOptions
   ): InternalEventV2 {
     const uuid = opts?.uuid || crypto.randomUUID;
+    const nowIso = opts?.nowIso || (() => new Date().toISOString());
     const correlationId = uuid();
+
+    const startedAt = (event as any).startDate?.toISOString?.() || (event as any).startedAt?.toISOString?.() || nowIso();
 
     const externalEvent: ExternalEventV1 = {
       id: event.id,
       source: 'twitch.eventsub',
       kind: 'stream.online',
       version: '1',
-      createdAt: event.startedAt.toISOString(),
+      createdAt: startedAt,
       payload: {
         id: event.id,
         broadcasterId: event.broadcasterId,
         broadcasterLogin: event.broadcasterName,
         broadcasterDisplayName: event.broadcasterDisplayName,
         type: event.type,
-        startedAt: event.startedAt.toISOString(),
+        startedAt,
       },
       rawPayload: event as any,
     };

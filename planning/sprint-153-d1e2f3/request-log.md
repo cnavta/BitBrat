@@ -25,3 +25,14 @@
   - `npx jest src/apps/ingress-egress-service.test.ts`
 - **Files modified or created**:
   - `src/apps/ingress-egress-service.ts`
+
+## [2025-12-21T13:35:00Z] Fix EventSub Stream Online Crash
+- **Prompt summary**: Stream.online events are causing a crash in ingress-egress service due to `toISOString` on undefined.
+- **Interpretation**: The EventSub event mapping in `EventSubEnvelopeBuilder` was using the wrong property name (`startedAt` instead of `startDate`). Also, handlers lacked `try-catch` blocks.
+- **Shell/git commands executed**:
+  - `npx jest src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
+  - `npm run build`
+- **Files modified or created**:
+  - `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+  - `src/services/ingress/twitch/eventsub-client.ts`
+  - `src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts`
