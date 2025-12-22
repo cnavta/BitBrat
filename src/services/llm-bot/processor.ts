@@ -359,19 +359,23 @@ export async function processEvent(
             incoming.push(toHuman(baseText));
           }
 
-          const promptAnns = anns
-            .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
-          promptAnns.sort((a: any, b: any) => {
-            const at = Date.parse(a.createdAt || '') || 0;
-            const bt = Date.parse(b.createdAt || '') || 0;
-            if (at !== bt) return at - bt;
-            return (a.id || '').localeCompare(b.id || '');
-          });
-          for (const p of promptAnns) {
-            const t = String(p.value || p.payload?.text || '').trim();
-            // Avoid immediate duplication if prompt equals the base message text
-            if (!t) continue;
-            if (!(baseText && t === baseText)) incoming.push(toHuman(t));
+          // LLM-08: If baseText is present, it's the primary user turn. 
+          // Do not treat instruction-bearing prompt annotations as human history turns.
+          if (!baseText) {
+            const promptAnns = anns
+              .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
+            promptAnns.sort((a: any, b: any) => {
+              const at = Date.parse(a.createdAt || '') || 0;
+              const bt = Date.parse(b.createdAt || '') || 0;
+              if (at !== bt) return at - bt;
+              return (a.id || '').localeCompare(b.id || '');
+            });
+            // Fallback: Use the first prompt annotation if no base message text exists
+            if (promptAnns.length > 0) {
+              const p = promptAnns[0];
+              const t = String(p.value || p.payload?.text || '').trim();
+              if (t) incoming.push(toHuman(t));
+            }
           }
 
           // Capture individual user turns for legacy-marked input formatting
@@ -449,10 +453,10 @@ export async function processEvent(
         const conversationState = (() => {
           if (convoTranscript.length === 0 && !convoSummary) return undefined;
           // Allow env override for renderMode
-          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'summary' }) || 'summary').toLowerCase();
+          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'both' }) || 'both').toLowerCase();
           const renderMode = (renderModeEnv === 'both' || renderModeEnv === 'transcript' || renderModeEnv === 'summary')
             ? (renderModeEnv as 'both'|'transcript'|'summary')
-            : 'summary';
+            : 'both';
           return {
             summary: convoSummary || undefined,
             // Default to summary-first; transcript optionally included for richer context

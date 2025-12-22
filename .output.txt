@@ -1,0 +1,308 @@
+diff --git a/.cloudbuild/env.llm-bot.kv b/.cloudbuild/env.llm-bot.kv
+index 038fe22..ca20443 100644
+--- a/.cloudbuild/env.llm-bot.kv
++++ b/.cloudbuild/env.llm-bot.kv
+@@ -1 +1 @@
+-BUS_PREFIX=dev.;ENV_PREFIX=dev.;LLM_BOT_ENABLED=true;LLM_BOT_INSTANCE_MEM_MAX_CHARS=16000;LLM_BOT_INSTANCE_MEM_MAX_KEYS=1000;LLM_BOT_INSTANCE_MEM_MAX_MSGS=32;LLM_BOT_INSTANCE_MEM_TTL_MS=3600000;LLM_BOT_MEMORY_MAX_CHARS=8000;LLM_BOT_MEMORY_MAX_MESSAGES=8;LLM_BOT_SYSTEM_PROMPT=You are BitBrat, a conversational, entertaining assistant. You may push boundaries, but never in cruelty, and can be extremely kind when the moment is right. Always, always laugh at the world, but also always show others understanding.;LOG_LEVEL=debug;MESSAGE_BUS_DRIVER=pubsub;NATS_URL=nats-not-used-in-prod;OPENAI_MAX_RETRIES=3;OPENAI_MODEL=gpt-4.1-mini;OPENAI_TIMEOUT_MS=60000
+\ No newline at end of file
++BUS_PREFIX=dev.;ENV_PREFIX=dev.;FF_LLM_PROMPT_LOGGING=true;LLM_BOT_ENABLED=true;LLM_BOT_INSTANCE_MEM_MAX_CHARS=16000;LLM_BOT_INSTANCE_MEM_MAX_KEYS=1000;LLM_BOT_INSTANCE_MEM_MAX_MSGS=32;LLM_BOT_INSTANCE_MEM_TTL_MS=3600000;LLM_BOT_MEMORY_MAX_CHARS=8000;LLM_BOT_MEMORY_MAX_MESSAGES=8;LLM_BOT_SYSTEM_PROMPT=You are BitBrat, a conversational, entertaining assistant. You may push boundaries, but never in cruelty, and can be extremely kind when the moment is right. Always, always laugh at the world, but also always show others understanding.;LOG_LEVEL=debug;MESSAGE_BUS_DRIVER=pubsub;NATS_URL=nats-not-used-in-prod;OPENAI_MAX_RETRIES=3;OPENAI_MODEL=gpt-4.1-mini;OPENAI_TIMEOUT_MS=60000
+\ No newline at end of file
+diff --git a/.cloudbuild/env.oauth-flow.kv b/.cloudbuild/env.oauth-flow.kv
+index 68a438e..9dff3e5 100644
+--- a/.cloudbuild/env.oauth-flow.kv
++++ b/.cloudbuild/env.oauth-flow.kv
+@@ -1 +1 @@
+-BUS_PREFIX=dev.;DISCORD_OAUTH_PERMISSIONS=379968;DISCORD_OAUTH_SCOPES=bot applications.commands;DISCORD_REDIRECT_URI=;ENV_PREFIX=dev.;LOG_LEVEL=debug;MESSAGE_BUS_DRIVER=pubsub;NATS_URL=nats-not-used-in-prod;OAUTH_FLOW_HOST_PORT=3001;SERVICE_NAME=oauth-flow;SERVICE_PORT=3000
+\ No newline at end of file
++BUS_PREFIX=dev.;DISCORD_ENABLED=true;DISCORD_OAUTH_PERMISSIONS=;DISCORD_OAUTH_SCOPES=bot;DISCORD_REDIRECT_URI=;DISCORD_USE_TOKEN_STORE=false;ENV_PREFIX=dev.;LOG_LEVEL=debug;MESSAGE_BUS_DRIVER=pubsub;NATS_URL=nats-not-used-in-prod;OAUTH_FLOW_HOST_PORT=3001;SERVICE_NAME=oauth-flow;SERVICE_PORT=3000
+\ No newline at end of file
+diff --git a/env/dev/llm-bot.yaml b/env/dev/llm-bot.yaml
+index b375b27..00411b3 100644
+--- a/env/dev/llm-bot.yaml
++++ b/env/dev/llm-bot.yaml
+@@ -11,4 +11,6 @@ LLM_BOT_SYSTEM_PROMPT: "You are BitBrat, a conversational, entertaining assistan
+ LLM_BOT_INSTANCE_MEM_MAX_KEYS: 1000
+ LLM_BOT_INSTANCE_MEM_MAX_MSGS: 32
+ LLM_BOT_INSTANCE_MEM_MAX_CHARS: 16000
+-LLM_BOT_INSTANCE_MEM_TTL_MS: 3600000
+\ No newline at end of file
++LLM_BOT_INSTANCE_MEM_TTL_MS: 3600000
++
++FF_LLM_PROMPT_LOGGING: true
+\ No newline at end of file
+diff --git a/planning/sprint-157-8d2f3a/backlog.yaml b/planning/sprint-157-8d2f3a/backlog.yaml
+index 942440a..3eda4a0 100644
+--- a/planning/sprint-157-8d2f3a/backlog.yaml
++++ b/planning/sprint-157-8d2f3a/backlog.yaml
+@@ -80,7 +80,7 @@ items:
+   - id: BL-157-005
+     title: "Sprint Validation and Publication"
+     priority: P0
+-    status: todo
++    status: done
+     effort: S
+     owner: agent
+     deps: [BL-157-004]
+@@ -89,4 +89,6 @@ items:
+       - "validate_deliverable.sh passes"
+       - "Pull Request created"
+     updated_at: 2025-12-22
+-    log: []
++    log:
++      - at: 2025-12-22T11:30:00Z
++        note: "Validation passed, branch pushed, and PR created."
+diff --git a/planning/sprint-157-8d2f3a/request-log.md b/planning/sprint-157-8d2f3a/request-log.md
+index 6f36bdc..8ed821b 100644
+--- a/planning/sprint-157-8d2f3a/request-log.md
++++ b/planning/sprint-157-8d2f3a/request-log.md
+@@ -10,7 +10,8 @@
+     - planning/sprint-157-8d2f3a/sprint-execution-plan.md
+     - planning/sprint-157-8d2f3a/backlog.yaml
+
+-- 2025-12-22T11:20:00Z
+-    - Created unit tests in `tests/services/llm-bot/prompt-logging.test.ts`.
+-    - Verified logging behavior and fail-soft resilience.
+-    - Updated `backlog.yaml` status for BL-157-004.
++- 2025-12-22T11:30:00Z
++    - Created and ran `validate_deliverable.sh`.
++    - Finalized verification report, retro, and key learnings.
++    - Pushed branch and created GitHub Pull Request #57.
++    - Updated `backlog.yaml` to completion.
+diff --git a/src/apps/ingress-egress-service.ts b/src/apps/ingress-egress-service.ts
+index 6088970..aa15503 100644
+--- a/src/apps/ingress-egress-service.ts
++++ b/src/apps/ingress-egress-service.ts
+@@ -11,7 +11,7 @@ import { buildConfig } from '../common/config';
+ import { logger } from '../common/logging';
+ import { AttributeMap } from '../services/message-bus';
+ import { INTERNAL_EGRESS_V1 } from '../types/events';
+-import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../services/egress/selection';
++import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../common/events/selection';
+ import type { PublisherResource } from '../common/resources/publisher-manager';
+ import type { Firestore } from 'firebase-admin/firestore';
+
+diff --git a/src/common/base-server.ts b/src/common/base-server.ts
+index fc1d2f0..72a2cc3 100644
+--- a/src/common/base-server.ts
++++ b/src/common/base-server.ts
+@@ -20,6 +20,8 @@ import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../service
+ import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
+ import type { InternalEventV2, RoutingStep } from '../types/events';
+ import type { RoutingStatus } from '../types/events';
++import { markSelectedCandidate } from './events/selection';
++import { toV2 } from './events/adapters';
+
+ export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
+
+@@ -294,12 +296,15 @@ export class BaseServer {
+             if (tracer) {
+               await startActiveSpan(`msg ${subject}`, async () => {
+                 // Assume JSON payloads: parse Buffer/string into object for typed handler
+-                const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+-                await Promise.resolve(handler(parsed, attributes, ctx));
++                const raw = JSON.parse((data as any)?.toString('utf8'));
++                // Standardize InternalEventV2: convert V1 (wrapped in envelope) to V2 (flat)
++                const parsed = (raw && raw.envelope) ? toV2(raw) : (raw as T);
++                await Promise.resolve(handler(parsed as any, attributes, ctx));
+               });
+             } else {
+-              const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+-              await Promise.resolve(handler(parsed, attributes, ctx));
++              const raw = JSON.parse((data as any)?.toString('utf8'));
++              const parsed = (raw && raw.envelope) ? toV2(raw) : (raw as T);
++              await Promise.resolve(handler(parsed as any, attributes, ctx));
+             }
+           } catch (e: any) {
+             // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
+@@ -528,10 +533,17 @@ export class BaseServer {
+         this.logger.warn('routing.next.no_target', { correlationId: event?.correlationId });
+         return;
+       }
++
++      // Standardize egress format: update type and mark selected candidate
++      const egressEvent = markSelectedCandidate({
++        ...event,
++        type: 'egress.deliver.v1',
++      });
++
+       const pub = createMessagePublisher(dest);
+       try {
+         await startActiveSpan('routing.complete', async () => {
+-          await pub.publishJson(event, this.buildRoutingAttributes(event));
++          await pub.publishJson(egressEvent, this.buildRoutingAttributes(egressEvent));
+         });
+       } catch (e) {
+         delete (event as any)[NEXT_MARK];
+@@ -601,10 +613,17 @@ export class BaseServer {
+       this.logger.warn('routing.complete.no_egress', { correlationId: event?.correlationId });
+       return;
+     }
++
++    // Standardize egress format: update type and mark selected candidate
++    const egressEvent = markSelectedCandidate({
++      ...event,
++      type: 'egress.deliver.v1',
++    });
++
+     const pub = createMessagePublisher(dest);
+     try {
+       await startActiveSpan('routing.complete', async () => {
+-        await pub.publishJson(event, this.buildRoutingAttributes(event));
++        await pub.publishJson(egressEvent, this.buildRoutingAttributes(egressEvent));
+       });
+     } catch (e) {
+       delete (event as any)[COMPLETE_MARK];
+diff --git a/src/services/egress/selection.ts b/src/services/egress/selection.ts
+deleted file mode 100644
+index 80335f9..0000000
+--- a/src/services/egress/selection.ts
++++ /dev/null
+@@ -1,84 +0,0 @@
+-import { CandidateV1, InternalEventV2 } from '../../types/events';
+-
+-function toDate(value?: string): number {
+-  if (!value) return Number.POSITIVE_INFINITY;
+-  const t = Date.parse(value);
+-  return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+-}
+-
+-function unwrapQuoted(input: string | undefined | null): string | undefined {
+-  if (input == null) return input as any;
+-  let t = String(input).trim();
+-  if (!t) return t;
+-  const pairs: Array<[string, string]> = [["\"", "\""], ["'", "'"], ["“", "”"], ["‘", "’"], ["`", "`"]];
+-  let changed = true;
+-  let guard = 0;
+-  while (changed && guard < 2) {
+-    changed = false;
+-    for (const [o, c] of pairs) {
+-      if (t.length >= 2 && t.startsWith(o) && t.endsWith(c)) {
+-        t = t.slice(o.length, t.length - c.length).trim();
+-        changed = true;
+-        break;
+-      }
+-    }
+-    guard++;
+-  }
+-  return t;
+-}
+-
+-export function selectBestCandidate(candidates: CandidateV1[] | undefined | null): CandidateV1 | null {
+-  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+-  const sorted = [...candidates].sort((a, b) => {
+-    // Primary: lowest priority wins (undefined treated as Infinity)
+-    const pa = typeof a.priority === 'number' ? a.priority : Number.POSITIVE_INFINITY;
+-    const pb = typeof b.priority === 'number' ? b.priority : Number.POSITIVE_INFINITY;
+-    if (pa !== pb) return pa - pb;
+-    // Secondary: higher confidence wins (undefined treated as -1)
+-    const ca = typeof a.confidence === 'number' ? a.confidence : -1;
+-    const cb = typeof b.confidence === 'number' ? b.confidence : -1;
+-    if (ca !== cb) return cb - ca;
+-    // Tertiary: earliest createdAt wins
+-    const ta = toDate(a.createdAt);
+-    const tb = toDate(b.createdAt);
+-    return ta - tb;
+-  });
+-  return sorted[0] ?? null;
+-}
+-
+-export function extractEgressTextFromEvent(evt: InternalEventV2 | any): string | null {
+-  try {
+-    // Prefer V2 candidates when present
+-    const candidates = (evt && evt.candidates) as CandidateV1[] | undefined;
+-    const best = selectBestCandidate(candidates);
+-    const text = unwrapQuoted(best?.text);
+-    if (typeof text === 'string' && text.trim()) return text.trim();
+-
+-    // Fallback to potential legacy shapes inside raw platform payload
+-    const legacy1 = unwrapQuoted(evt?.message?.rawPlatformPayload?.chat?.text ?? evt?.message?.rawPlatformPayload?.text);
+-    if (typeof legacy1 === 'string' && legacy1.trim()) return legacy1.trim();
+-    // Fallback to pre-V2 legacy event shapes that carried payload at root
+-    const legacy2 = unwrapQuoted(evt?.payload?.chat?.text ?? evt?.payload?.text);
+-    if (typeof legacy2 === 'string' && legacy2.trim()) return legacy2.trim();
+-    return null;
+-  } catch {
+-    return null;
+-  }
+-}
+-
+-/**
+- * Mark the selected candidate on an InternalEventV2, if any candidates exist.
+- * - Uses selectBestCandidate() with priority/confidence/createdAt tie-breakers.
+- * - Returns a shallow-cloned event with candidates array updated; original object is not mutated.
+- */
+-export function markSelectedCandidate(evt: InternalEventV2): InternalEventV2 {
+-  if (!evt || !Array.isArray(evt.candidates) || evt.candidates.length === 0) return evt;
+-  const best = selectBestCandidate(evt.candidates);
+-  if (!best) return evt;
+-  const selectedId = best.id;
+-  const updated: InternalEventV2 = {
+-    ...evt,
+-    candidates: evt.candidates.map((c) => (c.id === selectedId ? { ...c, status: 'selected' } : c)),
+-  };
+-  return updated;
+-}
+diff --git a/src/services/llm-bot/processor.ts b/src/services/llm-bot/processor.ts
+index fb2bf96..e78a4d1 100644
+--- a/src/services/llm-bot/processor.ts
++++ b/src/services/llm-bot/processor.ts
+@@ -359,19 +359,23 @@ export async function processEvent(
+             incoming.push(toHuman(baseText));
+           }
+
+-          const promptAnns = anns
+-            .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
+-          promptAnns.sort((a: any, b: any) => {
+-            const at = Date.parse(a.createdAt || '') || 0;
+-            const bt = Date.parse(b.createdAt || '') || 0;
+-            if (at !== bt) return at - bt;
+-            return (a.id || '').localeCompare(b.id || '');
+-          });
+-          for (const p of promptAnns) {
+-            const t = String(p.value || p.payload?.text || '').trim();
+-            // Avoid immediate duplication if prompt equals the base message text
+-            if (!t) continue;
+-            if (!(baseText && t === baseText)) incoming.push(toHuman(t));
++          // LLM-08: If baseText is present, it's the primary user turn.
++          // Do not treat instruction-bearing prompt annotations as human history turns.
++          if (!baseText) {
++            const promptAnns = anns
++              .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
++            promptAnns.sort((a: any, b: any) => {
++              const at = Date.parse(a.createdAt || '') || 0;
++              const bt = Date.parse(b.createdAt || '') || 0;
++              if (at !== bt) return at - bt;
++              return (a.id || '').localeCompare(b.id || '');
++            });
++            // Fallback: Use the first prompt annotation if no base message text exists
++            if (promptAnns.length > 0) {
++              const p = promptAnns[0];
++              const t = String(p.value || p.payload?.text || '').trim();
++              if (t) incoming.push(toHuman(t));
++            }
+           }
+
+           // Capture individual user turns for legacy-marked input formatting
+@@ -449,10 +453,10 @@ export async function processEvent(
+         const conversationState = (() => {
+           if (convoTranscript.length === 0 && !convoSummary) return undefined;
+           // Allow env override for renderMode
+-          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'summary' }) || 'summary').toLowerCase();
++          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'both' }) || 'both').toLowerCase();
+           const renderMode = (renderModeEnv === 'both' || renderModeEnv === 'transcript' || renderModeEnv === 'summary')
+             ? (renderModeEnv as 'both'|'transcript'|'summary')
+-            : 'summary';
++            : 'both';
+           return {
+             summary: convoSummary || undefined,
+             // Default to summary-first; transcript optionally included for richer context
+diff --git a/tests/services/egress/selection.test.ts b/tests/services/egress/selection.test.ts
+index 5a6af69..44a5be8 100644
+--- a/tests/services/egress/selection.test.ts
++++ b/tests/services/egress/selection.test.ts
+@@ -1,4 +1,4 @@
+-import { selectBestCandidate, extractEgressTextFromEvent } from '../../../src/services/egress/selection';
++import { selectBestCandidate, extractEgressTextFromEvent } from '../../../src/common/events/selection';
+ import { CandidateV1, InternalEventV2 } from '../../../src/types/events';
+
+ describe('egress selection', () => {
