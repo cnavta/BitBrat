@@ -349,10 +349,10 @@ export async function processEvent(
         }
 
         let userTurns: string[] = [];
+        const incoming: ChatMessage[] = [];
         if (combinedPrompt) {
           // Build one HumanMessage from the base event message (if present),
           // then one per prompt annotation (sorted) for better trimming behavior
-          const incoming: ChatMessage[] = [];
           const baseText = (s.event as any)?.message?.text ? String((s.event as any).message.text).trim() : '';
           if (baseText) {
             incoming.push(toHuman(baseText));
@@ -433,9 +433,9 @@ export async function processEvent(
 
         // Legacy history-in-Input.context (v1) — compute but do not inject anymore (PASM-V2-10)
         const historyCtx = formatHistoryForContext(messages);
-        // PASM-V2-09: Build conversationState from recent exchanges
+        // PASM-V2-09: Build conversationState from prior exchanges (excluding current incoming)
         const convoTranscript = (messages || [])
-          .filter((m) => m.role !== 'system')
+          .filter((m) => m.role !== 'system' && !incoming.includes(m))
           .map((m) => ({ role: (m.role as 'user'|'assistant'|'tool'), content: m.content }));
         const convoSummary = (() => {
           const total = convoTranscript.length;
