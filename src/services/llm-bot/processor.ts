@@ -348,12 +348,79 @@ export async function processEvent(
           messages = [{ role: 'system', content: finalSystem.trim(), createdAt: new Date().toISOString() }, ...messages];
         }
 
+        const baseText = (s.event as any)?.message?.text ? String((s.event as any).message.text).trim() : '';
+
+        // Build PromptSpec (LLM-01) from current event + personalities + memory
+        // Map annotations to TaskAnnotation[] (default priority=3; sorted earlier by createdAt)
+        const taskAnns: PATask[] = (() => {
+          const promptAnns = (anns as any[])?.filter((a) => a?.kind === 'prompt' && (a.value || a.payload?.text)) || [];
+          const out: PATask[] = [];
+          for (const p of promptAnns) {
+            const t = String(p.value || p.payload?.text || '').trim();
+            if (!t) continue;
+            out.push({ id: p.id, priority: 3, instruction: t, required: true });
+          }
+          return out;
+        })();
+
+        // RequestingUser mapping (best-effort)
+        const ru: PARequestingUser | undefined = (() => {
+          const u = (s.event as any)?.user || {};
+          const anyRoles = Array.isArray((u as any).roles) ? (u as any).roles : undefined;
+          const obj: PARequestingUser = {
+            userId: (u as any)?.id,
+            handle: (u as any)?.handle || (u as any)?.username || undefined,
+            displayName: (u as any)?.displayName || (u as any)?.name || undefined,
+            roles: anyRoles,
+            locale: (u as any)?.locale,
+            timezone: (u as any)?.timezone,
+            tier: (u as any)?.tier,
+            notes: u?.notes
+          };
+          const hasAny = Object.values(obj).some((v) => Boolean(v) && (Array.isArray(v) ? v.length > 0 : true));
+          return hasAny ? obj : undefined;
+        })();
+
+        // Legacy history-in-Input.context (v1) — compute but do not inject anymore (PASM-V2-10)
+        const historyCtx = formatHistoryForContext(messages);
+        // PASM-V2-09: Build conversationState from recent exchanges
+        // We do this BEFORE adding current 'incoming' messages to avoid redundancy in the prompt.
+        const convoTranscript = (messages || [])
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({ role: (m.role as 'user'|'assistant'|'tool'), content: m.content }));
+        const convoSummary = (() => {
+          const total = convoTranscript.length;
+          const lastUser = [...convoTranscript].reverse().find((m) => m.role === 'user')?.content || '';
+          const lastPreview = lastUser ? (lastUser.length > 160 ? (lastUser.slice(0, 160) + '…') : lastUser) : '';
+          const parts: string[] = [];
+          parts.push(`Recent exchanges: ${total}`);
+          if (lastPreview) parts.push(`Latest user: ${lastPreview}`);
+          return parts.join('\n');
+        })();
+        const conversationState = (() => {
+          if (convoTranscript.length === 0 && !convoSummary) return undefined;
+          // Allow env override for renderMode
+          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'summary' }) || 'summary').toLowerCase();
+          const renderMode = (renderModeEnv === 'both' || renderModeEnv === 'transcript' || renderModeEnv === 'summary')
+            ? (renderModeEnv as 'both'|'transcript'|'summary')
+            : 'summary';
+          return {
+            summary: convoSummary || undefined,
+            // Default to summary-first; transcript optionally included for richer context
+            transcript: convoTranscript.length > 0 ? convoTranscript : undefined,
+            retention: {
+              maxMessages: isFinite(maxMessages) ? maxMessages : 8,
+              maxChars: isFinite(maxChars) ? maxChars : 8000,
+            },
+            renderMode,
+          } as PromptSpec['conversationState'];
+        })();
+
         let userTurns: string[] = [];
         if (combinedPrompt) {
           // Build one HumanMessage from the base event message (if present),
           // then one per prompt annotation (sorted) for better trimming behavior
           const incoming: ChatMessage[] = [];
-          const baseText = (s.event as any)?.message?.text ? String((s.event as any).message.text).trim() : '';
           if (baseText) {
             incoming.push(toHuman(baseText));
           }
@@ -398,72 +465,6 @@ export async function processEvent(
             logger?.warn?.('llm_bot.instance_memory.append_user_error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
           }
         }
-
-        // Build PromptSpec (LLM-01) from current event + personalities + memory
-        const baseText = (s.event as any)?.message?.text ? String((s.event as any).message.text).trim() : '';
-        // Map annotations to TaskAnnotation[] (default priority=3; sorted earlier by createdAt)
-        const taskAnns: PATask[] = (() => {
-          const promptAnns = (anns as any[])?.filter((a) => a?.kind === 'prompt' && (a.value || a.payload?.text)) || [];
-          const out: PATask[] = [];
-          for (const p of promptAnns) {
-            const t = String(p.value || p.payload?.text || '').trim();
-            if (!t) continue;
-            out.push({ id: p.id, priority: 3, instruction: t, required: true });
-          }
-          return out;
-        })();
-
-        // RequestingUser mapping (best-effort)
-        const ru: PARequestingUser | undefined = (() => {
-          const u = (s.event as any)?.user || {};
-          const anyRoles = Array.isArray((u as any).roles) ? (u as any).roles : undefined;
-          const obj: PARequestingUser = {
-            userId: (u as any)?.id,
-            handle: (u as any)?.handle || (u as any)?.username || undefined,
-            displayName: (u as any)?.displayName || (u as any)?.name || undefined,
-            roles: anyRoles,
-            locale: (u as any)?.locale,
-            timezone: (u as any)?.timezone,
-            tier: (u as any)?.tier,
-            notes: u?.notes
-          };
-          const hasAny = Object.values(obj).some((v) => Boolean(v) && (Array.isArray(v) ? v.length > 0 : true));
-          return hasAny ? obj : undefined;
-        })();
-
-        // Legacy history-in-Input.context (v1) — compute but do not inject anymore (PASM-V2-10)
-        const historyCtx = formatHistoryForContext(messages);
-        // PASM-V2-09: Build conversationState from recent exchanges
-        const convoTranscript = (messages || [])
-          .filter((m) => m.role !== 'system')
-          .map((m) => ({ role: (m.role as 'user'|'assistant'|'tool'), content: m.content }));
-        const convoSummary = (() => {
-          const total = convoTranscript.length;
-          const lastUser = [...convoTranscript].reverse().find((m) => m.role === 'user')?.content || '';
-          const lastPreview = lastUser ? (lastUser.length > 160 ? (lastUser.slice(0, 160) + '…') : lastUser) : '';
-          const parts: string[] = [];
-          parts.push(`Recent exchanges: ${total}`);
-          if (lastPreview) parts.push(`Latest user: ${lastPreview}`);
-          return parts.join('\n');
-        })();
-        const conversationState = (() => {
-          if (convoTranscript.length === 0 && !convoSummary) return undefined;
-          // Allow env override for renderMode
-          const renderModeEnv = (server.getConfig<string>('CONVERSATION_STATE_RENDER_MODE', { default: 'summary' }) || 'summary').toLowerCase();
-          const renderMode = (renderModeEnv === 'both' || renderModeEnv === 'transcript' || renderModeEnv === 'summary')
-            ? (renderModeEnv as 'both'|'transcript'|'summary')
-            : 'summary';
-          return {
-            summary: convoSummary || undefined,
-            // Default to summary-first; transcript optionally included for richer context
-            transcript: convoTranscript.length > 0 ? convoTranscript : undefined,
-            retention: {
-              maxMessages: isFinite(maxMessages) ? maxMessages : 8,
-              maxChars: isFinite(maxChars) ? maxChars : 8000,
-            },
-            renderMode,
-          } as PromptSpec['conversationState'];
-        })();
 
         const systemPrompt = finalSystem && finalSystem.trim()
           ? {
