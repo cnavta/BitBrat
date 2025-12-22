@@ -6,6 +6,7 @@ import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './inst
 import { resolvePersonalityParts } from './personality-resolver';
 import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
+import { isFeatureEnabled } from '../../common/feature-flags';
 import { assemble } from '../../common/prompt-assembly/assemble';
 import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
 import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser, AssemblerConfig } from '../../common/prompt-assembly/types';
@@ -425,19 +426,23 @@ export async function processEvent(
             incoming.push(toHuman(baseText));
           }
 
-          const promptAnns = anns
-            .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
-          promptAnns.sort((a: any, b: any) => {
-            const at = Date.parse(a.createdAt || '') || 0;
-            const bt = Date.parse(b.createdAt || '') || 0;
-            if (at !== bt) return at - bt;
-            return (a.id || '').localeCompare(b.id || '');
-          });
-          for (const p of promptAnns) {
-            const t = String(p.value || p.payload?.text || '').trim();
-            // Avoid immediate duplication if prompt equals the base message text
-            if (!t) continue;
-            if (!(baseText && t === baseText)) incoming.push(toHuman(t));
+          // LLM-08: If baseText is present, it's the primary user turn. 
+          // Do not treat instruction-bearing prompt annotations as human history turns.
+          if (!baseText) {
+            const promptAnns = anns
+              .filter((a: any) => a?.kind === 'prompt' && (a.value || a.payload?.text));
+            promptAnns.sort((a: any, b: any) => {
+              const at = Date.parse(a.createdAt || '') || 0;
+              const bt = Date.parse(b.createdAt || '') || 0;
+              if (at !== bt) return at - bt;
+              return (a.id || '').localeCompare(b.id || '');
+            });
+            // Fallback: Use the first prompt annotation if no base message text exists
+            if (promptAnns.length > 0) {
+              const p = promptAnns[0];
+              const t = String(p.value || p.payload?.text || '').trim();
+              if (t) incoming.push(toHuman(t));
+            }
           }
 
           // Capture individual user turns for legacy-marked input formatting
@@ -465,7 +470,6 @@ export async function processEvent(
             logger?.warn?.('llm_bot.instance_memory.append_user_error', { correlationId: s.event.correlationId, error: e?.message || String(e) });
           }
         }
-
         const systemPrompt = finalSystem && finalSystem.trim()
           ? {
               summary: 'LLM Bot System Rules',
@@ -612,6 +616,30 @@ export async function processEvent(
             outputChars: unwrapped.length,
             outputPreview: preview(unwrapped),
           });
+
+          // BL-157-003: LLM Prompt Logging
+          if (isFeatureEnabled('llm.promptLogging.enabled')) {
+            const db = getFirestore();
+            // Use server-side timestamp and redact potential sensitive info
+            // Even though we want "full text", we apply project-standard redaction
+            const loggedPrompt = redactText(input);
+            const loggedResponse = redactText(unwrapped);
+
+            // Fail-soft: fire and forget (or log error, but don't await/block the primary flow if it fails)
+            db.collection('prompt_logs').add({
+              correlationId: corr,
+              prompt: loggedPrompt,
+              response: loggedResponse,
+              model,
+              createdAt: new Date(), // Firestore will convert this to a Timestamp
+            }).catch((err: any) => {
+              logger?.warn?.('llm_bot.prompt_logging_failed', {
+                correlationId: corr,
+                error: err?.message || String(err),
+              });
+            });
+          }
+
           const out: Partial<typeof LlmState.State> = { llmText: unwrapped } as any;
           // Only append assistant message if non-empty to avoid blank turns in memory
           if (unwrapped) {
