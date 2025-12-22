@@ -6,6 +6,7 @@ import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './inst
 import { resolvePersonalityParts } from './personality-resolver';
 import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
+import { isFeatureEnabled } from '../../common/feature-flags';
 import { assemble } from '../../common/prompt-assembly/assemble';
 import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
 import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser, AssemblerConfig } from '../../common/prompt-assembly/types';
@@ -610,6 +611,30 @@ export async function processEvent(
             outputChars: unwrapped.length,
             outputPreview: preview(unwrapped),
           });
+
+          // BL-157-003: LLM Prompt Logging
+          if (isFeatureEnabled('llm.promptLogging.enabled')) {
+            const db = getFirestore();
+            // Use server-side timestamp and redact potential sensitive info
+            // Even though we want "full text", we apply project-standard redaction
+            const loggedPrompt = redactText(input);
+            const loggedResponse = redactText(unwrapped);
+
+            // Fail-soft: fire and forget (or log error, but don't await/block the primary flow if it fails)
+            db.collection('prompt_logs').add({
+              correlationId: corr,
+              prompt: loggedPrompt,
+              response: loggedResponse,
+              model,
+              createdAt: new Date(), // Firestore will convert this to a Timestamp
+            }).catch((err: any) => {
+              logger?.warn?.('llm_bot.prompt_logging_failed', {
+                correlationId: corr,
+                error: err?.message || String(err),
+              });
+            });
+          }
+
           const out: Partial<typeof LlmState.State> = { llmText: unwrapped } as any;
           // Only append assistant message if non-empty to avoid blank turns in memory
           if (unwrapped) {

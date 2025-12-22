@@ -27,6 +27,12 @@
       "description": "Enable permissions subsystem for command gating.",
       "env": ["PERMISSIONS_ENABLED"],
       "default": true
+    },
+    {
+      "key": "llm.promptLogging.enabled",
+      "description": "Enable logging of full prompt text and responses to Firestore for analysis.",
+      "env": ["FF_LLM_PROMPT_LOGGING"],
+      "default": false
     }
   ]
 }
