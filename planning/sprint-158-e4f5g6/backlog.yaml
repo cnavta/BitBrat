@@ -14,7 +14,7 @@ items:
   - id: BL-158-001
     title: "Reproduction Test: History Redundancy"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: []
@@ -22,12 +22,14 @@ items:
     acceptance:
       - "Test fails when history includes current message"
     updated_at: 2025-12-22
-    log: []
+    log:
+      - at: 2025-12-22T12:30:00Z
+        note: "Created history-redundancy.test.ts and verified failure."
 
   - id: BL-158-002
     title: "Fix History Rendering in processor.ts"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: [BL-158-001]
@@ -37,12 +39,14 @@ items:
       - "current message is still present in input"
       - "current message is still persisted to memory"
     updated_at: 2025-12-22
-    log: []
+    log:
+      - at: 2025-12-22T12:35:00Z
+        note: "Modified processor.ts to filter out incoming from convoTranscript."
 
   - id: BL-158-003
     title: "Verification and PR"
     priority: P1
-    status: todo
+    status: in_progress
     effort: S
     owner: agent
     deps: [BL-158-002]
@@ -51,4 +55,6 @@ items:
       - "Tests pass"
       - "PR created"
     updated_at: 2025-12-22
-    log: []
+    log:
+      - at: 2025-12-22T12:40:00Z
+        note: "All tests passed. Preparing PR."
