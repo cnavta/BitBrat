@@ -8,6 +8,9 @@
 - [x] Updated `architecture.yaml` to reflect the new generic listener and additional topics.
 - [x] Created comprehensive integration tests for generic routing and DLQ fallback.
 - [x] Verified that existing instance-specific routing still works correctly.
+- [x] Improved `PersistenceStore.applyDeadLetter` to handle raw events reaching the DLQ.
+- [x] Updated `persistence-service.ts` to pass the arrival topic to the DLQ handler.
+- [x] Updated `architecture.yaml` to include `DISCORD_BOT_TOKEN` as a required secret for `ingress-egress`.
 
 ## Partial
 - None.

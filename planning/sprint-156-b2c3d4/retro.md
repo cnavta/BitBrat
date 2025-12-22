@@ -4,6 +4,7 @@
 - Unified delivery logic significantly simplified the `onMessage` handlers.
 - Discriminator-first routing provides a clearer path for future platform support.
 - DLQ fallback ensures no messages are lost without a trace when clients are misconfigured.
+- Handling raw events in the persistence service makes the DLQ much more robust, as not all systems wrap their errors identically.
 
 ## What could be improved
 - The `IngressEgressServer` setup is getting a bit large; could be further modularized in future sprints.

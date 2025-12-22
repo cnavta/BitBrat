@@ -208,4 +208,22 @@ describe('PersistenceStore', () => {
     expect(db.__fns.set).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith('persistence.deadletter.missing_correlationId', expect.any(Object));
   });
+
+  test('applyDeadLetter handles raw event and infers NO_ROUTING_MATCH from destination', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const raw = {
+      v: '1',
+      source: 'ingress.twitch',
+      correlationId: 'c-raw-store',
+      type: 'chat.message.v1',
+      message: { text: 'hello' }
+    };
+    await store.applyDeadLetter(raw, 'internal.router.dlq.v1');
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[0].status).toBe('ERROR');
+    expect(setCall[0].deadletter.reason).toBe('NO_ROUTING_MATCH');
+    expect(setCall[0].message.text).toBe('hello');
+  });
 });

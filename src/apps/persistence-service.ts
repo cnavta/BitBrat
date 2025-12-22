@@ -125,7 +125,7 @@ class PersistenceServer extends BaseServer {
                   this.getLogger().warn('persistence.firestore.unavailable');
                 } else {
                   const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyDeadLetter(msg);
+                  await store.applyDeadLetter(msg, destination);
                 }
                 await ctx.ack();
               } catch (e: any) {
@@ -159,7 +159,7 @@ class PersistenceServer extends BaseServer {
                   this.getLogger().warn('persistence.firestore.unavailable');
                 } else {
                   const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyDeadLetter(msg);
+                  await store.applyDeadLetter(msg, destination);
                 }
                 await ctx.ack();
               } catch (e: any) {

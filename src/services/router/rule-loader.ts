@@ -41,9 +41,7 @@ function isAnnotation(v: any): v is AnnotationV1 {
     !!v &&
     typeof v === 'object' &&
     typeof v.id === 'string' &&
-    typeof v.kind === 'string' &&
-    typeof v.source === 'string' &&
-    typeof v.createdAt === 'string'
+    typeof v.kind === 'string'
   );
 }
 

@@ -87,6 +87,27 @@ services:
         - internal.egress.v1.{instanceId}
         # Generic egress for non-instance-specific egress cases
         - internal.egress.v1
+    paths:
+      - /_debug/twitch # Debug endpoint that displays the current state of the Twitch IRC and EventSub connections
+    secrets:
+      - TWITCH_CLIENT_ID
+      - TWITCH_CLIENT_SECRET
+      - DISCORD_BOT_TOKEN
+    env:
+      - TWITCH_BOT_USERNAME
+      - TWITCH_CHANNELS
+      # Discord configuration and rollout flags
+      - DISCORD_ENABLED
+      - DISCORD_GUILD_ID
+      - DISCORD_CHANNELS
+      - DISCORD_USE_TOKEN_STORE
+      - DISCORD_ALLOW_ENV_FALLBACK
+      - DISCORD_TOKEN_POLL_MS
+      # Optional instance identity for per-instance egress topic.
+      # The service resolves instanceId via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated
+      # Only K_REVISION is listed here because it is auto-provided by Cloud Run when present.
+      # EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID are SUPPORTED but OPTIONAL and therefore not required here.
+      - K_REVISION
 
   auth:
     active: true

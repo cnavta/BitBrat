@@ -74,14 +74,14 @@ export class PersistenceStore {
   }
 
   /** Apply dead-letter update. Creates stub doc if not present. Idempotent. */
-  async applyDeadLetter(rawMsg: any): Promise<void> {
+  async applyDeadLetter(rawMsg: any, destination?: string): Promise<void> {
     const correlationId = String(rawMsg?.correlationId || rawMsg?.envelope?.correlationId || '');
     if (!correlationId) {
       this.logger.warn('persistence.deadletter.missing_correlationId', { type: rawMsg?.type });
       return;
     }
 
-    const patch = normalizeDeadLetterPayload(rawMsg);
+    const patch = normalizeDeadLetterPayload(rawMsg, destination);
     const ref = this.docRef(correlationId);
 
     // Compute TTL: use env PERSISTENCE_TTL_DAYS (default 7)

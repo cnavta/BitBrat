@@ -196,8 +196,36 @@ export function normalizeFinalizePayload(msg: any): FinalizationUpdateV1 {
 /**
  * Normalizes a DLQ event payload into a patch for EventDocV1.
  */
-export function normalizeDeadLetterPayload(msg: any): Partial<EventDocV1> {
+export function normalizeDeadLetterPayload(msg: any, destination?: string): Partial<EventDocV1> {
   const now = new Date().toISOString();
+
+  // Detection of raw InternalEventV2 reaching DLQ (has v, source, correlationId and lacks explicit wrapped reason)
+  if (msg?.v === '1' && msg?.source && msg?.correlationId && !msg?.payload?.reason) {
+    const slip = Array.isArray(msg.routingSlip) ? msg.routingSlip : [];
+    const lastStep = slip[slip.length - 1];
+
+    let reason = 'RAW_EVENT_IN_DLQ';
+    if (destination?.includes('router.dlq')) {
+      reason = 'NO_ROUTING_MATCH';
+    } else if (lastStep?.nextTopic?.includes('router.dlq')) {
+      reason = 'NO_ROUTING_MATCH';
+    }
+
+    return stripUndefinedDeep({
+      ...(msg as any), // Preserve original event fields (message, annotations, etc)
+      status: 'ERROR',
+      finalizedAt: now,
+      deadletter: {
+        reason,
+        error: msg.errors && msg.errors.length ? msg.errors[msg.errors.length - 1] : null,
+        lastStepId: lastStep?.id,
+        originalType: msg.type,
+        slipSummary: slip.length ? slip.map((s: any) => `${s.id}:${s.status}`).join('->') : undefined,
+        at: now,
+      },
+    });
+  }
+
   const payload = msg?.payload || {};
 
   return stripUndefinedDeep({
