@@ -27,6 +27,10 @@ function unwrapQuoted(input: string | undefined | null): string | undefined {
   return t;
 }
 
+/**
+ * Select the best candidate from a list based on priority (lowest wins),
+ * confidence (highest wins), and creation time (earliest wins).
+ */
 export function selectBestCandidate(candidates: CandidateV1[] | undefined | null): CandidateV1 | null {
   if (!Array.isArray(candidates) || candidates.length === 0) return null;
   const sorted = [...candidates].sort((a, b) => {
@@ -46,6 +50,9 @@ export function selectBestCandidate(candidates: CandidateV1[] | undefined | null
   return sorted[0] ?? null;
 }
 
+/**
+ * Extract the best candidate's text from an event, with fallback to legacy shapes.
+ */
 export function extractEgressTextFromEvent(evt: InternalEventV2 | any): string | null {
   try {
     // Prefer V2 candidates when present

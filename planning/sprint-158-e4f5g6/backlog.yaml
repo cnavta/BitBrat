@@ -1,0 +1,54 @@
+meta:
+  backlog_id: sprint-158-e4f5g6-backlog
+  updated_at: 2025-12-22
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-158-e4f5g6
+  start: 2025-12-22
+  end: 2025-12-29
+  wip_limit: 3
+  goal: "Exclude the current user message from the rendered conversation history."
+
+items:
+  - id: BL-158-001
+    title: "Reproduction Test: History Redundancy"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Test fails when history includes current message"
+    updated_at: 2025-12-22
+    log: []
+
+  - id: BL-158-002
+    title: "Fix History Rendering in processor.ts"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-158-001]
+    blocked_reason: null
+    acceptance:
+      - "rendered conversationState excludes current incoming messages"
+      - "current message is still present in input"
+      - "current message is still persisted to memory"
+    updated_at: 2025-12-22
+    log: []
+
+  - id: BL-158-003
+    title: "Verification and PR"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-158-002]
+    blocked_reason: null
+    acceptance:
+      - "Tests pass"
+      - "PR created"
+    updated_at: 2025-12-22
+    log: []
