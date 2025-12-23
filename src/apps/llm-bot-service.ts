@@ -2,6 +2,8 @@ import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import type { InternalEventV2, RoutingStep, CandidateV1 } from '../types/events';
 import { processEvent } from '../services/llm-bot/processor';
+import { ToolRegistry } from '../services/llm-bot/tools/registry';
+import { McpClientManager } from '../services/llm-bot/mcp/client-manager';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
 
@@ -76,49 +78,12 @@ export function appendAssistantCandidate(evt: InternalEventV2, text: string, mod
   evt.candidates.push(candidate);
 }
 
-let __agentCache: any | null = null;
-export function __resetAgentForTests() { __agentCache = null; }
-
-/** Handle a single LLM event using either mocked agent (in tests) or minimal adapter */
-export async function handleLlmEvent(server: { next: (e: InternalEventV2, status?: any) => Promise<void>; getLogger: () => any }, evt: InternalEventV2): Promise<void> {
-  const logger = server.getLogger?.() || console;
-  const prompt = extractPrompt(evt);
-  if (!prompt) {
-    markCurrentStepError(evt, 'NO_PROMPT', 'No prompt annotations present');
-    await server.next(evt, 'ERROR');
-    return;
-  }
-  // Simulate agent dependency; require API key to pass tests
-  const getSecret = (server as any).getSecret as (k: string, opts?: any) => string | undefined;
-  const apiKey = typeof getSecret === 'function'
-    ? getSecret('OPENAI_API_KEY', { required: false })
-    : process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    markCurrentStepError(evt, 'LLM_AGENT_UNAVAILABLE', 'missing_api_key');
-    await server.next(evt, 'ERROR');
-    return;
-  }
-  try {
-    if (!__agentCache) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const mod = require('@joshuacalpuerto/mcp-agent');
-      __agentCache = await mod.Agent.initialize({});
-    }
-    const result = await __agentCache.prompt({ user: prompt });
-    const getConfig = (server as any).getConfig as (k: string, opts?: any) => any;
-    const model = typeof getConfig === 'function'
-      ? (getConfig('OPENAI_MODEL', { default: 'gpt-5-mini' }) as string)
-      : (process.env.OPENAI_MODEL || 'gpt-5-mini');
-    appendAssistantCandidate(evt, String(result?.text || ''), model);
-    await server.next(evt, 'OK');
-  } catch (e: any) {
-    logger?.warn?.('llm_bot.agent_error', { error: e?.message || String(e) });
-    markCurrentStepError(evt, 'LLM_AGENT_UNAVAILABLE', e?.message || String(e));
-    await server.next(evt, 'ERROR');
-  }
-}
+// Legacy handleLlmEvent removed in BL-160-001. Use processEvent instead.
 
 class LlmBotServer extends BaseServer {
+  private registry = new ToolRegistry();
+  private mcpManager = new McpClientManager(this, this.registry);
+
   // Provide sensible defaults via BaseServer CONFIG_DEFAULTS so getConfig() can honor them
   protected static CONFIG_DEFAULTS: Record<string, any> = {
     SERVICE_NAME: 'llm-bot',
@@ -142,11 +107,22 @@ class LlmBotServer extends BaseServer {
     USER_CONTEXT_CACHE_TTL_MS: 300000,
     USER_CONTEXT_ROLES_PATH: '/configs/bot/roles',
     USER_CONTEXT_DESCRIPTION_ENABLED: true,
+    LLM_BOT_MCP_SERVERS: '[]',
   };
   constructor() {
     // Use a stable service name; env can override via logging/config elsewhere if needed
     super({ serviceName: 'llm-bot' });
     this.setupApp(this.getApp() as any, this.getConfig() as any);
+  }
+
+  async start(port: number) {
+    await this.mcpManager.initFromConfig();
+    return super.start(port);
+  }
+
+  async close(reason?: string) {
+    await this.mcpManager.shutdown();
+    return super.close(reason);
   }
 
   private async setupApp(app: Express, _cfg: any) {
@@ -161,9 +137,9 @@ class LlmBotServer extends BaseServer {
         if (tracer && typeof tracer.startActiveSpan === 'function') {
           await tracer.startActiveSpan('process-llm-request', async (span: any) => {
             try {
-              // Preferred: LangGraph processor
-              logger.debug('llm_bot.processing_langgraph');
-              const status = await processEvent(this, data as InternalEventV2);
+              // Preferred: LLM processor
+              logger.debug('llm_bot.processing');
+              const status = await processEvent(this, data as InternalEventV2, { registry: this.registry });
               await (this as any).next?.(data as InternalEventV2, status);
               logger.info('llm_bot.processed', {correlationId: (data as any)?.correlationId, status});
             } catch (e) {

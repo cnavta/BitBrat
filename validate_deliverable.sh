@@ -78,7 +78,7 @@ export MESSAGE_BUS_DISABLE_IO=1
 export PUBSUB_ENSURE_DISABLE=1
 case "$SCOPE_ARG" in
   llm-bot)
-    npm test -- src/services/llm-bot ;;
+    npm test -- src/services/llm-bot tests/services/llm-bot ;;
   persistence)
     # Run only persistence-focused tests to avoid unrelated infra-tool test failures during this sprint
     npm test -- src/services/persistence ;;

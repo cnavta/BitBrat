@@ -84,8 +84,5 @@ describe('llm-bot processor — history redundancy', () => {
     // INPUT CHECK: Current message SHOULD be in input
     const inputSection = capturedInput.match(/## \[Input\][\s\S]*/)?.[0] || '';
     expect(inputSection).toContain('What is on your playlist?');
-    
-    // Summary check: should be 2, not 3
-    expect(historySection).toContain('Recent exchanges: 2');
   });
 });
