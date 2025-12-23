@@ -151,6 +151,8 @@ services:
       - LLM_BOT_INSTANCE_MEM_MAX_MSGS
       - LLM_BOT_INSTANCE_MEM_MAX_CHARS
       - LLM_BOT_INSTANCE_MEM_TTL_MS
+      # MCP Server configurations (JSON string)
+      - LLM_BOT_MCP_SERVERS
 
   persistence:
     active: true
