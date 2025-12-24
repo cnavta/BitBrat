@@ -1,14 +1,19 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../../types/tools';
 import { BaseServer } from '../../../common/base-server';
 
 export interface McpServerConfig {
   name: string;
-  command: string;
+  // Stdio transport
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
+  // SSE transport
+  url?: string;
+  headers?: Record<string, string>;
 }
 
 export class McpClientManager {
@@ -25,7 +30,20 @@ export class McpClientManager {
     const configStr = this.server.getConfig<string>('LLM_BOT_MCP_SERVERS', { default: '[]' });
     
     try {
-      const serverConfigs: McpServerConfig[] = JSON.parse(configStr);
+      const parsed = JSON.parse(configStr);
+      let serverConfigs: McpServerConfig[] = [];
+
+      if (Array.isArray(parsed)) {
+        serverConfigs = parsed;
+      } else if (parsed.mcpServers && typeof parsed.mcpServers === 'object') {
+        serverConfigs = Object.entries(parsed.mcpServers).map(([name, config]: [string, any]) => ({
+          name,
+          ...config,
+        }));
+      } else {
+        throw new Error('Invalid LLM_BOT_MCP_SERVERS format: must be an array or an object with mcpServers');
+      }
+
       for (const cfg of serverConfigs) {
         await this.connectServer(cfg);
       }
@@ -36,17 +54,36 @@ export class McpClientManager {
 
   async connectServer(config: McpServerConfig): Promise<void> {
     const logger = (this.server as any).getLogger();
-    logger.info('mcp.client_manager.connecting', { name: config.name, command: config.command });
+    logger.info('mcp.client_manager.connecting', { 
+      name: config.name, 
+      type: config.url ? 'sse' : 'stdio',
+      url: config.url,
+      command: config.command 
+    });
 
     try {
-      const transport = new StdioClientTransport({
-        command: config.command,
-        args: config.args || [],
-        env: Object.fromEntries(
-          Object.entries({ ...process.env, ...config.env })
-            .filter(([_, v]) => v !== undefined)
-        ) as Record<string, string>,
-      });
+      let transport;
+      if (config.url) {
+        transport = new SSEClientTransport(new URL(config.url), {
+          eventSourceInit: {
+            headers: config.headers,
+          } as any,
+          requestInit: {
+            headers: config.headers,
+          },
+        });
+      } else if (config.command) {
+        transport = new StdioClientTransport({
+          command: config.command,
+          args: config.args || [],
+          env: Object.fromEntries(
+            Object.entries({ ...process.env, ...config.env })
+              .filter(([_, v]) => v !== undefined)
+          ) as Record<string, string>,
+        });
+      } else {
+        throw new Error(`Invalid MCP server configuration for ${config.name}: missing url or command`);
+      }
 
       const client = new Client({
         name: 'bitbrat-llm-bot',

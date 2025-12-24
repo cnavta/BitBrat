@@ -1,0 +1,11 @@
+id: sprint-162-8e12a3
+title: "Add SSE MCP support and configure OBS server"
+goal: "Enable the LLM bot to connect to MCP servers via SSE and add the OBS server configuration."
+owner: "Junie"
+createdAt: "2025-12-24T13:30:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-162-8e12a3-add-sse-mcp-support"
+notes: |
+  The current McpClientManager only supports StdioClientTransport. 
+  Need to add support for SseClientTransport and update the configuration format.

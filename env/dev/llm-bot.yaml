@@ -14,4 +14,4 @@ LLM_BOT_INSTANCE_MEM_MAX_CHARS: 16000
 LLM_BOT_INSTANCE_MEM_TTL_MS: 3600000
 
 FF_LLM_PROMPT_LOGGING: true
-LLM_BOT_MCP_SERVERS: '[{"name": "web-search", "command": "node", "args": ["./node_modules/@guhcostan/web-search-mcp/dist/server.js"]}]'
+LLM_BOT_MCP_SERVERS: '[{"name": "web-search", "command": "node", "args": ["./node_modules/@guhcostan/web-search-mcp/dist/server.js"]}, {"name": "obs", "url": "https://obs-mcp-391156307625.us-central1.run.app/sse", "headers": {"Authorization": "da2c5a01-c917-493b-b8f6-3522142c2f51"}}]'
