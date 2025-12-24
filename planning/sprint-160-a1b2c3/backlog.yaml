@@ -1,0 +1,112 @@
+meta:
+  backlog_id: sprint-160-a1b2c3-backlog
+  updated_at: 2025-12-23
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-160-a1b2c3
+  start: 2025-12-23
+  end: 2026-01-06
+  wip_limit: 3
+  goal: "Implement MCP Tool Registration and Vercel AI SDK integration for llm-bot while removing LangGraph dependency."
+
+items:
+  - id: BL-160-001
+    title: "Dependency Refactoring & Cleanup"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "LangGraph and legacy OpenAI dependencies removed from package.json."
+      - "AI SDK, OpenAI provider, and MCP SDK installed."
+      - "Project builds successfully after dependency changes."
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T13:40:00Z
+        note: "Uninstall LangGraph/OpenAI, install AI SDK/MCP SDK. Cleaned processor.ts and llm-bot-service.ts. Build restored."
+
+  - id: BL-160-002
+    title: "Core Tooling Infrastructure"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-160-001]
+    blocked_reason: null
+    acceptance:
+      - "ToolRegistry class implemented and tested."
+      - "BitBratTool and related interfaces defined."
+      - "Internal tool registration mechanism functional."
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:00:00Z
+        note: "Implemented ToolRegistry and BitBratTool interface."
+
+  - id: BL-160-003
+    title: "MCP Translation Bridge"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-160-002]
+    blocked_reason: null
+    acceptance:
+      - "McpBridge can translate MCP tool definitions to AI SDK Tool objects."
+      - "MCP tool execution is correctly forwarded to the MCP server."
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T14:05:00Z
+        note: "Implemented McpBridge with jsonSchema support and tested forwarding."
+
+  - id: BL-160-004
+    title: "Processor Migration to Vercel AI SDK"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-160-002]
+    blocked_reason: null
+    acceptance:
+      - "processor.ts refactored to use generateText and maxSteps."
+      - "LangGraph StateGraph removed from production code path."
+      - "Existing prompt assembly and memory logic correctly integrated."
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:30:00Z
+        note: "Refactored processor.ts to use Vercel AI SDK. Fixed regression in existing tests."
+
+  - id: BL-160-005
+    title: "MCP Client Integration & Discovery"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-160-003, BL-160-004]
+    blocked_reason: null
+    acceptance:
+      - "llm-bot-service.ts manages MCP client lifecycle."
+      - "Discovered MCP tools are auto-registered in ToolRegistry."
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:45:00Z
+        note: "Implemented McpClientManager and integrated into LlmBotServer."
+
+  - id: BL-160-006
+    title: "Validation & Verification Suite"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-160-004, BL-160-005]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh exists and passes."
+      - "Unit tests for Registry, Bridge, and Client exist and pass."
+      - "Integration test for llm-bot with mock MCP tool passes."
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:55:00Z
+        note: "Final validation passed with 60 tests."

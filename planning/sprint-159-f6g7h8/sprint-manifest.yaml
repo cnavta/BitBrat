@@ -1,0 +1,10 @@
+id: sprint-159-f6g7h8
+title: "Fix Conversation History Redundancy in LLM Prompts"
+goal: "Ensure that the current user message only appears in the [Input] section of LLM prompts and is excluded from the [Conversation State / History] section."
+owner: "@junie"
+createdAt: "2025-12-22T17:35:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-159-f6g7h8-fix-history-rendering"
+notes: |
+  Merged previous sprints (157-8d2f3a and 158-e4f5g6) to ensure continuity and prevent regressions.

@@ -1,0 +1,10 @@
+id: sprint-158-e4f5g6
+title: "Fix Conversation History Redundancy"
+goal: "Exclude the current user message from the rendered conversation history to avoid redundancy in the prompt."
+owner: "@junie"
+createdAt: "2025-12-22T12:20:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-158-e4f5g6-fix-history-redundancy"
+notes: |
+  The current message is being appended to the conversation history before it is rendered into the PromptSpec, leading to it appearing both in the History and Input sections.

@@ -1,0 +1,94 @@
+meta:
+  backlog_id: sprint-157-8d2f3a-backlog
+  updated_at: 2025-12-22
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-157-8d2f3a
+  start: 2025-12-22
+  end: 2026-01-05
+  wip_limit: 3
+  goal: "Implement LLM prompt logging to Firestore controlled by a feature flag."
+
+items:
+  - id: BL-157-001
+    title: "Feature Flag: llm.promptLogging.enabled"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Entry exists in src/common/feature-flags.manifest.json"
+      - "Default value is false"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T11:10:00Z
+        note: "Added llm.promptLogging.enabled to manifest."
+
+  - id: BL-157-002
+    title: "Firestore Schema & Redaction Logic"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-157-001]
+    blocked_reason: null
+    acceptance:
+      - "Logging logic applies redactText to prompt and response"
+      - "Schema includes correlationId, prompt, response, model, and createdAt"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T11:15:00Z
+        note: "Implemented schema and redaction logic in processor.ts."
+
+  - id: BL-157-003
+    title: "Implement Logging in processor.ts"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-157-002]
+    blocked_reason: null
+    acceptance:
+      - "Modified call_model node in src/services/llm-bot/processor.ts"
+      - "Logging is fail-soft (errors do not block execution)"
+      - "Firestore write is non-blocking or safely awaited"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T11:15:00Z
+        note: "Added logging logic to call_model node with fire-and-forget Firestore write."
+
+  - id: BL-157-004
+    title: "Unit Tests for Prompt Logging"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-157-003]
+    blocked_reason: null
+    acceptance:
+      - "Test verifies logging when FF is true"
+      - "Test verifies no logging when FF is false"
+      - "Test verifies resilience to Firestore errors"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T11:20:00Z
+        note: "Created and passed unit tests in tests/services/llm-bot/prompt-logging.test.ts."
+
+  - id: BL-157-005
+    title: "Sprint Validation and Publication"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-157-004]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "Pull Request created"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T11:30:00Z
+        note: "Validation passed, branch pushed, and PR created."

@@ -20,6 +20,8 @@ import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../service
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
 import type { InternalEventV2, RoutingStep } from '../types/events';
 import type { RoutingStatus } from '../types/events';
+import { markSelectedCandidate } from './events/selection';
+import { toV2 } from './events/adapters';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -294,12 +296,15 @@ export class BaseServer {
             if (tracer) {
               await startActiveSpan(`msg ${subject}`, async () => {
                 // Assume JSON payloads: parse Buffer/string into object for typed handler
-                const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
-                await Promise.resolve(handler(parsed, attributes, ctx));
+                const raw = JSON.parse((data as any)?.toString('utf8'));
+                // Standardize InternalEventV2: convert V1 (wrapped in envelope) to V2 (flat)
+                const parsed = (raw && raw.envelope) ? toV2(raw) : (raw as T);
+                await Promise.resolve(handler(parsed as any, attributes, ctx));
               });
             } else {
-              const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
-              await Promise.resolve(handler(parsed, attributes, ctx));
+              const raw = JSON.parse((data as any)?.toString('utf8'));
+              const parsed = (raw && raw.envelope) ? toV2(raw) : (raw as T);
+              await Promise.resolve(handler(parsed as any, attributes, ctx));
             }
           } catch (e: any) {
             // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
@@ -528,10 +533,17 @@ export class BaseServer {
         this.logger.warn('routing.next.no_target', { correlationId: event?.correlationId });
         return;
       }
+
+      // Standardize egress format: update type and mark selected candidate
+      const egressEvent = markSelectedCandidate({
+        ...event,
+        type: 'egress.deliver.v1',
+      });
+
       const pub = createMessagePublisher(dest);
       try {
         await startActiveSpan('routing.complete', async () => {
-          await pub.publishJson(event, this.buildRoutingAttributes(event));
+          await pub.publishJson(egressEvent, this.buildRoutingAttributes(egressEvent));
         });
       } catch (e) {
         delete (event as any)[NEXT_MARK];
@@ -601,10 +613,17 @@ export class BaseServer {
       this.logger.warn('routing.complete.no_egress', { correlationId: event?.correlationId });
       return;
     }
+
+    // Standardize egress format: update type and mark selected candidate
+    const egressEvent = markSelectedCandidate({
+      ...event,
+      type: 'egress.deliver.v1',
+    });
+
     const pub = createMessagePublisher(dest);
     try {
       await startActiveSpan('routing.complete', async () => {
-        await pub.publishJson(event, this.buildRoutingAttributes(event));
+        await pub.publishJson(egressEvent, this.buildRoutingAttributes(egressEvent));
       });
     } catch (e) {
       delete (event as any)[COMPLETE_MARK];
