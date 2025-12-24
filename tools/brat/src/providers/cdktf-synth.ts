@@ -9,6 +9,7 @@ export interface SynthOptions {
   outDir?: string;
   env?: string;
   projectId?: string;
+  dryRun?: boolean;
 }
 
 function ensureDir(dir: string) {
@@ -27,7 +28,7 @@ export function getModuleOutDir(rootDir: string, moduleName: CdktfModule): strin
   return path.join(rootDir, 'infrastructure', 'cdktf', 'out', moduleName);
 }
 
-function synthNetworkTf(rootDir: string, env: string | undefined, projectId: string | undefined): string {
+function synthNetworkTf(rootDir: string, env: string | undefined, projectId: string | undefined, dryRun?: boolean): string {
   // Read architecture.yaml overlays for network inputs; fall back to deployment defaults
   let defaultRegion = 'us-central1';
   let network: any = {};
@@ -46,9 +47,8 @@ function synthNetworkTf(rootDir: string, env: string | undefined, projectId: str
 
   const vpcName = 'brat-vpc';
 
-  // Backend: prefer overlay remoteState when provided; disable in CI to keep plan-only safe
-  const ci = String(process.env.CI || '').toLowerCase();
-  const includeBackend = !!(remoteState.bucket && remoteState.prefix) && ci !== 'true' && ci !== '1';
+  // Backend: prefer overlay remoteState when provided; disable in dry-run to keep plan-only safe
+  const includeBackend = !!(remoteState.bucket && remoteState.prefix) && !dryRun;
   const backendBlock = includeBackend
     ? `  backend "gcs" {\n    bucket = "${remoteState.bucket}"\n    prefix = "${remoteState.prefix}"\n  }\n`
     : '';
@@ -237,7 +237,7 @@ output "localDnsZoneName" {
   return tf;
 }
 
-function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId: string | undefined): string {
+function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId: string | undefined, dryRun?: boolean): string {
   let defaultRegion = 'us-central1';
   let arch: any = {};
   let lb: any = undefined;
@@ -251,10 +251,9 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
   const project = projectId || 'placeholder-project';
   const isProd = environment === 'prod';
 
-  // Backend state in CI guarded like other modules
+  // Backend state in dry-run guarded like other modules
   const backendBucket = process.env.BITBRAT_TF_BACKEND_BUCKET;
-  const ci = String(process.env.CI || '').toLowerCase();
-  const includeBackend = !!backendBucket && ci !== 'true' && ci !== '1';
+  const includeBackend = !!backendBucket && !dryRun;
   const backendBlock = includeBackend
     ? `  backend "gcs" {\n    bucket = "${backendBucket}"\n    prefix = "lb/${environment}"\n  }\n`
     : '';
@@ -287,7 +286,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
 
     // IP selection
     const ipMode: 'create' | 'use-existing' = lbNode.ipMode || (isInternal ? 'create' : 'use-existing');
-    const ipName = lbNode.ip || (isInternal ? `bitbrat-internal-ip-${environment}` : (environment === 'dev' ? 'birtrat-ip' : 'bitbrat-global-ip'));
+    const ipName = lbNode.ip || lbNode.ipName || (isInternal ? `bitbrat-internal-ip-${environment}` : (environment === 'dev' ? 'birtrat-ip' : 'bitbrat-global-ip'));
     const useIpResource = isInternal || (!isProd && ipMode === 'create');
     
     const ipRefExpr = useIpResource
@@ -313,7 +312,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     let certRefExpr = '';
     if (!isInternal) {
       const certMode: 'managed' | 'use-existing' = lbNode.certMode || 'use-existing';
-      const certRefRaw: string | undefined = lbNode.cert || (environment === 'dev' ? 'bitbrat-dev-cert' : `bitbrat-cert-${environment}`);
+      const certRefRaw: string | undefined = lbNode.cert || lbNode.certRef || (environment === 'dev' ? 'bitbrat-dev-cert' : `bitbrat-cert-${environment}`);
       const certName = certRefRaw ? String(certRefRaw).split('/').slice(-1)[0] : `bitbrat-cert-${environment}`;
       const useManagedCertResource = certMode === 'managed';
       if (useManagedCertResource) {
@@ -340,8 +339,9 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
       }
       return ordered.filter((sid) => {
         const node = servicesActiveMap?.[sid];
-        const active = !!(node && (node.active === true || node === true || typeof node === 'object'));
-        return active;
+        if (!node) return false;
+        if (node.active === false) return false;
+        return true;
       });
     };
 
@@ -406,9 +406,14 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
       }
     }
 
-    const defaultBackendRef = servicesToProcess.length > 0
-      ? `google_compute_${isInternal ? 'region_' : ''}backend_service.be-${servicesToProcess[0]}-${isInternal ? 'internal' : 'external'}.self_link`
-      : `google_compute_${isInternal ? 'region_' : ''}backend_service.be-default-${lbKey}.self_link`;
+    let defaultBackendRef = '';
+    if (servicesToProcess.length > 0) {
+      defaultBackendRef = `google_compute_${isInternal ? 'region_' : ''}backend_service.be-${servicesToProcess[0]}-${isInternal ? 'internal' : 'external'}.self_link`;
+    } else if (!isInternal && hasBucketRouting) {
+      defaultBackendRef = `google_compute_backend_service.be-assets-proxy-${lbKey}.self_link`;
+    } else {
+      defaultBackendRef = `google_compute_${isInternal ? 'region_' : ''}backend_service.be-default-${lbKey}.self_link`;
+    }
 
     const urlMapName = lbNode.name || (isInternal ? `bitbrat-internal-url-map-${lbKey}` : 'bitbrat-global-url-map');
 
@@ -470,11 +475,21 @@ output "lbIpAddresses" {
 ${outputIpMappings.join(',\n')}
   }
 }
+
+output "backendServiceNames" {
+  description = "List of all backend service names"
+  value       = [${beNames.map(n => JSON.stringify(n)).join(', ')}]
+}
+
+output "negNames" {
+  description = "List of all NEG names"
+  value       = [${Array.from(negNames).map(n => JSON.stringify(n)).join(', ')}]
+}
 `;
   return tf;
 }
 
-function synthConnectorsTf(rootDir: string, env: string | undefined, projectId: string | undefined): string {
+function synthConnectorsTf(rootDir: string, env: string | undefined, projectId: string | undefined, dryRun?: boolean): string {
   let region = 'us-central1';
   try {
     const arch = loadArchitecture(rootDir) as any;
@@ -488,8 +503,7 @@ function synthConnectorsTf(rootDir: string, env: string | undefined, projectId: 
   const connectorCidr = '10.8.0.0/28';
 
   const bucket = process.env.BITBRAT_TF_BACKEND_BUCKET;
-  const ci = String(process.env.CI || '').toLowerCase();
-  const includeBackend = !!bucket && ci !== 'true' && ci !== '1';
+  const includeBackend = !!bucket && !dryRun;
 
   const backendBlock = includeBackend
     ? `  backend "gcs" {
@@ -574,7 +588,7 @@ output "connectorsByRegion" {
  *   - storageClass: string (when SetStorageClass)
  * - Labels: merges required labels { env, project, managed-by=brat } with resource.labels (without overwriting required keys)
  */
-function synthBucketsTf(rootDir: string, env: string | undefined, projectId: string | undefined): string {
+function synthBucketsTf(rootDir: string, env: string | undefined, projectId: string | undefined, dryRun?: boolean): string {
   const arch: any = (() => { try { return loadArchitecture(rootDir) as any; } catch { return {}; } })();
   const environment = env || 'dev';
   const project = projectId || 'placeholder-project';
@@ -585,10 +599,9 @@ function synthBucketsTf(rootDir: string, env: string | undefined, projectId: str
     .filter(([_, r]: [string, any]) => r && r.type === 'object-store' && r.implementation === 'cloud-storage')
     .map(([key, r]) => ({ key, cfg: r as any }));
 
-  // Backend: disabled by default for safety in CI, but allow via env var like other modules
+  // Backend: disabled by default in dry-run for safety
   const bucketBackend = process.env.BITBRAT_TF_BACKEND_BUCKET;
-  const ci = String(process.env.CI || '').toLowerCase();
-  const includeBackend = !!bucketBackend && ci !== 'true' && ci !== '1';
+  const includeBackend = !!bucketBackend && !dryRun;
   const backendBlock = includeBackend
     ? `  backend "gcs" {\n    bucket = "${bucketBackend}"\n    prefix = "buckets/${environment}"\n  }\n`
     : '';
@@ -732,7 +745,7 @@ export function synthModule(moduleName: CdktfModule, opts: SynthOptions): string
   ensureDir(outDir);
 
   if (moduleName === 'network') {
-    const tf = synthNetworkTf(rootDir, opts.env, opts.projectId);
+    const tf = synthNetworkTf(rootDir, opts.env, opts.projectId, opts.dryRun);
     writeFileIfChanged(path.join(outDir, 'main.tf'), tf);
     const readme = `# network (CDKTF synth)\n\nThis directory is generated by the brat CLI.\nIt contains a Terraform configuration for the BitBrat network MVP (VPC, subnet with Private Google Access, Cloud Router, NAT, and baseline firewalls).\n\nState backend (GCS) is intentionally not configured here to keep CI plan-only runs safe.\nFor remote state, create a bucket (e.g., gs://bitbrat-tfstate-<env>) and configure a backend block manually when applying outside CI.\n`;
     writeFileIfChanged(path.join(outDir, 'README.md'), readme);
@@ -740,7 +753,7 @@ export function synthModule(moduleName: CdktfModule, opts: SynthOptions): string
   }
 
   if (moduleName === 'buckets') {
-    const tf = synthBucketsTf(rootDir, opts.env, opts.projectId);
+    const tf = synthBucketsTf(rootDir, opts.env, opts.projectId, opts.dryRun);
     writeFileIfChanged(path.join(outDir, 'main.tf'), tf);
     const readme = `# buckets (CDKTF synth)
 
@@ -760,7 +773,7 @@ Outputs:
   }
 
   if (moduleName === 'connectors') {
-      const tf = synthConnectorsTf(rootDir, opts.env, opts.projectId);
+      const tf = synthConnectorsTf(rootDir, opts.env, opts.projectId, opts.dryRun);
       writeFileIfChanged(path.join(outDir, 'main.tf'), tf);
       const readme = `# connectors (CDKTF synth)\n\nThis directory is generated by the brat CLI.\nIt contains a Terraform configuration for Serverless VPC Access connectors bound to existing network subnets.\n\nNotes:\n- Minimum CIDR size per connector is /28 (default used here: 10.8.0.0/28).\n- Ensure vpcaccess.googleapis.com API is enabled before apply.\n`;
       writeFileIfChanged(path.join(outDir, 'README.md'), readme);
@@ -768,7 +781,7 @@ Outputs:
     }
 
     if (moduleName === 'load-balancer') {
-    const tf = synthLoadBalancerTf(rootDir, opts.env, opts.projectId);
+    const tf = synthLoadBalancerTf(rootDir, opts.env, opts.projectId, opts.dryRun);
     writeFileIfChanged(path.join(outDir, 'main.tf'), tf);
     const readme = `# load-balancer (CDKTF synth)\n\nThis directory is generated by the brat CLI.\nIt contains a Terraform configuration for the BitBrat HTTPS Load Balancer scaffolding.\n\nNotes:\n- Dev static IP name: birtrat-ip\n- Dev certificate name: bitbrat-dev-cert\n- URL map is a minimal stub; advanced import is deferred.\n`;
     writeFileIfChanged(path.join(outDir, 'README.md'), readme);

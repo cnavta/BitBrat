@@ -19,13 +19,13 @@ infrastructure:\n  target: gcp\n  resources:\n    main-load-balancer:\n      typ
     const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
 
     // Active referenced services
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-oauth-flow"');
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-ingress-egress"');
+    expect(mainTf).toContain('resource "google_compute_backend_service" "be-oauth-flow-external"');
+    expect(mainTf).toContain('resource "google_compute_backend_service" "be-ingress-egress-external"');
     // NEGs per default region for services
     expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-oauth-flow-us-central1"');
     expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-ingress-egress-us-central1"');
     // Inactive referenced service must not produce resources
-    expect(mainTf).not.toContain('be-auth');
+    expect(mainTf).not.toContain('be-auth-external');
     expect(mainTf).not.toContain('neg-auth-');
     // No assets-proxy in service-only routing
     expect(mainTf).not.toContain('be-assets-proxy');
@@ -45,13 +45,13 @@ infrastructure:\n  target: gcp\n  resources:\n    default-content-bucket:\n     
     const outDir = synthModule('load-balancer', { rootDir: tmp, env: 'dev', projectId: 'p1' });
     const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
 
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-assets-proxy"');
+    expect(mainTf).toContain('resource "google_compute_backend_service" "be-assets-proxy-main-load-balancer"');
     expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-assets-proxy-us-central1"');
     // No service backends since no service rules
-    expect(mainTf).not.toContain('resource "google_compute_backend_service" "be-oauth-flow"');
-    // Default backend falls back to be-default
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-default"');
-    expect(mainTf).toContain('default_service = google_compute_backend_service.be-default.self_link');
+    expect(mainTf).not.toContain('resource "google_compute_backend_service" "be-oauth-flow-external"');
+    // Default backend falls back to assets proxy when no services
+    expect(mainTf).not.toContain('resource "google_compute_backend_service" "be-default-main-load-balancer"');
+    expect(mainTf).toContain('default_service = google_compute_backend_service.be-assets-proxy-main-load-balancer.self_link');
   });
 
   it('mixed routing: includes service backends and assets-proxy; default backend is first referenced service', () => {
@@ -65,11 +65,11 @@ infrastructure:\n  target: gcp\n  resources:\n    default-content-bucket:\n     
     const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
 
     // Service backends present
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-ingress-egress"');
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-oauth-flow"');
+    expect(mainTf).toContain('resource "google_compute_backend_service" "be-ingress-egress-external"');
+    expect(mainTf).toContain('resource "google_compute_backend_service" "be-oauth-flow-external"');
     // Assets proxy present due to bucket routing
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-assets-proxy"');
+    expect(mainTf).toContain('resource "google_compute_backend_service" "be-assets-proxy-main-load-balancer"');
     // Default backend should be first referenced service (ingress-egress)
-    expect(mainTf).toContain('default_service = google_compute_backend_service.be-ingress-egress.self_link');
+    expect(mainTf).toContain('default_service = google_compute_backend_service.be-ingress-egress-external.self_link');
   });
 });
