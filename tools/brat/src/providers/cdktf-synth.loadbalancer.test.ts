@@ -21,17 +21,17 @@ lb:\n  ipMode: create\n  ipName: my-dev-ip\n  certMode: managed\n  services:\n  
     expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-api-us-central1"');
     expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-api-us-east1"');
     // Backend per service with two backend attachments
-    expect(mainTf).toContain('resource "google_compute_backend_service" "be-api-external"');
+    expect(mainTf).toContain('resource "google_compute_backend_service" "be-api"');
     expect(mainTf.match(/backend \{/g)?.length).toBeGreaterThanOrEqual(2);
     // Outputs include names
     expect(mainTf).toContain('output "backendServiceNames"');
-    expect(mainTf).toContain('"be-api-external"');
+    expect(mainTf).toContain('"be-api"');
     expect(mainTf).toContain('output "negNames"');
     expect(mainTf).toContain('"neg-api-us-central1"');
     expect(mainTf).toContain('"neg-api-us-east1"');
     // Dev create path: IP resource and managed cert resource
-    expect(mainTf).toContain('resource "google_compute_global_address" "main-load-balancer_ip"');
-    expect(mainTf).toContain('resource "google_compute_managed_ssl_certificate" "main-load-balancer_cert"');
+    expect(mainTf).toContain('resource "google_compute_global_address" "frontend_ip"');
+    expect(mainTf).toContain('resource "google_compute_managed_ssl_certificate" "managed_cert"');
   });
 
   it('prod defaults to data lookups for IP and cert when use-existing', () => {
@@ -43,13 +43,13 @@ lb:\n  ipMode: use-existing\n  ipName: prod-global-ip\n  certMode: use-existing\
     const outDir = synthModule('load-balancer', { rootDir: tmp, env: 'prod', projectId: 'p1' });
     const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
 
-    expect(mainTf).toContain('data "google_compute_global_address" "main-load-balancer_ip"');
+    expect(mainTf).toContain('data "google_compute_global_address" "frontend_ip"');
     expect(mainTf).toContain('name = "prod-global-ip"');
-    expect(mainTf).toContain('data "google_compute_ssl_certificate" "main-load-balancer_cert"');
+    expect(mainTf).toContain('data "google_compute_ssl_certificate" "managed_cert"');
     expect(mainTf).toContain('acme-cert');
     // No creations for IP/cert in this mode
-    expect(mainTf).not.toContain('resource "google_compute_global_address" "main-load-balancer_ip"');
-    expect(mainTf).not.toContain('resource "google_compute_managed_ssl_certificate" "main-load-balancer_cert"');
+    expect(mainTf).not.toContain('resource "google_compute_global_address" "frontend_ip"');
+    expect(mainTf).not.toContain('resource "google_compute_managed_ssl_certificate" "managed_cert"');
   });
 
   it('snapshot — dev overlay (create IP + managed cert + services)', () => {

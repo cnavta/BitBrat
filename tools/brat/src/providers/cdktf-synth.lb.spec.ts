@@ -30,23 +30,23 @@ deploymentDefaults:\n  region: us-central1\n\ninfrastructure:\n  resources:\n   
     expect(mainTf).not.toContain('variable "environment" { type = string');
 
     // ensure use-existing for IP and cert via data sources
-    expect(mainTf).toContain('data "google_compute_global_address" "main-load-balancer_ip"');
+    expect(mainTf).toContain('data "google_compute_global_address" "frontend_ip"');
     expect(mainTf).toContain('name = "birtrat-ip"');
 
-    expect(mainTf).toContain('data "google_compute_ssl_certificate" "main-load-balancer_cert"');
+    expect(mainTf).toContain('data "google_compute_ssl_certificate" "managed_cert"');
     expect(mainTf).toContain('name = "bitbrat-dev-cert"');
 
     // no resource creations for IP/cert
-    expect(mainTf).not.toContain('resource "google_compute_global_address" "main-load-balancer_ip"');
-    expect(mainTf).not.toContain('resource "google_compute_managed_ssl_certificate" "main-load-balancer_cert"');
+    expect(mainTf).not.toContain('resource "google_compute_global_address" "frontend_ip"');
+    expect(mainTf).not.toContain('resource "google_compute_managed_ssl_certificate" "managed_cert"');
 
-    expect(mainTf).toContain('resource "google_compute_url_map" "main-load-balancer"');
-    expect(mainTf).toContain('resource "google_compute_target_https_proxy" "main-load-balancer_proxy"');
-    expect(mainTf).toContain('resource "google_compute_global_forwarding_rule" "main-load-balancer_fr"');
+    expect(mainTf).toContain('resource "google_compute_url_map" "main"');
+    expect(mainTf).toContain('resource "google_compute_target_https_proxy" "https_proxy"');
+    expect(mainTf).toContain('resource "google_compute_global_forwarding_rule" "https_rule"');
 
     // references should use data sources
-    expect(mainTf).toContain('ssl_certificates = [data.google_compute_ssl_certificate.main-load-balancer_cert.self_link]');
-    expect(mainTf).toContain('ip_address            = data.google_compute_global_address.main-load-balancer_ip.address');
+    expect(mainTf).toContain('ssl_certificates = [data.google_compute_ssl_certificate.managed_cert.self_link]');
+    expect(mainTf).toContain('ip_address            = data.google_compute_global_address.frontend_ip.address');
 
     // outputs
     expect(mainTf).toContain('output "lbIpAddresses"');

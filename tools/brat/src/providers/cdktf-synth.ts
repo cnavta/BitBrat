@@ -261,7 +261,8 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
   // Compose Terraform blocks
   let resources: string[] = [];
   let datas: string[] = [];
-  let negNames = new Set<string>();
+  const definedNegs = new Set<string>();
+  const definedBeKeys = new Set<string>();
   let beNames: string[] = [];
   let dnsRecords: string[] = [];
   let outputIpMappings: string[] = [];
@@ -280,6 +281,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
   for (const { key: lbKey, cfg: lbNode } of lbResources) {
     const impl = lbNode.implementation || 'global-external-application-lb';
     const isInternal = impl === 'regional-internal-application-lb';
+    const isMainExternal = lbKey === 'main-load-balancer' && !isInternal;
     const region = lbNode.region || defaultRegion;
     const routing = lbNode.routing;
     const defaultDomain = routing?.default_domain || (isInternal ? 'bitbrat.local' : 'api.bitbrat.ai');
@@ -289,38 +291,41 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     const ipName = lbNode.ip || lbNode.ipName || (isInternal ? `bitbrat-internal-ip-${environment}` : (environment === 'dev' ? 'birtrat-ip' : 'bitbrat-global-ip'));
     const useIpResource = isInternal || (!isProd && ipMode === 'create');
     
+    // Legacy support: main-load-balancer (external) uses "frontend_ip" as TF resource name
+    const ipTfRes = isMainExternal ? 'frontend_ip' : `${lbKey}_ip`;
     const ipRefExpr = useIpResource
-      ? `google_compute_${isInternal ? '' : 'global_'}address.${lbKey}_ip.address`
-      : `data.google_compute_${isInternal ? '' : 'global_'}address.${lbKey}_ip.address`;
+      ? `google_compute_${isInternal ? '' : 'global_'}address.${ipTfRes}.address`
+      : `data.google_compute_${isInternal ? '' : 'global_'}address.${ipTfRes}.address`;
 
     if (useIpResource) {
       if (isInternal) {
-        resources.push(`resource "google_compute_address" "${lbKey}_ip" {\n  name         = "${ipName}"\n  subnetwork   = "brat-subnet-${region}-${environment}"\n  address_type = "INTERNAL"\n  region       = "${region}"\n}`);
+        resources.push(`resource "google_compute_address" "${ipTfRes}" {\n  name         = "${ipName}"\n  subnetwork   = "brat-subnet-${region}-${environment}"\n  address_type = "INTERNAL"\n  region       = "${region}"\n}`);
       } else {
-        resources.push(`resource "google_compute_global_address" "${lbKey}_ip" {\n  name = "${ipName}"\n}`);
+        resources.push(`resource "google_compute_global_address" "${ipTfRes}" {\n  name = "${ipName}"\n}`);
       }
     } else {
       if (isInternal) {
-        datas.push(`data "google_compute_address" "${lbKey}_ip" {\n  name   = "${ipName}"\n  region = "${region}"\n}`);
+        datas.push(`data "google_compute_address" "${ipTfRes}" {\n  name   = "${ipName}"\n  region = "${region}"\n}`);
       } else {
-        datas.push(`data "google_compute_global_address" "${lbKey}_ip" {\n  name = "${ipName}"\n}`);
+        datas.push(`data "google_compute_global_address" "${ipTfRes}" {\n  name = "${ipName}"\n}`);
       }
     }
     outputIpMappings.push(`    ${JSON.stringify(lbKey)} = ${ipRefExpr}`);
 
     // Certificate selection (Only for external)
     let certRefExpr = '';
+    const certTfRes = isMainExternal ? 'managed_cert' : `${lbKey}_cert`;
     if (!isInternal) {
       const certMode: 'managed' | 'use-existing' = lbNode.certMode || 'use-existing';
       const certRefRaw: string | undefined = lbNode.cert || lbNode.certRef || (environment === 'dev' ? 'bitbrat-dev-cert' : `bitbrat-cert-${environment}`);
       const certName = certRefRaw ? String(certRefRaw).split('/').slice(-1)[0] : `bitbrat-cert-${environment}`;
       const useManagedCertResource = certMode === 'managed';
       if (useManagedCertResource) {
-        resources.push(`resource "google_compute_managed_ssl_certificate" "${lbKey}_cert" {\n  name = "${certName}"\n  managed {\n    domains = ["${defaultDomain}"]\n  }\n}`);
-        certRefExpr = `google_compute_managed_ssl_certificate.${lbKey}_cert.self_link`;
+        resources.push(`resource "google_compute_managed_ssl_certificate" "${certTfRes}" {\n  name = "${certName}"\n  managed {\n    domains = ["${defaultDomain}"]\n  }\n}`);
+        certRefExpr = `google_compute_managed_ssl_certificate.${certTfRes}.self_link`;
       } else {
-        datas.push(`data "google_compute_ssl_certificate" "${lbKey}_cert" {\n  name = "${certName}"\n}`);
-        certRefExpr = `data.google_compute_ssl_certificate.${lbKey}_cert.self_link`;
+        datas.push(`data "google_compute_ssl_certificate" "${certTfRes}" {\n  name = "${certName}"\n}`);
+        certRefExpr = `data.google_compute_ssl_certificate.${certTfRes}.self_link`;
       }
     }
 
@@ -357,24 +362,32 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     const servicesToProcess = routing ? referencedServices : legacyServices.map(s => s.name);
     for (const sid of servicesToProcess) {
       const svcRegions = (routing || isInternal) ? [region] : (legacyServices.find(s => s.name === sid)?.regions || [region]);
-      const beName = `be-${sid}-${isInternal ? 'internal' : 'external'}`;
+      const beName = isInternal ? `be-${sid}-internal` : `be-${sid}`;
       beNames.push(beName);
       let backendBlocks: string[] = [];
       for (const r of svcRegions) {
         usedRegions.add(r);
         const negName = `neg-${sid}-${r}`;
-        if (!negNames.has(negName)) {
-          negNames.add(negName);
+        if (!definedNegs.has(negName)) {
+          definedNegs.add(negName);
           resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "${sid}"\n  }\n}`);
         }
         backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
       }
+      
+      const beKey = isInternal ? `${beName}-${region}` : beName;
+      if (!definedBeKeys.has(beKey)) {
+        definedBeKeys.add(beKey);
+        if (isInternal) {
+          resources.push(`resource "google_compute_region_backend_service" "${beName}" {\n  name                  = "${beName}"\n  region                = "${region}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+        } else {
+          resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+        }
+      }
+
       if (isInternal) {
-        resources.push(`resource "google_compute_region_backend_service" "${beName}" {\n  name                  = "${beName}"\n  region                = "${region}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
         // Internal DNS record for service
         dnsRecords.push(`resource "google_dns_record_set" "${lbKey}_${sid.replace(/-/g, '_')}_dns" {\n  name         = "${sid}.${defaultDomain}."\n  type         = "A"\n  ttl          = 300\n  managed_zone = "bitbrat-local"\n  rrdatas      = [${ipRefExpr}]\n}`);
-      } else {
-        resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
       }
     }
 
@@ -384,47 +397,59 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
       let backendBlocks: string[] = [];
       for (const r of regions) {
         const negName = `neg-assets-proxy-${r}`;
-        if (!negNames.has(negName)) {
-          negNames.add(negName);
+        if (!definedNegs.has(negName)) {
+          definedNegs.add(negName);
           resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "assets-proxy"\n  }\n}`);
         }
         backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
       }
-      const beName = `be-assets-proxy-${lbKey}`;
-      beNames.push(beName);
-      resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+      const beName = 'be-assets-proxy';
+      if (!definedBeKeys.has(beName)) {
+        definedBeKeys.add(beName);
+        beNames.push(beName);
+        resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+      }
     }
 
     // Default backend selection
     if (servicesToProcess.length === 0 && !hasBucketRouting) {
       const beName = `be-default-${lbKey}`;
       beNames.push(beName);
-      if (isInternal) {
-        resources.push(`resource "google_compute_region_backend_service" "${beName}" {\n  name                  = "${beName}"\n  region                = "${region}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
-      } else {
-        resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
+      const beKey = isInternal ? `${beName}-${region}` : beName;
+      if (!definedBeKeys.has(beKey)) {
+        definedBeKeys.add(beKey);
+        if (isInternal) {
+          resources.push(`resource "google_compute_region_backend_service" "${beName}" {\n  name                  = "${beName}"\n  region                = "${region}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
+        } else {
+          resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
+        }
       }
     }
 
     let defaultBackendRef = '';
     if (servicesToProcess.length > 0) {
-      defaultBackendRef = `google_compute_${isInternal ? 'region_' : ''}backend_service.be-${servicesToProcess[0]}-${isInternal ? 'internal' : 'external'}.self_link`;
+      defaultBackendRef = `google_compute_${isInternal ? 'region_' : ''}backend_service.be-${servicesToProcess[0]}${isInternal ? '-internal' : ''}.self_link`;
     } else if (!isInternal && hasBucketRouting) {
-      defaultBackendRef = `google_compute_backend_service.be-assets-proxy-${lbKey}.self_link`;
+      defaultBackendRef = 'google_compute_backend_service.be-assets-proxy.self_link';
     } else {
       defaultBackendRef = `google_compute_${isInternal ? 'region_' : ''}backend_service.be-default-${lbKey}.self_link`;
     }
 
     const urlMapName = lbNode.name || (isInternal ? `bitbrat-internal-url-map-${lbKey}` : 'bitbrat-global-url-map');
+    const urlMapTfRes = isMainExternal ? 'main' : lbKey;
 
     if (isInternal) {
-      resources.push(`resource "google_compute_region_url_map" "${lbKey}" {\n  name            = "${urlMapName}"\n  region          = "${region}"\n  default_service = ${defaultBackendRef}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      host_rule,\n      path_matcher,\n      test,\n    ]\n  }\n}`);
-      resources.push(`resource "google_compute_region_target_http_proxy" "${lbKey}_proxy" {\n  name    = "${lbKey}-proxy-${environment}"\n  region  = "${region}"\n  url_map = google_compute_region_url_map.${lbKey}.self_link\n}`);
+      resources.push(`resource "google_compute_region_url_map" "${urlMapTfRes}" {\n  name            = "${urlMapName}"\n  region          = "${region}"\n  default_service = ${defaultBackendRef}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      host_rule,\n      path_matcher,\n      test,\n    ]\n  }\n}`);
+      resources.push(`resource "google_compute_region_target_http_proxy" "${lbKey}_proxy" {\n  name    = "${lbKey}-proxy-${environment}"\n  region  = "${region}"\n  url_map = google_compute_region_url_map.${urlMapTfRes}.self_link\n}`);
       resources.push(`resource "google_compute_forwarding_rule" "${lbKey}_fr" {\n  name                  = "${lbKey}-fr-${environment}"\n  region                = "${region}"\n  ip_protocol           = "TCP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  port_range            = "80"\n  target                = google_compute_region_target_http_proxy.${lbKey}_proxy.self_link\n  network               = "brat-vpc"\n  subnetwork            = "brat-subnet-${region}-${environment}"\n  ip_address            = ${ipRefExpr}\n}`);
     } else {
-      resources.push(`resource "google_compute_url_map" "${lbKey}" {\n  name            = "${urlMapName}"\n  default_service = ${defaultBackendRef}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      host_rule,\n      path_matcher,\n      test,\n    ]\n  }\n}`);
-      resources.push(`resource "google_compute_target_https_proxy" "${lbKey}_proxy" {\n  name             = "${lbKey}-https-proxy-${environment}"\n  url_map          = google_compute_url_map.${lbKey}.self_link\n  ssl_certificates = [${certRefExpr}]\n}`);
-      resources.push(`resource "google_compute_global_forwarding_rule" "${lbKey}_fr" {\n  name                  = "${lbKey}-https-fr-${environment}"\n  ip_address            = ${ipRefExpr}\n  port_range            = "443"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  target                = google_compute_target_https_proxy.${lbKey}_proxy.self_link\n}`);
+      resources.push(`resource "google_compute_url_map" "${urlMapTfRes}" {\n  name            = "${urlMapName}"\n  default_service = ${defaultBackendRef}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      host_rule,\n      path_matcher,\n      test,\n    ]\n  }\n}`);
+      const proxyTfRes = isMainExternal ? 'https_proxy' : `${lbKey}_proxy`;
+      const proxyName = isMainExternal ? `bitbrat-https-proxy-${environment}` : `${lbKey}-https-proxy-${environment}`;
+      resources.push(`resource "google_compute_target_https_proxy" "${proxyTfRes}" {\n  name             = "${proxyName}"\n  url_map          = google_compute_url_map.${urlMapTfRes}.self_link\n  ssl_certificates = [${certRefExpr}]\n}`);
+      const frTfRes = isMainExternal ? 'https_rule' : `${lbKey}_fr`;
+      const frName = isMainExternal ? `bitbrat-https-fr-${environment}` : `${lbKey}-https-fr-${environment}`;
+      resources.push(`resource "google_compute_global_forwarding_rule" "${frTfRes}" {\n  name                  = "${frName}"\n  ip_address            = ${ipRefExpr}\n  port_range            = "443"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  target                = google_compute_target_https_proxy.${proxyTfRes}.self_link\n}`);
     }
   }
 
@@ -483,7 +508,7 @@ output "backendServiceNames" {
 
 output "negNames" {
   description = "List of all NEG names"
-  value       = [${Array.from(negNames).map(n => JSON.stringify(n)).join(', ')}]
+  value       = [${Array.from(definedNegs).map(n => JSON.stringify(n)).join(', ')}]
 }
 `;
   return tf;

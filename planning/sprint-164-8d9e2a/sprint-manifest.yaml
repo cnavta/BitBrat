@@ -1,0 +1,10 @@
+id: sprint-164-8d9e2a
+title: "Fix Load Balancer resource naming regressions"
+goal: "Restore backward compatibility for external load balancer resource names to fix deployment errors"
+owner: "Junie"
+createdAt: "2025-12-24T15:20:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-164-8d9e2a-fix-lb-naming"
+notes: |
+  Regression introduced in Sprint 163 by adding suffixes to backend names and changing TF resource identifiers.

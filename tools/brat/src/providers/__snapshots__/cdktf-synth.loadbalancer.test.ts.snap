@@ -37,11 +37,11 @@ variable "environment" {
 
 
 
-resource "google_compute_global_address" "main-load-balancer_ip" {
+resource "google_compute_global_address" "frontend_ip" {
   name = "dev-ip"
 }
 
-resource "google_compute_managed_ssl_certificate" "main-load-balancer_cert" {
+resource "google_compute_managed_ssl_certificate" "managed_cert" {
   name = "bitbrat-dev-cert"
   managed {
     domains = ["api.bitbrat.ai"]
@@ -57,8 +57,8 @@ resource "google_compute_region_network_endpoint_group" "neg-web-us-central1" {
   }
 }
 
-resource "google_compute_backend_service" "be-web-external" {
-  name                  = "be-web-external"
+resource "google_compute_backend_service" "be-web" {
+  name                  = "be-web"
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   log_config { enable = true }
@@ -67,9 +67,9 @@ resource "google_compute_backend_service" "be-web-external" {
   }
 }
 
-resource "google_compute_url_map" "main-load-balancer" {
+resource "google_compute_url_map" "main" {
   name            = "bitbrat-global-url-map"
-  default_service = google_compute_backend_service.be-web-external.self_link
+  default_service = google_compute_backend_service.be-web.self_link
   lifecycle {
     ignore_changes = [
       default_service,
@@ -80,18 +80,18 @@ resource "google_compute_url_map" "main-load-balancer" {
   }
 }
 
-resource "google_compute_target_https_proxy" "main-load-balancer_proxy" {
-  name             = "main-load-balancer-https-proxy-dev"
-  url_map          = google_compute_url_map.main-load-balancer.self_link
-  ssl_certificates = [google_compute_managed_ssl_certificate.main-load-balancer_cert.self_link]
+resource "google_compute_target_https_proxy" "https_proxy" {
+  name             = "bitbrat-https-proxy-dev"
+  url_map          = google_compute_url_map.main.self_link
+  ssl_certificates = [google_compute_managed_ssl_certificate.managed_cert.self_link]
 }
 
-resource "google_compute_global_forwarding_rule" "main-load-balancer_fr" {
-  name                  = "main-load-balancer-https-fr-dev"
-  ip_address            = google_compute_global_address.main-load-balancer_ip.address
+resource "google_compute_global_forwarding_rule" "https_rule" {
+  name                  = "bitbrat-https-fr-dev"
+  ip_address            = google_compute_global_address.frontend_ip.address
   port_range            = "443"
   load_balancing_scheme = "EXTERNAL_MANAGED"
-  target                = google_compute_target_https_proxy.main-load-balancer_proxy.self_link
+  target                = google_compute_target_https_proxy.https_proxy.self_link
 }
 
 
@@ -100,13 +100,13 @@ resource "google_compute_global_forwarding_rule" "main-load-balancer_fr" {
 output "lbIpAddresses" {
   description = "Map of load balancer key to IP address"
   value = {
-    "main-load-balancer" = google_compute_global_address.main-load-balancer_ip.address
+    "main-load-balancer" = google_compute_global_address.frontend_ip.address
   }
 }
 
 output "backendServiceNames" {
   description = "List of all backend service names"
-  value       = ["be-web-external"]
+  value       = ["be-web"]
 }
 
 output "negNames" {
@@ -151,11 +151,11 @@ variable "environment" {
   default = "prod"
 }
 
-data "google_compute_global_address" "main-load-balancer_ip" {
+data "google_compute_global_address" "frontend_ip" {
   name = "prod-global-ip"
 }
 
-data "google_compute_ssl_certificate" "main-load-balancer_cert" {
+data "google_compute_ssl_certificate" "managed_cert" {
   name = "prod-cert"
 }
 
@@ -166,7 +166,7 @@ resource "google_compute_backend_service" "be-default-main-load-balancer" {
   log_config { enable = true }
 }
 
-resource "google_compute_url_map" "main-load-balancer" {
+resource "google_compute_url_map" "main" {
   name            = "bitbrat-global-url-map"
   default_service = google_compute_backend_service.be-default-main-load-balancer.self_link
   lifecycle {
@@ -179,18 +179,18 @@ resource "google_compute_url_map" "main-load-balancer" {
   }
 }
 
-resource "google_compute_target_https_proxy" "main-load-balancer_proxy" {
-  name             = "main-load-balancer-https-proxy-prod"
-  url_map          = google_compute_url_map.main-load-balancer.self_link
-  ssl_certificates = [data.google_compute_ssl_certificate.main-load-balancer_cert.self_link]
+resource "google_compute_target_https_proxy" "https_proxy" {
+  name             = "bitbrat-https-proxy-prod"
+  url_map          = google_compute_url_map.main.self_link
+  ssl_certificates = [data.google_compute_ssl_certificate.managed_cert.self_link]
 }
 
-resource "google_compute_global_forwarding_rule" "main-load-balancer_fr" {
-  name                  = "main-load-balancer-https-fr-prod"
-  ip_address            = data.google_compute_global_address.main-load-balancer_ip.address
+resource "google_compute_global_forwarding_rule" "https_rule" {
+  name                  = "bitbrat-https-fr-prod"
+  ip_address            = data.google_compute_global_address.frontend_ip.address
   port_range            = "443"
   load_balancing_scheme = "EXTERNAL_MANAGED"
-  target                = google_compute_target_https_proxy.main-load-balancer_proxy.self_link
+  target                = google_compute_target_https_proxy.https_proxy.self_link
 }
 
 
@@ -199,7 +199,7 @@ resource "google_compute_global_forwarding_rule" "main-load-balancer_fr" {
 output "lbIpAddresses" {
   description = "Map of load balancer key to IP address"
   value = {
-    "main-load-balancer" = data.google_compute_global_address.main-load-balancer_ip.address
+    "main-load-balancer" = data.google_compute_global_address.frontend_ip.address
   }
 }
 
