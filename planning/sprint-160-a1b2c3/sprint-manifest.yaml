@@ -1,0 +1,11 @@
+id: sprint-160-a1b2c3
+title: "Initial MCP Tool Registration Setup"
+goal: "Implement basic MCP tool registration for OpenAI-based llm-bot service using Vercel AI SDK."
+owner: "@junie"
+createdAt: "2025-12-23T13:10:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-160-a1b2c3-mcp-tool-registration"
+notes: |
+  Focus on setup of basic MCP tool registration and abstractions for future LLM service support.
+  Integration with Vercel AI SDK will be investigated and used.

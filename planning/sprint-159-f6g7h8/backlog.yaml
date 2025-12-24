@@ -1,0 +1,74 @@
+meta:
+  backlog_id: sprint-159-f6g7h8-backlog
+  updated_at: 2025-12-22
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-159-f6g7h8
+  start: 2025-12-22
+  end: 2026-01-05
+  wip_limit: 3
+  goal: "Fix history redundancy in LLM prompts."
+
+items:
+  - id: BL-159-001
+    title: "Create reproduction test"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Test shows current message in history"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T17:25:00Z
+        note: "Verified failure with history-redundancy.test.ts"
+
+  - id: BL-159-002
+    title: "Merge previous work"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Sprint 157 and 158 changes are present"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T17:30:00Z
+        note: "Merged sprint-158-e4f5g6 which included sprint-157-8d2f3a"
+
+  - id: BL-159-003
+    title: "Refactor rendering logic"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-159-001, BL-159-002]
+    blocked_reason: null
+    acceptance:
+      - "Current message is excluded from conversation history rendered in prompt"
+      - "Current message is still appended to memory store"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T17:32:00Z
+        note: "Moved conversationState building before incoming update"
+
+  - id: BL-159-004
+    title: "Validate and Publish"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-159-003]
+    blocked_reason: null
+    acceptance:
+      - "All tests pass"
+      - "PR created"
+    updated_at: 2025-12-22
+    log:
+      - at: 2025-12-22T17:35:00Z
+        note: "Validation passed, PR ready"

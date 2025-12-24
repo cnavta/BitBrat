@@ -1,0 +1,91 @@
+meta:
+  backlog_id: sprint-161-web-search
+  updated_at: 2025-12-23
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-161-f4d2e1
+  start: 2025-12-23
+  end: 2026-01-06
+  wip_limit: 3
+  goal: "Integrate @guhcostan/web-search-mcp to provide BitBrat with web search capabilities via DuckDuckGo."
+
+items:
+  - id: BL-161-001
+    title: "Install @guhcostan/web-search-mcp"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Package is listed in package.json dependencies"
+      - "Package is available in node_modules"
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:34:00Z
+        note: "Package installed via npm."
+
+  - id: BL-161-002
+    title: "Verify MCP Server Entry Point"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-161-001]
+    blocked_reason: null
+    acceptance:
+      - "Path to dist/index.js (or equivalent) is confirmed"
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:35:00Z
+        note: "Verified entry point at dist/server.js."
+
+  - id: BL-161-003
+    title: "Configure LLM_BOT_MCP_SERVERS"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-161-002]
+    blocked_reason: null
+    acceptance:
+      - "env/dev/llm-bot.yaml updated with MCP config"
+      - "llm-bot service starts up without configuration errors"
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:36:00Z
+        note: "Updated dev config with web-search MCP server."
+
+  - id: BL-161-004
+    title: "Integration Test: Tool Discovery"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-161-003]
+    blocked_reason: null
+    acceptance:
+      - "Test verifies mcp_web_search_* tools are registered"
+      - "Test passes in CI environment"
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:38:00Z
+        note: "Created and passed integration test for tool discovery."
+
+  - id: BL-161-005
+    title: "E2E Validation & PR"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-161-004]
+    blocked_reason: null
+    acceptance:
+      - "BitBrat answers a query using search results"
+      - "PR created and linked to sprint manifest"
+    updated_at: 2025-12-23
+    log:
+      - at: 2025-12-23T18:40:00Z
+        note: "Validated deliverables and prepared for PR."

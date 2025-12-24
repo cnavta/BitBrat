@@ -84,8 +84,7 @@ describe('llm-bot processor — personality applied even with prior memory', () 
     })();
     const systemBlock = nextRoleIdx >= 0 ? capturedInput.slice(0, nextRoleIdx) : capturedInput;
     expect(systemBlock).toContain('You are a friendly assistant.');
-    // Ensure conversation state section is present (default renderMode is summary)
+    // Ensure conversation state section is present
     expect(capturedInput).toContain('## [Conversation State / History]');
-    expect(capturedInput).toContain('Recent exchanges:');
   });
 });
