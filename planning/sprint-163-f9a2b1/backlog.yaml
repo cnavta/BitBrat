@@ -1,0 +1,91 @@
+meta:
+  backlog_id: sprint-163-f9a2b1
+  updated_at: 2025-12-24
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-163-f9a2b1
+  start: 2025-12-24
+  end: 2025-12-31
+  wip_limit: 3
+  goal: "Update brat deployment tool to support internal load balancing and DNS in BitBrat VPC"
+
+items:
+  - id: BL-001
+    title: "Update architecture schema for internal LB"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "ArchitectureSchema in tools/brat/src/config/schema.ts supports regional-internal-application-lb"
+    updated_at: 2025-12-24
+    log:
+      - at: 2025-12-24T14:55:00Z
+        note: "Updated schema and parser to support regional-internal-application-lb."
+
+  - id: BL-002
+    title: "Add proxy-only subnet and DNS zones to network synth"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "synthNetworkTf generates proxy-only subnet resource"
+      - "synthNetworkTf generates bitbrat.internal and bitbrat.local DNS zones"
+    updated_at: 2025-12-24
+    log:
+      - at: 2025-12-24T15:05:00Z
+        note: "Added proxy-only subnet and private DNS zones to network module."
+
+  - id: BL-003
+    title: "Implement Regional Internal LB synthesis"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "synthLoadBalancerTf supports regional-internal-application-lb"
+      - "Generates internal IP, URL map, target proxy, and forwarding rule"
+      - "Successfully creates Serverless NEGs and Backend Services for all active services"
+    updated_at: 2025-12-24
+    log:
+      - at: 2025-12-24T15:20:00Z
+        note: "Refactored load balancer synthesis to support multiple LBs and regional internal type."
+
+  - id: BL-004
+    title: "Implement DNS record synthesis for internal routes"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-003]
+    blocked_reason: null
+    acceptance:
+      - "Generates DNS A records for {service}.bitbrat.local pointing to ILB IP"
+    updated_at: 2025-12-24
+    log:
+      - at: 2025-12-24T15:20:00Z
+        note: "Implemented DNS record generation within load balancer loop for internal LB."
+
+  - id: BL-005
+    title: "Validation and testing"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-004]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "Synthesized Terraform code passes terraform validate"
+    updated_at: 2025-12-24
+    log:
+      - at: 2025-12-24T15:30:00Z
+        note: "Created and ran validate_deliverable.sh successfully."

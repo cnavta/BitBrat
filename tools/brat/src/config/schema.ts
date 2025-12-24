@@ -118,11 +118,11 @@ export const ArchitectureSchema = z.object({
                 labels: z.record(z.string()).optional(),
               })
               .passthrough(),
-            // load-balancer (global-external-application-lb)
+            // load-balancer (global-external-application-lb or regional-internal-application-lb)
             z
               .object({
                 type: z.literal('load-balancer'),
-                implementation: z.literal('global-external-application-lb'),
+                implementation: z.enum(['global-external-application-lb', 'regional-internal-application-lb']),
                 name: z.string(),
                 ip: z.string(),
                 description: z.string().optional(),
@@ -194,7 +194,7 @@ export function parseArchitecture(raw: unknown): ParseArchitectureResult {
 
   const resources = arch.infrastructure?.resources || {} as Record<string, any>;
   const resourceEntries = Object.entries(resources);
-  const lbResources = resourceEntries.filter(([, r]) => r?.type === 'load-balancer' && r?.implementation === 'global-external-application-lb');
+  const lbResources = resourceEntries.filter(([, r]) => r?.type === 'load-balancer' && (r?.implementation === 'global-external-application-lb' || r?.implementation === 'regional-internal-application-lb'));
 
   // Deprecation behavior: prefer routing-based LB over lb.services[] when both exist
   if ((arch.lb?.services?.length || 0) > 0 && lbResources.length > 0) {

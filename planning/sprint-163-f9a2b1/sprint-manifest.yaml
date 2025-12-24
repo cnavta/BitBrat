@@ -1,0 +1,11 @@
+id: sprint-163-f9a2b1
+title: "Internal Load Balancer and DNS for BitBrat VPC"
+goal: "Update brat tool to provision a regional internal load balancer and internal DNS for service-to-service communication."
+owner: "Junie (Cloud Architect)"
+createdAt: "2025-12-24T14:45:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-163-f9a2b1-internal-lb-dns"
+notes: |
+  This sprint involves updating the brat tool to support internal load balancing and DNS.
+  Key components: Regional Internal Load Balancer, Cloud DNS Private Zone, Serverless NEGs.
