@@ -3,7 +3,7 @@ title: "Integrate Web Search MCP Tool"
 goal: "Integrate @guhcostan/web-search-mcp to provide BitBrat with web search capabilities via DuckDuckGo."
 owner: "Junie"
 createdAt: "2025-12-23T18:27:00Z"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/61"
   branch: "feature/sprint-161-f4d2e1-web-search-mcp"
