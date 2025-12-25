@@ -576,7 +576,7 @@ output "certificateResourceNames" {
 }
 
 output "backendServiceNames" {
-  value = [${beNames.map(n => n.endsWith('-internal') ? `google_compute_region_backend_service.${n.replace(/-/g, '_')}.name` : `google_compute_backend_service.${n.replace(/-/g, '_')}.name`).join(', ')}]
+  value = [${beNames.map(n => n.endsWith('_internal') ? `google_compute_region_backend_service.${n}.name` : `google_compute_backend_service.${n}.name`).join(', ')}]
 }
 
 output "negNames" {
