@@ -1,0 +1,10 @@
+id: sprint-165-b4e5f6
+title: "Refining Event Router Matching and Routing"
+goal: "Analyze event-router setup and create a routing Rule document for VIP users with personality and prompt annotations."
+owner: "Junie"
+createdAt: "2025-12-25T11:30:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-165-b4e5f6-event-router-refining"
+notes: |
+  Focus on event-router matching capabilities and annotation enrichment.

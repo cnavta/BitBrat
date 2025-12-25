@@ -1,0 +1,29 @@
+{
+  "id": "vip-first-message-announcement",
+  "enabled": true,
+  "priority": 10,
+  "description": "Announce VIP arrival on their first message of the session",
+  "logic": "{\"and\": [{\"ci_eq\": [{\"var\": \"type\"}, \"chat.message\"]}, {\"has_role\": [{\"var\": \"user.roles\"}, \"VIP\"]}, {\"in\": [\"FIRST_SESSION_MESSAGE\", {\"var\": \"user.tags\"}]}]}",
+  "routingSlip": [
+    {
+      "id": "llm-bot",
+      "nextTopic": "internal.llmbot.v1"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "ann-personality-vip",
+      "kind": "personality",
+      "source": "event-router",
+      "value": "bitbrat_the_ai",
+      "createdAt": "2025-12-25T11:45:00Z"
+    },
+    {
+      "id": "ann-prompt-vip",
+      "kind": "prompt",
+      "source": "event-router",
+      "value": "A VIP has arrived! Please announce their presance!",
+      "createdAt": "2025-12-25T11:45:00Z"
+    }
+  ]
+}
