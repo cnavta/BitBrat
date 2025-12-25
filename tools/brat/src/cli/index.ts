@@ -225,7 +225,6 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
   const queue = new Queue(concurrency);
   const tag = flags.imageTag || deriveTag();
 
-  const cbConfigPath = path.join(root, 'cloudbuild.oauth-flow.yaml');
   const repoName = flags.repoName || 'bitbrat-services';
 
   if (!services.length) {
@@ -252,14 +251,22 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
     const serviceLog = log.child({ service: svc.name, action: 'deploy.service' });
     const start = Date.now();
     serviceLog.info({ status: 'start' }, 'Starting build+deploy');
-    // Dockerfile inference
-    let dockerfile = `Dockerfile.${svc.name}`;
-    const kebab = svc.name.replace(/\s+/g, '-');
-    if (!fs.existsSync(dockerfile)) {
-      const alt = `Dockerfile.${kebab}`;
-      if (fs.existsSync(alt)) dockerfile = alt; else {
-        serviceLog.warn({ status: 'skipped', reason: 'dockerfile-not-found' }, 'Skipping service: Dockerfile not found');
-        return { service: svc.name, skipped: true };
+    const isExternalImage = !!svc.image;
+    const currentCbConfigPath = isExternalImage
+      ? path.join(root, 'cloudbuild.deploy-only.yaml')
+      : path.join(root, 'cloudbuild.oauth-flow.yaml');
+
+    // Dockerfile inference (only if not using external image)
+    let dockerfile = '';
+    if (!isExternalImage) {
+      dockerfile = `Dockerfile.${svc.name}`;
+      const kebab = svc.name.replace(/\s+/g, '-');
+      if (!fs.existsSync(dockerfile)) {
+        const alt = `Dockerfile.${kebab}`;
+        if (fs.existsSync(alt)) dockerfile = alt; else {
+          serviceLog.warn({ status: 'skipped', reason: 'dockerfile-not-found' }, 'Skipping service: Dockerfile not found');
+          return { service: svc.name, skipped: true };
+        }
       }
     }
     // env and secrets
@@ -355,6 +362,7 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
       secretSetArg: secretMap,
       ingressPolicy,
       vpcConnectorName,
+      image: svc.image,
     });
 
     if (flags.dryRun) {
@@ -363,7 +371,7 @@ async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
     }
     const res = await submitBuild({
       projectId: flags.projectId,
-      configPath: cbConfigPath,
+      configPath: currentCbConfigPath,
       substitutions,
       cwd: root,
       dryRun: false,
@@ -404,15 +412,14 @@ export interface DeploySubstitutionsInput {
   secretSetArg: string;
   ingressPolicy: string;
   vpcConnectorName: string;
+  image?: string;
 }
 
 export function computeDeploySubstitutions(i: DeploySubstitutionsInput): Record<string, string | number | boolean> {
-  return {
+  const subs: Record<string, string | number | boolean> = {
     _SERVICE_NAME: i.svc.name,
     _REGION: i.region || i.svc.region,
-    _REPO_NAME: i.repoName,
     _DRY_RUN: false,
-    _TAG: i.tag,
     _PORT: i.svc.port,
     _MIN_INSTANCES: i.svc.minInstances,
     _MAX_INSTANCES: i.svc.maxInstances,
@@ -422,12 +429,20 @@ export function computeDeploySubstitutions(i: DeploySubstitutionsInput): Record<
     _SECRET_SET_ARG: i.secretSetArg || '',
     _ENV_VARS_ARG: i.envVarsArg || '',
     _ENV_VARS_FILE: i.envVarsFile || '',
-    _DOCKERFILE: i.dockerfile,
     _INGRESS: i.ingressPolicy,
     _VPC_CONNECTOR: i.vpcConnectorName,
-    // Ensure Cloud Build template key exists; architecture.yaml defaults to instance billing
     _BILLING: 'instance',
   };
+
+  if (i.image) {
+    subs['_IMAGE'] = i.image;
+  } else {
+    subs['_REPO_NAME'] = i.repoName;
+    subs['_TAG'] = i.tag;
+    subs['_DOCKERFILE'] = i.dockerfile;
+  }
+
+  return subs;
 }
 
 async function cmdInfra(action: 'plan' | 'apply', flags: GlobalFlags, envDir: string, serviceName: string, repoName: string) {

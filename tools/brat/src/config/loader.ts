@@ -90,6 +90,7 @@ function isCriticalPath(pathArr: (string | number)[]): boolean {
 
 export interface ResolvedServiceConfig {
   name: string;
+  image?: string;
   region: string;
   port: number;
   minInstances: number;
@@ -166,6 +167,7 @@ export function resolveServices(arch: Architecture): Record<string, ResolvedServ
   const out: Record<string, ResolvedServiceConfig> = {};
   for (const [name, svc] of Object.entries<Service>(arch.services || {} as any)) {
     const region = svc.region || d.region || regionDefault;
+    const image = svc.image || d.image;
     const port = (svc.port ?? d.port ?? 3000) as number;
     const min = (svc.scaling?.min ?? d.scaling?.min ?? dRun.minInstances ?? 0) as number;
     const max = (svc.scaling?.max ?? d.scaling?.max ?? dRun.maxInstances ?? 1) as number;
@@ -174,7 +176,7 @@ export function resolveServices(arch: Architecture): Record<string, ResolvedServ
     const allowUnauth = (svc.security?.allowUnauthenticated ?? d.security?.allowUnauthenticated ?? true) as boolean;
     const envKeys = Array.from(new Set([...(d.env || []), ...(svc.env || [])]));
     const secrets = Array.from(new Set([...(svc.secrets || [])]));
-    out[name] = { name, region, port, minInstances: min, maxInstances: max, cpu, memory, allowUnauth, envKeys, secrets };
+    out[name] = { name, image, region, port, minInstances: min, maxInstances: max, cpu, memory, allowUnauth, envKeys, secrets };
   }
   return out;
 }
