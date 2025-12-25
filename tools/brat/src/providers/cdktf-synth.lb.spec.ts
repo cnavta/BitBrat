@@ -49,9 +49,10 @@ deploymentDefaults:\n  region: us-central1\n\ninfrastructure:\n  main-load-balan
     expect(mainTf).toContain('ip_address            = data.google_compute_global_address.frontend_ip.address');
 
     // outputs
-    expect(mainTf).toContain('output "globalIpAddress"');
+    expect(mainTf).toContain('output "lbIpAddresses"');
     expect(mainTf).toContain('output "urlMapName"');
     expect(mainTf).toContain('output "certificateResourceNames"');
     expect(mainTf).toContain('output "backendServiceNames"');
+    expect(mainTf).toContain('google_compute_backend_service.be_default.name');
   });
 });
