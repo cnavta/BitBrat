@@ -210,6 +210,30 @@ infrastructure:
             rewrite_prefix: /_debug/config
             service: ingress-egress
 
+    internal-load-balancer:
+      type: load-balancer
+      implementation: regional-internal-application-lb
+      name: bitbrat-internal-lb
+      ip: bitbrat-internal-ip
+      description: Internal load balancer for service-to-service communication
+      routing:
+        default_domain: bitbrat.local
+        rules:
+          - path_prefix: /
+            service: llm-bot
+          - path_prefix: /
+            service: auth
+          - path_prefix: /
+            service: oauth-flow
+          - path_prefix: /
+            service: ingress-egress
+          - path_prefix: /
+            service: event-router
+          - path_prefix: /
+            service: persistence
+          - path_prefix: /
+            service: command-processor
+
 
 deploymentDefaults:
   maxConcurrentDeployments: 1
