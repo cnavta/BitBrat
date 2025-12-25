@@ -1,0 +1,103 @@
+meta:
+  backlog_id: sprint-172-e4c1d2
+  updated_at: 2025-12-25
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-172-e4c1d2
+  start: 2025-12-25
+  end: 2026-01-08
+  wip_limit: 2
+  goal: "Enable deployment of services from pre-defined images."
+
+items:
+  - id: BL-172-001
+    title: "Update architecture schema with image field"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "image field added to ServiceSchema and DefaultsServicesSchema in tools/brat/src/config/schema.ts"
+      - "Zod validation allows image field in architecture.yaml"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T14:33:00Z
+        note: "Starting implementation: updating schema.ts"
+      - at: 2025-12-25T14:35:00Z
+        note: "Schema updated in schema.ts"
+
+  - id: BL-172-002
+    title: "Update config loader for service images"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-172-001]
+    blocked_reason: null
+    acceptance:
+      - "ResolvedServiceConfig interface includes image field"
+      - "resolveServices function correctly populates image from Architecture definition"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T14:35:00Z
+        note: "Starting loader updates"
+      - at: 2025-12-25T14:37:00Z
+        note: "Loader updated in loader.ts"
+
+  - id: BL-172-003
+    title: "Create deploy-only Cloud Build configuration"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "cloudbuild.deploy-only.yaml created in project root"
+      - "Configuration supports minimal gcloud run deploy with external image"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T14:37:00Z
+        note: "Creating cloudbuild.deploy-only.yaml"
+      - at: 2025-12-25T14:39:00Z
+        note: "cloudbuild.deploy-only.yaml created"
+
+  - id: BL-172-004
+    title: "Update brat CLI deployment orchestration"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-172-002, BL-172-003]
+    blocked_reason: null
+    acceptance:
+      - "cmdDeployServices detects service.image and uses cloudbuild.deploy-only.yaml"
+      - "computeDeploySubstitutions handles external image URL"
+      - "Source-based build still works for services without image field"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T14:39:00Z
+        note: "Starting orchestration updates in cli/index.ts"
+      - at: 2025-12-25T14:43:00Z
+        note: "Orchestration updated in cli/index.ts"
+
+  - id: BL-172-005
+    title: "Sprint validation and verification"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-172-004]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "brat deploy services obs-mcp --dry-run shows correct deployment parameters"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T14:43:00Z
+        note: "Starting validation phase"
+      - at: 2025-12-25T14:50:00Z
+        note: "Validation passed. obs-mcp dry-run verified. Existing tests fixed for CI environment."

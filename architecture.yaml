@@ -175,6 +175,18 @@ services:
     env:
       - BOT_USERNAME
 
+  obs-mcp:
+    active: true
+    description: MCP server for controlling OBS
+    image: us-central1-docker.pkg.dev/bitbrat-local/obs-mcp/obs-mcp:latest
+    env:
+      - MCP_TRANSPORT
+      - OBS_WEBSOCKET_URL
+      - OBS_WEBSOCKET_SELF_SIGNED
+    secrets:
+      - OBS_WEBSOCKET_PASSWORD
+      - MCP_AUTH_TOKEN
+
 infrastructure:
   target: gcp
   resources:

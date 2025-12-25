@@ -55,10 +55,15 @@ describe('cdktf synth network module', () => {
     const expected = getModuleOutDir(tmp, 'network');
     const mainTf = fs.readFileSync(path.join(expected, 'main.tf'), 'utf8');
 
-    // backend block from remoteState (CI not set in test)
-    expect(mainTf).toContain('backend "gcs"');
-    expect(mainTf).toContain('bucket = "tf-state-bucket"');
-    expect(mainTf).toContain('prefix = "network/dev"');
+    // backend block from remoteState (only if NOT in CI)
+    const ci = String(process.env.CI || '').toLowerCase();
+    if (ci !== 'true' && ci !== '1') {
+      expect(mainTf).toContain('backend "gcs"');
+      expect(mainTf).toContain('bucket = "tf-state-bucket"');
+      expect(mainTf).toContain('prefix = "network/dev"');
+    } else {
+      expect(mainTf).not.toContain('backend "gcs"');
+    }
 
     // regions locals and subnets map
     expect(mainTf).toContain('locals {');

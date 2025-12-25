@@ -17,6 +17,7 @@ export const DeploymentDefaultsSchema = z.object({
 export const ServiceSchema = z.object({
   active: z.boolean().optional(),
   description: z.string().optional(),
+  image: z.string().optional(),
   entry: z.string().optional(),
   region: z.string().optional(),
   port: z.number().int().optional(),
@@ -30,6 +31,7 @@ export const ServiceSchema = z.object({
 
 export const DefaultsServicesSchema = z.object({
   implementation: z.string().optional(),
+  image: z.string().optional(),
   runtime: z.object({ node: z.string().optional() }).optional(),
   region: z.string().optional(),
   network: z.string().optional(),
