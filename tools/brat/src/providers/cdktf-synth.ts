@@ -378,7 +378,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
 
   const ensureNeg = (sid: string, region: string) => {
     const negName = `neg-${sid}-${region}`;
-    const negId = negName.replace(/-/g, '_');
+    const negId = negName;
     if (definedNegs.has(negId)) return negId;
     resources.push(`resource "google_compute_region_network_endpoint_group" "${negId}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${region}"\n  cloud_run {\n    service = "${sid}"\n  }\n}`);
     definedNegs.add(negId);
@@ -391,7 +391,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     for (const sid of referencedServices) {
       const svcRegions = [defaultRegion];
       const beName = `be-${sid}`;
-      const beId = beName.replace(/-/g, '_');
+      const beId = beName;
       beNames.push(beId);
       let backendBlocks: string[] = [];
       for (const r of svcRegions) {
@@ -410,7 +410,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     for (const sid of internalServices) {
       const svcRegions = [defaultRegion];
       const beName = `be-${sid}-internal`;
-      const beId = beName.replace(/-/g, '_');
+      const beId = beName;
       beNames.push(beId);
       let backendBlocks: string[] = [];
       for (const r of svcRegions) {
@@ -423,9 +423,9 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
 
     // Internal URL Map
     const internalHostRules = internalServices.map(sid => `  host_rule {\n    hosts        = ["${sid}.${internalRouting.default_domain}"]\n    path_matcher = "${sid}"\n  }`).join('\n');
-    const internalPathMatchers = internalServices.map(sid => `  path_matcher {\n    name            = "${sid}"\n    default_service = google_compute_region_backend_service.be_${sid.replace(/-/g, '_')}_internal.self_link\n  }`).join('\n');
+    const internalPathMatchers = internalServices.map(sid => `  path_matcher {\n    name            = "${sid}"\n    default_service = google_compute_region_backend_service.be-${sid}-internal.self_link\n  }`).join('\n');
 
-    resources.push(`resource "google_compute_region_url_map" "internal_load_balancer" {\n  name            = "${internalLbName}"\n  region          = "${defaultRegion}"\n  default_service = google_compute_region_backend_service.be_${internalServices[0].replace(/-/g, '_')}_internal.self_link\n${internalHostRules}\n\n${internalPathMatchers}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      test,\n    ]\n  }\n}`);
+    resources.push(`resource "google_compute_region_url_map" "internal_load_balancer" {\n  name            = "${internalLbName}"\n  region          = "${defaultRegion}"\n  default_service = google_compute_region_backend_service.be-${internalServices[0]}-internal.self_link\n${internalHostRules}\n\n${internalPathMatchers}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      test,\n    ]\n  }\n}`);
 
     resources.push(`resource "google_compute_region_target_http_proxy" "internal_load_balancer_proxy" {\n  name    = "internal-load-balancer-proxy-${environment}"\n  region  = "${defaultRegion}"\n  url_map = google_compute_region_url_map.internal_load_balancer.self_link\n}`);
 
@@ -433,7 +433,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
 
     // Internal DNS records
     for (const sid of internalServices) {
-      resources.push(`resource "google_dns_record_set" "internal_load_balancer_${sid.replace(/-/g, '_')}_dns" {\n  name         = "${sid}.${internalRouting.default_domain}."\n  type         = "A"\n  ttl          = 300\n  managed_zone = "bitbrat-local"\n  rrdatas      = [google_compute_address.internal_load_balancer_ip.address]\n}`);
+      resources.push(`resource "google_dns_record_set" "internal_load_balancer_${sid}-dns" {\n  name         = "${sid}.${internalRouting.default_domain}."\n  type         = "A"\n  ttl          = 300\n  managed_zone = "bitbrat-local"\n  rrdatas      = [google_compute_address.internal_load_balancer_ip.address]\n}`);
     }
   }
 
@@ -444,7 +444,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
       const runSvc = svc.runService;
       const svcRegions = (svc.regions && svc.regions.length > 0) ? svc.regions : [defaultRegion];
       const beName = `be-${svcName}`;
-      const beId = beName.replace(/-/g, '_');
+      const beId = beName;
       beNames.push(beId);
       let backendBlocks: string[] = [];
       for (const r of svcRegions) {
@@ -465,7 +465,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
       backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negId}.id\n  }`);
     }
     const beName = 'be-assets-proxy';
-    const beId = beName.replace(/-/g, '_');
+    const beId = beName;
     beNames.push(beId);
     resources.push(`resource "google_compute_backend_service" "${beId}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
   }
@@ -474,7 +474,7 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
   const hasServiceBackends = routing ? (referencedServices.length > 0) : (legacyServices.length > 0);
   if (!hasServiceBackends) {
     const beName = 'be-default';
-    const beId = beName.replace(/-/g, '_');
+    const beId = beName;
     beNames.push(beId);
     resources.push(`resource "google_compute_backend_service" "${beId}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
   }
@@ -489,8 +489,8 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
 
   // Default backend selection per Sprint 22 rules
   const defaultBackendRef = hasServiceBackends
-    ? `google_compute_backend_service.be_${(routing ? referencedServices[0] : (legacyServices[0]?.name)).replace(/-/g, '_')}.self_link`
-    : 'google_compute_backend_service.be_default.self_link';
+    ? `google_compute_backend_service.be-${routing ? referencedServices[0] : (legacyServices[0]?.name)}.self_link`
+    : 'google_compute_backend_service.be-default.self_link';
 
   const tf = `# Synthesized by brat CDKTF synth (module: load-balancer)
 # This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
@@ -576,7 +576,7 @@ output "certificateResourceNames" {
 }
 
 output "backendServiceNames" {
-  value = [${beNames.map(n => n.endsWith('_internal') ? `google_compute_region_backend_service.${n}.name` : `google_compute_backend_service.${n}.name`).join(', ')}]
+  value = [${beNames.map(n => n.endsWith('-internal') ? `google_compute_region_backend_service.${n}.name` : `google_compute_backend_service.${n}.name`).join(', ')}]
 }
 
 output "negNames" {
