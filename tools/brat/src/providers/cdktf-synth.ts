@@ -489,8 +489,8 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
 
   // Default backend selection per Sprint 22 rules
   const defaultBackendRef = hasServiceBackends
-    ? `google_compute_backend_service.be-${(routing ? referencedServices[0] : (legacyServices[0]?.name))}.self_link`
-    : 'google_compute_backend_service.be-default.self_link';
+    ? `google_compute_backend_service.be_${(routing ? referencedServices[0] : (legacyServices[0]?.name)).replace(/-/g, '_')}.self_link`
+    : 'google_compute_backend_service.be_default.self_link';
 
   const tf = `# Synthesized by brat CDKTF synth (module: load-balancer)
 # This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
@@ -563,7 +563,7 @@ output "lbIpAddresses" {
   description = "Map of load balancer key to IP address"
   value = {
     "main-load-balancer" = ${ipRefExpr},
-    "internal-load-balancer" = ${internalRouting ? 'google_compute_address.internal-load-balancer_ip.address' : 'null'}
+    "internal-load-balancer" = ${internalRouting ? 'google_compute_address.internal_load_balancer_ip.address' : 'null'}
   }
 }
 
