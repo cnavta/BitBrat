@@ -1,0 +1,11 @@
+id: sprint-167-a5b6c7
+title: "Fix Architecture Validation Errors"
+goal: "Resolve Zod validation errors in architecture.yaml by supporting regional internal load balancers."
+owner: "Junie"
+createdAt: "2025-12-25T12:00:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-167-a5b6c7-fix-arch-validation-errors"
+notes: |
+  The internal-load-balancer in architecture.yaml uses regional-internal-application-lb, 
+  but ArchitectureSchema was hardcoded to only allow global-external-application-lb.
