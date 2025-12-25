@@ -1,0 +1,10 @@
+id: sprint-166-a2b3c4
+title: "Fix User Roles Enrichment"
+goal: "Investigate and fix why the VIP role added in Firestore is not appearing in chat events."
+owner: "Junie"
+createdAt: "2025-12-25T11:45:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-166-a2b3c4-fix-user-roles-enrichment"
+notes: |
+  Users report VIP role added to Firestore is missing from BitBrat events.

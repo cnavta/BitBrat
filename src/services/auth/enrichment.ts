@@ -113,8 +113,13 @@ export async function enrichEvent(
             email: doc.email,
             displayName: enrichmentData.displayName || doc.displayName,
             profile: enrichmentData.profile,
-            roles: enrichmentData.roles,
-            rolesMeta: enrichmentData.rolesMeta,
+            roles: Array.from(new Set([...(doc.roles || []), ...(enrichmentData.roles || [])])),
+            rolesMeta: {
+              ...(doc.rolesMeta || {}),
+              ...(enrichmentData.rolesMeta || {}),
+              twitch: Array.from(new Set([...(doc.rolesMeta?.twitch || []), ...(enrichmentData.rolesMeta?.twitch || [])])),
+              discord: Array.from(new Set([...(doc.rolesMeta?.discord || []), ...(enrichmentData.rolesMeta?.discord || [])])),
+            },
           },
           nowIso
         );

@@ -168,8 +168,14 @@ export class FirestoreUserRepo implements UserRepo {
 
     const mergedRolesMeta = { ...(dataExisting?.rolesMeta || {}) };
     if (data.rolesMeta) {
-      if (data.rolesMeta.twitch) mergedRolesMeta.twitch = data.rolesMeta.twitch;
-      if (data.rolesMeta.discord) mergedRolesMeta.discord = data.rolesMeta.discord;
+      if (data.rolesMeta.twitch) {
+        const s = new Set([...(mergedRolesMeta.twitch || []), ...(data.rolesMeta.twitch || [])]);
+        mergedRolesMeta.twitch = Array.from(s);
+      }
+      if (data.rolesMeta.discord) {
+        const s = new Set([...(mergedRolesMeta.discord || []), ...(data.rolesMeta.discord || [])]);
+        mergedRolesMeta.discord = Array.from(s);
+      }
     }
 
     const update: any = {
