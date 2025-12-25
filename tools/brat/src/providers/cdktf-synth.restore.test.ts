@@ -48,5 +48,7 @@ infrastructure:\n  target: gcp\n  resources:\n    main-load-balancer:\n      typ
     expect(mainTf).toContain('name         = "llm-bot.bitbrat.local."');
     expect(mainTf).toContain('managed_zone = "bitbrat-local"');
     expect(mainTf).toContain('output "lbIpAddresses"');
+    expect(mainTf).toContain('google_compute_region_backend_service.be_llm_bot_internal.name');
+    expect(mainTf).not.toContain('google_compute_backend_service.be_llm_bot_internal.name');
   });
 });

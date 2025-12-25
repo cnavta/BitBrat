@@ -1,0 +1,10 @@
+id: sprint-170-fix-undeclared-backend-services
+title: "Fix Undeclared Backend Services in Load Balancer Synthesis"
+goal: "Resolve Terraform 'Reference to undeclared resource' errors by correctly distinguishing between global and regional backend services in output generation."
+owner: "Junie"
+createdAt: "2025-12-25T12:25:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-170-fix-undeclared-backend-services"
+notes: |
+  The synthesis logic was incorrectly checking for '-internal' suffix on resource IDs that had already been transformed to use underscores ('_internal').
