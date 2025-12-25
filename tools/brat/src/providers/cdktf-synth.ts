@@ -438,8 +438,20 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     const urlMapName = lbNode.name || (isInternal ? `bitbrat-internal-url-map-${lbKey}` : 'bitbrat-global-url-map');
     const urlMapTfRes = isMainExternal ? 'main' : lbKey;
 
+    let routingBlocks = '';
+    if (isInternal && referencedServices.length > 0) {
+      const hostRules: string[] = [];
+      const pathMatchers: string[] = [];
+      for (const sid of referencedServices) {
+        const host = `${sid}.${defaultDomain}`;
+        hostRules.push(`  host_rule {\n    hosts        = ["${host}"]\n    path_matcher = "${sid}"\n  }`);
+        pathMatchers.push(`  path_matcher {\n    name            = "${sid}"\n    default_service = google_compute_region_backend_service.be-${sid}-internal.self_link\n  }`);
+      }
+      routingBlocks = `\n${hostRules.join('\n')}\n\n${pathMatchers.join('\n')}`;
+    }
+
     if (isInternal) {
-      resources.push(`resource "google_compute_region_url_map" "${urlMapTfRes}" {\n  name            = "${urlMapName}"\n  region          = "${region}"\n  default_service = ${defaultBackendRef}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      host_rule,\n      path_matcher,\n      test,\n    ]\n  }\n}`);
+      resources.push(`resource "google_compute_region_url_map" "${urlMapTfRes}" {\n  name            = "${urlMapName}"\n  region          = "${region}"\n  default_service = ${defaultBackendRef}${routingBlocks}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      test,\n    ]\n  }\n}`);
       resources.push(`resource "google_compute_region_target_http_proxy" "${lbKey}_proxy" {\n  name    = "${lbKey}-proxy-${environment}"\n  region  = "${region}"\n  url_map = google_compute_region_url_map.${urlMapTfRes}.self_link\n}`);
       resources.push(`resource "google_compute_forwarding_rule" "${lbKey}_fr" {\n  name                  = "${lbKey}-fr-${environment}"\n  region                = "${region}"\n  ip_protocol           = "TCP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  port_range            = "80"\n  target                = google_compute_region_target_http_proxy.${lbKey}_proxy.self_link\n  network               = "brat-vpc"\n  subnetwork            = "brat-subnet-${region}-${environment}"\n  ip_address            = ${ipRefExpr}\n}`);
     } else {
