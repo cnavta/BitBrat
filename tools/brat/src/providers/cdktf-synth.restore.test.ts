@@ -39,16 +39,16 @@ infrastructure:\n  target: gcp\n  resources:\n    main-load-balancer:\n      typ
     const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
 
     expect(mainTf).toContain('resource "google_compute_address" "internal_load_balancer_ip"');
-    expect(mainTf).toContain('resource "google_compute_region_backend_service" "be_llm_bot_internal"');
+    expect(mainTf).toContain('resource "google_compute_region_backend_service" "be-llm-bot-internal"');
     expect(mainTf).toContain('load_balancing_scheme = "INTERNAL_MANAGED"');
     expect(mainTf).toContain('resource "google_compute_region_url_map" "internal_load_balancer"');
     expect(mainTf).toContain('resource "google_compute_region_target_http_proxy" "internal_load_balancer_proxy"');
     expect(mainTf).toContain('resource "google_compute_forwarding_rule" "internal_load_balancer_fr"');
-    expect(mainTf).toContain('resource "google_dns_record_set" "internal_load_balancer_llm_bot_dns"');
+    expect(mainTf).toContain('resource "google_dns_record_set" "internal_load_balancer_llm-bot-dns"');
     expect(mainTf).toContain('name         = "llm-bot.bitbrat.local."');
     expect(mainTf).toContain('managed_zone = "bitbrat-local"');
     expect(mainTf).toContain('output "lbIpAddresses"');
-    expect(mainTf).toContain('google_compute_region_backend_service.be_llm_bot_internal.name');
-    expect(mainTf).not.toContain('google_compute_backend_service.be_llm_bot_internal.name');
+    expect(mainTf).toContain('google_compute_region_backend_service.be-llm-bot-internal.name');
+    expect(mainTf).not.toContain('google_compute_backend_service.be-llm-bot-internal.name');
   });
 });

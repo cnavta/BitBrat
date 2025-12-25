@@ -1,0 +1,10 @@
+id: sprint-171-f5e6g7
+title: "Fix Terraform State Mismatch by Reverting Resource Naming"
+goal: "Realign synthesized Terraform resource addresses with existing state to prevent deployment conflicts."
+owner: "@junie"
+createdAt: "2025-12-25T12:40:00Z"
+status: "verifying"
+links:
+  branch: "feature/sprint-171-fix-terraform-state-mismatch"
+notes: |
+  Reverted hyphen-to-underscore normalization in `cdktf-synth.ts` which caused 400/409 errors.

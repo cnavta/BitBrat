@@ -53,6 +53,6 @@ deploymentDefaults:\n  region: us-central1\n\ninfrastructure:\n  main-load-balan
     expect(mainTf).toContain('output "urlMapName"');
     expect(mainTf).toContain('output "certificateResourceNames"');
     expect(mainTf).toContain('output "backendServiceNames"');
-    expect(mainTf).toContain('google_compute_backend_service.be_default.name');
+    expect(mainTf).toContain('google_compute_backend_service.be-default.name');
   });
 });

@@ -46,7 +46,7 @@ resource "google_compute_managed_ssl_certificate" "managed_cert" {
   }
 }
 
-resource "google_compute_region_network_endpoint_group" "neg_web_svc_us_central1" {
+resource "google_compute_region_network_endpoint_group" "neg-web-svc-us-central1" {
   name                 = "neg-web-svc-us-central1"
   network_endpoint_type = "SERVERLESS"
   region               = "us-central1"
@@ -55,20 +55,20 @@ resource "google_compute_region_network_endpoint_group" "neg_web_svc_us_central1
   }
 }
 
-resource "google_compute_backend_service" "be_web" {
+resource "google_compute_backend_service" "be-web" {
   name                  = "be-web"
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   log_config { enable = true }
   backend {
-    group = google_compute_region_network_endpoint_group.neg_web_svc_us_central1.id
+    group = google_compute_region_network_endpoint_group.neg-web-svc-us-central1.id
   }
 }
 
 # URL Map (stub)
 resource "google_compute_url_map" "main" {
   name = "bitbrat-global-url-map"
-  default_service = google_compute_backend_service.be_web.self_link
+  default_service = google_compute_backend_service.be-web.self_link
   lifecycle {
     ignore_changes = [
       default_service,
@@ -113,11 +113,11 @@ output "certificateResourceNames" {
 }
 
 output "backendServiceNames" {
-  value = [google_compute_backend_service.be_web.name]
+  value = [google_compute_backend_service.be-web.name]
 }
 
 output "negNames" {
-  value = [google_compute_region_network_endpoint_group.neg_web_svc_us_central1.name]
+  value = [google_compute_region_network_endpoint_group.neg-web-svc-us-central1.name]
 }
 "
 `;
@@ -165,7 +165,7 @@ data "google_compute_ssl_certificate" "managed_cert" {
   name = "prod-cert"
 }
 
-resource "google_compute_backend_service" "be_default" {
+resource "google_compute_backend_service" "be-default" {
   name                  = "be-default"
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
@@ -175,7 +175,7 @@ resource "google_compute_backend_service" "be_default" {
 # URL Map (stub)
 resource "google_compute_url_map" "main" {
   name = "bitbrat-global-url-map"
-  default_service = google_compute_backend_service.be_default.self_link
+  default_service = google_compute_backend_service.be-default.self_link
   lifecycle {
     ignore_changes = [
       default_service,
@@ -220,7 +220,7 @@ output "certificateResourceNames" {
 }
 
 output "backendServiceNames" {
-  value = [google_compute_backend_service.be_default.name]
+  value = [google_compute_backend_service.be-default.name]
 }
 
 output "negNames" {
