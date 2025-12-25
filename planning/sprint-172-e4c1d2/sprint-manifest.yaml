@@ -3,7 +3,7 @@ title: "Deploy Services from Pre-defined Images"
 goal: "Add support for deploying services using images specified in architecture.yaml instead of building from source."
 owner: "Junie (DevOps Architect)"
 createdAt: "2025-12-25T14:30:00Z"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/72"
   branch: "feature/sprint-172-deploy-predefined-images"
