@@ -17,6 +17,7 @@ export const DeploymentDefaultsSchema = z.object({
 export const ServiceSchema = z.object({
   active: z.boolean().optional(),
   description: z.string().optional(),
+  image: z.string().optional(),
   entry: z.string().optional(),
   region: z.string().optional(),
   port: z.number().int().optional(),
@@ -30,6 +31,7 @@ export const ServiceSchema = z.object({
 
 export const DefaultsServicesSchema = z.object({
   implementation: z.string().optional(),
+  image: z.string().optional(),
   runtime: z.object({ node: z.string().optional() }).optional(),
   region: z.string().optional(),
   network: z.string().optional(),
@@ -118,11 +120,14 @@ export const ArchitectureSchema = z.object({
                 labels: z.record(z.string()).optional(),
               })
               .passthrough(),
-            // load-balancer (global-external-application-lb)
+            // load-balancer (global-external-application-lb or regional-internal-application-lb)
             z
               .object({
                 type: z.literal('load-balancer'),
-                implementation: z.literal('global-external-application-lb'),
+                implementation: z.enum([
+                  'global-external-application-lb',
+                  'regional-internal-application-lb',
+                ]),
                 name: z.string(),
                 ip: z.string(),
                 description: z.string().optional(),

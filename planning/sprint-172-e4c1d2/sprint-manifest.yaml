@@ -1,0 +1,12 @@
+id: sprint-172-e4c1d2
+title: "Deploy Services from Pre-defined Images"
+goal: "Add support for deploying services using images specified in architecture.yaml instead of building from source."
+owner: "Junie (DevOps Architect)"
+createdAt: "2025-12-25T14:30:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/72"
+  branch: "feature/sprint-172-deploy-predefined-images"
+notes: |
+  The obs-mcp service in architecture.yaml specifies an external image.
+  We need to update the deployment pipeline to detect the 'image' field and skip building.

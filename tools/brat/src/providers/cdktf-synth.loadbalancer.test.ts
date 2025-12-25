@@ -18,8 +18,8 @@ lb:\n  ipMode: create\n  ipName: my-dev-ip\n  certMode: managed\n  services:\n  
     const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
 
     // NEGs per region
-    expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-api-us-central1"');
-    expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-api-us-east1"');
+    expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-api-svc-us-central1"');
+    expect(mainTf).toContain('resource "google_compute_region_network_endpoint_group" "neg-api-svc-us-east1"');
     // Backend per service with two backend attachments
     expect(mainTf).toContain('resource "google_compute_backend_service" "be-api"');
     expect(mainTf.match(/backend \{/g)?.length).toBeGreaterThanOrEqual(2);
@@ -27,8 +27,8 @@ lb:\n  ipMode: create\n  ipName: my-dev-ip\n  certMode: managed\n  services:\n  
     expect(mainTf).toContain('output "backendServiceNames"');
     expect(mainTf).toContain('google_compute_backend_service.be-api.name');
     expect(mainTf).toContain('output "negNames"');
-    expect(mainTf).toContain('google_compute_region_network_endpoint_group.neg-api-us-central1.name');
-    expect(mainTf).toContain('google_compute_region_network_endpoint_group.neg-api-us-east1.name');
+    expect(mainTf).toContain('google_compute_region_network_endpoint_group.neg-api-svc-us-central1.name');
+    expect(mainTf).toContain('google_compute_region_network_endpoint_group.neg-api-svc-us-east1.name');
     // Dev create path: IP resource and managed cert resource
     expect(mainTf).toContain('resource "google_compute_global_address" "frontend_ip"');
     expect(mainTf).toContain('resource "google_compute_managed_ssl_certificate" "managed_cert"');
