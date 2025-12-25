@@ -37,3 +37,14 @@
   - `planning/sprint-172-e4c1d2/key-learnings.md`
   - `planning/sprint-172-e4c1d2/publication.yaml`
 - **Results**: PR created at https://github.com/cnavta/BitBrat/pull/72. Validation passed.
+
+## [2025-12-25 15:00] Sprint Completion
+- **Prompt Summary**: Sprint complete
+- **Interpretation**: User signals sprint end. Finalizing manifest and closing sprint.
+- **Shell/Git Commands**:
+  - `git add planning/sprint-172-e4c1d2/sprint-manifest.yaml`
+  - `git commit -m "Sprint 172: Mark as complete"`
+  - `git push origin feature/sprint-172-deploy-predefined-images`
+- **Files Modified**:
+  - `planning/sprint-172-e4c1d2/sprint-manifest.yaml`
+  - `planning/sprint-172-e4c1d2/request-log.md`
