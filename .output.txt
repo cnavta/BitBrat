@@ -1,0 +1,2596 @@
+      {"ts":"2025-12-25T17:18:11.839Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:11.855Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:11.855Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:11.857Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/llm-bot/processor.empty-response.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:11.839Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:11.853Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:11.854Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:11.855Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:13.447Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:13.447Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:13.447Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.routing.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/providers/cdktf-synth.lb.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+(node:9958) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9961) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tools/brat/src/cli/trigger.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.connectors.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  src/services/llm-bot/processor.error.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:13.702Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:13.703Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:13.704Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:13.704Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-25T17:18:14.913Z","service":"test-llm-bot","level":"error","severity":"ERROR","msg":"llm_bot.processor.error","correlationId":"c-error","error":"boom","stack":"Error: boom\n    at Object.callLLM (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.error.spec.ts:27:15)\n    at processEvent (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.ts:276:34)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.error.spec.ts:25:20)"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at processEvent (src/services/llm-bot/processor.ts:343:12)
+      at Object.<anonymous> (src/services/llm-bot/processor.error.spec.ts:25:20)
+(node:9970) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tools/brat/src/providers/cdktf-synth.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+(node:9966) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9967) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9960) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9959) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tools/brat/src/config/schema.routing.test.ts
+(node:9963) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tools/brat/src/config/schema.network.spec.ts
+ PASS  tools/brat/src/config/schema.test.ts
+(node:9968) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/common/__tests__/base-server-yaml.test.ts
+(node:10045) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tests/services/llm-bot/mcp/web-search.test.ts (6.066 s)
+ PASS  src/apps/ingress-egress-service.krevision.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:15.967Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.970Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.970Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.971Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.994Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.005Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.006Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.disabled","reason":"config or test env"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.008Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.008Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.008Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.008Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.009Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.009Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"CONNECTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.009Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tools/brat/src/config/schema.spec.ts
+ PASS  src/common/__tests__/base-server-helpers.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:16.146Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.147Z","service":"test","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.148Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.148Z","service":"test","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/ping"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.148Z","service":"test","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/echo"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.166Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.166Z","service":"test","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.167Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tools/brat/src/config/__tests__/interpolation.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["ENV","NOPE"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":["UNKNOWN_VAR"],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tools/brat/src/config/__tests__/resolve-services.scaling.test.ts
+ PASS  tools/brat/src/config/loader.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tests/services/llm-bot/personality-with-memory.spec.ts (6.933 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:14.770Z","service":"bitbrat","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tools/brat/src/cli/__tests__/deploy-substitutions.scaling.test.ts
+ PASS  src/apps/ingress-egress-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:16.858Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.861Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.861Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.862Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.863Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.864Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.865Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.disabled","reason":"config or test env"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.866Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.866Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.866Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.866Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.866Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.866Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"CONNECTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.867Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tools/brat/src/orchestration/exec.spec.ts
+ PASS  src/services/llm-bot/processor.test.ts (7.097 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:14.804Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.830Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.831Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.832Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.925Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"llm_bot.no_prompt","correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.926Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.927Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.927Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/llm-bot/processor.personality-disabled.spec.ts (7.19 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:14.913Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.971Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.972Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.975Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/llm-bot/processor.memory.spec.ts (7.236 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:14.778Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.797Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.797Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.799Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.979Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.979Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.979Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.024Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.030Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.031Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  infrastructure/scripts/extract-config.test.ts
+ PASS  tools/brat/src/config/__tests__/allow-unauth.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  tests/services/command-processor/parsing.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:17.270Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at Object.<anonymous> (tests/services/command-processor/parsing.spec.ts:24:34)
+    console.warn
+      {"ts":"2025-12-25T17:18:17.275Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at Object.<anonymous> (tests/services/command-processor/parsing.spec.ts:33:34)
+    console.log
+      {"ts":"2025-12-25T17:18:17.275Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"ping","args":2,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/firebase.test.ts
+ PASS  tests/base-server-step-update.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.315Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.316Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.316Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.317Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.317Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.317Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.318Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.318Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.318Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.319Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.319Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.319Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.319Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.319Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.320Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/command-processor-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.267Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.308Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.310Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.311Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.start","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.311Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.regex_cache.skipped_in_tests"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.312Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.312Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.312Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.ok","subject":"internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/llm-bot-service.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.buckets.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.408Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.409Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"topic.test","subscription":"topic.test.sub","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:17.409Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"topic.test","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:88:33)
+    console.warn
+      {"ts":"2025-12-25T17:18:17.410Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"topic.test","subscription":"topic.test.sub","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:88:23)
+    console.log
+      {"ts":"2025-12-25T17:18:17.410Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"topic.test.sub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.504Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.505Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"topic.test","subscription":"topic.test.sub","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:17.505Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"topic.test","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:110:33)
+    console.warn
+      {"ts":"2025-12-25T17:18:17.505Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"topic.test","subscription":"topic.test.sub","error":"pubsub.topic is not a function"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:13)
+      at Object.<anonymous> (src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts:110:23)
+    console.log
+      {"ts":"2025-12-25T17:18:17.505Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"topic.test.sub"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/oauth/oauth-flow.integration.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.533Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"twitch","identity":"bot","mode":"redirect"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.561Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"twitch","identity":"bot","mode":"json"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.567Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.callback.success","provider":"twitch","identity":"bot","stored":true,"tokenType":"***","providerUserId":"u-123"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.570Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.status","provider":"twitch","identity":"bot","status":"present"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/llm-bot/processor.instance-memory.spec.ts (7.713 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:14.960Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.981Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.982Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:14.984Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.268Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.268Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.276Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/logging.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:17.607Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/logging.spec.ts:31:35)
+ PASS  src/common/base-server.logger.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.643Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.644Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.644Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.645Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.645Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.645Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/llm-bot-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.509Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.516Z","service":"llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.517Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.521Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.llmbot.v1","queue":"llm-bot"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.521Z","service":"llm-bot","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.llmbot.v1","queue":"llm-bot"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tools/brat/src/providers/cdktf-synth.network.spec.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+ PASS  src/services/ingress/discord/discord-ingress-client.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:27.694Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.token.rotated"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/llm-bot/__tests__/user-context.append.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.734Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.760Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.760Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/__tests__/ingress-egress-routing.test.ts (7.873 s)
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:15.191Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.217Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.218Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.689Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.693Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"internal.ingress.v1","batching":{"maxMessages":100,"maxMilliseconds":20},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.694Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.694Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.694Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.695Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-ni1av1cv","queue":"ingress-egress.proc-ni1av1cv"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.695Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.695Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-ni1av1cv","queue":"ingress-egress.proc-ni1av1cv"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:15.695Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-ni1av1cv","subscription":"internal.egress.v1.proc-ni1av1cv.ingress-egress.proc-ni1av1cv","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.197Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-1","candidateId":"cand-1","priority":1,"createdAt":"2025-12-25T17:18:16.195Z"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.200Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-1","source":"ingress.discord","isDiscord":true}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.201Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-1","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.203Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.203Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.203Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.203Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.203Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.203Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.204Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.204Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.204Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.204Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-7t4sqwbd","queue":"ingress-egress.proc-7t4sqwbd"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.204Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.204Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-7t4sqwbd","queue":"ingress-egress.proc-7t4sqwbd"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.204Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-7t4sqwbd","subscription":"internal.egress.v1.proc-7t4sqwbd.ingress-egress.proc-7t4sqwbd","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.706Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-3","candidateId":"cand-3","priority":1,"createdAt":"2025-12-25T17:18:16.706Z"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.706Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-3","source":"command-processor","isDiscord":true}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.706Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-3","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.707Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.707Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.708Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.708Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.708Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-u18yy2qf","queue":"ingress-egress.proc-u18yy2qf"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-u18yy2qf","queue":"ingress-egress.proc-u18yy2qf"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:16.709Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-u18yy2qf","subscription":"internal.egress.v1.proc-u18yy2qf.ingress-egress.proc-u18yy2qf","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-v1","source":"ingress.discord","isDiscord":true}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.228Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-v1","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-mmr9ltsu","queue":"ingress-egress.proc-mmr9ltsu"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-mmr9ltsu","queue":"ingress-egress.proc-mmr9ltsu"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.egress.v1.proc-mmr9ltsu","subscription":"internal.egress.v1.proc-mmr9ltsu.ingress-egress.proc-mmr9ltsu","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.732Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-2","candidateId":"cand-2","priority":1,"createdAt":"2025-12-25T17:18:17.732Z"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.733Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-2","source":"ingress.twitch","isDiscord":false}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.733Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-2","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/policy-rate-limit.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.851Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.policy.blocked","code":"RATE_LIMIT","rate":{"max":2,"perMs":60000},"windowKey":"20***0000","count":2}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/ingress/discord/discord-observability.spec.ts
+ PASS  src/services/llm-bot/reducer.spec.ts
+ PASS  src/apps/ingress-egress-service.finalize.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.767Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.771Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.771Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.772Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.772Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.772Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.773Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"auto","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-25T17:18:17.894Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"connector.start_error","name":"twitch","error":"twitch_auth_missing"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:39:34)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:123:7)
+    console.log
+      {"ts":"2025-12-25T17:18:17.899Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.900Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.900Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-74ctt3i8","queue":"ingress-egress.proc-74ctt3i8"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.900Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-74ctt3i8"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.901Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.901Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.901Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.902Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.902Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.903Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"fx-1","candidateId":"c1","priority":1,"createdAt":"2025-12-25T17:18:17.902Z"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.905Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"fx-1","source":"","isDiscord":false}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.905Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"fx-1","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/routing-advance.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.773Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.774Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.774Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.774Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.775Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.829Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.830Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.900Z","service":"command-processor","level":"info","severity":"INFO","msg":"routing.next.published","subject":"dev.internal.egress.v1","stepIndex":1,"attempt":0,"correlationId":"c-adv-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.902Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.902Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.902Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.902Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.902Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.903Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.903Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.905Z","service":"command-processor","level":"info","severity":"INFO","msg":"routing.next.fallback_egress","dest":"dev.internal.egress.v1.dev1","correlationId":"c-adv-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.908Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.911Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.911Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.912Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.912Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.913Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.914Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/oauth-service.oauth-routes.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.862Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.865Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.866Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.867Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/oauth/auth-token-store.test.ts
+ PASS  src/services/ingress/twitch/credentials-provider.spec.ts
+ PASS  src/services/persistence/integration.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.016Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.020Z","service":"persistence","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.020Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.021Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.ingress.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.021Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.persistence.finalize.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.021Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.deadletter.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.021Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.router.dlq.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.022Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.ingress.v1","type":"chat.message.v1","correlationId":"it-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.022Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.upsert.ok","correlationId":"it-1","status":"INGESTED"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.024Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.persistence.finalize.v1","correlationId":"it-2"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.025Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.finalize.ok","correlationId":"it-2","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.025Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.persistence.finalize.v1","correlationId":"it-3"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.025Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.finalize.ok","correlationId":"it-3","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.026Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.persistence.finalize.v1","correlationId":"it-ttl-seconds"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.026Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.finalize.ok","correlationId":"it-ttl-seconds","status":"SENT"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/oauth/routes.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.003Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"mockprov","identity":"bot","mode":"json"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.017Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.start","provider":"mockprov","identity":"bot","mode":"redirect"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-25T17:18:18.028Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"oauth.routes.start.error","error":"unknown_provider:unknown"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at src/services/oauth/routes.ts:43:14
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at next (node_modules/router/lib/route.js:157:13)
+      at Route.dispatch (node_modules/router/lib/route.js:117:3)
+      at handle (node_modules/router/index.js:435:11)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at node_modules/router/index.js:295:15
+      at param (node_modules/router/index.js:600:14)
+      at param (node_modules/router/index.js:610:14)
+      at param (node_modules/router/index.js:610:14)
+      at processParams (node_modules/router/index.js:664:3)
+      at next (node_modules/router/index.js:291:5)
+      at router.handle (node_modules/router/index.js:186:3)
+      at app.handle (node_modules/express/lib/application.js:177:15)
+      at Server.app (node_modules/express/lib/express.js:38:9)
+    console.log
+      {"ts":"2025-12-25T17:18:18.040Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.callback.success","provider":"mockprov","identity":"bot","stored":false,"tokenType":"***"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.055Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.status","provider":"mockprov","identity":"bot","status":"absent"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.059Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.callback.success","provider":"mockprov","identity":"bot","stored":true,"tokenType":"***"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.070Z","service":"bitbrat","level":"info","severity":"INFO","msg":"oauth.routes.status","provider":"mockprov","identity":"bot","status":"present"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/common/firestore-manager.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.112Z","service":"bitbrat","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.116Z","service":"bitbrat","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.117Z","service":"bitbrat","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/llm-bot/mcp/client-manager.spec.ts
+ PASS  src/common/logging.test.ts
+ PASS  src/common/base-server.debug-config.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.125Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.131Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.134Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/base-server-routing.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.155Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.156Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.157Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.158Z","service":"test-service","level":"info","severity":"INFO","msg":"routing.next.published","subject":"internal.bot.requests.v1","stepIndex":1,"attempt":0,"correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.158Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.159Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.159Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.159Z","service":"test-service","level":"info","severity":"INFO","msg":"routing.next.published","subject":"internal.step2.v1","stepIndex":1,"attempt":0,"correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.159Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.160Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.160Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.160Z","service":"test-service","level":"info","severity":"INFO","msg":"routing.next.fallback_egress","dest":"internal.egress.v1","correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.160Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.160Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.161Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.161Z","service":"test-service","level":"info","severity":"INFO","msg":"routing.complete.published","dest":"internal.egress.v1","correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.161Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.161Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.161Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.162Z","service":"test-service","level":"info","severity":"INFO","msg":"routing.complete.published","dest":"internal.egress.v1","correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.162Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.162Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.162Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.162Z","service":"test-service","level":"info","severity":"INFO","msg":"routing.next.published","subject":"internal.bot.requests.v1","stepIndex":0,"attempt":0,"correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.163Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.163Z","service":"test-service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.163Z","service":"test-service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.183Z","service":"test-service","level":"info","severity":"INFO","msg":"routing.next.published","subject":"internal.bot.requests.v1","stepIndex":0,"attempt":1,"correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/apps/command-processor-error-policy.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:17.981Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.984Z","service":"command-processor","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.984Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.985Z","service":"command-processor","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.985Z","service":"command-processor","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.985Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.986Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:17.986Z","service":"command-processor","level":"info","severity":"INFO","msg":"regex_cache.start"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.062Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.regex_cache.started"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.070Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.070Z","service":"command-processor","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.070Z","service":"command-processor","level":"info","severity":"INFO","msg":"command_processor.subscribe.ok","subject":"dev.internal.command.v1","queue":"command-processor"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-25T17:18:18.186Z","service":"command-processor","level":"error","severity":"ERROR","msg":"base_server.message.handler_error","subject":"dev.internal.command.v1","error":"Expected property name or '}' in JSON at position 1 (line 1 column 2)"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at subscriber.subscribe (src/common/base-server.ts:311:25)
+      at Object.<anonymous> (tests/apps/command-processor-error-policy.spec.ts:62:5)
+ PASS  src/services/llm-bot/__tests__/processor.unwrap-quotes.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.201Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.203Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.204Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/llm-bot/__tests__/processor.personality-name.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.216Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.223Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.223Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/base-server.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.225Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.225Z","service":"test-svc","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.226Z","service":"test-svc","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.274Z","service":"custom","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.275Z","service":"custom","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.275Z","service":"custom","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/llm-bot/history-redundancy.test.ts
+ PASS  src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.296Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.starting","channels":["broadcaster"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.299Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.aliasing_bot_token","broadcasterId":"broadcaster-id","botId":"bot-id"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.299Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.started"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.300Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.starting","channels":["broadcaster"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.301Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.aliasing_bot_token","broadcasterId":"broadcaster-id","botId":"bot-id"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.301Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.started"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.302Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.starting","channels":["realbroadcaster"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.302Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.broadcaster_auth_found","userId":"real-broadcaster-id"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.302Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.started"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.302Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.starting","channels":["broadcaster"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.302Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.aliasing_bot_token","broadcasterId":"broadcaster-id","botId":"bot-id"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.302Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.started"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.303Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.event.stream_online","channel":"broadcaster","streamId":"12345"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.303Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.starting","channels":["broadcaster"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.303Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.aliasing_bot_token","broadcasterId":"broadcaster-id","botId":"bot-id"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.303Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.started"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-25T17:18:18.311Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"twitch.eventsub.handler_error","kind":"stream.online","channel":"broadcaster","error":"Cannot read properties of null (reading 'id')","stack":"TypeError: Cannot read properties of null (reading 'id')\n    at /Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/ingress/twitch/eventsub-client.ts:170:91\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts:210:11)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at src/services/ingress/twitch/eventsub-client.ts:178:20
+      at Object.<anonymous> (src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts:210:11)
+    console.log
+      {"ts":"2025-12-25T17:18:18.311Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.starting","channels":["broadcaster"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.311Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.aliasing_bot_token","broadcasterId":"broadcaster-id","botId":"bot-id"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.311Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.started"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.312Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch.eventsub.stopped"}
+      at Logger.info (src/common/logging.ts:142:13)
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From src/apps/__tests__/ingress-egress-routing.test.ts.
+      at new PublisherClient (node_modules/@google-cloud/pubsub/src/v1/publisher_client.ts:161:21)
+      at PubSub.getClientAsync_ (node_modules/@google-cloud/pubsub/src/pubsub.ts:1316:19)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.299Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"internal.egress.v1.proc-u18yy2qf","error":"this._gaxModule.GrpcClient is not a constructor"}".
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at console.warn (node_modules/@jest/console/build/BufferedConsole.js:191:10)
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:291:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.303Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"internal.egress.v1.proc-u18yy2qf","subscription":"internal.egress.v1.proc-u18yy2qf.ingress-egress.proc-u18yy2qf","error":"this._gaxModule.GrpcClient is not a constructor"}".
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at console.warn (node_modules/@jest/console/build/BufferedConsole.js:191:10)
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:291:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.304Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.egress.v1.proc-u18yy2qf.ingress-egress.proc-u18yy2qf"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:290:12)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:291:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.305Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-u18yy2qf","queue":"ingress-egress.proc-u18yy2qf"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:318:19)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.305Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-u18yy2qf"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:248:16)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.305Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:253:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:255:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.306Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:253:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:261:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.306Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.checkStatusChanges (src/apps/ingress-egress-service.ts:292:16)
+      at IngressEgressServer.startStatusMonitoring (src/apps/ingress-egress-service.ts:281:10)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:275:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.318Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"pubsub.subscription.error","subscription":"internal.egress.v1.proc-u18yy2qf.ingress-egress.proc-u18yy2qf","details":"TypeError: this._gaxModule.GrpcClient is not a constructor"}".
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at console.error (node_modules/@jest/console/build/BufferedConsole.js:127:10)
+      at Logger.error (src/common/logging.ts:132:13)
+      at Subscription.onError (src/services/message-bus/pubsub-driver.ts:372:14)
+      at Subscriber.<anonymous> (node_modules/@google-cloud/pubsub/src/subscription.ts:338:32)
+      at MessageStream.<anonymous> (node_modules/@google-cloud/pubsub/src/subscriber.ts:1181:32)
+ PASS  tests/common/base-server-resources.spec.ts
+ PASS  tests/services/command-processor/template-selection.spec.ts
+ PASS  tests/base-server-onmessage.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.380Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.381Z","service":"test","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.381Z","service":"test","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.382Z","service":"test","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.test.json","queue":"test"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.382Z","service":"test","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.test.json","queue":"test"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/persistence-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.381Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.384Z","service":"persistence","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.385Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.ingress.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.persistence.finalize.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.persistence.finalize.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.persistence.finalize.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.deadletter.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.deadletter.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.deadletter.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.router.dlq.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.387Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.router.dlq.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.388Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.router.dlq.v1","queue":"persistence"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/twitch-oauth.test.ts
+ PASS  tests/services/command-processor/personality-annotation-regex.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:18.432Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation-regex.spec.ts:42:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.435Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"hello-cmd","id":"regex-1","kind":"regex"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.435Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"hello-cmd","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.436Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"hello-cmd","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.436Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.personality.added","id":"regex-1","command":"hello-cmd","personality":"friendly"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/llm-bot/mcp/bridge.spec.ts
+ PASS  src/services/auth/__tests__/user-repo.spec.ts
+ PASS  tests/integration/command-processor-smoke.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:18.486Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/integration/command-processor-smoke.spec.ts:31:39)
+    console.log
+      {"ts":"2025-12-25T17:18:18.488Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"hello","args":1,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.489Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"hello","id":"cmd-hello","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.489Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"hello","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.490Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"hello","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.493Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_topic_failed","topic":"internal.egress.v1.proc-mmr9ltsu","error":"this._gaxModule.GrpcClient is not a constructor"}".
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at console.warn (node_modules/@jest/console/build/BufferedConsole.js:191:10)
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureTopic (src/services/message-bus/pubsub-driver.ts:64:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:282:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:291:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.495Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"pubsub.ensure_subscription_failed","topic":"internal.egress.v1.proc-mmr9ltsu","subscription":"internal.egress.v1.proc-mmr9ltsu.ingress-egress.proc-mmr9ltsu","error":"this._gaxModule.GrpcClient is not a constructor"}".
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at console.warn (node_modules/@jest/console/build/BufferedConsole.js:191:10)
+      at Logger.warn (src/common/logging.ts:137:13)
+      at ensureSubscription (src/services/message-bus/pubsub-driver.ts:418:12)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:283:7)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:291:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.497Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.egress.v1.proc-mmr9ltsu.ingress-egress.proc-mmr9ltsu"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at PubSubSubscriber.subscribe (src/services/message-bus/pubsub-driver.ts:290:12)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:291:27)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.498Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-mmr9ltsu","queue":"ingress-egress.proc-mmr9ltsu"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onMessage (src/common/base-server.ts:318:19)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:136:9)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.498Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-mmr9ltsu"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:248:16)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.499Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:253:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:255:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.500Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.onHTTPRequest (src/common/base-server.ts:253:17)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:261:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.500Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}".
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      141 |     if (!this.shouldLog('info')) return;
+    > 142 |     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      143 |   }
+      144 |
+      145 |   debug(msg: string, context?: Record<string, unknown>) {
+      at console.log (node_modules/@jest/console/build/BufferedConsole.js:156:10)
+      at Logger.info (src/common/logging.ts:142:13)
+      at IngressEgressServer.checkStatusChanges (src/apps/ingress-egress-service.ts:292:16)
+      at IngressEgressServer.startStatusMonitoring (src/apps/ingress-egress-service.ts:281:10)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:275:10)
+  ●  Cannot log after tests are done. Did you forget to wait for something async in your test?
+    Attempted to log "{"ts":"2025-12-25T17:18:18.501Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"pubsub.subscription.error","subscription":"internal.egress.v1.proc-mmr9ltsu.ingress-egress.proc-mmr9ltsu","details":"TypeError: this._gaxModule.GrpcClient is not a constructor"}".
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at console.error (node_modules/@jest/console/build/BufferedConsole.js:127:10)
+      at Logger.error (src/common/logging.ts:132:13)
+      at Subscription.onError (src/services/message-bus/pubsub-driver.ts:372:14)
+      at Subscriber.<anonymous> (node_modules/@google-cloud/pubsub/src/subscription.ts:338:32)
+      at MessageStream.<anonymous> (node_modules/@google-cloud/pubsub/src/subscriber.ts:1181:32)
+ PASS  src/services/ingress/twitch/credentials-provider.config.spec.ts
+ PASS  src/apps/event-router-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.600Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.605Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.605Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.606Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.606Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.606Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.606Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.606Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.606Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"test.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.612Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.612Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.612Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.613Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.613Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.613Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.613Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.614Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.614Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"test.internal.custom.topic.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/auth-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.569Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.572Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.572Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.573Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/__tests__/discord-secret.test.ts
+ PASS  tests/services/message-bus/pubsub-logging.spec.ts
+ PASS  src/services/message-bus/nats-driver.test.ts
+ PASS  src/apps/oauth-service.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.679Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.685Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.686Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.686Z","service":"oauth-flow","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/__tests__/event-router-debug.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.757Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.767Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.767Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.775Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.776Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.776Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.776Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.780Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.780Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.785Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.785Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.786Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.786Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.786Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.786Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.786Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.786Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.786Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.795Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.publish.ok","subject":"dev.internal.router.dlq.v1","selectedTopic":"internal.router.dlq.v1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/policy-user-cooldown.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.756Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.policy.blocked","code":"USER_COOLDOWN","cooldownMs":15000,"lastExecutionAt":"2025-01-01T00:00:02.000Z","remainingMs":7000,"userId":"u-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/command-processor/processor.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:18.757Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:30:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.767Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"ping","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.767Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"ping","id":"cmd1","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.768Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"ping","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.768Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"ping","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.772Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:56:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.773Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"note","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.773Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"note","id":"cmdA","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.773Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.effect.added","effect":"annotation","name":"note","kind":"prompt"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.774Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:79:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.774Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"cool","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.775Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"cool","id":"cmd3","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.775Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:99:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.775Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"missing","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.776Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:118:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.776Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"rate","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.776Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"rate","id":"cmd2","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.776Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/processor.spec.ts:147:35)
+ PASS  src/services/llm-bot/__tests__/processor.personality-mixed.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.769Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.770Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.770Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/services/message-bus/__tests__/pubsub-subscriber.ensure.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.793Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.794Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.ingress.v1","subscription":"internal.ingress.v1.router","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.794Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.subscription.created","topic":"internal.ingress.v1","subscription":"internal.ingress.v1.router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.795Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.ingress.v1.router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.849Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.849Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.ingress.v1","subscription":"internal.ingress.v1.router","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.849Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.ingress.v1.router"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/message-bus/pubsub-batching.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.792Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.795Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"internal.test.v1","batching":{"maxMessages":100,"maxMilliseconds":1500},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/apps/__tests__/event-router-ingress.integration.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.816Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.820Z","service":"event-router","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.820Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.820Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.821Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.821Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.821Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.821Z","service":"event-router","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.821Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.subscribe.ok","subject":"dev.internal.user.enriched.v1","queue":"event-router"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.824Z","service":"event-router","level":"info","severity":"INFO","msg":"event_router.publish.ok","subject":"dev.internal.router.dlq.v1","selectedTopic":"internal.router.dlq.v1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/common/base-server-get-resource.spec.ts
+ PASS  tests/services/command-processor/personality-annotation.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:18.888Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation.spec.ts:37:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.889Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"greet","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.890Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"greet","id":"cmd-p1","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.892Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"greet","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.893Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"greet","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.894Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.personality.added","id":"cmd-p1","command":"greet","personality":"snarky"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.897Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation.spec.ts:64:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.898Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"note","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.901Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"note","id":"cmd-p2","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.902Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.effect.added","effect":"annotation","name":"note","kind":"prompt"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.904Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.personality.added","id":"cmd-p2","command":"note","personality":"friendly"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.905Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation.spec.ts:83:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.905Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"noop","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.905Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"noop","id":"cmd-p3","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.905Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"noop","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.905Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"noop","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation.spec.ts:102:35)
+    console.log
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"noop","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"noop","id":"cmd-p4","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"noop","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"noop","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.personality.invalid","id":"cmd-p4","name":"noop","value":"   "}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at maybeAppendPersonality (src/services/command-processor/processor.ts:237:16)
+      at processEvent (src/services/command-processor/processor.ts:360:3)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation.spec.ts:102:17)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.config.bot_username.missing"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at processForParsing (src/services/command-processor/processor.ts:118:12)
+      at processEvent (src/services/command-processor/processor.ts:165:21)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation.spec.ts:109:36)
+    console.log
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.parsed","name":"noop","args":0,"sigil":"!"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.906Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.command.matched","name":"noop","id":"cmd-p5","kind":"command"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.907Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.template.chosen","name":"noop","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.907Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.candidate.added","name":"noop","templateId":"t1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.907Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"command_processor.personality.invalid","id":"cmd-p5","name":"noop","valueType":"number"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at maybeAppendPersonality (src/services/command-processor/processor.ts:232:16)
+      at processEvent (src/services/command-processor/processor.ts:360:3)
+      at Object.<anonymous> (tests/services/command-processor/personality-annotation.spec.ts:109:18)
+ PASS  tests/services/command-processor/template-render.spec.ts
+ PASS  tests/services/message-bus/subscriber-dedupe.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.915Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.918Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.start","driver":"pubsub","topic":"internal.test.v1","subscription":"internal.test.v1.q","ackDeadline":60}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:18.918Z","service":"bitbrat","level":"info","severity":"INFO","msg":"message_consumer.subscribe.ready","driver":"pubsub","subscription":"internal.test.v1.q"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.919Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"message_consumer.dedupe.drop","driver":"pubsub","subscription":"internal.test.v1.q","idempotencyKey":"***","ttlMs":60000}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at SubscriptionMock.onMessage (src/services/message-bus/pubsub-driver.ts:338:22)
+      at Object.<anonymous> (tests/services/message-bus/subscriber-dedupe.spec.ts:47:26)
+ PASS  src/services/ingress/twitch/publisher.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:18.937Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.retry","subject":"internal.ingress.v1","attempt":1,"code":14}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:78:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:79:17)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.940Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.retry","subject":"internal.ingress.v1","attempt":2,"code":14}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:78:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:79:17)
+    console.warn
+      {"ts":"2025-12-25T17:18:18.943Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.no_retry_on_timeout","subject":"dev.internal.ingress.v1","attempt":1,"code":4,"reason":"publish_timeout"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:67:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:102:5)
+ PASS  tools/brat/src/lb/urlmap/__tests__/from-repo-arch.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":["DOMAIN_SUFFIX","ENV_PREFIX"],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      [urlmap.renderer] Using routing-only source. default_domain=api.bitbrat.ai default_bucket=default-content-bucket selected_default_backend=be-assets-proxy
+      at loadRendererInputFromArchitecture (tools/brat/src/lb/urlmap/renderer.ts:42:11)
+ PASS  src/services/oauth/providers/discord-adapter.test.ts
+ PASS  tests/services/command-processor/policy-global-cooldown.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:18.966Z","service":"bitbrat","level":"info","severity":"INFO","msg":"command_processor.policy.blocked","code":"GLOBAL_COOLDOWN","cooldownMs":15000,"lastExecutionAt":"2025-01-01T00:00:01.000Z","remainingMs":6000}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/types/events.types.test.ts
+ PASS  src/services/ingress/twitch/twitch-irc-client.spec.ts
+ PASS  src/services/routing/__tests__/router-engine.test.ts
+ PASS  tests/router-annotations-e2e.spec.ts
+ PASS  src/services/message-bus/__tests__/factory-selection.test.ts
+ PASS  src/services/llm-bot/__tests__/prompt-composer.spec.ts
+ PASS  src/services/llm-bot/__tests__/personality-resolver-sorting.spec.ts
+ PASS  tests/common/publisher-manager.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:19.097Z","service":"bitbrat","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.099Z","service":"bitbrat","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.warn
+      {"ts":"2025-12-25T17:18:19.100Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"publisher.manager.flush.error","error":"boom"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at Object.flushAll (src/common/resources/publisher-manager.ts:33:15)
+      at Object.<anonymous> (tests/common/publisher-manager.spec.ts:40:5)
+    console.log
+      {"ts":"2025-12-25T17:18:19.101Z","service":"bitbrat","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/message-bus/nats-flush.spec.ts
+ PASS  src/services/router/__tests__/rule-loader.hardening.test.ts
+  ● Console
+    console.error
+      {"ts":"2025-12-25T17:18:19.114Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"rule_loader.warm_load_error","error":"emulator not available"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at RuleLoader.start (src/services/router/rule-loader.ts:161:14)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.hardening.test.ts:12:5)
+    console.error
+      {"ts":"2025-12-25T17:18:19.118Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"rule_loader.subscribe_error","error":"listen failed"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at RuleLoader.start (src/services/router/rule-loader.ts:175:14)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.hardening.test.ts:26:5)
+ PASS  src/services/router/__tests__/jsonlogic-re-test.spec.ts
+ PASS  src/services/routing/__tests__/router-engine-ops-integration.spec.ts
+ PASS  src/services/router/__tests__/rule-loader.test.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:19.129Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"rule_loader.invalid_doc","id":"d"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at RuleLoader.refreshFromSnapshot (src/services/router/rule-loader.ts:188:16)
+      at RuleLoader.start (src/services/router/rule-loader.ts:158:12)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.test.ts:35:5)
+    console.warn
+      {"ts":"2025-12-25T17:18:19.130Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"rule_loader.invalid_doc","id":"e"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at RuleLoader.refreshFromSnapshot (src/services/router/rule-loader.ts:188:16)
+      at RuleLoader.start (src/services/router/rule-loader.ts:158:12)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader.test.ts:35:5)
+ PASS  tests/services/command-processor/command-repo.spec.ts
+ PASS  src/services/message-bus/__tests__/pubsub-publisher-logging.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:19.139Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.141Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"test.topic","batching":{"maxMessages":100,"maxMilliseconds":20},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.141Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.client.init","apiEndpoint":"default","projectId":"auto"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.141Z","service":"bitbrat","level":"info","severity":"INFO","msg":"pubsub.publisher.init","topic":"test.topic","batching":{"maxMessages":100,"maxMilliseconds":20},"ensureMode":"on-publish-fail","publishTimeoutMs":0}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/services/llm-bot/prompt-logging.test.ts
+ PASS  src/services/router/__tests__/jsonlogic-ci-eq.spec.ts
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/services/command-processor/routing-advance.spec.ts.
+      at Firestore.get (node_modules/@google-cloud/firestore/build/src/index.js:1540:16)
+      at ClientPool.clientFactory (node_modules/@google-cloud/firestore/build/src/index.js:526:45)
+      at ClientPool.acquire (node_modules/@google-cloud/firestore/build/src/pool.js:121:35)
+      at ClientPool.run (node_modules/@google-cloud/firestore/build/src/pool.js:260:29)
+      at node_modules/@google-cloud/firestore/build/src/index.js:1412:30
+      at Firestore._retry (node_modules/@google-cloud/firestore/build/src/index.js:1270:30)
+ PASS  src/services/ingress/discord/discord-integration.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:19.184Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.194Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.message.published","correlationId":"a115acb1-fe1e-4a59-a55c-f6b4a6e41110","channelId":"c1"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tools/brat/src/providers/gcp/preflight.spec.ts
+  ● Console
+    console.warn
+      [preflight] --allow-no-vpc specified; skipping VPC/connector enforcement for local development.
+      22 |     }
+      23 |     // Local override: permit skipping checks for development
+    > 24 |     console.warn('[preflight] --allow-no-vpc specified; skipping VPC/connector enforcement for local development.');
+         |             ^
+      25 |     return;
+      26 |   }
+      27 |
+      at assertVpcPreconditions (tools/brat/src/providers/gcp/preflight.ts:24:13)
+      at Object.<anonymous> (tools/brat/src/providers/gcp/preflight.spec.ts:32:40)
+ PASS  infrastructure/cdktf/network/config.spec.ts
+ PASS  src/services/twitch-token-manager.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:19.224Z","service":"bitbrat","level":"info","severity":"INFO","msg":"twitch_token_manager.refreshed"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.error
+      {"ts":"2025-12-25T17:18:19.226Z","service":"bitbrat","level":"error","severity":"ERROR","msg":"twitch_token_manager.refresh_failed","status":400,"body":"bad"}
+      130 |   error(msg: string, context?: Record<string, unknown>) {
+      131 |     if (!this.shouldLog('error')) return;
+    > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      133 |   }
+      134 |
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      at Logger.error (src/common/logging.ts:132:13)
+      at doRefresh (src/services/twitch-token-manager.ts:84:18)
+      at TwitchTokenManager.getValidToken (src/services/twitch-token-manager.ts:42:12)
+      at TwitchTokenManager.getValidAccessToken (src/services/twitch-token-manager.ts:22:19)
+      at Object.<anonymous> (src/services/twitch-token-manager.test.ts:64:17)
+ PASS  tests/common/retry.spec.ts
+ PASS  src/services/routing/__tests__/router-engine-annotations.spec.ts
+ PASS  tools/brat/src/lb/importer/__tests__/importer.guard.test.ts
+ PASS  src/services/ingress/discord/discord-ingress-client.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-25T17:18:19.249Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.251Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.message.published","correlationId":"950f2ddf-9c37-4d2e-adcc-99a235d483a8","channelId":"c1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.252Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.252Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-25T17:18:19.253Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  src/common/__tests__/logging-trace-correlation.spec.ts
+ PASS  src/services/ingress/twitch/__tests__/twurple-integration.spec.ts
+ PASS  tests/services/message-bus/pubsub-attributes.spec.ts
+ PASS  src/common/feature-flags.test.ts
+ PASS  src/common/retry.test.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/renderer.test.ts
+ PASS  tools/brat/src/lb/importer/__tests__/importer.test.ts
+ PASS  src/services/persistence/store.spec.ts
+ PASS  src/services/auth/__tests__/enrichment.spec.ts
+ PASS  src/services/llm-bot/instance-memory.spec.ts
+ PASS  src/services/router/__tests__/rule-loader-annotations.spec.ts
+  ● Console
+    console.warn
+      {"ts":"2025-12-25T17:18:19.359Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"rule_loader.annotation_invalid","ruleId":"r-1"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at sanitizeAnnotations (src/services/router/rule-loader.ts:68:14)
+      at validateRule (src/services/router/rule-loader.ts:97:23)
+      at RuleLoader.refreshFromSnapshot (src/services/router/rule-loader.ts:185:20)
+      at Object.<anonymous> (src/services/router/__tests__/rule-loader-annotations.spec.ts:24:21)
+ PASS  src/services/router/__tests__/jsonlogic-slip-complete.spec.ts
+ PASS  tests/services/message-bus/nats-attributes.spec.ts
+ PASS  src/services/oauth/providers/twitch-adapter.test.ts
+ PASS  src/services/oauth/provider-registry.test.ts
+ PASS  tools/brat/src/providers/gcp/cloudrun.spec.ts
+ PASS  tests/services/llm-bot/processor.spec.ts
+ PASS  src/services/router/__tests__/jsonlogic-evaluator.test.ts
+ PASS  tools/brat/src/providers/gcp/lb-preflight.spec.ts
+ PASS  tools/brat/src/providers/gcp/secrets.spec.ts
+ PASS  tests/prompt-assembly/redaction.spec.ts
+ PASS  tests/services/message-bus/nats-logging.spec.ts
+ PASS  tools/brat/src/providers/gcp/cloudbuild-triggers.spec.ts
+ PASS  tests/services/message-bus/normalize-attributes.spec.ts
+ PASS  src/services/message-bus/__tests__/subscriber-options.test.ts
+ PASS  src/services/ingress/twitch/envelope-builder.spec.ts
+ PASS  src/services/llm-bot/__tests__/personality-resolver.spec.ts
+ PASS  tests/prompt-assembly/adapters/openai.spec.ts
+ PASS  src/services/ingress/twitch/__tests__/token-overwrite.spec.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/renderer.routing.test.ts
+  ● Console
+    console.log
+      {"component":"brat","action":"config.interpolate","vars_used":[],"unresolved":[],"notice":"Set BITBRAT_INTERPOLATION=0 to disable interpolation temporarily"}
+      at loadArchitecture (tools/brat/src/config/loader.ts:150:15)
+    console.log
+      [urlmap.renderer] Using routing-only source. default_domain=api.example.com default_bucket=site-assets selected_default_backend=be-assets-proxy
+      at loadRendererInputFromArchitecture (tools/brat/src/lb/urlmap/renderer.ts:42:11)
+ PASS  src/services/routing/routing.dlq.test.ts
+ PASS  src/common/__tests__/discord-config.test.ts
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/apps/command-processor-error-policy.spec.ts.
+      at Firestore.get (node_modules/@google-cloud/firestore/build/src/index.js:1540:16)
+      at ClientPool.clientFactory (node_modules/@google-cloud/firestore/build/src/index.js:526:45)
+      at ClientPool.acquire (node_modules/@google-cloud/firestore/build/src/pool.js:121:35)
+      at ClientPool.run (node_modules/@google-cloud/firestore/build/src/pool.js:260:29)
+      at node_modules/@google-cloud/firestore/build/src/index.js:1412:30
+      at Firestore._retry (node_modules/@google-cloud/firestore/build/src/index.js:1270:30)
+ PASS  src/services/llm-bot/__tests__/personality-metrics.spec.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/load-from-arch.test.ts
+ PASS  tests/services/llm-bot/tools/registry.spec.ts
+ PASS  tests/prompt-assembly/adapters/google.spec.ts
+ PASS  tools/brat/src/orchestration/errors.spec.ts
+ PASS  infrastructure/scripts/bootstrap-service.test.js
+ PASS  src/common/config.test.ts
+ PASS  src/services/ingress/discord/envelope-builder.spec.ts
+ RUNS  src/common/__tests__/discord-config.test.ts
+ RUNS  tools/brat/src/lb/urlmap/__tests__/renderer.routing.test.ts
+ RUNS  src/services/llm-bot/__tests__/personality-metrics.spec.ts
+ RUNS  src/common/config.test.ts
+ RUNS  tests/services/llm-bot/tools/registry.spec.ts
+ RUNS  src/services/llm-bot/__tests__/personality-resolver.spec.ts
+ RUNS  tests/prompt-assembly/adapters/openai.spec.ts
+ RUNS  src/services/ingress/twitch/__tests__/token-overwrite.spec.ts
+ RUNS  src/services/routing/routing.dlq.test.ts
+ RUNS  src/apps/__tests__/command-processor-service.test.ts
+ RUNS  tools/brat/src/providers/cdktf-synth.restore.test.ts
+Test Suites: 1 skipped, 148 passed, 148 of 183 total
+Tests:       2 skipped, 405 passed, 407 total
+Snapshots:   2 passed, 2 total
+Time:        10 s
+LINE LIMIT EXCEEDED

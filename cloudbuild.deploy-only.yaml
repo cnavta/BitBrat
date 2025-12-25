@@ -1,0 +1,101 @@
+substitutions:
+  # Networking: enforce Internal & CLB ingress and attach VPC connector when provided
+  _INGRESS: 'internal-and-cloud-load-balancing'
+  _VPC_CONNECTOR: ''
+  # Env and secrets (populated by caller; left empty by default)
+  _ENV_VARS_FILE: ''
+  _ENV_VARS_ARG: ''
+  _SECRET_SET_ARG: ''
+  # Flags commonly provided by caller; set safe defaults
+  _ALLOW_UNAUTH: 'false'
+  _DRY_RUN: 'false'
+  # Billing mode for Cloud Run (display/logging). Default to instance to match architecture.yaml
+  _BILLING: 'instance'
+  # The external image to deploy
+  _IMAGE: ''
+
+steps:
+  - id: 'Cloud Run deploy (conditional)'
+    # Pin to a specific, recent version of the Cloud SDK to ensure all flags are available.
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:478.0.0'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        IMAGE="${_IMAGE}"
+        if [ -z "$$IMAGE" ]; then
+          echo "Error: _IMAGE substitution is required for deploy-only path"
+          exit 1
+        fi
+        echo "--- Using gcloud version: ---"
+        gcloud --version
+        if [ "${_DRY_RUN}" = "true" ]; then
+          echo "_DRY_RUN=true: skipping gcloud run deploy. Image: $$IMAGE"
+          exit 0
+        fi
+        echo "Cloud Run deploy parameters (deploy-only):"
+        echo "  service: ${_SERVICE_NAME}"
+        echo "  region: ${_REGION}"
+        echo "  image: $$IMAGE"
+        echo "  port: ${_PORT}"
+        echo "  min-instances: ${_MIN_INSTANCES}"
+        echo "  max-instances: ${_MAX_INSTANCES}"
+        echo "  cpu: ${_CPU}"
+        echo "  memory: ${_MEMORY}"
+        echo "  billing: ${_BILLING}"
+        echo "  ingress: ${_INGRESS}"
+        echo "  vpc-connector: ${_VPC_CONNECTOR}"
+        ALLOW_FLAG=""
+        if [ "${_ALLOW_UNAUTH}" = "true" ]; then
+          ALLOW_FLAG="--allow-unauthenticated"
+        fi
+
+        # Build command as a string to ensure correct parsing by the shell
+        CMD="gcloud run deploy ${_SERVICE_NAME} \
+          --image $$IMAGE \
+          --region ${_REGION} \
+          --platform managed \
+          --port ${_PORT} \
+          --min-instances ${_MIN_INSTANCES} \
+          --max-instances ${_MAX_INSTANCES} \
+          --cpu ${_CPU} --memory ${_MEMORY} \
+          --execution-environment gen2 \
+          --no-cpu-throttling"
+
+        if [ -n "${_INGRESS}" ]; then CMD="$${CMD} --ingress ${_INGRESS}"; fi
+        if [ -n "${_VPC_CONNECTOR}" ]; then CMD="$${CMD} --vpc-connector ${_VPC_CONNECTOR}"; fi
+        if [ -n "$$ALLOW_FLAG" ]; then CMD="$${CMD} $$ALLOW_FLAG"; fi
+        if [ -n "${_SECRET_SET_ARG}" ]; then
+          SEC_RAW="${_SECRET_SET_ARG}"
+          # Unescape any escaped characters coming from --substitutions
+          SEC_RAW=$(printf '%s' "$$SEC_RAW" | sed -e 's/\\\\/\\/g' -e 's/\\,/,/g' -e 's/\\=/=/g')
+          CMD="$${CMD} --set-secrets $(printf '%s' "$$SEC_RAW" | tr ';' ',')"
+        fi
+        
+        ENV_DELIM='~'
+        if [ -n "${_ENV_VARS_FILE}" ] && [ -f "${_ENV_VARS_FILE}" ]; then
+          ENV_RAW=$(cat "${_ENV_VARS_FILE}")
+        elif [ -n "${_ENV_VARS_ARG}" ]; then
+          ENV_RAW="${_ENV_VARS_ARG}"
+          ENV_RAW=$(printf '%s' "$$ENV_RAW" | sed -e 's/\\\\\\\\/\\\\/g' -e 's/\\\\,/,/g' -e 's/\\\\=/=/g')
+        else
+          ENV_RAW=""
+        fi
+        if [ -n "$$ENV_RAW" ]; then
+          ENV_MAPPED=$(printf '%s' "$$ENV_RAW" | tr ';' "$$ENV_DELIM")
+          SET_ENV_ARG="^$$ENV_DELIM^$$ENV_MAPPED"
+          CMD="$${CMD} --set-env-vars='$$SET_ENV_ARG'"
+        fi
+
+        echo "Executing: $$CMD"
+        eval "$$CMD"
+
+        # Explicitly ensure IAM binding for unauthenticated access when requested
+        if [ "${_ALLOW_UNAUTH}" = "true" ]; then
+          echo "Ensuring roles/run.invoker binding for allUsers on service ${_SERVICE_NAME}"
+          gcloud run services add-iam-policy-binding "${_SERVICE_NAME}" \
+            --region "${_REGION}" \
+            --member "allUsers" \
+            --role "roles/run.invoker"
+        fi

@@ -1,0 +1,10 @@
+id: sprint-168-c9d2e1
+title: "Fix Terraform Deployment Errors"
+goal: "Restore missing synthesis logic for internal load balancer, proxy-only subnet, and DNS zones to fix deployment errors."
+owner: "Junie"
+createdAt: "2025-12-25T12:15:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-168-c9d2e1-fix-terraform-deployment-errors"
+notes: |
+  Infrastructure resources were missing from cdktf-synth.ts causing Terraform to attempt destruction of active resources.

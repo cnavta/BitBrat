@@ -46,8 +46,8 @@ resource "google_compute_managed_ssl_certificate" "managed_cert" {
   }
 }
 
-resource "google_compute_region_network_endpoint_group" "neg-web-us-central1" {
-  name                 = "neg-web-us-central1"
+resource "google_compute_region_network_endpoint_group" "neg-web-svc-us-central1" {
+  name                 = "neg-web-svc-us-central1"
   network_endpoint_type = "SERVERLESS"
   region               = "us-central1"
   cloud_run {
@@ -61,7 +61,7 @@ resource "google_compute_backend_service" "be-web" {
   load_balancing_scheme = "EXTERNAL_MANAGED"
   log_config { enable = true }
   backend {
-    group = google_compute_region_network_endpoint_group.neg-web-us-central1.id
+    group = google_compute_region_network_endpoint_group.neg-web-svc-us-central1.id
   }
 }
 
@@ -96,9 +96,12 @@ resource "google_compute_global_forwarding_rule" "https_rule" {
 }
 
 # Outputs
-output "globalIpAddress" {
-  description = "Frontend global IP address"
-  value       = google_compute_global_address.frontend_ip.address
+output "lbIpAddresses" {
+  description = "Map of load balancer key to IP address"
+  value = {
+    "main-load-balancer" = google_compute_global_address.frontend_ip.address,
+    "internal-load-balancer" = null
+  }
 }
 
 output "urlMapName" {
@@ -114,7 +117,7 @@ output "backendServiceNames" {
 }
 
 output "negNames" {
-  value = [google_compute_region_network_endpoint_group.neg-web-us-central1.name]
+  value = [google_compute_region_network_endpoint_group.neg-web-svc-us-central1.name]
 }
 "
 `;
@@ -200,9 +203,12 @@ resource "google_compute_global_forwarding_rule" "https_rule" {
 }
 
 # Outputs
-output "globalIpAddress" {
-  description = "Frontend global IP address"
-  value       = data.google_compute_global_address.frontend_ip.address
+output "lbIpAddresses" {
+  description = "Map of load balancer key to IP address"
+  value = {
+    "main-load-balancer" = data.google_compute_global_address.frontend_ip.address,
+    "internal-load-balancer" = null
+  }
 }
 
 output "urlMapName" {

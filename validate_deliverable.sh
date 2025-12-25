@@ -123,6 +123,10 @@ if [[ "$SKIP_INFRA" != "1" ]]; then
   echo "➡️  URL map import (dry-run)"
   npm run brat -- lb urlmap import --env "$ENV_ARG" --project-id "$PROJECT_ID_ARG" --dry-run
 
+  # Sprint 172: Image-based deployment dry-run
+  echo "➡️  Image-based deployment validation (obs-mcp dry-run)"
+  npm run brat -- deploy service obs-mcp --env "$ENV_ARG" --project-id "$PROJECT_ID_ARG" --dry-run
+
   # Original local verification flow
   echo "🚀 Running local deployment..."
   npm run local
