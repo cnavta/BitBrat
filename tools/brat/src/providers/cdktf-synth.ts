@@ -123,12 +123,48 @@ resource "google_compute_subnetwork" "subnet" {
   private_ip_google_access = true
 ${flowLogsBlock}}
 
+# Proxy-only subnet for Regional Managed Load Balancers (Internal LB)
+resource "google_compute_subnetwork" "proxy_only_subnet" {
+  for_each      = toset(local.regions)
+  name          = "brat-proxy-only-subnet-${'${'}each.key}"
+  ip_cidr_range = "10.129.0.0/23" # Sprint 168: Fixed CIDR for proxy-only
+  purpose       = "REGIONAL_MANAGED_PROXY"
+  role          = "ACTIVE"
+  region        = "${'${'}each.key}"
+  network       = google_compute_network.vpc.id
+}
+
 # Cloud Routers (per region)
 resource "google_compute_router" "router" {
   for_each = toset(local.regions)
   name     = "brat-router-${'${'}each.key}"
   region   = each.key
   network  = google_compute_network.vpc.id
+}
+
+# DNS Zones for Service Discovery
+resource "google_dns_managed_zone" "local_zone" {
+  name        = "bitbrat-local"
+  dns_name    = "bitbrat.local."
+  description = "Internal DNS zone for service discovery"
+  visibility  = "private"
+  private_visibility_config {
+    networks {
+      network_url = google_compute_network.vpc.self_link
+    }
+  }
+}
+
+resource "google_dns_managed_zone" "internal_zone" {
+  name        = "bitbrat-internal"
+  dns_name    = "bitbrat.internal."
+  description = "Internal DNS zone for BitBrat VPC"
+  visibility  = "private"
+  private_visibility_config {
+    networks {
+      network_url = google_compute_network.vpc.self_link
+    }
+  }
 }
 
 ## Cloud NAT removed to reduce latency. Public egress should use Cloud Run default path.
@@ -187,6 +223,14 @@ output "routersByRegion" {
   value       = { for r, s in google_compute_router.router : r => s.name }
 }
 
+output "internalDnsZoneName" {
+  value = google_dns_managed_zone.internal_zone.name
+}
+
+output "localDnsZoneName" {
+  value = google_dns_managed_zone.local_zone.name
+}
+
 ## NAT outputs removed
 `;
   return tf;
@@ -238,7 +282,13 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
   const certRefRaw: string | undefined = lb?.certRef || legacyLbNode?.cert || (environment === 'dev' ? 'bitbrat-dev-cert' : `bitbrat-cert-${environment}`);
   const certName = certRefRaw ? String(certRefRaw).split('/').slice(-1)[0] : `bitbrat-cert-${environment}`;
 
-  const urlMapName = 'bitbrat-global-url-map';
+  const urlMapName = legacyLbNode?.name || 'bitbrat-global-url-map';
+
+  // ROUTING-DRIVEN DERIVATION - Internal LB
+  const internalLbNode = arch?.infrastructure?.resources?.['internal-load-balancer'];
+  const internalRouting = internalLbNode?.routing;
+  const internalLbIpName = internalLbNode?.ip || 'bitbrat-internal-ip';
+  const internalLbName = internalLbNode?.name || 'bitbrat-internal-lb';
 
   // Backend state in CI guarded like other modules
   const backendBucket = process.env.BITBRAT_TF_BACKEND_BUCKET;
@@ -301,28 +351,89 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
   const referencedServices = deriveUniqueServices();
   const hasBucketRouting = !!(routing?.default_bucket) || !!(Array.isArray(routing?.rules) && routing.rules.some((r: any) => !!r?.bucket));
 
+  const deriveInternalServices = (): string[] => {
+    if (!internalRouting || !Array.isArray(internalRouting?.rules)) return [];
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const r of internalRouting.rules as Array<any>) {
+      const svc = r?.service;
+      if (!svc || typeof svc !== 'string') continue;
+      if (!seen.has(svc)) {
+        seen.add(svc);
+        ordered.push(svc);
+      }
+    }
+    return ordered.filter(sid => !!(servicesActiveMap?.[sid] && (servicesActiveMap[sid] as any).active !== false));
+  };
+
+  const internalServices = deriveInternalServices();
+
   // Fallback to deprecated lb.services[] only when routing not provided
   type LegacySvc = { name: string; regions?: string[]; runService?: { name: string; projectId?: string } };
   const legacyServices: LegacySvc[] = (!routing && Array.isArray(lb?.services)) ? lb.services as LegacySvc[] : [];
 
   // Accumulate per-service regions used to inform assets-proxy NEGs
   const usedRegions = new Set<string>();
+  const definedNegs = new Set<string>();
+
+  const ensureNeg = (sid: string, region: string) => {
+    const negName = `neg-${sid}-${region}`;
+    const negId = negName.replace(/-/g, '_');
+    if (definedNegs.has(negId)) return negId;
+    resources.push(`resource "google_compute_region_network_endpoint_group" "${negId}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${region}"\n  cloud_run {\n    service = "${sid}"\n  }\n}`);
+    definedNegs.add(negId);
+    negNames.push(negId);
+    return negId;
+  };
 
   // Build service backends/NEGs — routing path
   if (routing) {
     for (const sid of referencedServices) {
       const svcRegions = [defaultRegion];
       const beName = `be-${sid}`;
-      beNames.push(beName);
+      const beId = beName.replace(/-/g, '_');
+      beNames.push(beId);
       let backendBlocks: string[] = [];
       for (const r of svcRegions) {
         usedRegions.add(r);
-        const negName = `neg-${sid}-${r}`;
-        negNames.push(negName);
-        resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "${sid}"\n  }\n}`);
-        backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
+        const negId = ensureNeg(sid, r);
+        backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negId}.id\n  }`);
       }
-      resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+      resources.push(`resource "google_compute_backend_service" "${beId}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+    }
+  }
+
+  // Internal Load Balancer Backends
+  if (internalRouting) {
+    resources.push(`resource "google_compute_address" "internal_load_balancer_ip" {\n  name         = "${internalLbIpName}"\n  subnetwork   = "brat-subnet-${defaultRegion}-${environment}"\n  address_type = "INTERNAL"\n  region       = "${defaultRegion}"\n}`);
+
+    for (const sid of internalServices) {
+      const svcRegions = [defaultRegion];
+      const beName = `be-${sid}-internal`;
+      const beId = beName.replace(/-/g, '_');
+      beNames.push(beId);
+      let backendBlocks: string[] = [];
+      for (const r of svcRegions) {
+        usedRegions.add(r);
+        const negId = ensureNeg(sid, r);
+        backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negId}.id\n  }`);
+      }
+      resources.push(`resource "google_compute_region_backend_service" "${beId}" {\n  name                  = "${beName}"\n  region                = "${defaultRegion}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+    }
+
+    // Internal URL Map
+    const internalHostRules = internalServices.map(sid => `  host_rule {\n    hosts        = ["${sid}.${internalRouting.default_domain}"]\n    path_matcher = "${sid}"\n  }`).join('\n');
+    const internalPathMatchers = internalServices.map(sid => `  path_matcher {\n    name            = "${sid}"\n    default_service = google_compute_region_backend_service.be_${sid.replace(/-/g, '_')}_internal.self_link\n  }`).join('\n');
+
+    resources.push(`resource "google_compute_region_url_map" "internal_load_balancer" {\n  name            = "${internalLbName}"\n  region          = "${defaultRegion}"\n  default_service = google_compute_region_backend_service.be_${internalServices[0].replace(/-/g, '_')}_internal.self_link\n${internalHostRules}\n\n${internalPathMatchers}\n  lifecycle {\n    ignore_changes = [\n      default_service,\n      test,\n    ]\n  }\n}`);
+
+    resources.push(`resource "google_compute_region_target_http_proxy" "internal_load_balancer_proxy" {\n  name    = "internal-load-balancer-proxy-${environment}"\n  region  = "${defaultRegion}"\n  url_map = google_compute_region_url_map.internal_load_balancer.self_link\n}`);
+
+    resources.push(`resource "google_compute_forwarding_rule" "internal_load_balancer_fr" {\n  name                  = "internal-load-balancer-fr-${environment}"\n  region                = "${defaultRegion}"\n  ip_protocol           = "TCP"\n  load_balancing_scheme = "INTERNAL_MANAGED"\n  port_range            = "80"\n  target                = google_compute_region_target_http_proxy.internal_load_balancer_proxy.self_link\n  network               = "brat-vpc"\n  subnetwork            = "brat-subnet-${defaultRegion}-${environment}"\n  ip_address            = google_compute_address.internal_load_balancer_ip.address\n}`);
+
+    // Internal DNS records
+    for (const sid of internalServices) {
+      resources.push(`resource "google_dns_record_set" "internal_load_balancer_${sid.replace(/-/g, '_')}_dns" {\n  name         = "${sid}.${internalRouting.default_domain}."\n  type         = "A"\n  ttl          = 300\n  managed_zone = "bitbrat-local"\n  rrdatas      = [google_compute_address.internal_load_balancer_ip.address]\n}`);
     }
   }
 
@@ -333,17 +444,15 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
       const runSvc = svc.runService;
       const svcRegions = (svc.regions && svc.regions.length > 0) ? svc.regions : [defaultRegion];
       const beName = `be-${svcName}`;
-      beNames.push(beName);
+      const beId = beName.replace(/-/g, '_');
+      beNames.push(beId);
       let backendBlocks: string[] = [];
       for (const r of svcRegions) {
         usedRegions.add(r);
-        const negName = `neg-${svcName}-${r}`;
-        negNames.push(negName);
-        const projectAttr = runSvc?.projectId ? `\n  project = "${runSvc.projectId}"` : '';
-        resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "${runSvc?.name || svcName}"${projectAttr}\n  }\n}`);
-        backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
+        const negId = ensureNeg(runSvc?.name || svcName, r);
+        backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negId}.id\n  }`);
       }
-      resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+      resources.push(`resource "google_compute_backend_service" "${beId}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
     }
   }
 
@@ -352,22 +461,22 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     const regions = [...(usedRegions.size > 0 ? usedRegions : new Set([defaultRegion]))];
     let backendBlocks: string[] = [];
     for (const r of regions) {
-      const negName = `neg-assets-proxy-${r}`;
-      negNames.push(negName);
-      resources.push(`resource "google_compute_region_network_endpoint_group" "${negName}" {\n  name                 = "${negName}"\n  network_endpoint_type = "SERVERLESS"\n  region               = "${r}"\n  cloud_run {\n    service = "assets-proxy"\n  }\n}`);
-      backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negName}.id\n  }`);
+      const negId = ensureNeg('assets-proxy', r);
+      backendBlocks.push(`  backend {\n    group = google_compute_region_network_endpoint_group.${negId}.id\n  }`);
     }
     const beName = 'be-assets-proxy';
-    beNames.push(beName);
-    resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
+    const beId = beName.replace(/-/g, '_');
+    beNames.push(beId);
+    resources.push(`resource "google_compute_backend_service" "${beId}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n${backendBlocks.join('\n')}\n}`);
   }
 
   // If no service backends declared, keep a default backend to keep URL map valid
   const hasServiceBackends = routing ? (referencedServices.length > 0) : (legacyServices.length > 0);
   if (!hasServiceBackends) {
     const beName = 'be-default';
-    beNames.push(beName);
-    resources.push(`resource "google_compute_backend_service" "${beName}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
+    const beId = beName.replace(/-/g, '_');
+    beNames.push(beId);
+    resources.push(`resource "google_compute_backend_service" "${beId}" {\n  name                  = "${beName}"\n  protocol              = "HTTP"\n  load_balancing_scheme = "EXTERNAL_MANAGED"\n  log_config { enable = true }\n}`);
   }
 
   // URL Map and Proxy/FR referencing selected cert/ip
@@ -450,9 +559,12 @@ resource "google_compute_global_forwarding_rule" "https_rule" {
 }
 
 # Outputs
-output "globalIpAddress" {
-  description = "Frontend global IP address"
-  value       = ${ipRefExpr}
+output "lbIpAddresses" {
+  description = "Map of load balancer key to IP address"
+  value = {
+    "main-load-balancer" = ${ipRefExpr},
+    "internal-load-balancer" = ${internalRouting ? 'google_compute_address.internal-load-balancer_ip.address' : 'null'}
+  }
 }
 
 output "urlMapName" {
@@ -464,7 +576,7 @@ output "certificateResourceNames" {
 }
 
 output "backendServiceNames" {
-  value = [${beNames.map(n => `google_compute_backend_service.${n}.name`).join(', ')}]
+  value = [${beNames.map(n => n.endsWith('-internal') ? `google_compute_region_backend_service.${n.replace(/-/g, '_')}.name` : `google_compute_backend_service.${n.replace(/-/g, '_')}.name`).join(', ')}]
 }
 
 output "negNames" {
