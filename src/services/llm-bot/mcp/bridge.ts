@@ -35,7 +35,7 @@ export class McpBridge {
       // Use jsonSchema helper from AI SDK to support raw JSON Schema
       inputSchema: jsonSchema(schema),
       requiredRoles,
-      execute: async (args: any) => {
+      execute: async (args: any, _context: any) => {
         const start = Date.now();
         let error = false;
         let responseSize = 0;

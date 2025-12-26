@@ -1,0 +1,11 @@
+id: sprint-177-a1b2c3
+title: "Internal MCP Toolset for Bot Status"
+goal: "Implement an internal MCP toolset for the llm-bot to report on its own status and tool usage."
+owner: "Junie"
+createdAt: "2025-12-26T17:19:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-177-a1b2c3-internal-status-mcp"
+notes: |
+  This sprint initiates the effort to make the llm-bot the core administrative UX.
+  Initial focus is on status reporting and tool discovery based on roles.
