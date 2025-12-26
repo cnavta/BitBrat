@@ -42,3 +42,12 @@ pathMatchers:
           weightedBackendServices:
             - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-ingress-egress
               weight: 100
+      - matchRules:
+          - prefixMatch: /_debug/llm/mcp
+        priority: 5
+        routeAction:
+          urlRewrite:
+            pathPrefixRewrite: /_debug/mcp
+          weightedBackendServices:
+            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-llm-bot
+              weight: 100

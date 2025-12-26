@@ -132,6 +132,8 @@ services:
     active: true
     description: "Headless LLM worker that consumes bot request subjects and produces responses."
     entry: src/apps/llm-bot-service.ts
+    paths:
+      - /_debug/mcp # Debug endpoint that displays the current state of the MCP servers
     topics:
       consumes:
         - internal.llmbot.v1
@@ -219,6 +221,9 @@ infrastructure:
           - path_prefix: /_debug/ingress/config
             rewrite_prefix: /_debug/config
             service: ingress-egress
+          - path_prefix: /_debug/llm/mcp
+            rewrite_prefix: /_debug/mcp
+            service: llm-bot
 
     internal-load-balancer:
       type: load-balancer

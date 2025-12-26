@@ -295,7 +295,8 @@ export async function processEvent(
         if (allowed) {
           // Wrap tool to capture errors in InternalEventV2
           filteredTools[name] = {
-            ...tool,
+            description: tool.description,
+            parameters: tool.inputSchema,
             execute: tool.execute ? async (args: any) => {
               try {
                 return await tool.execute!(args);
@@ -329,6 +330,10 @@ export async function processEvent(
         tools: filteredTools,
         stopWhen: stepCountIs(5),
         abortSignal: AbortSignal.timeout(timeoutMs),
+      });
+
+      logger.debug('llm_bot.generate_text.finish', { 
+        textPreview: preview(result.text)
       });
 
       finalResponse = result.text;
