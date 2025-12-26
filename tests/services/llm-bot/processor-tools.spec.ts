@@ -82,7 +82,7 @@ describe('Processor Tools', () => {
       tools: expect.objectContaining({
         mcp_test_tool: expect.objectContaining({
           description: 'A test tool',
-          parameters: mockTool.inputSchema,
+          inputSchema: mockTool.inputSchema,
         })
       })
     }));
