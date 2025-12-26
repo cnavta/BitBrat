@@ -285,10 +285,32 @@ export async function processEvent(
 
       const filteredTools: Record<string, any> = {};
       for (const [name, tool] of Object.entries(allTools)) {
+        let allowed = false;
         if (!tool.requiredRoles || tool.requiredRoles.length === 0) {
-          filteredTools[name] = tool;
+          allowed = true;
         } else if (tool.requiredRoles.some(role => userRoles.includes(role))) {
-          filteredTools[name] = tool;
+          allowed = true;
+        }
+
+        if (allowed) {
+          // Wrap tool to capture errors in InternalEventV2
+          filteredTools[name] = {
+            ...tool,
+            execute: tool.execute ? async (args: any) => {
+              try {
+                return await tool.execute!(args);
+              } catch (e: any) {
+                logger.error('llm_bot.tool_error', { tool: tool.id, error: e.message });
+                if (!Array.isArray(evt.errors)) evt.errors = [];
+                evt.errors.push({
+                  source: tool.source === 'mcp' ? `mcp:${tool.id}` : tool.source,
+                  message: e.message || String(e),
+                  at: new Date().toISOString()
+                });
+                throw e;
+              }
+            } : undefined
+          };
         } else {
           logger.debug('llm_bot.tool_filtered_rbac', { tool: tool.id, userRoles });
         }
@@ -359,7 +381,12 @@ export async function processEvent(
   } catch (err: any) {
     logger.error('llm_bot.processor.error', { correlationId: corr, error: err?.message, stack: err?.stack });
     if (!Array.isArray(evt.errors)) evt.errors = [];
-    evt.errors.push({ source: 'llm-bot', message: err?.message || String(err), at: new Date().toISOString() });
+    evt.errors.push({ 
+      source: 'llm-bot', 
+      message: err?.message || String(err), 
+      at: new Date().toISOString(),
+      fatal: true
+    });
     return 'ERROR';
   }
 }

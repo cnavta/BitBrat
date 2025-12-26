@@ -125,6 +125,17 @@ class LlmBotServer extends BaseServer {
   }
 
   private async setupApp(app: Express, _cfg: any) {
+    app.get('/_debug/mcp', (req, res) => {
+      const stats = this.mcpManager.getStats();
+      res.json({
+        servers: stats.getAllServerStats(),
+        tools: stats.getAllToolStats(),
+        registry: {
+          totalTools: Object.keys(this.registry.getTools()).length
+        }
+      });
+    });
+
     await this.onMessage<InternalEventV2>('internal.llmbot.v1', async (data, attributes, ctx) => {
       try {
         const logger = this.getLogger();
