@@ -93,3 +93,52 @@ items:
     log:
       - at: 2025-12-25T21:45:00Z
         note: "Removed legacy ENV vars and verified project builds and passes tests."
+
+  - id: BL-173-006
+    title: "Support SSE in McpServerConfig types"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-173-001]
+    blocked_reason: null
+    acceptance:
+      - "McpServerConfig includes optional transport: 'stdio' | 'sse'"
+      - "McpServerConfig includes optional url: string"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:20:00Z
+        note: "Updated McpServerConfig in client-manager.ts."
+
+  - id: BL-173-007
+    title: "Implement SseClientTransport in McpClientManager"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-173-003, BL-173-006]
+    blocked_reason: null
+    acceptance:
+      - "McpClientManager.connectServer branches on config.transport"
+      - "SseClientTransport is instantiated when transport is 'sse'"
+      - "Connection to remote SSE server is successful"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:25:00Z
+        note: "Implemented SSE transport logic in McpClientManager."
+
+  - id: BL-173-008
+    title: "Validate SSE connectivity"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-173-007]
+    blocked_reason: null
+    acceptance:
+      - "Test suite includes mock SSE server connection test"
+      - "McpClientManager successfully discovers tools from SSE server"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:30:00Z
+        note: "Verified SSE transport with unit tests."
