@@ -296,7 +296,7 @@ export async function processEvent(
           // Wrap tool to capture errors in InternalEventV2
           filteredTools[name] = {
             description: tool.description,
-            parameters: tool.inputSchema,
+            inputSchema: tool.inputSchema,
             execute: tool.execute ? async (args: any) => {
               try {
                 return await tool.execute!(args);

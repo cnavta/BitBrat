@@ -82,4 +82,17 @@ describe('McpBridge', () => {
     const tStats = stats.getToolStats('mcp:fail');
     expect(tStats?.errors).toBe(1);
   });
+
+  it('should sanitize "None" type in inputSchema', () => {
+    const mcpTool = {
+      name: 'python-tool',
+      inputSchema: { type: 'None' },
+    };
+
+    const tool = bridge.translateTool(mcpTool);
+
+    expect(tool.inputSchema).toBeDefined();
+    // jsonSchema(schema) returns { jsonSchema: schema }
+    expect((tool.inputSchema as any).jsonSchema.type).toBe('object');
+  });
 });

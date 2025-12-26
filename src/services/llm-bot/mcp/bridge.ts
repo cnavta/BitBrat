@@ -16,13 +16,24 @@ export class McpBridge {
    */
   translateTool(mcpTool: { name: string; description?: string; inputSchema: any }, requiredRoles?: string[]): BitBratTool {
     const toolId = `mcp:${mcpTool.name}`;
+    
+    // Defensive: Ensure inputSchema is an object and has a valid type
+    let schema = mcpTool.inputSchema;
+    if (!schema || typeof schema !== 'object') {
+      schema = { type: 'object', properties: {} };
+    } else if (schema.type === 'None') {
+      // MCP Python servers sometimes output type: "None" for empty parameters
+      schema = { ...schema, type: 'object' };
+      if (!schema.properties) schema.properties = {};
+    }
+
     return {
       id: toolId,
       source: 'mcp',
       displayName: mcpTool.name,
       description: mcpTool.description,
       // Use jsonSchema helper from AI SDK to support raw JSON Schema
-      inputSchema: jsonSchema(mcpTool.inputSchema),
+      inputSchema: jsonSchema(schema),
       requiredRoles,
       execute: async (args: any) => {
         const start = Date.now();

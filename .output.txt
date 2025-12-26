@@ -14,198 +14,219 @@ Run `npm audit` for details.
 🔒 Discord validation state: DISCORD_ENABLED=false
 > bitbrat-platform@1.0.0 test
 > jest src/services/llm-bot tests/services/llm-bot
+PASS src/services/llm-bot/processor.memory.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-26T20:34:58.185Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:58.191Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:58.192Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:58.193Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:59.050Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:59.050Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:59.050Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:59.127Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:59.128Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:34:59.128Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
 PASS src/services/llm-bot/processor.instance-memory.spec.ts
   ● Console
     console.log
-      {"ts":"2025-12-26T20:15:39.768Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:34:59.439Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:39.774Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:34:59.440Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:39.774Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:34:59.440Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:39.776Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      {"ts":"2025-12-26T20:34:59.440Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:41.795Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:00.318Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:41.795Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:35:00.318Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:41.796Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:00.319Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
 PASS src/services/llm-bot/processor.personality.spec.ts
   ● Console
     console.log
-      {"ts":"2025-12-26T20:15:42.333Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:00.802Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:42.334Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:35:00.802Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:42.334Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:00.802Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:42.334Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
-      at Logger.info (src/common/logging.ts:142:13)
-PASS src/services/llm-bot/processor.memory.spec.ts
-  ● Console
-    console.log
-      {"ts":"2025-12-26T20:15:43.210Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.210Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.210Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.211Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.859Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.859Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.859Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.914Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.914Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:43.914Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
-      at Logger.info (src/common/logging.ts:142:13)
-PASS src/services/llm-bot/processor.empty-response.spec.ts
-  ● Console
-    console.log
-      {"ts":"2025-12-26T20:15:44.174Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:44.175Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:44.175Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:44.175Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:44.816Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:44.816Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:44.816Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
-      at Logger.info (src/common/logging.ts:142:13)
-PASS src/services/llm-bot/processor.test.ts
-  ● Console
-    console.log
-      {"ts":"2025-12-26T20:15:45.047Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:45.048Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:45.048Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:45.048Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:45.717Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"llm_bot.no_prompt","correlationId":"c-1"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:45.718Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:45.718Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:45.718Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:00.802Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
       at Logger.info (src/common/logging.ts:142:13)
 PASS tests/services/llm-bot/personality-with-memory.spec.ts
   ● Console
     console.log
-      {"ts":"2025-12-26T20:15:45.967Z","service":"bitbrat","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      {"ts":"2025-12-26T20:35:01.668Z","service":"bitbrat","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
       at Logger.info (src/common/logging.ts:142:13)
+PASS src/services/llm-bot/processor.test.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-26T20:35:02.607Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:02.607Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:02.607Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:02.607Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:03.263Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"llm_bot.no_prompt","correlationId":"c-1"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:03.265Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:03.265Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:03.265Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+PASS tests/services/llm-bot/mcp/web-search.test.ts
+  ● Console
+    console.log
+      mcp_search_web schema: {
+        "jsonSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+      at Object.<anonymous> (tests/services/llm-bot/mcp/web-search.test.ts:37:13)
 PASS tests/services/llm-bot/mcp/client-manager.spec.ts
 PASS tests/services/llm-bot/mcp/bridge.spec.ts
 PASS tests/services/llm-bot/processor-tools.spec.ts
-PASS tests/services/llm-bot/mcp/web-search.test.ts
-PASS tests/services/llm-bot/processor.spec.ts
-PASS tests/services/llm-bot/mcp/stats-collector.spec.ts
-PASS src/services/llm-bot/processor.personality-disabled.spec.ts
+PASS src/services/llm-bot/processor.empty-response.spec.ts
   ● Console
     console.log
-      {"ts":"2025-12-26T20:15:48.043Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:04.946Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:48.043Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:35:04.947Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:48.043Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:04.947Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:48.044Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
-      at Logger.info (src/common/logging.ts:142:13)
-PASS src/services/llm-bot/__tests__/user-context.append.spec.ts
-  ● Console
-    console.log
-      {"ts":"2025-12-26T20:15:48.875Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:04.947Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:48.875Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:35:05.588Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:48.876Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
-      at Logger.info (src/common/logging.ts:142:13)
-PASS src/services/llm-bot/__tests__/processor.personality-name.spec.ts
-  ● Console
-    console.log
-      {"ts":"2025-12-26T20:15:49.043Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:05.589Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:49.044Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
-      at Logger.info (src/common/logging.ts:142:13)
-    console.log
-      {"ts":"2025-12-26T20:15:49.044Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:05.589Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
 PASS src/services/llm-bot/__tests__/processor.personality-mixed.spec.ts
   ● Console
     console.log
-      {"ts":"2025-12-26T20:15:49.212Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:05.846Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:49.212Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:35:05.847Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:49.212Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:05.847Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
+PASS src/services/llm-bot/__tests__/processor.unwrap-quotes.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-26T20:35:06.056Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:06.056Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:06.056Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+PASS src/services/llm-bot/__tests__/processor.personality-name.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-26T20:35:06.234Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:06.235Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:06.235Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+PASS src/services/llm-bot/__tests__/user-context.append.spec.ts
+  ● Console
+    console.log
+      {"ts":"2025-12-26T20:35:06.405Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:06.406Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+    console.log
+      {"ts":"2025-12-26T20:35:06.406Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+PASS tests/services/llm-bot/prompt-logging.test.ts
+PASS src/services/llm-bot/reducer.spec.ts
+PASS tests/services/llm-bot/history-redundancy.test.ts
 PASS src/services/llm-bot/processor.error.spec.ts
   ● Console
     console.log
-      {"ts":"2025-12-26T20:15:49.433Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:07.071Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:49.434Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:35:07.071Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:49.434Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:07.071Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:49.434Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      {"ts":"2025-12-26T20:35:07.072Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
       at Logger.info (src/common/logging.ts:142:13)
     console.error
-      {"ts":"2025-12-26T20:15:50.080Z","service":"test-llm-bot","level":"error","severity":"ERROR","msg":"llm_bot.processor.error","correlationId":"c-error","error":"boom","stack":"Error: boom\n    at Object.callLLM (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.error.spec.ts:27:15)\n    at processEvent (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.ts:276:34)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.error.spec.ts:25:20)"}
+      {"ts":"2025-12-26T20:35:07.725Z","service":"test-llm-bot","level":"error","severity":"ERROR","msg":"llm_bot.processor.error","correlationId":"c-error","error":"boom","stack":"Error: boom\n    at Object.callLLM (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.error.spec.ts:27:15)\n    at processEvent (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.ts:276:34)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at Object.<anonymous> (/Users/christophernavta/IdeaProjects/BitBratPlatform/src/services/llm-bot/processor.error.spec.ts:25:20)"}
       130 |   error(msg: string, context?: Record<string, unknown>) {
       131 |     if (!this.shouldLog('error')) return;
     > 132 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
@@ -216,30 +237,32 @@ PASS src/services/llm-bot/processor.error.spec.ts
       at Logger.error (src/common/logging.ts:132:13)
       at processEvent (src/services/llm-bot/processor.ts:387:12)
       at Object.<anonymous> (src/services/llm-bot/processor.error.spec.ts:25:20)
-PASS tests/services/llm-bot/history-redundancy.test.ts
-PASS src/services/llm-bot/reducer.spec.ts
-PASS src/services/llm-bot/__tests__/processor.unwrap-quotes.spec.ts
+PASS src/services/llm-bot/processor.personality-disabled.spec.ts
   ● Console
     console.log
-      {"ts":"2025-12-26T20:15:50.569Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      {"ts":"2025-12-26T20:35:07.906Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:50.569Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      {"ts":"2025-12-26T20:35:07.906Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
     console.log
-      {"ts":"2025-12-26T20:15:50.569Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      {"ts":"2025-12-26T20:35:07.906Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
-PASS tests/services/llm-bot/prompt-logging.test.ts
-PASS tests/services/llm-bot/tools/registry.spec.ts
-PASS src/services/llm-bot/__tests__/personality-resolver.spec.ts
-PASS src/services/llm-bot/__tests__/personality-resolver-sorting.spec.ts
-PASS src/services/llm-bot/__tests__/prompt-composer.spec.ts
+    console.log
+      {"ts":"2025-12-26T20:35:07.906Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"twitch"}
+      at Logger.info (src/common/logging.ts:142:13)
+PASS tests/services/llm-bot/processor.spec.ts
 PASS src/services/llm-bot/instance-memory.spec.ts
 PASS src/services/llm-bot/__tests__/personality-metrics.spec.ts
+PASS src/services/llm-bot/__tests__/personality-resolver-sorting.spec.ts
+PASS tests/services/llm-bot/tools/registry.spec.ts
+PASS src/services/llm-bot/__tests__/prompt-composer.spec.ts
+PASS tests/services/llm-bot/mcp/stats-collector.spec.ts
+PASS src/services/llm-bot/__tests__/personality-resolver.spec.ts
 Test Suites: 27 passed, 27 total
-Tests:       71 passed, 71 total
+Tests:       72 passed, 72 total
 Snapshots:   0 total
-Time:        12.857 s, estimated 61 s
+Time:        12.45 s, estimated 50 s
 Ran all test suites matching /src\/services\/llm-bot|tests\/services\/llm-bot/i.
 🧪 Prompt Assembly smoke (canonical text) ...
 🧪 Prompt Assembly smoke (OpenAI adapter) ...
