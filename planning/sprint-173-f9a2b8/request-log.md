@@ -88,3 +88,11 @@
     - `tests/services/llm-bot/mcp/client-manager.spec.ts`
     - `planning/sprint-173-f9a2b8/backlog.yaml`
     - `planning/sprint-173-f9a2b8/request-log.md`
+## [2025-12-25 21:40] BL-173-009 Complete
+- **Prompt summary**: Implement support for SSE headers.
+- **Interpretation**: Update `McpClientManager` to pass `config.env` as headers to `SSEClientTransport`.
+- **Files modified or created**:
+    - `src/services/llm-bot/mcp/client-manager.ts`
+    - `tests/services/llm-bot/mcp/client-manager.spec.ts`
+    - `planning/sprint-173-f9a2b8/backlog.yaml`
+    - `planning/sprint-173-f9a2b8/request-log.md`

@@ -21,7 +21,7 @@ Each document in the `mcp_servers` collection represents an MCP server configura
 - `url`: string (Required for "sse" transport)
 - `command`: string (Required for "stdio" transport, e.g., "node")
 - `args`: string[] (Optional, for "stdio")
-- `env`: Record<string, string> (Optional)
+- `env`: Record<string, string> (Optional, used for shell env in stdio, and HTTP headers in sse)
 - `requiredRoles`: string[] (Optional, e.g., ["broadcaster", "moderator"])
 - `status`: "active" | "inactive"
 - `updatedAt`: Timestamp

@@ -77,7 +77,11 @@ export class McpClientManager {
         if (!config.url) {
           throw new Error(`SSE transport requires a URL for server ${config.name}`);
         }
-        transport = new SSEClientTransport(new URL(config.url));
+        transport = new SSEClientTransport(new URL(config.url), {
+          requestInit: {
+            headers: config.env
+          }
+        });
       } else {
         if (!config.command) {
           throw new Error(`Stdio transport requires a command for server ${config.name}`);
