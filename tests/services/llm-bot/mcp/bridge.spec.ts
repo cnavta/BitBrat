@@ -47,7 +47,7 @@ describe('McpBridge', () => {
       content: [{ type: 'text', text: 'hello' }],
     });
 
-    const result = await tool.execute!({ message: 'hello' });
+    const result = await tool.execute!({ message: 'hello' }, { userRoles: [] });
 
     expect(mockClient.callTool).toHaveBeenCalledWith({
       name: 'echo',
@@ -74,7 +74,7 @@ describe('McpBridge', () => {
       content: [{ type: 'text', text: 'error message' }],
     });
 
-    await expect(tool.execute!({})).rejects.toThrow('MCP Tool Error');
+    await expect(tool.execute!({}, { userRoles: [] })).rejects.toThrow('MCP Tool Error');
 
     const sStats = stats.getServerStats('test-server');
     expect(sStats?.totalErrors).toBe(1);
