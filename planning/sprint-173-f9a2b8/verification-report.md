@@ -1,18 +1,22 @@
 # Deliverable Verification – sprint-173-f9a2b8
 
 ## Completed
-- [x] **Update Type Definitions for RBAC**: `BitBratTool` and `McpServerConfig` now support `requiredRoles`.
-- [x] **Update McpBridge and Tool Discovery**: `McpBridge` attaches `requiredRoles` to translated tools.
-- [x] **Implement Firestore-backed McpClientManager**: `McpClientManager` now uses real-time Firestore snapshots for dynamic server management and reconciliation.
-- [x] **Implement RBAC Filtering in Processor**: `processEvent` filters tools based on user roles and tool requirements.
-- [x] **Validation and Cleanup**: Legacy `LLM_BOT_MCP_SERVERS` environment variable removed from all configurations and code. All tests passing.
+- [x] Firestore-backed MCP server registry (mcp_servers collection)
+- [x] Dynamic server discovery and lifecycle management via `onSnapshot`
+- [x] Role-Based Access Control (RBAC) for tools based on `requiredRoles`
+- [x] Native SSE (Server-Sent Events) transport support
+- [x] Custom HTTP header support for SSE transport (e.g., Authorization)
+- [x] Enhanced debug logging for registry operations and tool selection
+- [x] Removal of legacy `LLM_BOT_MCP_SERVERS` environment variable
+- [x] Full unit and integration test coverage for all new features
 
 ## Partial
-None.
+- None
 
 ## Deferred
-None.
+- None
 
 ## Alignment Notes
-- Updated `McpClientManager` to track tool IDs per server, ensuring that when a server is removed or deactivated, its tools are correctly unregistered from the `llm-bot`.
-- Updated existing tests to mock Firestore integration, maintaining test suite health while transitioning to a dynamic registry.
+- Supported both `stdio` and `sse` transport types in the same registry.
+- Re-used `env` field in Firestore for SSE headers to maintain schema simplicity.
+- Implemented RBAC filtering at the processor level to ensure it applies to all tools (internal and MCP).

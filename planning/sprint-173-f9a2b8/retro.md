@@ -1,13 +1,16 @@
 # Sprint Retro – sprint-173-f9a2b8
 
 ## What Worked
-- **Bottom-up Implementation**: Starting with types and bridge logic made the `McpClientManager` refactor much smoother.
-- **Firestore Snapshots**: `onSnapshot` proved to be a highly effective way to handle dynamic server configuration without service restarts.
-- **Tool ID Tracking**: Adding a way to track which tools belong to which server was crucial for implementing clean "remove/inactive" logic.
+- **Dynamic Updates**: The Firestore `onSnapshot` integration worked seamlessly, allowing real-time tool registration without restarts.
+- **SSE Integration**: Native SSE support via the MCP SDK was straightforward once the transport branching was implemented.
+- **RBAC Filtering**: Implementing filtering in the processor proved to be a robust approach that handles both internal and external tools consistently.
+- **Test-Driven Refinement**: Unit tests for `McpClientManager` were critical in verifying complex state reconciliation logic (e.g., tool cleanup on server removal).
 
-## What Didn't
-- **Test Fragility**: Transitioning from environment variables to Firestore broke several existing tests that relied on the old `initFromConfig` behavior. This required significant mocking updates.
+## What Didn't Work
+- **SSE Header Types**: Encountered a minor mismatch in the `EventSource` types within the MCP SDK, which required mapping `env` to `requestInit` instead of `eventSourceInit`.
+- **Legacy Test Cleanup**: Removing the legacy ENV var broke several existing tests that relied on it, requiring more test refactoring than initially planned.
 
-## Next Steps
-- Implement embedding-based tool lookup for scenarios with many MCP servers.
-- Add UI or CLI tools to manage the `mcp_servers` collection easily.
+## Future Improvements
+- **Exponential Backoff**: Add more sophisticated retry logic for failed MCP connections.
+- **Health Checks**: Implement a status update back to Firestore (e.g., a `lastHealthyAt` field) for each MCP server.
+- **UI Management**: A future sprint could add a dashboard to manage these Firestore configurations.

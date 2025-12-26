@@ -3,7 +3,7 @@ title: "Firestore-based MCP Server Registry"
 goal: "Move MCP server registry from environment variables to Firestore with dynamic updates and RBAC."
 owner: "Junie"
 createdAt: "2025-12-25T20:55:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-173-f9a2b8-firestore-mcp-registry"
 notes: |
