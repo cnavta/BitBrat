@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../../types/tools';
 import { BaseServer } from '../../../common/base-server';
@@ -7,7 +8,9 @@ import { getFirestore } from '../../../common/firebase';
 
 export interface McpServerConfig {
   name: string;
-  command: string;
+  transport?: 'stdio' | 'sse';
+  url?: string;
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
   requiredRoles?: string[];
@@ -61,17 +64,33 @@ export class McpClientManager {
       await this.disconnectServer(config.name);
     }
 
-    logger.info('mcp.client_manager.connecting', { name: config.name, command: config.command });
+    logger.info('mcp.client_manager.connecting', { 
+      name: config.name, 
+      transport: config.transport || 'stdio',
+      url: config.url,
+      command: config.command 
+    });
 
     try {
-      const transport = new StdioClientTransport({
-        command: config.command,
-        args: config.args || [],
-        env: Object.fromEntries(
-          Object.entries({ ...process.env, ...config.env })
-            .filter(([_, v]) => v !== undefined)
-        ) as Record<string, string>,
-      });
+      let transport;
+      if (config.transport === 'sse') {
+        if (!config.url) {
+          throw new Error(`SSE transport requires a URL for server ${config.name}`);
+        }
+        transport = new SSEClientTransport(new URL(config.url));
+      } else {
+        if (!config.command) {
+          throw new Error(`Stdio transport requires a command for server ${config.name}`);
+        }
+        transport = new StdioClientTransport({
+          command: config.command,
+          args: config.args || [],
+          env: Object.fromEntries(
+            Object.entries({ ...process.env, ...config.env })
+              .filter(([_, v]) => v !== undefined)
+          ) as Record<string, string>,
+        });
+      }
 
       const client = new Client({
         name: 'bitbrat-llm-bot',

@@ -1,10 +1,12 @@
 import { McpClientManager } from '../../../../src/services/llm-bot/mcp/client-manager';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { getFirestore } from '../../../../src/common/firebase';
 
 jest.mock('@modelcontextprotocol/sdk/client/index.js');
 jest.mock('@modelcontextprotocol/sdk/client/stdio.js');
+jest.mock('@modelcontextprotocol/sdk/client/sse.js');
 jest.mock('../../../../src/common/firebase');
 
 describe('McpClientManager', () => {
@@ -83,6 +85,30 @@ describe('McpClientManager', () => {
     }));
     expect(mockClientInstance.connect).toHaveBeenCalled();
     expect(mockClientInstance.listTools).toHaveBeenCalled();
+  });
+
+  it('should connect to SSE servers', async () => {
+    await manager.connectServer({
+      name: 'sse-server',
+      transport: 'sse',
+      url: 'https://mcp.example.com/sse'
+    });
+
+    expect(SSEClientTransport).toHaveBeenCalledWith(new URL('https://mcp.example.com/sse'));
+    expect(mockClientInstance.connect).toHaveBeenCalled();
+  });
+
+  it('should throw error if SSE url is missing', async () => {
+    const logger = mockServer.getLogger();
+    await manager.connectServer({
+      name: 'bad-sse',
+      transport: 'sse'
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'mcp.client_manager.connect_error',
+      expect.objectContaining({ error: new Error('SSE transport requires a URL for server bad-sse') })
+    );
   });
 
   it('should register discovered tools', async () => {

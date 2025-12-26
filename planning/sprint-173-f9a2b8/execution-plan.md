@@ -19,9 +19,15 @@ The implementation will follow a bottom-up approach, starting with type definiti
 - Update the `llm-bot` processor to filter available tools based on the user's roles and the tool's `requiredRoles`.
 - Implement fallback logic for tools without defined roles (default: permit all).
 
-### Phase 4: Verification & Cleanup
+### Phase 4: Native SSE Support
+- Update `McpServerConfig` types to include `transport` and `url`.
+- Implement `SseClientTransport` logic in `McpClientManager`.
+- Ensure environment variables are passed correctly to the SSE connection if needed.
+
+### Phase 5: Verification & Cleanup
 - Create a validation script that mocks Firestore state and verifies RBAC filtering.
 - Remove legacy environment variable configurations from `architecture.yaml` and service defaults.
+- Verify native SSE connectivity with a mock SSE server or real endpoint.
 
 ## Key Technical Risks
 - **Firestore Connectivity**: Transient errors in Firestore subscription must be handled gracefully to avoid losing MCP capabilities.

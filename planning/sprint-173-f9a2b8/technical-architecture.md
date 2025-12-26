@@ -7,7 +7,7 @@ Transition MCP server configurations from static environment variables to a dyna
 
 1.  **Registry Source of Truth**: Move `LLM_BOT_MCP_SERVERS` JSON from environment variables to a Firestore collection named `mcp_servers`.
 2.  **Dynamic Discovery**: `llm-bot` will subscribe to real-time updates from this Firestore collection.
-3.  **Client Management**: `McpClientManager` will manage the lifecycle of MCP clients (Stdio) based on the Firestore state.
+3.  **Client Management**: `McpClientManager` will manage the lifecycle of MCP clients (`Stdio` or `SSE`) based on the Firestore state.
 4.  **RBAC**: MCP server configurations will include an optional `requiredRoles` array. Tools discovered from these servers will only be available to users possessing at least one of the required roles.
 
 ## Detailed Components
@@ -17,8 +17,10 @@ Each document in the `mcp_servers` collection represents an MCP server configura
 
 - `id`: string (Auto-generated or descriptive ID)
 - `name`: string (e.g., "obs-mcp")
-- `command`: string (e.g., "node")
-- `args`: string[] (Optional)
+- `transport`: "stdio" | "sse" (Optional, defaults to "stdio")
+- `url`: string (Required for "sse" transport)
+- `command`: string (Required for "stdio" transport, e.g., "node")
+- `args`: string[] (Optional, for "stdio")
 - `env`: Record<string, string> (Optional)
 - `requiredRoles`: string[] (Optional, e.g., ["broadcaster", "moderator"])
 - `status`: "active" | "inactive"
@@ -28,7 +30,7 @@ Each document in the `mcp_servers` collection represents an MCP server configura
 - **`init()`**: Instead of reading `LLM_BOT_MCP_SERVERS` once, it will initialize a Firestore listener.
 - **`watchRegistry()`**: Uses `onSnapshot` to listen for changes in the `mcp_servers` collection where `status == 'active'`.
 - **State Reconciliation**:
-    - **Added/Modified**: Start or restart the MCP client with the new configuration.
+    - **Added/Modified**: Start or restart the MCP client with the new configuration. Supports both `StdioClientTransport` and `SseClientTransport`.
     - **Removed/Inactive**: Stop and remove the MCP client and its associated tools from the registry.
 
 ### 3. Tool Registry & RBAC
