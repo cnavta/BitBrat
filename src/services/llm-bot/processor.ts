@@ -282,6 +282,10 @@ export async function processEvent(
 
       const allTools = deps?.registry?.getTools() || {};
       const userRoles = evt.user?.roles || [];
+      const toolContext = {
+        userRoles,
+        correlationId: evt.correlationId
+      };
 
       const filteredTools: Record<string, any> = {};
       for (const [name, tool] of Object.entries(allTools)) {
@@ -299,7 +303,7 @@ export async function processEvent(
             inputSchema: tool.inputSchema,
             execute: tool.execute ? async (args: any) => {
               try {
-                return await tool.execute!(args);
+                return await tool.execute!(args, toolContext);
               } catch (e: any) {
                 logger.error('llm_bot.tool_error', { tool: tool.id, error: e.message });
                 if (!Array.isArray(evt.errors)) evt.errors = [];
