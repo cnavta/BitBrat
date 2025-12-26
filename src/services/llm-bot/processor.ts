@@ -297,7 +297,8 @@ export async function processEvent(
       logger.debug('llm_bot.generate_text.start', { 
         model: modelName, 
         allToolCount: Object.keys(allTools).length,
-        filteredToolCount: Object.keys(filteredTools).length 
+        filteredToolCount: Object.keys(filteredTools).length,
+        tools: Object.keys(filteredTools)
       });
 
       const result = await generateText({

@@ -40,9 +40,21 @@ export class McpClientManager {
 
     this.unsubscribe = db.collection('mcp_servers')
       .onSnapshot(async (snapshot) => {
+        logger.debug('mcp.client_manager.snapshot_received', { 
+          count: snapshot.size, 
+          changes: snapshot.docChanges().length 
+        });
+
         for (const change of snapshot.docChanges()) {
           const data = change.doc.data() as McpServerConfig & { status?: string };
           const name = data.name || change.doc.id;
+
+          logger.debug('mcp.client_manager.registry_change', { 
+            type: change.type, 
+            name, 
+            status: data.status,
+            transport: data.transport || 'stdio'
+          });
 
           if (change.type === 'removed' || data.status === 'inactive') {
             await this.disconnectServer(name);
@@ -134,6 +146,7 @@ export class McpClientManager {
 
     // Remove tools associated with this server
     const toolIds = this.serverTools.get(name) || [];
+    logger.debug('mcp.client_manager.unregistering_tools', { name, count: toolIds.length, toolIds });
     for (const id of toolIds) {
       this.registry.unregisterTool(id);
     }
@@ -152,6 +165,11 @@ export class McpClientManager {
     const toolIds: string[] = [];
     try {
       const result = await client.listTools();
+      logger.debug('mcp.client_manager.tools_discovered', { 
+        server: serverName, 
+        count: result.tools.length,
+        toolNames: result.tools.map(t => t.name)
+      });
       for (const tool of result.tools) {
         const translated = bridge.translateTool(tool, requiredRoles);
         this.registry.registerTool(translated);

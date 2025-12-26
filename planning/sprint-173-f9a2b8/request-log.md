@@ -96,3 +96,11 @@
     - `tests/services/llm-bot/mcp/client-manager.spec.ts`
     - `planning/sprint-173-f9a2b8/backlog.yaml`
     - `planning/sprint-173-f9a2b8/request-log.md`
+
+## [2025-12-26 12:15] Debug Logging Added
+- **Prompt summary**: Add explicit debug logging around MCP registry operations and tools passed to LLM.
+- **Interpretation**: Enhance `McpClientManager` and `processor.ts` with detailed debug logs for Firestore events, tool discovery, and RBAC filtering.
+- **Files modified or created**:
+    - `src/services/llm-bot/mcp/client-manager.ts`
+    - `src/services/llm-bot/processor.ts`
+    - `planning/sprint-173-f9a2b8/request-log.md`
