@@ -1,10 +1,10 @@
 # Key Learnings – sprint-173-f9a2b8
 
-## Dynamic State Management
-When moving from static configuration to dynamic state (like Firestore snapshots), it is essential to manage the lifecycle of the objects created from that state. In this sprint, we learned that tracking the IDs of tools registered by an MCP server is necessary to cleanly remove them when the server's state changes.
+## Technical Learnings
+- **MCP SDK Transport**: `SSEClientTransport` in the `@modelcontextprotocol/sdk` uses `eventsource` internally. When passing headers, they should be applied to `requestInit` to ensure they are sent with both the initial stream request and subsequent POST messages in the current SDK version.
+- **Firestore Snapshot Management**: Storing tool IDs per server in a `Map` is essential for clean cleanup during `onSnapshot` updates. Without this, removing a document would leave orphaned tools in the global registry.
+- **RBAC in AI SDK**: Filtering tools *before* passing them to `generateText` is the cleanest way to enforce RBAC, as it prevents the LLM from even seeing the tool's existence if the user isn't authorized.
 
-## RBAC for Tools
-Implementing RBAC at the tool level rather than the server level provides finer-grained control. By carrying `requiredRoles` through from the server configuration to the individual `BitBratTool` objects, we can easily filter them in the processor without needing to know which server they came from at that stage.
-
-## Testing Dynamic Registries
-Tests for components that use `onSnapshot` should focus on verifying the reconciliation logic by manually triggering the snapshot callback with different document changes (`added`, `modified`, `removed`).
+## Process Learnings
+- **Execution Plan Flexibility**: Phase 4 (SSE Support) was added mid-sprint. Having a structured but updatable execution plan allowed for smooth scope expansion without losing track of the core goals.
+- **Traceability**: Logging every major implementation step in `request-log.md` made the final verification and retro creation much more efficient.
