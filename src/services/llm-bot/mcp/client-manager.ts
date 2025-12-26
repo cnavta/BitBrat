@@ -5,6 +5,7 @@ import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../../types/tools';
 import { BaseServer } from '../../../common/base-server';
 import { getFirestore } from '../../../common/firebase';
+import { McpStatsCollector } from './stats-collector';
 
 export interface McpServerConfig {
   name: string;
@@ -21,11 +22,16 @@ export class McpClientManager {
   private bridges: Map<string, McpBridge> = new Map();
   private serverTools: Map<string, string[]> = new Map();
   private unsubscribe?: () => void;
+  private stats = new McpStatsCollector();
 
   constructor(
     private server: BaseServer,
     private registry: IToolRegistry
   ) {}
+
+  getStats(): McpStatsCollector {
+    return this.stats;
+  }
 
   async initFromConfig(): Promise<void> {
     // Legacy support or just start watching
@@ -83,6 +89,9 @@ export class McpClientManager {
       command: config.command 
     });
 
+    const transportType = config.transport || 'stdio';
+    this.stats.updateServerStatus(config.name, 'connecting', transportType);
+
     try {
       let transport;
       if (config.transport === 'sse') {
@@ -117,8 +126,9 @@ export class McpClientManager {
 
       await client.connect(transport);
       this.clients.set(config.name, client);
+      this.stats.updateServerStatus(config.name, 'connected');
 
-      const bridge = new McpBridge(client);
+      const bridge = new McpBridge(client, config.name, this.stats);
       this.bridges.set(config.name, bridge);
 
       // Initial discovery
@@ -126,6 +136,7 @@ export class McpClientManager {
 
       logger.info('mcp.client_manager.connected', { name: config.name });
     } catch (e) {
+      this.stats.updateServerStatus(config.name, 'error');
       logger.error('mcp.client_manager.connect_error', { name: config.name, error: e });
     }
   }
@@ -134,6 +145,8 @@ export class McpClientManager {
     const logger = (this.server as any).getLogger();
     const client = this.clients.get(name);
     
+    this.stats.updateServerStatus(name, 'disconnected');
+
     if (client) {
       try {
         await client.close();
@@ -163,8 +176,12 @@ export class McpClientManager {
     if (!client || !bridge) return;
 
     const toolIds: string[] = [];
+    const start = Date.now();
     try {
       const result = await client.listTools();
+      const duration = Date.now() - start;
+      this.stats.recordDiscovery(serverName, result.tools.length, duration);
+
       logger.debug('mcp.client_manager.tools_discovered', { 
         server: serverName, 
         count: result.tools.length,
@@ -177,6 +194,7 @@ export class McpClientManager {
         logger.debug('mcp.client_manager.tool_registered', { server: serverName, tool: tool.name });
       }
       this.serverTools.set(serverName, toolIds);
+      this.stats.updateServerTools(serverName, toolIds);
     } catch (e) {
       logger.error('mcp.client_manager.discovery_error', { name: serverName, error: e });
     }

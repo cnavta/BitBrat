@@ -62,7 +62,7 @@ describe('McpClientManager', () => {
     expect(mockFirestore.onSnapshot).toHaveBeenCalled();
   });
 
-  it('should connect to servers when snapshot updates', async () => {
+  it('should connect to servers when snapshot updates and record status', async () => {
     await manager.initFromConfig();
     
     // Simulate added server
@@ -85,6 +85,10 @@ describe('McpClientManager', () => {
     }));
     expect(mockClientInstance.connect).toHaveBeenCalled();
     expect(mockClientInstance.listTools).toHaveBeenCalled();
+
+    const stats = manager.getStats().getServerStats('test-server');
+    expect(stats?.status).toBe('connected');
+    expect(stats?.transport).toBe('stdio');
   });
 
   it('should connect to SSE servers', async () => {
@@ -116,7 +120,7 @@ describe('McpClientManager', () => {
     );
   });
 
-  it('should register discovered tools', async () => {
+  it('should register discovered tools and record discovery stats', async () => {
     mockClientInstance.listTools.mockResolvedValue({
       tools: [
         { name: 'my-tool', description: 'desc', inputSchema: { type: 'object' } }
@@ -128,6 +132,10 @@ describe('McpClientManager', () => {
     expect(mockRegistry.registerTool).toHaveBeenCalledWith(expect.objectContaining({
       id: 'mcp:my-tool',
     }));
+
+    const stats = manager.getStats().getServerStats('srv');
+    expect(stats?.discoveryCount).toBe(1);
+    expect(stats?.tools).toContain('mcp:my-tool');
   });
 
   it('should unregister tools when server is disconnected', async () => {

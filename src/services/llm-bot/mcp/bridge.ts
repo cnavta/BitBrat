@@ -2,16 +2,22 @@ import { BitBratTool } from '../../../types/tools';
 import { jsonSchema } from 'ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { McpStatsCollector } from './stats-collector';
 
 export class McpBridge {
-  constructor(private client: Client) {}
+  constructor(
+    private client: Client,
+    private serverName: string,
+    private stats?: McpStatsCollector
+  ) {}
 
   /**
    * Translates an MCP tool definition into a BitBratTool.
    */
   translateTool(mcpTool: { name: string; description?: string; inputSchema: any }, requiredRoles?: string[]): BitBratTool {
+    const toolId = `mcp:${mcpTool.name}`;
     return {
-      id: `mcp:${mcpTool.name}`,
+      id: toolId,
       source: 'mcp',
       displayName: mcpTool.name,
       description: mcpTool.description,
@@ -19,22 +25,38 @@ export class McpBridge {
       inputSchema: jsonSchema(mcpTool.inputSchema),
       requiredRoles,
       execute: async (args: any) => {
-        const result = await this.client.callTool({
-          name: mcpTool.name,
-          arguments: args,
-        }, CallToolResultSchema);
+        const start = Date.now();
+        let error = false;
+        let responseSize = 0;
+        try {
+          const result = await this.client.callTool({
+            name: mcpTool.name,
+            arguments: args,
+          }, CallToolResultSchema);
 
-        if (result.isError) {
-          throw new Error(`MCP Tool Error: ${JSON.stringify(result.content)}`);
+          if (result.isError) {
+            error = true;
+            throw new Error(`MCP Tool Error: ${JSON.stringify(result.content)}`);
+          }
+
+          // Return the first text content or a summary of the content
+          const content = result.content as any[];
+          const textParts = content
+            .filter((c: any) => c.type === 'text')
+            .map((c: any) => c.text);
+          
+          const response = textParts.join('\n');
+          responseSize = Buffer.byteLength(response, 'utf8');
+          return response;
+        } catch (e) {
+          error = true;
+          throw e;
+        } finally {
+          const duration = Date.now() - start;
+          if (this.stats) {
+            this.stats.recordCall(this.serverName, toolId, duration, error, responseSize);
+          }
         }
-
-        // Return the first text content or a summary of the content
-        const content = result.content as any[];
-        const textParts = content
-          .filter((c: any) => c.type === 'text')
-          .map((c: any) => c.text);
-        
-        return textParts.join('\n');
       },
     };
   }
