@@ -280,14 +280,30 @@ export async function processEvent(
         { role: 'user', content: payload.messages[1].content },
       ];
 
-      const tools = deps?.registry?.getTools() || {};
+      const allTools = deps?.registry?.getTools() || {};
+      const userRoles = evt.user?.roles || [];
 
-      logger.debug('llm_bot.generate_text.start', { model: modelName, toolCount: Object.keys(tools).length });
+      const filteredTools: Record<string, any> = {};
+      for (const [name, tool] of Object.entries(allTools)) {
+        if (!tool.requiredRoles || tool.requiredRoles.length === 0) {
+          filteredTools[name] = tool;
+        } else if (tool.requiredRoles.some(role => userRoles.includes(role))) {
+          filteredTools[name] = tool;
+        } else {
+          logger.debug('llm_bot.tool_filtered_rbac', { tool: tool.id, userRoles });
+        }
+      }
+
+      logger.debug('llm_bot.generate_text.start', { 
+        model: modelName, 
+        allToolCount: Object.keys(allTools).length,
+        filteredToolCount: Object.keys(filteredTools).length 
+      });
 
       const result = await generateText({
         model: openai(modelName),
         messages: coreMessages,
-        tools: tools as any,
+        tools: filteredTools,
         stopWhen: stepCountIs(5),
         abortSignal: AbortSignal.timeout(timeoutMs),
       });

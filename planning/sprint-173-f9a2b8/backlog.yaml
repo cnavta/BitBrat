@@ -1,0 +1,95 @@
+meta:
+  backlog_id: sprint-173-f9a2b8
+  updated_at: 2025-12-25
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-173-f9a2b8
+  start: 2025-12-25
+  end: 2026-01-08
+  wip_limit: 3
+  goal: "Dynamic Firestore MCP Registry & RBAC"
+
+items:
+  - id: BL-173-001
+    title: "Update Type Definitions for RBAC"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "BitBratTool interface includes optional requiredRoles: string[]"
+      - "McpServerConfig interface includes optional requiredRoles: string[]"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:05:00Z
+        note: "Updated BitBratTool and McpServerConfig interfaces."
+
+  - id: BL-173-002
+    title: "Update McpBridge and Tool Discovery"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-173-001]
+    blocked_reason: null
+    acceptance:
+      - "McpBridge.translateTool accepts requiredRoles and attaches them to BitBratTool"
+      - "McpClientManager.discoverTools passes requiredRoles to the bridge"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:15:00Z
+        note: "Updated McpBridge and tool discovery to handle requiredRoles."
+
+  - id: BL-173-003
+    title: "Implement Firestore-backed McpClientManager"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-173-002]
+    blocked_reason: null
+    acceptance:
+      - "McpClientManager subscribes to 'mcp_servers' collection"
+      - "Reconciliation logic correctly handles server additions, updates, and deletions"
+      - "Legacy environment variable reading is removed from init"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:25:00Z
+        note: "Implemented Firestore-backed McpClientManager with real-time reconciliation."
+
+  - id: BL-173-004
+    title: "Implement RBAC Filtering in Processor"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-173-001]
+    blocked_reason: null
+    acceptance:
+      - "processEvent filters tools based on user roles and tool requiredRoles"
+      - "Tools with no requiredRoles are available to all users"
+      - "Tools with requiredRoles are only available if user has at least one matching role"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:35:00Z
+        note: "Implemented RBAC tool filtering in processEvent."
+
+  - id: BL-173-005
+    title: "Validation and Cleanup"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-173-003, BL-173-004]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "LLM_BOT_MCP_SERVERS removed from architecture.yaml and BaseServer"
+      - "Manual verification of dynamic updates and RBAC filtering successful"
+    updated_at: 2025-12-25
+    log:
+      - at: 2025-12-25T21:45:00Z
+        note: "Removed legacy ENV vars and verified project builds and passes tests."

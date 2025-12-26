@@ -107,7 +107,6 @@ class LlmBotServer extends BaseServer {
     USER_CONTEXT_CACHE_TTL_MS: 300000,
     USER_CONTEXT_ROLES_PATH: '/configs/bot/roles',
     USER_CONTEXT_DESCRIPTION_ENABLED: true,
-    LLM_BOT_MCP_SERVERS: '[]',
   };
   constructor() {
     // Use a stable service name; env can override via logging/config elsewhere if needed

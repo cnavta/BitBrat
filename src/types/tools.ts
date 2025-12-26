@@ -18,6 +18,8 @@ export interface BitBratTool<PARAMETERS extends z.ZodTypeAny = any, RESULT = any
   inputSchema: PARAMETERS;
   /** Execution logic */
   execute?: (args: z.infer<PARAMETERS>) => Promise<RESULT>;
+  /** Optional roles required to use this tool (RBAC) */
+  requiredRoles?: string[];
 }
 
 /**

@@ -3,17 +3,21 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../../types/tools';
 import { BaseServer } from '../../../common/base-server';
+import { getFirestore } from '../../../common/firebase';
 
 export interface McpServerConfig {
   name: string;
   command: string;
   args?: string[];
   env?: Record<string, string>;
+  requiredRoles?: string[];
 }
 
 export class McpClientManager {
   private clients: Map<string, Client> = new Map();
   private bridges: Map<string, McpBridge> = new Map();
+  private serverTools: Map<string, string[]> = new Map();
+  private unsubscribe?: () => void;
 
   constructor(
     private server: BaseServer,
@@ -21,21 +25,42 @@ export class McpClientManager {
   ) {}
 
   async initFromConfig(): Promise<void> {
+    // Legacy support or just start watching
+    await this.watchRegistry();
+  }
+
+  async watchRegistry(): Promise<void> {
     const logger = (this.server as any).getLogger();
-    const configStr = this.server.getConfig<string>('LLM_BOT_MCP_SERVERS', { default: '[]' });
-    
-    try {
-      const serverConfigs: McpServerConfig[] = JSON.parse(configStr);
-      for (const cfg of serverConfigs) {
-        await this.connectServer(cfg);
-      }
-    } catch (e) {
-      logger.error('mcp.client_manager.init_error', { error: e });
-    }
+    const db = getFirestore();
+
+    logger.info('mcp.client_manager.watching_registry');
+
+    this.unsubscribe = db.collection('mcp_servers')
+      .onSnapshot(async (snapshot) => {
+        for (const change of snapshot.docChanges()) {
+          const data = change.doc.data() as McpServerConfig & { status?: string };
+          const name = data.name || change.doc.id;
+
+          if (change.type === 'removed' || data.status === 'inactive') {
+            await this.disconnectServer(name);
+          } else if (data.status === 'active' || !data.status) {
+            // Added or modified
+            await this.connectServer({ ...data, name });
+          }
+        }
+      }, (err) => {
+        logger.error('mcp.client_manager.watch_error', { error: err });
+      });
   }
 
   async connectServer(config: McpServerConfig): Promise<void> {
     const logger = (this.server as any).getLogger();
+
+    if (this.clients.has(config.name)) {
+      logger.info('mcp.client_manager.restarting', { name: config.name });
+      await this.disconnectServer(config.name);
+    }
+
     logger.info('mcp.client_manager.connecting', { name: config.name, command: config.command });
 
     try {
@@ -62,7 +87,7 @@ export class McpClientManager {
       this.bridges.set(config.name, bridge);
 
       // Initial discovery
-      await this.discoverTools(config.name);
+      await this.discoverTools(config.name, config.requiredRoles);
 
       logger.info('mcp.client_manager.connected', { name: config.name });
     } catch (e) {
@@ -70,36 +95,60 @@ export class McpClientManager {
     }
   }
 
-  async discoverTools(serverName: string): Promise<void> {
+  async disconnectServer(name: string): Promise<void> {
+    const logger = (this.server as any).getLogger();
+    const client = this.clients.get(name);
+    
+    if (client) {
+      try {
+        await client.close();
+      } catch (e) {
+        // Ignore close errors
+      }
+      this.clients.delete(name);
+    }
+    this.bridges.delete(name);
+
+    // Remove tools associated with this server
+    const toolIds = this.serverTools.get(name) || [];
+    for (const id of toolIds) {
+      this.registry.unregisterTool(id);
+    }
+    this.serverTools.delete(name);
+
+    logger.info('mcp.client_manager.disconnected', { name });
+  }
+
+  async discoverTools(serverName: string, requiredRoles?: string[]): Promise<void> {
     const client = this.clients.get(serverName);
     const bridge = this.bridges.get(serverName);
     const logger = (this.server as any).getLogger();
 
     if (!client || !bridge) return;
 
+    const toolIds: string[] = [];
     try {
       const result = await client.listTools();
       for (const tool of result.tools) {
-        const translated = bridge.translateTool(tool);
-        // Prefix tool name with server name to avoid collisions if necessary
-        // In McpBridge we already prefix with mcp:
+        const translated = bridge.translateTool(tool, requiredRoles);
         this.registry.registerTool(translated);
+        toolIds.push(translated.id);
         logger.debug('mcp.client_manager.tool_registered', { server: serverName, tool: tool.name });
       }
+      this.serverTools.set(serverName, toolIds);
     } catch (e) {
       logger.error('mcp.client_manager.discovery_error', { name: serverName, error: e });
     }
   }
 
   async shutdown(): Promise<void> {
-    for (const [name, client] of this.clients) {
-      try {
-        await client.close();
-      } catch (e) {
-        // Ignore close errors
-      }
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = undefined;
     }
-    this.clients.clear();
-    this.bridges.clear();
+
+    for (const name of Array.from(this.clients.keys())) {
+      await this.disconnectServer(name);
+    }
   }
 }
