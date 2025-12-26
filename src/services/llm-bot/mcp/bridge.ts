@@ -9,7 +9,7 @@ export class McpBridge {
   /**
    * Translates an MCP tool definition into a BitBratTool.
    */
-  translateTool(mcpTool: { name: string; description?: string; inputSchema: any }): BitBratTool {
+  translateTool(mcpTool: { name: string; description?: string; inputSchema: any }, requiredRoles?: string[]): BitBratTool {
     return {
       id: `mcp:${mcpTool.name}`,
       source: 'mcp',
@@ -17,6 +17,7 @@ export class McpBridge {
       description: mcpTool.description,
       // Use jsonSchema helper from AI SDK to support raw JSON Schema
       inputSchema: jsonSchema(mcpTool.inputSchema),
+      requiredRoles,
       execute: async (args: any) => {
         const result = await this.client.callTool({
           name: mcpTool.name,
