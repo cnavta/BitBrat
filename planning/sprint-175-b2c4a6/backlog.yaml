@@ -1,0 +1,46 @@
+meta:
+  backlog_id: sprint-175-b2c4a6
+  updated_at: 2025-12-26
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-175-b2c4a6
+  goal: "Fix MCP tool usage mismatch with AI SDK"
+
+items:
+  - id: BL-175-001
+    title: "Create reproduction test for tool mapping"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    acceptance:
+      - "Test fails without fix"
+    updated_at: 2025-12-26
+
+  - id: BL-175-002
+    title: "Fix inputSchema to parameters mapping in processor.ts"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-175-001]
+    acceptance:
+      - "Test passes with fix"
+    updated_at: 2025-12-26
+
+  - id: BL-175-003
+    title: "Add observability logs to generateText"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    updated_at: 2025-12-26
+
+  - id: BL-175-004
+    title: "Final Validation and PR"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    updated_at: 2025-12-26
