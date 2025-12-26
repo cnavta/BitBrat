@@ -248,6 +248,8 @@ infrastructure:
             service: persistence
           - path_prefix: /
             service: command-processor
+          - path_prefix: /
+            service: obs-mcp
 
 
 deploymentDefaults:
