@@ -94,7 +94,12 @@ describe('McpClientManager', () => {
       url: 'https://mcp.example.com/sse'
     });
 
-    expect(SSEClientTransport).toHaveBeenCalledWith(new URL('https://mcp.example.com/sse'));
+    expect(SSEClientTransport).toHaveBeenCalledWith(
+      new URL('https://mcp.example.com/sse'),
+      expect.objectContaining({
+        requestInit: { headers: undefined }
+      })
+    );
     expect(mockClientInstance.connect).toHaveBeenCalled();
   });
 
