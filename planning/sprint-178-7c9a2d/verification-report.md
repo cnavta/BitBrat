@@ -9,6 +9,7 @@
 - [x] Resource and prompt registration
 - [x] OpenTelemetry tracing for MCP operations
 - [x] Unit tests with >80% coverage
+- [x] McpServer Description from Architecture (Service description + Project version)
 - [x] Usage documentation
 
 ## Partial

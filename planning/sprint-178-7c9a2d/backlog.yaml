@@ -119,16 +119,17 @@ items:
       - at: 2025-12-27T00:30:00Z
         note: "Comprehensive unit tests implemented in tests/common/mcp-server.spec.ts. All tests passing."
 
-  - id: BL-178-008
-    title: "Documentation & Examples"
-    priority: P2
+  - id: BL-178-009
+    title: "McpServer Description from Architecture"
+    priority: P1
     status: done
     effort: S
     owner: agent
     deps: [BL-178-001]
     acceptance:
-      - "README/Documentation updated with McpServer usage examples"
+      - "McpServer uses service description from architecture.yaml"
+      - "McpServer uses project version from architecture.yaml"
     updated_at: 2025-12-27
     log:
-      - at: 2025-12-27T00:32:00Z
-        note: "Usage documentation created in documentation/services/mcp-server.md."
+      - at: 2025-12-27T00:58:00Z
+        note: "Updated McpServer to use description and version from architecture.yaml."

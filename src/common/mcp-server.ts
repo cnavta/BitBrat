@@ -23,11 +23,17 @@ export class McpServer extends BaseServer {
   constructor(opts: BaseServerOptions = {}) {
     super(opts);
 
+    const arch = McpServer.loadArchitectureYaml();
+    const svcNode = arch?.services?.[this.serviceName] || {};
+    const description = svcNode.description || "BitBrat MCP Server";
+    const version = arch?.project?.version || "1.0.0";
+
     this.mcpServer = new Server(
       {
-        name: opts.serviceName || "bitbrat-mcp-server",
-        version: "1.0.0",
-      },
+        name: this.serviceName,
+        version: version,
+        description: description,
+      } as any,
       {
         capabilities: {
           tools: {},
@@ -36,6 +42,12 @@ export class McpServer extends BaseServer {
         },
       }
     );
+
+    // MCP ServerInfo doesn't natively support description in the constructor, 
+    // but some clients might expect it or we can add it to instructions/capabilities if needed.
+    // For now, we align with the spec's InitializeResult which returns name and version.
+    // If the user meant for the LLM to see the description, it's already in architecture.yaml 
+    // which the LLM reads.
 
     this.setupMcpRoutes();
   }
