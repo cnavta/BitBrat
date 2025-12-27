@@ -80,6 +80,25 @@ describe("McpServer", () => {
   });
 
   describe("Registration Helpers", () => {
+    it("should use description and version from architecture.yaml", () => {
+      const arch = {
+        project: { version: "1.2.3" },
+        services: {
+          "test-mcp-server": { description: "Real service description" }
+        }
+      };
+      const spy = jest.spyOn(McpServer, "loadArchitectureYaml").mockReturnValue(arch);
+      
+      const testServer = new McpServer({ serviceName: "test-mcp-server" });
+      const info = (testServer as any).mcpServer._serverInfo;
+      
+      expect(info.name).toBe("test-mcp-server");
+      expect(info.version).toBe("1.2.3");
+      expect((info as any).description).toBe("Real service description");
+      
+      spy.mockRestore();
+    });
+
     it("should register a tool correctly", async () => {
       const spy = (server as any).mcpServer.setRequestHandler;
       const handler = jest.fn();
