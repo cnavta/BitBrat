@@ -1,0 +1,339 @@
+🧪 Validating sprint-178-7c9a2d deliverables...
+✅ Technical Architecture found.
+✅ Implementation Plan found.
+✅ Sprint Execution Plan found.
+✅ Backlog YAML found.
+✅ McpServer implementation found.
+✅ McpServer tests found.
+✅ Documentation found.
+🧪 Running tests...
+> bitbrat-platform@1.0.0 test
+> jest tests/common/mcp-server.spec.ts
+  console.log
+    {"ts":"2025-12-27T05:38:18.504Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.522Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.523Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.527Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.527Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.533Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.535Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.539Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.539Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.540Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.541Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.541Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.542Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.543Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.543Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.545Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.546Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.546Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.547Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.547Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.548Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.548Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.549Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.549Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.550Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.warn
+    {"ts":"2025-12-27T05:38:18.551Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/sse","ip":"::ffff:127.0.0.1"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at authMiddleware (src/common/mcp-server.ts:150:28)
+      at src/common/mcp-server.ts:162:7
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at next (node_modules/router/lib/route.js:157:13)
+      at Route.dispatch (node_modules/router/lib/route.js:117:3)
+      at handle (node_modules/router/index.js:435:11)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at node_modules/router/index.js:295:15
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at router.handle (node_modules/router/index.js:186:3)
+      at app.handle (node_modules/express/lib/application.js:177:15)
+      at Server.app (node_modules/express/lib/express.js:38:9)
+  console.log
+    {"ts":"2025-12-27T05:38:18.553Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.554Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.554Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.555Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.555Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.556Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.556Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.557Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.warn
+    {"ts":"2025-12-27T05:38:18.558Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/sse","ip":"::ffff:127.0.0.1"}
+      135 |   warn(msg: string, context?: Record<string, unknown>) {
+      136 |     if (!this.shouldLog('warn')) return;
+    > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      138 |   }
+      139 |
+      140 |   info(msg: string, context?: Record<string, unknown>) {
+      at Logger.warn (src/common/logging.ts:137:13)
+      at authMiddleware (src/common/mcp-server.ts:150:28)
+      at src/common/mcp-server.ts:162:7
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at next (node_modules/router/lib/route.js:157:13)
+      at Route.dispatch (node_modules/router/lib/route.js:117:3)
+      at handle (node_modules/router/index.js:435:11)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at node_modules/router/index.js:295:15
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at router.handle (node_modules/router/index.js:186:3)
+      at app.handle (node_modules/express/lib/application.js:177:15)
+      at Server.app (node_modules/express/lib/express.js:38:9)
+  console.log
+    {"ts":"2025-12-27T05:38:18.560Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.561Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.561Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.561Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.562Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.562Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.563Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.563Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.564Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.565Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.565Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.566Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.566Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.566Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.567Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.567Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.568Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.568Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.569Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.570Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.571Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.571Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.572Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.572Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.573Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.573Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.574Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.574Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.575Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"test_tool"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.576Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.576Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.577Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.577Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.577Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.578Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.579Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.579Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.580Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.resource_registered","name":"test_resource","uri":"file://test"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.581Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.581Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.582Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.582Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.583Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.583Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.584Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.584Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.585Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.prompt_registered","name":"test_prompt"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.585Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.585Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+      at Logger.info (src/common/logging.ts:142:13)
+  console.log
+    {"ts":"2025-12-27T05:38:18.586Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+      at Logger.info (src/common/logging.ts:142:13)
+ PASS  tests/common/mcp-server.spec.ts
+  McpServer
+    Endpoints Registration
+      ✓ should register /sse and /message endpoints (38 ms)
+    Security
+      ✓ should allow access if MCP_AUTH_TOKEN is not set (7 ms)
+      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is missing (8 ms)
+      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is incorrect (6 ms)
+      ✓ should allow access if correct token is provided in header (5 ms)
+      ✓ should allow access if correct token is provided in query (6 ms)
+    Registration Helpers
+      ✓ should register a tool correctly (5 ms)
+      ✓ should register a resource correctly (5 ms)
+      ✓ should register a prompt correctly (4 ms)
+Test Suites: 1 passed, 1 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        2.007 s, estimated 3 s
+Ran all test suites matching /tests\/common\/mcp-server.spec.ts/i.
+🧪 Checking for lint errors...
+> bitbrat-platform@1.0.0 lint
+> eslint . --ext .ts
+Oops! Something went wrong! :(
+ESLint: 9.39.1
+ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+From ESLint v9.0.0, the default configuration file is now eslint.config.js.
+If you are using a .eslintrc.* file, please follow the migration guide
+to update your configuration file to the new format:
+https://eslint.org/docs/latest/use/configure/migration-guide
+If you still have problems after following the migration guide, please stop by
+https://eslint.org/chat/help to chat with the team.
+⚠️ Lint check failed, but continuing as per policy.
+✅ Validation complete.
