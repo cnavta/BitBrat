@@ -11,10 +11,19 @@ export class TwilioTokenProvider {
    */
   generateToken(identity: string): string {
     const { twilioAccountSid, twilioApiKey, twilioApiSecret, twilioChatServiceSid } = this.config;
+    const { logger } = require('../../../common/logging');
 
     if (!twilioAccountSid || !twilioApiKey || !twilioApiSecret || !twilioChatServiceSid) {
+      const missing = [];
+      if (!twilioAccountSid) missing.push('twilioAccountSid');
+      if (!twilioApiKey) missing.push('twilioApiKey');
+      if (!twilioApiSecret) missing.push('twilioApiSecret');
+      if (!twilioChatServiceSid) missing.push('twilioChatServiceSid');
+      logger.error('twilio.token_provider.config_missing', { missing });
       throw new Error('Missing Twilio configuration for token generation');
     }
+
+    logger.debug('twilio.token_provider.generate_start', { identity, chatServiceSid: twilioChatServiceSid });
 
     const AccessToken = twilio.jwt.AccessToken;
     const ChatGrant = AccessToken.ChatGrant;

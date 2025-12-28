@@ -160,3 +160,19 @@ items:
     log:
       - at: 2025-12-28T13:00:00Z
         note: "Sprint verified and PR prepared"
+
+  - id: TW-010
+    title: "Enhanced Debug Logging"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [TW-005, TW-006]
+    blocked_reason: null
+    acceptance:
+      - "Debug logs added for all Twilio client lifecycle events"
+      - "Debug logs added for Twilio errors"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T13:45:00Z
+        note: "Added comprehensive debug logging to TwilioIngressClient, TokenProvider, and ConnectorAdapter"

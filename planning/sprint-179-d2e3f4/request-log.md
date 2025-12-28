@@ -46,3 +46,15 @@
     - `src/apps/ingress-egress-service.ts`
     - `src/common/config.ts`
     - `src/types/index.ts`
+
+## [2025-12-28 13:50] - Enhanced Debug Logging
+- **Prompt summary**: Make sure all connections to Twilio have debug logging around all lifecycle events and errors.
+- **Interpretation**: Add comprehensive debug logging to Twilio-related components for better observability of connection lifecycle and errors.
+- **Shell/git commands executed**:
+    - `npm test src/services/ingress/twilio/`
+- **Files modified or created**:
+    - `src/services/ingress/twilio/twilio-ingress-client.ts`
+    - `src/services/ingress/twilio/token-provider.ts`
+    - `src/services/ingress/twilio/connector-adapter.ts`
+    - `planning/sprint-179-d2e3f4/backlog.yaml`
+    - `planning/sprint-179-d2e3f4/request-log.md`

@@ -1,5 +1,6 @@
 import type { IngressConnector, ConnectorSnapshot } from '../core';
 import type { TwilioIngressClient, TwilioDebugSnapshot } from './twilio-ingress-client';
+import { logger } from '../../../common/logging';
 
 export class TwilioConnectorAdapter implements IngressConnector {
   constructor(private readonly client: TwilioIngressClient) {}
@@ -39,6 +40,7 @@ export class TwilioConnectorAdapter implements IngressConnector {
    * @param target The Conversation SID.
    */
   async sendText(text: string, target?: string): Promise<void> {
+    logger.debug('twilio.adapter.sendText', { target, textLength: text?.length });
     if (!target) {
       throw new Error('twilio_connector_adapter.target_required');
     }

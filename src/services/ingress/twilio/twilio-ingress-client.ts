@@ -60,6 +60,7 @@ export class TwilioIngressClient {
     }
 
     logger.info('Starting Twilio Ingress Client', { identity: twilioIdentity });
+    logger.debug('twilio.start_init', { identity: twilioIdentity, config: { enabled: this.config.twilioEnabled, chatServiceSid: this.config.twilioChatServiceSid } });
 
     let Client: any;
     try {
@@ -85,21 +86,27 @@ export class TwilioIngressClient {
       // Handle token lifecycle
       this.client.on('tokenAboutToExpire', async () => {
         logger.info('Twilio token about to expire, refreshing...');
+        logger.debug('twilio.tokenAboutToExpire', { identity: twilioIdentity });
         try {
           const newToken = this.tokenProvider.generateToken(twilioIdentity);
           await this.client.updateToken(newToken);
+          logger.debug('twilio.tokenUpdate.ok');
         } catch (err: any) {
           logger.error('Failed to refresh Twilio token (aboutToExpire)', { error: err.message });
+          logger.debug('twilio.tokenUpdate.error', { error: err.message });
         }
       });
 
       this.client.on('tokenExpired', async () => {
         logger.warn('Twilio token expired, attempting refresh...');
+        logger.debug('twilio.tokenExpired', { identity: twilioIdentity });
         try {
           const newToken = this.tokenProvider.generateToken(twilioIdentity);
           await this.client.updateToken(newToken);
+          logger.debug('twilio.tokenUpdate_on_expire.ok');
         } catch (err: any) {
           logger.error('Failed to refresh Twilio token (expired)', { error: err.message });
+          logger.debug('twilio.tokenUpdate_on_expire.error', { error: err.message });
           this.snapshot.state = 'ERROR';
           this.snapshot.lastError = 'TOKEN_EXPIRED_REFRESH_FAILED';
         }
@@ -107,16 +114,47 @@ export class TwilioIngressClient {
 
       this.client.on('stateChanged', (state: string) => {
         logger.info('Twilio client state changed', { state });
+        logger.debug('twilio.stateChanged', { state, identity: twilioIdentity });
         if (state === 'connected') this.snapshot.state = 'CONNECTED';
         if (state === 'disconnected') this.snapshot.state = 'DISCONNECTED';
         if (state === 'failed') {
           this.snapshot.state = 'ERROR';
           this.snapshot.lastError = 'CLIENT_STATE_FAILED';
+          logger.debug('twilio.client_failed_state');
         }
+      });
+
+      this.client.on('connectionStateChanged', (state: string) => {
+        logger.debug('twilio.connectionStateChanged', { state });
+      });
+
+      this.client.on('conversationAdded', (conversation: any) => {
+        logger.debug('twilio.conversationAdded', { sid: conversation.sid, friendlyName: conversation.friendlyName });
+      });
+
+      this.client.on('conversationRemoved', (conversation: any) => {
+        logger.debug('twilio.conversationRemoved', { sid: conversation.sid });
+      });
+
+      this.client.on('participantJoined', (participant: any) => {
+        logger.debug('twilio.participantJoined', { 
+          identity: participant.identity, 
+          sid: participant.sid, 
+          conversationSid: participant.conversation?.sid 
+        });
+      });
+
+      this.client.on('participantLeft', (participant: any) => {
+        logger.debug('twilio.participantLeft', { 
+          identity: participant.identity, 
+          sid: participant.sid, 
+          conversationSid: participant.conversation?.sid 
+        });
       });
 
       // Handle incoming messages
       this.client.on('messageAdded', async (message: any) => {
+        logger.debug('twilio.messageAdded_event', { sid: message.sid, conversationSid: message.conversation?.sid });
         await this.handleIncomingMessage(message);
       });
 
@@ -134,6 +172,7 @@ export class TwilioIngressClient {
    * Gracefully shuts down the client.
    */
   async stop(): Promise<void> {
+    logger.debug('twilio.stop_init', { identity: this.snapshot.identity });
     if (this.client) {
       try {
         await this.client.shutdown();
