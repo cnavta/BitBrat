@@ -10,14 +10,12 @@ import {
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
 import { ConnectorManager } from '../services/ingress/core';
+import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
 import {
-  DiscordEnvelopeBuilder,
-  DiscordIngressClient,
-  createDiscordIngressPublisherFromConfig
-} from '../services/ingress/discord';
-import {
-  SmsEnvelopeBuilder,
-  TwilioSmsIngressClient,
+  TwilioEnvelopeBuilder,
+  TwilioIngressClient,
+  TwilioTokenProvider,
+  TwilioConnectorAdapter,
   createTwilioIngressPublisherFromConfig
 } from '../services/ingress/twilio';
 import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
@@ -43,7 +41,7 @@ export class IngressEgressServer extends BaseServer {
   private twitchClient: TwitchIrcClient | null = null;
   private twitchEventSubClient: TwitchEventSubClient | null = null;
   private discordClient: DiscordIngressClient | null = null;
-  private twilioClient: TwilioSmsIngressClient | null = null;
+  private twilioClient: TwilioIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
   private lastStates: Record<string, string> = {};
@@ -128,14 +126,20 @@ export class IngressEgressServer extends BaseServer {
       logger.warn('ingress-egress.discord.register_failed', { error: e?.message || String(e) });
     }
 
-    try {
-      const sBuilder = new SmsEnvelopeBuilder();
-      const sPublisher = createTwilioIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
-      const sClient = new TwilioSmsIngressClient(sBuilder, sPublisher, cfg, { egressDestinationTopic: egressTopic });
-      this.twilioClient = sClient;
-      manager.register('twilio-sms', sClient);
-    } catch (e: any) {
-      logger.warn('ingress-egress.twilio.register_failed', { error: e?.message || String(e) });
+    // Twilio initialization
+    if (cfg.twilioEnabled) {
+      try {
+        const twilioBuilder = new TwilioEnvelopeBuilder();
+        const twilioPublisher = createTwilioIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
+        const twilioTokenProvider = new TwilioTokenProvider(cfg);
+        this.twilioClient = new TwilioIngressClient(cfg, twilioTokenProvider, twilioBuilder, twilioPublisher, {
+          egressDestinationTopic: egressTopic
+        });
+        manager.register('twilio', new TwilioConnectorAdapter(this.twilioClient));
+        logger.info('twilio.init_ok');
+      } catch (e: any) {
+        logger.error('twilio.init_error', { error: e?.message || String(e) });
+      }
     }
 
     // Start connectors (individual connectors handle disabled/test guards internally)
@@ -292,20 +296,6 @@ export class IngressEgressServer extends BaseServer {
         const discordSnap = (snapshots as any)?.discord || { state: 'DISCONNECTED' };
         // Sanitize: remove any unexpected sensitive fields if present
         const { token, botToken, secret, ...safe } = (discordSnap || {}) as Record<string, unknown>;
-        res.status(200).json({ snapshot: safe, egressTopic });
-      } catch (e: any) {
-        res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
-      }
-    });
-
-    // Twilio debug endpoint
-    this.onHTTPRequest('/_debug/twilio', (_req: Request, res: Response) => {
-      try {
-        const manager = this.connectorManager;
-        const snapshots = manager ? manager.getSnapshot() : {} as any;
-        const twilioSnap = (snapshots as any)['twilio-sms'] || { state: 'DISCONNECTED' };
-        // Sanitize
-        const { token, authToken, apiKey, apiSecret, ...safe } = (twilioSnap || {}) as Record<string, unknown>;
         res.status(200).json({ snapshot: safe, egressTopic });
       } catch (e: any) {
         res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });

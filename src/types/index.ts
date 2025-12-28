@@ -108,15 +108,15 @@ export interface IConfig {
   twilioEnabled?: boolean;
   /** Twilio Account SID */
   twilioAccountSid?: string;
-  /** Twilio Auth Token */
+  /** Twilio Auth Token (sensitive) */
   twilioAuthToken?: string;
   /** Twilio API Key */
   twilioApiKey?: string;
-  /** Twilio API Secret */
+  /** Twilio API Secret (sensitive) */
   twilioApiSecret?: string;
-  /** Twilio Conversations Service SID */
-  twilioConversationsServiceSid?: string;
-  /** Twilio Identity */
+  /** Twilio Chat Service SID */
+  twilioChatServiceSid?: string;
+  /** Twilio identity for the bot */
   twilioIdentity?: string;
 }
 

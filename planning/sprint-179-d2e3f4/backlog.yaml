@@ -1,0 +1,162 @@
+meta:
+  backlog_id: sprint-179-d2e3f4-backlog
+  updated_at: 2025-12-28
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-179-d2e3f4
+  start: 2025-12-28
+  end: 2026-01-11
+  wip_limit: 3
+  goal: "Add Twilio-node based SMS integration to the ingress-egress service using Twilio's Conversations WebSockets API."
+
+items:
+  - id: TW-001
+    title: "Update architecture.yaml for Twilio"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml contains Twilio secrets and env vars"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T11:40:00Z
+        note: "Started updating architecture.yaml"
+      - at: 2025-12-28T11:45:00Z
+        note: "Completed updating architecture.yaml"
+
+  - id: TW-002
+    title: "Update config.ts for Twilio"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "TwilioConfig type defined in config.ts"
+      - "buildConfig correctly maps Twilio env vars"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T11:50:00Z
+        note: "Updated IConfig in src/types/index.ts and ConfigSchema in src/common/config.ts"
+
+  - id: TW-003
+    title: "Implement TwilioTokenProvider"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [TW-002]
+    blocked_reason: null
+    acceptance:
+      - "Utility generates valid Twilio JWT tokens"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T12:00:00Z
+        note: "Starting implementation of TwilioTokenProvider"
+      - at: 2025-12-28T12:05:00Z
+        note: "Completed TwilioTokenProvider"
+
+  - id: TW-004
+    title: "Implement TwilioEnvelopeBuilder"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Twilio messages correctly mapped to IngressEnvelope"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T12:10:00Z
+        note: "Completed TwilioEnvelopeBuilder"
+
+  - id: TW-005
+    title: "Implement TwilioIngressClient"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [TW-003, TW-004]
+    blocked_reason: null
+    acceptance:
+      - "WebSocket connection established with Twilio"
+      - "Incoming messages published to internal.ingress.v1"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T12:15:00Z
+        note: "Starting implementation of TwilioIngressClient"
+      - at: 2025-12-28T12:30:00Z
+        note: "Completed TwilioIngressClient and TwilioIngressPublisher"
+
+  - id: TW-006
+    title: "Implement TwilioConnectorAdapter"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [TW-005]
+    blocked_reason: null
+    acceptance:
+      - "Egress messages routed through TwilioIngressClient"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T12:35:00Z
+        note: "Starting implementation of TwilioConnectorAdapter"
+      - at: 2025-12-28T12:40:00Z
+        note: "Completed TwilioConnectorAdapter"
+
+  - id: TW-007
+    title: "Integrate into IngressEgressServer"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [TW-005, TW-006]
+    blocked_reason: null
+    acceptance:
+      - "Twilio client and adapter wired into the main service"
+      - "Service starts correctly with TWILIO_ENABLED=true"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T12:45:00Z
+        note: "Wired Twilio components into IngressEgressServer and updated egress loop"
+
+  - id: TW-008
+    title: "Twilio Integration Tests"
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [TW-007]
+    blocked_reason: null
+    acceptance:
+      - "Unit tests for EnvelopeBuilder pass"
+      - "Unit tests for IngressClient with mocks pass"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T12:50:00Z
+        note: "Starting implementation of tests"
+      - at: 2025-12-28T12:55:00Z
+        note: "Tests passed successfully"
+
+  - id: TW-009
+    title: "Sprint Verification"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [TW-001, TW-002, TW-003, TW-004, TW-005, TW-006, TW-007, TW-008]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "Pull Request created"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T13:00:00Z
+        note: "Sprint verified and PR prepared"
