@@ -146,7 +146,7 @@ items:
   - id: IE-SMS-09
     title: "Validation and PR"
     priority: P0
-    status: in_progress
+    status: done
     effort: S
     owner: agent
     deps: [IE-SMS-06, IE-SMS-07, IE-SMS-08]
@@ -157,4 +157,4 @@ items:
     updated_at: 2025-12-28
     log:
       - at: 2025-12-28T01:30:00Z
-        note: "Starting final validation and PR creation."
+        note: "Validation passed and PR #79 created."
