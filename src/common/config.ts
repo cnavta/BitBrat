@@ -83,13 +83,13 @@ const ConfigSchema = z.object({
   discordOauthScopes: z.array(z.string()).default([]),
   discordOauthPermissions: z.coerce.number().int().min(0).optional(),
 
-  // Twilio
+  // Twilio configuration
   twilioEnabled: z.boolean().optional(),
   twilioAccountSid: z.string().optional(),
   twilioAuthToken: z.string().optional(),
   twilioApiKey: z.string().optional(),
   twilioApiSecret: z.string().optional(),
-  twilioConversationsServiceSid: z.string().optional(),
+  twilioChatServiceSid: z.string().optional(),
   twilioIdentity: z.string().optional(),
 });
 
@@ -156,7 +156,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     twilioAuthToken: env.TWILIO_AUTH_TOKEN,
     twilioApiKey: env.TWILIO_API_KEY,
     twilioApiSecret: env.TWILIO_API_SECRET,
-    twilioConversationsServiceSid: env.TWILIO_CONVERSATIONS_SERVICE_SID,
+    twilioChatServiceSid: env.TWILIO_CHAT_SERVICE_SID,
     twilioIdentity: env.TWILIO_IDENTITY,
   } satisfies Partial<IConfig> as IConfig;
 
@@ -215,6 +215,15 @@ export function assertRequiredSecrets(cfg: IConfig = getConfig()): void {
   if (!cfg.twitchClientId) missing.push('TWITCH_CLIENT_ID');
   if (!cfg.twitchClientSecret) missing.push('TWITCH_CLIENT_SECRET');
   if (!cfg.oauthStateSecret) missing.push('OAUTH_STATE_SECRET');
+
+  if (cfg.twilioEnabled) {
+    if (!cfg.twilioAccountSid) missing.push('TWILIO_ACCOUNT_SID');
+    if (!cfg.twilioAuthToken) missing.push('TWILIO_AUTH_TOKEN');
+    if (!cfg.twilioApiKey) missing.push('TWILIO_API_KEY');
+    if (!cfg.twilioApiSecret) missing.push('TWILIO_API_SECRET');
+    if (!cfg.twilioChatServiceSid) missing.push('TWILIO_CHAT_SERVICE_SID');
+  }
+
   if (missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
