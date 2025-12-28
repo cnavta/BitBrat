@@ -96,6 +96,8 @@ export async function enrichEvent(
       enrichmentData = mapTwitchEnrichment(evt, nowIso);
     } else if (provider === 'discord') {
       enrichmentData = mapDiscordEnrichment(evt, nowIso);
+    } else if (provider === 'twilio') {
+      enrichmentData = mapTwilioEnrichment(evt, nowIso);
     }
 
     // If repo can update counters/session, do it and prefer merged doc
@@ -155,6 +157,8 @@ export async function enrichEvent(
       enrichmentData = mapTwitchEnrichment(evt, nowIso);
     } else if (provider === 'discord') {
       enrichmentData = mapDiscordEnrichment(evt, nowIso);
+    } else if (provider === 'twilio') {
+      enrichmentData = mapTwilioEnrichment(evt, nowIso);
     }
 
     try {
@@ -272,6 +276,24 @@ function mapDiscordEnrichment(evt: InternalEventV2, nowIso: string) {
     roles,
     rolesMeta: {
       discord: discordRoles,
+    },
+  };
+}
+
+function mapTwilioEnrichment(evt: InternalEventV2, nowIso: string) {
+  const payload = (evt as any).message?.rawPlatformPayload || {};
+  const author = payload.author || (evt as any).userId || 'unknown';
+
+  return {
+    displayName: author,
+    profile: {
+      username: author,
+      conversationSid: payload.conversationSid,
+      updatedAt: nowIso,
+    },
+    roles: [],
+    rolesMeta: {
+      twilio: [],
     },
   };
 }
