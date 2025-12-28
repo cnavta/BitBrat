@@ -9,6 +9,9 @@
 - [x] `TwilioConnectorAdapter` for egress integration.
 - [x] Integration into `IngressEgressServer`.
 - [x] Unit tests for all new components.
+- [x] Enhanced diagnostic logging and `/_debug/twilio` endpoint.
+- [x] Remediation of inbound message receipt (auto-join logic).
+- [x] Compatibility updates in `auth` and `persistence` services.
 
 ## Partial
 - None
