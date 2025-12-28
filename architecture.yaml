@@ -89,6 +89,10 @@ services:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
       - DISCORD_BOT_TOKEN
+      - TWILIO_ACCOUNT_SID
+      - TWILIO_AUTH_TOKEN
+      - TWILIO_API_KEY
+      - TWILIO_API_SECRET
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS
@@ -99,6 +103,10 @@ services:
       - DISCORD_USE_TOKEN_STORE
       - DISCORD_ALLOW_ENV_FALLBACK
       - DISCORD_TOKEN_POLL_MS
+      # Twilio configuration
+      - TWILIO_ENABLED
+      - TWILIO_CONVERSATIONS_SERVICE_SID
+      - TWILIO_IDENTITY
       # Optional instance identity for per-instance egress topic.
       # The service resolves instanceId via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated
       # Only K_REVISION is listed here because it is auto-provided by Cloud Run when present.

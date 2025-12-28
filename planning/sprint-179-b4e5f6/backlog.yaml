@@ -1,0 +1,160 @@
+meta:
+  backlog_id: sprint-179-b4e5f6-backlog
+  updated_at: 2025-12-28
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-179-b4e5f6
+  start: 2025-12-28
+  end: 2026-01-11
+  wip_limit: 3
+  goal: "Add Twilio-node based SMS integration to ingress-egress service using WebSockets for receiving and Twilio APIs for sending."
+
+items:
+  - id: IE-SMS-01
+    title: "Install Dependencies"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "twilio and @twilio/conversations added to package.json"
+      - "npm install succeeds"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T00:55:00Z
+        note: "Dependencies installed successfully."
+
+  - id: IE-SMS-02
+    title: "Configuration Update"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml updated with Twilio env/secrets"
+      - "src/types/index.ts updated with Twilio config fields"
+      - "src/common/config.ts updated to parse Twilio env vars"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T00:58:00Z
+        note: "Configuration updates completed."
+
+  - id: IE-SMS-03
+    title: "Implement SmsEnvelopeBuilder"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [IE-SMS-02]
+    blocked_reason: null
+    acceptance:
+      - "Converts Twilio Message objects to InternalEventV2"
+      - "Correctly sets source to ingress.twilio.sms"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T01:05:00Z
+        note: "SmsEnvelopeBuilder implemented."
+
+  - id: IE-SMS-04
+    title: "Implement TwilioSmsIngressClient"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [IE-SMS-01, IE-SMS-02, IE-SMS-03]
+    blocked_reason: null
+    acceptance:
+      - "Handles WebSocket lifecycle via @twilio/conversations"
+      - "Generates Access Tokens for client auth"
+      - "Implements IngressConnector and EgressConnector"
+      - "Publishes messageAdded events to message bus"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T01:10:00Z
+        note: "TwilioSmsIngressClient implemented."
+
+  - id: IE-SMS-05
+    title: "Integrate into IngressEgressServer"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [IE-SMS-04]
+    blocked_reason: null
+    acceptance:
+      - "Twilio client instantiated and registered with ConnectorManager"
+      - "Twilio status published on change"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T01:15:00Z
+        note: "Twilio client integrated into server."
+
+  - id: IE-SMS-06
+    title: "Implement Egress Delivery Logic"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [IE-SMS-05]
+    blocked_reason: null
+    acceptance:
+      - "Egress messages with source=twilio are routed to Twilio client"
+      - "Finalization events are published after delivery"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T01:15:00Z
+        note: "Egress routing for Twilio implemented."
+
+  - id: IE-SMS-07
+    title: "Unit Tests for SmsEnvelopeBuilder"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [IE-SMS-03]
+    blocked_reason: null
+    acceptance:
+      - "Tests cover mapping logic and edge cases"
+      - "npm test passes"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T01:20:00Z
+        note: "Unit tests for SmsEnvelopeBuilder passed."
+
+  - id: IE-SMS-08
+    title: "Unit Tests for TwilioSmsIngressClient"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [IE-SMS-04]
+    blocked_reason: null
+    acceptance:
+      - "Tests cover start/stop/sendText"
+      - "Mocks Twilio SDKs effectively"
+      - "npm test passes"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T01:25:00Z
+        note: "Unit tests for TwilioSmsIngressClient passed."
+
+  - id: IE-SMS-09
+    title: "Validation and PR"
+    priority: P0
+    status: in_progress
+    effort: S
+    owner: agent
+    deps: [IE-SMS-06, IE-SMS-07, IE-SMS-08]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "GitHub PR created"
+    updated_at: 2025-12-28
+    log:
+      - at: 2025-12-28T01:30:00Z
+        note: "Starting final validation and PR creation."
