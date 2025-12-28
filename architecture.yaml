@@ -85,6 +85,8 @@ services:
         - internal.egress.v1.{instanceId}
     paths:
       - /_debug/twitch # Debug endpoint that displays the current state of the Twitch IRC and EventSub connections
+      - /_debug/discord # Debug endpoint for Discord connection state
+      - /_debug/twilio # Debug endpoint for Twilio Conversations state
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
@@ -229,6 +231,12 @@ infrastructure:
           - path_prefix: /_debug/ingress/config
             rewrite_prefix: /_debug/config
             service: ingress-egress
+          - path_prefix: /_debug/ingress/twilio
+            rewrite_prefix: /_debug/twilio
+            service: ingress-egress
+          - path_prefix: /_debug/ingress/discord
+            rewrite_prefix: /_debug/discord
+            service: ingress-egress
           - path_prefix: /_debug/llm/mcp
             rewrite_prefix: /_debug/mcp
             service: llm-bot
@@ -261,12 +269,12 @@ infrastructure:
 
 
 deploymentDefaults:
-  maxConcurrentDeployments: 1
+  maxConcurrentDeployments: 3
   region: us-central1
   cloud-run:
     platform: managed
-    minInstances: 0
-    maxInstances: 100
+    minInstances:
+    maxInstances: 1
     cpu: '1'
     memory: 512Mi
     # Ensure all services use instance-based billing by default

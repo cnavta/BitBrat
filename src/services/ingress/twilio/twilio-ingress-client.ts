@@ -14,6 +14,7 @@ export interface TwilioDebugSnapshot {
   lastMessageAt?: string;
   lastError?: string | null;
   counters?: { received?: number; published?: number; failed?: number };
+  conversations?: Array<{ sid: string; status: string; friendlyName?: string }>;
 }
 
 /**
@@ -25,6 +26,7 @@ export class TwilioIngressClient {
   private snapshot: TwilioDebugSnapshot = {
     state: 'DISCONNECTED',
     counters: { received: 0, published: 0, failed: 0 },
+    conversations: [],
   };
 
   constructor(
@@ -115,25 +117,58 @@ export class TwilioIngressClient {
       this.client.on('stateChanged', (state: string) => {
         logger.info('Twilio client state changed', { state });
         logger.debug('twilio.stateChanged', { state, identity: twilioIdentity });
-        if (state === 'connected') this.snapshot.state = 'CONNECTED';
-        if (state === 'disconnected') this.snapshot.state = 'DISCONNECTED';
+        if (state === 'synchronized') {
+          this.snapshot.state = 'CONNECTED';
+          this.logConversations();
+        }
         if (state === 'failed') {
           this.snapshot.state = 'ERROR';
           this.snapshot.lastError = 'CLIENT_STATE_FAILED';
-          logger.debug('twilio.client_failed_state');
         }
       });
 
       this.client.on('connectionStateChanged', (state: string) => {
+        logger.info('Twilio connection state changed', { state });
         logger.debug('twilio.connectionStateChanged', { state });
+        if (state === 'connected') this.snapshot.state = 'CONNECTED';
+        if (state === 'disconnected') this.snapshot.state = 'DISCONNECTED';
+        if (state === 'error' || state === 'denied') {
+          this.snapshot.state = 'ERROR';
+          this.snapshot.lastError = `CONNECTION_ERROR_${state.toUpperCase()}`;
+        }
       });
 
-      this.client.on('conversationAdded', (conversation: any) => {
-        logger.debug('twilio.conversationAdded', { sid: conversation.sid, friendlyName: conversation.friendlyName });
+      this.client.on('conversationAdded', async (conversation: any) => {
+        logger.info('Twilio conversation added', { sid: conversation.sid, status: conversation.status });
+        logger.debug('twilio.conversationAdded_details', { sid: conversation.sid, friendlyName: conversation.friendlyName });
+        
+        // Update snapshot
+        if (this.snapshot.conversations) {
+          const exists = this.snapshot.conversations.some(c => c.sid === conversation.sid);
+          if (!exists) {
+            this.snapshot.conversations.push({
+              sid: conversation.sid,
+              status: conversation.status,
+              friendlyName: conversation.friendlyName
+            });
+          }
+        }
+
+        if (conversation.status === 'invited') {
+          try {
+            await conversation.join();
+            logger.info('Twilio conversation joined successfully', { sid: conversation.sid });
+          } catch (err: any) {
+            logger.error('Failed to join Twilio conversation', { sid: conversation.sid, error: err.message });
+          }
+        }
       });
 
       this.client.on('conversationRemoved', (conversation: any) => {
         logger.debug('twilio.conversationRemoved', { sid: conversation.sid });
+        if (this.snapshot.conversations) {
+          this.snapshot.conversations = this.snapshot.conversations.filter(c => c.sid !== conversation.sid);
+        }
       });
 
       this.client.on('participantJoined', (participant: any) => {
@@ -210,6 +245,7 @@ export class TwilioIngressClient {
   private async handleIncomingMessage(message: any): Promise<void> {
     // Avoid processing our own messages (loops)
     if (message.author === this.config.twilioIdentity) {
+      logger.debug('twilio.ignore_self', { author: message.author });
       return;
     }
 
@@ -217,9 +253,9 @@ export class TwilioIngressClient {
     counters.received = (counters.received || 0) + 1;
     this.snapshot.lastMessageAt = new Date().toISOString();
 
-    logger.debug('Received Twilio message', { 
+    logger.info('Received Twilio message', { 
       author: message.author, 
-      conversationSid: message.conversation.sid,
+      conversationSid: message.conversation?.sid,
       body: message.body ? (message.body.length > 20 ? message.body.slice(0, 20) + '...' : message.body) : null
     });
 
@@ -234,11 +270,50 @@ export class TwilioIngressClient {
 
         await this.publisher.publish(evt);
         counters.published = (counters.published || 0) + 1;
+        logger.info('Twilio message published to internal bus', { correlationId: evt.correlationId });
       });
     } catch (err: any) {
       logger.error('Failed to process/publish Twilio message', { error: err.message });
       counters.failed = (counters.failed || 0) + 1;
       this.snapshot.lastError = `MESSAGE_PROCESS_FAILED: ${err.message}`;
+    }
+  }
+
+  /**
+   * Logs current subscribed conversations for diagnostics.
+   */
+  private async logConversations(): Promise<void> {
+    if (!this.client) return;
+    try {
+      const convs = await this.client.getSubscribedConversations();
+      this.snapshot.conversations = convs.items.map((c: any) => ({
+        sid: c.sid,
+        status: c.status,
+        friendlyName: c.friendlyName
+      }));
+
+      logger.info('Twilio subscribed conversations', { 
+        count: convs.items.length, 
+        sids: convs.items.map((c: any) => c.sid) 
+      });
+      
+      for (const conv of convs.items) {
+        if (conv.status === 'invited') {
+          logger.info('Twilio conversation invited, attempting to join...', { sid: conv.sid });
+          try {
+            await conv.join();
+            logger.info('Twilio conversation joined successfully', { sid: conv.sid });
+          } catch (err: any) {
+            logger.error('Failed to join Twilio conversation (on sync)', { sid: conv.sid, error: err.message });
+          }
+        }
+      }
+
+      if (convs.items.length === 0) {
+        logger.warn('Twilio bot is not a participant in any conversations. Incoming SMS will not be received unless the bot is added.');
+      }
+    } catch (err: any) {
+      logger.error('Failed to fetch subscribed conversations', { error: err.message });
     }
   }
 }
