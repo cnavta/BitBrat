@@ -3,8 +3,9 @@ title: "Twilio SMS Integration"
 goal: "Add Twilio-node based SMS integration to the ingress-egress service using Twilio Conversations WebSockets API."
 owner: "Junie (Architect/Lead Implementor)"
 createdAt: "2025-12-28T11:20:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/80"
   branch: "feature/sprint-179-d2e3f4-twilio-sms-integration"
 notes: |
   Integrating Twilio SMS using the Conversations SDK and WebSockets for real-time interactions, following patterns established by Twitch and Discord integrations.

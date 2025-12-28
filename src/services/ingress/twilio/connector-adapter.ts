@@ -25,6 +25,7 @@ export class TwilioConnectorAdapter implements IngressConnector {
   getSnapshot(): ConnectorSnapshot {
     const s: TwilioDebugSnapshot = this.client.getSnapshot();
     return {
+      ...s,
       state: s.state,
       id: s.identity,
       displayName: s.identity,

@@ -302,6 +302,20 @@ export class IngressEgressServer extends BaseServer {
       }
     });
 
+    // Twilio debug endpoint
+    this.onHTTPRequest('/_debug/twilio', (_req: Request, res: Response) => {
+      try {
+        if (!this.twilioClient) {
+          res.status(200).json({ snapshot: { state: 'DISABLED' }, egressTopic });
+          return;
+        }
+        const snapshot = this.twilioClient.getSnapshot();
+        res.status(200).json({ snapshot, egressTopic });
+      } catch (e: any) {
+        res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
+      }
+    });
+
     // Start status change monitoring
     this.startStatusMonitoring();
   }

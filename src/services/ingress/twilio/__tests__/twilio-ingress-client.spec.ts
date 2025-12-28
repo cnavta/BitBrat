@@ -38,7 +38,8 @@ describe('TwilioIngressClient', () => {
       on: jest.fn(),
       shutdown: jest.fn().mockResolvedValue(undefined),
       getConversationBySid: jest.fn(),
-      updateToken: jest.fn().mockResolvedValue(undefined)
+      updateToken: jest.fn().mockResolvedValue(undefined),
+      getSubscribedConversations: jest.fn().mockResolvedValue({ items: [] })
     };
 
     const { Client } = require('@twilio/conversations');
@@ -57,6 +58,7 @@ describe('TwilioIngressClient', () => {
     
     expect(client.getSnapshot().state).toBe('CONNECTED');
     expect(mockTwilioClient.on).toHaveBeenCalledWith('messageAdded', expect.any(Function));
+    expect(client.getSnapshot().conversations).toEqual([]);
   });
 
   it('handles incoming messages and publishes them', async () => {
@@ -108,6 +110,59 @@ describe('TwilioIngressClient', () => {
 
     expect(mockTwilioClient.getConversationBySid).toHaveBeenCalledWith('CH123');
     expect(mockConversation.sendMessage).toHaveBeenCalledWith('Hello');
+  });
+
+  it('joins invited conversations on start', async () => {
+    const mockInvitedConv = {
+      sid: 'CH_INVITED',
+      status: 'invited',
+      join: jest.fn().mockResolvedValue(undefined)
+    };
+    mockTwilioClient.getSubscribedConversations.mockResolvedValue({ items: [mockInvitedConv] });
+    
+    await client.start();
+    
+    // Trigger synchronization
+    const stateHandler = mockTwilioClient.on.mock.calls.find((c: any) => c[0] === 'stateChanged')[1];
+    await stateHandler('synchronized');
+
+    expect(mockInvitedConv.join).toHaveBeenCalled();
+  });
+
+  it('joins invited conversations when added later', async () => {
+    await client.start();
+    
+    const addedHandler = mockTwilioClient.on.mock.calls.find((c: any) => c[0] === 'conversationAdded')[1];
+    const mockInvitedConv = {
+      sid: 'CH_LATER',
+      status: 'invited',
+      join: jest.fn().mockResolvedValue(undefined)
+    };
+    
+    await addedHandler(mockInvitedConv);
+    expect(mockInvitedConv.join).toHaveBeenCalled();
+  });
+
+  it('tracks conversations in the snapshot', async () => {
+    await client.start();
+    
+    const addedHandler = mockTwilioClient.on.mock.calls.find((c: any) => c[0] === 'conversationAdded')[1];
+    const mockConv = {
+      sid: 'CH_NEW',
+      status: 'joined',
+      friendlyName: 'New Chat'
+    };
+    
+    await addedHandler(mockConv);
+    expect(client.getSnapshot().conversations).toContainEqual({
+      sid: 'CH_NEW',
+      status: 'joined',
+      friendlyName: 'New Chat'
+    });
+
+    const removedHandler = mockTwilioClient.on.mock.calls.find((c: any) => c[0] === 'conversationRemoved')[1];
+    await removedHandler(mockConv);
+    expect(client.getSnapshot().conversations).not.toContainEqual(expect.objectContaining({ sid: 'CH_NEW' }));
   });
 
   it('stops and shuts down the client', async () => {
