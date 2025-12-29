@@ -273,7 +273,7 @@ deploymentDefaults:
   region: us-central1
   cloud-run:
     platform: managed
-    minInstances:
+    minInstances: 1
     maxInstances: 1
     cpu: '1'
     memory: 512Mi
