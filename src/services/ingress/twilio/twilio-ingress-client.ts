@@ -156,23 +156,47 @@ export class TwilioIngressClient {
 
         if (conversation.status === 'invited') {
           try {
+            logger.info('Twilio conversation invited, joining...', { sid: conversation.sid });
             await conversation.join();
-            logger.info('Twilio conversation joined successfully', { sid: conversation.sid });
           } catch (err: any) {
             logger.error('Failed to join Twilio conversation', { sid: conversation.sid, error: err.message });
           }
         }
       });
 
+      this.client.on('conversationJoined', (conversation: any) => {
+        logger.info('Twilio conversation joined (client event)', { sid: conversation.sid, status: conversation.status });
+        if (this.snapshot.conversations) {
+          const c = this.snapshot.conversations.find(c => c.sid === conversation.sid);
+          if (c) c.status = conversation.status;
+        }
+      });
+
+      this.client.on('conversationLeft', (conversation: any) => {
+        logger.info('Twilio conversation left (client event)', { sid: conversation.sid });
+      });
+
+      this.client.on('conversationUpdated', ({ conversation, updateReasons }: any) => {
+        logger.debug('twilio.conversationUpdated', { sid: conversation.sid, reasons: updateReasons, status: conversation.status });
+        if (this.snapshot.conversations) {
+          const c = this.snapshot.conversations.find(c => c.sid === conversation.sid);
+          if (c) {
+            c.status = conversation.status;
+            c.friendlyName = conversation.friendlyName;
+          }
+        }
+      });
+
       this.client.on('conversationRemoved', (conversation: any) => {
-        logger.debug('twilio.conversationRemoved', { sid: conversation.sid });
+        logger.info('Twilio conversation removed', { sid: conversation.sid });
         if (this.snapshot.conversations) {
           this.snapshot.conversations = this.snapshot.conversations.filter(c => c.sid !== conversation.sid);
         }
       });
 
       this.client.on('participantJoined', (participant: any) => {
-        logger.debug('twilio.participantJoined', { 
+        const isMe = participant.identity === this.config.twilioIdentity;
+        logger.info(isMe ? 'Twilio bot joined conversation' : 'Twilio participant joined', { 
           identity: participant.identity, 
           sid: participant.sid, 
           conversationSid: participant.conversation?.sid 
@@ -180,7 +204,8 @@ export class TwilioIngressClient {
       });
 
       this.client.on('participantLeft', (participant: any) => {
-        logger.debug('twilio.participantLeft', { 
+        const isMe = participant.identity === this.config.twilioIdentity;
+        logger.info(isMe ? 'Twilio bot left conversation' : 'Twilio participant left', { 
           identity: participant.identity, 
           sid: participant.sid, 
           conversationSid: participant.conversation?.sid 
@@ -189,7 +214,11 @@ export class TwilioIngressClient {
 
       // Handle incoming messages
       this.client.on('messageAdded', async (message: any) => {
-        logger.debug('twilio.messageAdded_event', { sid: message.sid, conversationSid: message.conversation?.sid });
+        logger.info('Twilio message added event', { 
+          sid: message.sid, 
+          conversationSid: message.conversation?.sid,
+          author: message.author
+        });
         await this.handleIncomingMessage(message);
       });
 
@@ -253,7 +282,7 @@ export class TwilioIngressClient {
     counters.received = (counters.received || 0) + 1;
     this.snapshot.lastMessageAt = new Date().toISOString();
 
-    logger.info('Received Twilio message', { 
+    logger.info('Received Twilio message (processing)', { 
       author: message.author, 
       conversationSid: message.conversation?.sid,
       body: message.body ? (message.body.length > 20 ? message.body.slice(0, 20) + '...' : message.body) : null
@@ -299,13 +328,16 @@ export class TwilioIngressClient {
       
       for (const conv of convs.items) {
         if (conv.status === 'invited') {
-          logger.info('Twilio conversation invited, attempting to join...', { sid: conv.sid });
+          logger.info('Twilio conversation invited (on sync), joining...', { sid: conv.sid });
           try {
             await conv.join();
-            logger.info('Twilio conversation joined successfully', { sid: conv.sid });
           } catch (err: any) {
             logger.error('Failed to join Twilio conversation (on sync)', { sid: conv.sid, error: err.message });
           }
+        } else if (conv.status === 'joined') {
+          logger.info('Twilio conversation already joined (on sync)', { sid: conv.sid });
+        } else {
+          logger.info('Twilio conversation status (on sync)', { sid: conv.sid, status: conv.status });
         }
       }
 
