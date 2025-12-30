@@ -245,6 +245,8 @@ infrastructure:
             service: llm-bot
 
           # Twilio Webhook
+          # Configuration Note: In Twilio Console, ensure both 'onConversationAdded' AND 'onMessageAdded'
+          # are enabled in the Service-level Post-event Webhooks.
           - path_prefix: /webhooks/twilio
             service: ingress-egress
 
