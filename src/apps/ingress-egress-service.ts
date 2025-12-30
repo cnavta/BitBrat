@@ -18,6 +18,8 @@ import {
   TwilioConnectorAdapter,
   createTwilioIngressPublisherFromConfig
 } from '../services/ingress/twilio';
+import { validateTwilioSignature } from '../services/ingress/twilio/webhook-utils';
+import twilio from 'twilio';
 import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
@@ -137,6 +139,63 @@ export class IngressEgressServer extends BaseServer {
         });
         manager.register('twilio', new TwilioConnectorAdapter(this.twilioClient));
         logger.info('twilio.init_ok');
+
+        // Handle Twilio Webhooks
+        this.onHTTPRequest('/webhooks/twilio', async (req: Request, res: Response) => {
+          const signature = req.header('X-Twilio-Signature');
+          if (!signature) {
+            logger.warn('twilio.webhook.missing_signature');
+            res.status(403).send('Missing X-Twilio-Signature');
+            return;
+          }
+
+          const twilioAuthToken = cfg.twilioAuthToken;
+          if (!twilioAuthToken) {
+            logger.error('twilio.webhook.missing_auth_token_config');
+            res.status(500).send('Misconfigured');
+            return;
+          }
+
+          // In Cloud Run, req.protocol might be http but external URL is https
+          // Twilio signs using the absolute URL as it was sent
+          const protocol = req.header('x-forwarded-proto') || req.protocol;
+          const host = req.header('host');
+          const url = `${protocol}://${host}${req.originalUrl}`;
+
+          const isValid = validateTwilioSignature(twilioAuthToken, signature, url, req.body);
+          if (!isValid) {
+            logger.warn('twilio.webhook.invalid_signature', { url });
+            res.status(403).send('Invalid Signature');
+            return;
+          }
+
+          const { EventType, ConversationSid } = req.body;
+          logger.info('twilio.webhook.received', { EventType, ConversationSid });
+
+          if (EventType === 'onConversationAdded') {
+            try {
+              const twilioRest = twilio(cfg.twilioAccountSid, cfg.twilioAuthToken);
+              const botIdentity = cfg.twilioIdentity;
+
+              logger.info('twilio.webhook.inject_bot', { ConversationSid, botIdentity });
+              await twilioRest.conversations.v1.conversations(ConversationSid)
+                .participants
+                .create({ identity: botIdentity });
+
+              logger.info('twilio.webhook.inject_bot.ok', { ConversationSid });
+            } catch (err: any) {
+              // Handle "Already exists" errors (409 or 400 with specific code)
+              if (err.code === 50433 || err.status === 409 || err.message?.includes('already exists')) {
+                logger.info('twilio.webhook.inject_bot.already_participant', { ConversationSid });
+              } else {
+                logger.error('twilio.webhook.inject_bot.error', { ConversationSid, error: err.message });
+              }
+            }
+          }
+
+          res.status(200).send('OK');
+        });
+
       } catch (e: any) {
         logger.error('twilio.init_error', { error: e?.message || String(e) });
       }

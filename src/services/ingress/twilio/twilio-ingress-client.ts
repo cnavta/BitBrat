@@ -290,7 +290,30 @@ export class TwilioIngressClient {
 
     try {
       await startActiveSpan('twilio-ingress-receive', async () => {
-        const evt: InternalEventV2 = this.builder.build(message);
+        // Fetch participant details to enrich the envelope
+        let enrichedMessage = message;
+        try {
+          if (message.conversation && typeof message.conversation.getParticipantByIdentity === 'function') {
+            const participant = await message.conversation.getParticipantByIdentity(message.author);
+            if (participant) {
+              // Attach participant info to message for the builder
+              enrichedMessage = {
+                ...message,
+                participant: {
+                  sid: participant.sid,
+                  identity: participant.identity,
+                  friendlyName: participant.friendlyName,
+                  attributes: participant.attributes,
+                  messagingBinding: participant.messagingBinding
+                }
+              };
+            }
+          }
+        } catch (err: any) {
+          logger.debug('twilio.fetch_participant_error', { author: message.author, error: err.message });
+        }
+
+        const evt: InternalEventV2 = this.builder.build(enrichedMessage);
         
         // Inject egress destination if configured
         if (this.options.egressDestinationTopic) {

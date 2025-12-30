@@ -34,6 +34,37 @@ describe('TwilioEnvelopeBuilder', () => {
     expect(evt.message?.rawPlatformPayload?.timestamp).toBe(fixedNow);
   });
 
+  it('correctly maps participant metadata', () => {
+    const msg: TwilioMessageLike = {
+      sid: 'IM123',
+      author: '+1234567890',
+      body: 'Hello from Twilio',
+      dateCreated: new Date(fixedNow),
+      conversation: {
+        sid: 'CH456'
+      },
+      participant: {
+        sid: 'PA123',
+        identity: '+1234567890',
+        friendlyName: 'John Doe',
+        attributes: { role: 'admin' },
+        messagingBinding: {
+          type: 'sms',
+          address: '+1234567890',
+          proxyAddress: '+1098765432'
+        }
+      } as any
+    };
+
+    const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
+    const p = evt.message?.rawPlatformPayload?.participant;
+    expect(p).toBeDefined();
+    expect(p.sid).toBe('PA123');
+    expect(p.friendlyName).toBe('John Doe');
+    expect(p.attributes).toEqual({ role: 'admin' });
+    expect(p.channelType).toBe('sms');
+  });
+
   it('handles missing author and date gracefully', () => {
     const msg: TwilioMessageLike = {
       sid: 'IM999',
