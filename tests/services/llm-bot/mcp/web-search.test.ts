@@ -25,18 +25,16 @@ describe('Web Search MCP Integration', () => {
   });
 
   it('should discover web-search tools from the installed package', async () => {
-    const config = [
-      {
-        name: 'web-search',
-        command: 'node',
-        args: ['./node_modules/@guhcostan/web-search-mcp/dist/server.js']
-      }
-    ];
-    mockServer.getConfig.mockReturnValue(JSON.stringify(config));
+    const config = {
+      name: 'web-search',
+      command: 'node',
+      args: ['./node_modules/@guhcostan/web-search-mcp/dist/server.js']
+    };
 
-    await manager.initFromConfig();
+    await manager.connectServer(config);
 
     const tools = registry.getTools();
+    console.log('mcp_search_web schema:', JSON.stringify(tools.mcp_search_web.inputSchema, null, 2));
     
     // The ToolRegistry replaces ':' with '_'
     expect(tools).toHaveProperty('mcp_search_web');

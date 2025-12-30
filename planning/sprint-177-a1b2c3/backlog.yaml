@@ -1,0 +1,135 @@
+meta:
+  backlog_id: sprint-177-a1b2c3-internal-status-mcp
+  updated_at: 2025-12-26
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-177-a1b2c3
+  start: 2025-12-26
+  end: 2026-01-09
+  wip_limit: 3
+  goal: "Implement internal MCP tools for status and tool discovery."
+
+items:
+  - id: BL-177-001
+    title: "Update BitBratTool & ToolExecutionContext"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "ToolExecutionContext interface exists in src/types/tools.ts"
+      - "BitBratTool interface execute method includes context parameter"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T17:30:00Z
+        note: "Starting implementation of core types."
+      - at: 2025-12-26T17:34:00Z
+        note: "BL-177-001 complete: Defined ToolExecutionContext and updated BitBratTool. Fixed MCP bridge."
+
+  - id: BL-177-002
+    title: "Update processor.ts with context passing"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-177-001]
+    blocked_reason: null
+    acceptance:
+      - "processEvent extracts user roles and correlationId"
+      - "Tools called within generateText receive the execution context"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T17:34:00Z
+        note: "Starting context injection in processor."
+      - at: 2025-12-26T17:36:00Z
+        note: "BL-177-002 complete: Processor now constructs and passes ToolExecutionContext to tools."
+
+  - id: BL-177-003
+    title: "Implement get_bot_status internal tool"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-177-001, BL-177-002]
+    blocked_reason: null
+    acceptance:
+      - "Tool implemented in src/services/llm-bot/tools/internal-tools.ts"
+      - "Tool returns connected MCP servers and usage stats"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T17:36:00Z
+        note: "Starting implementation of internal-tools.ts and get_bot_status."
+      - at: 2025-12-26T17:40:00Z
+        note: "BL-177-003 complete: get_bot_status implemented."
+
+  - id: BL-177-004
+    title: "Implement list_available_tools internal tool"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-177-001, BL-177-002]
+    blocked_reason: null
+    acceptance:
+      - "Tool implemented in src/services/llm-bot/tools/internal-tools.ts"
+      - "Tool filters results based on userRoles in context"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T17:40:00Z
+        note: "BL-177-004 complete: list_available_tools implemented in src/services/llm-bot/tools/internal-tools.ts."
+
+  - id: BL-177-005
+    title: "Register internal tools in LlmBotServer"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-177-003, BL-177-004]
+    blocked_reason: null
+    acceptance:
+      - "LlmBotServer instantiates and registers tools during setup"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T17:40:00Z
+        note: "Starting registration of internal tools in LlmBotServer."
+      - at: 2025-12-26T17:42:00Z
+        note: "BL-177-005 complete: Internal tools registered in LlmBotServer.start()."
+
+  - id: BL-177-006
+    title: "Add unit tests for internal tools"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-177-003, BL-177-004]
+    blocked_reason: null
+    acceptance:
+      - "Tests in src/services/llm-bot/tools/__tests__/internal-tools.test.ts pass"
+      - "Mocks used for McpClientManager and ToolRegistry"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T17:42:00Z
+        note: "Starting unit tests for internal tools."
+      - at: 2025-12-26T17:45:00Z
+        note: "BL-177-006 complete: Unit tests passed."
+
+  - id: BL-177-007
+    title: "Final validation and PR"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-177-005, BL-177-006]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "GitHub PR created"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T17:45:00Z
+        note: "Starting final validation."
+      - at: 2025-12-26T17:48:00Z
+        note: "BL-177-007 complete: Validation passed and PR #77 created."

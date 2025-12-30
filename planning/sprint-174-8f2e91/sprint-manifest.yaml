@@ -1,0 +1,11 @@
+id: sprint-174-8f2e91
+title: "MCP Stats and Debug Endpoint"
+goal: "Add usage/error stats and a _debug endpoint to MCP server usage"
+owner: "Junie"
+createdAt: "2025-12-26T12:37:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/74"
+  branch: "feature/sprint-174-8f2e91-mcp-stats-debug"
+notes: |
+  Focus on obs-mcp and potentially shared MCP components if they exist.

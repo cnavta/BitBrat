@@ -11,6 +11,13 @@ import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twit
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
 import { ConnectorManager } from '../services/ingress/core';
 import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
+import {
+  TwilioEnvelopeBuilder,
+  TwilioIngressClient,
+  TwilioTokenProvider,
+  TwilioConnectorAdapter,
+  createTwilioIngressPublisherFromConfig
+} from '../services/ingress/twilio';
 import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
@@ -34,6 +41,7 @@ export class IngressEgressServer extends BaseServer {
   private twitchClient: TwitchIrcClient | null = null;
   private twitchEventSubClient: TwitchEventSubClient | null = null;
   private discordClient: DiscordIngressClient | null = null;
+  private twilioClient: TwilioIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
   private lastStates: Record<string, string> = {};
@@ -118,6 +126,22 @@ export class IngressEgressServer extends BaseServer {
       logger.warn('ingress-egress.discord.register_failed', { error: e?.message || String(e) });
     }
 
+    // Twilio initialization
+    if (cfg.twilioEnabled) {
+      try {
+        const twilioBuilder = new TwilioEnvelopeBuilder();
+        const twilioPublisher = createTwilioIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
+        const twilioTokenProvider = new TwilioTokenProvider(cfg);
+        this.twilioClient = new TwilioIngressClient(cfg, twilioTokenProvider, twilioBuilder, twilioPublisher, {
+          egressDestinationTopic: egressTopic
+        });
+        manager.register('twilio', new TwilioConnectorAdapter(this.twilioClient));
+        logger.info('twilio.init_ok');
+      } catch (e: any) {
+        logger.error('twilio.init_error', { error: e?.message || String(e) });
+      }
+    }
+
     // Start connectors (individual connectors handle disabled/test guards internally)
     try {
       await manager.start();
@@ -200,6 +224,7 @@ export class IngressEgressServer extends BaseServer {
                   const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
                   const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
                   const isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+                  const isTwilio = source.includes('twilio') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
 
                   if (isDiscord) {
                     if (this.discordClient) {
@@ -207,11 +232,17 @@ export class IngressEgressServer extends BaseServer {
                     } else {
                       throw new Error('discord_client_not_available');
                     }
+                  } else if (isTwilio) {
+                    if (this.twilioClient) {
+                      await this.twilioClient.sendText(text, evt.channel);
+                    } else {
+                      throw new Error('twilio_client_not_available');
+                    }
                   } else {
                     // Default to Twitch (matches legacy behavior)
                     await this.twitchClient!.sendText(text, evt.channel);
                   }
-                  logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord });
+                  logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio });
                   await publishFinalize('SENT');
                 } catch (e: any) {
                   // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
@@ -266,6 +297,20 @@ export class IngressEgressServer extends BaseServer {
         // Sanitize: remove any unexpected sensitive fields if present
         const { token, botToken, secret, ...safe } = (discordSnap || {}) as Record<string, unknown>;
         res.status(200).json({ snapshot: safe, egressTopic });
+      } catch (e: any) {
+        res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
+      }
+    });
+
+    // Twilio debug endpoint
+    this.onHTTPRequest('/_debug/twilio', (_req: Request, res: Response) => {
+      try {
+        if (!this.twilioClient) {
+          res.status(200).json({ snapshot: { state: 'DISABLED' }, egressTopic });
+          return;
+        }
+        const snapshot = this.twilioClient.getSnapshot();
+        res.status(200).json({ snapshot, egressTopic });
       } catch (e: any) {
         res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
       }

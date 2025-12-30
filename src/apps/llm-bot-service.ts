@@ -4,6 +4,7 @@ import type { InternalEventV2, RoutingStep, CandidateV1 } from '../types/events'
 import { processEvent } from '../services/llm-bot/processor';
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { McpClientManager } from '../services/llm-bot/mcp/client-manager';
+import { createGetBotStatusTool, createListAvailableToolsTool } from '../services/llm-bot/tools/internal-tools';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
 
@@ -107,7 +108,6 @@ class LlmBotServer extends BaseServer {
     USER_CONTEXT_CACHE_TTL_MS: 300000,
     USER_CONTEXT_ROLES_PATH: '/configs/bot/roles',
     USER_CONTEXT_DESCRIPTION_ENABLED: true,
-    LLM_BOT_MCP_SERVERS: '[]',
   };
   constructor() {
     // Use a stable service name; env can override via logging/config elsewhere if needed
@@ -116,6 +116,10 @@ class LlmBotServer extends BaseServer {
   }
 
   async start(port: number) {
+    // Register internal tools
+    this.registry.registerTool(createGetBotStatusTool(this.mcpManager));
+    this.registry.registerTool(createListAvailableToolsTool(this.registry));
+
     await this.mcpManager.initFromConfig();
     return super.start(port);
   }
@@ -126,6 +130,17 @@ class LlmBotServer extends BaseServer {
   }
 
   private async setupApp(app: Express, _cfg: any) {
+    app.get('/_debug/mcp', (req, res) => {
+      const stats = this.mcpManager.getStats();
+      res.json({
+        servers: stats.getAllServerStats(),
+        tools: stats.getAllToolStats(),
+        registry: {
+          totalTools: Object.keys(this.registry.getTools()).length
+        }
+      });
+    });
+
     await this.onMessage<InternalEventV2>('internal.llmbot.v1', async (data, attributes, ctx) => {
       try {
         const logger = this.getLogger();

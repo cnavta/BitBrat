@@ -47,6 +47,7 @@
     "@opentelemetry/resources": "^1.26.0",
     "@opentelemetry/sdk-trace-node": "^1.26.0",
     "@opentelemetry/semantic-conventions": "^1.26.0",
+    "@twilio/conversations": "^2.6.5",
     "@twurple/api": "^7.4.0",
     "@twurple/auth": "^7.4.0",
     "@twurple/chat": "^7.4.0",
@@ -60,6 +61,7 @@
     "json-logic-js": "^2.0.2",
     "nats": "^2.29.3",
     "pino": "^9.4.0",
+    "twilio": "^5.11.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
