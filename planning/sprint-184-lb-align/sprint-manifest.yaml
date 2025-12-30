@@ -1,0 +1,11 @@
+id: sprint-184-lb-align
+title: "Load Balancer Name Alignment"
+goal: "Align URL Map names between Terraform and BRAT CLI to avoid duplicate resource creation."
+owner: "@christophernavta"
+createdAt: "2025-12-30T13:55:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-184-lb-align-names"
+notes: |
+  Resolved hardcoded 'bitbrat-global-url-map' name in BRAT tool.
+  Ensured dynamic resolution from architecture.yaml.

@@ -3,6 +3,7 @@ import { RendererInput } from '../schema';
 
 function makeInput(overrides: Partial<RendererInput> = {}): RendererInput {
   const base: RendererInput = {
+    name: 'bitbrat-global-url-map',
     projectId: 'demo-project',
     env: 'dev',
     defaultDomain: 'api.bitbrat.ai',
@@ -17,10 +18,10 @@ function makeInput(overrides: Partial<RendererInput> = {}): RendererInput {
 
 describe('URL Map renderer', () => {
   it('renders deterministic YAML object with hostRules, pathMatchers and routeRules', () => {
-    const input = makeInput();
+    const input = makeInput({ name: 'custom-lb' });
     const out = renderUrlMapYaml(input);
 
-    expect(out.name).toBe('bitbrat-global-url-map');
+    expect(out.name).toBe('custom-lb');
     expect(out.defaultService).toContain('/backendServices/be-default');
     expect(out.hostRules?.[0]?.hosts).toEqual(['api.bitbrat.ai']);
     expect(out.pathMatchers?.[0]?.name).toBe('default-matcher');

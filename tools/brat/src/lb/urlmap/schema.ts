@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 // High-level inputs for renderer
 export const RendererInputSchema = z.object({
+  name: z.string().default('bitbrat-global-url-map'),
   projectId: z.string().min(1),
   env: z.enum(['dev', 'staging', 'prod']).default('dev'),
   defaultDomain: z.string().min(1),

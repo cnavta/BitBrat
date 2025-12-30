@@ -515,8 +515,7 @@ resource "google_compute_global_forwarding_rule" "http_rule" {
   port_range            = "80"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   target                = google_compute_target_http_proxy.http_proxy.self_link
-}
-` : '';
+}` : '';
 
   const tf = `# Synthesized by brat CDKTF synth (module: load-balancer)
 # This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
@@ -582,9 +581,7 @@ resource "google_compute_global_forwarding_rule" "https_rule" {
   port_range            = "443"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   target                = google_compute_target_https_proxy.https_proxy.self_link
-}
-
-${redirectTf}
+}${redirectTf}
 
 # Outputs
 output "lbIpAddresses" {

@@ -3,7 +3,7 @@ hostRules:
   - hosts:
       - api.dev.bitbrat.ai
     pathMatcher: default-matcher
-name: bitbrat-global-url-map
+name: bitbrat-platform-lb
 pathMatchers:
   - defaultService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-assets-proxy
     name: default-matcher
@@ -68,4 +68,11 @@ pathMatchers:
             pathPrefixRewrite: /_debug/mcp
           weightedBackendServices:
             - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-llm-bot
+              weight: 100
+      - matchRules:
+          - prefixMatch: /webhooks/twilio
+        priority: 8
+        routeAction:
+          weightedBackendServices:
+            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-ingress-egress
               weight: 100
