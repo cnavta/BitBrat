@@ -1,0 +1,10 @@
+id: sprint-181-f2e3d4
+title: "Twilio Hybrid Approach Architecture"
+goal: "Analyze and document the hybrid WebSocket + REST approach for Twilio Conversations integration."
+owner: "Junie (Architect)"
+createdAt: "2025-12-30T02:09:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-181-f2e3d4-twilio-hybrid-arch"
+notes: |
+  Transitioning from pure WebSocket to a hybrid approach using REST API for participant management.
