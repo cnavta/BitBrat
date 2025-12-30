@@ -282,14 +282,21 @@ function mapDiscordEnrichment(evt: InternalEventV2, nowIso: string) {
 
 function mapTwilioEnrichment(evt: InternalEventV2, nowIso: string) {
   const payload = (evt as any).message?.rawPlatformPayload || {};
+  const participant = payload.participant || {};
   const author = payload.author || (evt as any).userId || 'unknown';
 
+  // Derived display name: FriendlyName > Identity
+  const displayName = participant.friendlyName || author;
+
   return {
-    displayName: author,
+    displayName,
     profile: {
       username: author,
-      conversationSid: payload.conversationSid,
       updatedAt: nowIso,
+      channelType: participant.channelType,
+      conversationSid: payload.conversationSid,
+      twilioParticipantSid: participant.sid,
+      twilioAttributes: participant.attributes,
     },
     roles: [],
     rolesMeta: {

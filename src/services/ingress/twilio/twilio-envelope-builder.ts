@@ -13,6 +13,17 @@ export interface TwilioMessageLike {
   conversation: {
     sid: string;
   };
+  participant?: {
+    sid: string;
+    identity: string;
+    friendlyName?: string;
+    attributes?: any;
+    messagingBinding?: {
+      type: string;
+      address: string;
+      proxyAddress: string;
+    };
+  };
 }
 
 export class TwilioEnvelopeBuilder {
@@ -49,7 +60,12 @@ export class TwilioEnvelopeBuilder {
           author: author,
           conversationSid: conversationSid,
           timestamp: message.dateCreated?.toISOString() || nowIso(),
-          // We don't include the full message object to avoid circular dependencies or non-serializable data
+          participant: message.participant ? {
+            sid: message.participant.sid,
+            friendlyName: message.participant.friendlyName,
+            attributes: message.participant.attributes,
+            channelType: message.participant.messagingBinding?.type || 'chat'
+          } : undefined
         },
       },
     };
