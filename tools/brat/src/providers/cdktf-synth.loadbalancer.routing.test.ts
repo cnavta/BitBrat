@@ -72,4 +72,34 @@ infrastructure:\n  target: gcp\n  resources:\n    default-content-bucket:\n     
     // Default backend should be first referenced service (ingress-egress)
     expect(mainTf).toContain('default_service = google_compute_backend_service.be-ingress-egress.self_link');
   });
+
+  it('HTTPS redirect: synthesizes redirect URL Map, Proxy, and port 80 forwarding rule', () => {
+    const tmp = mkTmpDir();
+    const arch = `name: test\n
+deploymentDefaults:\n  region: us-central1\n
+infrastructure:\n  target: gcp\n  resources:\n    main-load-balancer:\n      type: load-balancer\n      implementation: global-external-application-lb\n      name: bitbrat-platform-lb\n      ip: bitbrat-platform-ip\n      https_redirect: true\n      routing:\n        default_domain: api.example.com\n        rules: []\n`;
+    fs.writeFileSync(path.join(tmp, 'architecture.yaml'), arch, 'utf8');
+    const outDir = synthModule('load-balancer', { rootDir: tmp, env: 'dev', projectId: 'p1' });
+    const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
+
+    expect(mainTf).toContain('resource "google_compute_url_map" "https_redirect"');
+    expect(mainTf).toContain('https_redirect = true');
+    expect(mainTf).toContain('resource "google_compute_target_http_proxy" "http_proxy"');
+    expect(mainTf).toContain('resource "google_compute_global_forwarding_rule" "http_rule"');
+    expect(mainTf).toContain('port_range            = "80"');
+  });
+
+  it('custom certificate: uses certificate specified in architecture.yaml', () => {
+    const tmp = mkTmpDir();
+    const arch = `name: test\n
+deploymentDefaults:\n  region: us-central1\n
+infrastructure:\n  target: gcp\n  resources:\n    main-load-balancer:\n      type: load-balancer\n      implementation: global-external-application-lb\n      name: bitbrat-platform-lb\n      ip: bitbrat-platform-ip\n      cert: custom-cert-name\n      routing:\n        default_domain: api.example.com\n        rules: []\n`;
+    fs.writeFileSync(path.join(tmp, 'architecture.yaml'), arch, 'utf8');
+    const outDir = synthModule('load-balancer', { rootDir: tmp, env: 'dev', projectId: 'p1' });
+    const mainTf = fs.readFileSync(path.join(outDir, 'main.tf'), 'utf8');
+
+    expect(mainTf).toContain('data "google_compute_ssl_certificate" "managed_cert"');
+    expect(mainTf).toContain('name = "custom-cert-name"');
+    expect(mainTf).toContain('ssl_certificates = [data.google_compute_ssl_certificate.managed_cert.self_link]');
+  });
 });
