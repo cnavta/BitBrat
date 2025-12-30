@@ -212,6 +212,8 @@ infrastructure:
       implementation: global-external-application-lb
       name:  bitbrat-platform-lb
       ip: bitbrat-platform-ip
+      cert: bitbrat-${ENV}-cert
+      https_redirect: true
       description: Main external entry point and router for the application
       routing:
         default_bucket: default-content-bucket

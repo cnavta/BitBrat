@@ -263,12 +263,14 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
   let legacyLbNode: any = {};
   let defaultDomain = 'api.bitbrat.ai';
   let arch: any = {};
+  let httpsRedirect = false;
   try {
     arch = loadArchitecture(rootDir) as any;
     defaultRegion = arch?.deploymentDefaults?.region || arch?.defaults?.services?.region || defaultRegion;
     lb = arch?.lb;
     legacyLbNode = arch?.infrastructure?.resources?.['main-load-balancer'] || arch?.infrastructure?.['main-load-balancer'] || {};
     defaultDomain = legacyLbNode?.routing?.default_domain || defaultDomain;
+    httpsRedirect = legacyLbNode?.https_redirect === true;
   } catch {}
 
   const environment = env || 'dev';
@@ -492,6 +494,30 @@ function synthLoadBalancerTf(rootDir: string, env: string | undefined, projectId
     ? `google_compute_backend_service.be-${routing ? referencedServices[0] : (legacyServices[0]?.name)}.self_link`
     : 'google_compute_backend_service.be-default.self_link';
 
+  const redirectTf = httpsRedirect ? `
+# HTTP to HTTPS Redirect
+resource "google_compute_url_map" "https_redirect" {
+  name = "bitbrat-https-redirect-${environment}"
+  default_url_redirect {
+    https_redirect = true
+    strip_query    = false
+  }
+}
+
+resource "google_compute_target_http_proxy" "http_proxy" {
+  name    = "bitbrat-http-proxy-${environment}"
+  url_map = google_compute_url_map.https_redirect.self_link
+}
+
+resource "google_compute_global_forwarding_rule" "http_rule" {
+  name                  = "bitbrat-http-fr-${environment}"
+  ip_address            = ${ipRefExpr}
+  port_range            = "80"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  target                = google_compute_target_http_proxy.http_proxy.self_link
+}
+` : '';
+
   const tf = `# Synthesized by brat CDKTF synth (module: load-balancer)
 # This file was generated to provision the BitBrat HTTPS Load Balancer scaffolding.
 # module: load-balancer
@@ -557,6 +583,8 @@ resource "google_compute_global_forwarding_rule" "https_rule" {
   load_balancing_scheme = "EXTERNAL_MANAGED"
   target                = google_compute_target_https_proxy.https_proxy.self_link
 }
+
+${redirectTf}
 
 # Outputs
 output "lbIpAddresses" {
