@@ -4,6 +4,7 @@
 - [x] Analyzed the Twilio Hybrid Approach (WebSocket + REST).
 - [x] Created `technical-architecture.md` detailing the design, sequence flow, and implementation steps.
 - [x] Identified necessary components and configuration changes.
+- [x] Analyzed and documented user profile/metadata capture requirements for the `auth` service.
 
 ## Partial
 - None

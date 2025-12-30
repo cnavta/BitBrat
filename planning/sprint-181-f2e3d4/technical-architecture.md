@@ -77,4 +77,31 @@ No new variables are required if existing credentials are used, but we must ensu
 2. **Phase 2**: Implement Twilio Signature validation.
 3. **Phase 3**: Implement the "Add Participant" logic using the REST SDK.
 4. **Phase 4**: Update Load Balancer rules in `architecture.yaml` to route `/webhooks/twilio`.
-5. **Phase 5**: Update Twilio Console configuration.
+5. **Phase 5**: Update `TwilioEnvelopeBuilder` to capture and include participant metadata (FriendlyName, ChannelType).
+6. **Phase 6**: Update `auth` service to use metadata for profile creation.
+7. **Phase 7**: Update Twilio Console configuration.
+
+## 8. User Identification & Profile Creation
+To ensure the `auth` service can appropriately create and manage user profiles, the platform must capture and transmit rich participant metadata from Twilio.
+
+### 8.1 Data Capture Strategy
+The `TwilioIngressClient` and its corresponding `TwilioEnvelopeBuilder` will be enhanced to fetch and transmit participant details.
+
+**Key fields to be captured:**
+- **Primary Identifier**: The `Author` identity. For SMS/WhatsApp, this is the E.164 phone number.
+- **Display Name**: Derived from `Participant.friendlyName`. If empty, it falls back to a masked version of the phone number (e.g., `+1...1234`) or the raw identity.
+- **Channel Context**: The `MessagingBinding` type (e.g., `sms`, `whatsapp`, `chat`).
+- **Metadata**: Custom attributes from the Twilio Participant record.
+
+### 8.2 Event Enrichment (auth service)
+The `auth` service's `enrichEvent` logic (specifically `mapTwilioEnrichment`) will use this data to:
+1. **Unique ID**: Create a `twilio:<identity>` composite ID for stable user lookup.
+2. **Profile Creation**: Auto-create a `users` document if one does not exist.
+3. **Metadata Sync**: Store the `conversationSid` and `channelType` in the user's profile to track the last used communication method.
+
+### 8.3 Sequence Detail: Participant Metadata
+When a message arrives via WebSocket:
+1. `TwilioIngressClient` receives `messageAdded`.
+2. The client retrieves the `Participant` object for the message author from the conversation's participant list.
+3. The `TwilioEnvelopeBuilder` includes `participant.friendlyName` and `participant.attributes` in the `rawPlatformPayload`.
+4. The `InternalEventV2` is published with this rich context.

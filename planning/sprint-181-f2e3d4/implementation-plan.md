@@ -3,6 +3,7 @@
 ## Objective
 - Analyze and document the hybrid approach for Twilio Conversations integration to ensure reliable message delivery to the bot.
 - Provide a clear Technical Architecture for implementing the REST API based participant management.
+- Define the strategy for capturing and using participant metadata for user profile creation in the `auth` service.
 
 ## Scope
 - Architectural analysis of Twilio Conversations SDK and REST API.
@@ -17,6 +18,7 @@
 - Technical Architecture covers the flow: SMS → Webhook → Add Participant → WebSocket Event.
 - Architecture specifies where the webhook listener lives and how it authenticates.
 - Architecture identifies necessary environment variables or secrets.
+- Architecture defines the mapping and capture of participant metadata for user profile creation.
 - Architecture adheres to `architecture.yaml` and existing project patterns.
 
 ## Testing Strategy
