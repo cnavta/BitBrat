@@ -1,5 +1,5 @@
 import { BaseServer } from '../common/base-server';
-import { Express, Request, Response } from 'express';
+import express, { Express, Request, Response } from 'express';
 import {
   TwitchIrcClient,
   TwitchEnvelopeBuilder,
@@ -52,7 +52,10 @@ export class IngressEgressServer extends BaseServer {
   constructor() {
     super({ serviceName: SERVICE_NAME });
     // Perform setup after BaseServer is constructed; BaseServer's /readyz will default to ready=true
-    this.setupApp(this.getApp() as any, this.getConfig() as any);
+    const app = this.getApp();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    this.setupApp(app as any, this.getConfig() as any);
   }
 
   private async setupApp(app: Express, cfg: any) {
@@ -141,7 +144,7 @@ export class IngressEgressServer extends BaseServer {
         logger.info('twilio.init_ok');
 
         // Handle Twilio Webhooks
-        this.onHTTPRequest('/webhooks/twilio', async (req: Request, res: Response) => {
+        this.onHTTPRequest({ path: '/webhooks/twilio', method: 'POST' }, async (req: Request, res: Response) => {
           const signature = req.header('X-Twilio-Signature');
           if (!signature) {
             logger.warn('twilio.webhook.missing_signature');
@@ -172,23 +175,23 @@ export class IngressEgressServer extends BaseServer {
           const { EventType, ConversationSid } = req.body;
           logger.info('twilio.webhook.received', { EventType, ConversationSid });
 
-          if (EventType === 'onConversationAdded') {
+          if (EventType === 'onConversationAdded' || EventType === 'onMessageAdded') {
             try {
               const twilioRest = twilio(cfg.twilioAccountSid, cfg.twilioAuthToken);
               const botIdentity = cfg.twilioIdentity;
 
-              logger.info('twilio.webhook.inject_bot', { ConversationSid, botIdentity });
+              logger.info('twilio.webhook.inject_bot', { ConversationSid, botIdentity, trigger: EventType });
               await twilioRest.conversations.v1.conversations(ConversationSid)
                 .participants
                 .create({ identity: botIdentity });
 
-              logger.info('twilio.webhook.inject_bot.ok', { ConversationSid });
+              logger.info('twilio.webhook.inject_bot.ok', { ConversationSid, trigger: EventType });
             } catch (err: any) {
               // Handle "Already exists" errors (409 or 400 with specific code)
               if (err.code === 50433 || err.status === 409 || err.message?.includes('already exists')) {
-                logger.info('twilio.webhook.inject_bot.already_participant', { ConversationSid });
+                logger.info('twilio.webhook.inject_bot.already_participant', { ConversationSid, trigger: EventType });
               } else {
-                logger.error('twilio.webhook.inject_bot.error', { ConversationSid, error: err.message });
+                logger.error('twilio.webhook.inject_bot.error', { ConversationSid, trigger: EventType, error: err.message });
               }
             }
           }
