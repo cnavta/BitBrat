@@ -101,6 +101,56 @@ describe('PersistenceStore', () => {
     expect(setCall[0].candidates[0].status).toBe('selected');
   });
 
+  test('upsertIngressEvent handles Twilio messages with conversationSid', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twilio',
+      correlationId: 'c-twilio',
+      type: 'chat.message.v1',
+      channel: 'CH123',
+      userId: '+1234567890',
+      message: {
+        id: 'msg-twilio',
+        role: 'user',
+        text: 'hello from sms',
+        rawPlatformPayload: {
+          author: '+1234567890',
+          conversationSid: 'CH123'
+        }
+      } as any,
+    } as any;
+    await store.upsertIngressEvent(evt);
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[0].message.rawPlatformPayload.conversationSid).toBe('CH123');
+    expect(setCall[0].source).toBe('ingress.twilio');
+  });
+
+  test('upsertSourceState handles Twilio status', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twilio',
+      type: 'system.source.status',
+      payload: {
+        platform: 'twilio',
+        id: '+1234567890',
+        status: 'CONNECTED',
+        displayName: 'Twilio Bot'
+      }
+    } as any;
+    await store.upsertSourceState(evt);
+    expect(db.__fns.collection).toHaveBeenCalledWith('sources');
+    expect(db.__fns.doc).toHaveBeenCalledWith('twilio:+1234567890');
+    const setCall = db.__fns.set.mock.calls[0];
+    expect(setCall[0].platform).toBe('twilio');
+    expect(setCall[0].status).toBe('CONNECTED');
+  });
+
   test('applyFinalization uses qos.ttl seconds when provided', async () => {
     const db = makeFirestoreMock();
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };

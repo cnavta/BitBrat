@@ -1,0 +1,12 @@
+id: sprint-176-c3d5e2
+title: "Fix MCP tool schema type error"
+goal: "Resolve 'type: None' schema error and fix AI SDK tool field mismatch"
+owner: "Junie"
+createdAt: "2025-12-26T21:00:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-176-c3d5e2-fix-mcp-schema-error"
+notes: |
+  The error was caused by two factors:
+  1. A mismatch in the AI SDK version 6.x which uses `inputSchema` instead of `parameters`.
+  2. Potential invalid schemas (e.g., `type: "None"`) coming from some MCP servers.

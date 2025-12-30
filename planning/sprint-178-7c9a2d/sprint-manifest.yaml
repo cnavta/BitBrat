@@ -1,0 +1,13 @@
+id: sprint-178-7c9a2d
+title: "Create McpServer subclass of BaseServer"
+goal: "Enable all services to offer SSE capabilities via McpServer while retaining BaseServer functionality."
+owner: "Junie"
+createdAt: "2025-12-27T00:07:00Z"
+status: "published"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/78"
+  branch: "feature/sprint-178-7c9a2d-mcp-server-subclass"
+notes: |
+  We are creating a new subclass of BaseServer called McpServer. 
+  This subclass will provide Server-Sent Events (SSE) capabilities.
+  The goal is to follow the Model Context Protocol (MCP) standards where applicable.

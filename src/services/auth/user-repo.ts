@@ -13,11 +13,13 @@ export interface AuthUserDoc {
     description?: string;
     avatarUrl?: string;
     updatedAt: string;
+    [key: string]: any;
   };
 
   rolesMeta?: {
     twitch?: string[];
     discord?: string[];
+    twilio?: string[];
   };
 
   // Enrichment v1 extensions (optional/persistent)
@@ -170,6 +172,7 @@ export class FirestoreUserRepo implements UserRepo {
     if (data.rolesMeta) {
       if (data.rolesMeta.twitch) mergedRolesMeta.twitch = data.rolesMeta.twitch;
       if (data.rolesMeta.discord) mergedRolesMeta.discord = data.rolesMeta.discord;
+      if (data.rolesMeta.twilio) mergedRolesMeta.twilio = data.rolesMeta.twilio;
     }
 
     const update: any = {

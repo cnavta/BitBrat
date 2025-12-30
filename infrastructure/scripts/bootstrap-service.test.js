@@ -29,6 +29,17 @@ describe('bootstrap-service generators', () => {
     expect(src).toContain('server.start(PORT)');
     // Should not use app.listen anymore
     expect(src).not.toContain('app.listen(');
+    expect(src).not.toContain('McpServer');
+  });
+
+  test('generateAppSource with useMcp=true uses McpServer', () => {
+    const src = generateAppSource('mcp-service', [], [], true);
+    expect(src).toContain("import { McpServer } from '../common/mcp-server'");
+    expect(src).toContain('class McpServiceServer extends McpServer');
+    expect(src).toContain("import { z } from 'zod'");
+    expect(src).toContain('this.registerTool(');
+    expect(src).toContain('McpServer.ensureRequiredEnv');
+    expect(src).not.toContain('BaseServer');
   });
 
   test('generateAppSource emits onMessage stubs for consumed topics from architecture.yaml', () => {

@@ -1,0 +1,11 @@
+id: sprint-175-b2c4a6
+title: "Investigate and fix MCP server/tool usage issues"
+goal: "Ensure the bot correctly utilizes MCP servers and tools registered in Firestore."
+owner: "Junie"
+createdAt: "2025-12-26T15:15:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-175-b2c4a6-fix-mcp-registry-usage"
+notes: |
+  User reports that MCP tools are not being used after the move to Firestore registry.
+  Initial investigation points to potential issues in McpClientManager or processor.ts tool filtering.

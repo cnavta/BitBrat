@@ -103,6 +103,21 @@ export interface IConfig {
   discordOauthScopes?: string[];
   /** Optional Discord OAuth permissions (bitmask, used for bot authorization) */
   discordOauthPermissions?: number;
+
+  /** Twilio integration master switch */
+  twilioEnabled?: boolean;
+  /** Twilio Account SID */
+  twilioAccountSid?: string;
+  /** Twilio Auth Token (sensitive) */
+  twilioAuthToken?: string;
+  /** Twilio API Key */
+  twilioApiKey?: string;
+  /** Twilio API Secret (sensitive) */
+  twilioApiSecret?: string;
+  /** Twilio Chat Service SID */
+  twilioChatServiceSid?: string;
+  /** Twilio identity for the bot */
+  twilioIdentity?: string;
 }
 
 export interface TwitchTokenData {

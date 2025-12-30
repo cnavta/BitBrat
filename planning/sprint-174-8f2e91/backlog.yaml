@@ -1,0 +1,109 @@
+meta:
+  backlog_id: sprint-174-8f2e91
+  updated_at: 2025-12-26
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-174-8f2e91
+  start: 2025-12-26
+  end: 2026-01-09
+  wip_limit: 3
+  goal: "Add usage/error stats and a _debug endpoint to MCP server usage"
+
+items:
+  - id: BL-174-001
+    title: "Implement McpStatsCollector"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "Collects invocations, errors, latency, and response size"
+      - "Tracks discovery stats and server status"
+      - "Unit tests pass"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T12:58:00Z
+        note: "Starting implementation of McpStatsCollector."
+      - at: 2025-12-26T13:20:00Z
+        note: "Implemented and verified with unit tests."
+
+  - id: BL-174-002
+    title: "Update McpBridge with execution wrapping"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-174-001]
+    acceptance:
+      - "Records tool call timing and success/failure"
+      - "Supports capturing response size"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T13:25:00Z
+        note: "Wrapped execute function in McpBridge to record stats."
+
+  - id: BL-174-003
+    title: "Update McpClientManager integration"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-174-001]
+    acceptance:
+      - "Initializes stats collector"
+      - "Records discovery events and connection status"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T13:30:00Z
+        note: "Integrated McpStatsCollector into McpClientManager lifecycle."
+
+  - id: BL-174-004
+    title: "Implement /_debug/mcp endpoint"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-174-003]
+    acceptance:
+      - "GET /_debug/mcp returns expected JSON structure"
+      - "Restricted to internal use (internal LB)"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T13:35:00Z
+        note: "Added GET /_debug/mcp to LlmBotServer."
+
+  - id: BL-174-005
+    title: "Track errors in InternalEventV2"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-174-002]
+    acceptance:
+      - "MCP tool errors are appended to evt.errors"
+      - "LLM errors are appended to evt.errors"
+      - "Follows ErrorEntryV1 schema"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T13:40:00Z
+        note: "Added tool error wrapping in processor.ts and updated main error catch."
+
+  - id: BL-174-006
+    title: "Final Validation and PR"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-174-004, BL-174-005]
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "Verification report generated"
+      - "PR created successfully"
+    updated_at: 2025-12-26
+    log:
+      - at: 2025-12-26T13:45:00Z
+        note: "Validation steps started."
+      - at: 2025-12-26T13:55:00Z
+        note: "Validation passed, PR created at https://github.com/cnavta/BitBrat/pull/74."
