@@ -1,0 +1,20 @@
+      at loadArchitecture (tools/brat/src/config/loader.ts:151:15)
+
+PASS tests/prompt-assembly/assemble.spec.ts
+PASS src/common/__tests__/discord-config.test.ts
+PASS src/services/message-bus/message-bus.test.ts
+PASS src/services/routing/routing.dlq.test.ts
+PASS src/services/router/__tests__/jsonlogic-ci-eq.spec.ts
+PASS src/services/routing/routing.slip.test.ts
+PASS src/services/router/__tests__/jsonlogic-evaluator.test.ts
+PASS tools/brat/src/orchestration/errors.spec.ts
+PASS src/common/feature-flags.test.ts
+PASS tests/prompt-assembly/adapters/edge-cases.spec.ts
+PASS tests/prompt-assembly/redaction.spec.ts
+A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+
+Test Suites: 2 skipped, 189 passed, 189 of 191 total
+Tests:       10 skipped, 544 passed, 554 total
+Snapshots:   2 passed, 2 total
+Time:        11.997 s
+Ran all test suites.

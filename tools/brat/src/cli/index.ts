@@ -625,7 +625,9 @@ async function main() {
     if (c3 === 'import') {
       requireEnv('lb urlmap import');
       const outPath = require('path').join(process.cwd(), 'infrastructure', 'cdktf', 'lb', 'url-maps', flags.env, 'url-map.yaml');
-      const urlMapName = 'bitbrat-global-url-map';
+      const arch: any = loadArchitecture(process.cwd());
+      const lbNode: any = arch?.infrastructure?.resources?.['main-load-balancer'] || arch?.infrastructure?.['main-load-balancer'] || {};
+      const urlMapName = lbNode?.name || 'bitbrat-global-url-map';
       const res = await importUrlMap({ projectId: flags.projectId, env: flags.env as any, urlMapName, sourceYamlPath: outPath, dryRun: !!flags.dryRun });
       if (flags.json) console.log(JSON.stringify(res, null, 2)); else console.log(res.message);
       if (res.changed && flags.dryRun) process.exit(0);
@@ -723,7 +725,7 @@ async function main() {
           if (envName !== 'prod') {
             try {
               const r = renderAndWrite({ rootDir: process.cwd(), env: envName as any, projectId: flags.projectId });
-              const res = await importUrlMap({ projectId: flags.projectId, env: envName as any, urlMapName: 'bitbrat-global-url-map', sourceYamlPath: r.outFile, dryRun: false });
+              const res = await importUrlMap({ projectId: flags.projectId, env: envName as any, urlMapName: r.yaml.name, sourceYamlPath: r.outFile, dryRun: false });
               console.log(`[lb:urlmap] ${res.message}`);
             } catch (e: any) {
               console.error(`[lb:urlmap] post-apply import failed: ${e?.message || String(e)}`);
