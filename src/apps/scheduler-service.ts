@@ -23,7 +23,7 @@ const EventDefinitionSchema = z.object({
     text: z.string().optional(),
     role: z.enum(['user', 'assistant', 'system', 'tool']).default('system'),
   }).optional().describe("Optional message metadata"),
-  annotations: z.array(z.any()).optional().describe("Optional annotations"),
+  annotations: z.array(z.record(z.any())).optional().describe("Optional annotations"),
 });
 
 const CreateScheduleSchema = z.object({
