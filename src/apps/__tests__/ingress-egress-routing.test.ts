@@ -36,6 +36,20 @@ jest.mock('../../services/ingress/discord', () => ({
   DiscordIngressClient: jest.fn().mockImplementation(() => mockDiscordClient),
 }));
 
+// Mock the Twilio client
+const mockTwilioClient = {
+  sendText: jest.fn().mockResolvedValue(undefined),
+  start: jest.fn().mockResolvedValue(undefined),
+  stop: jest.fn().mockResolvedValue(undefined),
+  getSnapshot: jest.fn().mockReturnValue({ state: 'CONNECTED' }),
+};
+
+jest.mock('../../services/ingress/twilio', () => ({
+  ...jest.requireActual('../../services/ingress/twilio'),
+  TwilioIngressClient: jest.fn().mockImplementation(() => mockTwilioClient),
+  TwilioTokenProvider: jest.fn().mockImplementation(() => ({})),
+}));
+
 // Mock BaseServer.onMessage
 jest.spyOn(BaseServer.prototype as any, 'onMessage');
 
@@ -48,11 +62,20 @@ describe('IngressEgressServer routing', () => {
     const oldNodeEnv = process.env.NODE_ENV;
     const oldJestWorkerId = process.env.JEST_WORKER_ID;
     const oldDisable = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
+    const oldTwilioEnabled = process.env.TWILIO_ENABLED;
 
     // Force non-test env for constructor so onMessage is called
     (process.env as any).NODE_ENV = 'development';
     delete process.env.JEST_WORKER_ID;
     process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = '0';
+    process.env.TWILIO_ENABLED = 'true';
+    // Provide dummy values for required Twilio secrets to pass config validation
+    process.env.TWILIO_ACCOUNT_SID = 'AC123';
+    process.env.TWILIO_AUTH_TOKEN = 'auth';
+    process.env.TWILIO_API_KEY = 'SK123';
+    process.env.TWILIO_API_SECRET = 'secret';
+    process.env.TWILIO_CHAT_SERVICE_SID = 'IS123';
+    process.env.TWILIO_IDENTITY = 'bot';
 
     server = new IngressEgressServer();
 
@@ -63,6 +86,7 @@ describe('IngressEgressServer routing', () => {
     process.env.NODE_ENV = oldNodeEnv;
     process.env.JEST_WORKER_ID = oldJestWorkerId;
     process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = oldDisable;
+    process.env.TWILIO_ENABLED = oldTwilioEnabled;
   });
 
   afterEach(async () => {
@@ -237,5 +261,48 @@ describe('IngressEgressServer routing', () => {
 
     expect(mockDiscordClient.sendText).not.toHaveBeenCalled();
     expect(mockTwitchClient.sendText).toHaveBeenCalledWith('Hello Twitch', '#twitch-channel');
+  });
+
+  it('should send Twilio responses to Twilio', async () => {
+    // Manually trigger the egress handler
+    const egressHandler = (server as any).onMessage.mock.calls.find(
+      (call: any) => call[0].destination?.startsWith('internal.egress.v1')
+    )?.[1];
+
+    const twilioEvent: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twilio',
+      correlationId: 'corr-twilio',
+      type: 'chat.message.v1',
+      channel: 'CH123',
+      message: {
+        id: 'msg-twilio',
+        role: 'assistant',
+        text: 'Hello Twilio',
+      },
+      candidates: [
+        {
+          id: 'cand-twilio',
+          kind: 'text',
+          source: 'llm-bot',
+          createdAt: new Date().toISOString(),
+          status: 'proposed',
+          priority: 1,
+          text: 'Hello Twilio',
+        }
+      ]
+    } as any;
+
+    const ctx = {
+      ack: jest.fn().mockResolvedValue(undefined),
+      nack: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Execute the handler
+    await egressHandler(twilioEvent, {}, ctx);
+
+    expect(mockTwitchClient.sendText).not.toHaveBeenCalled();
+    expect(mockDiscordClient.sendText).not.toHaveBeenCalled();
+    expect(mockTwilioClient.sendText).toHaveBeenCalledWith('Hello Twilio', 'CH123');
   });
 });

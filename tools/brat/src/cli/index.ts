@@ -88,7 +88,34 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
 }
 
 function printHelp() {
-  console.log(`brat — BitBrat Rapid Administration Tool\n\nUsage:\n  brat doctor [--json] [--ci]\n  brat config show [--json]\n  brat config validate [--json]\n\n  # The following commands REQUIRE an environment: pass --env <name> or set BITBRAT_ENV\n  brat deploy services --all --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--concurrency N] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy service <name> --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat deploy <name> --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]\n  brat infra plan --env <name> [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]\n  brat infra apply --env <name> [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]\n  brat infra plan network|lb|connectors --env <name> [--dry-run]\n  brat infra apply network|lb|connectors --env <name>\n  brat lb urlmap render --env <name> [--out <path>] [--project-id <id>]\n  brat lb urlmap import --env <name> [--project-id <id>] [--dry-run]\n  brat apis enable --env <name> [--project-id <id>] [--dry-run] [--json]\n\n  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]\n  brat trigger delete --name <n> [--dry-run]\n\nNotes:\n  - Provide --env or set BITBRAT_ENV. Common values: dev, prod.\n`);
+  console.log(`brat — BitBrat Rapid Administration Tool
+
+Usage:
+  brat doctor [--json] [--ci]
+  brat config show [--json]
+  brat config validate [--json]
+
+  brat service bootstrap --name <name> [--mcp] [--force]
+
+  # The following commands REQUIRE an environment: pass --env <name> or set BITBRAT_ENV
+  brat deploy services --all --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--concurrency N] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]
+  brat deploy service <name> --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]
+  brat deploy <name> --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]
+  brat infra plan --env <name> [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>] [--dry-run]
+  brat infra apply --env <name> [--module <network|load-balancer|connectors>] [--env-dir <path>] [--service-name <svc>] [--repo-name <repo>]
+  brat infra plan network|lb|connectors --env <name> [--dry-run]
+  brat infra apply network|lb|connectors --env <name>
+  brat lb urlmap render --env <name> [--out <path>] [--project-id <id>]
+  brat lb urlmap import --env <name> [--project-id <id>] [--dry-run]
+  brat apis enable --env <name> [--project-id <id>] [--dry-run] [--json]
+
+  brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
+  brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
+  brat trigger delete --name <n> [--dry-run]
+
+Notes:
+  - Provide --env or set BITBRAT_ENV. Common values: dev, prod.
+`);
 }
 
 async function cmdDoctor(flags: GlobalFlags) {
@@ -520,6 +547,25 @@ async function main() {
     await cmdConfigValidate(flags);
     return;
   }
+  if (c1 === 'service' && c2 === 'bootstrap') {
+    const m = parseKeyValueFlags(rest);
+    const name = m['name'];
+    if (!name) {
+      console.error('Usage: brat service bootstrap --name <name> [--mcp] [--force]');
+      process.exit(2);
+    }
+    const force = m['force'] === 'true' || rest.includes('--force');
+    const mcp = m['mcp'] === 'true' || rest.includes('--mcp');
+    const { spawnSync } = require('child_process');
+    const scriptPath = path.join(process.cwd(), 'infrastructure/scripts/bootstrap-service.js');
+    const args = ['--name', name];
+    if (force) args.push('--force');
+    if (mcp) args.push('--mcp');
+    
+    console.log(`[brat] Bootstrapping service: ${name}${mcp ? ' (MCP)' : ''}`);
+    const res = spawnSync('node', [scriptPath, ...args], { stdio: 'inherit' });
+    process.exit(res.status ?? 0);
+  }
   if (c1 === 'deploy' && c2 === 'services') {
     requireEnv('deploy services');
     await cmdDeployServices(flags);
@@ -579,7 +625,9 @@ async function main() {
     if (c3 === 'import') {
       requireEnv('lb urlmap import');
       const outPath = require('path').join(process.cwd(), 'infrastructure', 'cdktf', 'lb', 'url-maps', flags.env, 'url-map.yaml');
-      const urlMapName = 'bitbrat-global-url-map';
+      const arch: any = loadArchitecture(process.cwd());
+      const lbNode: any = arch?.infrastructure?.resources?.['main-load-balancer'] || arch?.infrastructure?.['main-load-balancer'] || {};
+      const urlMapName = lbNode?.name || 'bitbrat-global-url-map';
       const res = await importUrlMap({ projectId: flags.projectId, env: flags.env as any, urlMapName, sourceYamlPath: outPath, dryRun: !!flags.dryRun });
       if (flags.json) console.log(JSON.stringify(res, null, 2)); else console.log(res.message);
       if (res.changed && flags.dryRun) process.exit(0);
@@ -677,7 +725,7 @@ async function main() {
           if (envName !== 'prod') {
             try {
               const r = renderAndWrite({ rootDir: process.cwd(), env: envName as any, projectId: flags.projectId });
-              const res = await importUrlMap({ projectId: flags.projectId, env: envName as any, urlMapName: 'bitbrat-global-url-map', sourceYamlPath: r.outFile, dryRun: false });
+              const res = await importUrlMap({ projectId: flags.projectId, env: envName as any, urlMapName: r.yaml.name, sourceYamlPath: r.outFile, dryRun: false });
               console.log(`[lb:urlmap] ${res.message}`);
             } catch (e: any) {
               console.error(`[lb:urlmap] post-apply import failed: ${e?.message || String(e)}`);

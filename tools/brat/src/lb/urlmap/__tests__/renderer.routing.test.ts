@@ -8,6 +8,7 @@ import { RendererInput } from '../schema';
 
 function makeInput(overrides: Partial<RendererInput> = {}): RendererInput {
   const base: RendererInput = {
+    name: 'bitbrat-global-url-map',
     projectId: 'demo-project',
     env: 'dev',
     defaultDomain: 'api.bitbrat.ai',

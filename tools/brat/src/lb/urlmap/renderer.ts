@@ -24,6 +24,7 @@ export function loadRendererInputFromArchitecture(opts: { rootDir: string; env: 
     || arch?.infrastructure?.['main-load-balancer']
     || {};
   const routing = lbNode?.routing || {};
+  const name: string = lbNode?.name || 'bitbrat-global-url-map';
   const defaultDomain: string = routing?.default_domain || 'api.bitbrat.ai';
   const rules: any[] = Array.isArray(routing?.rules) ? routing.rules : [];
   const routes = rules.map((r: any) => ({
@@ -42,6 +43,7 @@ export function loadRendererInputFromArchitecture(opts: { rootDir: string; env: 
   console.log('[urlmap.renderer] Using routing-only source. default_domain=%s default_bucket=%s selected_default_backend=%s',
     defaultDomain, defaultBucket || '-', defaultBackend);
   const input: RendererInput = RendererInputSchema.parse({
+    name,
     projectId: opts.projectId,
     env: opts.env,
     defaultDomain,
@@ -52,7 +54,7 @@ export function loadRendererInputFromArchitecture(opts: { rootDir: string; env: 
 }
 
 export function renderUrlMapYaml(input: RendererInput): UrlMapYaml {
-  const name = 'bitbrat-global-url-map';
+  const name = input.name;
   const projectId = input.projectId;
   const host = input.defaultDomain;
   const matcherName = 'default-matcher';

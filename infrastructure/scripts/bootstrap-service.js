@@ -27,20 +27,22 @@ function toKebab(name) {
 }
 
 function parseArgs(argv) {
-  const args = { name: '', force: false };
+  const args = { name: '', force: false, mcp: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--name') { args.name = argv[++i] || ''; }
     else if (a === '--force') { args.force = true; }
+    else if (a === '--mcp') { args.mcp = true; }
     else if (a === '-h' || a === '--help') { args.help = true; }
   }
   return args;
 }
 
 function printHelp() {
-  console.log('Usage: npm run bootstrap:service -- --name <service-name> [--force]');
+  console.log('Usage: npm run bootstrap:service -- --name <service-name> [--force] [--mcp]');
   console.log('Reads architecture.yaml services.<name>.entry and generates:');
   console.log('- src/apps/<entry>.ts (Express stub with health endpoints and stubbed paths)');
+  console.log('  - use --mcp to use McpServer instead of BaseServer');
   console.log('- src/apps/<entry>.test.ts (basic health tests)');
   console.log('- Dockerfile.<service> (Node 24, builds and runs the compiled entry)');
   console.log('- infrastructure/docker-compose/services/<service>.compose.yaml (local runtime)');
@@ -56,7 +58,7 @@ function toPascal(name) {
   return parts.join('');
 }
 
-function generateAppSource(serviceName, stubPaths, consumedTopics = []) {
+function generateAppSource(serviceName, stubPaths, consumedTopics = [], useMcp = false) {
   const SERVICE_NAME = serviceName;
   const ClassName = `${toPascal(serviceName)}Server`;
   const explicitHandlers = Array.isArray(stubPaths) && stubPaths.length > 0
@@ -96,16 +98,36 @@ function generateAppSource(serviceName, stubPaths, consumedTopics = []) {
         }
       }`).join('\n')
     : '';
-  return `import { BaseServer } from '../common/base-server';
+  
+  const baseClass = useMcp ? 'McpServer' : 'BaseServer';
+  const baseImportPath = useMcp ? '../common/mcp-server' : '../common/base-server';
+  const zodImport = useMcp ? "import { z } from 'zod';\n" : "";
+  const mcpToolExample = useMcp ? `
+    // Example MCP tool registration
+    this.registerTool(
+      'echo',
+      'Echoes back the input',
+      z.object({
+        message: z.string().describe('The message to echo')
+      }),
+      async (args) => {
+        return {
+          content: [{ type: 'text', text: \`Echo: \${args.message}\` }]
+        };
+      }
+    );
+` : "";
+
+  return `import { ${baseClass} } from '${baseImportPath}';
 import { Express, Request, Response } from 'express';
-import type { InternalEventV2 } from '../types/events';
+${zodImport}import type { InternalEventV2 } from '../types/events';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || '${SERVICE_NAME}';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
 ${consumedDecl}
 
-class ${ClassName} extends BaseServer {
+class ${ClassName} extends ${baseClass} {
   constructor() {
     super({ serviceName: SERVICE_NAME });
     this.setupApp(this.getApp() as any, this.getConfig() as any);
@@ -114,7 +136,7 @@ class ${ClassName} extends BaseServer {
   private async setupApp(app: Express, _cfg: any) {
     // Architecture-specified explicit stub handlers (GET)
 ${explicitHandlers}
-
+${mcpToolExample}
     // Message subscriptions for consumed topics declared in architecture.yaml
     try {
       const instanceId =
@@ -142,7 +164,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  ${baseClass}.ensureRequiredEnv(SERVICE_NAME);
   const server = new ${ClassName}();
   void server.start(PORT);
 }
@@ -258,7 +280,7 @@ function main() {
   const dockerfilePath = path.join(repoRoot, dockerfileName);
   const composePath = path.join(repoRoot, 'infrastructure', 'docker-compose', 'services', `${toKebab(serviceKey)}.compose.yaml`);
 
-  const appRes = writeFileSafe(appTsPath, generateAppSource(serviceKey, stubPaths, consumedTopics), args.force);
+  const appRes = writeFileSafe(appTsPath, generateAppSource(serviceKey, stubPaths, consumedTopics, args.mcp), args.force);
   const testRes = writeFileSafe(testTsPath, generateTestSource(entry, stubPaths), args.force);
   const dockRes = writeFileSafe(dockerfilePath, generateDockerfile(serviceKey, entry), args.force);
   const composeRes = writeFileSafe(composePath, generateComposeSource(serviceKey), args.force);
