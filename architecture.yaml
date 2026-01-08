@@ -198,6 +198,16 @@ services:
       - OBS_WEBSOCKET_PASSWORD
       - MCP_AUTH_TOKEN
 
+  scheduler:
+    active: true
+    description: Scheduler service for periodic tasks
+    entry: src/apps/scheduler-service.ts
+    topics:
+      publishes:
+        - internal.ingress.v1
+      consumes:
+        - internal.scheduler.tick
+
 infrastructure:
   target: gcp
   resources:
