@@ -1,0 +1,10 @@
+id: sprint-183-lb-https
+title: "Load Balancer HTTPS Configuration"
+goal: "Configure the External Global Load Balancer to use HTTPS with existing certificate and IP, and enable HTTP to HTTPS redirect."
+owner: "Junie"
+createdAt: "2025-12-30T13:35:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-183-lb-https-config"
+notes: |
+  Configuring the main-load-balancer in architecture.yaml to support HTTPS, use the bitbrat-{env}-cert, and redirect HTTP traffic to HTTPS.

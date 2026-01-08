@@ -3,7 +3,7 @@ hostRules:
   - hosts:
       - api.dev.bitbrat.ai
     pathMatcher: default-matcher
-name: bitbrat-global-url-map
+name: bitbrat-platform-lb
 pathMatchers:
   - defaultService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-assets-proxy
     name: default-matcher
@@ -39,6 +39,40 @@ pathMatchers:
         routeAction:
           urlRewrite:
             pathPrefixRewrite: /_debug/config
+          weightedBackendServices:
+            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-ingress-egress
+              weight: 100
+      - matchRules:
+          - prefixMatch: /_debug/ingress/twilio
+        priority: 5
+        routeAction:
+          urlRewrite:
+            pathPrefixRewrite: /_debug/twilio
+          weightedBackendServices:
+            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-ingress-egress
+              weight: 100
+      - matchRules:
+          - prefixMatch: /_debug/ingress/discord
+        priority: 6
+        routeAction:
+          urlRewrite:
+            pathPrefixRewrite: /_debug/discord
+          weightedBackendServices:
+            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-ingress-egress
+              weight: 100
+      - matchRules:
+          - prefixMatch: /_debug/llm/mcp
+        priority: 7
+        routeAction:
+          urlRewrite:
+            pathPrefixRewrite: /_debug/mcp
+          weightedBackendServices:
+            - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-llm-bot
+              weight: 100
+      - matchRules:
+          - prefixMatch: /webhooks/twilio
+        priority: 8
+        routeAction:
           weightedBackendServices:
             - backendService: https://www.googleapis.com/compute/v1/projects/bitbrat-local/global/backendServices/be-ingress-egress
               weight: 100

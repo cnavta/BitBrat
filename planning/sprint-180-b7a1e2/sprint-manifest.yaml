@@ -1,0 +1,11 @@
+id: sprint-180-b7a1e2
+title: "Investigate Twilio Websocket Events and Conversation Joining"
+goal: "Identify and fix why messageAdded and conversation events are missing in Twilio integration."
+owner: "Junie (Lead Implementor)"
+createdAt: "2025-12-29T16:20:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-180-b7a1e2-twilio-event-investigation"
+notes: |
+  Continuing investigation into Twilio Connections Websocket integration.
+  Focus on messageAdded, conversation join/exit events.

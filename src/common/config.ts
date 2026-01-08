@@ -82,6 +82,15 @@ const ConfigSchema = z.object({
   discordRedirectUri: z.string().optional(),
   discordOauthScopes: z.array(z.string()).default([]),
   discordOauthPermissions: z.coerce.number().int().min(0).optional(),
+
+  // Twilio configuration
+  twilioEnabled: z.boolean().optional(),
+  twilioAccountSid: z.string().optional(),
+  twilioAuthToken: z.string().optional(),
+  twilioApiKey: z.string().optional(),
+  twilioApiSecret: z.string().optional(),
+  twilioChatServiceSid: z.string().optional(),
+  twilioIdentity: z.string().optional(),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -140,6 +149,15 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     discordRedirectUri: env.DISCORD_REDIRECT_URI,
     discordOauthScopes: parseList(env.DISCORD_OAUTH_SCOPES),
     discordOauthPermissions: env.DISCORD_OAUTH_PERMISSIONS ? Number(env.DISCORD_OAUTH_PERMISSIONS) : undefined,
+
+    // Twilio
+    twilioEnabled: parseBool(env.TWILIO_ENABLED, false),
+    twilioAccountSid: env.TWILIO_ACCOUNT_SID,
+    twilioAuthToken: env.TWILIO_AUTH_TOKEN,
+    twilioApiKey: env.TWILIO_API_KEY,
+    twilioApiSecret: env.TWILIO_API_SECRET,
+    twilioChatServiceSid: env.TWILIO_CHAT_SERVICE_SID,
+    twilioIdentity: env.TWILIO_IDENTITY,
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last
@@ -169,7 +187,16 @@ export function resetConfig(): void {
 
 /** Safe representation of config for logging: redacts secrets. */
 export function safeConfig(cfg: IConfig = getConfig()): Record<string, unknown> {
-  const { twitchClientSecret, oauthStateSecret, twitchBotAccessToken, discordBotToken, discordClientSecret, ...rest } = cfg;
+  const {
+    twitchClientSecret,
+    oauthStateSecret,
+    twitchBotAccessToken,
+    discordBotToken,
+    discordClientSecret,
+    twilioAuthToken,
+    twilioApiSecret,
+    ...rest
+  } = cfg;
   return {
     ...rest,
     twitchClientSecret: twitchClientSecret ? '***REDACTED***' : undefined,
@@ -177,6 +204,8 @@ export function safeConfig(cfg: IConfig = getConfig()): Record<string, unknown> 
     twitchBotAccessToken: twitchBotAccessToken ? '***REDACTED***' : undefined,
     discordBotToken: discordBotToken ? '***REDACTED***' : undefined,
     discordClientSecret: discordClientSecret ? '***REDACTED***' : undefined,
+    twilioAuthToken: twilioAuthToken ? '***REDACTED***' : undefined,
+    twilioApiSecret: twilioApiSecret ? '***REDACTED***' : undefined,
   };
 }
 
@@ -186,6 +215,15 @@ export function assertRequiredSecrets(cfg: IConfig = getConfig()): void {
   if (!cfg.twitchClientId) missing.push('TWITCH_CLIENT_ID');
   if (!cfg.twitchClientSecret) missing.push('TWITCH_CLIENT_SECRET');
   if (!cfg.oauthStateSecret) missing.push('OAUTH_STATE_SECRET');
+
+  if (cfg.twilioEnabled) {
+    if (!cfg.twilioAccountSid) missing.push('TWILIO_ACCOUNT_SID');
+    if (!cfg.twilioAuthToken) missing.push('TWILIO_AUTH_TOKEN');
+    if (!cfg.twilioApiKey) missing.push('TWILIO_API_KEY');
+    if (!cfg.twilioApiSecret) missing.push('TWILIO_API_SECRET');
+    if (!cfg.twilioChatServiceSid) missing.push('TWILIO_CHAT_SERVICE_SID');
+  }
+
   if (missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }

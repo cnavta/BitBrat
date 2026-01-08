@@ -16,6 +16,7 @@ import { importUrlMap } from '../importer';
 
 function makeRendererInputBucket(): RendererInput {
   return {
+    name: 'bitbrat-global-url-map',
     projectId: 'demo-project',
     env: 'dev',
     defaultDomain: 'api.bitbrat.ai',

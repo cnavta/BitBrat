@@ -55,7 +55,7 @@ export class BaseServer {
    */
   protected static CONFIG_DEFAULTS: Record<string, any> = {};
   private readonly app: Express;
-  private readonly serviceName: string;
+  protected readonly serviceName: string;
   private readonly config: IConfig;
   private readonly logger: Logger;
   private readonly resourceManagers: Record<string, ResourceManager<any>>;

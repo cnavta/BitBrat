@@ -107,6 +107,48 @@ describe('enrichEvent()', () => {
     expect(userOut.profile.username).toBe('alice');
   });
 
+  test('maps Twilio metadata correctly', async () => {
+    const repo: UserRepo = {
+      getById: async () => null,
+      getByEmail: async () => null,
+      ensureUserOnMessage: async (id, data) => ({
+        doc: { id, ...data, roles: data.roles || [] } as any,
+        created: true,
+        isFirstMessage: true,
+        isNewSession: true
+      }),
+    };
+    const evt = makeEvent({
+      source: 'ingress.twilio',
+      userId: '+1234567890',
+      message: {
+        id: 'm-twilio',
+        role: 'user',
+        text: 'hello',
+        rawPlatformPayload: {
+          author: '+1234567890',
+          conversationSid: 'CH123',
+          participant: {
+            sid: 'PA123',
+            friendlyName: 'John Doe',
+            channelType: 'sms',
+            attributes: { location: 'NYC' }
+          }
+        }
+      } as any
+    });
+
+    const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'twilio' });
+    expect(res.matched).toBe(true);
+    const userOut = (res.event as any).user;
+    expect(userOut.displayName).toBe('John Doe');
+    expect(userOut.profile.username).toBe('+1234567890');
+    expect(userOut.profile.channelType).toBe('sms');
+    expect(userOut.profile.conversationSid).toBe('CH123');
+    expect(userOut.profile.twilioParticipantSid).toBe('PA123');
+    expect(userOut.profile.twilioAttributes).toEqual({ location: 'NYC' });
+  });
+
   test('maps Discord roles and owner correctly', async () => {
     process.env.DISCORD_MOD_ROLES = 'AdminRole,ModRole';
     const repo: UserRepo = {
@@ -181,5 +223,42 @@ describe('enrichEvent()', () => {
     expect(res.matched).toBe(true);
     expect(res.userRef).toBe('users/twitch:host-999');
     expect((res.event as any).user.displayName).toBe('TheHost');
+  });
+
+  test('maps Twilio message correctly', async () => {
+    const repo: UserRepo = {
+      getById: async () => null,
+      getByEmail: async () => null,
+      ensureUserOnMessage: async (id, data) => ({
+        doc: { id, ...data, roles: data.roles || [] } as any,
+        created: true,
+        isFirstMessage: true,
+        isNewSession: true
+      }),
+    };
+    const evt = makeEvent({
+      v: '1',
+      source: 'ingress.twilio',
+      correlationId: 'c-twilio',
+      type: 'chat.message.v1',
+      userId: '+1234567890',
+      message: {
+        id: 'msg-twilio',
+        role: 'user',
+        text: 'hello from sms',
+        rawPlatformPayload: {
+          author: '+1234567890',
+          conversationSid: 'CH123'
+        }
+      } as any
+    });
+
+    const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'twilio' });
+    expect(res.matched).toBe(true);
+    const userOut = (res.event as any).user;
+    expect(userOut.id).toBe('twilio:+1234567890');
+    expect(userOut.displayName).toBe('+1234567890');
+    expect(userOut.profile.username).toBe('+1234567890');
+    expect(userOut.profile.conversationSid).toBe('CH123');
   });
 });

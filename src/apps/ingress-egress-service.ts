@@ -1,5 +1,5 @@
 import { BaseServer } from '../common/base-server';
-import { Express, Request, Response } from 'express';
+import express, { Express, Request, Response } from 'express';
 import {
   TwitchIrcClient,
   TwitchEnvelopeBuilder,
@@ -11,6 +11,15 @@ import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twit
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
 import { ConnectorManager } from '../services/ingress/core';
 import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
+import {
+  TwilioEnvelopeBuilder,
+  TwilioIngressClient,
+  TwilioTokenProvider,
+  TwilioConnectorAdapter,
+  createTwilioIngressPublisherFromConfig
+} from '../services/ingress/twilio';
+import { validateTwilioSignature } from '../services/ingress/twilio/webhook-utils';
+import twilio from 'twilio';
 import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
@@ -34,6 +43,7 @@ export class IngressEgressServer extends BaseServer {
   private twitchClient: TwitchIrcClient | null = null;
   private twitchEventSubClient: TwitchEventSubClient | null = null;
   private discordClient: DiscordIngressClient | null = null;
+  private twilioClient: TwilioIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
   private lastStates: Record<string, string> = {};
@@ -42,7 +52,10 @@ export class IngressEgressServer extends BaseServer {
   constructor() {
     super({ serviceName: SERVICE_NAME });
     // Perform setup after BaseServer is constructed; BaseServer's /readyz will default to ready=true
-    this.setupApp(this.getApp() as any, this.getConfig() as any);
+    const app = this.getApp();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    this.setupApp(app as any, this.getConfig() as any);
   }
 
   private async setupApp(app: Express, cfg: any) {
@@ -116,6 +129,79 @@ export class IngressEgressServer extends BaseServer {
     } catch (e: any) {
       // Defensive: if Discord modules fail to construct, keep Twitch operational
       logger.warn('ingress-egress.discord.register_failed', { error: e?.message || String(e) });
+    }
+
+    // Twilio initialization
+    if (cfg.twilioEnabled) {
+      try {
+        const twilioBuilder = new TwilioEnvelopeBuilder();
+        const twilioPublisher = createTwilioIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
+        const twilioTokenProvider = new TwilioTokenProvider(cfg);
+        this.twilioClient = new TwilioIngressClient(cfg, twilioTokenProvider, twilioBuilder, twilioPublisher, {
+          egressDestinationTopic: egressTopic
+        });
+        manager.register('twilio', new TwilioConnectorAdapter(this.twilioClient));
+        logger.info('twilio.init_ok');
+
+        // Handle Twilio Webhooks
+        this.onHTTPRequest({ path: '/webhooks/twilio', method: 'POST' }, async (req: Request, res: Response) => {
+          const signature = req.header('X-Twilio-Signature');
+          if (!signature) {
+            logger.warn('twilio.webhook.missing_signature');
+            res.status(403).send('Missing X-Twilio-Signature');
+            return;
+          }
+
+          const twilioAuthToken = cfg.twilioAuthToken;
+          if (!twilioAuthToken) {
+            logger.error('twilio.webhook.missing_auth_token_config');
+            res.status(500).send('Misconfigured');
+            return;
+          }
+
+          // In Cloud Run, req.protocol might be http but external URL is https
+          // Twilio signs using the absolute URL as it was sent
+          const protocol = req.header('x-forwarded-proto') || req.protocol;
+          const host = req.header('host');
+          const url = `${protocol}://${host}${req.originalUrl}`;
+
+          const isValid = validateTwilioSignature(twilioAuthToken, signature, url, req.body);
+          if (!isValid) {
+            logger.warn('twilio.webhook.invalid_signature', { url });
+            res.status(403).send('Invalid Signature');
+            return;
+          }
+
+          const { EventType, ConversationSid } = req.body;
+          logger.info('twilio.webhook.received', { EventType, ConversationSid });
+
+          if (EventType === 'onConversationAdded' || EventType === 'onMessageAdded') {
+            try {
+              const twilioRest = twilio(cfg.twilioAccountSid, cfg.twilioAuthToken);
+              const botIdentity = cfg.twilioIdentity;
+
+              logger.info('twilio.webhook.inject_bot', { ConversationSid, botIdentity, trigger: EventType });
+              await twilioRest.conversations.v1.conversations(ConversationSid)
+                .participants
+                .create({ identity: botIdentity });
+
+              logger.info('twilio.webhook.inject_bot.ok', { ConversationSid, trigger: EventType });
+            } catch (err: any) {
+              // Handle "Already exists" errors (409 or 400 with specific code)
+              if (err.code === 50433 || err.status === 409 || err.message?.includes('already exists')) {
+                logger.info('twilio.webhook.inject_bot.already_participant', { ConversationSid, trigger: EventType });
+              } else {
+                logger.error('twilio.webhook.inject_bot.error', { ConversationSid, trigger: EventType, error: err.message });
+              }
+            }
+          }
+
+          res.status(200).send('OK');
+        });
+
+      } catch (e: any) {
+        logger.error('twilio.init_error', { error: e?.message || String(e) });
+      }
     }
 
     // Start connectors (individual connectors handle disabled/test guards internally)
@@ -200,6 +286,7 @@ export class IngressEgressServer extends BaseServer {
                   const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
                   const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
                   const isDiscord = source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+                  const isTwilio = source.includes('twilio') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
 
                   if (isDiscord) {
                     if (this.discordClient) {
@@ -207,11 +294,17 @@ export class IngressEgressServer extends BaseServer {
                     } else {
                       throw new Error('discord_client_not_available');
                     }
+                  } else if (isTwilio) {
+                    if (this.twilioClient) {
+                      await this.twilioClient.sendText(text, evt.channel);
+                    } else {
+                      throw new Error('twilio_client_not_available');
+                    }
                   } else {
                     // Default to Twitch (matches legacy behavior)
                     await this.twitchClient!.sendText(text, evt.channel);
                   }
-                  logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord });
+                  logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio });
                   await publishFinalize('SENT');
                 } catch (e: any) {
                   // sendText failure: publish FAILED finalization and rethrow to outer handler for logging/ack
@@ -266,6 +359,20 @@ export class IngressEgressServer extends BaseServer {
         // Sanitize: remove any unexpected sensitive fields if present
         const { token, botToken, secret, ...safe } = (discordSnap || {}) as Record<string, unknown>;
         res.status(200).json({ snapshot: safe, egressTopic });
+      } catch (e: any) {
+        res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
+      }
+    });
+
+    // Twilio debug endpoint
+    this.onHTTPRequest('/_debug/twilio', (_req: Request, res: Response) => {
+      try {
+        if (!this.twilioClient) {
+          res.status(200).json({ snapshot: { state: 'DISABLED' }, egressTopic });
+          return;
+        }
+        const snapshot = this.twilioClient.getSnapshot();
+        res.status(200).json({ snapshot, egressTopic });
       } catch (e: any) {
         res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
       }

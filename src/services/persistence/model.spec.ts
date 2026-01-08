@@ -1,4 +1,4 @@
-import { normalizeFinalizePayload, normalizeIngressEvent } from './model';
+import { normalizeFinalizePayload, normalizeIngressEvent, normalizeSourceStatus } from './model';
 import type { InternalEventV2 } from '../../types/events';
 
 describe('persistence/model', () => {
@@ -85,5 +85,29 @@ describe('persistence/model', () => {
     expect(Array.isArray(out.annotations)).toBe(true);
     expect(Array.isArray(out.candidates)).toBe(true);
     expect(out.candidates![0].status).toBe('selected');
+  });
+
+  test('normalizeSourceStatus handles Twilio status events', () => {
+    const evt: InternalEventV2 = {
+      v: '1',
+      source: 'ingress.twilio',
+      type: 'system.source.status',
+      payload: {
+        platform: 'twilio',
+        id: '+1234567890',
+        status: 'CONNECTED',
+        displayName: 'Twilio Bot',
+        metrics: { messagesIn: 10, messagesOut: 10, errors: 0 }
+      }
+    } as any;
+
+    const patch = normalizeSourceStatus(evt);
+    expect(patch.platform).toBe('twilio');
+    expect(patch.id).toBe('+1234567890');
+    expect(patch.status).toBe('CONNECTED');
+    expect(patch.displayName).toBe('Twilio Bot');
+    expect(patch.metrics?.messagesIn).toBe(10);
+    expect(patch.lastStatusUpdate).toBeDefined();
+    expect(patch.metrics?.lastHeartbeat).toBeDefined();
   });
 });

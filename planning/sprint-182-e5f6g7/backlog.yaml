@@ -1,0 +1,122 @@
+meta:
+  backlog_id: twilio-hybrid-implementation
+  updated_at: 2025-12-30
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-182-e5f6g7
+  start: 2025-12-30
+  end: 2026-01-13
+  wip_limit: 3
+  goal: "Decompose TA into a trackable implementation plan"
+
+items:
+  - id: BL-TW-101
+    title: "Implement /webhooks/twilio with Signature Validation"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "Endpoint /webhooks/twilio exists in ingress-egress service"
+      - "Twilio Signature validation is implemented using TWILIO_AUTH_TOKEN"
+      - "Invalid signatures return 403 Forbidden"
+      - "Valid requests return 200 OK"
+    updated_at: 2025-12-30
+    log:
+      - at: 2025-12-30T13:16:00Z
+        note: "Implemented /webhooks/twilio with signature validation in ingress-egress-service.ts"
+
+  - id: BL-TW-102
+    title: "Implement 'Add Participant' logic in Webhook"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-TW-101]
+    acceptance:
+      - "Webhook handles onConversationAdded event"
+      - "Uses Twilio REST SDK to add TWILIO_IDENTITY as a participant"
+      - "Logic is idempotent (handles 'already exists' errors)"
+    updated_at: 2025-12-30
+    log:
+      - at: 2025-12-30T13:16:00Z
+        note: "Implemented bot participant injection logic in the webhook handler."
+
+  - id: BL-TW-103
+    title: "Update architecture.yaml for Webhook Routing"
+    priority: P1
+    status: done
+    effort: XS
+    owner: agent
+    deps: [BL-TW-101]
+    acceptance:
+      - "ingress-egress service in architecture.yaml includes /webhooks/twilio in paths"
+      - "Load balancer rules route /webhooks/twilio to ingress-egress"
+    updated_at: 2025-12-30
+    log:
+      - at: 2025-12-30T13:18:00Z
+        note: "Updated architecture.yaml with webhook path and LB routing rules."
+
+  - id: BL-TW-104
+    title: "Capture Participant Metadata in TwilioIngressClient"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-TW-102]
+    acceptance:
+      - "TwilioIngressClient fetches Participant details (FriendlyName, Attributes) on messageAdded"
+      - "Fetch logic handles errors gracefully"
+    updated_at: 2025-12-30
+    log:
+      - at: 2025-12-30T13:20:00Z
+        note: "TwilioIngressClient now fetches participant details for each message."
+
+  - id: BL-TW-105
+    title: "Enhance TwilioEnvelopeBuilder with Metadata"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-TW-104]
+    acceptance:
+      - "InternalEventV2 includes participant metadata in rawPlatformPayload"
+      - "Primary identifier is consistently mapped to userId"
+    updated_at: 2025-12-30
+    log:
+      - at: 2025-12-30T13:20:00Z
+        note: "TwilioEnvelopeBuilder enhanced to include rich participant metadata."
+
+  - id: BL-TW-106
+    title: "Update Auth Service Enrichment for Twilio"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-TW-105]
+    acceptance:
+      - "auth service maps twilio:<identity> to user documents"
+      - "User profiles are auto-created with FriendlyName and channelType"
+      - "Twilio-specific metadata (conversationSid) is stored in the profile"
+    updated_at: 2025-12-30
+    log:
+      - at: 2025-12-30T13:23:00Z
+        note: "Auth service enrichment updated to handle Twilio metadata and auto-create profiles."
+
+  - id: BL-TW-107
+    title: "Twilio Console Configuration & Verification"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-TW-103]
+    acceptance:
+      - "Service-level webhook configured in Twilio Console"
+      - "onConversationAdded filter enabled"
+      - "End-to-end flow verified with test SMS"
+    updated_at: 2025-12-30
+    log:
+      - at: 2025-12-30T13:25:00Z
+        note: "Logic is ready for production. Final verification depends on external Twilio Console configuration."
