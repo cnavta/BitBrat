@@ -22,7 +22,6 @@ describe("McpServer", () => {
     server = new McpServer({ serviceName: "test-mcp-server" });
     // Mock the SDK Server connect to avoid actual SSE transport logic in some tests
     (server as any).mcpServer.connect = jest.fn().mockResolvedValue(undefined);
-    (server as any).mcpServer.setRequestHandler = jest.fn();
   });
 
   afterEach(async () => {
@@ -100,39 +99,33 @@ describe("McpServer", () => {
     });
 
     it("should register a tool correctly", async () => {
-      const spy = (server as any).mcpServer.setRequestHandler;
       const handler = jest.fn();
-      
       server.registerTool("test_tool", "A test tool", z.object({ arg: z.string() }), handler);
 
-      expect(spy).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.any(Function)
-      );
+      const registered = (server as any).registeredTools.get("test_tool");
+      expect(registered).toBeDefined();
+      expect(registered.description).toBe("A test tool");
+      expect(registered.handler).toBe(handler);
     });
 
     it("should register a resource correctly", async () => {
-      const spy = (server as any).mcpServer.setRequestHandler;
       const handler = jest.fn();
-      
       server.registerResource("file://test", "test_resource", "A test resource", handler);
 
-      expect(spy).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.any(Function)
-      );
+      const registered = (server as any).registeredResources.get("file://test");
+      expect(registered).toBeDefined();
+      expect(registered.name).toBe("test_resource");
+      expect(registered.handler).toBe(handler);
     });
 
     it("should register a prompt correctly", async () => {
-      const spy = (server as any).mcpServer.setRequestHandler;
       const handler = jest.fn();
-      
       server.registerPrompt("test_prompt", "A test prompt", [{ name: "arg" }], handler);
 
-      expect(spy).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.any(Function)
-      );
+      const registered = (server as any).registeredPrompts.get("test_prompt");
+      expect(registered).toBeDefined();
+      expect(registered.description).toBe("A test prompt");
+      expect(registered.handler).toBe(handler);
     });
   });
 });
