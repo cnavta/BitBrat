@@ -27,6 +27,18 @@ export class McpBridge {
       if (!schema.properties) schema.properties = {};
     }
 
+    // AI SDK (OpenAI) requires all array properties in tool schemas to have an explicit 'items' definition.
+    const ensureArrayItems = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.type === 'array' && !obj.items) {
+        obj.items = { type: 'object', additionalProperties: {} };
+      }
+      for (const key in obj) {
+        ensureArrayItems(obj[key]);
+      }
+    };
+    ensureArrayItems(schema);
+
     return {
       id: toolId,
       source: 'mcp',
