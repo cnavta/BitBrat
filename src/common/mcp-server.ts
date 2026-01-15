@@ -48,6 +48,12 @@ export class McpServer extends BaseServer {
       }
     );
 
+    // MCP ServerInfo doesn't natively support description in the constructor,
+    // but some clients might expect it or we can add it to instructions/capabilities if needed.
+    // For now, we align with the spec's InitializeResult which returns name and version.
+    // If the user meant for the LLM to see the description, it's already in architecture.yaml
+    // which the LLM reads.
+
     this.setupMcpRoutes();
     this.setupDiscoveryHandlers();
   }
@@ -62,6 +68,15 @@ export class McpServer extends BaseServer {
     handler: (args: z.infer<T>) => Promise<CallToolResult>
   ) {
     this.registeredTools.set(name, { description, schema, handler });
+    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+      if (request.params.name !== name) {
+        throw new Error(`Tool not found: ${request.params.name}`);
+      }
+      return await this.traceMcpOperation(`tool:${name}`, async () => {
+        const args = schema.parse(request.params.arguments);
+        return await handler(args);
+      });
+    });
     this.getLogger().info("mcp_server.tool_registered", { name });
   }
 
@@ -75,6 +90,17 @@ export class McpServer extends BaseServer {
     handler: (uri: string) => Promise<ReadResourceResult>
   ) {
     this.registeredResources.set(uri, { name, description, handler });
+    this.mcpServer.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request) => {
+        if (request.params.uri !== uri) {
+          throw new Error(`Resource not found: ${request.params.uri}`);
+        }
+        return await this.traceMcpOperation(`resource:${name}`, async () => {
+          return await handler(request.params.uri);
+        });
+      }
+    );
     this.getLogger().info("mcp_server.resource_registered", { name, uri });
   }
 
@@ -153,17 +179,19 @@ export class McpServer extends BaseServer {
 
     // prompts/get
     this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      if (request.params.name !== name) {
       const prompt = this.registeredPrompts.get(request.params.name);
       if (!prompt) {
         throw new Error(`Prompt not found: ${request.params.name}`);
       }
-      return await this.traceMcpOperation(`prompt:${request.params.name}`, async () => {
-        return await prompt.handler(
+      return await this.traceMcpOperation(`prompt:${name}`, async () => {
+        return await handler(
           request.params.name,
           (request.params.arguments as Record<string, string>) || {}
         );
       });
     });
+    this.getLogger().info("mcp_server.prompt_registered", { name });
   }
 
   /**

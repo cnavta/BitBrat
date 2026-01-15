@@ -16,7 +16,7 @@ export class McpBridge {
    */
   translateTool(mcpTool: { name: string; description?: string; inputSchema: any }, requiredRoles?: string[]): BitBratTool {
     const toolId = `mcp:${mcpTool.name}`;
-    
+
     // Defensive: Ensure inputSchema is an object and has a valid type
     let schema = mcpTool.inputSchema;
     if (!schema || typeof schema !== 'object') {
@@ -26,18 +26,6 @@ export class McpBridge {
       schema = { ...schema, type: 'object' };
       if (!schema.properties) schema.properties = {};
     }
-
-    // AI SDK (OpenAI) requires all array properties in tool schemas to have an explicit 'items' definition.
-    const ensureArrayItems = (obj: any) => {
-      if (!obj || typeof obj !== 'object') return;
-      if (obj.type === 'array' && !obj.items) {
-        obj.items = { type: 'object', additionalProperties: {} };
-      }
-      for (const key in obj) {
-        ensureArrayItems(obj[key]);
-      }
-    };
-    ensureArrayItems(schema);
 
     return {
       id: toolId,
@@ -67,7 +55,7 @@ export class McpBridge {
           const textParts = content
             .filter((c: any) => c.type === 'text')
             .map((c: any) => c.text);
-          
+
           const response = textParts.join('\n');
           responseSize = Buffer.byteLength(response, 'utf8');
           return response;
