@@ -1,0 +1,11 @@
+id: sprint-190-e2f3g4
+title: "Cloud Run Shutdown Command"
+goal: "Add a command to the brat tool to shutdown all running Cloud Run instances to reduce costs."
+owner: "Junie"
+createdAt: "2026-01-09T09:20:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/91"
+  branch: "feature/sprint-190-e2f3g4-shutdown-cloud-run"
+notes: |
+  The goal is to provide a simple way to scale all services to zero or disable them when the environment is not in use.

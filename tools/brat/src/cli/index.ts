@@ -109,6 +109,8 @@ Usage:
   brat lb urlmap import --env <name> [--project-id <id>] [--dry-run]
   brat apis enable --env <name> [--project-id <id>] [--dry-run] [--json]
 
+  brat cloud-run shutdown --env <name> [--project-id <id>] [--region <r>] [--dry-run]
+
   brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger delete --name <n> [--dry-run]
@@ -513,6 +515,52 @@ async function cmdInfra(action: 'plan' | 'apply', flags: GlobalFlags, envDir: st
   }
 }
 
+async function cmdCloudRunShutdown(flags: GlobalFlags) {
+  const root = process.cwd();
+  const cfg = resolveConfig(root);
+  const services = Object.values(cfg.services);
+  if (!services.length) {
+    throw new ConfigurationError('No services found in architecture.yaml');
+  }
+
+  log.info({ action: 'cloud-run.shutdown.start', env: flags.env, projectId: flags.projectId }, `Shutting down ${services.length} Cloud Run services`);
+
+  for (const svc of services) {
+    const region = flags.region || svc.region;
+    const serviceName = svc.name;
+    const serviceLog = log.child({ service: serviceName, region });
+
+    serviceLog.info({ status: 'scaling-zero' }, `Scaling ${serviceName} to zero instances`);
+
+    const args = [
+      'run', 'services', 'update', serviceName,
+      '--min-instances=0',
+      '--region', region,
+      '--project', flags.projectId,
+      '--quiet'
+    ];
+
+    if (flags.dryRun) {
+      serviceLog.info({ status: 'dry-run', command: `gcloud ${args.join(' ')}` }, `DRY-RUN: Would scale ${serviceName} to zero`);
+      continue;
+    }
+
+    try {
+      const res = await execCmd('gcloud', args);
+      if (res.code !== 0) {
+        serviceLog.error({ status: 'failed', code: res.code, stderr: res.stderr }, `Failed to scale ${serviceName} to zero`);
+        // Continue with other services even if one fails
+      } else {
+        serviceLog.info({ status: 'success' }, `Successfully scaled ${serviceName} to zero`);
+      }
+    } catch (e: any) {
+      serviceLog.error({ status: 'error', error: e?.message || String(e) }, `Error scaling ${serviceName} to zero`);
+    }
+  }
+
+  log.info({ action: 'cloud-run.shutdown.complete' }, 'Cloud Run shutdown completed');
+}
+
 async function main() {
   const { cmd, flags, rest } = parseArgs(process.argv);
   const requireEnv = (context: string) => {
@@ -561,7 +609,7 @@ async function main() {
     const args = ['--name', name];
     if (force) args.push('--force');
     if (mcp) args.push('--mcp');
-    
+
     console.log(`[brat] Bootstrapping service: ${name}${mcp ? ' (MCP)' : ''}`);
     const res = spawnSync('node', [scriptPath, ...args], { stdio: 'inherit' });
     process.exit(res.status ?? 0);
@@ -609,6 +657,11 @@ async function main() {
         }
       }
     }
+    return;
+  }
+  if (c1 === 'cloud-run' && c2 === 'shutdown') {
+    requireEnv('cloud-run shutdown');
+    await cmdCloudRunShutdown(flags);
     return;
   }
   if (c1 === 'lb' && c2 === 'urlmap') {
