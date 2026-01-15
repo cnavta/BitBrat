@@ -63,6 +63,10 @@ export class BaseServer {
   private shutdownBound = false;
   private readonly unsubscribers: UnsubscribeFn[] = [];
 
+  /**
+   * Creates an instance of BaseServer.
+   * @param opts - Configuration options for the server.
+   */
   constructor(opts: BaseServerOptions = {}) {
     this.app = express();
     this.serviceName = opts.serviceName || process.env.SERVICE_NAME || 'service';

@@ -79,6 +79,22 @@ describe("McpServer", () => {
     });
   });
 
+  describe("Error Handling", () => {
+    it("should return 404 for unknown session in /message", async () => {
+      const response = await request(server.getApp())
+        .post("/message?sessionId=unknown")
+        .send({ some: "data" });
+      expect(response.status).toBe(404);
+    });
+
+    it("should return 400 if sessionId is missing in /message", async () => {
+      const response = await request(server.getApp())
+        .post("/message")
+        .send({ some: "data" });
+      expect(response.status).toBe(400);
+    });
+  });
+
   describe("Registration Helpers", () => {
     it("should use description and version from architecture.yaml", () => {
       const arch = {
