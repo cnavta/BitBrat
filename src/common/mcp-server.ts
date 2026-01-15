@@ -16,6 +16,12 @@ import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
+/**
+ * McpServer
+ * - Extends BaseServer to provide Model Context Protocol (MCP) capabilities.
+ * - Supports tools, resources, and prompts registration.
+ * - Provides SSE transport for MCP clients.
+ */
 export class McpServer extends BaseServer {
   protected readonly mcpServer: Server;
   protected readonly transports: Map<string, SSEServerTransport> = new Map();
@@ -25,6 +31,10 @@ export class McpServer extends BaseServer {
   private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string) => Promise<ReadResourceResult> }> = new Map();
   private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>) => Promise<GetPromptResult> }> = new Map();
 
+  /**
+   * Creates an instance of McpServer.
+   * @param opts - Configuration options for the server.
+   */
   constructor(opts: BaseServerOptions = {}) {
     super(opts);
 
