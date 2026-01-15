@@ -1,8 +1,8 @@
 # Deliverable Verification – sprint-191-a7d2e3
 
 ## Completed
-- [x] Fix syntax errors in `src/common/mcp-server.ts`.
-- [x] Restore individual `setRequestHandler` calls in registration methods to satisfy tests and ensure correct behavior per tool/resource/prompt.
+- [x] Task 1: Fix syntax errors in `src/common/mcp-server.ts` and restore test functionality.
+- [x] Task 2: Analyze project and create open-source preparation backlog.
 - [x] Successful build with `npm run build`.
 - [x] Successful test execution with `npm test`.
 
@@ -10,7 +10,8 @@
 - None.
 
 ## Deferred
-- None.
+- Implementation of backlog items (OS-002 to OS-006) is deferred to future sprints.
 
 ## Alignment Notes
-- The generic handlers in `setupDiscoveryHandlers` were partially restored/maintained for listing operations, but individual call/read/get handlers were moved back to registration methods to align with existing test expectations and ensure they are set up correctly when a tool/resource/prompt is registered.
+- The backlog follows the required schema from `backlog-example.yaml`.
+- Branch `feature/sprint-191-a7d2e3-open-source-backlog` contains both the fix and the backlog.
