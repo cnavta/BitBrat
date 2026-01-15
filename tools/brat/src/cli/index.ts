@@ -609,7 +609,7 @@ async function main() {
     const args = ['--name', name];
     if (force) args.push('--force');
     if (mcp) args.push('--mcp');
-    
+
     console.log(`[brat] Bootstrapping service: ${name}${mcp ? ' (MCP)' : ''}`);
     const res = spawnSync('node', [scriptPath, ...args], { stdio: 'inherit' });
     process.exit(res.status ?? 0);
