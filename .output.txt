@@ -24,82 +24,82 @@ Run `npm audit` for details.
 > bitbrat-platform@1.0.0 test
 > jest tests/common/mcp-server.spec.ts
   console.log
-    {"ts":"2026-01-15T15:29:02.347Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.020Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.390Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.038Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.391Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.039Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.398Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.046Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.399Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.047Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.414Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+    {"ts":"2026-01-15T16:14:23.063Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.416Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+    {"ts":"2026-01-15T16:14:23.065Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.419Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+    {"ts":"2026-01-15T16:14:23.068Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.420Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.069Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.420Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.069Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.424Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.070Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.424Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.071Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.425Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.072Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.427Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.074Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.427Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.074Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.428Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+    {"ts":"2026-01-15T16:14:23.076Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.429Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+    {"ts":"2026-01-15T16:14:23.076Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.429Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+    {"ts":"2026-01-15T16:14:23.077Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.430Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.077Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.430Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.078Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.436Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.078Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.436Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.079Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.437Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.079Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.439Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.081Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.439Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.081Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.warn
-    {"ts":"2026-01-15T15:29:02.441Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/sse","ip":"::ffff:127.0.0.1"}
+    {"ts":"2026-01-15T16:14:23.083Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/sse","ip":"::ffff:127.0.0.1"}
       135 |   warn(msg: string, context?: Record<string, unknown>) {
       136 |     if (!this.shouldLog('warn')) return;
     > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
@@ -122,31 +122,31 @@ Run `npm audit` for details.
       at app.handle (node_modules/express/lib/application.js:177:15)
       at Server.app (node_modules/express/lib/express.js:38:9)
   console.log
-    {"ts":"2026-01-15T15:29:02.444Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+    {"ts":"2026-01-15T16:14:23.085Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.444Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.085Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.444Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.086Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.446Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.086Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.447Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.087Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.447Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.087Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.449Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.088Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.449Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.089Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.warn
-    {"ts":"2026-01-15T15:29:02.451Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/sse","ip":"::ffff:127.0.0.1"}
+    {"ts":"2026-01-15T16:14:23.090Z","service":"test-mcp-server","level":"warn","severity":"WARNING","msg":"mcp_server.auth_failed","path":"/sse","ip":"::ffff:127.0.0.1"}
       135 |   warn(msg: string, context?: Record<string, unknown>) {
       136 |     if (!this.shouldLog('warn')) return;
     > 137 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
@@ -169,337 +169,326 @@ Run `npm audit` for details.
       at app.handle (node_modules/express/lib/application.js:177:15)
       at Server.app (node_modules/express/lib/express.js:38:9)
   console.log
-    {"ts":"2026-01-15T15:29:02.453Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+    {"ts":"2026-01-15T16:14:23.091Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.454Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.092Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.454Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.092Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.455Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.093Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.455Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.093Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.455Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.093Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.457Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.095Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.457Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.095Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.458Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+    {"ts":"2026-01-15T16:14:23.096Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.459Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+    {"ts":"2026-01-15T16:14:23.097Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.459Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+    {"ts":"2026-01-15T16:14:23.097Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.459Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.098Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.460Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.098Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.460Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.098Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.461Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.099Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.462Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.099Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.465Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.100Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.466Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.101Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.468Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
+    {"ts":"2026-01-15T16:14:23.102Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.sse_connection_attempt"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.468Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
+    {"ts":"2026-01-15T16:14:23.103Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.connected","sessionId":"test-session"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.469Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
+    {"ts":"2026-01-15T16:14:23.103Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":1}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.469Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.104Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.469Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.104Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.470Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.104Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.470Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.105Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.471Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.105Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.472Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.106Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.472Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.107Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.473Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.107Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.473Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.108Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.474Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.108Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.475Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.109Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.475Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.109Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.476Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+    {"ts":"2026-01-15T16:14:23.110Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.476Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.110Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.477Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.111Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.487Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.111Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.487Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.111Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.488Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.112Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.489Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.113Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.490Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.113Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.490Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"test_tool"}
+    {"ts":"2026-01-15T16:14:23.114Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"test_tool"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.491Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+    {"ts":"2026-01-15T16:14:23.115Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.492Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.115Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.492Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.116Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.493Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.116Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.493Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.117Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.493Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.117Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.495Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.118Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.495Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.119Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.495Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.resource_registered","name":"test_resource","uri":"file://test"}
+    {"ts":"2026-01-15T16:14:23.119Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.resource_registered","name":"test_resource","uri":"file://test"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.496Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+    {"ts":"2026-01-15T16:14:23.120Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.496Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.120Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.497Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.121Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.497Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+    {"ts":"2026-01-15T16:14:23.121Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.498Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+    {"ts":"2026-01-15T16:14:23.121Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.498Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.122Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.499Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+    {"ts":"2026-01-15T16:14:23.124Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.500Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+    {"ts":"2026-01-15T16:14:23.124Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.500Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.prompt_registered","name":"test_prompt"}
+    {"ts":"2026-01-15T16:14:23.125Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.prompt_registered","name":"test_prompt"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.501Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
+    {"ts":"2026-01-15T16:14:23.125Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"manual","activeTransports":0}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.501Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+    {"ts":"2026-01-15T16:14:23.125Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
       at Logger.info (src/common/logging.ts:142:13)
   console.log
-    {"ts":"2026-01-15T15:29:02.501Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+    {"ts":"2026-01-15T16:14:23.126Z","service":"test-mcp-server","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
       at Logger.info (src/common/logging.ts:142:13)
-(node:43330) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGTERM listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:74665) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGTERM listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:43330) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGINT listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
-(node:43330) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 beforeExit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
-(node:43330) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:74665) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGINT listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:74665) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 beforeExit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:74665) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
  PASS  tests/common/mcp-server.spec.ts
   McpServer
     Endpoints Registration
-      ✓ should register /sse and /message endpoints (78 ms)
+      ✓ should register /sse and /message endpoints (52 ms)
     Security
-      ✓ should allow access if MCP_AUTH_TOKEN is not set (13 ms)
-      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is missing (9 ms)
-      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is incorrect (9 ms)
+      ✓ should allow access if MCP_AUTH_TOKEN is not set (8 ms)
+      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is missing (8 ms)
+      ✓ should return 401 if MCP_AUTH_TOKEN is set and token is incorrect (6 ms)
       ✓ should allow access if correct token is provided in header (6 ms)
-      ✓ should allow access if correct token is provided in query (10 ms)
+      ✓ should allow access if correct token is provided in query (6 ms)
     Registration Helpers
       ✓ should use description and version from architecture.yaml (7 ms)
-      ✓ should register a tool correctly (15 ms)
+      ✓ should register a tool correctly (5 ms)
       ✓ should register a resource correctly (5 ms)
-      ✓ should register a prompt correctly (4 ms)
+      ✓ should register a prompt correctly (5 ms)
 Test Suites: 1 passed, 1 total
 Tests:       10 passed, 10 total
 Snapshots:   0 total
-Time:        2.567 s, estimated 5 s
+Time:        2.245 s
 Ran all test suites matching /tests\/common\/mcp-server.spec.ts/i.
 🧪 Running all tests (silent)...
 > bitbrat-platform@1.0.0 test
 > jest --silent
-(node:43442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:74767) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
- PASS  tools/brat/src/config/schema.routing.test.ts (5.438 s)
-(node:43435) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:74805) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
- PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.routing.test.ts (5.646 s)
- PASS  src/services/auth/__tests__/enrichment.spec.ts (5.655 s)
-(node:43440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+ PASS  tests/services/llm-bot/mcp/web-search.test.ts
+ PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.routing.test.ts (7.775 s)
+(node:74772) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:43443) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-(node:43441) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  src/services/persistence/store.spec.ts (5.548 s)
-(node:43439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts (5.669 s)
-(node:43434) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-(node:43437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-(node:43438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  tests/apps/scheduler-service.spec.ts (6.136 s)
-(node:43442) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGTERM listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
-(node:43442) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGINT listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
-(node:43442) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 beforeExit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
-(node:43442) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
- PASS  tests/common/mcp-server.spec.ts
-(node:43436) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-(node:43444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-(node:43482) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  tests/services/llm-bot/mcp/web-search.test.ts (6.69 s)
- PASS  src/services/llm-bot/processor.error.spec.ts
- PASS  src/services/llm-bot/processor.memory.spec.ts
- PASS  src/services/llm-bot/processor.empty-response.spec.ts
- PASS  tools/brat/src/lb/importer/__tests__/importer.guard.test.ts
- PASS  src/services/llm-bot/processor.personality.spec.ts
- PASS  tools/brat/src/lb/urlmap/__tests__/from-repo-arch.test.ts
- PASS  src/services/llm-bot/processor.test.ts
- PASS  src/apps/__tests__/event-router-debug.test.ts
- PASS  tests/services/llm-bot/personality-with-memory.spec.ts
- PASS  src/common/__tests__/discord-secret.test.ts
- PASS  tools/brat/src/lb/urlmap/__tests__/renderer.test.ts
- PASS  src/services/auth/__tests__/user-repo.test.ts
- PASS  src/apps/scheduler-service.test.ts
- PASS  src/services/llm-bot/__tests__/processor.unwrap-quotes.spec.ts
- PASS  src/services/llm-bot/__tests__/processor.personality-name.spec.ts
- PASS  tools/brat/src/providers/cdktf-synth.restore.test.ts
- PASS  src/services/llm-bot/tools/__tests__/internal-tools.test.ts
- PASS  src/apps/persistence-service.test.ts
- PASS  tools/brat/src/providers/cdktf-synth.lb.spec.ts
- PASS  src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts
- PASS  src/services/ingress/twilio/__tests__/webhook-utils.spec.ts
- PASS  tests/apps/command-processor-error-policy.spec.ts
- PASS  src/services/llm-bot/__tests__/user-context.append.spec.ts
- PASS  src/services/llm-bot/processor.instance-memory.spec.ts
- PASS  src/services/auth/__tests__/user-repo.spec.ts
- PASS  src/common/__tests__/base-server-yaml.test.ts
- PASS  src/common/logging.test.ts
- PASS  src/services/ingress/discord/discord-ingress-client.spec.ts
- PASS  src/services/llm-bot/processor.personality-disabled.spec.ts
- PASS  src/services/oauth/providers/twitch-adapter.test.ts
- PASS  src/apps/event-router-service.test.ts
- PASS  src/services/llm-bot/reducer.spec.ts
- PASS  src/services/router/__tests__/rule-loader.hardening.test.ts
- PASS  src/services/ingress/twitch/publisher.spec.ts
- PASS  src/common/__tests__/logging-trace-correlation.spec.ts
- PASS  src/services/llm-bot/__tests__/processor.personality-mixed.spec.ts
- PASS  src/apps/command-processor-service.test.ts
- PASS  tests/services/command-processor/routing-advance.spec.ts
- PASS  src/services/ingress/discord/discord-integration.spec.ts
- PASS  tests/llm-bot-service.spec.ts
- PASS  tools/brat/src/providers/cdktf-synth.connectors.spec.ts
- PASS  src/services/routing/__tests__/router-engine.test.ts
- PASS  tools/brat/src/providers/cdktf-synth.buckets.test.ts
- PASS  src/services/ingress/twitch/__tests__/twurple-integration.spec.ts
- PASS  src/common/base-server.logger.test.ts
- PASS  src/services/ingress/twitch/credentials-provider.config.spec.ts
- PASS  src/services/router/__tests__/rule-loader-annotations.spec.ts
- PASS  src/services/ingress/discord/envelope-builder.spec.ts
- PASS  tools/brat/src/providers/cdktf-synth.network.spec.ts
- PASS  src/services/routing/__tests__/router-engine-ops-integration.spec.ts
- PASS  src/apps/__tests__/ingress-egress-webhooks.test.ts (8.436 s)
- PASS  src/apps/llm-bot-service.test.ts
- PASS  tests/services/command-processor/processor.spec.ts
- PASS  src/common/__tests__/discord-config.test.ts
- PASS  src/services/ingress/twitch/__tests__/token-overwrite.spec.ts
- PASS  tests/base-server-step-update.spec.ts
- PASS  src/apps/ingress-egress-service.finalize.spec.ts
- PASS  src/services/ingress/twilio/__tests__/token-provider.spec.ts
- PASS  src/apps/ingress-egress-service.krevision.test.ts
- PASS  src/apps/oauth-service.oauth-routes.test.ts
- PASS  tests/base-server-routing.spec.ts
- PASS  tests/services/llm-bot/processor.spec.ts
- PASS  src/services/oauth/oauth-flow.integration.test.ts
- PASS  tests/services/llm-bot/mcp/client-manager.spec.ts
- PASS  tests/services/llm-bot/history-redundancy.test.ts
- PASS  src/services/twitch-oauth.test.ts
- PASS  tools/brat/src/cli/trigger.spec.ts
- PASS  tools/brat/src/orchestration/exec.spec.ts
- PASS  tests/services/llm-bot/processor-tools.spec.ts
- PASS  src/common/__tests__/base-server-helpers.test.ts
- PASS  tests/base-server-onmessage.spec.ts
- PASS  tests/services/llm-bot/mcp/bridge.spec.ts
  PASS  src/apps/__tests__/command-processor-service.test.ts
- PASS  infrastructure/scripts/extract-config.test.ts
- PASS  src/apps/oauth-service.test.ts
- PASS  src/apps/auth-service.test.ts
- PASS  src/apps/__tests__/event-router-ingress.integration.test.ts
+(node:74770) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/services/ingress/twitch/__tests__/eventsub-client.repro.spec.ts (8.081 s)
+(node:74764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:74774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/services/auth/__tests__/enrichment.spec.ts (8.256 s)
+(node:74765) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:74773) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tools/brat/src/config/schema.routing.test.ts (8.31 s)
+(node:74775) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/services/persistence/store.spec.ts (8.516 s)
+ PASS  src/apps/llm-bot-service.test.ts
+(node:74769) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  tests/apps/scheduler-service.spec.ts (9.631 s)
+ PASS  src/services/llm-bot/processor.memory.spec.ts
+(node:74768) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:74769) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGTERM listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:74769) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGINT listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:74769) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 beforeExit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:74769) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ PASS  tests/common/mcp-server.spec.ts
+ PASS  src/apps/scheduler-service.test.ts
+(node:74766) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PASS  src/apps/ingress-egress-service.finalize.spec.ts
+ PASS  tools/brat/src/cli/trigger.spec.ts
+ PASS  tests/services/llm-bot/mcp/client-manager.spec.ts
+ PASS  tests/llm-bot-service.spec.ts
  PASS  tools/brat/src/cli/__tests__/deploy-substitutions.scaling.test.ts
+ PASS  tests/services/llm-bot/mcp/bridge.spec.ts
+ PASS  src/apps/ingress-egress-service.test.ts
+ PASS  src/services/llm-bot/processor.test.ts
+ PASS  src/apps/ingress-egress-service.krevision.test.ts
+ PASS  src/services/llm-bot/tools/__tests__/internal-tools.test.ts
+ PASS  tests/apps/command-processor-error-policy.spec.ts
+ PASS  src/common/__tests__/base-server-helpers.test.ts
+ PASS  tests/services/command-processor/routing-advance.spec.ts
+ PASS  src/apps/oauth-service.test.ts
+ PASS  tests/services/llm-bot/personality-with-memory.spec.ts
+ PASS  src/apps/oauth-service.oauth-routes.test.ts
+ PASS  src/services/llm-bot/reducer.spec.ts
+ PASS  infrastructure/scripts/extract-config.test.ts
+ PASS  src/apps/auth-service.test.ts
+ PASS  src/apps/__tests__/ingress-egress-webhooks.test.ts (11.616 s)
+ PASS  src/services/llm-bot/__tests__/processor.unwrap-quotes.spec.ts
+ PASS  tests/services/command-processor/personality-annotation.spec.ts
+ PASS  tests/base-server-step-update.spec.ts
+ PASS  src/apps/__tests__/event-router-debug.test.ts
+ PASS  src/services/llm-bot/processor.instance-memory.spec.ts
+ PASS  src/apps/event-router-service.test.ts
+ PASS  src/services/persistence/integration.spec.ts
+ PASS  src/services/auth/__tests__/user-repo.spec.ts
+ PASS  src/services/oauth/routes.test.ts
+ PASS  src/common/base-server.logger.test.ts
+ PASS  src/apps/command-processor-service.test.ts
+ PASS  src/services/llm-bot/processor.personality.spec.ts
+ PASS  src/services/llm-bot/processor.error.spec.ts
+ PASS  src/common/__tests__/discord-secret.test.ts
+ PASS  src/services/ingress/twilio/__tests__/token-provider.spec.ts
  PASS  src/common/base-server.test.ts
+ PASS  src/services/oauth/oauth-flow.integration.test.ts
+ PASS  tests/integration/command-processor-smoke.spec.ts
+ PASS  src/services/oauth/auth-token-store.test.ts
+ PASS  tests/services/command-processor/policy-global-cooldown.spec.ts
+ PASS  src/services/llm-bot/processor.empty-response.spec.ts
+ PASS  tests/services/llm-bot/prompt-logging.test.ts
+ PASS  tools/brat/src/orchestration/exec.spec.ts
+ PASS  src/services/llm-bot/__tests__/user-context.append.spec.ts
+ PASS  tests/common/base-server-resources.spec.ts
+ PASS  src/services/oauth/providers/discord-adapter.test.ts
+ PASS  src/services/ingress/twitch/credentials-provider.config.spec.ts
+ PASS  tests/router-annotations-e2e.spec.ts
+ PASS  src/services/message-bus/__tests__/pubsub-subscriber-logging.test.ts
+ PASS  tests/services/command-processor/processor.spec.ts
+ PASS  tests/services/command-processor/personality-annotation-regex.spec.ts
+ PASS  src/services/message-bus/__tests__/pubsub-subscriber.ensure.test.ts
+ PASS  src/services/ingress/twitch/twitch-irc-client.spec.ts
+ PASS  tools/brat/src/config/__tests__/allow-unauth.test.ts
+ PASS  src/services/routing/__tests__/router-engine-annotations.spec.ts
+ PASS  tests/base-server-onmessage.spec.ts
+ PASS  tests/common/base-server-get-resource.spec.ts
+ PASS  src/services/router/__tests__/rule-loader.hardening.test.ts
+ PASS  tests/services/command-processor/template-selection.spec.ts
+ PASS  tests/base-server-routing.spec.ts
+ PASS  src/apps/__tests__/event-router-ingress.integration.test.ts
+ PASS  src/common/firebase.test.ts
+ PASS  src/types/events.types.test.ts
+ PASS  src/apps/__tests__/ingress-egress-routing.test.ts (12.917 s)
 ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/apps/command-processor-error-policy.spec.ts.
       at Firestore.get (node_modules/@google-cloud/firestore/build/src/index.js:1540:16)
       at ClientPool.clientFactory (node_modules/@google-cloud/firestore/build/src/index.js:526:45)
@@ -507,8 +496,38 @@ ReferenceError: You are trying to `import` a file after the Jest environment has
       at ClientPool.run (node_modules/@google-cloud/firestore/build/src/pool.js:260:29)
       at node_modules/@google-cloud/firestore/build/src/index.js:1412:30
       at Firestore._retry (node_modules/@google-cloud/firestore/build/src/index.js:1270:30)
- PASS  src/common/feature-flags.test.ts
- PASS  tests/common/base-server-resources.spec.ts
+ PASS  src/services/llm-bot/processor.personality-disabled.spec.ts
+ PASS  src/services/message-bus/message-bus.test.ts
+ PASS  src/services/llm-bot/__tests__/processor.personality-mixed.spec.ts
+ PASS  src/common/__tests__/logging-trace-correlation.spec.ts
+ PASS  src/services/message-bus/__tests__/pubsub-publisher-logging.test.ts
+ PASS  src/services/message-bus/nats-driver.test.ts
+ PASS  src/services/twitch-oauth.test.ts
+ PASS  src/services/llm-bot/__tests__/processor.personality-name.spec.ts
+ PASS  tests/services/command-processor/logging.spec.ts
+ PASS  tests/services/command-processor/parsing.spec.ts
+ PASS  tools/brat/src/config/schema.network.spec.ts
+ PASS  tests/services/message-bus/nats-flush.spec.ts
+ PASS  src/services/ingress/twilio/__tests__/twilio-envelope-builder.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.lb.spec.ts
+ PASS  src/apps/persistence-service.test.ts
+ PASS  tools/brat/src/providers/cdktf-synth.spec.ts
+ PASS  tests/services/llm-bot/history-redundancy.test.ts
+ PASS  tests/services/message-bus/pubsub-batching.spec.ts
+ PASS  tests/common/publisher-manager.spec.ts
+ PASS  tests/prompt-assembly/adapters.spec.ts
+ PASS  tests/services/command-processor/candidate-create.spec.ts
+ PASS  tests/prompt-assembly/conversation-state.spec.ts
+ PASS  tests/services/command-processor/template-render.spec.ts
+ PASS  src/services/llm-bot/__tests__/personality-resolver-sorting.spec.ts
+ PASS  src/services/ingress/twilio/__tests__/twilio-ingress-client.spec.ts
+ PASS  src/services/ingress/discord/discord-ingress-client.spec.ts
+ PASS  src/common/base-server.debug-config.test.ts
+ PASS  src/services/ingress/discord/discord-ingress-client.test.ts
+ PASS  tests/services/command-processor/policy-user-cooldown.spec.ts
+ PASS  src/services/ingress/twitch/credentials-provider.spec.ts
+ PASS  src/services/message-bus/__tests__/subscriber-options.test.ts
+ PASS  tests/services/command-processor/command-repo.spec.ts
 ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From tests/services/command-processor/routing-advance.spec.ts.
       at Firestore.get (node_modules/@google-cloud/firestore/build/src/index.js:1540:16)
       at ClientPool.clientFactory (node_modules/@google-cloud/firestore/build/src/index.js:526:45)
@@ -516,115 +535,96 @@ ReferenceError: You are trying to `import` a file after the Jest environment has
       at ClientPool.run (node_modules/@google-cloud/firestore/build/src/pool.js:260:29)
       at node_modules/@google-cloud/firestore/build/src/index.js:1412:30
       at Firestore._retry (node_modules/@google-cloud/firestore/build/src/index.js:1270:30)
- PASS  src/apps/__tests__/ingress-egress-routing.test.ts (9.211 s)
- PASS  src/services/persistence/integration.spec.ts
- PASS  src/common/base-server.debug-config.test.ts
- PASS  src/apps/ingress-egress-service.test.ts
- PASS  src/services/ingress/twitch/credentials-provider.spec.ts
- PASS  src/common/config.test.ts
- PASS  src/services/twitch-token-manager.test.ts
- PASS  src/services/oauth/routes.test.ts
- PASS  tools/brat/src/config/loader.spec.ts
- PASS  tests/services/llm-bot/prompt-logging.test.ts
- PASS  src/types/events.types.test.ts
- PASS  src/services/ingress/discord/discord-observability.spec.ts
- PASS  src/services/oauth/providers/discord-adapter.test.ts
- PASS  src/common/retry.test.ts
- PASS  src/services/ingress/twitch/twitch-irc-client.spec.ts
- PASS  tests/common/base-server-get-resource.spec.ts
- PASS  tests/services/command-processor/personality-annotation.spec.ts
- PASS  tests/common/publisher-manager.spec.ts
- PASS  tools/brat/src/config/__tests__/interpolation.test.ts
- PASS  tests/services/command-processor/policy-user-cooldown.spec.ts
- PASS  src/common/firebase.test.ts
- PASS  src/services/message-bus/__tests__/pubsub-publisher-logging.test.ts
- PASS  tests/services/message-bus/subscriber-dedupe.spec.ts
- PASS  src/services/oauth/auth-token-store.test.ts
+ PASS  tests/prompt-assembly/redaction.spec.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/renderer.test.ts
  PASS  tools/brat/src/lb/importer/__tests__/importer.test.ts
- PASS  tests/services/command-processor/command-repo.spec.ts
- PASS  src/services/persistence/model.spec.ts
- PASS  tests/services/message-bus/pubsub-logging.spec.ts
- PASS  tests/services/command-processor/parsing.spec.ts
- PASS  tests/services/command-processor/template-render.spec.ts
- PASS  tests/services/command-processor/logging.spec.ts
- PASS  tools/brat/src/config/schema.network.spec.ts
- PASS  src/services/router/__tests__/rule-loader.test.ts
- PASS  src/services/ingress/twilio/__tests__/twilio-ingress-client.spec.ts
- PASS  src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts
- PASS  src/services/ingress/discord/discord-ingress-client.test.ts
- PASS  tests/services/command-processor/personality-annotation-regex.spec.ts
- PASS  tests/services/command-processor/policy-rate-limit.spec.ts
- PASS  src/services/message-bus/__tests__/pubsub-subscriber.ensure.test.ts
- PASS  tests/services/message-bus/nats-attributes.spec.ts
- PASS  src/services/llm-bot/__tests__/prompt-composer.spec.ts
- PASS  src/services/message-bus/nats-driver.test.ts
- PASS  tests/integration/command-processor-smoke.spec.ts
- PASS  src/services/router/__tests__/jsonlogic-ci-eq.spec.ts
- PASS  tools/brat/src/providers/gcp/cloudbuild-triggers.spec.ts
- PASS  tests/services/message-bus/pubsub-batching.spec.ts
- PASS  tests/prompt-assembly/conversation-state.spec.ts
- PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.test.ts
- PASS  tools/brat/src/providers/cdktf-synth.spec.ts
- PASS  src/services/llm-bot/__tests__/personality-resolver-sorting.spec.ts
- PASS  infrastructure/cdktf/network/config.spec.ts
- PASS  tools/brat/src/config/__tests__/allow-unauth.test.ts
- PASS  tests/common/events/attributes.spec.ts
- PASS  src/services/llm-bot/instance-memory.spec.ts
- PASS  tools/brat/src/providers/gcp/cloudrun.spec.ts
- PASS  src/services/routing/routing.dlq.test.ts
- PASS  src/services/message-bus/__tests__/factory-selection.test.ts
- PASS  tests/services/command-processor/policy-global-cooldown.spec.ts
- PASS  tests/services/message-bus/nats-logging.spec.ts
- PASS  src/services/routing/__tests__/router-engine-annotations.spec.ts
- PASS  tests/router-annotations-e2e.spec.ts
- PASS  tools/brat/src/providers/gcp/lb-preflight.spec.ts
- PASS  tests/services/command-processor/template-selection.spec.ts
- PASS  tools/brat/src/lb/urlmap/__tests__/renderer.routing.test.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/from-repo-arch.test.ts
  PASS  tools/brat/src/config/schema.test.ts
- PASS  src/services/router/__tests__/jsonlogic-evaluator.test.ts
- PASS  tools/brat/src/providers/gcp/preflight.spec.ts
- PASS  src/services/router/__tests__/jsonlogic-re-test.spec.ts
- PASS  tools/brat/src/orchestration/errors.spec.ts
- PASS  tests/services/message-bus/nats-flush.spec.ts
- PASS  src/services/router/__tests__/jsonlogic-extra-ops.spec.ts
- PASS  tools/brat/src/config/__tests__/resolve-services.scaling.test.ts
- PASS  tests/prompt-assembly/adapters/google.spec.ts
+ PASS  tests/common/events/attributes.spec.ts
+ PASS  src/services/router/__tests__/jsonlogic-slip-complete.spec.ts
+ PASS  src/services/router/__tests__/rule-loader.test.ts
+ PASS  src/services/ingress/discord/envelope-builder.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.loadbalancer.test.ts
+ PASS  src/services/ingress/twilio/__tests__/webhook-utils.spec.ts
+ PASS  src/services/ingress/twitch/__tests__/twurple-integration.spec.ts
 ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From src/apps/__tests__/ingress-egress-routing.test.ts.
       at new PublisherClient (node_modules/@google-cloud/pubsub/src/v1/publisher_client.ts:161:21)
       at PubSub.getClientAsync_ (node_modules/@google-cloud/pubsub/src/pubsub.ts:1316:19)
- PASS  tests/prompt-assembly/adapters.spec.ts
- PASS  tools/brat/src/providers/gcp/cloudbuild.spec.ts
- PASS  tests/services/egress/selection.test.ts
- PASS  src/services/message-bus/message-bus.test.ts
- PASS  tests/common/firestore-manager.spec.ts
- PASS  tests/prompt-assembly/truncation.spec.ts
- PASS  src/services/ingress/twilio/__tests__/twilio-envelope-builder.spec.ts
- PASS  tests/common/retry.spec.ts
- PASS  tools/brat/src/providers/gcp/apis.spec.ts
- PASS  infrastructure/scripts/bootstrap-service.test.js
- PASS  src/services/router/__tests__/jsonlogic-slip-complete.spec.ts
- PASS  tests/services/llm-bot/mcp/stats-collector.spec.ts
- PASS  tools/brat/src/config/schema.spec.ts
- PASS  src/services/llm-bot/__tests__/personality-metrics.spec.ts
- PASS  tests/prompt-assembly/openai-adapter.spec.ts
+ PASS  src/services/routing/__tests__/router-engine.test.ts
+ PASS  tests/services/message-bus/nats-attributes.spec.ts
+ PASS  src/common/__tests__/base-server-yaml.test.ts
+ PASS  src/common/logging.test.ts
+ PASS  tests/services/command-processor/policy-rate-limit.spec.ts
+ PASS  src/services/ingress/discord/discord-observability.spec.ts
+ PASS  tools/brat/src/config/__tests__/interpolation.test.ts
+ PASS  tools/brat/src/providers/cdktf-synth.network.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.restore.test.ts
+ PASS  src/services/router/__tests__/rule-loader-annotations.spec.ts
+ PASS  src/services/twitch-token-manager.test.ts
  PASS  tests/services/message-bus/pubsub-attributes.spec.ts
- PASS  src/services/routing/routing.slip.test.ts
- PASS  tests/services/llm-bot/tools/registry.spec.ts
- PASS  tests/prompt-assembly/adapters/openai.spec.ts
- PASS  tests/services/message-bus/normalize-attributes.spec.ts
- PASS  tools/brat/src/lb/urlmap/__tests__/load-from-arch.test.ts
- PASS  tests/services/command-processor/candidate-create.spec.ts
- PASS  tests/prompt-assembly/adapters/edge-cases.spec.ts
+ PASS  tools/brat/src/providers/gcp/preflight.spec.ts
+ PASS  src/services/ingress/twitch/publisher.spec.ts
  PASS  src/services/llm-bot/__tests__/personality-resolver.spec.ts
- PASS  tests/prompt-assembly/assemble.spec.ts
  PASS  tools/brat/src/providers/gcp/secrets.spec.ts
- PASS  src/services/message-bus/__tests__/subscriber-options.test.ts
- PASS  src/services/oauth/provider-registry.test.ts
- PASS  tests/prompt-assembly/redaction.spec.ts
+ PASS  tests/services/llm-bot/processor-tools.spec.ts
+ PASS  tests/common/firestore-manager.spec.ts
+ PASS  tests/services/message-bus/subscriber-dedupe.spec.ts
+ PASS  src/services/ingress/discord/discord-integration.spec.ts
+ PASS  src/services/ingress/twitch/__tests__/token-overwrite.spec.ts
+ PASS  tests/services/llm-bot/mcp/stats-collector.spec.ts
+ PASS  src/common/config.test.ts
+ PASS  tools/brat/src/config/loader.spec.ts
+ PASS  src/services/oauth/providers/twitch-adapter.test.ts
+ PASS  tools/brat/src/lb/importer/__tests__/importer.guard.test.ts
+ PASS  src/services/auth/__tests__/user-repo.test.ts
+ PASS  tests/prompt-assembly/truncation.spec.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/renderer.routing.test.ts
+ PASS  tools/brat/src/providers/gcp/cloudrun.spec.ts
+ PASS  tools/brat/src/providers/gcp/lb-preflight.spec.ts
+ PASS  tests/services/llm-bot/tools/registry.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.connectors.spec.ts
+ PASS  infrastructure/scripts/bootstrap-service.test.js
+ PASS  tests/services/message-bus/pubsub-logging.spec.ts
+ PASS  src/services/llm-bot/__tests__/personality-metrics.spec.ts
+ PASS  tests/services/message-bus/nats-logging.spec.ts
+ PASS  tools/brat/src/config/schema.spec.ts
+ PASS  src/common/__tests__/discord-config.test.ts
+ PASS  src/services/router/__tests__/jsonlogic-ci-eq.spec.ts
+ PASS  tools/brat/src/lb/urlmap/__tests__/load-from-arch.test.ts
+ PASS  src/services/persistence/model.spec.ts
+ PASS  tools/brat/src/providers/cdktf-synth.buckets.test.ts
+ PASS  tools/brat/src/config/__tests__/resolve-services.scaling.test.ts
  PASS  src/services/ingress/twitch/envelope-builder.spec.ts
+ PASS  tests/services/egress/selection.test.ts
+ PASS  tests/common/retry.spec.ts
+ PASS  tests/prompt-assembly/adapters/edge-cases.spec.ts
+ PASS  src/services/router/__tests__/jsonlogic-evaluator.test.ts
+ PASS  tools/brat/src/providers/gcp/apis.spec.ts
+ PASS  src/services/routing/__tests__/router-engine-ops-integration.spec.ts
+ PASS  src/services/llm-bot/__tests__/prompt-composer.spec.ts
+ PASS  src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts
+ PASS  src/services/router/__tests__/jsonlogic-re-test.spec.ts
+ PASS  src/services/oauth/provider-registry.test.ts
+ PASS  tests/services/llm-bot/processor.spec.ts
+ PASS  infrastructure/cdktf/network/config.spec.ts
+ PASS  tests/prompt-assembly/assemble.spec.ts
+ PASS  tools/brat/src/providers/gcp/cloudbuild.spec.ts
+ PASS  tools/brat/src/orchestration/errors.spec.ts
+ PASS  tests/prompt-assembly/adapters/openai.spec.ts
+ PASS  tests/prompt-assembly/openai-adapter.spec.ts
+ PASS  tools/brat/src/providers/gcp/cloudbuild-triggers.spec.ts
+ PASS  src/services/routing/routing.slip.test.ts
+ PASS  tests/prompt-assembly/adapters/google.spec.ts
+ PASS  src/common/feature-flags.test.ts
+ PASS  src/services/message-bus/__tests__/factory-selection.test.ts
+ PASS  src/services/routing/routing.dlq.test.ts
+ PASS  src/services/llm-bot/instance-memory.spec.ts
+ PASS  src/services/router/__tests__/jsonlogic-extra-ops.spec.ts
+ PASS  tests/services/message-bus/normalize-attributes.spec.ts
+ PASS  src/common/retry.test.ts
 A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
 Test Suites: 2 skipped, 192 passed, 192 of 194 total
 Tests:       10 skipped, 553 passed, 563 total
 Snapshots:   2 passed, 2 total
-Time:        11.086 s
+Time:        15.536 s
 ✅ Validation complete.
