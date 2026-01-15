@@ -3,8 +3,8 @@ npm run build
 npm run brat -- doctor
 
 # 2) Set your project and (optionally) remote state bucket
-export GOOGLE_APPLICATION_CREDENTIALS=/Users/christophernavta/google/local-terraform.json
-export PROJECT_ID="bitbrat-local"
+# export GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/local-terraform.json
+export PROJECT_ID="your-project-id"
 export CI=false
 # Optional remote state:
 # export BITBRAT_TF_BACKEND_BUCKET=bitbrat-tfstate-dev

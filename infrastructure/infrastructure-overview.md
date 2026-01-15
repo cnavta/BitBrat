@@ -48,7 +48,7 @@ Example ./.secure.local (absolute path, no quotes, no export):
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/your-sa-key.json
 
 Notes:
-- Use an absolute path (no ~). On macOS it may look like /Users/you/.config/gcloud/your-key.json
+- Use an absolute path (no ~).
 - Do not wrap the path in quotes and do not prefix with export
 - Avoid spaces in the path (Docker bind mounts may fail)
 

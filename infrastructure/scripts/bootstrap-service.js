@@ -84,7 +84,7 @@ function generateAppSource(serviceName, stubPaths, consumedTopics = [], useMcp =
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                // TODO: implement domain behavior for this topic
+                // Add domain behavior for this topic here
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('${SERVICE_NAME}.message.handler_error', { destination, error: e?.message || String(e) });
