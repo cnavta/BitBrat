@@ -1,12 +1,15 @@
 id: sprint-191-a7d2e3
-title: "Fix MCP Server Compilation Error"
-goal: "Resolve syntax errors in src/common/mcp-server.ts and ensure project builds and tests pass."
+title: "Open Source Preparation & Documentation"
+goal: "Fix MCP Server, analyze project for open-source, create core documentation, and add early development warnings."
 owner: "Junie"
 createdAt: "2026-01-15T10:25:00Z"
-status: "complete"
+status: "in-progress"
 links:
-  pr: "https://github.com/cnavta/BitBrat/pull/92"
-  branch: "feature/sprint-191-a7d2e3-fix-mcp-server-compilation"
+  pr: "https://github.com/cnavta/BitBrat/pull/95"
+  branch: "feature/sprint-191-a7d2e3-os-003-env-config"
 notes: |
-  Compilation error TS1128 was reported in src/common/mcp-server.ts:193.
-  This appears to be due to a faulty merge resolution.
+  Multiple tasks performed in this sprint:
+  1. Fix MCP Server compilation error.
+  2. Create Open Source Backlog (backlog.yaml).
+  3. Create Core Open Source Documentation (README, LICENSE, etc.).
+  4. Add Early Development Warnings to documentation.
