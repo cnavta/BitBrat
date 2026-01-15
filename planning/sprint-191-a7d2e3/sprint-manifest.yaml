@@ -5,7 +5,7 @@ owner: "Junie"
 createdAt: "2026-01-15T10:25:00Z"
 status: "complete"
 links:
-  pr: "https://github.com/cnavta/BitBrat/pull/92"
+  pr: "https://github.com/cnavta/BitBrat/pull/94"
   branch: "feature/sprint-191-a7d2e3-fix-mcp-server-compilation"
 notes: |
   Compilation error TS1128 was reported in src/common/mcp-server.ts:193.

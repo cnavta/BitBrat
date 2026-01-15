@@ -1,35 +1,45 @@
 # Implementation Plan – sprint-191-a7d2e3
 
 ## Objective
-- Resolve syntax errors in `src/common/mcp-server.ts` caused by a faulty merge.
-- Ensure the project builds successfully.
-- Ensure all tests pass.
+- Resolve technical debt and prepare BitBrat Platform for open-source release.
 
 ## Scope
-- `src/common/mcp-server.ts`: Full rewrite to restore functionality and fix syntax.
-- `tests/common/mcp-server.spec.ts`: Verify tests pass with the fix.
+### Task 1: MCP Server Fix (Completed)
+- Resolve syntax errors in `src/common/mcp-server.ts`.
+- Ensure project builds and tests pass.
+
+### Task 2: Open Source Backlog (Completed)
+- Analyze project for open-source readiness.
+- Create a prioritized backlog of tasks in `planning/backlog.yaml`.
+
+### Task 3: Core Open Source Documentation (OS-002) (In Progress)
+- Create README.md, LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md, and SECURITY.md.
 
 ## Deliverables
 - Fixed `src/common/mcp-server.ts`.
-- Successful build and test execution.
+- `planning/backlog.yaml` containing the open-source preparation roadmap.
+- `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`.
 
 ## Acceptance Criteria
-- `npm run build` succeeds without errors.
-- `npm test tests/common/mcp-server.spec.ts` (and other relevant tests) pass.
-- MCP Server correctly handles tool, resource, and prompt registration and execution.
+- [x] Task 1: `npm run build` succeeds and tests pass.
+- [x] Task 2: `planning/backlog.yaml` exists and follows the example schema.
+- [ ] Task 3: README.md exists with project overview and setup instructions.
+- [ ] Task 3: LICENSE file exists (MIT).
+- [ ] Task 3: CONTRIBUTING.md exists with guidelines for contributors.
+- [ ] Task 3: CODE_OF_CONDUCT.md exists.
+- [ ] Task 3: SECURITY.md exists with vulnerability reporting instructions.
 
 ## Testing Strategy
-- Run existing unit tests for `McpServer`.
-- Manual verification of the code structure and logic.
+- Validation script `validate_deliverable.sh` must pass (build + tests).
+- Manual review of documentation for clarity and completeness.
 
 ## Deployment Approach
-- N/A for this fix (it's a library fix).
+- N/A for these tasks.
 
 ## Dependencies
-- `@modelcontextprotocol/sdk`
+- Existing codebase and documentation.
 
 ## Definition of Done
-- Code adheres to project constraints.
-- No syntax errors.
-- All tests pass.
-- PR created.
+- All tasks in scope are complete.
+- `validate_deliverable.sh` passes.
+- PR created for the documentation.

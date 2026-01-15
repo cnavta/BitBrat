@@ -2,7 +2,8 @@
 
 ## Completed
 - [x] Fix syntax errors in `src/common/mcp-server.ts`.
-- [x] Restore individual `setRequestHandler` calls in registration methods to satisfy tests and ensure correct behavior per tool/resource/prompt.
+- [x] Analyze project and create open-source preparation backlog.
+- [x] Create core open-source documentation (OS-002: README, LICENSE, etc.).
 - [x] Successful build with `npm run build`.
 - [x] Successful test execution with `npm test`.
 
@@ -10,7 +11,8 @@
 - None.
 
 ## Deferred
-- None.
+- Implementation of remaining backlog items (OS-003 to OS-006) is deferred to future sprints.
 
 ## Alignment Notes
-- The generic handlers in `setupDiscoveryHandlers` were partially restored/maintained for listing operations, but individual call/read/get handlers were moved back to registration methods to align with existing test expectations and ensure they are set up correctly when a tool/resource/prompt is registered.
+- All core open-source files have been created in the root directory as per OS-002 acceptance criteria.
+- Backlog has been updated to mark OS-002 as done.

@@ -1,14 +1,16 @@
 # Retro – sprint-191-a7d2e3
 
 ## What worked
-- Quick identification of the syntax error.
-- Comprehensive rewrite restored the file to a clean state.
-- Automated validation script ensured all tests passed before PR.
+- Quick identification of the compilation error source (merge conflict).
+- Restoring MCP handlers to registration methods correctly satisfied existing tests.
+- Comprehensive project analysis provided a clear roadmap for open-sourcing.
+- `validate_deliverable.sh` provided a reliable way to verify the project state.
+- Standard documentation templates (MIT, Contributor Covenant) facilitated rapid creation of open-source files.
 
 ## What didn’t
-- Initial attempt to use a more "modern" generic handler structure conflicted with existing tests that expected individual `setRequestHandler` calls.
-- Merges from main can sometimes leave the codebase in a broken state if not carefully reviewed.
+- The initial task had a severe syntax error that could have been avoided with better merge practices.
+- The project was completely missing standard open-source files, creating a high initial barrier for public involvement.
 
-## Lessons
-- Always check existing tests to understand the expected internal behavior and side effects of methods.
-- Small, focused `search_replace` calls are safer than large rewrites when fixing broken files.
+## Next time
+- Ensure all merge conflicts are resolved carefully and tests are run locally before pushing to main.
+- Continue executing the open-source preparation backlog, starting with environment standardization (OS-003).
