@@ -1,0 +1,4 @@
+# Key Learnings – sprint-191-a7d2e3
+
+- **MCP SDK setRequestHandler**: Each call to `setRequestHandler` for a specific schema overwrites any previous handler for that schema. If the server is intended to handle multiple items (tools, resources, prompts) of the same type, the handler must either be generic (looking up by name/uri) OR the registrations must happen sequentially and manage the state. In this project, individual registration methods set up the handler, which is fine as long as they are called correctly, but a generic handler in `setupDiscoveryHandlers` is often more robust if it's meant to be global.
+- **Merge Integrity**: Merges can introduce subtle syntax errors, especially in complex class structures with many nested closures. Automated build checks (e.g., `tsc`) are essential immediately after a merge.
