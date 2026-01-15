@@ -102,9 +102,13 @@ describe("McpServer", () => {
     it("should register a tool correctly", async () => {
       const spy = (server as any).mcpServer.setRequestHandler;
       const handler = jest.fn();
-      
+
       server.registerTool("test_tool", "A test tool", z.object({ arg: z.string() }), handler);
 
+      const registered = (server as any).registeredTools.get("test_tool");
+      expect(registered).toBeDefined();
+      expect(registered.description).toBe("A test tool");
+      expect(registered.handler).toBe(handler);
       expect(spy).toHaveBeenCalledWith(
         expect.anything(),
         expect.any(Function)
@@ -114,9 +118,13 @@ describe("McpServer", () => {
     it("should register a resource correctly", async () => {
       const spy = (server as any).mcpServer.setRequestHandler;
       const handler = jest.fn();
-      
+
       server.registerResource("file://test", "test_resource", "A test resource", handler);
 
+      const registered = (server as any).registeredResources.get("file://test");
+      expect(registered).toBeDefined();
+      expect(registered.name).toBe("test_resource");
+      expect(registered.handler).toBe(handler);
       expect(spy).toHaveBeenCalledWith(
         expect.anything(),
         expect.any(Function)
@@ -126,9 +134,13 @@ describe("McpServer", () => {
     it("should register a prompt correctly", async () => {
       const spy = (server as any).mcpServer.setRequestHandler;
       const handler = jest.fn();
-      
+
       server.registerPrompt("test_prompt", "A test prompt", [{ name: "arg" }], handler);
 
+      const registered = (server as any).registeredPrompts.get("test_prompt");
+      expect(registered).toBeDefined();
+      expect(registered.description).toBe("A test prompt");
+      expect(registered.handler).toBe(handler);
       expect(spy).toHaveBeenCalledWith(
         expect.anything(),
         expect.any(Function)

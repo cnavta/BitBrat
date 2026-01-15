@@ -1,0 +1,10 @@
+id: sprint-186-a7b8c9
+title: "Scheduled Events Implementation"
+goal: "Add ability for BitBrat to send scheduled events to itself via Firestore-backed definitions and MCP tools."
+owner: "Junie"
+createdAt: "2026-01-08T11:25:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-186-a7b8c9-scheduled-events"
+notes: |
+  Implementation involves Firestore for storage, MCP for tool exposure, and GCP Cloud Scheduler/PubSub for execution.

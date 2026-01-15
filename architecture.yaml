@@ -10,7 +10,7 @@ project:
     - chris@ix-n.com
 llm_guidance:
   default_system_prompt: >
-    You are an experienced Staff Engineer responsible fpr developing the BitBrat Platform.
+    You are an experienced Staff Engineer responsible for developing the BitBrat Platform.
     Follow the architecture.yaml specs strictly. Justify any architectural deviation clearly.
 
 defaults: # Defaults for various entities. Individual entities may override these.
@@ -198,6 +198,18 @@ services:
       - OBS_WEBSOCKET_PASSWORD
       - MCP_AUTH_TOKEN
 
+  scheduler:
+    active: true
+    description: Scheduler service for periodic tasks
+    entry: src/apps/scheduler-service.ts
+    topics:
+      publishes:
+        - internal.ingress.v1
+      consumes:
+        - internal.scheduler.tick
+    secrets:
+      - MCP_AUTH_TOKEN
+
 infrastructure:
   target: gcp
   resources:
@@ -275,6 +287,8 @@ infrastructure:
             service: command-processor
           - path_prefix: /
             service: obs-mcp
+          - path_prefix: /
+            service: scheduler
 
 deploymentDefaults:
   maxConcurrentDeployments: 3

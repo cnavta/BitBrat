@@ -20,6 +20,11 @@ export class McpServer extends BaseServer {
   protected readonly mcpServer: Server;
   protected readonly transports: Map<string, SSEServerTransport> = new Map();
 
+  // Internal registries for discovery
+  private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any) => Promise<CallToolResult> }> = new Map();
+  private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string) => Promise<ReadResourceResult> }> = new Map();
+  private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>) => Promise<GetPromptResult> }> = new Map();
+
   constructor(opts: BaseServerOptions = {}) {
     super(opts);
 
@@ -43,13 +48,8 @@ export class McpServer extends BaseServer {
       }
     );
 
-    // MCP ServerInfo doesn't natively support description in the constructor, 
-    // but some clients might expect it or we can add it to instructions/capabilities if needed.
-    // For now, we align with the spec's InitializeResult which returns name and version.
-    // If the user meant for the LLM to see the description, it's already in architecture.yaml 
-    // which the LLM reads.
-
     this.setupMcpRoutes();
+    this.setupDiscoveryHandlers();
   }
 
   /**
@@ -61,14 +61,12 @@ export class McpServer extends BaseServer {
     schema: T,
     handler: (args: z.infer<T>) => Promise<CallToolResult>
   ) {
+    this.registeredTools.set(name, { description, schema, handler });
     this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
-      if (request.params.name !== name) {
-        throw new Error(`Tool not found: ${request.params.name}`);
-      }
-      return await this.traceMcpOperation(`tool:${name}`, async () => {
-        const args = schema.parse(request.params.arguments);
-        return await handler(args);
-      });
+      const tool = this.registeredTools.get(request.params.name);
+      if (!tool) throw new Error(`Tool not found: ${request.params.name}`);
+      const args = tool.schema.parse(request.params.arguments);
+      return await this.traceMcpOperation(`tool:${request.params.name}`, () => tool.handler(args));
     });
     this.getLogger().info("mcp_server.tool_registered", { name });
   }
@@ -82,17 +80,12 @@ export class McpServer extends BaseServer {
     description: string,
     handler: (uri: string) => Promise<ReadResourceResult>
   ) {
-    this.mcpServer.setRequestHandler(
-      ReadResourceRequestSchema,
-      async (request) => {
-        if (request.params.uri !== uri) {
-          throw new Error(`Resource not found: ${request.params.uri}`);
-        }
-        return await this.traceMcpOperation(`resource:${name}`, async () => {
-          return await handler(request.params.uri);
-        });
-      }
-    );
+    this.registeredResources.set(uri, { name, description, handler });
+    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const resource = this.registeredResources.get(request.params.uri);
+      if (!resource) throw new Error(`Resource not found: ${request.params.uri}`);
+      return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(request.params.uri));
+    });
     this.getLogger().info("mcp_server.resource_registered", { name, uri });
   }
 
@@ -108,18 +101,50 @@ export class McpServer extends BaseServer {
       args: Record<string, string>
     ) => Promise<GetPromptResult>
   ) {
+    this.registeredPrompts.set(name, { description, args, handler });
     this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
-      if (request.params.name !== name) {
-        throw new Error(`Prompt not found: ${request.params.name}`);
-      }
-      return await this.traceMcpOperation(`prompt:${name}`, async () => {
-        return await handler(
-          request.params.name,
-          (request.params.arguments as Record<string, string>) || {}
-        );
-      });
+      const prompt = this.registeredPrompts.get(request.params.name);
+      if (!prompt) throw new Error(`Prompt not found: ${request.params.name}`);
+      return await this.traceMcpOperation(`prompt:${request.params.name}`, () => 
+        prompt.handler(request.params.name, (request.params.arguments as Record<string, string>) || {})
+      );
     });
     this.getLogger().info("mcp_server.prompt_registered", { name });
+  }
+
+  private setupDiscoveryHandlers() {
+    // tools/list
+    this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+      const tools = Array.from(this.registeredTools.entries()).map(([name, { description, schema }]) => {
+        const jsonSchema = zodToJsonSchema(schema);
+        return {
+          name,
+          description,
+          inputSchema: jsonSchema as any,
+        };
+      });
+      return { tools };
+    });
+
+    // resources/list
+    this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
+      const resources = Array.from(this.registeredResources.entries()).map(([uri, { name, description }]) => ({
+        uri,
+        name,
+        description,
+      }));
+      return { resources };
+    });
+
+    // prompts/list
+    this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+      const prompts = Array.from(this.registeredPrompts.entries()).map(([name, { description, args }]) => ({
+        name,
+        description,
+        arguments: args,
+      }));
+      return { prompts };
+    });
   }
 
   /**
