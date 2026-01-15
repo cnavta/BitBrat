@@ -28,6 +28,11 @@
 - Audit codebase for sensitive data.
 - Ensure project health (build + tests).
 
+### Task 7: Establish public CI/CD pipeline (OS-005) (Completed)
+- Review cloudbuild configs for internal-only dependencies.
+- Ensure validate_deliverable.sh can run in a clean environment.
+- Add GitHub Actions for PR validation (Lint, Build, Test).
+
 ## Deliverables
 - Fixed `src/common/mcp-server.ts`.
 - `planning/backlog.yaml` containing the open-source preparation roadmap.
@@ -36,6 +41,7 @@
 - `.env.example` file.
 - Updated `.gitignore`.
 - Cleaned up codebase (Task 6).
+- GitHub Actions workflow `.github/workflows/pr-validation.yml`.
 
 ## Acceptance Criteria
 - [x] Task 1: `npm run build` succeeds and tests pass.
@@ -53,6 +59,7 @@
 - [x] Task 6: Internal TODOs removed.
 - [x] Task 6: Sensitive data audit complete.
 - [x] Task 6: `validate_deliverable.sh` passes.
+- [x] Task 7: GitHub Actions workflow created and verified.
 
 ## Testing Strategy
 - Validation script `validate_deliverable.sh` must pass (build + tests).
