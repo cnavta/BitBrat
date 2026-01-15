@@ -32,8 +32,8 @@
 - [x] Task 3: CONTRIBUTING.md exists with guidelines for contributors.
 - [x] Task 3: CODE_OF_CONDUCT.md exists.
 - [x] Task 3: SECURITY.md exists with vulnerability reporting instructions.
-- [ ] Task 4: README.md has a prominent "Early Development" notice.
-- [ ] Task 4: SECURITY.md emphasizes early development status and potential instability.
+- [x] Task 4: README.md has a prominent "Early Development" notice.
+- [x] Task 4: SECURITY.md emphasizes early development status and potential instability.
 
 ## Testing Strategy
 - Validation script `validate_deliverable.sh` must pass (build + tests).
