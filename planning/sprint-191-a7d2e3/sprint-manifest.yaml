@@ -3,9 +3,9 @@ title: "Open Source Preparation & Documentation"
 goal: "Fix MCP Server, analyze project for open-source, create core documentation, and add early development warnings."
 owner: "Junie"
 createdAt: "2026-01-15T10:25:00Z"
-status: "in-progress"
+status: "complete"
 links:
-  pr: "https://github.com/cnavta/BitBrat/pull/95"
+  pr: "https://github.com/cnavta/BitBrat/pull/96"
   branch: "feature/sprint-191-a7d2e3-os-003-env-config"
 notes: |
   Multiple tasks performed in this sprint:
