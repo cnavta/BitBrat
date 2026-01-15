@@ -1,0 +1,11 @@
+id: sprint-191-a7d2e3
+title: "Fix MCP Server Compilation Error"
+goal: "Resolve syntax errors in src/common/mcp-server.ts and ensure project builds and tests pass."
+owner: "Junie"
+createdAt: "2026-01-15T10:25:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-191-a7d2e3-fix-mcp-server-compilation"
+notes: |
+  Compilation error TS1128 was reported in src/common/mcp-server.ts:193.
+  This appears to be due to a faulty merge resolution.
