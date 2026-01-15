@@ -5,11 +5,14 @@ owner: "Junie"
 createdAt: "2026-01-15T10:25:00Z"
 status: "complete"
 links:
-  pr: "https://github.com/cnavta/BitBrat/pull/97"
-  branch: "feature/sprint-191-a7d2e3-os-004-code-cleanup"
+  pr: "https://github.com/cnavta/BitBrat/pull/98"
+  branch: "feature/sprint-191-a7d2e3-os-005-public-ci-cd"
 notes: |
   Multiple tasks performed in this sprint:
   1. Fix MCP Server compilation error.
   2. Create Open Source Backlog (backlog.yaml).
   3. Create Core Open Source Documentation (README, LICENSE, etc.).
   4. Add Early Development Warnings to documentation.
+  5. Standardize environment configuration (OS-003).
+  6. Clean up codebase (OS-004).
+  7. Establish public CI/CD pipeline (OS-005).

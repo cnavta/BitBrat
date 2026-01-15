@@ -9,6 +9,7 @@
 - Adding early development warnings ensures transparency with potential users and contributors.
 - Standardizing environment configuration (OS-003) reduced project friction for new developers.
 - Code cleanup (OS-004) successfully removed remaining internal TODOs and verified secret handling.
+- Establishing public CI/CD (OS-005) ensures future contributions are automatically validated.
 
 ## What didn’t
 - Initial confusion over `backlog.yaml` location (sprint-specific vs root).

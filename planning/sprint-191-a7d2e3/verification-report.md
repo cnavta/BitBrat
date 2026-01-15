@@ -12,6 +12,10 @@
 - [x] Implement OS-004: Clean up codebase for public release.
     - [x] Removed internal-only TODO in `infrastructure/scripts/bootstrap-service.js`.
     - [x] Audited codebase for sensitive data and hardcoded secrets.
+- [x] Implement OS-005: Establish public CI/CD pipeline.
+    - [x] Reviewed Cloud Build configs.
+    - [x] Verified `validate_deliverable.sh` runs without GCP credentials.
+    - [x] Created GitHub Actions workflow for PR validation.
 - [x] Successful build with `npm run build`.
 - [x] Successful test execution with `npm test`.
 - [x] Validation script `validate_deliverable.sh` passed.
