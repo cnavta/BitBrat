@@ -62,6 +62,9 @@ npm install
 echo "🧱 Compiling..."
 npm run build
 
+echo "🧹 Linting..."
+npm run lint
+
 echo "🧪 Running tests (scope=$SCOPE_ARG)..."
 export CI=1
 # Ensure CI uses a zero-I/O message bus to avoid any network connections (@google-cloud/pubsub or NATS)
