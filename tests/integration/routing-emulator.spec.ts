@@ -7,7 +7,6 @@
 
 const hasEmulator = !!process.env.FIRESTORE_EMULATOR_HOST;
 
-// eslint-disable-next-line jest/valid-title
 const maybe = hasEmulator ? describe : describe.skip;
 
 maybe('Routing integration with Firestore emulator', () => {
