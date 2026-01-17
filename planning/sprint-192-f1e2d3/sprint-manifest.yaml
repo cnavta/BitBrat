@@ -1,0 +1,10 @@
+id: sprint-192-f1e2d3
+title: "Fix ESLint Configuration for v9 Compatibility"
+goal: "Migrate ESLint configuration to the flat config format (eslint.config.js) to resolve CI/CD linting failures."
+owner: "Junie"
+createdAt: "2026-01-16T11:18:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-192-f1e2d3-fix-eslint-config"
+notes: |
+  The PR validation workflow is failing because ESLint v9.x requires a flat configuration file (eslint.config.js) and no longer supports .eslintrc.js by default.
