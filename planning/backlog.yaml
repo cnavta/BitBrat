@@ -100,7 +100,7 @@ items:
   - id: OS-006
     title: "Improve test coverage and documentation"
     priority: P2
-    status: todo
+    status: done
     effort: L
     owner: agent
     deps: []
@@ -110,4 +110,21 @@ items:
       - "Generate API documentation for common libraries"
       - "Verify all documentation links are functional"
     updated_at: 2026-01-15
+    log:
+      - at: 2026-01-15T19:05:00Z
+        note: "Added unit tests for safe-timers, expanded McpServer tests, and added JSDoc to core libraries."
+
+  - id: OS-007
+    title: "Address Linting Tech Debt"
+    priority: P3
+    status: todo
+    effort: L
+    owner: agent
+    deps: [OS-005]
+    blocked_reason: null
+    acceptance:
+      - "Re-enable suppressed ESLint rules (no-explicit-any, etc.)"
+      - "Fix all linting errors across the codebase"
+      - "npm run lint passes without suppressed rules"
+    updated_at: 2026-01-16
     log: []
