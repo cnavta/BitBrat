@@ -8,12 +8,13 @@ node_modules/
 .env
 .env.local
 .env.*
+.tfvars.*
 !.env.example
 
 # IDE
-.idea/
+.idea
 *.iml
-.vscode/
+.vscode
 
 # Local secure configuration storage. NEVER COMMIT THIS FILE
 .secure.local
@@ -85,3 +86,5 @@ firebase-debug.log*
 infrastructure/cdktf/out/
 cdktf.out/
 /infrastructure/cdktf/out/
+
+.output.txt
