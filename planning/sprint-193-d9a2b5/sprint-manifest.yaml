@@ -3,8 +3,9 @@ title: "Revise and update documentation for npm run brat"
 goal: "Analyze all the npm run brat command functionality and documentation and summarize it in the README.md appropriately."
 owner: "Junie"
 createdAt: "2026-01-18T17:32:00Z"
-status: "in-progress"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/104"
   branch: "feature/sprint-193-d9a2b5-documentation-update"
 notes: |
   Focus on summarizing the functionality of the brat tool in the root README.md.

@@ -128,6 +128,44 @@ npm run brat -- <command> [options]
 #### CI/CD Triggers
 - `brat trigger create --name <n> --repo <repo> --branch <regex> --config <path>`: Manage Cloud Build triggers.
 
+## Event Messaging & Architecture
+
+The BitBrat platform follows a robust, event-driven architecture built on a unified message bus (NATS or Google Cloud Pub/Sub) and a standardized internal event contract.
+
+### InternalEventV2
+
+`InternalEventV2` is the canonical event format used throughout the platform. It flattens the legacy V1 envelope and introduces specialized fields for AI-driven orchestration:
+
+- **Metadata**: `correlationId`, `traceId`, `source`, `egressDestination`.
+- **Payloads**: 
+  - `message`: Normalized chat/text message metadata.
+  - `externalEvent`: Normalized platform-specific behavioral events (e.g., follows, subs).
+  - `payload`: Fallback for system or non-message data.
+- **Enrichment**:
+  - `annotations`: A collection of insights produced by services (e.g., intent, sentiment, user profile).
+  - `candidates`: Potential replies or actions proposed by processing services.
+- **Routing**:
+  - `routingSlip`: An array of `RoutingStep` objects defining the remaining processing path.
+
+### Core Messaging Flow
+
+The typical lifecycle of an event involves several specialized microservices:
+
+1. **Ingress**: External platforms (Twitch, Discord, Twilio) hit the `Ingress-Egress` service. It maps the raw payload to `InternalEventV2`, sets the `egressDestination` to its specific instance topic, and publishes to `internal.ingress.v1`.
+2. **Auth (User Enrichment)**: The `Auth Service` consumes the event, enriches it with user metadata (roles, tags, notes) from Firestore, and publishes to `internal.user.enriched.v1`.
+3. **Event Router**: The `Event Router` evaluates the enriched event against a set of rules (using JsonLogic). It generates a `routingSlip` defining the next processing steps and dispatches the event.
+4. **Orchestration & Processing**: Services like `LLM Bot` or `Command Processor` receive events based on the routing slip. They add `annotations` or `candidates`, update the routing step status, and use `BaseServer` helpers (`next()`) to advance the event.
+5. **Egress**: Once processing is complete, the event is routed back to the specific `Ingress-Egress` instance via the `egressDestination`. The service selects the best candidate reply and delivers it to the target platform.
+6. **Persistence**: The `Persistence` service listens to various topics (including `internal.persistence.finalize.v1`) to store the final state, selections, and errors for auditing and long-term memory.
+
+### Development Primitives
+
+All services leverage `BaseServer` for standardized messaging patterns:
+
+- **`onMessage<T>(topic, handler)`**: Unified subscription to the message bus with automatic V1->V2 conversion.
+- **`next(event)`**: Automatically advances the event to the next pending step in the `routingSlip`.
+- **`complete(event)`**: Bypasses the remaining routing slip and sends the event directly to `egressDestination`.
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
