@@ -1,0 +1,21 @@
+# Request Log - sprint-194-e3a2b4
+
+- **Timestamp**: 2026-01-18T17:40:00Z
+- **Prompt summary**: Analyze InternalEventV2 and general messaging patterns and document in README.md.
+- **Interpretation**: Investigate the event-driven architecture, trace the flow across services, and update the root documentation.
+- **Shell/git commands executed**:
+    - `mkdir -p planning/sprint-194-e3a2b4`
+    - `git checkout -b feature/sprint-194-messaging-docs`
+- **Files modified or created**:
+    - `src/types/events.ts` (Read)
+    - `src/common/base-server.ts` (Read)
+    - `src/services/routing/router-engine.ts` (Read)
+    - `src/apps/ingress-egress-service.ts` (Read)
+    - `src/apps/auth-service.ts` (Read)
+    - `src/apps/event-router-service.ts` (Read)
+    - `src/apps/llm-bot-service.ts` (Read)
+    - `src/apps/persistence-service.ts` (Read)
+    - `README.md` (Updated)
+    - `planning/sprint-194-e3a2b4/sprint-manifest.yaml`
+    - `planning/sprint-194-e3a2b4/implementation-plan.md`
+    - `planning/sprint-194-e3a2b4/request-log.md`
