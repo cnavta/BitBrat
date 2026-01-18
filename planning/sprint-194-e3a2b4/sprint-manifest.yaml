@@ -3,8 +3,9 @@ title: "Documentation Update for Messaging and InternalEventV2"
 goal: "Analyze InternalEventV2 and general messaging patterns and flow in the application, then document them in README.md."
 owner: "Junie"
 createdAt: "2026-01-18T18:15:00Z"
-status: "in-progress"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/105"
   branch: "feature/sprint-194-messaging-docs"
 notes: |
   Focus on clarifying the event lifecycle and the standardized V2 contract.
