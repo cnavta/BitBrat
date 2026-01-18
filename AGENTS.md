@@ -1,12 +1,12 @@
-# AGENTS.md — LLM & Developer Guidelines v2.4 (Git-Enabled Release)
+# AGENTS.md — LLM & Developer Guidelines v2.5 (Git-Enabled Release)
 
 ## 🧱 0. Precedence & Scope
 
 These rules define exactly how LLM agents and human developers collaborate in this repository.
 
 ### **Precedence Order**
-1. `architecture.yaml` — canonical source of truth for system behavior  
-2. `AGENTS.md` — operational and behavioral rules for agents  
+1. `architecture.yaml` — canonical source of truth for system behavior
+2. `AGENTS.md` — operational and behavioral rules for agents
 3. Everything else — examples, legacy docs, and supporting materials
 
 If a conflict ever occurs:
@@ -19,31 +19,31 @@ Agents must surface the conflict, then align to it.
 
 Agents **ARE allowed** to:
 
-- Execute shell commands  
-- Interact with git (checkout, branch creation, committing, pushing)  
-- Create and push feature branches  
+- Execute shell commands
+- Interact with git (checkout, branch creation, committing, pushing)
+- Create and push feature branches
 - Create GitHub Pull Requests (via GitHub CLI or API)
 
 Agents MUST:
 
-- Log every meaningful shell and git operation into `request-log.md`  
-- Operate only within the repository provided  
-- Halt and request updated credentials if any authentication step fails  
+- Log every meaningful shell and git operation into `request-log.md`
+- Operate only within the repository provided
+- Halt and request updated credentials if any authentication step fails
 - Report command results transparently
 
 ---
 
 # 🧱 1. Immutable Laws
 
-1. **Ask for clarification when needed. Proceed when not.**  
-2. **Never violate `architecture.yaml`.** Suggest changes only with justification.  
-3. **All sprint planning and output artifacts live in `./planning`.**  
-4. **Never use or depend on `./deprecated` in deliverables. You may read it for historical context, but MUST NOT import, execute, copy forward, or make deliverables depend on it.**  
-5. **Artifacts in `./preview` are directional only, not implementation-ready.**  
-6. **This document is executable intent.** Everything must be:  
-   - Traceable  
-   - Reproducible  
-   - Reversible  
+1. **Ask for clarification when needed. Proceed when not.**
+2. **Never violate `architecture.yaml`.** Suggest changes only with justification.
+3. **All sprint planning and output artifacts live in `./planning`.**
+4. **Never use or depend on `./deprecated` in deliverables. You may read it for historical context, but MUST NOT import, execute, copy forward, or make deliverables depend on it.**
+5. **Artifacts in `./preview` are directional only, not implementation-ready.**
+6. **This document is executable intent.** Everything must be:
+   - Traceable
+   - Reproducible
+   - Reversible
 
 ---
 
@@ -75,20 +75,21 @@ It ensures reproducibility, reviewability, and continuous improvement.
 
 When a sprint starts, the agent MUST:
 
-1. **Generate a sprint ID**
+1. **Check for active sprints.** Verify no `sprint-manifest.yaml` in `planning/` has a status other than `complete`. If an active sprint is found, you MUST NOT proceed with a new sprint; notify the user that a sprint is already active and must be completed or force-closed first (Rule S3).
+2. **Generate a sprint ID**
    ```
-   sprint-<number>-<short-hash>
+sprint-<number>-<short-hash>
    ```
-2. **Create the sprint directory**
+3. **Create the sprint directory**
    ```
-   planning/sprint-<id>/
+planning/sprint-<id>/
    ```
-3. **Create a new feature branch**
+4. **Create a new feature branch**
    ```
-   git checkout -b feature/<sprint-id>-<short-description>
+git checkout -b feature/<sprint-id>-<short-description>
    ```
-4. **Create `sprint-manifest.yaml`** with required metadata (see schema below)
-5. **Log the action in `request-log.md`**
+5. **Create `sprint-manifest.yaml`** with required metadata (see schema below)
+6. **Log the action in `request-log.md`**
 
 Example:
 ```
@@ -101,15 +102,15 @@ git checkout -b feature/sprint-7-a13b2f-user-profile-service
 
 ```
 planning/
-  sprint-7-a13b2f/
-    sprint-manifest.yaml
-    implementation-plan.md
-    request-log.md
-    validate_deliverable.sh
-    verification-report.md
-    publication.yaml
-    retro.md
-    key-learnings.md
+sprint-7-a13b2f/
+sprint-manifest.yaml
+implementation-plan.md
+request-log.md
+validate_deliverable.sh
+verification-report.md
+publication.yaml
+retro.md
+key-learnings.md
 ```
 
 This directory is the single authoritative source of truth for every sprint.
@@ -178,17 +179,28 @@ Before ANY implementation begins:
 - MUST reference project-wide DoD unless explicitly overridden
 ```
 
+## 2.4.1 Amending an Active Sprint (Handling Rule S4)
+
+If the user provides follow-up tasks or scope changes while a sprint is active:
+
+1. **Identify Scope Change:** Determine if the request adds new deliverables or alters the sprint goal.
+2. **Update Implementation Plan:** Add the new tasks to `implementation-plan.md`.
+3. **Update Manifest:** If the goal has evolved significantly, update the `goal` or `title` in `sprint-manifest.yaml`.
+4. **Log Request:** Document the prompt and its interpretation in `request-log.md`.
+5. **Approval Gate:** If the change is substantial, the agent MUST pause and request user approval for the amended plan before proceeding to implementation.
+6. **Maintain Branch Integrity:** Perform all amended work on the existing feature branch (Rule S11).
+
 ---
 
 # ⚙️ 2.5 Execution Phase
 
 Every user prompt relevant to the sprint MUST be logged in `request-log.md`:
 
-- Timestamp  
-- Prompt summary  
-- Interpretation  
-- Shell/git commands executed  
-- Files modified or created  
+- Timestamp
+- Prompt summary
+- Interpretation
+- Shell/git commands executed
+- Files modified or created
 
 Optional:  
 `code-summary.md` mapping files → request IDs.
@@ -201,12 +213,12 @@ Every sprint MUST include a **real, executable** `validate_deliverable.sh` scrip
 
 This script MUST:
 
-1. Install dependencies  
-2. Build the project  
-3. Run the test suite  
-4. Start local runtime (if applicable)  
-5. Perform health checks (manual or scripted)  
-6. Shut down local runtime  
+1. Install dependencies
+2. Build the project
+3. Run the test suite
+4. Start local runtime (if applicable)
+5. Perform health checks (manual or scripted)
+6. Shut down local runtime
 7. Run Cloud Build/Cloud Run dry-run deployment (if defined)
 
 Use stack-appropriate commands for your service. The example below is for Node/TypeScript projects; for other stacks, use equivalent commands (e.g., Python: pip/poetry, pytest; Go: go build, go test).
@@ -250,10 +262,10 @@ echo "✅ Validation complete."
 
 `verification-report.md` must summarize:
 
-- Completed items  
-- Partial implementations  
-- Deferred items  
-- Deviations from the implementation plan  
+- Completed items
+- Partial implementations
+- Deferred items
+- Deviations from the implementation plan
 
 Example:
 
@@ -283,9 +295,9 @@ At the end of implementation and verification:
 
 ### The agent MUST:
 
-1. Add all changed files  
-2. Commit using a sprint-specific message  
-3. Push the feature branch to GitHub  
+1. Add all changed files
+2. Commit using a sprint-specific message
+3. Push the feature branch to GitHub
 4. Create a real Pull Request using GitHub CLI or API.
 
 GitHub CLI example:
@@ -311,9 +323,9 @@ curl -X POST \
 
 If your chosen method fails (CLI or API):
 
-- Stop immediately  
-- Log the failure  
-- Ask for updated credentials or API token  
+- Stop immediately
+- Log the failure
+- Ask for updated credentials or API token
 
 ### Publication Rules
 
@@ -343,8 +355,8 @@ A sprint officially completes when:
 
 Then the agent generates:
 
-- `retro.md` — what worked, what didn’t  
-- `key-learnings.md` — lessons for future sprints  
+- `retro.md` — what worked, what didn’t
+- `key-learnings.md` — lessons for future sprints
 ---
 ### 2.10 Force Completion Override
 
@@ -365,31 +377,31 @@ If the user says `Force complete sprint`, the agent may close the sprint even if
 A deliverable is “Done” only if:
 
 ### ✅ Code Quality
-- Adheres to project and architecture.yaml constraints  
+- Adheres to project and architecture.yaml constraints
 - No TODOs or placeholder logic in production paths
 - Stubs are allowed only in non-production paths or behind feature flags
 
 ### ✅ Testing
-- Tests for all new behavior (use Jest for Node/TypeScript services; use stack-appropriate frameworks for other stacks)  
-- Mocks for external dependencies  
-- `npm test` must pass  
+- Tests for all new behavior (use Jest for Node/TypeScript services; use stack-appropriate frameworks for other stacks)
+- Mocks for external dependencies
+- `npm test` must pass
 - Test deferral requires explicit user approval
 
 ### ✅ Deployment Artifacts
 If applicable:
-- Dockerfile  
-- Cloud Build YAML  
-- Cloud Run configs  
+- Dockerfile
+- Cloud Build YAML
+- Cloud Run configs
 - IaC  
-These must integrate with `validate_deliverable.sh`
+  These must integrate with `validate_deliverable.sh`
 
 ### ✅ Documentation
-- Rationale, trade-offs, and notes  
+- Rationale, trade-offs, and notes
 - LLM hints (`llm_prompt`) where beneficial
 
 ### ✅ Traceability
 All code changes trace back to:
-- A sprint  
+- A sprint
 - A request ID in `request-log.md`
 
 The user may explicitly accept missing or failing tests for this sprint; in that case, the gaps MUST be listed under **Deferred** in `verification-report.md` and noted in `retro.md`.
@@ -398,22 +410,22 @@ The user may explicitly accept missing or failing tests for this sprint; in that
 
 # ☁️ 4. GCP Integration Rules
 
-- Cloud Run is default runtime  
-- Cloud Build governs all builds and deployments  
-- Artifact Registry stores all images  
-- IaC lives under `infrastructure/`  
-- Deployment configs should be reusable templates  
+- Cloud Run is default runtime
+- Cloud Build governs all builds and deployments
+- Artifact Registry stores all images
+- IaC lives under `infrastructure/`
+- Deployment configs should be reusable templates
 
 ---
 
 # 🧪 5. Testing Standards
 
-- Tests required  
-- For Node/TypeScript services, use Jest; for other stacks, use language-appropriate frameworks (e.g., pytest, go test)  
-- Tests live beside code or in `__tests__/`  
-- High coverage encouraged  
-- External services mocked  
-- Tests must run as part of validation  
+- Tests required
+- For Node/TypeScript services, use Jest; for other stacks, use language-appropriate frameworks (e.g., pytest, go test)
+- Tests live beside code or in `__tests__/`
+- High coverage encouraged
+- External services mocked
+- Tests must run as part of validation
 
 ---
 
@@ -421,16 +433,16 @@ The user may explicitly accept missing or failing tests for this sprint; in that
 
 Every sprint must produce at least one:
 
-- Code artifact  
-- Tests  
-- Deployment scripts  
-- Architecture documentation  
+- Code artifact
+- Tests
+- Deployment scripts
+- Architecture documentation
 
 And all outputs must:
 
-- Build  
-- Test  
-- Integrate with the validation pipeline  
+- Build
+- Test
+- Integrate with the validation pipeline
 
 Note: Planning/Discovery sprints may produce documentation-only deliverables; validation should then lint, link-check, and verify structure instead of building code.
 
@@ -456,38 +468,38 @@ src/
 
 # 🎯 8. Code Style Rules
 
-- Application/services code is in TypeScript by default. If a service explicitly specifies a different stack, follow that stack. Scripts and infrastructure files remain in their native formats.  
-- kebab-case filenames  
-- PascalCase classes and interfaces  
-- camelCase functions and variables  
-- UPPER_SNAKE_CASE constants  
+- Application/services code is in TypeScript by default. If a service explicitly specifies a different stack, follow that stack. Scripts and infrastructure files remain in their native formats.
+- kebab-case filenames
+- PascalCase classes and interfaces
+- camelCase functions and variables
+- UPPER_SNAKE_CASE constants
 
 Logging:
 
 - Always log through a logging facade if possible
-- `info` for useful info  
-- `error` for errors  
-- `debug` for deep insight  
-- Log all network + filesystem operations with context  
+- `info` for useful info
+- `error` for errors
+- `debug` for deep insight
+- Log all network + filesystem operations with context
 
 ---
 
 # 🧯 9. Error Handling & Events
 
-- Strong try/catch discipline  
-- Graceful shutdown of services  
-- Validate environment variables  
-- Use Pub/Sub for service communication  
-- Normalize external events to internal schema  
+- Strong try/catch discipline
+- Graceful shutdown of services
+- Validate environment variables
+- Use Pub/Sub for service communication
+- Normalize external events to internal schema
 
 ---
 
 # 👥 10. Collaboration Roles
 
-- **Cloud Architect**  
-- **Lead Architect**  
-- **Lead Implementor**  
-- **Quality Lead**  
+- **Cloud Architect**
+- **Lead Architect**
+- **Lead Implementor**
+- **Quality Lead**
 
 (These describe responsibility domains—not rigid titles.)
 
@@ -501,10 +513,10 @@ Plan → Approve → Implement → Validate → Verify → Publish (PR) → Retr
 
 The system is designed for:
 
-- High traceability  
-- Rigor  
-- Iterative improvement  
-- Human oversight  
+- High traceability
+- Rigor
+- Iterative improvement
+- Human oversight
 
 ---
 
