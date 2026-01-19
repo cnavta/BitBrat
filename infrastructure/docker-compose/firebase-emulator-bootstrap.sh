@@ -34,3 +34,16 @@ if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" && -f "${GOOGLE_APPLICATION_CREDE
 else
   echo "[firebase-emulator] WARNING: GOOGLE_APPLICATION_CREDENTIALS not set or file not found; emulator will run without CLI auth."
 fi
+
+# Determine which emulators to start. 
+# Default to firestore only if not specified via ONLY_EMULATORS
+EMULATORS="${ONLY_EMULATORS:-firestore,pubsub}"
+
+echo "[firebase-emulator] Starting emulators: ${EMULATORS}..."
+
+exec firebase emulators:start \
+  --config /data/firebase.json \
+  --only "${EMULATORS}" \
+  --project "${PROJECT_ID}" \
+  --import=/data/export \
+  --export-on-exit=/data/export

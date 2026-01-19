@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+FROM node:20-bullseye
+
+# Install Java (required for Firestore/PubSub emulators)
+# Install gcloud CLI (required for auth/bootstrap)
+# Install jq for config manipulation
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jre-headless \
+    curl \
+    gnupg \
+    jq \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update && apt-get install -y google-cloud-cli \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install firebase-tools globally
+RUN npm install -g firebase-tools@13
+
+WORKDIR /data
+VOLUME /data
+
+# Default ports:
+# Firestore: 8080
+# PubSub: 8085
+# Emulator UI: 4000
+EXPOSE 8080 8085 4000 4400 9150
+
+# Use a shorter command or rely on an entrypoint
+ENTRYPOINT ["bash", "/workspace/infrastructure/docker-compose/firebase-emulator-bootstrap.sh"]
