@@ -25,6 +25,7 @@
     "test": "jest",
     "local": "./infrastructure/deploy-local.sh",
     "local:down": "./infrastructure/deploy-local.sh --down",
+    "local:logs": "./infrastructure/deploy-local.sh --logs",
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
     "bootstrap:service": "node ./infrastructure/scripts/bootstrap-service.js",
     "brat": "node dist/tools/brat/src/cli/index.js",

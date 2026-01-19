@@ -19,3 +19,10 @@
     - Created verification report, retro, and learnings.
 - **Publication**:
     - Pushed branch and created PR: https://github.com/cnavta/BitBrat/pull/106
+
+    ## [2026-01-19T15:28:00Z] - Scope Expansion: Local Logging
+    - **Prompt summary**: Add a `npm run local:logs` command to view platform logs.
+    - **Interpretation**: Add a new npm script and supporting bash logic to allow users to easily view logs from the local Docker Compose stack.
+    - **Actions**:
+        - Updated `implementation-plan.md` and `sprint-manifest.yaml`.
+        - (In progress) Adding `local:logs` to `package.json` and implementing logic in `deploy-local.sh`.
