@@ -1,24 +1,27 @@
 # Implementation Plan – sprint-195-b5a2c1
 
 ## Objective
-Restore the local execution environment (`npm run local`) to a functional and user-friendly state by addressing identified configuration gaps and documentation deficiencies.
+Restore the local execution environment (`npm run local`) to a functional and user-friendly state and provide tools for viewing local logs.
 
 ## Scope
 - Configuration files in `env/local/`.
 - Environment variable templates (`.env.example`).
 - Local deployment scripts (`deploy-local.sh`, `merge-env.js`).
+- Local log viewing command (`npm run local:logs`).
 - Documentation (`README.md`).
 
 ## Deliverables
 - New YAML configuration files: `auth.yaml`, `event-router.yaml`, `persistence.yaml`, `scheduler.yaml` in `env/local/`.
 - New `.env.example` in the repository root.
-- Updates to `README.md` for local setup instructions.
+- Updates to `README.md` for local setup and log viewing instructions.
+- New `npm run local:logs` command implementation.
 - (Optional) Improvements to `deploy-local.sh` for better error messaging.
 
 ## Acceptance Criteria
 - `npm run local -- --dry-run` succeeds without errors for all services.
 - All services pass the `BaseServer.ensureRequiredEnv` check when started locally (provided required secrets are in `.env.local`).
 - A new developer can follow `README.md` to set up the local environment from scratch.
+- `npm run local:logs` successfully shows logs from running containers.
 - `validate_deliverable.sh` completes successfully.
 
 ## Testing Strategy

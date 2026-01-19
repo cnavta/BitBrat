@@ -70,6 +70,16 @@ To stop the local environment:
 npm run local:down
 ```
 
+To view logs for all services:
+```bash
+npm run local:logs
+```
+
+To view logs for a specific service:
+```bash
+npm run local:logs -- --service-name auth
+```
+
 ### Building and Testing
 
 Build the project:
