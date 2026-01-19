@@ -6,7 +6,7 @@
 - Optimizing the emulator Dockerfile significantly reduced startup time and improved reliability.
 - Implementing `service_healthy` dependencies solved the race conditions between emulators and services.
 - Corrected Docker volume mappings to ensure scripts are found regardless of compose execution context.
-- Identified and fixed NATS healthcheck failure caused by missing `curl`/`wget` in the default `nats:2` scratch image. Switched to `nats:2-alpine`.
+- Identified and fixed NATS healthcheck failure caused by missing `curl`/`wget` in the default `nats:2` scratch image. Switched to `nats:2-alpine` and used `wget` which is included in BusyBox.
 - `gh` CLI was available for PR creation.
 
 ## What didn’t

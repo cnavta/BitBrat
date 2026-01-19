@@ -7,7 +7,7 @@ services:
       - "4222:4222"
       - "8222:8222"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8222/varz"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/varz"]
       interval: 5s
       timeout: 3s
       retries: 10
