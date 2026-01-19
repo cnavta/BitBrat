@@ -1,4 +1,3 @@
-SERVICE_NAME: oauth-flow
 SERVICE_PORT: 3000
 OAUTH_FLOW_HOST_PORT: 3001
 TWITCH_OAUTH_SCOPES: "chat:read chat:edit channel:read:subscriptions user:read:follows moderator:read:followers channel:read:vips channel:read:redemptions moderation:read bits:read moderator:read:shoutouts user:read:email"

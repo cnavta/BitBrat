@@ -1,0 +1,2 @@
+# auth service local configuration
+# Note: TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET are required and should be set in .secure.local
