@@ -55,7 +55,8 @@ For a detailed view, see [architecture.yaml](./architecture.yaml) and the [docum
    ```
 
 3. Configure environment variables:
-   Copy `.env.example` (to be created) to `.env` and fill in the required values.
+   Copy `.env.example` to `.secure.local` and fill in the required values (especially `GOOGLE_APPLICATION_CREDENTIALS` and API keys).
+   `.secure.local` is used to generate the final `.env.local` for the services.
 
 ### Running Locally
 
@@ -67,6 +68,16 @@ npm run local
 To stop the local environment:
 ```bash
 npm run local:down
+```
+
+To view logs for all services:
+```bash
+npm run local:logs
+```
+
+To view logs for a specific service:
+```bash
+npm run local:logs -- --service-name auth
 ```
 
 ### Building and Testing

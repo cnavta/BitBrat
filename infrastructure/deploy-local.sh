@@ -6,6 +6,8 @@ set -euo pipefail
 #   npm run local                                 # build + up + health probe (ALL services by default)
 #   npm run local -- --service-name ingress-egress # target a specific service
 #   npm run local -- --down                        # tear down stack (all or specific)
+#   npm run local:logs                             # view logs for all services
+#   npm run local:logs -- --service-name auth      # view logs for a specific service
 #   npm run local -- --dry-run                     # print actions only
 #   npm run local -- --env prod                    # use env/prod instead of env/local
 
@@ -19,12 +21,14 @@ fi
 ENV_NAME="local"
 DRY_RUN="false"
 DO_DOWN="false"
+DO_LOGS="false"
 SERVICE_NAME=""
 SERVICE_SET="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --down) DO_DOWN="true"; shift ;;
+    --logs) DO_LOGS="true"; shift ;;
     --dry-run) DRY_RUN="true"; shift ;;
     --env) ENV_NAME="${2:-local}"; shift 2 ;;
     --service-name) SERVICE_NAME="${2:-oauth-flow}"; SERVICE_SET="true"; shift 2 ;;
@@ -189,6 +193,11 @@ if [[ "$SERVICE_SET" == "false" || -z "${SERVICE_NAME:-}" ]]; then
     exit 0
   fi
 
+  if [[ "$DO_LOGS" == "true" ]]; then
+    compose "${compose_args[@]}" "${ENV_FILE_ARGS[@]}" logs -f
+    exit 0
+  fi
+
   # Sanity and validation for ADC secret mapping (host path for compose substitution)
   GC_LINE="$(grep '^GOOGLE_APPLICATION_CREDENTIALS=' .env.local || true)"
   if [[ -z "$GC_LINE" ]]; then
@@ -278,6 +287,15 @@ if [[ "$DO_DOWN" == "true" ]]; then
     --env-file ./.env.local \
     down
   echo "[deploy-local] Stack brought down for service ${SERVICE_NAME}."
+  exit 0
+fi
+
+if [[ "$DO_LOGS" == "true" ]]; then
+  compose \
+    -f infrastructure/docker-compose/docker-compose.local.yaml \
+    -f "$SERVICE_COMPOSE_FILE" \
+    --env-file ./.env.local \
+    logs -f "$SERVICE_KEBAB"
   exit 0
 fi
 
