@@ -55,7 +55,8 @@ For a detailed view, see [architecture.yaml](./architecture.yaml) and the [docum
    ```
 
 3. Configure environment variables:
-   Copy `.env.example` (to be created) to `.env` and fill in the required values.
+   Copy `.env.example` to `.secure.local` and fill in the required values (especially `GOOGLE_APPLICATION_CREDENTIALS` and API keys).
+   `.secure.local` is used to generate the final `.env.local` for the services.
 
 ### Running Locally
 

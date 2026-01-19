@@ -1,0 +1,10 @@
+id: sprint-195-b5a2c1
+title: "Restore Local Execution Environment"
+goal: "Analyze and restore the local execution process (npm run local) to a functional state."
+owner: "Junie"
+createdAt: "2026-01-19T14:45:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-195-restore-local-execution"
+notes: |
+  The sprint begins with an assessment of the current 'npm run local' command and identification of gaps.
