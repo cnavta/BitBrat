@@ -3,3 +3,9 @@ GOOGLE_CLOUD_PROJECT: bitbrat-local
 GCLOUD_PROJECT: bitbrat-local
 FIRESTORE_EMULATOR_HOST: firebase-emulator:8080
 NATS_URL: nats://nats:4222
+
+# Local Pub/Sub Emulator config
+PUBSUB_API_ENDPOINT: "firebase-emulator:8085"
+PUBSUB_EMULATOR_HOST: "firebase-emulator:8085"
+# Disable strict topic existence check to let emulator auto-create if needed
+PUBSUB_ENSURE_MODE: "off"

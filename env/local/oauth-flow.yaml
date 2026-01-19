@@ -1,6 +1,8 @@
-SERVICE_NAME: oauth-flow
 SERVICE_PORT: 3000
 OAUTH_FLOW_HOST_PORT: 3001
+TWITCH_CLIENT_ID: "local-twitch-id"
+TWITCH_CLIENT_SECRET: "local-twitch-secret"
+OAUTH_STATE_SECRET: "local-state-secret"
 TWITCH_OAUTH_SCOPES: "chat:read chat:edit channel:read:subscriptions user:read:follows moderator:read:followers channel:read:vips channel:read:redemptions moderation:read bits:read moderator:read:shoutouts user:read:email"
 
 # Discord OAuth (optional for this sprint)

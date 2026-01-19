@@ -93,7 +93,6 @@ function flattenToDotEnv(obj) {
 
   // Ensure sensible defaults if not provided
   if (!merged.SERVICE_PORT) merged.SERVICE_PORT = 3000;
-  if (!merged.SERVICE_NAME) merged.SERVICE_NAME = 'oauth-flow';
 
   const outPath = path.join(repoRoot, '.env.local');
   fs.writeFileSync(outPath, flattenToDotEnv(merged), 'utf8');

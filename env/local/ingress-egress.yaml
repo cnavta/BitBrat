@@ -2,12 +2,24 @@ TWITCH_BOT_USERNAME: "bitbrat_the_ai"
 TWITCH_CHANNELS: "gonj_the_unjust"
 # Discord integration (disabled by default locally)
 DISCORD_ENABLED: "false"
+DISCORD_BOT_TOKEN: "local-discord-token"
 # Single guild ID to operate in (e.g., 123456789012345678)
-DISCORD_GUILD_ID: ""
+DISCORD_GUILD_ID: "local-guild-id"
 # Comma-separated list of channel IDs to listen in (e.g., 111,222)
 DISCORD_CHANNELS: ""
 # Use token store for Discord bot token (authTokens/discord/bot)
 DISCORD_USE_TOKEN_STORE: "false"
+# Twilio
+TWILIO_ENABLED: "false"
+TWILIO_IDENTITY: "local-twilio-identity"
+TWILIO_ACCOUNT_SID: "local-twilio-sid"
+TWILIO_AUTH_TOKEN: "local-twilio-token"
+TWILIO_API_KEY: "local-twilio-key"
+TWILIO_API_SECRET: "local-twilio-secret"
+TWILIO_CHAT_SERVICE_SID: "local-twilio-chat-sid"
+# Twitch
+TWITCH_CLIENT_ID: "local-twitch-id"
+TWITCH_CLIENT_SECRET: "local-twitch-secret"
 DISCORD_ALLOW_ENV_FALLBACK: "true"
 # Poll interval (ms) for token rotation checks when using token store
 DISCORD_TOKEN_POLL_MS: "60000"
