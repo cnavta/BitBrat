@@ -3,8 +3,9 @@ title: "Restore Local Execution Environment"
 goal: "Analyze and restore the local execution process (npm run local) to a functional state."
 owner: "Junie"
 createdAt: "2026-01-19T14:45:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/106"
   branch: "feature/sprint-195-restore-local-execution"
 notes: |
   The sprint begins with an assessment of the current 'npm run local' command and identification of gaps.
