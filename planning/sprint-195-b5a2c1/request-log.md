@@ -8,3 +8,14 @@
     - `cat planning/sprint-194-e3a2b4/sprint-manifest.yaml`
     - `mkdir -p planning/sprint-195-b5a2c1`
     - `git checkout -b feature/sprint-195-restore-local-execution`
+
+## [2026-01-19T20:25:00Z] - Implementation & Validation
+- **Interpretation**: Implementation of fixes for the identified gaps.
+- **Actions**:
+    - Created `env/local/*.yaml` for missing services.
+    - Updated `.env.example` and `README.md`.
+    - Fixed `merge-env.js` and `oauth-flow.yaml` to avoid `SERVICE_NAME` collision.
+    - Ran `npm run local -- --dry-run` and infra dry-runs to verify.
+    - Created verification report, retro, and learnings.
+- **Publication**:
+    - Pushed branch and created PR: https://github.com/cnavta/BitBrat/pull/106
