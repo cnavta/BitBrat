@@ -35,7 +35,7 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - ONLY_EMULATORS=firestore,pubsub,ui
     volumes:
-      - ../../:/workspace:ro
+      - .:/workspace:ro
       - firebase-data:/data
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:

@@ -11,6 +11,7 @@
 - [x] Integrate Pub/Sub emulator into local Docker Compose stack.
 - [x] Implement `service_healthy` condition for all services to ensure emulator readiness.
 - [x] Populate all missing mandatory environment variables in `env/local/*.yaml` to pass `BaseServer` validation.
+- [x] Fix `firebase-emulator` volume mapping to correctly locate the bootstrap script.
 - [x] Verify `npm run local -- --dry-run`, `npm run local:logs -- --dry-run`, and infra dry-runs.
 
 ## Partial

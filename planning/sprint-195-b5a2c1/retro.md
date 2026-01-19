@@ -5,6 +5,7 @@
 - `merge-env.js` logic was easily corrected to avoid global namespace pollution.
 - Optimizing the emulator Dockerfile significantly reduced startup time and improved reliability.
 - Implementing `service_healthy` dependencies solved the race conditions between emulators and services.
+- Corrected Docker volume mappings to ensure scripts are found regardless of compose execution context.
 - `gh` CLI was available for PR creation.
 
 ## What didn’t
