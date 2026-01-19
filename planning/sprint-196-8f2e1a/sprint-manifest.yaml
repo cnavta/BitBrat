@@ -1,0 +1,11 @@
+id: sprint-196-8f2e1a
+title: "Fix Local PubSub Connection"
+goal: "Investigate and resolve 'ECONNREFUSED' errors connecting to the PubSub emulator during local execution."
+owner: "Junie"
+createdAt: "2026-01-19T18:55:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-196-8f2e1a-fix-local-pubsub-connection"
+notes: |
+  The error indicates services are trying to connect to 172.19.0.2:8085 but failing. 
+  This is likely a networking or startup timing issue in the local docker-compose environment.
