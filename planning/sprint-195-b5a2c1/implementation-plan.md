@@ -20,6 +20,7 @@ Restore the local execution environment (`npm run local`) to a functional and us
 - Optimized `firebase-emulator` setup (pre-baked dependencies or improved init).
 - Pub/Sub emulator integration in `docker-compose.local.yaml`.
 - Healthchecks and `depends_on` improvements in Docker Compose.
+- NATS healthcheck fix (replace `wget` with `curl`).
 - Populated missing environment variables in `env/local/*.yaml`.
 
 ## Acceptance Criteria
