@@ -12,6 +12,7 @@
 - [x] Implement `service_healthy` condition for all services to ensure emulator readiness.
 - [x] Populate all missing mandatory environment variables in `env/local/*.yaml` to pass `BaseServer` validation.
 - [x] Fix `firebase-emulator` volume mapping to correctly locate the bootstrap script.
+- [x] Fix NATS healthcheck by replacing `wget` with `curl` in `docker-compose.local.yaml`.
 - [x] Verify `npm run local -- --dry-run`, `npm run local:logs -- --dry-run`, and infra dry-runs.
 
 ## Partial
