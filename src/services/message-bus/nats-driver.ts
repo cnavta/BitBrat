@@ -13,13 +13,44 @@
  * - Use '../services/message-bus' factories; do not import this file directly from business logic.
  * - Delivery is at-least-once; keep handlers idempotent. JetStream durable consumers are used by default.
  */
-import { connect, StringCodec, NatsConnection, JetStreamClient, consumerOpts, createInbox, headers as natsHeaders } from 'nats';
+import { connect, StringCodec, NatsConnection, JetStreamClient, consumerOpts, createInbox, headers as natsHeaders, JetStreamManager } from 'nats';
 import { logger } from '../../common/logging';
 import type { AttributeMap, MessageHandler, MessagePublisher, MessageSubscriber, SubscribeOptions, UnsubscribeFn } from './index';
 import { normalizeAttributes } from './attributes';
 
 // NATS string codec used for JSON payload encoding/decoding
 const sc = StringCodec();
+
+const ensuredStreams = new Set<string>();
+
+/**
+ * Ensures a JetStream stream exists for the given subject prefix.
+ * In local dev, we typically use a single stream "BITBRAT" that covers "local.>"
+ */
+async function ensureStream(jsm: JetStreamManager): Promise<void> {
+  const prefix = getPrefix();
+  if (!prefix) return;
+  const streamName = 'BITBRAT';
+  if (ensuredStreams.has(streamName)) return;
+
+  try {
+    const subjects = [`${prefix}>`];
+    const streams = await jsm.streams.list().next();
+    const existing = streams.find((s) => s.config.name === streamName);
+
+    if (existing) {
+      logger.debug('nats.stream.exists', { stream: streamName, subjects: existing.config.subjects });
+      ensuredStreams.add(streamName);
+      return;
+    }
+
+    await jsm.streams.add({ name: streamName, subjects });
+    logger.info('nats.stream.created', { stream: streamName, subjects });
+    ensuredStreams.add(streamName);
+  } catch (e: any) {
+    logger.warn('nats.stream.ensure_failed', { stream: streamName, error: e?.message || String(e) });
+  }
+}
 
 /** Get BUS_PREFIX if configured. */
 function getPrefix(): string {
@@ -42,7 +73,11 @@ export class NatsPublisher implements MessagePublisher {
   constructor(subject: string) {
     this.subject = subject;
     this.connPromise = connect({ servers: process.env.NATS_URL || 'nats://localhost:4222' });
-    this.jsPromise = this.connPromise.then((c) => c.jetstream());
+    this.jsPromise = this.connPromise.then(async (c) => {
+      const jsm = await c.jetstreamManager();
+      await ensureStream(jsm);
+      return c.jetstream();
+    });
   }
 
   /** Serialize payload to JSON and publish to JetStream with optional headers. */
@@ -98,7 +133,11 @@ export class NatsSubscriber implements MessageSubscriber {
 
   constructor() {
     this.connPromise = connect({ servers: process.env.NATS_URL || 'nats://localhost:4222' });
-    this.jsPromise = this.connPromise.then((c) => c.jetstream());
+    this.jsPromise = this.connPromise.then(async (c) => {
+      const jsm = await c.jetstreamManager();
+      await ensureStream(jsm);
+      return c.jetstream();
+    });
   }
 
   async subscribe(subject: string, handler: MessageHandler, options: SubscribeOptions = {}): Promise<UnsubscribeFn> {
@@ -114,6 +153,7 @@ export class NatsSubscriber implements MessageSubscriber {
 
     const opts = consumerOpts();
     opts.durable(durable);
+    if (queue) opts.queue(queue);
     opts.manualAck();
     opts.ackExplicit();
     if (options.maxInFlight) opts.maxAckPending(options.maxInFlight);

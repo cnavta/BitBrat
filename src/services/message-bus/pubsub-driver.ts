@@ -31,7 +31,7 @@ import type {
 
 /** Create and configure a Pub/Sub client from environment. */
 function buildClient(): PubSub {
-  const apiEndpoint = (process.env.PUBSUB_API_ENDPOINT || '').trim() || undefined;
+  const apiEndpoint = (process.env.PUBSUB_API_ENDPOINT || process.env.PUBSUB_EMULATOR_HOST || '').trim() || undefined;
   const projectId = (process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || process.env.PROJECT_ID || '').trim() || undefined;
   let extra: Record<string, any> = {};
   if (process.env.PUBSUB_CLIENT_CONFIG) {
@@ -51,6 +51,11 @@ function buildClient(): PubSub {
 
 /** Ensure a topic exists; log and continue on failure (best-effort). */
 async function ensureTopic(pubsub: PubSub, topicName: string): Promise<void> {
+  const isNats = (process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS) === 'nats';
+  if (isNats) {
+    logger.warn('pubsub.ensureTopic.called_with_nats_driver_active', { topic: topicName, stack: new Error().stack });
+    return;
+  }
   try {
     const topic = pubsub.topic(topicName);
     // get will throw if missing; autoCreate creates transparently in most versions
@@ -158,6 +163,12 @@ export class PubSubPublisher implements MessagePublisher {
   private readonly topic: any;
 
   constructor(topicName: string) {
+    if ((process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS) === 'nats') {
+      logger.warn('pubsub.publisher.init.with_nats_driver_active', {
+        topic: topicName,
+        stack: new Error().stack
+      });
+    }
     this.pubsub = buildClient();
     this.topicName = topicName;
     const batching = { maxMessages: getBatchMaxMessages(), maxMilliseconds: getBatchMaxMilliseconds() };
@@ -263,6 +274,11 @@ export class PubSubSubscriber implements MessageSubscriber {
   private readonly pubsub: PubSub;
 
   constructor() {
+    if ((process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS) === 'nats') {
+      logger.warn('pubsub.subscriber.init.with_nats_driver_active', {
+        stack: new Error().stack
+      });
+    }
     this.pubsub = buildClient();
   }
 
@@ -395,6 +411,11 @@ function buildSubscriptionName(topic: string, queue?: string): string {
 
 /** Ensure a subscription exists for the given topic; swallow AlreadyExists errors. */
 async function ensureSubscription(pubsub: PubSub, topicName: string, subName: string, opts: { ackDeadlineSeconds?: number } = {}): Promise<void> {
+  const isNats = (process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS) === 'nats';
+  if (isNats) {
+    logger.warn('pubsub.ensureSubscription.called_with_nats_driver_active', { topic: topicName, subscription: subName, stack: new Error().stack });
+    return;
+  }
   try {
     // Simplest and most compatible approach: attempt to create; if it already exists, swallow the error.
     const topic = pubsub.topic(topicName);
