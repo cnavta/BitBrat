@@ -2,7 +2,7 @@
 
 ## Completed
 - [x] Updated `firebase.json` with `websocketPort: 9150` for Firestore emulator.
-- [x] Upgraded Java runtime in `Dockerfile.emulator` to OpenJDK 21 (Temurin) to support latest `firebase-tools`.
+- [x] Upgraded Java runtime in `Dockerfile.emulator` to OpenJDK 21 (Temurin) to support latest `firebase-tools`. Fixed build-time repository setup issues by adding `ca-certificates` and ensuring keyring directories exist.
 - [x] Fixed `nats-driver.test.ts` to mock `jetstreamManager`, resolving test failures from Sprint 201 changes.
 - [x] Verified `docker-compose.local.yaml` port mappings for 9150.
 - [x] Validated project build and configuration via `validate_deliverable.sh`.
