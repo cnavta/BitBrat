@@ -1,0 +1,10 @@
+id: sprint-198-a1b2c3
+title: "Remediate Local Execution Errors"
+goal: "Fix Firebase emulator startup, NATS stream auto-provisioning, and environment validation issues in local execution."
+owner: "Junie"
+createdAt: "2026-01-20T00:45:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-198-a1b2c3-remediate-local-errors"
+notes: |
+  Implementation of the action plan to fix local dev environment stability.

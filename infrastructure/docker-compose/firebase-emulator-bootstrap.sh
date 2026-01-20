@@ -20,9 +20,9 @@ fi
 # Copy firebase config artifacts into /data if missing
 [[ -f /data/firebase.json ]] || cp /workspace/firebase.json /data/firebase.json
 [[ -f /data/firestore.rules ]] || cp /workspace/firestore.rules /data/firestore.rules
-if [[ -f /workspace/firestore.indexes.json && ! -f /data/firestore.indexes.json ]]; then
-  cp /workspace/firestore.indexes.json /data/firestore.indexes.json
-fi
+
+echo "[firebase-emulator] Effective firebase.json:"
+cat /data/firebase.json
 
 # Authenticate the Firebase CLI via ADC using the mounted service account key
 # This avoids interactive `firebase login` prompts.
