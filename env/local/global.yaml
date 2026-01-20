@@ -1,5 +1,4 @@
 LOG_LEVEL: debug
-MESSAGE_BUS_DRIVER: pubsub
-NATS_URL: "nats-not-used-in-prod"
+MESSAGE_BUS_DRIVER: nats
 BUS_PREFIX: "local."
 ENV_PREFIX: "local."
