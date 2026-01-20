@@ -31,6 +31,10 @@ function resolveDatabaseId(): string {
   // Prefer explicitly configured value; otherwise consult central config; finally default.
   if (configuredDbId && configuredDbId.trim()) return configuredDbId.trim();
   try {
+    // Try to get from process.env directly to avoid circular dependency or config load failures
+    const fromEnv = process.env.FIRESTORE_DATABASE_ID;
+    if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+
     const cfg: any = {} as any;
     const fromCfg = cfg?.firestore?.databaseId as string | undefined;
     if (fromCfg && String(fromCfg).trim()) return String(fromCfg).trim();
@@ -42,7 +46,10 @@ export function getFirestore() {
   if (!initialized) {
     const databaseId = resolveDatabaseId();
     // Only initialize once per process
-    logger.info('Initializing Firestore', { databaseId });
+    logger.info('Initializing Firestore', {
+      databaseId,
+      emulatorHost: process.env.FIRESTORE_EMULATOR_HOST || 'none'
+    });
     admin.initializeApp({
       // Admin SDK uses ADC by default when available (service account key or Workload Identity)
     });

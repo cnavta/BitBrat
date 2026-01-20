@@ -485,13 +485,23 @@ export class BaseServer {
   /**
    * Ensures all required env keys (as computed from architecture.yaml) are present.
    * Exits the process with code 1 if any are missing.
+   * In local development, some keys (Twilio, Discord, etc.) are treated as optional.
    */
   static ensureRequiredEnv(serviceName?: string): void {
     // Exclude runtime-provided keys (e.g., Cloud Run-provided) from required validation
     const runtimeProvided = new Set<string>(['K_REVISION']);
+
+    // In local development, some integrations are optional even if listed in architecture.yaml
+    const isLocal = process.env.BITBRAT_ENV === 'local' || !process.env.BITBRAT_ENV;
+    const optionalLocally = isLocal ? new Set<string>([
+      'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_API_KEY', 'TWILIO_API_SECRET', 'TWILIO_CHAT_SERVICE_SID',
+      'DISCORD_BOT_TOKEN', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET',
+    ]) : new Set<string>();
+
     const required = BaseServer
       .computeRequiredKeysFromArchitecture(serviceName)
-      .filter((k) => !runtimeProvided.has(k));
+      .filter((k) => !runtimeProvided.has(k) && !optionalLocally.has(k));
+
     if (!required || required.length === 0) return;
     const missing = required.filter((k) => !process.env[k] || String(process.env[k]).trim() === '');
     if (missing.length > 0) {

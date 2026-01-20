@@ -1,14 +1,21 @@
 {
   "emulators": {
-    "host": "0.0.0.0",
+    "singleProjectMode": true,
+    "hub": {
+      "host": "0.0.0.0",
+      "port": 4400
+    },
     "ui": {
       "enabled": true,
+      "host": "0.0.0.0",
       "port": 4000
     },
     "firestore": {
+      "host": "0.0.0.0",
       "port": 8080
     },
     "pubsub": {
+      "host": "0.0.0.0",
       "port": 8085
     }
   },
