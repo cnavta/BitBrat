@@ -1,5 +1,10 @@
 {
   "emulators": {
+    "singleProjectMode": true,
+    "hub": {
+      "host": "0.0.0.0",
+      "port": 4400
+    },
     "ui": {
       "enabled": true,
       "host": "0.0.0.0",
@@ -16,5 +21,6 @@
   },
   "firestore": {
     "rules": "firestore.rules"
-  }
+  },
+  "pubsub": {}
 }
