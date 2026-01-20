@@ -3,8 +3,9 @@ title: "Docker Compose Service Dependencies"
 goal: "Ensure services wait for NATS and Firebase emulators to be healthy before starting."
 owner: "Junie"
 createdAt: "2026-01-20T01:00:00Z"
-status: "in-progress"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/110"
   branch: "feature/sprint-199-c8d4e2-docker-compose-dependencies"
 notes: |
   Updating depends_on to use service_healthy conditions in all service compose files.
