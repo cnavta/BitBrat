@@ -2,7 +2,6 @@ TWITCH_BOT_USERNAME: "bitbrat_the_ai"
 TWITCH_CHANNELS: "gonj_the_unjust"
 # Discord integration (disabled by default locally)
 DISCORD_ENABLED: "true"
-DISCORD_BOT_TOKEN: "local-discord-token"
 # Single guild ID to operate in (e.g., 123456789012345678)
 DISCORD_GUILD_ID: "1324629154695483422"
 # Comma-separated list of channel IDs to listen in (e.g., 111,222)
