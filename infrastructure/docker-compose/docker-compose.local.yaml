@@ -45,7 +45,7 @@ services:
       - "4400:4400"
       - "9150:9150"
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:4000"]
+      test: ["CMD", "bash", "-c", "curl -sf http://localhost:4000 && curl -sf http://localhost:8080"]
       interval: 5s
       timeout: 5s
       retries: 30

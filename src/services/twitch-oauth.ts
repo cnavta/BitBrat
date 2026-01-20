@@ -77,7 +77,11 @@ function resolveLbBaseUrl(): string | null {
     const domainRaw: string | undefined = arch?.infrastructure?.resources?.['main-load-balancer']?.routing?.default_domain;
     if (domainRaw && typeof domainRaw === 'string') {
       const domain = interpolateEnv(domainRaw);
+      logger.info('Resolved LB domain from architecture.yaml', { domain });
       if (domain) {
+        if (domain.includes('localhost')) {
+          return `http://${domain}`;
+        }
         // Assume HTTPS for public LB
         return `https://${domain}`;
       }
@@ -109,6 +113,7 @@ export function getAuthUrl(cfg: IConfig, req: import('express').Request, basePat
 }
 
 export async function exchangeCodeForToken(cfg: IConfig, code: string, redirectUri: string): Promise<TwitchTokenData> {
+  logger.debug('Exchanging code for token', {cfg, code, redirectUri})
   if (!cfg.twitchClientId || !cfg.twitchClientSecret) {
     throw new Error('Missing TWITCH_CLIENT_ID or TWITCH_CLIENT_SECRET');
   }
@@ -119,6 +124,7 @@ export async function exchangeCodeForToken(cfg: IConfig, code: string, redirectU
     grant_type: 'authorization_code',
     redirect_uri: redirectUri,
   });
+  logger.debug('Exchanging code for token', {params: params.toString()});
   const resp = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -137,7 +143,7 @@ export async function exchangeCodeForToken(cfg: IConfig, code: string, redirectU
     scope: Array.isArray(body.scope) ? body.scope : [],
     userId: null,
   };
-  // Attempt to validate the token to retrieve the user_id (Twitc h validate endpoint)
+  // Attempt to validate the token to retrieve the user_id (Twitch validate endpoint)
   try {
     const vResp = await fetch('https://id.twitch.tv/oauth2/validate', {
       headers: { Authorization: `OAuth ${token.accessToken}` },

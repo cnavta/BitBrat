@@ -144,15 +144,25 @@ export class NatsSubscriber implements MessageSubscriber {
     const conn = await this.connPromise;
     const js = await this.jsPromise;
     const subj = withPrefix(subject);
-    const durable = options.durable || subj.replace(/\./g, '-') + '-durable';
     const queue = options.queue;
+    const durable = options.durable || (
+      queue 
+        ? `${subj.replace(/\./g, '-')}-${queue.replace(/\./g, '-')}-durable`
+        : `${subj.replace(/\./g, '-')}-durable`
+    );
 
     const opts = consumerOpts();
     opts.durable(durable);
+    if (queue) opts.queue(queue);
     opts.manualAck();
     opts.ackExplicit();
     if (options.maxInFlight) opts.maxAckPending(options.maxInFlight);
-    opts.deliverTo(createInbox());
+    
+    if (queue) {
+      opts.queue(queue);
+    } else {
+      opts.deliverTo(createInbox());
+    }
 
     const sub = await js.subscribe(subj, opts);
 
@@ -195,36 +205,8 @@ export class NatsSubscriber implements MessageSubscriber {
       }
     })();
 
-    // If queue group requested, fallback to core NATS queue subscribe without JS
-    let unsubQueue: (() => Promise<void>) | null = null;
-    if (queue) {
-      const qsub = conn.subscribe(subj, { queue });
-      (async () => {
-        for await (const m of qsub) {
-          const dataBuf = Buffer.from(m.data);
-          const attrs = headersToMap(m.headers);
-          const ack = async () => {
-            logger.debug('message_consumer.ack', { driver: 'nats', subject: subj, mode: 'queue' });
-          };
-          const nack = async () => {
-            logger.debug('message_consumer.nack', { driver: 'nats', subject: subj, mode: 'queue' });
-          };
-          logger.debug('message_consumer.receive', { driver: 'nats', subject: subj, mode: 'queue', bytes: dataBuf?.length || 0, attrCount: Object.keys(attrs || {}).length });
-          const started = Date.now();
-          try {
-            await handler(dataBuf, attrs, { ack, nack });
-            logger.debug('message_consumer.process.ok', { driver: 'nats', subject: subj, mode: 'queue', durationMs: Date.now() - started });
-          } catch (e: any) {
-            logger.error('message_consumer.process.error', { driver: 'nats', subject: subj, mode: 'queue', error: e?.message || String(e), durationMs: Date.now() - started });
-          }
-        }
-      })();
-      unsubQueue = async () => qsub.drain();
-    }
-
     return async () => {
       try { await sub.drain(); } catch {}
-      if (unsubQueue) await unsubQueue();
     };
   }
 }
