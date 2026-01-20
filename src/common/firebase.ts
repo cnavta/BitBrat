@@ -41,8 +41,9 @@ function resolveDatabaseId(): string {
 export function getFirestore() {
   if (!initialized) {
     const databaseId = resolveDatabaseId();
+    const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
     // Only initialize once per process
-    logger.info('Initializing Firestore', { databaseId });
+    logger.info('Initializing Firestore', { databaseId, emulatorHost });
     admin.initializeApp({
       // Admin SDK uses ADC by default when available (service account key or Workload Identity)
     });
