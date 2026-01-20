@@ -62,15 +62,6 @@ services:
       # Discord OAuth (user-level flows optional; prep for future)
       - DISCORD_CLIENT_ID
       - DISCORD_CLIENT_SECRET
-    env:
-      # Optional explicit redirect URI override for Discord OAuth callbacks
-      - DISCORD_REDIRECT_URI
-      # Optional scopes list for Discord OAuth (space/comma separated)
-      - DISCORD_OAUTH_SCOPES
-      # Optional permissions bitmask for Discord OAuth
-      - DISCORD_OAUTH_PERMISSIONS
-      # Optional scopes list for Twitch OAuth (space/comma separated)
-      - TWITCH_OAUTH_SCOPES
 
   ingress-egress:
     active: true
@@ -102,14 +93,8 @@ services:
       - TWITCH_CHANNELS
       # Discord configuration and rollout flags
       - DISCORD_ENABLED
-      - DISCORD_GUILD_ID
-      - DISCORD_CHANNELS
-      - DISCORD_USE_TOKEN_STORE
-      - DISCORD_ALLOW_ENV_FALLBACK
-      - DISCORD_TOKEN_POLL_MS
       # Twilio configuration
       - TWILIO_ENABLED
-      - TWILIO_IDENTITY
       # Optional instance identity for per-instance egress topic.
       # The service resolves instanceId via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated
       # Only K_REVISION is listed here because it is auto-provided by Cloud Run when present.
