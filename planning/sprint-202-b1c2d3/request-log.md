@@ -4,3 +4,4 @@
 - **2026-01-20T10:36:00Z**: Created `sprint-manifest.yaml` and `implementation-plan.md`.
 - **2026-01-20T10:38:00Z**: Updated `firebase.json` to include `websocketPort: 9150` for Firestore emulator. Verified `docker-compose.local.yaml` already exposes port 9150.
 - **2026-01-20T17:05:00Z**: Amended sprint to include Java 21 upgrade task. Interpretation: `firebase-tools` now requires Java 21+, but the emulator container is currently running Java 17. Must update `Dockerfile.emulator`.
+- **2026-01-20T17:15:00Z**: Fixed `Dockerfile.emulator` build failure. Added `ca-certificates` and `mkdir -p /etc/apt/keyrings` to ensure Adoptium repository can be added successfully on Debian Bullseye.
