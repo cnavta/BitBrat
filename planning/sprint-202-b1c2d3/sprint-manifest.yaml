@@ -3,8 +3,9 @@ title: "Fix Firestore Emulator UI Websocket Connectivity"
 goal: "Ensure the Firestore Emulator UI can successfully connect to its websocket on port 9150 in the Docker environment."
 owner: "Junie"
 createdAt: "2026-01-20T10:35:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/113"
   branch: "feature/sprint-202-b1c2d3-fix-firestore-ui-websocket"
 notes: |
   The Firestore UI reports that its websocket is running on 9150. This sprint ensures Docker Compose and Firebase config are aligned to allow access to this websocket.
