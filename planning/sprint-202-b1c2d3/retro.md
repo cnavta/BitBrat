@@ -1,12 +1,11 @@
 # Retro – sprint-202-b1c2d3
 
 ## What Worked
-- Clear instruction from user about the specific port needed.
-- Quick identification of missing configuration in `firebase.json`.
-- `validate_deliverable.sh` provided a fast feedback loop for configuration changes.
+- Amending the sprint protocol allowed for quick integration of a critical dependency fix (Java 21).
+- Using Adoptium repositories made the Java upgrade straightforward and reproducible in the Dockerfile.
 
 ## What Didn't Work
-- Initial assumption that Docker port exposure was enough; `firebase.json` needs to know about the websocket port to bind it correctly to the intended host interface.
+- Sprint 201's NATS JetStream changes introduced a regression in unit tests (missing mock for `jetstreamManager`) that was only caught during this sprint's validation. This highlights the importance of running the FULL test suite during every sprint validation.
 
-## Lessons Learned
-- When working with Firebase emulators in Docker, all internal communication ports used by the UI (like websockets) must be explicitly configured and bound to `0.0.0.0`.
+## Improvements
+- Ensure that any changes to shared common drivers (like NATS) are verified against all dependent unit tests before finishing the sprint.
