@@ -2,8 +2,12 @@
 
 ## Completed
 - [x] Updated `firebase.json` with `websocketPort: 9150` for Firestore emulator.
+- [x] Upgraded Java runtime in `Dockerfile.emulator` to OpenJDK 21 (Temurin) to support latest `firebase-tools`.
+- [x] Fixed `nats-driver.test.ts` to mock `jetstreamManager`, resolving test failures from Sprint 201 changes.
 - [x] Verified `docker-compose.local.yaml` port mappings for 9150.
 - [x] Validated project build and configuration via `validate_deliverable.sh`.
 
 ## Alignment Notes
-- The issue was specific to the Firestore UI websocket. By explicitly defining the `websocketPort` and ensuring it's bound to `0.0.0.0` (inherited from emulator settings), the UI should now be able to connect in the Docker environment.
+- The upgrade to Java 21 was necessary because the latest `firebase-tools` version dropped support for Java 17.
+- Adoptium's Temurin distribution was used for Java 21 as it provides a stable repository for Debian Bullseye.
+- Test fixes in `nats-driver.test.ts` ensure that the new JetStream stream-check logic is properly mocked.

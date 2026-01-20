@@ -49,9 +49,10 @@ export function getFirestore() {
     // Only initialize once per process
     logger.info('Initializing Firestore', {
       databaseId,
-      emulatorHost: process.env.FIRESTORE_EMULATOR_HOST || 'none'
+      emulatorHost: emulatorHost || 'none'
     });
     admin.initializeApp({
+      projectId: process.env.GCLOUD_PROJECT,
       // Admin SDK uses ADC by default when available (service account key or Workload Identity)
     });
     // Bind Firestore to the named database (multi-database support)

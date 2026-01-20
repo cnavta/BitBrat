@@ -1,6 +1,10 @@
 {
   "emulators": {
     "singleProjectMode": true,
+    "eventarc": {
+      "host": "0.0.0.0",
+      "port": 4222
+    },
     "hub": {
       "host": "0.0.0.0",
       "port": 4400
@@ -22,6 +26,5 @@
   },
   "firestore": {
     "rules": "firestore.rules"
-  },
-  "pubsub": {}
+  }
 }
