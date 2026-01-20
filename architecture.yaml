@@ -214,7 +214,7 @@ infrastructure:
       description: Main external entry point and router for the application
       routing:
         default_bucket: default-content-bucket
-        default_domain: api.${ENV_PREFIX}${DOMAIN_SUFFIX:-bitbrat.ai}
+        default_domain: ${DOMAIN_PREFIX}${ENV_PREFIX}${DOMAIN_SUFFIX:-bitbrat.ai}
         rules:
           # Static Assets Routing
           - path_prefix: /assets

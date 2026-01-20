@@ -3,3 +3,5 @@ MESSAGE_BUS_DRIVER: pubsub
 NATS_URL: "nats-not-used-in-prod"
 BUS_PREFIX: "dev."
 ENV_PREFIX: "dev."
+DOMAIN_PREFIX: "dev."
+DOMAIN_SUFFIX: ""
