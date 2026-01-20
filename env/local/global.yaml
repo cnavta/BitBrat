@@ -1,4 +1,6 @@
 LOG_LEVEL: debug
 MESSAGE_BUS_DRIVER: nats
 BUS_PREFIX: "local."
-ENV_PREFIX: "local."
+ENV_PREFIX: ""
+DOMAIN_PREFIX: ""
+DOMAIN_SUFFIX: "localhost:3001"

@@ -1,0 +1,11 @@
+id: sprint-201-d8e2f3
+title: "Debug Firestore connectivity and NATS durable subscriptions"
+goal: "Fix Firestore emulator connectivity issues (ECONNREFUSED) and NATS subscription errors (durable requires no queue group) in local Docker environment."
+owner: "Junie"
+createdAt: "2026-01-20T14:30:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/112"
+  branch: "feature/sprint-201-d8e2f3-fix-firestore-connectivity"
+notes: |
+  Continuing work on local execution stability. Focus on Firestore connectivity across containers and NATS JetStream subscription parameters.
