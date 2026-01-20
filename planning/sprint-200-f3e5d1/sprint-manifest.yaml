@@ -1,0 +1,10 @@
+id: sprint-200-f3e5d1
+title: "Remediate Local Execution and NATS Subscription"
+goal: "Fix Firebase emulator connectivity and NATS double-subscription issues to ensure stable local startup."
+owner: "Junie"
+createdAt: "2026-01-20T01:30:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-200-f3e5d1-remediate-local-execution"
+notes: |
+  This sprint implements the recommended action plan from the investigation report regarding Docker Compose dependencies and NATS driver bugs.
