@@ -144,8 +144,12 @@ export class NatsSubscriber implements MessageSubscriber {
     const conn = await this.connPromise;
     const js = await this.jsPromise;
     const subj = withPrefix(subject);
-    const durable = options.durable || subj.replace(/\./g, '-') + '-durable';
     const queue = options.queue;
+    const durable = options.durable || (
+      queue 
+        ? `${subj.replace(/\./g, '-')}-${queue.replace(/\./g, '-')}-durable`
+        : `${subj.replace(/\./g, '-')}-durable`
+    );
 
     const opts = consumerOpts();
     opts.durable(durable);
@@ -153,7 +157,12 @@ export class NatsSubscriber implements MessageSubscriber {
     opts.manualAck();
     opts.ackExplicit();
     if (options.maxInFlight) opts.maxAckPending(options.maxInFlight);
-    opts.deliverTo(createInbox());
+    
+    if (queue) {
+      opts.queue(queue);
+    } else {
+      opts.deliverTo(createInbox());
+    }
 
     const sub = await js.subscribe(subj, opts);
 
