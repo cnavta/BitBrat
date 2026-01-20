@@ -1,0 +1,11 @@
+id: sprint-197-a2b3c4
+title: "Fix Messaging Platform Switch and Emulator Support"
+goal: "Investigate and fix issues where messaging platform switch (NATS vs PubSub) is not fully respected or fails to connect to emulators."
+owner: "Junie"
+createdAt: "2026-01-20T00:05:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/108"
+  branch: "feature/sprint-197-a2b3c4-fix-nats-pubsub-leak"
+notes: |
+  Analyzed driver selection and emulator connectivity. Added guardrails to prevent Pub/Sub misuse in NATS mode.

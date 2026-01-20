@@ -95,7 +95,7 @@ export interface MessageSubscriber {
 
 /** Resolve the active driver from environment. */
 function getDriver(): 'pubsub' | 'nats' | 'noop' {
-  const explicit = String(process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS || '').toLowerCase();
+  const explicit = String(process.env.MESSAGE_BUS_DRIVER || process.env.MESSAGE_BUS || '').trim().toLowerCase();
   if (explicit && explicit !== 'auto') {
     if (explicit === 'nats' || explicit === 'pubsub' || explicit === 'noop') return explicit as any;
   }
