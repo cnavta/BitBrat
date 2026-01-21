@@ -153,16 +153,14 @@ export class NatsSubscriber implements MessageSubscriber {
 
     const opts = consumerOpts();
     opts.durable(durable);
-    if (queue) opts.queue(queue);
     opts.manualAck();
     opts.ackExplicit();
     if (options.maxInFlight) opts.maxAckPending(options.maxInFlight);
-    
-    if (queue) {
-      opts.queue(queue);
-    } else {
-      opts.deliverTo(createInbox());
-    }
+
+    // Push consumers require a delivery subject.
+    // If a queue group is used, JetStream will distribute messages on that subject among group members.
+    opts.deliverTo(createInbox());
+    if (queue) opts.queue(queue);
 
     const sub = await js.subscribe(subj, opts);
 
