@@ -1,0 +1,11 @@
+id: sprint-204-c4d5e6
+title: "MCP Administrative Capabilities for Auth Service"
+goal: "Expose MCP tools in the auth service for administrative tasks such as updating user roles and banning users."
+owner: "Junie"
+createdAt: "2026-01-21T10:48:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-204-auth-mcp-admin"
+notes: |
+  This sprint focuses on adding administrative MCP tools to the auth service.
+  Key features include role management (e.g., VIP) and user banning with cross-platform support.
