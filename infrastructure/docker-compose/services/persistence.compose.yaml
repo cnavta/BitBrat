@@ -11,6 +11,10 @@ services:
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
       - "${PERSISTENCE_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+    networks:
+      bitbrat:
+        aliases:
+          - persistence.bitbrat.local
     depends_on:
       nats:
         condition: service_healthy
@@ -21,3 +25,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+networks:
+  bitbrat:
+    external: true
+    name: bitbrat-network

@@ -66,7 +66,15 @@ backlog:
   - id: VAL-001
     title: "End-to-end validation"
     priority: high
-    status: in-progress
+    status: completed
     estimate: 2
     description: "Verify MCP tool calls trigger Firestore updates and platform-specific ban calls."
     tags: ["testing", "validation"]
+
+  - id: INF-001
+    title: "Local Service Naming in Docker Compose"
+    priority: medium
+    status: completed
+    estimate: 2
+    description: "Configure services in Docker Compose to be accessible via SERVICE_NAME.bitbrat.local."
+    tags: ["infrastructure", "docker-compose"]

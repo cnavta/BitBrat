@@ -18,12 +18,14 @@
 - `src/apps/ingress-egress-service.ts`: Added subscription to `moderation.action.v1`.
 - `src/services/ingress/twitch/twitch-irc-client.ts`: Added `banUser` support (or via connector adapter).
 - `src/services/ingress/discord/discord-ingress-client.ts`: Added `banUser` support.
+- `infrastructure/docker-compose/`: Updated compose files for local service naming.
 
 ## Acceptance Criteria
 - Bot can add/remove roles from a user via MCP tool call.
 - Bot can ban a user via MCP tool call.
 - Banning a user sets their Firestore status to "banned".
 - Banning a user triggers a platform-specific ban if supported (Twitch/Discord).
+- Services are accessible via `SERVICE_NAME.bitbrat.local` in local Docker Compose.
 - `validate_deliverable.sh` passes.
 
 ## Testing Strategy
