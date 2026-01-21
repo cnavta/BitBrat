@@ -89,3 +89,70 @@ describe('NatsPublisher headers behavior', () => {
     expect(publishMock).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('NatsSubscriber behavior', () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...OLD_ENV };
+  });
+
+  afterAll(() => {
+    process.env = OLD_ENV;
+  });
+
+  it('subscribe calls deliverTo even when queue is provided', async () => {
+    const deliverToMock = jest.fn();
+    const queueMock = jest.fn();
+    const durableMock = jest.fn();
+    const subscribeMock = jest.fn(async () => ({
+      [Symbol.asyncIterator]: async function* () {
+        // empty
+      },
+      drain: async () => {},
+    }));
+
+    jest.doMock('nats', () => ({
+      connect: async () => ({
+        jetstream: () => ({ subscribe: subscribeMock }),
+        jetstreamManager: async () => ({
+          streams: {
+            list: () => ({
+              next: async () => [{ config: { name: 'BITBRAT', subjects: ['local.>'] } }]
+            })
+          }
+        }),
+      }),
+      consumerOpts: () => {
+        const o: any = {
+          durable: durableMock,
+          deliverTo: deliverToMock,
+          queue: queueMock,
+          manualAck: jest.fn(),
+          ackExplicit: jest.fn(),
+          maxAckPending: jest.fn(),
+        };
+        o.durable.mockReturnValue(o);
+        o.deliverTo.mockReturnValue(o);
+        o.queue.mockReturnValue(o);
+        o.manualAck.mockReturnValue(o);
+        o.ackExplicit.mockReturnValue(o);
+        o.maxAckPending.mockReturnValue(o);
+        return o;
+      },
+      createInbox: () => 'inbox',
+      headers: () => ({}),
+      StringCodec: () => ({}),
+    }));
+
+    const { NatsSubscriber } = await import('./nats-driver');
+    const sub = new NatsSubscriber();
+    await sub.subscribe('test.subject', async () => {}, { queue: 'test-group' });
+
+    expect(subscribeMock).toHaveBeenCalled();
+    expect(deliverToMock).toHaveBeenCalledWith('inbox');
+    expect(queueMock).toHaveBeenCalledWith('test-group');
+    expect(durableMock).toHaveBeenCalledWith(expect.stringContaining('test-group'));
+  });
+});
