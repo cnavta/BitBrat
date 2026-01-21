@@ -111,8 +111,9 @@ if (require.main === module) {
 }
 
 function generateTest(serviceName: string, entry: string): string {
+  const entryFilename = path.basename(entry).replace(/\.ts$/, '');
   return `import request from 'supertest';
-import { ${toPascal(serviceName)}Server } from './${entry.replace(/\.ts$/, '')}';
+import { ${toPascal(serviceName)}Server } from './${entryFilename}';
 
 describe('${serviceName}', () => {
   let server: ${toPascal(serviceName)}Server;
@@ -156,7 +157,7 @@ COPY architecture.yaml ./
 ENV NODE_ENV=production
 ENV SERVICE_NAME=${serviceName}
 
-CMD ["node", "dist/src/apps/${entryBase}.js"]
+CMD ["node", "dist/${entryBase}.js"]
 `;
 }
 
@@ -195,7 +196,8 @@ export async function cmdServiceBootstrap(opts: BootstrapOptions, log: Logger) {
     throw new Error(`Service "${opts.name}" not found in architecture.yaml`);
   }
 
-  const entry = svc.entry || `${opts.name}.ts`;
+  // If entry exists in arch, use it. Otherwise default to src/apps/<name>.ts
+  const entry = svc.entry || `src/apps/${opts.name}.ts`;
   const port = svc.port || 8080;
   // Use 'any' cast to access non-standard fields if they exist in raw architecture.yaml
   const paths = (svc as any).paths || [];
@@ -207,11 +209,12 @@ export async function cmdServiceBootstrap(opts: BootstrapOptions, log: Logger) {
 
   // 1. App Source
   const appSrc = generateAppSource(opts.name, paths, consumes, opts.mcp);
-  results.push(writeFileSafe(path.join(root, 'src', 'apps', entry), appSrc, opts.force));
+  results.push(writeFileSafe(path.join(root, entry), appSrc, opts.force));
 
   // 2. Unit Test
-  const testSrc = generateTest(opts.name, entry.replace(/\.ts$/, ''));
-  results.push(writeFileSafe(path.join(root, 'src', 'apps', entry.replace(/\.ts$/, '.test.ts')), testSrc, opts.force));
+  const testPath = entry.replace(/\.ts$/, '.test.ts');
+  const testSrc = generateTest(opts.name, entry);
+  results.push(writeFileSafe(path.join(root, testPath), testSrc, opts.force));
 
   // 3. Dockerfile
   const dockerfile = generateDockerfile(opts.name, entry);
