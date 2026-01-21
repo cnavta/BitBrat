@@ -88,6 +88,7 @@ export class FirestoreUserRepo implements UserRepo {
       displayName: data?.displayName,
       roles: Array.isArray(data?.roles) ? data.roles : [],
       status: data?.status,
+      notes: data?.notes,
       profile: data?.profile,
       rolesMeta: data?.rolesMeta,
     };
@@ -106,6 +107,7 @@ export class FirestoreUserRepo implements UserRepo {
       displayName: data?.displayName,
       roles: Array.isArray(data?.roles) ? data.roles : [],
       status: data?.status,
+      notes: data?.notes,
       profile: data?.profile,
       rolesMeta: data?.rolesMeta,
     };
@@ -131,6 +133,7 @@ export class FirestoreUserRepo implements UserRepo {
         displayName: data?.displayName,
         roles: Array.isArray(data?.roles) ? data.roles : [],
         status: data?.status,
+        notes: data?.notes,
         profile: data?.profile,
         rolesMeta: data?.rolesMeta,
       };

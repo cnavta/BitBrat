@@ -97,3 +97,12 @@
         - Detect if `bitbrat-network` has the wrong labels and recreate it if necessary.
         - Create the network with the correct `com.docker.compose.network=bitbrat-network` label during pre-flight.
     - Updated `retro.md` to document the fix.
+
+## [2026-01-21T14:58:00Z] - MCP Tool Notes Field
+- **Prompt**: User requested adding the ability to set the 'notes' property in the auth MCP admin tooling.
+- **Interpretation**: Add `notes` field to `update_user` tool schema and ensure it persists in Firestore.
+- **Actions**:
+    - Updated `src/apps/auth-service.ts` to add `notes` to `update_user` tool.
+    - Updated `src/services/auth/user-repo.ts` to map `notes` field from Firestore.
+    - Added unit test in `src/services/auth/__tests__/user-repo-admin.spec.ts`.
+    - Verified all tests pass.

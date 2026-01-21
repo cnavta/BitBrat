@@ -86,3 +86,11 @@ backlog:
     estimate: 1
     description: "Remove redundant external: true flags from service-specific compose files and cleanup deploy-local.sh."
     tags: ["infrastructure", "docker-compose", "cleanup"]
+
+  - id: AUTH-006
+    title: "Add notes field to update_user MCP tool"
+    priority: medium
+    status: completed
+    estimate: 1
+    description: "Update update_user tool in Auth service to allow setting administrative notes on users."
+    tags: ["auth", "mcp"]

@@ -74,6 +74,24 @@ describe('FirestoreUserRepo administrative methods', () => {
       expect(updated?.status).toBe('banned');
     });
 
+    it('updates user notes', async () => {
+      const repo = new FirestoreUserRepo('users', mockDb);
+      mockDoc.get.mockResolvedValue({ exists: true });
+      
+      mockDoc.get
+        .mockResolvedValueOnce({ exists: true })
+        .mockResolvedValueOnce({
+          exists: true,
+          id: 'u1',
+          data: () => ({ displayName: 'User One', notes: 'Top contributor', roles: ['user'] })
+        });
+
+      const updated = await repo.updateUser('u1', { notes: 'Top contributor' });
+
+      expect(mockDoc.set).toHaveBeenCalledWith({ notes: 'Top contributor' }, { merge: true });
+      expect(updated?.notes).toBe('Top contributor');
+    });
+
     it('returns null if user does not exist', async () => {
       const repo = new FirestoreUserRepo('users', mockDb);
       mockDoc.get.mockResolvedValue({ exists: false });
