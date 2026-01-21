@@ -11,3 +11,4 @@ notes: |
   - Administrative tools added to Auth service (update_user, ban_user).
   - Cross-platform moderation integrated with Ingress-Egress.
   - Adding local service naming in Docker Compose (SERVICE_NAME.bitbrat.local).
+  - Cleaned up redundant network configurations in Compose and deployment scripts.
