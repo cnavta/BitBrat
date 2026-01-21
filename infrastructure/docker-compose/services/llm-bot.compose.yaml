@@ -12,7 +12,7 @@ services:
     ports:
       - "${LLM_BOT_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     networks:
-      bitbrat:
+      bitbrat-network:
         aliases:
           - llm-bot.bitbrat.local
     depends_on:
@@ -27,6 +27,5 @@ services:
       retries: 10
 
 networks:
-  bitbrat:
+  bitbrat-network:
     external: true
-    name: bitbrat-network

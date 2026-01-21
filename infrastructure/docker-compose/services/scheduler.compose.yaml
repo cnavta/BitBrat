@@ -12,7 +12,7 @@ services:
     ports:
       - "${SCHEDULER_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     networks:
-      bitbrat:
+      bitbrat-network:
         aliases:
           - scheduler.bitbrat.local
     depends_on:
@@ -27,6 +27,5 @@ services:
       retries: 10
 
 networks:
-  bitbrat:
+  bitbrat-network:
     external: true
-    name: bitbrat-network
