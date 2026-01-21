@@ -11,6 +11,7 @@
 - MCP tool registration (`update_user`, `ban_user`).
 - `moderation.action.v1` event emission and handling.
 - Twitch and Discord connector updates for platform-level banning.
+- Clean up redundant network configurations in Docker Compose and deployment scripts.
 
 ## Deliverables
 - `src/apps/auth-service.ts`: Updated to extend `McpServer` and register tools.
@@ -26,6 +27,8 @@
 - Banning a user sets their Firestore status to "banned".
 - Banning a user triggers a platform-specific ban if supported (Twitch/Discord).
 - Services are accessible via `SERVICE_NAME.bitbrat.local` in local Docker Compose.
+- Redundant `external: true` network settings removed from compose files.
+- Manual network creation removed from `deploy-local.sh` (relying on Compose).
 - `validate_deliverable.sh` passes.
 
 ## Testing Strategy
