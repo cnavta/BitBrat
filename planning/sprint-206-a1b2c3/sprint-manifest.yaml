@@ -3,8 +3,9 @@ title: "Fix brat interpolation error"
 goal: "Resolve the Unresolved interpolation error in brat service bootstrap by adding missing DOMAIN_PREFIX to the interpolation context."
 owner: "Junie"
 createdAt: "2026-01-21T16:45:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-206-a1b2c3-fix-brat-interpolation"
+  pr: "https://github.com/cnavta/BitBrat/pull/117"
 notes: |
   Investigation showed that DOMAIN_PREFIX is missing from buildInterpolationContext in tools/brat/src/config/loader.ts.
