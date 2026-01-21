@@ -18,12 +18,14 @@ function buildInterpolationContext(raw: any): InterpolationContext {
     raw?.deploymentDefaults?.region || raw?.defaults?.services?.region || process.env.REGION || 'us-central1';
   const envPrefix = env === 'prod' ? '' : `${env}.`;
   const domainSuffix = process.env.DOMAIN_SUFFIX || 'bitbrat.ai';
+  const domainPrefix = process.env.DOMAIN_PREFIX || '';
   return {
     ENV: env,
     PROJECT_ID: projectId,
     REGION: String(region),
     ENV_PREFIX: envPrefix,
     DOMAIN_SUFFIX: domainSuffix,
+    DOMAIN_PREFIX: domainPrefix,
   };
 }
 
