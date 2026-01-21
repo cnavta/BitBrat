@@ -66,6 +66,7 @@ networks:
   bitbrat-network:
     name: bitbrat-network
     driver: bridge
+    attachable: true
 
 volumes:
   nats-data:
