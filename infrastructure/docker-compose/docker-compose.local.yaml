@@ -33,7 +33,7 @@ services:
       - GCLOUD_PROJECT=${FIREBASE_PROJECT_ID:-bitbrat-local}
       - GOOGLE_CLOUD_PROJECT=${FIREBASE_PROJECT_ID:-bitbrat-local}
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
-      - ONLY_EMULATORS=firestore,pubsub,ui
+      - ONLY_EMULATORS=firestore,pubsub,ui,eventarc
     volumes:
       - .:/workspace:ro
       - firebase-data:/data

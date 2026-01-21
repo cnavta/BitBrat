@@ -23,6 +23,13 @@ describe('NatsPublisher headers behavior', () => {
     jest.doMock('nats', () => ({
       connect: async () => ({
         jetstream: () => ({ publish: publishMock }),
+        jetstreamManager: async () => ({
+          streams: {
+            list: () => ({
+              next: async () => [{ config: { name: 'BITBRAT', subjects: ['local.>'] } }]
+            })
+          }
+        }),
         flush: async () => {},
       }),
       StringCodec: () => ({ encode: (s: string) => Buffer.from(s) }),
@@ -56,6 +63,13 @@ describe('NatsPublisher headers behavior', () => {
     jest.doMock('nats', () => ({
       connect: async () => ({
         jetstream: () => ({ publish: publishMock }),
+        jetstreamManager: async () => ({
+          streams: {
+            list: () => ({
+              next: async () => [{ config: { name: 'BITBRAT', subjects: ['local.>'] } }]
+            })
+          }
+        }),
         flush: async () => {},
       }),
       StringCodec: () => ({ encode: (s: string) => Buffer.from(s) }),
