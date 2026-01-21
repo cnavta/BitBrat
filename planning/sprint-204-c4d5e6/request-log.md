@@ -68,3 +68,15 @@
     - Updated `backlog.yaml`: IE-003 set to `completed`.
     - Updated `backlog.yaml`: VAL-001 set to `in-progress`.
 - **Next**: Run final validation.
+
+## [2026-01-21T11:55:00Z] - Sprint Completed
+- **Actions**:
+    - Ran `validate_deliverable.sh` and verified all tests pass.
+    - Created `verification-report.md`, `retro.md`, and `key-learnings.md`.
+    - Pushed changes to `feature/sprint-204-auth-mcp-admin`.
+    - Created Pull Request: https://github.com/cnavta/BitBrat/pull/115.
+    - Created `publication.yaml`.
+    - Updated `sprint-manifest.yaml` status to `published`.
+    - Updated `backlog.yaml`: VAL-001 set to `completed`.
+
+- **2026-01-21 11:25**: Received scope change request to ensure services are accessible via `SERVICE_NAME.bitbrat.local` in local Docker Compose. Updated implementation plan and backlog.
