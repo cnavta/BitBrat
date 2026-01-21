@@ -18,6 +18,7 @@ import { assertVpcPreconditions } from '../providers/gcp/preflight';
 import { renderAndWrite } from '../lb/urlmap';
 import { importUrlMap } from '../lb/importer';
 import { enableApis, getRequiredApis } from '../providers/gcp/apis';
+import { cmdServiceBootstrap } from './bootstrap';
 
 const RUN_ID = deriveTag();
 const log = createLogger({ base: { runId: RUN_ID, component: 'brat' } });
@@ -604,15 +605,9 @@ async function main() {
     }
     const force = m['force'] === 'true' || rest.includes('--force');
     const mcp = m['mcp'] === 'true' || rest.includes('--mcp');
-    const { spawnSync } = require('child_process');
-    const scriptPath = path.join(process.cwd(), 'infrastructure/scripts/bootstrap-service.js');
-    const args = ['--name', name];
-    if (force) args.push('--force');
-    if (mcp) args.push('--mcp');
 
-    console.log(`[brat] Bootstrapping service: ${name}${mcp ? ' (MCP)' : ''}`);
-    const res = spawnSync('node', [scriptPath, ...args], { stdio: 'inherit' });
-    process.exit(res.status ?? 0);
+    await cmdServiceBootstrap({ name, force, mcp }, log);
+    return;
   }
   if (c1 === 'deploy' && c2 === 'services') {
     requireEnv('deploy services');

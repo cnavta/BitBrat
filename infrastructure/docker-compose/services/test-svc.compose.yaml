@@ -1,0 +1,22 @@
+services:
+  test-svc:
+    build:
+      context: ../../../
+      dockerfile: Dockerfile.test-svc
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_ENV=local
+      - BITBRAT_ENV=local
+      - PORT=8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - bitbrat-network
+
+networks:
+  bitbrat-network:
+    external: true
