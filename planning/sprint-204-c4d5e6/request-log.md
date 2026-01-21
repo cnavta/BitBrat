@@ -88,10 +88,12 @@
     - Updated `infrastructure/docker-compose/docker-compose.local.yaml` to mark the network as `attachable: true`.
     - Updated `infrastructure/deploy-local.sh` to explicitly create the `bitbrat-network` if it doesn't exist before running `docker compose up`.
 
-## [2026-01-21T14:05:00Z] - Network Configuration Cleanup
-- **Prompt**: "As an addition to this sprint, please remove/update all of the unneeded network configuration."
-- **Interpretation**: Remove redundant `external: true` from service-specific Docker Compose files and the manual network creation in `deploy-local.sh`, as Docker Compose now handles this automatically via the base configuration.
+## [2026-01-21T14:10:00Z] - Network Label Mismatch Fix
+- **Prompt**: User reported error: `network bitbrat-network was found but has incorrect label com.docker.compose.network set to "" (expected: "bitbrat-network")`.
+- **Interpretation**: Removing `external: true` caused Compose to try to manage the network, but it found an existing network (from previous script versions) without the required labels.
 - **Actions**:
-    - Removed `networks: bitbrat-network: external: true` from all `.compose.yaml` files in `infrastructure/docker-compose/services/`.
-    - Removed manual `docker network create` preflight checks from `infrastructure/deploy-local.sh`.
-    - Updated `implementation-plan.md` and `backlog.yaml` to include this cleanup.
+    - Restored `external: true` to the `bitbrat-network` in `infrastructure/docker-compose/docker-compose.local.yaml`.
+    - Updated `infrastructure/deploy-local.sh` to:
+        - Detect if `bitbrat-network` has the wrong labels and recreate it if necessary.
+        - Create the network with the correct `com.docker.compose.network=bitbrat-network` label during pre-flight.
+    - Updated `retro.md` to document the fix.
