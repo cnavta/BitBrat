@@ -27,6 +27,12 @@ export class TwitchConnectorAdapter implements IngressConnector {
     await this.client.stop();
   }
 
+  async banUser(platformUserId: string, reason?: string): Promise<void> {
+    if (typeof (this.client as any).banUser === 'function') {
+      await (this.client as any).banUser(platformUserId, reason);
+    }
+  }
+
   getSnapshot(): ConnectorSnapshot {
     const s: TwitchIrcDebugSnapshot = this.client.getSnapshot();
     return {

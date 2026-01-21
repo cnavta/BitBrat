@@ -20,6 +20,15 @@ export class ConnectorManager {
     return this.registry.get(name)?.connector;
   }
 
+  getConnectorByPlatform(platform: string): IngressConnector | undefined {
+    for (const item of this.registry.values()) {
+      if (item.name === platform || item.name.startsWith(`${platform}-`)) {
+        return item.connector;
+      }
+    }
+    return undefined;
+  }
+
   async start(name?: string): Promise<void> {
     if (name) {
       const item = this.registry.get(name);

@@ -304,6 +304,43 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
   }
 
   /**
+   * Ban a user from the broadcaster's channel.
+   * Note: This requires the bot to be a moderator in the channel.
+   * It uses the first configured channel if none specified.
+   */
+  async banUser(platformUserId: string, reason?: string): Promise<void> {
+    const channels: string[] = ((this as any).channels || []).slice();
+    const target = channels[0] ? (channels[0].startsWith('#') ? channels[0].slice(1) : channels[0]) : undefined;
+    
+    if (!target) {
+      logger.warn('twitch.ban.no_channel', { platformUserId });
+      return;
+    }
+
+    if (this.chat && typeof (this.chat as any).ban === 'function') {
+      try {
+        // Twurple chat client 'ban' method takes (channel, user, reason)
+        await (this.chat as any).ban(target, platformUserId, reason || '');
+        logger.info('twitch.ban.sent', { channel: target, platformUserId });
+      } catch (e: any) {
+        logger.error('twitch.ban.error', { channel: target, platformUserId, error: e?.message || String(e) });
+        throw e;
+      }
+    } else if (this.chat && typeof this.chat.say === 'function') {
+      // Fallback to /ban command if explicit .ban() is missing or fails (some older twurple versions)
+      try {
+        await this.chat.say(`#${target}`, `/ban ${platformUserId} ${reason || ''}`);
+        logger.info('twitch.ban.command_sent', { channel: target, platformUserId });
+      } catch (e: any) {
+        logger.error('twitch.ban.command_error', { channel: target, platformUserId, error: e?.message || String(e) });
+        throw e;
+      }
+    } else {
+      logger.debug('twitch.ban.noop', { platformUserId, reason: 'chat_not_connected' });
+    }
+  }
+
+  /**
    * Public handler also used by Twurple onMessage wiring; can be invoked by tests.
    */
   async handleMessage(
