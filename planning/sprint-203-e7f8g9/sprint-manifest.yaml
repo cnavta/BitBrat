@@ -1,0 +1,12 @@
+id: sprint-203-e7f8g9
+title: "Fix NATS Push Consumer deliver_subject"
+goal: "Resolve 'push consumer requires deliver_subject' error in NATS subscriptions by ensuring a delivery subject is provided for queue groups."
+owner: "Junie"
+createdAt: "2026-01-20T20:15:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/114"
+  branch: "feature/sprint-203-nats-push-consumer-fix"
+notes: |
+  In Sprint 201, the deliverTo() call was made conditional on the absence of a queue group. 
+  However, NATS JetStream push consumers require a deliver_subject even when using queue groups.
