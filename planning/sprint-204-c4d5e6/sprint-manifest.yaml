@@ -8,7 +8,7 @@ links:
   pr: "https://github.com/cnavta/BitBrat/pull/115"
   branch: "feature/sprint-204-auth-mcp-admin"
 notes: |
-  - Administrative tools added to Auth service (update_user, ban_user).
+  - Administrative tools added to Auth service (update_user, ban_user, get_user).
   - Cross-platform moderation integrated with Ingress-Egress.
   - Adding local service naming in Docker Compose (SERVICE_NAME.bitbrat.local).
   - Cleaned up redundant network configurations in Compose and deployment scripts.

@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 
 export interface AuthUserDoc {
   id: string;
+  provider?: string;
   email?: string;
   displayName?: string;
   roles: string[];
@@ -39,8 +40,8 @@ export interface AuthUserDoc {
 export interface UserRepo {
   getById(id: string): Promise<AuthUserDoc | null>;
   getByEmail(email: string): Promise<AuthUserDoc | null>;
-  /** Search for users by display name or email. Returns an array of matches. */
-  searchUsers(query: { displayName?: string; email?: string }): Promise<AuthUserDoc[]>;
+  /** Search for users by display name, email, username, or provider. Returns an array of matches. */
+  searchUsers(query: { displayName?: string; email?: string; username?: string; provider?: string }): Promise<AuthUserDoc[]>;
   /** Update user fields partially. Returns the updated doc or null if not found. */
   updateUser(id: string, update: Partial<AuthUserDoc>): Promise<AuthUserDoc | null>;
   /** Optional: upsert user and update counters/session on message arrival. Implemented when backed by Firestore. */
@@ -84,6 +85,7 @@ export class FirestoreUserRepo implements UserRepo {
     const data = snap.data() as any;
     return {
       id: snap.id,
+      provider: data?.provider,
       email: data?.email,
       displayName: data?.displayName,
       roles: Array.isArray(data?.roles) ? data.roles : [],
@@ -103,6 +105,7 @@ export class FirestoreUserRepo implements UserRepo {
     const data = doc.data() as any;
     return {
       id: doc.id,
+      provider: data?.provider,
       email: data?.email,
       displayName: data?.displayName,
       roles: Array.isArray(data?.roles) ? data.roles : [],
@@ -113,7 +116,7 @@ export class FirestoreUserRepo implements UserRepo {
     };
   }
 
-  async searchUsers(query: { displayName?: string; email?: string }): Promise<AuthUserDoc[]> {
+  async searchUsers(query: { displayName?: string; email?: string; username?: string; provider?: string }): Promise<AuthUserDoc[]> {
     const db = this.db || getFirestore();
     let q: FirebaseFirestore.Query = db.collection(this.collectionName);
 
@@ -123,12 +126,19 @@ export class FirestoreUserRepo implements UserRepo {
     if (query.displayName) {
       q = q.where('displayName', '==', query.displayName);
     }
+    if (query.username) {
+      q = q.where('profile.username', '==', query.username);
+    }
+    if (query.provider) {
+      q = q.where('provider', '==', query.provider);
+    }
 
     const snap = await q.get();
     return snap.docs.map(doc => {
       const data = doc.data() as any;
       return {
         id: doc.id,
+        provider: data?.provider,
         email: data?.email,
         displayName: data?.displayName,
         roles: Array.isArray(data?.roles) ? data.roles : [],

@@ -250,6 +250,57 @@ class AuthServer extends McpServer {
         };
       }
     );
+    
+    this.registerTool(
+      'get_user',
+      'Retrieve full user information based on ID, platform/username, display name, or email.',
+      z.object({
+        userId: z.string().optional().describe('The internal user ID (e.g. twitch:12345)'),
+        platform: z.string().optional().describe('The platform name (e.g. twitch, discord)'),
+        username: z.string().optional().describe('The platform-specific username/login'),
+        displayName: z.string().optional().describe('The user display name'),
+        email: z.string().optional().describe('The user email'),
+      }),
+      async (args) => {
+        let user: any = null;
+
+        if (args.userId) {
+          user = await this.userRepo!.getById(args.userId);
+        } else if (args.platform && args.username) {
+          const matches = await this.userRepo!.searchUsers({
+            provider: args.platform,
+            username: args.username,
+          });
+          user = matches.length === 1 ? matches[0] : null;
+          if (matches.length > 1) {
+            return {
+              content: [{ type: 'text', text: `Multiple users found (${matches.length}). Please be more specific.` }],
+              isError: true,
+            };
+          }
+        } else if (args.displayName || args.email) {
+          const matches = await this.userRepo!.searchUsers({
+            displayName: args.displayName,
+            email: args.email,
+          });
+          if (matches.length === 0) {
+            return { content: [{ type: 'text', text: 'User not found.' }], isError: true };
+          }
+          if (matches.length > 1) {
+            return { content: [{ type: 'text', text: `Multiple users found (${matches.length}).` }], isError: true };
+          }
+          user = matches[0];
+        }
+
+        if (!user) {
+          return { content: [{ type: 'text', text: 'User not found.' }], isError: true };
+        }
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(user, null, 2) }],
+        };
+      }
+    );
   }
 }
 
