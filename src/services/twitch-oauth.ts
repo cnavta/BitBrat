@@ -113,7 +113,7 @@ export function getAuthUrl(cfg: IConfig, req: import('express').Request, basePat
 }
 
 export async function exchangeCodeForToken(cfg: IConfig, code: string, redirectUri: string): Promise<TwitchTokenData> {
-  logger.debug('Exchanging code for token', {cfg, code, redirectUri})
+  logger.debug('Readying to exchange code for token', {cfg, code, redirectUri})
   if (!cfg.twitchClientId || !cfg.twitchClientSecret) {
     throw new Error('Missing TWITCH_CLIENT_ID or TWITCH_CLIENT_SECRET');
   }
@@ -135,6 +135,7 @@ export async function exchangeCodeForToken(cfg: IConfig, code: string, redirectU
     throw new Error(`Token exchange failed: ${resp.status} ${text}`);
   }
   const body = await resp.json() as Record<string, any>;
+  logger.debug('Token exchange successful');
   const token: TwitchTokenData = {
     accessToken: body.access_token,
     refreshToken: body.refresh_token ?? null,
@@ -160,6 +161,7 @@ export async function exchangeCodeForToken(cfg: IConfig, code: string, redirectU
   } catch (err: any) {
     logger.warn('oauth.token_validate_error', { error: err?.message });
   }
+  logger.debug('Token exchange complete', {token});
   return token;
 }
 

@@ -39,20 +39,22 @@ function resolveDatabaseId(): string {
     const fromCfg = cfg?.firestore?.databaseId as string | undefined;
     if (fromCfg && String(fromCfg).trim()) return String(fromCfg).trim();
   } catch {/* config load failures should not prevent Firestore usage */}
-  return 'twitch';
+  return '(default)';
 }
 
 export function getFirestore() {
   if (!initialized) {
     const databaseId = resolveDatabaseId();
     const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
+    const projectId = process.env.GCLOUD_PROJECT;
     // Only initialize once per process
     logger.info('Initializing Firestore', {
+      projectId,
       databaseId,
       emulatorHost: emulatorHost || 'none'
     });
     admin.initializeApp({
-      projectId: process.env.GCLOUD_PROJECT,
+      projectId,
       // Admin SDK uses ADC by default when available (service account key or Workload Identity)
     });
     // Bind Firestore to the named database (multi-database support)

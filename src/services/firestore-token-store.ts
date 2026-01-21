@@ -55,6 +55,7 @@ export class FirestoreTokenStore implements ITokenStore {
         },
         { merge: true }
       );
+      logger.debug('Token written to Firestore', { docPath: this.docPath });
     } catch (err: any) {
       logger.error('Failed to write token to Firestore', { error: err?.message || String(err), docPath: this.docPath });
     }
