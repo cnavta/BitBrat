@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 
 export interface AuthUserDoc {
   id: string;
+  provider?: string;
   email?: string;
   displayName?: string;
   roles: string[];
@@ -39,6 +40,10 @@ export interface AuthUserDoc {
 export interface UserRepo {
   getById(id: string): Promise<AuthUserDoc | null>;
   getByEmail(email: string): Promise<AuthUserDoc | null>;
+  /** Search for users by display name, email, username, or provider. Returns an array of matches. */
+  searchUsers(query: { displayName?: string; email?: string; username?: string; provider?: string }): Promise<AuthUserDoc[]>;
+  /** Update user fields partially. Returns the updated doc or null if not found. */
+  updateUser(id: string, update: Partial<AuthUserDoc>): Promise<AuthUserDoc | null>;
   /** Optional: upsert user and update counters/session on message arrival. Implemented when backed by Firestore. */
   ensureUserOnMessage?(
     id: string,
@@ -80,10 +85,12 @@ export class FirestoreUserRepo implements UserRepo {
     const data = snap.data() as any;
     return {
       id: snap.id,
+      provider: data?.provider,
       email: data?.email,
       displayName: data?.displayName,
       roles: Array.isArray(data?.roles) ? data.roles : [],
       status: data?.status,
+      notes: data?.notes,
       profile: data?.profile,
       rolesMeta: data?.rolesMeta,
     };
@@ -98,13 +105,67 @@ export class FirestoreUserRepo implements UserRepo {
     const data = doc.data() as any;
     return {
       id: doc.id,
+      provider: data?.provider,
       email: data?.email,
       displayName: data?.displayName,
       roles: Array.isArray(data?.roles) ? data.roles : [],
       status: data?.status,
+      notes: data?.notes,
       profile: data?.profile,
       rolesMeta: data?.rolesMeta,
     };
+  }
+
+  async searchUsers(query: { displayName?: string; email?: string; username?: string; provider?: string }): Promise<AuthUserDoc[]> {
+    const db = this.db || getFirestore();
+    let q: FirebaseFirestore.Query = db.collection(this.collectionName);
+
+    if (query.email) {
+      q = q.where('email', '==', query.email);
+    }
+    if (query.displayName) {
+      q = q.where('displayName', '==', query.displayName);
+    }
+    if (query.username) {
+      q = q.where('profile.username', '==', query.username);
+    }
+    if (query.provider) {
+      q = q.where('provider', '==', query.provider);
+    }
+
+    const snap = await q.get();
+    return snap.docs.map(doc => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        provider: data?.provider,
+        email: data?.email,
+        displayName: data?.displayName,
+        roles: Array.isArray(data?.roles) ? data.roles : [],
+        status: data?.status,
+        notes: data?.notes,
+        profile: data?.profile,
+        rolesMeta: data?.rolesMeta,
+      };
+    });
+  }
+
+  async updateUser(id: string, update: Partial<AuthUserDoc>): Promise<AuthUserDoc | null> {
+    if (!id) return null;
+    const db = this.db || getFirestore();
+    const ref = db.collection(this.collectionName).doc(id);
+    
+    // Check if exists
+    const snap = await ref.get();
+    if (!snap.exists) return null;
+
+    // Remove id from update if present to avoid overwriting doc ID field if it's mirrored
+    const { id: _, ...cleanUpdate } = update as any;
+    
+    await ref.set(removeUndefined(cleanUpdate), { merge: true });
+    
+    // Return updated document
+    return this.getById(id);
   }
 
   async ensureUserOnMessage(

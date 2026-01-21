@@ -28,4 +28,5 @@ export interface EnvelopeBuilder<TMeta> {
 
 export interface EgressConnector {
   sendText(text: string, target?: string): Promise<void>;
+  banUser?(platformUserId: string, reason?: string): Promise<void>;
 }

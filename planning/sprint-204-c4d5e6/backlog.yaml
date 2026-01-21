@@ -1,0 +1,104 @@
+backlog:
+  - id: AUTH-001
+    title: "Implement UserRepo.updateUser"
+    priority: high
+    status: completed
+    estimate: 1
+    description: "Add updateUser method to FirestoreUserRepo to allow partial updates to AuthUserDoc."
+    tags: ["auth", "backend"]
+
+  - id: AUTH-002
+    title: "Implement UserRepo.searchUsers"
+    priority: high
+    status: completed
+    estimate: 2
+    description: "Add searchUsers method to FirestoreUserRepo to lookup users by displayName or email."
+    tags: ["auth", "backend"]
+
+  - id: AUTH-003
+    title: "Migrate AuthServer to McpServer"
+    priority: high
+    status: completed
+    estimate: 2
+    description: "Update AuthServer to extend McpServer and initialize MCP capabilities."
+    tags: ["auth", "mcp"]
+
+  - id: AUTH-004
+    title: "Register MCP tool: update_user"
+    priority: medium
+    status: completed
+    estimate: 2
+    description: "Register the update_user MCP tool in AuthServer for role and status management."
+    tags: ["auth", "mcp"]
+
+  - id: AUTH-005
+    title: "Register MCP tool: ban_user"
+    priority: high
+    status: completed
+    estimate: 2
+    description: "Register the ban_user MCP tool in AuthServer and implement moderation event emission."
+    tags: ["auth", "mcp", "moderation"]
+
+  - id: IE-001
+    title: "Subscribe to moderation.action.v1 in Ingress-Egress"
+    priority: high
+    status: completed
+    estimate: 2
+    description: "Update IngressEgressServer to listen for moderation events and route them to connectors."
+    tags: ["ingress-egress", "moderation"]
+
+  - id: IE-002
+    title: "Implement Twitch platform ban"
+    priority: medium
+    status: completed
+    estimate: 3
+    description: "Add banUser support to Twitch connector using Twurple API."
+    tags: ["ingress-egress", "twitch"]
+
+  - id: IE-003
+    title: "Implement Discord platform ban"
+    priority: medium
+    status: completed
+    estimate: 3
+    description: "Add banUser support to Discord connector using discord.js."
+    tags: ["ingress-egress", "discord"]
+
+  - id: VAL-001
+    title: "End-to-end validation"
+    priority: high
+    status: completed
+    estimate: 2
+    description: "Verify MCP tool calls trigger Firestore updates and platform-specific ban calls."
+    tags: ["testing", "validation"]
+
+  - id: INF-001
+    title: "Local Service Naming in Docker Compose"
+    priority: medium
+    status: completed
+    estimate: 2
+    description: "Configure services in Docker Compose to be accessible via SERVICE_NAME.bitbrat.local."
+    tags: ["infrastructure", "docker-compose"]
+
+  - id: INF-002
+    title: "Clean up redundant network configurations"
+    priority: low
+    status: completed
+    estimate: 1
+    description: "Remove redundant external: true flags from service-specific compose files and cleanup deploy-local.sh."
+    tags: ["infrastructure", "docker-compose", "cleanup"]
+
+  - id: AUTH-006
+    title: "Add notes field to update_user MCP tool"
+    priority: medium
+    status: completed
+    estimate: 1
+    description: "Update update_user tool in Auth service to allow setting administrative notes on users."
+    tags: ["auth", "mcp"]
+
+  - id: AUTH-007
+    title: "Implement get_user MCP tool"
+    priority: medium
+    status: completed
+    estimate: 1
+    description: "Add a tool to the auth MCP server that allows the retrieval of user information based on ID, platform/username, display name, or email."
+    tags: ["auth", "mcp"]
