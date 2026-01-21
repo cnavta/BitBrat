@@ -59,6 +59,26 @@ if [[ ! -d node_modules ]]; then
   run npm ci
 fi
 
+# Ensure bitbrat-network exists (pre-flight)
+# If it exists but lacks the expected label, we might need to recreate it or just warn.
+# The most robust local fix is to recreate it if it lacks the com.docker.compose.network label.
+if docker network inspect bitbrat-network >/dev/null 2>&1; then
+  HAS_LABEL=$(docker network inspect bitbrat-network --format '{{index .Labels "com.docker.compose.network"}}')
+  if [[ "$HAS_LABEL" != "bitbrat-network" ]]; then
+    echo "[deploy-local] WARNING: bitbrat-network exists but has incorrect labels. Recreating..."
+    docker network rm bitbrat-network || true
+  fi
+fi
+
+if ! docker network inspect bitbrat-network >/dev/null 2>&1; then
+  echo "[deploy-local] Creating bitbrat-network with correct labels..."
+  docker network create \
+    --driver bridge \
+    --attachable \
+    --label "com.docker.compose.network=bitbrat-network" \
+    bitbrat-network
+fi
+
 # Generate .env.local from env YAMLs + .secure.local
 run node infrastructure/scripts/merge-env.js "$ENV_NAME"
 
@@ -243,6 +263,7 @@ if [[ "$SERVICE_SET" == "false" || -z "${SERVICE_NAME:-}" ]]; then
     echo "[deploy-local] Using ADC key: $GC_PATH"
   fi
 
+
   # Bring up infra + all services (build as needed)
   compose "${compose_args[@]}" "${ENV_FILE_ARGS[@]}" up -d --build
 
@@ -388,6 +409,7 @@ compose \
   -f "$SERVICE_COMPOSE_FILE" \
   --env-file ./.env.local \
   config >/dev/null
+
 
 # Bring up infra + service (build as needed)
 compose \

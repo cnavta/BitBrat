@@ -11,6 +11,10 @@ services:
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
       - "${EVENT_ROUTER_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+    networks:
+      bitbrat-network:
+        aliases:
+          - event-router.bitbrat.local
     depends_on:
       nats:
         condition: service_healthy

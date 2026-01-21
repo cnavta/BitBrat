@@ -67,6 +67,39 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
     }
   }
 
+  /**
+   * Ban a user from the Discord server.
+   * Note: This requires the bot to have BAN_MEMBERS permission.
+   * Since Discord bans are guild-scoped, we attempt to ban from all guilds the bot is currently in.
+   */
+  async banUser(platformUserId: string, reason?: string): Promise<void> {
+    if (!this.client || !this.client.isReady()) {
+      logger.warn('discord.ban.client_not_ready', { platformUserId });
+      return;
+    }
+
+    try {
+      const guilds = this.client.guilds.cache;
+      if (guilds.size === 0) {
+        logger.warn('discord.ban.no_guilds', { platformUserId });
+        return;
+      }
+
+      for (const [guildId, guild] of guilds) {
+        try {
+          await guild.members.ban(platformUserId, { reason: reason || 'Banned by administrative tool' });
+          logger.info('discord.ban.success', { guildId, platformUserId });
+        } catch (e: any) {
+          logger.error('discord.ban.guild_error', { guildId, platformUserId, error: e?.message || String(e) });
+          // Continue to next guild if any
+        }
+      }
+    } catch (e: any) {
+      logger.error('discord.ban.error', { platformUserId, error: e?.message || String(e) });
+      throw e;
+    }
+  }
+
   getSnapshot(): ConnectorSnapshot {
     const snap: any = this.snapshot as any;
     if (Array.isArray(snap.channelIds)) {

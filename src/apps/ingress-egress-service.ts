@@ -380,6 +380,51 @@ export class IngressEgressServer extends BaseServer {
 
     // Start status change monitoring
     this.startStatusMonitoring();
+
+    // Subscribe to moderation events
+    if (!isTestEnv) {
+      this.setupModerationSubscription(cfg);
+    }
+  }
+
+  private async setupModerationSubscription(cfg: any) {
+    const inputSubject = `${cfg.busPrefix || ''}internal.ingress.v1`;
+    logger.info('ingress-egress.moderation_subscribe.start', { subject: inputSubject });
+
+    try {
+      await this.onMessage<any>(
+        { destination: `internal.ingress.v1`, queue: `ingress-egress-moderation`, ack: 'explicit' },
+        async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+          try {
+            if (evt.type !== 'moderation.action.v1') {
+              // Not a moderation event, might be shared topic. Ignore if not matching.
+              await ctx.ack();
+              return;
+            }
+
+            const { action, platform, platformUserId, reason } = evt.payload || {};
+            if (action === 'ban' && platform && platformUserId) {
+              logger.info('ingress-egress.moderation.ban_request', { platform, platformUserId, reason });
+              
+              const connector = this.connectorManager?.getConnectorByPlatform(platform);
+              if (connector && typeof (connector as any).banUser === 'function') {
+                await (connector as any).banUser(platformUserId, reason);
+                logger.info('ingress-egress.moderation.ban_success', { platform, platformUserId });
+              } else {
+                logger.warn('ingress-egress.moderation.connector_unsupported', { platform });
+              }
+            }
+
+            await ctx.ack();
+          } catch (e: any) {
+            logger.error('ingress-egress.moderation.process_error', { error: e.message });
+            await ctx.ack(); // Don't retry moderation actions indefinitely
+          }
+        }
+      );
+    } catch (e: any) {
+      logger.error('ingress-egress.moderation_subscribe.error', { error: e.message });
+    }
   }
 
   private startStatusMonitoring() {
