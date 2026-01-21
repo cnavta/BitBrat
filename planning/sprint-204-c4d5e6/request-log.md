@@ -81,10 +81,9 @@
 
 - **2026-01-21 11:25**: Received scope change request to ensure services are accessible via `SERVICE_NAME.bitbrat.local` in local Docker Compose. Updated implementation plan and backlog.
 
-## [2026-01-21T12:00:00Z] - Local Service Naming Bugfix
-- **Prompt**: User reported error "network bitbrat-network declared as external, but could not be found" when running locally.
-- **Interpretation**: Fixed network naming inconsistency in Docker Compose files. Standardized on `bitbrat-network` as the key and name.
+## [2026-01-21T12:05:00Z] - Persistent Network Fix
+- **Prompt**: User reported continued error "network bitbrat-network declared as external, but could not be found".
+- **Interpretation**: The network is not being created before services attempt to use it because it's marked as external in service compose files.
 - **Actions**:
-    - Standardized `networks` section in `docker-compose.local.yaml`.
-    - Updated all service compose files to use `bitbrat-network` and correctly reference it as `external: true`.
-    - Added missing network configuration to `oauth-flow.compose.yaml`.
+    - Updated `infrastructure/docker-compose/docker-compose.local.yaml` to mark the network as `attachable: true`.
+    - Updated `infrastructure/deploy-local.sh` to explicitly create the `bitbrat-network` if it doesn't exist before running `docker compose up`.
