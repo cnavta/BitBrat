@@ -17,33 +17,31 @@ if [[ ! -f /data/.firebaserc ]]; then
   echo "{\"projects\":{\"default\":\"${PROJECT_ID}\"}}" > /data/.firebaserc
 fi
 
-# Copy firebase config artifacts into /data if missing
-[[ -f /data/firebase.json ]] || cp /workspace/firebase.json /data/firebase.json
-[[ -f /data/firestore.rules ]] || cp /workspace/firestore.rules /data/firestore.rules
+# Copy firebase config artifacts
+cp /workspace/firebase.json /data/firebase.json
+cp /workspace/firestore.rules /data/firestore.rules
 
 echo "[firebase-emulator] Effective firebase.json:"
 cat /data/firebase.json
 
 # Authenticate the Firebase CLI via ADC using the mounted service account key
 # This avoids interactive `firebase login` prompts.
-echo "[firebase-emulator] Using ADC: ${GOOGLE_APPLICATION_CREDENTIALS:-unset}; project=${PROJECT_ID}"
 if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" && -f "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
+  echo "[firebase-emulator] Using ADC: ${GOOGLE_APPLICATION_CREDENTIALS:-unset}; project=${PROJECT_ID}"
   gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}" >/dev/null 2>&1 || true
-  # Provide a token for firebase-tools if it attempts authenticated calls
-  export FIREBASE_TOKEN="$(gcloud auth print-access-token || true)"
 else
   echo "[firebase-emulator] WARNING: GOOGLE_APPLICATION_CREDENTIALS not set or file not found; emulator will run without CLI auth."
 fi
 
 # Determine which emulators to start. 
 # Default to firestore only if not specified via ONLY_EMULATORS
-EMULATORS="${ONLY_EMULATORS:-firestore,pubsub}"
+EMULATORS="${ONLY_EMULATORS:-firestore,pubsub,eventarc,ui}"
 
 echo "[firebase-emulator] Starting emulators: ${EMULATORS}..."
 
 exec firebase emulators:start \
   --config /data/firebase.json \
-  --only "${EMULATORS}" \
-  --project "${PROJECT_ID}" \
   --import=/data/export \
+  --log-verbosity=DEBUG \
+  --project="${PROJECT_ID}" \
   --export-on-exit=/data/export

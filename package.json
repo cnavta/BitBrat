@@ -58,7 +58,7 @@
     "cron-parser": "^4.9.0",
     "discord.js": "^14.16.3",
     "express": "^5.1.0",
-    "firebase-admin": "^13.5.0",
+    "firebase-admin": "^13.6.0",
     "js-yaml": "^4.1.0",
     "json-logic-js": "^2.0.2",
     "nats": "^2.29.3",

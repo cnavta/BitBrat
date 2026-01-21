@@ -12,15 +12,11 @@
     },
     "firestore": {
       "host": "0.0.0.0",
-      "port": 8080
-    },
-    "pubsub": {
-      "host": "0.0.0.0",
-      "port": 8085
+      "port": 8080,
+      "websocketPort": 9150
     }
   },
   "firestore": {
     "rules": "firestore.rules"
-  },
-  "pubsub": {}
+  }
 }
