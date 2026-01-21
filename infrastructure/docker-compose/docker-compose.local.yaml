@@ -4,7 +4,7 @@ services:
     image: nats:2-alpine
     command: ["-js", "-sd", "/data", "-m", "8222"]
     networks:
-      bitbrat:
+      bitbrat-network:
         aliases:
           - nats.bitbrat.local
     ports:
@@ -31,7 +31,7 @@ services:
       context: .
       dockerfile: infrastructure/docker-compose/Dockerfile.emulator
     networks:
-      bitbrat:
+      bitbrat-network:
         aliases:
           - firebase.bitbrat.local
           - firestore.bitbrat.local
@@ -63,7 +63,7 @@ services:
     stop_grace_period: 1m
 
 networks:
-  bitbrat:
+  bitbrat-network:
     name: bitbrat-network
     driver: bridge
 
