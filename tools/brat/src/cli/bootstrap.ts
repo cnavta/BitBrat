@@ -165,16 +165,16 @@ function generateCompose(serviceName: string, port: number): string {
   return `services:
   ${serviceName}:
     build:
-      context: ../../../
+      context: .
       dockerfile: Dockerfile.${serviceName}
     ports:
-      - "${port}:${port}"
+      - "\${${serviceName.toUpperCase().replace(/-/g, '_')}_HOST_PORT:-${port}}:\${SERVICE_PORT:-${port}}"
     environment:
       - NODE_ENV=local
       - BITBRAT_ENV=local
-      - PORT=${port}
+      - PORT=\${SERVICE_PORT:-${port}}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${port}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:\${SERVICE_PORT:-${port}}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
