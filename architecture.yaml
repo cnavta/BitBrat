@@ -101,10 +101,6 @@ services:
       # EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID are SUPPORTED but OPTIONAL and therefore not required here.
       - K_REVISION
 
-  test-svc:
-    entry: test-svc.ts
-    port: 8081
-    description: "Test service for bootstrap verification"
   auth:
     active: true
     description: "Authentication service that handles user authentication and authorization."
