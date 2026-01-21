@@ -101,6 +101,10 @@ services:
       # EGRESS_INSTANCE_ID and SERVICE_INSTANCE_ID are SUPPORTED but OPTIONAL and therefore not required here.
       - K_REVISION
 
+  test-svc:
+    entry: test-svc.ts
+    port: 8081
+    description: "Test service for bootstrap verification"
   auth:
     active: true
     description: "Authentication service that handles user authentication and authorization."
@@ -194,6 +198,17 @@ services:
         - internal.scheduler.tick
     secrets:
       - MCP_AUTH_TOKEN
+
+  api-gateway:
+    description: API Gateway for handling incoming requests and routing them to appropriate services
+    entry: src/apps/api-gateway.ts
+    topics:
+      publishes:
+        - internal.ingress.v1
+      consumes:
+        # Per-instance egress topic subscription. The service resolves {instanceId} at runtime
+        # using K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id
+        - internal.api.egress.v1.{instanceId}
 
 infrastructure:
   target: gcp

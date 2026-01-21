@@ -1,0 +1,11 @@
+id: sprint-205-d8f1a2
+title: "Migrate bootstrap:service to brat tool"
+goal: "Migrate the legacy bootstrap:service script into the brat tool as a new command, incorporating McpServer base class and deployment readiness."
+owner: "Junie"
+createdAt: "2026-01-21T16:35:00Z"
+status: "validating"
+links:
+  branch: "feature/sprint-205-d8f1a2-brat-bootstrap-service"
+notes: |
+  Lead Implementor role.
+  Migration from ./infrastructure/scripts/bootstrap-service.js to brat tool.

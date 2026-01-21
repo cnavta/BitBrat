@@ -1,0 +1,2 @@
+- TypeScript porting of legacy JS scripts is safer but requires keeping templates in sync with base class changes.
+- Using `BITBRAT_INTERPOLATION=0` is a useful escape hatch when running local tools that don't need full environment resolution.

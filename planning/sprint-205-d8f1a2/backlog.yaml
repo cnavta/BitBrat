@@ -1,0 +1,59 @@
+meta:
+  backlog_id: sprint-205-d8f1a2-backlog
+  updated_at: 2026-01-21
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-205-d8f1a2
+  start: 2026-01-21
+  end: 2026-01-28
+  wip_limit: 2
+  goal: "Migrate bootstrap:service to brat tool with MCP and Cloud readiness"
+
+items:
+  - id: BRAT-001
+    title: "Port bootstrap logic to TypeScript in brat tool"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "New file tools/brat/src/cli/bootstrap.ts exists"
+      - "Command registered in tools/brat/src/cli/index.ts"
+      - "Logic matches or improves upon legacy bootstrap-service.js"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T16:55:00Z
+        note: "Implemented bootstrap logic in TS."
+
+  - id: BRAT-002
+    title: "Enhance service templates with McpServer and Cloud readiness"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-001]
+    acceptance:
+      - "Generated service uses McpServer when --mcp is passed"
+      - "Generated Dockerfile follows current project standards"
+      - "Generated compose.yaml includes healthchecks and correct networking"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T17:10:00Z
+        note: "Templates updated with McpServer and deployment readiness."
+
+  - id: BRAT-003
+    title: "Validation and Integration testing"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-002]
+    acceptance:
+      - "validate_deliverable.sh created and passing"
+      - "Manual bootstrap of a test service succeeds"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T17:35:00Z
+        note: "Validation script passed successfully."
