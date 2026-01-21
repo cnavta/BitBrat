@@ -1,0 +1,11 @@
+id: sprint-207-e9f0a1
+title: "Fix Dockerfile naming in brat bootstrap"
+goal: "Resolve the Docker Compose error by ensuring the generated Dockerfile name matches the compose file expectation."
+owner: "Junie"
+createdAt: "2026-01-21T17:05:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/118"
+  branch: "feature/sprint-207-e9f0a1-fix-docker-bootstrap"
+notes: |
+  User reports Dockerfile.api-gateway not found during local run.
