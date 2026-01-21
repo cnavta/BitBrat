@@ -129,6 +129,7 @@ class AuthServer extends McpServer {
         email: z.string().optional().describe('The user email for lookup if userId is not known'),
         roles: z.array(z.string()).optional().describe('The new list of roles for the user'),
         status: z.string().optional().describe('The new status for the user (e.g. active, banned)'),
+        notes: z.string().optional().describe('Administrative notes about the user'),
       }),
       async (args) => {
         let userId = args.userId;
@@ -163,6 +164,7 @@ class AuthServer extends McpServer {
         const update: any = {};
         if (args.roles) update.roles = args.roles;
         if (args.status) update.status = args.status;
+        if (args.notes) update.notes = args.notes;
 
         const updated = await this.userRepo!.updateUser(userId, update);
         if (!updated) {

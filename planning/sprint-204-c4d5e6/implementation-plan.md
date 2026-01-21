@@ -23,6 +23,7 @@
 
 ## Acceptance Criteria
 - Bot can add/remove roles from a user via MCP tool call.
+- Bot can set administrative notes on a user via MCP tool call.
 - Bot can ban a user via MCP tool call.
 - Banning a user sets their Firestore status to "banned".
 - Banning a user triggers a platform-specific ban if supported (Twitch/Discord).
