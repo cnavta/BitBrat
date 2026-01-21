@@ -78,3 +78,11 @@ backlog:
     estimate: 2
     description: "Configure services in Docker Compose to be accessible via SERVICE_NAME.bitbrat.local."
     tags: ["infrastructure", "docker-compose"]
+
+  - id: INF-002
+    title: "Clean up redundant network configurations"
+    priority: low
+    status: completed
+    estimate: 1
+    description: "Remove redundant external: true flags from service-specific compose files and cleanup deploy-local.sh."
+    tags: ["infrastructure", "docker-compose", "cleanup"]

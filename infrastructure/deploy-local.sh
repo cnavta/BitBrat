@@ -243,10 +243,6 @@ if [[ "$SERVICE_SET" == "false" || -z "${SERVICE_NAME:-}" ]]; then
     echo "[deploy-local] Using ADC key: $GC_PATH"
   fi
 
-  # Preflight: create network if it doesn't exist
-  if [[ "$DRY_RUN" == "false" ]]; then
-    docker network inspect bitbrat-network >/dev/null 2>&1 || docker network create bitbrat-network
-  fi
 
   # Bring up infra + all services (build as needed)
   compose "${compose_args[@]}" "${ENV_FILE_ARGS[@]}" up -d --build
@@ -394,10 +390,6 @@ compose \
   --env-file ./.env.local \
   config >/dev/null
 
-# Preflight: create network if it doesn't exist
-if [[ "$DRY_RUN" == "false" ]]; then
-  docker network inspect bitbrat-network >/dev/null 2>&1 || docker network create bitbrat-network
-fi
 
 # Bring up infra + service (build as needed)
 compose \

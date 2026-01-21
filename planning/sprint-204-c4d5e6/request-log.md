@@ -87,3 +87,11 @@
 - **Actions**:
     - Updated `infrastructure/docker-compose/docker-compose.local.yaml` to mark the network as `attachable: true`.
     - Updated `infrastructure/deploy-local.sh` to explicitly create the `bitbrat-network` if it doesn't exist before running `docker compose up`.
+
+## [2026-01-21T14:05:00Z] - Network Configuration Cleanup
+- **Prompt**: "As an addition to this sprint, please remove/update all of the unneeded network configuration."
+- **Interpretation**: Remove redundant `external: true` from service-specific Docker Compose files and the manual network creation in `deploy-local.sh`, as Docker Compose now handles this automatically via the base configuration.
+- **Actions**:
+    - Removed `networks: bitbrat-network: external: true` from all `.compose.yaml` files in `infrastructure/docker-compose/services/`.
+    - Removed manual `docker network create` preflight checks from `infrastructure/deploy-local.sh`.
+    - Updated `implementation-plan.md` and `backlog.yaml` to include this cleanup.
