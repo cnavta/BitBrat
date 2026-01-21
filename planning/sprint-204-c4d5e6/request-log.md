@@ -106,3 +106,13 @@
     - Updated `src/services/auth/user-repo.ts` to map `notes` field from Firestore.
     - Added unit test in `src/services/auth/__tests__/user-repo-admin.spec.ts`.
     - Verified all tests pass.
+
+## [2026-01-21T15:05:00Z] - MCP Tool get_user
+- **Prompt**: User requested adding a tool to the auth MCP server that allows the retrieval of user information based on the platform and user name.
+- **Interpretation**: Implement `get_user` tool in `AuthServer` and extend `UserRepo.searchUsers` to support platform/username lookups.
+- **Actions**:
+    - Updated `AuthUserDoc` to include `provider`.
+    - Updated `UserRepo.searchUsers` and `FirestoreUserRepo` to support `provider` and `username` (profile.username) filters.
+    - Registered `get_user` tool in `AuthServer`.
+    - Added unit tests for new search filters.
+    - Verified registration in integration tests.

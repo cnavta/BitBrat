@@ -94,3 +94,11 @@ backlog:
     estimate: 1
     description: "Update update_user tool in Auth service to allow setting administrative notes on users."
     tags: ["auth", "mcp"]
+
+  - id: AUTH-007
+    title: "Implement get_user MCP tool"
+    priority: medium
+    status: completed
+    estimate: 1
+    description: "Add a tool to the auth MCP server that allows the retrieval of user information based on ID, platform/username, display name, or email."
+    tags: ["auth", "mcp"]

@@ -43,6 +43,16 @@ describe('FirestoreUserRepo administrative methods', () => {
       expect(results[0].id).toBe('u1');
     });
 
+    it('searches by provider and username', async () => {
+      const repo = new FirestoreUserRepo('users', mockDb);
+      mockCollection.get.mockResolvedValue({ docs: [] });
+
+      await repo.searchUsers({ provider: 'twitch', username: 'testuser' });
+
+      expect(mockCollection.where).toHaveBeenCalledWith('provider', '==', 'twitch');
+      expect(mockCollection.where).toHaveBeenCalledWith('profile.username', '==', 'testuser');
+    });
+
     it('searches only by displayName', async () => {
       const repo = new FirestoreUserRepo('users', mockDb);
       mockCollection.get.mockResolvedValue({ docs: [] });
