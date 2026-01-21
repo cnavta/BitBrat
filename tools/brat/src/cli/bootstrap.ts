@@ -178,6 +178,11 @@ function generateCompose(serviceName: string, port: number): string {
       interval: 30s
       timeout: 10s
       retries: 3
+    depends_on:
+      nats:
+        condition: service_healthy
+      firebase-emulator:
+        condition: service_healthy
     networks:
       - bitbrat-network
 
