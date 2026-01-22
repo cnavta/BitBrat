@@ -1,39 +1,50 @@
-# Implementation Plan – sprint-209-f8e9d0
+# Sprint Execution Plan – sprint-209-f8e9d0
 
 ## Objective
-Define the technical architecture for the new `api-gateway` service to provide a secure, WebSocket-based API for bi-directional event passing with the BitBrat Platform, based on the `McpServer` foundation and utilizing the platform's messaging abstractions.
+Implement the `api-gateway` service to provide a secure, WebSocket-based API for bi-directional event passing with the BitBrat Platform, utilizing the `McpServer` foundation and platform messaging abstractions.
 
 ## Scope
-- Architectural design of the `api-gateway`.
-- Integration with `McpServer` for base functionality and future administration.
-- Secure connection handling (WebSockets).
-- Bearer token authentication mechanism.
-- Event routing and integration with the platform's internal messaging system via common abstractions.
+- Implementation of the `api-gateway` service entry point.
+- Bearer token authentication mechanism integrated with Firestore.
+- WebSocket session management and routing.
+- Ingress and Egress path implementation using `MessageAdapter` and `EventSelection`.
+- Initial set of chat-related events.
 
 ## Deliverables
-- `planning/sprint-209-f8e9d0/technical-architecture.md`: Comprehensive design document.
-- `planning/sprint-209-f8e9d0/implementation-plan.md`: This plan.
+- `src/apps/api-gateway.ts`: Service implementation.
+- `src/services/api-gateway/`: Supporting services (auth, routing, etc.).
+- `backlog.yaml`: Trackable task list.
+- Tests (Unit & Integration).
+- Updated documentation.
 
 ## Acceptance Criteria
-- Technical Architecture document MUST include:
-    - High-level component diagram (description).
-    - `McpServer` base implementation rationale.
-    - WebSocket protocol details (initial handshake, event framing).
-    - Security model (Bearer token validation, user association, expiration).
-    - Event schemas for initial chat support.
-    - Integration details with internal Pub/Sub (`internal.ingress.v1`, `internal.api.egress.v1.{instanceId}`).
+- Service successfully authenticates clients using Bearer tokens from Firestore.
+- Clients can send `chat.message.send` and receive `chat.message.received` via WebSockets.
+- Messages are correctly published to `internal.ingress.v1`.
+- Service correctly subscribes to instance-specific egress topics and routes events to clients.
+- `validate_deliverable.sh` passes all checks including build and tests.
 
 ## Testing Strategy
-- N/A for this architectural sprint. Future implementation sprints will include unit and integration tests for the service logic.
+- **Unit Tests**:
+    - Token validation logic (SHA-256, expiration, caching).
+    - Message framing and enrichment.
+- **Integration Tests**:
+    - End-to-end WebSocket connection and event flow using a test NATS/Firestore setup (emulators).
+- **Manual Verification**:
+    - Connecting via a WebSocket client (e.g., `wscat`) using a generated token.
 
 ## Deployment Approach
-- The architecture will target Cloud Run for the service deployment, with GCLB handling WebSocket termination if necessary, or direct WebSocket support in Cloud Run.
+- Deploy as a Cloud Run service.
+- Use environment variables for `EGRESS_INSTANCE_ID` and other configuration.
+- Integrate with GCLB for production traffic.
 
 ## Dependencies
-- Firebase (Auth/Firestore) for token and user management.
-- NATS (Internal Pub/Sub).
+- `ws`: WebSocket library.
+- `firebase-admin`: For Firestore access.
+- Platform common library for `BaseServer`, `McpServer`, and messaging abstractions.
 
 ## Definition of Done
-- Technical Architecture document is written and approved by the user.
-- Documentation is checked into the feature branch.
-- PR is created for the sprint.
+- All backlog items marked as `done`.
+- Code reviewed and pushed to feature branch.
+- PR updated with implementation summary.
+- `validate_deliverable.sh` execution report is clean.
