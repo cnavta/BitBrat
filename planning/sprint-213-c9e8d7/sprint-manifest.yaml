@@ -1,0 +1,11 @@
+id: sprint-213-c9e8d7
+title: "Fix NATS Service Discovery"
+goal: "Ensure services can resolve 'nats' hostname in local Docker Compose environment"
+owner: "Junie"
+createdAt: "2026-01-22T11:15:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/124"
+  branch: "feature/sprint-213-c9e8d7-fix-nats-resolution"
+notes: |
+  Services are failing with ENOTFOUND nats. This likely means the services are not on the same network as the nats container or the network is not correctly configured in the generated compose files.
