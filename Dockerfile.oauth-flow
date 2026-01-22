@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# Builder stage: install deps and build TS
 FROM node:24-bullseye AS builder
 WORKDIR /workspace
 COPY package*.json ./
@@ -9,7 +8,6 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-# Runtime stage: production-only deps and run compiled app
 FROM node:24-bullseye AS runner
 WORKDIR /workspace
 ENV NODE_ENV=production
@@ -18,8 +16,6 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 # Copy compiled app and architecture.yaml for runtime config lookups
 COPY --from=builder /workspace/dist ./dist
-# Ensure admin CLI (brat) is not included in runtime image
-RUN rm -rf ./dist/tools
 COPY architecture.yaml ./architecture.yaml
 EXPOSE 3000
 ENV SERVICE_NAME=oauth-flow

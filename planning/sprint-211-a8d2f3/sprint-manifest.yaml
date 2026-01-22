@@ -3,8 +3,9 @@ title: "Fix platform mismatch for image-based services"
 goal: "Ensure services with direct image references use the correct platform in Docker Compose"
 owner: "Junie"
 createdAt: "2026-01-22T09:30:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/122"
   branch: "feature/sprint-211-a8d2f3-fix-obs-mcp-platform-mismatch"
 notes: |
   The obs-mcp image is built for linux/amd64, but the host is linux/arm64/v8.
