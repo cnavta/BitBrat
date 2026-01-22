@@ -3,7 +3,7 @@ title: "Fix MCP DNS Resolution in Docker"
 goal: "Enable internal DNS resolution for .bitbrat.local hostnames by adding network aliases to service containers."
 owner: "Junie"
 createdAt: "2026-01-22T17:15:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-218-c4d5e6-fix-mcp-dns-resolution"
 notes: |
