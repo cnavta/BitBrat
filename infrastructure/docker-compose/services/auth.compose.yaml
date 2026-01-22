@@ -22,4 +22,6 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - bitbrat-network
+      bitbrat-network:
+        aliases:
+          - auth.bitbrat.local
