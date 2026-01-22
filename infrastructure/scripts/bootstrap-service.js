@@ -17,6 +17,18 @@ function writeFileSafe(filePath, content, force = false) {
   if (fs.existsSync(filePath) && !force) {
     return { skipped: true, path: filePath };
   }
+  // Safety check: if file exists and we are forcing, check if it looks like a stub
+  if (fs.existsSync(filePath) && force) {
+    const existing = fs.readFileSync(filePath, 'utf8');
+    if (existing.includes('// TODO: implement domain behavior')) {
+      // It's probably a stub, allow overwrite
+    } else if (filePath.endsWith('.compose.yaml') || filePath.includes('Dockerfile.')) {
+      // These are usually fine to overwrite as they are infra artifacts
+    } else {
+      console.warn(`[bootstrap-service] Safety skip: ${filePath} exists and does not look like a stub. Use manual edit.`);
+      return { skipped: true, path: filePath, safetySkip: true };
+    }
+  }
   ensureDir(path.dirname(filePath));
   fs.writeFileSync(filePath, content, 'utf8');
   return { skipped: false, path: filePath };
