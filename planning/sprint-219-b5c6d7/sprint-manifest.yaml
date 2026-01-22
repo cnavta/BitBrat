@@ -3,7 +3,7 @@ title: "Fix MCP Connection Errors in Local Docker Compose"
 goal: "Resolve 401 and ECONNREFUSED errors when llm-bot connects to MCP servers"
 owner: "Junie"
 createdAt: "2026-01-22T20:40:38Z"
-status: "complete"
+status: "planning"
 links:
   branch: "feature/sprint-219-b5c6d7-fix-mcp-connections"
 notes: |
