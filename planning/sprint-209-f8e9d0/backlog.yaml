@@ -1,0 +1,115 @@
+meta:
+  backlog_id: api-gateway-sprint-209
+  updated_at: 2026-01-21
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-209-f8e9d0
+  start: 2026-01-21
+  end: 2026-02-04
+  wip_limit: 2
+  goal: "Implement api-gateway with WebSocket, Bearer tokens, and basic chat event support."
+
+items:
+  - id: BL-001
+    title: "Bootstrap api-gateway service with McpServer"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Service inherits from McpServer (via BaseServer/standard pattern)"
+      - "WebSocket server starts on /ws/v1"
+      - "/health endpoint returns 200"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T19:40:00Z
+        note: "Bootstrapped api-gateway with McpServer and WebSocket initialization."
+
+  - id: BL-002
+    title: "Implement Bearer Token Authentication"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Validates token against Firestore (gateways/api/tokens)"
+      - "Uses SHA-256 hashing for token verification"
+      - "Rejects connections with missing or invalid tokens"
+      - "Supports token expiration"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T19:50:00Z
+        note: "Implemented AuthService with Firestore validation and SHA-256 hashing."
+
+  - id: BL-003
+    title: "Inbound Message Path (Ingress)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001, BL-002]
+    blocked_reason: null
+    acceptance:
+      - "Enriches incoming messages with user_id"
+      - "Publishes messages to internal.ingress.v1 via MessageAdapter"
+      - "Validates basic JSON frame structure"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T20:05:00Z
+        note: "Implemented IngressManager with userId enrichment and internal.ingress.v1 publishing."
+
+  - id: BL-004
+    title: "Outbound Message Path (Egress)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001, BL-002]
+    blocked_reason: null
+    acceptance:
+      - "Subscribes to internal.api.egress.v1.{instanceId}"
+      - "Routes messages to appropriate WebSocket clients by user_id"
+      - "Supports multiple connections for the same user"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T20:15:00Z
+        note: "Implemented EgressManager with instance-specific subscriptions and user connection tracking."
+
+  - id: BL-005
+    title: "Initial Chat Event Support"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-003, BL-004]
+    blocked_reason: null
+    acceptance:
+      - "Supports chat.message.send, chat.room.join, chat.room.leave"
+      - "Supports chat.message.received outbound event"
+      - "Proper error handling with chat.error events"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T20:25:00Z
+        note: "Mapped chat.message.send to internal chat.message event and handled room join/leave."
+
+  - id: BL-006
+    title: "Implementation Validation & Tests"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-005]
+    blocked_reason: null
+    acceptance:
+      - "Unit tests for Bearer token auth"
+      - "Integration test for end-to-end WS message flow"
+      - "validate_deliverable.sh updated and passing"
+    updated_at: 2026-01-21
+    log:
+      - at: 2026-01-21T21:00:00Z
+        note: "Passed all unit tests and verified with global validate_deliverable.sh."

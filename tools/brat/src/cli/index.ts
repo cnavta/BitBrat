@@ -596,6 +596,19 @@ async function main() {
     await cmdConfigValidate(flags);
     return;
   }
+  if (c1 === 'bootstrap' && c2 === 'service') {
+    const m = parseKeyValueFlags(rest);
+    const name = m['name'] || cmd[2];
+    if (!name) {
+      console.error('Usage: brat bootstrap service <name> [--mcp] [--force]');
+      process.exit(2);
+    }
+    const force = m['force'] === 'true' || rest.includes('--force');
+    const mcp = m['mcp'] === 'true' || rest.includes('--mcp');
+
+    await cmdServiceBootstrap({ name, force, mcp }, log);
+    return;
+  }
   if (c1 === 'service' && c2 === 'bootstrap') {
     const m = parseKeyValueFlags(rest);
     const name = m['name'];

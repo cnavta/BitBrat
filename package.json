@@ -54,6 +54,7 @@
     "@twurple/chat": "^7.4.0",
     "@twurple/eventsub-base": "^7.4.0",
     "@twurple/eventsub-ws": "^7.4.0",
+    "@types/ws": "^8.18.1",
     "ai": "^6.0.3",
     "cron-parser": "^4.9.0",
     "discord.js": "^14.16.3",
@@ -65,6 +66,7 @@
     "pino": "^9.4.0",
     "twilio": "^5.11.1",
     "uuid": "^10.0.0",
+    "ws": "^8.19.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
