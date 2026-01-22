@@ -118,6 +118,7 @@ services:
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
+      - MCP_AUTH_TOKEN
 
   event-router:
     active: true
@@ -140,6 +141,7 @@ services:
         - internal.llmbot.v1
     secrets:
       - OPENAI_API_KEY
+      - MCP_AUTH_TOKEN
     env:
       - OPENAI_MODEL
       - OPENAI_TIMEOUT_MS

@@ -18,6 +18,7 @@ services:
       - LLM_BOT_INSTANCE_MEM_MAX_CHARS=${LLM_BOT_INSTANCE_MEM_MAX_CHARS}
       - LLM_BOT_INSTANCE_MEM_TTL_MS=${LLM_BOT_INSTANCE_MEM_TTL_MS}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:

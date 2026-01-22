@@ -15,6 +15,12 @@ services:
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
       - "${OBS_MCP_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+    depends_on:
+      - nats
+      - firebase-emulator
+      - obs-mcp
+      - auth
+      - scheduler
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s
