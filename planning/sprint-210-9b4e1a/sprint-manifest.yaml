@@ -3,8 +3,9 @@ title: "Support Direct Image References in Local Docker Compose"
 goal: "Enable services defined with an 'image' field in architecture.yaml to run in the local Docker Compose environment."
 owner: "Junie (Lead Implementor)"
 createdAt: "2026-01-22T08:55:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/121"
   branch: "feature/sprint-210-9b4e1a-local-image-references"
 notes: |
   Focus on obs-mcp and similar services that use pre-built images rather than local source code.
