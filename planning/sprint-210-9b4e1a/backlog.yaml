@@ -1,0 +1,71 @@
+meta:
+  backlog_id: sprint-210-9b4e1a-backlog
+  updated_at: 2026-01-22
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-210-9b4e1a
+  start: 2026-01-22
+  end: 2026-01-23
+  wip_limit: 3
+  goal: "Enable direct image references in local Docker Compose"
+
+items:
+  - id: BL-210-001
+    title: "Update bootstrap-service.js to detect image field"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "Script correctly identifies if a service has an 'image' field in architecture.yaml"
+    updated_at: 2026-01-22
+    log:
+      - at: 2026-01-22T09:15:00Z
+        note: "Implemented image detection in bootstrap-service.js"
+
+  - id: BL-210-002
+    title: "Modify generateComposeSource to support image-based services"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-210-001]
+    acceptance:
+      - "Generated compose file uses 'image' instead of 'build' when applicable"
+      - "Environment variables from architecture.yaml are included"
+    updated_at: 2026-01-22
+    log:
+      - at: 2026-01-22T09:20:00Z
+        note: "Updated generateComposeSource to support image and env mapping"
+
+  - id: BL-210-003
+    title: "Support image-only bootstrapping"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-210-002]
+    acceptance:
+      - "Bootstrapping a service without 'entry' skips source and Dockerfile generation"
+      - "obs-mcp can be bootstrapped successfully"
+    updated_at: 2026-01-22
+    log:
+      - at: 2026-01-22T09:15:00Z
+        note: "Bootstrapped obs-mcp successfully"
+
+  - id: BL-210-004
+    title: "Validation and Verification"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-210-003]
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "obs-mcp starts locally (at least pulls/attempts to run)"
+    updated_at: 2026-01-22
+    log:
+      - at: 2026-01-22T09:30:00Z
+        note: "Full validation passed with validate_deliverable.sh"

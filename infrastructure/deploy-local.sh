@@ -370,13 +370,18 @@ SERVICE_KEBAB="${SERVICE_NAME//_/-}"
 SERVICE_COMPOSE_FILE="infrastructure/docker-compose/services/${SERVICE_KEBAB}.compose.yaml"
 DOCKERFILE_PATH="Dockerfile.${SERVICE_KEBAB}"
 
-# Verify Dockerfile exists at repo root and log build settings
-if [[ ! -f "$DOCKERFILE_PATH" ]]; then
-  echo "[deploy-local] ERROR: Expected $DOCKERFILE_PATH at repo root but not found." >&2
-  echo "  You can generate it via: npm run bootstrap:service -- --name ${SERVICE_NAME}"
-  exit 1
+# Verify Dockerfile exists at repo root if not using a direct image
+if ! grep -q "image:" "$SERVICE_COMPOSE_FILE"; then
+  if [[ ! -f "$DOCKERFILE_PATH" ]]; then
+    echo "[deploy-local] ERROR: Expected $DOCKERFILE_PATH at repo root but not found." >&2
+    echo "  You can generate it via: npm run bootstrap:service -- --name ${SERVICE_NAME}"
+    exit 1
+  fi
+  echo "[deploy-local] Build context: . ; Dockerfile: $DOCKERFILE_PATH"
+else
+  IMAGE_REF=$(grep "image:" "$SERVICE_COMPOSE_FILE" | head -n 1 | awk '{print $2}')
+  echo "[deploy-local] Using direct image reference: $IMAGE_REF"
 fi
-echo "[deploy-local] Build context: . ; Dockerfile: $DOCKERFILE_PATH"
 
 # Determine host port env var name for selected service and ensure it's available
 # Env var pattern: <UPPER_SNAKE>_HOST_PORT
