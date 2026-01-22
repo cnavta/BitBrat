@@ -8,6 +8,7 @@ FILES=(
   "planning/sprint-209-f8e9d0/implementation-plan.md"
   "planning/sprint-209-f8e9d0/technical-architecture.md"
   "planning/sprint-209-f8e9d0/request-log.md"
+  "planning/sprint-209-f8e9d0/backlog.yaml"
 )
 
 for file in "${FILES[@]}"; do

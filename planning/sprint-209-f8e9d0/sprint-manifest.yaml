@@ -1,9 +1,9 @@
 id: sprint-209-f8e9d0
-title: "API Gateway Technical Architecture"
-goal: "Define the technical architecture for the new api-gateway service, including WebSocket support and Bearer token security."
-owner: "Junie (Architect)"
+title: "API Gateway Implementation - Initial Release"
+goal: "Implement the api-gateway service providing a secure WebSocket API for programmatic chat with the BitBrat Platform."
+owner: "Junie (Lead Implementor)"
 createdAt: "2026-01-21T19:08:00Z"
-status: "published"
+status: "in-progress"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/120"
   branch: "feature/sprint-209-f8e9d0-api-gateway-arch"
