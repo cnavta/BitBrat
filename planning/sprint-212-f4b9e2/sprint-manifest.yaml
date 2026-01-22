@@ -1,0 +1,11 @@
+id: sprint-212-f4b9e2
+title: "Fix .secure.local loading for image-only services"
+goal: "Ensure environment variables from .secure.local are correctly incorporated into image-only services like obs-mcp"
+owner: "Junie"
+createdAt: "2026-01-22T11:03:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-212-f4b9e2-fix-secure-env-loading"
+notes: |
+    Image-only services (e.g., obs-mcp) seem to be missing environment variables from .secure.local.
+    Investigate the env_file and environment mapping in docker-compose.

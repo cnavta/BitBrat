@@ -1,0 +1,5 @@
+- 2026-01-22T11:03:00Z: Started sprint-212-f4b9e2.
+- 2026-01-22T11:05:00Z: Investigated environment loading issue. Found that `- VAR` in `environment:` section doesn't resolve from `.env.local` unless exported.
+- 2026-01-22T11:10:00Z: Modified `infrastructure/scripts/bootstrap-service.js` to use `${VAR}` explicit mapping.
+- 2026-01-22T11:12:00Z: Regenerated all service compose files.
+- 2026-01-22T11:15:00Z: Validated fix with `validate_deliverable.sh`.

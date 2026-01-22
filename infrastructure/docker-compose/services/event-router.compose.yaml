@@ -7,19 +7,14 @@ services:
       - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
       - "${EVENT_ROUTER_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
-    networks:
-      bitbrat-network:
-        aliases:
-          - event-router.bitbrat.local
     depends_on:
-      nats:
-        condition: service_healthy
-      firebase-emulator:
-        condition: service_healthy
+      - nats
+      - firebase-emulator
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s
