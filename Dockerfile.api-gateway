@@ -1,0 +1,19 @@
+FROM node:24-slim AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:24-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY --from=builder /app/dist ./dist
+# We need architecture.yaml for McpServer/BaseServer
+COPY architecture.yaml ./
+
+ENV NODE_ENV=production
+ENV SERVICE_NAME=api-gateway
+
+CMD ["node", "dist/src/apps/api-gateway.js"]

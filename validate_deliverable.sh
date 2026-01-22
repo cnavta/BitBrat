@@ -10,7 +10,7 @@ fi
 # Parse arguments
 ENV_ARG=""
 PROJECT_ID_ARG=""
-SCOPE_ARG="all" # all | llm-bot | persistence
+SCOPE_ARG="all" # all | llm-bot | persistence | api-gateway
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
@@ -33,7 +33,7 @@ done
 
 if $SHOW_HELP; then
   cat <<EOF
-Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>] [--scope all|llm-bot|persistence]
+Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>] [--scope all|llm-bot|persistence|api-gateway]
 
 Description:
   Runs the full Development Verification Flow plus infra dry-run validation steps (Sprints 14 & 24 updates).
@@ -41,7 +41,7 @@ Description:
 Options:
   -e, --env           Environment overlay to use (default: dev)
   -p, --project-id    GCP Project ID to target (default: value of $PROJECT_ID)
-  -s, --scope         Validation scope: all | llm-bot | persistence (default: all)
+  -s, --scope         Validation scope: all | llm-bot | persistence | api-gateway (default: all)
   -h, --help          Show this help message
 EOF
   exit 0
@@ -85,6 +85,8 @@ case "$SCOPE_ARG" in
   persistence)
     # Run only persistence-focused tests to avoid unrelated infra-tool test failures during this sprint
     npm test -- src/services/persistence ;;
+  api-gateway)
+    npm test -- src/services/api-gateway ;;
   *)
     npm test ;;
 esac
