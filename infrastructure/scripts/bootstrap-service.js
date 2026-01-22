@@ -62,7 +62,10 @@ function generateAppSource(serviceName, stubPaths, consumedTopics = [], useMcp =
   const SERVICE_NAME = serviceName;
   const ClassName = `${toPascal(serviceName)}Server`;
   const explicitHandlers = Array.isArray(stubPaths) && stubPaths.length > 0
-    ? stubPaths.map((p) => `    app.get('${p}', (_req: Request, res: Response) => { res.status(200).end(); });`).join('\n')
+    ? stubPaths.map((p) => {
+        const route = p.replace(/\*/g, '(.*)');
+        return `    app.get('${route}', (_req: Request, res: Response) => { res.status(200).end(); });`;
+      }).join('\n')
     : '';
   const consumedList = Array.isArray(consumedTopics) ? consumedTopics : [];
   const consumedDecl = consumedList.length
@@ -177,7 +180,6 @@ function generateTestSource(entryTsPath, stubPaths) {
   const stubTests = paths.map((p) => {
     // Build a sample URL: replace :param with 123 and * with test; ensure trailing /* becomes /test
     let url = p.replace(/:([A-Za-z0-9_]+)/g, '123');
-    if (url.endsWith('/*')) url = url.replace(/\/\*$/, '/test');
     url = url.replace(/\*/g, 'test');
     return `  it('stub ${p} -> 200', async () => {\n    await request(app).get('${url}').expect(200);\n  });`;
   }).join('\n');
