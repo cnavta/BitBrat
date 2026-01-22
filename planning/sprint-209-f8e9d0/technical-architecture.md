@@ -5,8 +5,9 @@ The `api-gateway` service is a specialized gateway designed to provide programma
 
 ## 2. System Components
 
-### 2.1 WebSocket Server
-- **Implementation**: Node.js with `ws` library.
+### 2.1 WebSocket Server & MCP Base
+- **Implementation**: Node.js based on `McpServer`.
+- **Reasoning**: `McpServer` provides standard platform support tooling (logging, config, health) and enables future MCP-based administration (e.g., token management).
 - **Entry point**: `src/apps/api-gateway.ts`
 - **Protocol**: `wss://` (WebSocket Secure)
 - **Endpoint**: `/ws/v1`
@@ -70,7 +71,7 @@ All messages are JSON-encoded.
 - **Load Balancing**: GCLB (Global Cloud Load Balancer) handles WebSocket termination and distributes connections across instances.
 
 ## 5. Implementation Roadmap
-1. **Phase 1**: Implement basic WebSocket server with Bearer token validation (Firestore).
+1. **Phase 1**: Implement basic WebSocket server using `McpServer` base with Bearer token validation (Firestore).
 2. **Phase 2**: Implement messaging abstraction integration for `internal.ingress.v1` publishing.
 3. **Phase 3**: Implement messaging abstraction subscription for egress and message forwarding.
 4. **Phase 4**: Define and implement formal chat event schemas.

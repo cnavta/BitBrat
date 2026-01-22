@@ -23,3 +23,10 @@
 - **Files Modified**:
   - `planning/sprint-209-f8e9d0/technical-architecture.md`
   - `planning/sprint-209-f8e9d0/implementation-plan.md`
+
+## [2026-01-21T19:22:00Z] TA Update: McpServer Base
+- **Prompt Summary**: Update the TA doc to use `McpServer` as the base for the new `api-gateway`.
+- **Interpretation**: Incorporate `McpServer` into the architecture to leverage its built-in tooling and support future MCP token administration.
+- **Files Modified**:
+  - `planning/sprint-209-f8e9d0/technical-architecture.md`
+  - `planning/sprint-209-f8e9d0/implementation-plan.md`

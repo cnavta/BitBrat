@@ -3,6 +3,7 @@
 ## Completed
 - [x] Technical Architecture document for `api-gateway`
 - [x] Design for WebSocket interface
+- [x] Integration with `McpServer` base
 - [x] Design for Bearer token security mechanism
 - [x] Initial chat messaging event schemas defined
 - [x] Internal Pub/Sub routing strategy mapped using platform abstractions

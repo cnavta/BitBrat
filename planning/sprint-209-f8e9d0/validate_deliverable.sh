@@ -21,6 +21,7 @@ done
 
 echo "📝 Checking technical-architecture.md content..."
 grep -q "WebSocket" "planning/sprint-209-f8e9d0/technical-architecture.md"
+grep -q "McpServer" "planning/sprint-209-f8e9d0/technical-architecture.md"
 grep -q "Bearer" "planning/sprint-209-f8e9d0/technical-architecture.md"
 grep -q "chat.message.send" "planning/sprint-209-f8e9d0/technical-architecture.md"
 

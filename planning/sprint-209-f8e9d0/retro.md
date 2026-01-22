@@ -5,6 +5,7 @@
 - Clear separation between external WebSocket interface and internal messaging.
 - Opaque Bearer tokens provide a simple yet secure way for programmatic access.
 - Successfully pivoted to platform-standard messaging abstractions during the planning phase.
+- Re-architected to use `McpServer` as the base, improving future-proofing and administrative capabilities.
 
 ## What didn’t
 - The existing `api-gateway.ts` was just a skeleton, requiring a full design from scratch (which was the goal of this sprint anyway).

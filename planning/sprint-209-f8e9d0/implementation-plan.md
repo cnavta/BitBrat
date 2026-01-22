@@ -1,10 +1,11 @@
 # Implementation Plan – sprint-209-f8e9d0
 
 ## Objective
-Define the technical architecture for the new `api-gateway` service to provide a secure, WebSocket-based API for bi-directional event passing with the BitBrat Platform, utilizing the platform's messaging abstractions.
+Define the technical architecture for the new `api-gateway` service to provide a secure, WebSocket-based API for bi-directional event passing with the BitBrat Platform, based on the `McpServer` foundation and utilizing the platform's messaging abstractions.
 
 ## Scope
 - Architectural design of the `api-gateway`.
+- Integration with `McpServer` for base functionality and future administration.
 - Secure connection handling (WebSockets).
 - Bearer token authentication mechanism.
 - Event routing and integration with the platform's internal messaging system via common abstractions.
@@ -16,6 +17,7 @@ Define the technical architecture for the new `api-gateway` service to provide a
 ## Acceptance Criteria
 - Technical Architecture document MUST include:
     - High-level component diagram (description).
+    - `McpServer` base implementation rationale.
     - WebSocket protocol details (initial handshake, event framing).
     - Security model (Bearer token validation, user association, expiration).
     - Event schemas for initial chat support.
