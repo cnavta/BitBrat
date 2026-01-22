@@ -65,7 +65,7 @@ services:
 networks:
   bitbrat-network:
     name: bitbrat-network
-    external: true
+
 
 volumes:
   nats-data:
