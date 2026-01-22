@@ -56,3 +56,11 @@
   - `tools/brat/src/cli/index.ts`: Added `bootstrap service <name>` command alias.
   - `infrastructure/docker-compose/services/api-gateway.compose.yaml`: Re-bootstrapped to include `env_file` entries.
 - **Verification**: Confirmed `env_file` entries in generated compose file and manually verified overlay loading.
+
+## [2026-01-21T20:10:00Z] Fix: Docker Compose .env.local Path Resolution
+- **Prompt Summary**: When running locally, `.env.local` not found error.
+- **Interpretation**: The `env_file` path in the generated compose files was relative to the file location, but resolved relative to the project root during deployment. Also removed redundant `.env` references as `.env.local` contains all merged configuration.
+- **Files Modified**:
+  - `tools/brat/src/cli/bootstrap.ts`: Fixed `env_file` path to be relative to project root.
+  - `infrastructure/docker-compose/services/api-gateway.compose.yaml`: Re-bootstrapped to apply fix.
+- **Verification**: Verified via `docker compose config` that environment variables are correctly loaded from `.env.local`.
