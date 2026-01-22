@@ -24,15 +24,15 @@ To support programmatic access, the gateway implements a Bearer token mechanism.
   3. Gateway caches valid tokens for a short duration (e.g., 5 minutes) to reduce database load.
 
 ### 2.3 Internal Integration
-The service integrates with the BitBrat Platform via NATS (internal Pub/Sub).
+The service integrates with the BitBrat Platform via the platform's standard messaging abstractions. This decouples the service from the underlying transport (e.g., NATS) and ensures consistency across the platform.
 
 - **Ingress Path**:
   - Client sends JSON message over WebSocket.
   - Gateway validates message format.
   - Gateway enriches message with `user_id` from the authenticated session.
-  - Gateway publishes message to `internal.ingress.v1`.
+  - Gateway publishes message to `internal.ingress.v1` using the `MessageAdapter`.
 - **Egress Path**:
-  - Gateway subscribes to `internal.api.egress.v1.{instanceId}`.
+  - Gateway subscribes to `internal.api.egress.v1.{instanceId}` using the `EventSelection` logic.
   - Other platform services publish events targeted at specific users or clients.
   - Gateway identifies the target `user_id` and forwards the message to all active WebSocket connections for that user.
 
@@ -71,6 +71,6 @@ All messages are JSON-encoded.
 
 ## 5. Implementation Roadmap
 1. **Phase 1**: Implement basic WebSocket server with Bearer token validation (Firestore).
-2. **Phase 2**: Implement NATS integration for `internal.ingress.v1` publishing.
-3. **Phase 3**: Implement NATS subscription for egress and message forwarding.
+2. **Phase 2**: Implement messaging abstraction integration for `internal.ingress.v1` publishing.
+3. **Phase 3**: Implement messaging abstraction subscription for egress and message forwarding.
 4. **Phase 4**: Define and implement formal chat event schemas.

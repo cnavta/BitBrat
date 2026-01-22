@@ -1,13 +1,13 @@
 # Implementation Plan – sprint-209-f8e9d0
 
 ## Objective
-Define the technical architecture for the new `api-gateway` service to provide a secure, WebSocket-based API for bi-directional event passing with the BitBrat Platform.
+Define the technical architecture for the new `api-gateway` service to provide a secure, WebSocket-based API for bi-directional event passing with the BitBrat Platform, utilizing the platform's messaging abstractions.
 
 ## Scope
 - Architectural design of the `api-gateway`.
 - Secure connection handling (WebSockets).
 - Bearer token authentication mechanism.
-- Event routing and integration with the platform's internal Pub/Sub system.
+- Event routing and integration with the platform's internal messaging system via common abstractions.
 
 ## Deliverables
 - `planning/sprint-209-f8e9d0/technical-architecture.md`: Comprehensive design document.
