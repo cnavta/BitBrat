@@ -232,18 +232,27 @@ function toUpperSnake(name) {
   return String(name).trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase();
 }
 
-function generateComposeSource(serviceName) {
+function generateComposeSource(serviceName, image = null, env = [], secrets = []) {
   const upper = toUpperSnake(serviceName);
   const dockerfile = `Dockerfile.${toKebab(serviceName)}`;
+  
+  const buildOrImage = image 
+    ? `image: ${image}`
+    : `build:
+      context: .
+      dockerfile: ${dockerfile}`;
+
+  const envList = [...(env || []), ...(secrets || [])];
+  const environmentEntries = envList.map(e => `      - ${e}`).join('\n');
+
   return `services:
   ${serviceName}:
-    build:
-      context: .
-      dockerfile: ${dockerfile}
+    ${buildOrImage}
     env_file:
       - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+${environmentEntries}
     volumes:
       - \${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
@@ -270,25 +279,47 @@ function main() {
     console.error(`[bootstrap-service] Service not found in architecture.yaml: ${serviceKey}`);
     process.exit(3);
   }
-  const entry = svc.entry || `src/apps/${toKebab(serviceKey)}-service.ts`;
+  const entry = svc.entry;
+  const image = svc.image;
+
+  if (!entry && !image) {
+    console.error(`[bootstrap-service] Service ${serviceKey} has neither 'entry' nor 'image' in architecture.yaml`);
+    process.exit(4);
+  }
+
   const stubPaths = Array.isArray(svc.paths) ? svc.paths : [];
   const consumedTopics = (svc.topics && Array.isArray(svc.topics.consumes)) ? svc.topics.consumes : [];
+  const envVars = Array.isArray(svc.env) ? svc.env : [];
+  const secretVars = Array.isArray(svc.secrets) ? svc.secrets : [];
 
-  const appTsPath = path.join(repoRoot, entry);
-  const testTsPath = appTsPath.replace(/\.ts$/, '.test.ts');
   const dockerfileName = `Dockerfile.${toKebab(serviceKey)}`;
   const dockerfilePath = path.join(repoRoot, dockerfileName);
   const composePath = path.join(repoRoot, 'infrastructure', 'docker-compose', 'services', `${toKebab(serviceKey)}.compose.yaml`);
 
-  const appRes = writeFileSafe(appTsPath, generateAppSource(serviceKey, stubPaths, consumedTopics, args.mcp), args.force);
-  const testRes = writeFileSafe(testTsPath, generateTestSource(entry, stubPaths), args.force);
-  const dockRes = writeFileSafe(dockerfilePath, generateDockerfile(serviceKey, entry), args.force);
-  const composeRes = writeFileSafe(composePath, generateComposeSource(serviceKey), args.force);
+  let appRes = { skipped: true, path: 'N/A' };
+  let testRes = { skipped: true, path: 'N/A' };
+  let dockRes = { skipped: true, path: 'N/A' };
+
+  if (entry) {
+    const appTsPath = path.join(repoRoot, entry);
+    const testTsPath = appTsPath.replace(/\.ts$/, '.test.ts');
+    appRes = writeFileSafe(appTsPath, generateAppSource(serviceKey, stubPaths, consumedTopics, args.mcp), args.force);
+    testRes = writeFileSafe(testTsPath, generateTestSource(entry, stubPaths), args.force);
+    dockRes = writeFileSafe(dockerfilePath, generateDockerfile(serviceKey, entry), args.force);
+  }
+
+  const composeRes = writeFileSafe(composePath, generateComposeSource(serviceKey, image, envVars, secretVars), args.force);
 
   console.log('[bootstrap-service] Results:');
-  console.log(`- App: ${appRes.path} ${appRes.skipped ? '(exists, skipped)' : '(created)'}`);
-  console.log(`- Test: ${testRes.path} ${testRes.skipped ? '(exists, skipped)' : '(created)'}`);
-  console.log(`- Dockerfile: ${dockRes.path} ${dockRes.skipped ? '(exists, skipped)' : '(created)'}`);
+  if (entry) {
+    console.log(`- App: ${appRes.path} ${appRes.skipped ? '(exists, skipped)' : '(created)'}`);
+    console.log(`- Test: ${testRes.path} ${testRes.skipped ? '(exists, skipped)' : '(created)'}`);
+    console.log(`- Dockerfile: ${dockRes.path} ${dockRes.skipped ? '(exists, skipped)' : '(created)'}`);
+  } else {
+    console.log('- App: skipped (no entry)');
+    console.log('- Test: skipped (no entry)');
+    console.log('- Dockerfile: skipped (no entry)');
+  }
   console.log(`- Compose: ${composeRes.path} ${composeRes.skipped ? '(exists, skipped)' : '(created)'}`);
   console.log('Next steps:');
   console.log(`- Build & test: npm run build && npm test`);
