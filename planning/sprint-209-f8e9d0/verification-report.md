@@ -5,7 +5,7 @@
 - [x] Design for WebSocket interface
 - [x] Design for Bearer token security mechanism
 - [x] Initial chat messaging event schemas defined
-- [x] Internal Pub/Sub routing strategy mapped
+- [x] Internal Pub/Sub routing strategy mapped using platform abstractions
 
 ## Partial
 - None
