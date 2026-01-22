@@ -118,6 +118,7 @@ services:
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
+      - MCP_AUTH_TOKEN
 
   event-router:
     active: true
