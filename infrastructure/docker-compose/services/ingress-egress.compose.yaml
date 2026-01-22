@@ -33,4 +33,6 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - bitbrat-network
+      bitbrat-network:
+        aliases:
+          - ingress-egress.bitbrat.local
