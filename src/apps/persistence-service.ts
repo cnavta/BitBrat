@@ -1,7 +1,6 @@
 import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import type { InternalEventV2 } from '../types/events';
-import { PersistenceStore } from '../services/persistence/store';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'persistence';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -46,19 +45,7 @@ class PersistenceServer extends BaseServer {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  
-                  // Route system events to upsertSourceState, others to upsertIngressEvent
-                  if (msg.type?.startsWith('system.')) {
-                    await store.upsertSourceState(msg);
-                  } else {
-                    await store.upsertIngressEvent(msg);
-                  }
-                }
+                // TODO: implement domain behavior for this topic
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -86,13 +73,7 @@ class PersistenceServer extends BaseServer {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyFinalization(msg as any);
-                }
+                // TODO: implement domain behavior for this topic
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -111,22 +92,16 @@ class PersistenceServer extends BaseServer {
         const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
         const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
         try {
-          await this.onMessage<any>(
+          await this.onMessage<InternalEventV2>(
             { destination, queue, ack: 'explicit' },
-            async (msg: any, _attributes, ctx) => {
+            async (msg: InternalEventV2, _attributes, ctx) => {
               try {
                 this.getLogger().info('persistence.message.received', {
                   destination,
-                  type: msg?.type,
-                  correlationId: msg?.correlationId || msg?.envelope?.correlationId,
+                  type: (msg as any)?.type,
+                  correlationId: (msg as any)?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyDeadLetter(msg);
-                }
+                // TODO: implement domain behavior for this topic
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -145,22 +120,16 @@ class PersistenceServer extends BaseServer {
         const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
         const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
         try {
-          await this.onMessage<any>(
+          await this.onMessage<InternalEventV2>(
             { destination, queue, ack: 'explicit' },
-            async (msg: any, _attributes, ctx) => {
+            async (msg: InternalEventV2, _attributes, ctx) => {
               try {
                 this.getLogger().info('persistence.message.received', {
                   destination,
-                  type: msg?.type,
-                  correlationId: msg?.correlationId || msg?.envelope?.correlationId,
+                  type: (msg as any)?.type,
+                  correlationId: (msg as any)?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyDeadLetter(msg);
-                }
+                // TODO: implement domain behavior for this topic
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });

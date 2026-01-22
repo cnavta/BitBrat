@@ -46,6 +46,7 @@ function loadSecureLocal(filePath) {
     let value = line.slice(eq + 1).trim();
     value = stripQuotes(value);
     value = expandTilde(value);
+    // Use Object.assign pattern or just direct set, but let's be careful about duplicates in the SAME file
     if (key) env[key] = value;
   }
   return env;

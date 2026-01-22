@@ -7,19 +7,24 @@ services:
       - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - OPENAI_TIMEOUT_MS=${OPENAI_TIMEOUT_MS}
+      - OPENAI_MAX_RETRIES=${OPENAI_MAX_RETRIES}
+      - LLM_BOT_MEMORY_MAX_MESSAGES=${LLM_BOT_MEMORY_MAX_MESSAGES}
+      - LLM_BOT_MEMORY_MAX_CHARS=${LLM_BOT_MEMORY_MAX_CHARS}
+      - LLM_BOT_SYSTEM_PROMPT=${LLM_BOT_SYSTEM_PROMPT}
+      - LLM_BOT_INSTANCE_MEM_MAX_KEYS=${LLM_BOT_INSTANCE_MEM_MAX_KEYS}
+      - LLM_BOT_INSTANCE_MEM_MAX_MSGS=${LLM_BOT_INSTANCE_MEM_MAX_MSGS}
+      - LLM_BOT_INSTANCE_MEM_MAX_CHARS=${LLM_BOT_INSTANCE_MEM_MAX_CHARS}
+      - LLM_BOT_INSTANCE_MEM_TTL_MS=${LLM_BOT_INSTANCE_MEM_TTL_MS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
       - "${LLM_BOT_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
-    networks:
-      bitbrat-network:
-        aliases:
-          - llm-bot.bitbrat.local
     depends_on:
-      nats:
-        condition: service_healthy
-      firebase-emulator:
-        condition: service_healthy
+      - nats
+      - firebase-emulator
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s

@@ -1,0 +1,2 @@
+- Docker Compose `- VAR` syntax only pulls from the process environment, not from files passed via `--env-file` for interpolation.
+- Using `${VAR}` or `VAR=${VAR}` in the `environment:` section forces Compose to use its interpolated values (from `--env-file` or `env_file`) and pass them to the container.
