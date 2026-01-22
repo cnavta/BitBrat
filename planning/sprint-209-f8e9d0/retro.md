@@ -1,14 +1,14 @@
 # Sprint Retro – sprint-209-f8e9d0
 
-## What worked
-- Quick alignment on the technical requirements for the new `api-gateway`.
-- Clear separation between external WebSocket interface and internal messaging.
-- Opaque Bearer tokens provide a simple yet secure way for programmatic access.
-- Successfully pivoted to platform-standard messaging abstractions during the planning phase.
-- Re-architected to use `McpServer` as the base, improving future-proofing and administrative capabilities.
+## What Worked
+- **McpServer Foundation**: Inheriting from `McpServer` provided immediate access to logging and configuration, simplifying the bootstrap.
+- **Messaging Abstractions**: The `PublisherResource` and `onMessage` helpers made it easy to integrate with the platform without worrying about the underlying transport.
+- **Test-Driven Refinement**: Unit tests helped identify type mismatches in `InternalEventV2` early.
 
-## What didn’t
-- The existing `api-gateway.ts` was just a skeleton, requiring a full design from scratch (which was the goal of this sprint anyway).
+## Challenges
+- **WebSocket Upgrade Auth**: Manually handling the HTTP `upgrade` event was necessary to perform Bearer token validation before the WebSocket connection is fully established.
+- **Type Mismatches**: `InternalEventV2` did not have `createdAt` as a direct property (inherited fields were different than expected), requiring a small fix in the managers.
 
 ## Future Improvements
-- Consider adding a "Token Management" UI or CLI tool in a future sprint to allow users to generate their own Bearer tokens.
+- Implement a generic WebSocket service base class if more gateways are planned.
+- Add support for token rotation/refresh events.

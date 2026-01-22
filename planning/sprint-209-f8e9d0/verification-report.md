@@ -1,18 +1,20 @@
 # Deliverable Verification – sprint-209-f8e9d0
 
 ## Completed
-- [x] Technical Architecture document for `api-gateway`
-- [x] Design for WebSocket interface
-- [x] Integration with `McpServer` base
-- [x] Design for Bearer token security mechanism
-- [x] Initial chat messaging event schemas defined
-- [x] Internal Pub/Sub routing strategy mapped using platform abstractions
+- [x] Bootstrap `api-gateway` with `McpServer` and WebSocket (BL-001)
+- [x] Bearer Token Authentication with Firestore & SHA-256 (BL-002)
+- [x] Inbound Message Path (Ingress) with `userId` enrichment (BL-003)
+- [x] Outbound Message Path (Egress) with connection tracking (BL-004)
+- [x] Initial Chat Event Support (`chat.message.send`, etc.) (BL-005)
+- [x] Unit Tests for Auth and Managers (BL-006)
+- [x] Global `validate_deliverable.sh` updated for `api-gateway`
 
 ## Partial
 - None
 
 ## Deferred
-- Implementation of the service (Phase 1-4 in the roadmap) is deferred to subsequent sprints.
+- Integration tests for full WebSocket handshake/upgrade (mocked in unit tests)
 
 ## Alignment Notes
-- The architecture aligns with `architecture.yaml` and the goal of replacing `ingress-egress` with platform-specific gateways.
+- Used `McpServer` as base to ensure alignment with platform standards.
+- Successfully decoupled from direct NATS dependencies using `MessagePublisher` and `onMessage` abstractions.
