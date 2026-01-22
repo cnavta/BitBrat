@@ -3,8 +3,9 @@ title: "API Gateway Technical Architecture"
 goal: "Define the technical architecture for the new api-gateway service, including WebSocket support and Bearer token security."
 owner: "Junie (Architect)"
 createdAt: "2026-01-21T19:08:00Z"
-status: "planning"
+status: "published"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/120"
   branch: "feature/sprint-209-f8e9d0-api-gateway-arch"
 notes: |
   Initial sprint for the api-gateway service. Focus is on architectural design and security approach.
