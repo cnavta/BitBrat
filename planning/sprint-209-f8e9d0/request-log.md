@@ -40,3 +40,19 @@
   - `planning/sprint-209-f8e9d0/implementation-plan.md`
   - `planning/sprint-209-f8e9d0/sprint-manifest.yaml`
   - `planning/sprint-209-f8e9d0/request-log.md`
+
+## [2026-01-21T19:43:00Z] Bug Fix: Publisher Resource Mismatch
+- **Prompt Summary**: Remediate "Publisher resource required" error when running locally.
+- **Interpretation**: The service was looking for 'publishers' (plural) while BaseServer provides 'publisher' (singular) by default.
+- **Files Modified**:
+  - `src/apps/api-gateway.ts`
+- **Verification**: Verified via `npm test src/apps/api-gateway.test.ts` and `validate_deliverable.sh --scope api-gateway`.
+
+## [2026-01-21T19:55:00Z] Fix: Docker Compose Environment Overlays
+- **Prompt Summary**: Investigate and remediate why api-gateway is not receiving environment overlay configuration in Docker Compose.
+- **Interpretation**: The `brat` tool's service bootstrap logic was missing `env_file` support in the generated Docker Compose files.
+- **Files Modified**:
+  - `tools/brat/src/cli/bootstrap.ts`: Added `env_file` support to `generateCompose`.
+  - `tools/brat/src/cli/index.ts`: Added `bootstrap service <name>` command alias.
+  - `infrastructure/docker-compose/services/api-gateway.compose.yaml`: Re-bootstrapped to include `env_file` entries.
+- **Verification**: Confirmed `env_file` entries in generated compose file and manually verified overlay loading.

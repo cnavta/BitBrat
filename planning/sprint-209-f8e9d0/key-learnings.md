@@ -4,3 +4,4 @@
 - **Firestore Token Storage**: Hashing tokens (SHA-256) before storage is essential for security, even in internal systems.
 - **Connection Management**: Tracking WebSocket instances in a `Map<string, Set<WebSocket>>` allows for routing messages to multiple concurrent connections for the same user.
 - **Event Mapping**: Mapping external "action" events (like `chat.message.send`) to internal "fact" events (`chat.message`) helps maintain a clean domain model.
+- **Docker Compose & Env Files**: Docker Compose `env_file` entries are critical for local development when environment variables are managed outside of the `environment:` block. The `brat` tool should always include these when bootstrapping new services.

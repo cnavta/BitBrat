@@ -52,14 +52,14 @@ export class ApiGatewayServer extends McpServer {
       throw new Error('Firestore resource required');
     }
 
-    const publishers = this.getResource<PublisherResource>('publishers');
-    if (!publishers) {
-      this.getLogger().error('api_gateway.publishers_not_found');
+    const publisher = this.getResource<PublisherResource>('publisher');
+    if (!publisher) {
+      this.getLogger().error('api_gateway.publisher_not_found');
       throw new Error('Publisher resource required');
     }
 
     this.authService = new AuthService(firestore, this.getLogger());
-    this.ingressManager = new IngressManager(publishers, this.getLogger());
+    this.ingressManager = new IngressManager(publisher, this.getLogger());
     this.egressManager = new EgressManager(this.userConnections, this.getLogger());
 
     this.httpServer = http.createServer(this.getApp());
