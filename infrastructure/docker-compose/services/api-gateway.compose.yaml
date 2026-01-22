@@ -1,0 +1,27 @@
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.api-gateway
+    ports:
+      - "${API_GATEWAY_HOST_PORT:-8080}:${SERVICE_PORT:-8080}"
+    environment:
+      - NODE_ENV=local
+      - BITBRAT_ENV=local
+      - PORT=${SERVICE_PORT:-8080}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_PORT:-8080}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      nats:
+        condition: service_healthy
+      firebase-emulator:
+        condition: service_healthy
+    networks:
+      - bitbrat-network
+
+networks:
+  bitbrat-network:
+    external: true
