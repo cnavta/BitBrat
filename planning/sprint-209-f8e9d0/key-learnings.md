@@ -1,6 +1,6 @@
 # Key Learnings – sprint-209-f8e9d0
 
-## Architectural Decisions
-- **WebSocket over REST**: Chosen for the bi-directional nature of chat and event passing, providing a more responsive experience for external bots.
-- **Opaque Tokens**: Using hashed opaque tokens in Firestore is preferred over JWTs for this use case because it allows for easy revocation and server-side control without needing a complex CRL (Certificate Revocation List) or short-lived token refresh logic for external programmatic clients.
-- **Instance-specific Egress**: Subscribing to `internal.api.egress.v1.{instanceId}` ensures that events are only delivered to the specific gateway instance where the client is connected, avoiding duplicate delivery or unnecessary cross-instance coordination.
+- **Manual WS Upgrade**: When using `ws` with `express` (via `BaseServer`/`McpServer`), manual `upgrade` handling is the cleanest way to perform pre-connection authentication.
+- **Firestore Token Storage**: Hashing tokens (SHA-256) before storage is essential for security, even in internal systems.
+- **Connection Management**: Tracking WebSocket instances in a `Map<string, Set<WebSocket>>` allows for routing messages to multiple concurrent connections for the same user.
+- **Event Mapping**: Mapping external "action" events (like `chat.message.send`) to internal "fact" events (`chat.message`) helps maintain a clean domain model.
