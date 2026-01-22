@@ -63,7 +63,7 @@ function generateAppSource(serviceName, stubPaths, consumedTopics = [], useMcp =
   const ClassName = `${toPascal(serviceName)}Server`;
   const explicitHandlers = Array.isArray(stubPaths) && stubPaths.length > 0
     ? stubPaths.map((p) => {
-        const route = p.replace(/\*/g, '(.*)');
+        const route = p.replace(/\*/g, ':path(.*)');
         return `    app.get('${route}', (_req: Request, res: Response) => { res.status(200).end(); });`;
       }).join('\n')
     : '';
