@@ -8,6 +8,7 @@
 - [x] Initial Chat Event Support (`chat.message.send`, etc.) (BL-005)
 - [x] Unit Tests for Auth and Managers (BL-006)
 - [x] Global `validate_deliverable.sh` updated for `api-gateway`
+- [x] Fixed `brat` tool and Docker Compose environment overlays support.
 
 ## Partial
 - None
