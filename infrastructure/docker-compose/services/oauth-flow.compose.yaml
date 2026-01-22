@@ -7,6 +7,10 @@ services:
       - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+      - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI}
+      - DISCORD_OAUTH_SCOPES=${DISCORD_OAUTH_SCOPES}
+      - DISCORD_OAUTH_PERMISSIONS=${DISCORD_OAUTH_PERMISSIONS}
+      - TWITCH_OAUTH_SCOPES=${TWITCH_OAUTH_SCOPES}
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
       - OAUTH_STATE_SECRET=${OAUTH_STATE_SECRET}
@@ -25,4 +29,6 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - bitbrat-network
+      bitbrat-network:
+        aliases:
+          - oauth-flow.bitbrat.local

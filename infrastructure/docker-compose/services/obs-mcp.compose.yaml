@@ -24,4 +24,6 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - bitbrat-network
+      bitbrat-network:
+        aliases:
+          - obs-mcp.bitbrat.local
