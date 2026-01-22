@@ -15,7 +15,7 @@ class OauthFlowServer extends BaseServer {
 
   private async setupApp(app: Express, _cfg: any) {
     // Architecture-specified explicit stub handlers (GET)
-    app.get('/oauth/:path(.*)', (_req: Request, res: Response) => { res.status(200).end(); });
+    app.get('/oauth/{*path}', (_req: Request, res: Response) => { res.status(200).end(); });
 
     // Message subscriptions for consumed topics declared in architecture.yaml
     try {

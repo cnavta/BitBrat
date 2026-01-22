@@ -1,0 +1,3 @@
+- `path-to-regexp` v8+ syntax for wildcards is `{ *path }`.
+- Unnamed wildcards like `(.*)` or `*` are no longer supported in v8+.
+- Using a small isolation script to test path matching is highly recommended when debugging `PathError`.
