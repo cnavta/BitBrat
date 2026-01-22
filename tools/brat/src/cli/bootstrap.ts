@@ -174,9 +174,7 @@ function generateCompose(serviceName: string, port: number): string {
       - BITBRAT_ENV=local
       - PORT=\${SERVICE_PORT:-${port}}
     env_file:
-      - ../../../.env.local
-      - ../../../env/local/global.env
-      - ../../../env/local/${serviceName}.env
+      - .env.local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:\${SERVICE_PORT:-${port}}/health"]
       interval: 30s

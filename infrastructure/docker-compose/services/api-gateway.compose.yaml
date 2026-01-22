@@ -10,9 +10,7 @@ services:
       - BITBRAT_ENV=local
       - PORT=${SERVICE_PORT:-8080}
     env_file:
-      - ../../../.env.local
-      - ../../../env/local/global.env
-      - ../../../env/local/api-gateway.env
+      - .env.local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_PORT:-8080}/health"]
       interval: 30s
