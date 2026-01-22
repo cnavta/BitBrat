@@ -1,0 +1,11 @@
+id: sprint-217-e2f1a3
+title: "Fix Ingress-Egress External Event Connectivity"
+goal: "Restore connectivity for external events (e.g., Twitch) to the ingress-egress container in Docker."
+owner: "Junie"
+createdAt: "2026-01-22T17:00:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-217-e2f1a3-fix-ingress-external-events"
+notes: |
+  Ingress-egress-1 is reportedly not receiving events from external sources. 
+  This could be due to missing port mappings, host interface binding issues, or security rules.
