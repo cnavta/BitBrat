@@ -141,7 +141,6 @@ services:
         - internal.llmbot.v1
     secrets:
       - OPENAI_API_KEY
-      - MCP_AUTH_TOKEN
     env:
       - OPENAI_MODEL
       - OPENAI_TIMEOUT_MS

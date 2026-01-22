@@ -276,9 +276,6 @@ ${environmentEntries}
     depends_on:
       - nats
       - firebase-emulator
-      - obs-mcp
-      - auth
-      - scheduler
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s
