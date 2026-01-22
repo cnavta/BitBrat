@@ -249,6 +249,7 @@ function toUpperSnake(name) {
 function generateComposeSource(serviceName, image = null, env = [], secrets = []) {
   const upper = toUpperSnake(serviceName);
   const dockerfile = `Dockerfile.${toKebab(serviceName)}`;
+  const kebab = toKebab(serviceName);
   
   const buildOrImage = image 
     ? `image: ${image}
@@ -281,7 +282,9 @@ ${environmentEntries}
       timeout: 3s
       retries: 10
     networks:
-      - bitbrat-network
+      bitbrat-network:
+        aliases:
+          - ${kebab}.bitbrat.local
 `;
 }
 

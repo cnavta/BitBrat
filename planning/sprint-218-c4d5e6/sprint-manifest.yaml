@@ -1,0 +1,11 @@
+id: sprint-218-c4d5e6
+title: "Fix MCP DNS Resolution in Docker"
+goal: "Enable internal DNS resolution for .bitbrat.local hostnames by adding network aliases to service containers."
+owner: "Junie"
+createdAt: "2026-01-22T17:15:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-218-c4d5e6-fix-mcp-dns-resolution"
+notes: |
+  llm-bot fails to resolve auth.bitbrat.local and obs-mcp.bitbrat.local.
+  Docker Compose services need aliases for their respective hostnames defined in architecture.yaml.
