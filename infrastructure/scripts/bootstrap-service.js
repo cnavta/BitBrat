@@ -237,7 +237,8 @@ function generateComposeSource(serviceName, image = null, env = [], secrets = []
   const dockerfile = `Dockerfile.${toKebab(serviceName)}`;
   
   const buildOrImage = image 
-    ? `image: ${image}`
+    ? `image: ${image}
+    platform: linux/amd64`
     : `build:
       context: .
       dockerfile: ${dockerfile}`;
