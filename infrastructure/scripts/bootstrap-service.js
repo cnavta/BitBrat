@@ -266,6 +266,8 @@ ${environmentEntries}
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - bitbrat-network
 `;
 }
 
