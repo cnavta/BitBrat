@@ -16,8 +16,6 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 # Copy compiled app and architecture.yaml for runtime config lookups
 COPY --from=builder /workspace/dist ./dist
-# Ensure admin CLI (brat) is not included in runtime image
-RUN rm -rf ./dist/tools
 COPY architecture.yaml ./architecture.yaml
 EXPOSE 3000
 ENV SERVICE_NAME=ingress-egress

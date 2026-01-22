@@ -244,7 +244,7 @@ function generateComposeSource(serviceName, image = null, env = [], secrets = []
       dockerfile: ${dockerfile}`;
 
   const envList = [...(env || []), ...(secrets || [])];
-  const environmentEntries = envList.map(e => `      - ${e}`).join('\n');
+  const environmentEntries = envList.map(e => `      - ${e}=\${${e}}`).join('\n');
 
   return `services:
   ${serviceName}:
