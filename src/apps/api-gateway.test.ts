@@ -1,22 +1,12 @@
 import request from 'supertest';
-import { ApiGatewayServer } from './api-gateway';
+import { createApp } from './api-gateway';
 
-describe('api-gateway', () => {
-  let server: ApiGatewayServer;
-
-  beforeAll(async () => {
-    server = new ApiGatewayServer();
-    // We don't necessarily need to call server.start() if we just want to test routes via supertest
+describe('generated service', () => {
+  const app = createApp();
+  describe('health endpoints', () => {
+    it('/healthz 200', async () => { await request(app).get('/healthz').expect(200); });
+    it('/readyz 200', async () => { await request(app).get('/readyz').expect(200); });
+    it('/livez 200', async () => { await request(app).get('/livez').expect(200); });
   });
 
-  afterAll(async () => {
-    await server.close('test');
-  });
-
-  it('GET /health returns 200', async () => {
-    const response = await request(server.getApp()).get('/health');
-    expect(response.status).toBe(200);
-    // BaseServer response might differ slightly if it uses registerHealth, but let's assume our override for now
-    expect(response.body.status).toBe('ok');
-  });
 });
