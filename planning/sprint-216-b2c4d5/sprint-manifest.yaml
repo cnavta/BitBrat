@@ -1,0 +1,15 @@
+id: sprint-216-b2c4d5
+title: "Fix OAuth Path Error"
+goal: "Resolve the PathError in oauth-flow by using the correct wildcard syntax for path-to-regexp v8+"
+owner: "Junie"
+createdAt: "2026-01-22T16:40:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-216-b2c4d5-fix-oauth-path-error"
+notes: |
+  The previous attempts to fix the wildcard syntax (/oauth/* -> /oauth/(.*) -> /oauth/:path(.*)) still fail.
+  According to path-to-regexp v8 documentation, the correct syntax for an unnamed wildcard is (.*) but Express might be wrapping it or using a specific version that expects something else, or maybe it just needs to be :path* or similar.
+  Wait, if index 15 is where it fails:
+  / o a u t h / : p a h ( . * )
+  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+  Index 15 is indeed the '('.
