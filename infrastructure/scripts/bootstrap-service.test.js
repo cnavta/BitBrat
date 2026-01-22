@@ -17,7 +17,7 @@ describe('bootstrap-service generators', () => {
     expect(src).toContain("app.get('/one'");
     expect(src).toContain("app.get('/two'");
     expect(src).toContain("app.get('/bar/:id'");
-    expect(src).toContain("app.get('/star/(.*)'");
+    expect(src).toContain("app.get('/star/:path(.*)'");
     // Resource access comments present
     expect(src).toContain("this.getResource<any>('publisher')");
     expect(src).toContain("this.getResource<any>('firestore')");

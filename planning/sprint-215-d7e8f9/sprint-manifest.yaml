@@ -1,0 +1,10 @@
+id: sprint-215-d7e8f9
+title: "Fix OAuth Wildcard Route"
+goal: "Resolve PathError in oauth-flow service by using correct path-to-regexp wildcard syntax"
+owner: "Junie"
+createdAt: "2026-01-22T11:27:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-215-d7e8f9-fix-oauth-wildcard"
+notes: |
+  The previous fix using (.*) still causes PathError. Investigating version-specific syntax.
