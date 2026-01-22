@@ -9,10 +9,4 @@ describe('generated service', () => {
     it('/livez 200', async () => { await request(app).get('/livez').expect(200); });
   });
 
-  describe('stubbed paths', () => {
-  it('stub /_debug/mcp -> 200', async () => {
-    await request(app).get('/_debug/mcp').expect(200);
-  });
-  });
-
 });

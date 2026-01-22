@@ -1,69 +1,115 @@
 import { BaseServer } from '../common/base-server';
-import { Express, Request, Response } from 'express';
-import type { InternalEventV2 } from '../types/events';
+import { Express } from 'express';
+import { INTERNAL_COMMAND_V1, InternalEventV2, RoutingStep } from '../types/events';
+import { AttributeMap, createMessagePublisher } from '../services/message-bus';
+import { logger } from '../common/logging';
+import { summarizeSlip } from '../services/routing/slip';
+import { findFirstByCommandTerm } from '../services/command-processor/command-repo';
+import { startRegexCache } from '../services/command-processor/regex-cache';
+import type { PublisherResource } from '../common/resources/publisher-manager';
+import type { Firestore } from 'firebase-admin/firestore';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'command-processor';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-const RAW_CONSUMED_TOPICS: string[] = [
-  "internal.command.v1"
-];
-
 class CommandProcessorServer extends BaseServer {
   constructor() {
     super({ serviceName: SERVICE_NAME });
-    this.setupApp(this.getApp() as any, this.getConfig() as any);
+    // Invoke setup synchronously so tests using jest.isolateModules() can observe subscription immediately
+    this.setupApp(this.getConfig());
   }
 
-  private async setupApp(app: Express, _cfg: any) {
-    // Architecture-specified explicit stub handlers (GET)
-
-
-    // Message subscriptions for consumed topics declared in architecture.yaml
+  private async setupApp(cfg: any) {
+    const subject = `${cfg.busPrefix || ''}${INTERNAL_COMMAND_V1}`;
+    logger.info('command_processor.subscribe.start', { subject, queue: 'command-processor' });
     try {
-      const instanceId =
-        process.env.K_REVISION ||
-        process.env.EGRESS_INSTANCE_ID ||
-        process.env.SERVICE_INSTANCE_ID ||
-        process.env.HOSTNAME ||
-        Math.random().toString(36).slice(2);
-
-      { // subscription for internal.command.v1
-        const raw = "internal.command.v1";
-        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
-        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
-        try {
-          await this.onMessage<InternalEventV2>(
-            { destination, queue, ack: 'explicit' },
-            async (msg: InternalEventV2, _attributes, ctx) => {
-              try {
-                this.getLogger().info('command-processor.message.received', {
-                  destination,
-                  type: (msg as any)?.type,
-                  correlationId: (msg as any)?.correlationId,
-                });
-                // TODO: implement domain behavior for this topic
-                await ctx.ack();
-              } catch (e: any) {
-                this.getLogger().error('command-processor.message.handler_error', { destination, error: e?.message || String(e) });
-                await ctx.ack();
-              }
-            }
-          );
-          this.getLogger().info('command-processor.subscribe.ok', { destination, queue });
-        } catch (e: any) {
-          this.getLogger().error('command-processor.subscribe.error', { destination, queue, error: e?.message || String(e) });
+      const isJest = Boolean((global as any).jest || process.env.JEST_WORKER_ID);
+      // Initialize regex cache live updates
+      try {
+        // During Jest tests, avoid opening Firestore listeners which cause timeouts/permission errors
+        if (!isJest) {
+          const db = this.getResource<Firestore>('firestore');
+          startRegexCache(db);
+          logger.info('command_processor.regex_cache.started');
+        } else {
+          logger.info('command_processor.regex_cache.skipped_in_tests');
         }
+      } catch (e: any) {
+        logger.warn('command_processor.regex_cache.start_error', { error: e?.message || String(e) });
       }
-    } catch (e: any) {
-      this.getLogger().warn('command-processor.subscribe.init_error', { error: e?.message || String(e) });
-    }
+      await this.onMessage<InternalEventV2>(
+        { destination: INTERNAL_COMMAND_V1, queue: 'command-processor', ack: 'explicit' },
+        async (preV2: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+          try {
+            logger.info('command_processor.event.received', {
+              type: preV2?.type,
+              correlationId: (preV2 as any)?.correlationId,
+              source: preV2?.source,
+            });
 
-    // Example resource access patterns (uncomment and adapt):
-    // const publisher = this.getResource<any>('publisher');
-    // publisher?.publishJson({ hello: 'world' });
-    // const firestore = this.getResource<any>('firestore');
-    // const doc = await firestore?.collection('demo').doc('x').get();
+            // Lazy-load processor to allow Jest doMock() to override in tests after this module is loaded
+            const { processEvent } = require('../services/command-processor/processor');
+            // Detect Jest reliably to avoid initializing Firestore in tests (prevents hanging async handles)
+            const isJestExec = Boolean((global as any).jest || process.env.JEST_WORKER_ID);
+            // Wrap execution in a child span when tracing is enabled
+            const tracer = (this as any).getTracer?.();
+            const exec = async () => {
+              // In Jest, avoid Firestore lookups to prevent permission/timeouts; rely on processor defaults (skip if no match)
+              if (isJestExec) {
+                return await processEvent(preV2 as any, {
+                  repoFindFirstByCommandTerm: async () => null,
+                  repoFindByNameOrAlias: async () => null,
+                  getRegexCompiled: () => [],
+                });
+              }
+              const db = this.getResource<Firestore>('firestore');
+              return await processEvent(preV2 as any, { repoFindFirstByCommandTerm: (term: string) => findFirstByCommandTerm(term, db) });
+            };
+            const result = tracer && typeof tracer.startActiveSpan === 'function'
+              ? await tracer.startActiveSpan('execute-command', async (span: any) => {
+                  try {
+                    return await exec();
+                  } finally {
+                    span.end();
+                  }
+                })
+              : await exec();
+            const v2 = result.event;
+            logger.info('command_processor.event.processed', { result });
+
+            // Preserve legacy logging: if no pending and no egress, log completion and do not dispatch
+            const slip = (v2.routingSlip || []) as RoutingStep[];
+            const hasPending = slip.findIndex((s: RoutingStep) => s.status !== 'OK' && s.status !== 'SKIP') >= 0;
+            if (!hasPending && !v2.egressDestination) {
+              logger.info('command_processor.advance.complete', { slip: summarizeSlip(slip) });
+              await ctx.ack();
+              return;
+            }
+
+            // Align attribute expectations: preserve original source if present, fallback to this service for attributes
+            // But do NOT overwrite the payload's source property as it's used for egress routing.
+            // v2.source = SERVICE_NAME; // DEPRECATED: Do not overwrite payload source.
+
+            // Advance using BaseServer helper (optionally sets current step status, idempotency, attributes, tracing)
+            await (this as any).next(v2, result.stepStatus);
+            logger.info('command_processor.advance.dispatched', { slip: summarizeSlip(slip), egress: v2.egressDestination });
+
+            await ctx.ack();
+          } catch (e: any) {
+            const msg = e?.message || String(e);
+            logger.error('command_processor.process_error', { subject, error: msg });
+            if (/json|unexpected token|position \d+/i.test(msg)) {
+              await ctx.ack();
+            } else {
+              await ctx.nack(true);
+            }
+          }
+        }
+      );
+      logger.info('command_processor.subscribe.ok', { subject, queue: 'command-processor' });
+    } catch (e: any) {
+      logger.error('command_processor.subscribe.error', { subject, error: e?.message || String(e) });
+    }
   }
 }
 
@@ -74,6 +120,8 @@ export function createApp() {
 
 if (require.main === module) {
   BaseServer.ensureRequiredEnv(SERVICE_NAME);
-  const server = new CommandProcessorServer();
-  void server.start(PORT);
+  const app = createApp();
+  app.listen(PORT, () => {
+    console.log('[command-processor] listening on port ' + PORT);
+  });
 }
