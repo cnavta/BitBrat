@@ -35,6 +35,11 @@ export interface RoutingStep {
   notes?: string;
 }
 
+export interface Egress {
+  destination: string; // Destination that was the entry point for the message.
+  type?: 'chat' | 'dm' | 'event'; // Requested type of response to send.
+}
+
 export interface EnvelopeV1 {
   v: '1';
   source: string; // e.g., "ingress.twitch"
@@ -42,8 +47,8 @@ export interface EnvelopeV1 {
   traceId?: string; // w3c trace id
   replyTo?: string; // topic for direct reply if not default
   timeoutAt?: string; // optional absolute timeout for the end-to-end processing
-  egressDestination?: string; // Destination that can to route external responses for a message, gernerally the ingress-egress instance the message arrived on.
   routingSlip?: RoutingStep[]; // at least one step after routing
+  egress: Egress;
   /** Optional: added by Auth service (User Enrichment v1) */
   user?: {
     id: string;
