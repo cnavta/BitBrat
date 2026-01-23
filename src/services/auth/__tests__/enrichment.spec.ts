@@ -20,6 +20,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async (id: string) => ({ id, email: 'a@b.c', displayName: 'Alice', roles: [] } as AuthUserDoc),
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-1', roles: [] } as any),
     };
     const evt = makeEvent({ correlationId: 'c-2', user: { id: 'u-1' } as any });
     const res = await enrichEvent(evt, repo, { now: fixedNow, provider: 'twitch' });
@@ -33,6 +35,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async (email: string) => ({ id: 'u-2', email, displayName: 'Bob', roles: [] } as AuthUserDoc),
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-2', roles: [] } as any),
     };
     const evt = makeEvent({ correlationId: 'c-3', user: { email: 'b@c.d' } as any });
     const res = await enrichEvent(evt, repo, { now: fixedNow });
@@ -46,6 +50,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
     };
     const evt = makeEvent({ correlationId: 'c-4' });
     const res = await enrichEvent(evt, repo, { now: fixedNow });
@@ -59,6 +65,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
       // @ts-ignore optional method for test
       ensureUserOnMessage: async () => ({ doc: createdDoc, created: true, isFirstMessage: true, isNewSession: true }),
     } as any;
@@ -77,6 +85,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
       ensureUserOnMessage: async (id, data) => ({
         doc: { id, ...data, roles: data.roles || [] } as any,
         created: true,
@@ -111,6 +121,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
       ensureUserOnMessage: async (id, data) => ({
         doc: { id, ...data, roles: data.roles || [] } as any,
         created: true,
@@ -154,6 +166,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
       ensureUserOnMessage: async (id, data) => ({
         doc: { id, ...data, roles: data.roles || [] } as any,
         created: true,
@@ -187,6 +201,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async (id: string) => ({ id, email: 'follow@twitch.tv', displayName: 'Follower', roles: [] } as AuthUserDoc),
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
     };
     const evt: any = {
       v: '1',
@@ -208,6 +224,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async (id: string) => ({ id, email: 'host@twitch.tv', displayName: 'TheHost', roles: [] } as AuthUserDoc),
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
     };
     const evt: any = {
       v: '1',
@@ -229,6 +247,8 @@ describe('enrichEvent()', () => {
     const repo: UserRepo = {
       getById: async () => null,
       getByEmail: async () => null,
+      searchUsers: async () => [],
+      updateUser: async () => ({ id: 'u-x', roles: [] } as any),
       ensureUserOnMessage: async (id, data) => ({
         doc: { id, ...data, roles: data.roles || [] } as any,
         created: true,

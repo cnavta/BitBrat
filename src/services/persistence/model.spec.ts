@@ -12,13 +12,13 @@ describe('persistence/model', () => {
       annotations: [{ id: 'a1', kind: 'intent', source: 'test', createdAt: new Date().toISOString() }],
       candidates: [],
       errors: [],
-      egressDestination: 'egress://default',
+      egress: { destination: 'egress://default' },
     } as any;
     const doc = normalizeIngressEvent(evt);
     expect(doc.correlationId).toBe('abc-123');
     expect(doc.type).toBe('chat.message.v1');
     expect(doc.message).toEqual(evt.message);
-    expect(doc.egressDestination).toBe('egress://default');
+    expect(doc.egress?.destination).toBe('egress://default');
     expect(doc.status).toBe('INGESTED');
     expect(typeof doc.ingestedAt).toBe('string');
     // Ingress metadata should be captured

@@ -48,6 +48,7 @@ export class IngressManager {
         traceId: uuidv4(),
         userId: userId,
         channel: frame.payload.channel || frame.payload.room, // Support both naming conventions
+        egress: { destination: 'api-gateway' },
         message: (type === 'chat.message' || type === 'chat.message.send') ? {
           id: frame.metadata?.id || uuidv4(),
           role: 'user',

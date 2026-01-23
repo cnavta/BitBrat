@@ -47,6 +47,7 @@ export class TwilioEnvelopeBuilder {
       correlationId,
       traceId,
       routingSlip: [],
+      egress: { destination: '' }, // populated by client
       type: 'chat.message.v1',
       channel: conversationSid,
       userId: author,

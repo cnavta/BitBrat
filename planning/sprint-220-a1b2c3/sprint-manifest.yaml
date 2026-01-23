@@ -1,0 +1,11 @@
+id: sprint-220-a1b2c3
+title: "Refactor Egress Type in Internal Event Envelope"
+goal: "Refactor EnvelopeV1 to use the descriptive Egress type instead of egressDestination string"
+owner: "Junie"
+createdAt: "2026-01-23T13:13:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-220-a1b2c3-egress-refactor"
+notes: |
+  Refactoring egressDestination string to Egress { destination: string; type?: 'chat' | 'dm' | 'event' } in EnvelopeV1.
+  This is a breaking change for types, but we'll aim for a smooth migration.

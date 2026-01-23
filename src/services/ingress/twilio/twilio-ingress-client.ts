@@ -317,7 +317,10 @@ export class TwilioIngressClient {
         
         // Inject egress destination if configured
         if (this.options.egressDestinationTopic) {
-          (evt as any).egressDestination = this.options.egressDestinationTopic;
+          evt.egress = {
+            destination: this.options.egressDestinationTopic,
+            type: 'chat'
+          };
         }
 
         await this.publisher.publish(evt);

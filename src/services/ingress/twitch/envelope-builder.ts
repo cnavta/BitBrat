@@ -71,6 +71,7 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
       correlationId,
       traceId,
       routingSlip: [],
+      egress: { destination: '' }, // populated by client
       type: 'chat.message.v1',
       channel,
       userId: msg.userId,

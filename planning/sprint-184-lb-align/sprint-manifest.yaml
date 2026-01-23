@@ -3,7 +3,7 @@ title: "Load Balancer Name Alignment"
 goal: "Align URL Map names between Terraform and BRAT CLI to avoid duplicate resource creation."
 owner: "@christophernavta"
 createdAt: "2025-12-30T13:55:00Z"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/85"
   branch: "feature/sprint-184-lb-align-names"

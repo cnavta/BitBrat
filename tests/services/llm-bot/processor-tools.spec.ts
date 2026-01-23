@@ -73,6 +73,7 @@ describe('Processor Tools', () => {
         { id: 'a1', kind: 'prompt', value: 'Use the tool', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routingSlip: [],
+      egress: { destination: 'test' },
       user: { id: 'u1', roles: ['admin'] },
     };
 
