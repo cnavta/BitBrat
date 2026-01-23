@@ -3,7 +3,7 @@ title: "Fix MCP Schema for Scheduler Service"
 goal: "Resolve 'array schema missing items' error in mcp:create_schedule tool by refining Zod schemas."
 owner: "Junie"
 createdAt: "2026-01-08T16:15:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-188-c9d0e1-fix-mcp-schema"
 notes: |

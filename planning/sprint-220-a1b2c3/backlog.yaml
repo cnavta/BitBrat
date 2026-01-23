@@ -1,0 +1,80 @@
+meta:
+  backlog_id: egress-refactor-backlog
+  updated_at: 2026-01-23
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-220-a1b2c3
+  start: 2026-01-23
+  end: 2026-02-06
+  wip_limit: 3
+  goal: "Refactor egressDestination to descriptive Egress type"
+
+items:
+  - id: BL-220-001
+    title: "Update Core Event Types"
+    priority: P0
+    status: in_progress
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "EnvelopeV1 uses egress: Egress instead of egressDestination"
+      - "InternalEventV2 reflects this change"
+    updated_at: 2026-01-23
+    log:
+      - at: 2026-01-23T13:13:00Z
+        note: "Drafted type changes in events.ts"
+
+  - id: BL-220-002
+    title: "Update Event Adapters"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-220-001]
+    acceptance:
+      - "toV1 and toV2 in adapters.ts correctly map egress object"
+    updated_at: 2026-01-23
+    log: []
+
+  - id: BL-220-003
+    title: "Update Ingress Clients (Twitch, Discord, Twilio)"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-220-001]
+    acceptance:
+      - "TwitchIrcClient sets egress.destination and egress.type"
+      - "TwitchEventSubClient sets egress.destination"
+      - "DiscordIngressClient sets egress.destination and egress.type"
+      - "TwilioIngressClient sets egress.destination and egress.type"
+    updated_at: 2026-01-23
+    log: []
+
+  - id: BL-220-004
+    title: "Update Ingress-Egress Service Delivery"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-220-003]
+    acceptance:
+      - "Subscription uses egress.destination for delivery"
+      - "Text extraction and finalization use new egress structure"
+    updated_at: 2026-01-23
+    log: []
+
+  - id: BL-220-005
+    title: "Fix Breaking Changes in Tests"
+    priority: P2
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-220-001, BL-220-004]
+    acceptance:
+      - "All core and service tests pass"
+      - "validate_deliverable.sh completes successfully"
+    updated_at: 2026-01-23
+    log: []

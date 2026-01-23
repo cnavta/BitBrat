@@ -3,7 +3,7 @@ title: "Investigate Twilio Websocket Events and Conversation Joining"
 goal: "Identify and fix why messageAdded and conversation events are missing in Twilio integration."
 owner: "Junie (Lead Implementor)"
 createdAt: "2025-12-29T16:20:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-180-b7a1e2-twilio-event-investigation"
 notes: |

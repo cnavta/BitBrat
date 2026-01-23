@@ -3,7 +3,7 @@ title: "LLM Prompt Logging"
 goal: "Implement Firestore logging for full LLM prompts and responses when enabled via feature flag."
 owner: "Junie"
 createdAt: "2025-12-22T10:52:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-157-8d2f3a-llm-prompt-logging"
 notes: |
