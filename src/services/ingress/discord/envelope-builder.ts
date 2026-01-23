@@ -20,7 +20,10 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
       correlationId,
       traceId,
       routingSlip: [],
-      egressDestination: opts?.egressDestination,
+      egress: { 
+        destination: opts?.egressDestination || '',
+        type: 'chat'
+      },
       type: 'chat.message.v1',
       channel: meta.channelId, // optional; for Discord, we use channel ID
       userId: meta.authorId,

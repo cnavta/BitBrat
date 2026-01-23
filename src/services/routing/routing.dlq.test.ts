@@ -4,7 +4,7 @@ import { InternalEventV1 } from '../../types/events';
 describe('dlq builder', () => {
   it('builds a router.deadletter.v1 event with slip summary', () => {
     const original: InternalEventV1 = {
-      envelope: { v: '1', source: 'ingress', correlationId: 'c-1', routingSlip: [
+      envelope: { v: '1', source: 'ingress', correlationId: 'c-1', egress: { destination: 'test' }, routingSlip: [
         { id: 'router', status: 'OK' },
         { id: 'llm-bot', status: 'PENDING' },
       ] },

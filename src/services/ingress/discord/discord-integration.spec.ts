@@ -99,7 +99,8 @@ describe('Discord – integration behavior (disabled mode and publish path)', ()
     expect(evt.source).toBe('ingress.discord');
     expect(evt.type).toBe('chat.message.v1');
     expect(evt.message?.text).toBe('Hello Discord');
-    expect(evt.egressDestination).toBe(egressDest);
+    expect(evt.egress?.destination).toBe(egressDest);
+    expect(evt.egress?.type).toBe('chat');
     // annotations include a custom entry with source=discord
     const hasDiscordAnno = Array.isArray(evt.annotations) && evt.annotations.some((a: any) => a?.source === 'discord' && a?.label === 'source');
     expect(hasDiscordAnno).toBe(true);

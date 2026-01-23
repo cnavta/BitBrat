@@ -110,12 +110,12 @@ describe('command-processor routing advancement', () => {
     expect(published[0].attrs.source).toBe('command-processor');
   });
 
-  it('publishes to egressDestination when no pending steps remain', async () => {
+  it('publishes to egress metadata when no pending steps remain', async () => {
     const slip = [
       { id: 'command-processor', status: 'OK' },
       { id: 'egress', status: 'OK' },
     ];
-    const v2 = makeBaseV2({ routingSlip: slip, egressDestination: 'internal.egress.v1.dev1' });
+    const v2 = makeBaseV2({ routingSlip: slip, egress: { destination: 'internal.egress.v1.dev1' } });
     (global as any).__PROCESS_RESULT = { action: 'produced', stepStatus: 'OK', event: v2 };
 
     const ack = jest.fn(async () => {});

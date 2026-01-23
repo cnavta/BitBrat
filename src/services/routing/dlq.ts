@@ -27,6 +27,7 @@ export function buildDlqEvent(params: {
       correlationId: original.envelope.correlationId,
       traceId: original.envelope.traceId,
       routingSlip: original.envelope.routingSlip,
+      egress: original.envelope.egress,
     },
     type: 'router.deadletter.v1',
     channel: original.channel,

@@ -59,7 +59,7 @@ export class PersistenceStore {
       // Carry forward annotations/candidates if provided by finalize payload
       annotations: update.annotations,
       candidates: update.candidates,
-      egress: {
+      egressResult: {
         destination: update.destination,
         deliveredAt: update.deliveredAt,
         providerMessageId: update.providerMessageId,

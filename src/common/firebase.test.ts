@@ -33,7 +33,7 @@ describe('common/firebase getFirestore()', () => {
 
     const admin = require('firebase-admin').default as { initializeApp: jest.Mock };
     expect(admin.initializeApp).toHaveBeenCalledTimes(1);
-    expect(fa.getFirestore).toHaveBeenCalledWith('twitch');
+    expect(fa.getFirestore).toHaveBeenCalledWith('(default)');
     expect(db1).toBe(db2);
     expect(db1.settings).toHaveBeenCalledWith({ ignoreUndefinedProperties: true });
   });

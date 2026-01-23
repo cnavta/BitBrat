@@ -80,7 +80,7 @@ class CommandProcessorServer extends BaseServer {
             // Preserve legacy logging: if no pending and no egress, log completion and do not dispatch
             const slip = (v2.routingSlip || []) as RoutingStep[];
             const hasPending = slip.findIndex((s: RoutingStep) => s.status !== 'OK' && s.status !== 'SKIP') >= 0;
-            if (!hasPending && !v2.egressDestination) {
+            if (!hasPending && !v2.egress?.destination) {
               logger.info('command_processor.advance.complete', { slip: summarizeSlip(slip) });
               await ctx.ack();
               return;
@@ -92,7 +92,7 @@ class CommandProcessorServer extends BaseServer {
 
             // Advance using BaseServer helper (optionally sets current step status, idempotency, attributes, tracing)
             await (this as any).next(v2, result.stepStatus);
-            logger.info('command_processor.advance.dispatched', { slip: summarizeSlip(slip), egress: v2.egressDestination });
+            logger.info('command_processor.advance.dispatched', { slip: summarizeSlip(slip), egress: v2.egress?.destination });
 
             await ctx.ack();
           } catch (e: any) {
