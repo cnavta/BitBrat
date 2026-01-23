@@ -70,7 +70,7 @@ describe('TwitchIrcClient integration scaffolding', () => {
     expect(snap.lastError?.message).toContain('bus down');
   });
 
-  it('injects egressDestination when missing and option provided', async () => {
+  it('injects egress metadata when missing and option provided', async () => {
     const client = new TwitchIrcClient(builder, publisher, ['chan'], { egressDestinationTopic: 'internal.egress.v1.inst1' });
     await client.start();
     const evt: any = { v: '1', source: 'ingress.twitch', correlationId: 'c', routingSlip: [], type: 'chat.message.v1', message: { id: 'm3', role: 'user', text: 'hi' } };
@@ -81,6 +81,7 @@ describe('TwitchIrcClient integration scaffolding', () => {
 
     expect(publisher.publish).toHaveBeenCalledTimes(1);
     const publishedEvt = (publisher.publish.mock.calls[0] as any[])[0];
-    expect(publishedEvt.egressDestination).toBe('internal.egress.v1.inst1');
+    expect(publishedEvt.egress.destination).toBe('internal.egress.v1.inst1');
+    expect(publishedEvt.egress.type).toBe('chat');
   });
 });

@@ -45,7 +45,7 @@ export interface EventDocV1 extends InternalEventV2 {
     metadata?: Record<string, any>;
   };
   /** Finalization/Egress metadata: where, when and how the response was delivered */
-  egress?: {
+  egressResult?: {
     destination?: string;
     deliveredAt?: string; // ISO8601
     providerMessageId?: string;

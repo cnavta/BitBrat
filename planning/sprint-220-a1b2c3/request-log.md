@@ -20,3 +20,18 @@
 - `planning/sprint-*/sprint-manifest.yaml` (force completed)
 - `planning/sprint-220-a1b2c3/sprint-manifest.yaml` (created)
 - `planning/sprint-220-a1b2c3/request-log.md` (created)
+
+## [2026-01-23T14:19:00Z]
+**Prompt summary:** Sprint complete.
+**Interpretation:** Finalize sprint deliverables and documentation for closure.
+**Shell/git commands:**
+- `git add .`
+- `git commit -m "feat(types): complete egress refactor sprint-220-a1b2c3"`
+- `gh pr create ...`
+**Files modified:**
+- All implementation and test files (see feature branch diff).
+- `planning/sprint-220-a1b2c3/verification-report.md`
+- `planning/sprint-220-a1b2c3/retro.md`
+- `planning/sprint-220-a1b2c3/key-learnings.md`
+- `planning/sprint-220-a1b2c3/sprint-manifest.yaml` (status: complete)
+- `planning/sprint-220-a1b2c3/backlog.yaml` (all items: done)

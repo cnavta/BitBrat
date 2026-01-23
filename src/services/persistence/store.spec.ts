@@ -43,7 +43,7 @@ describe('PersistenceStore', () => {
     });
     const setCall = db.__fns.set.mock.calls[0];
     expect(setCall[1]).toEqual({ merge: true });
-    expect(setCall[0]).toMatchObject({ status: 'FINALIZED', egress: { status: 'SENT', destination: 'egress://default' } });
+    expect(setCall[0]).toMatchObject({ status: 'FINALIZED', egressResult: { status: 'SENT', destination: 'egress://default' } });
     // TTL should be 7 days after deliveredAt
     const expected = new Date('2024-01-01T00:00:00Z');
     expected.setUTCDate(expected.getUTCDate() + 7);

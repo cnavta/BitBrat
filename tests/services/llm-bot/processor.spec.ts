@@ -55,6 +55,7 @@ describe('Processor', () => {
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routingSlip: [],
+      egress: { destination: 'test' },
       channel: 'test',
       user: { id: 'u1' },
     };
@@ -75,6 +76,7 @@ describe('Processor', () => {
       v: '1',
       annotations: [],
       routingSlip: [],
+      egress: { destination: 'test' },
     };
 
     const result = await processEvent(mockServer as BaseServer, evt);
@@ -95,6 +97,7 @@ describe('Processor', () => {
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routingSlip: [],
+      egress: { destination: 'test' },
     };
 
     const result = await processEvent(mockServer as BaseServer, evt);

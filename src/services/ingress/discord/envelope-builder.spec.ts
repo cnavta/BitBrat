@@ -8,7 +8,7 @@ describe('DiscordEnvelopeBuilder', () => {
   let idx = 0;
   const uuid = () => uuidSeq[idx++ % uuidSeq.length];
 
-  it('maps Discord message meta to InternalEventV2 with annotations and egressDestination', () => {
+  it('maps Discord message meta to InternalEventV2 with annotations and egress metadata', () => {
     const meta: DiscordMessageMeta = {
       guildId: 'g1',
       channelId: 'c1',
@@ -30,7 +30,8 @@ describe('DiscordEnvelopeBuilder', () => {
     expect(evt.type).toBe('chat.message.v1');
     expect(evt.channel).toBe('c1');
     expect(evt.userId).toBe('u42');
-    expect(evt.egressDestination).toBe('internal.egress.v1.proc123');
+    expect(evt.egress?.destination).toBe('internal.egress.v1.proc123');
+    expect(evt.egress?.type).toBe('chat');
     expect(evt.message?.id).toBe('m1');
     expect(evt.message?.role).toBe('user');
     expect(evt.message?.text).toBe('Hello from Discord');
