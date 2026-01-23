@@ -1,0 +1,95 @@
+meta:
+  backlog_id: sprint-221-a3b4c5-backlog
+  updated_at: 2026-01-23
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-221-a3b4c5
+  start: 2026-01-23
+  end: 2026-02-06
+  wip_limit: 3
+  goal: "Implement Twitch DM (Whisper) support using Helix API"
+
+items:
+  - id: BL-001
+    title: "Update event envelope types for Egress support"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "EnvelopeV1 contains egress object"
+      - "Egress interface defines destination and type"
+      - "Project compiles with new types"
+    updated_at: 2026-01-23
+    log:
+      - at: 2026-01-23T15:30:00Z
+        note: "Verified that egress property was already added to core event scope in a previous sprint."
+
+  - id: BL-002
+    title: "Implement sendWhisper in TwitchIrcClient"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "TwitchIrcClient has sendWhisper method"
+      - "Uses Twitch Helix API via twurple"
+      - "Correctly uses bot userId and target recipient userId"
+    updated_at: 2026-01-23
+    log:
+      - at: 2026-01-23T15:45:00Z
+        note: "Implemented sendWhisper and initialized helix ApiClient in TwitchIrcClient. Added unit tests."
+
+  - id: BL-003
+    title: "Update ingress-egress service routing for DMs"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "ingress-egress service branches on egress.type === 'dm'"
+      - "Calls sendWhisper for Twitch DMs"
+      - "Maintains legacy behavior for chat messages"
+    updated_at: 2026-01-23
+    log:
+      - at: 2026-01-23T15:55:00Z
+        note: "Updated ingress-egress-service.ts to branch on egress.type. Integrated sendWhisper call."
+
+  - id: BL-004
+    title: "Implement Whisper error handling and finalization"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-003]
+    blocked_reason: null
+    acceptance:
+      - "Twitch whisper failures are caught and logged"
+      - "Success/Failure reported to internal.persistence.finalize.v1"
+    updated_at: 2026-01-23
+    log:
+      - at: 2026-01-23T15:55:00Z
+        note: "Leveraged existing try-catch and publishFinalize logic in ingress-egress-service.ts for whispers."
+
+  - id: BL-005
+    title: "Sprint Validation & Tests"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-004]
+    blocked_reason: null
+    acceptance:
+      - "Unit tests for whisper delivery exist and pass"
+      - "validate_deliverable.sh passes"
+    updated_at: 2026-01-23
+    log:
+      - at: 2026-01-23T16:05:00Z
+        note: "Verified build and tests. Created verification report, retro, and key learnings."
