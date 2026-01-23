@@ -35,6 +35,8 @@ export interface ITwitchIrcClient {
   stop(): Promise<void>;
   /** Send a text message to a channel via IRC (egress helper). */
   sendText(text: string, channel?: string): Promise<void>;
+  /** Send a whisper (DM) to a user via Helix API. */
+  sendWhisper(text: string, userId: string): Promise<void>;
 }
 
 /**
@@ -65,6 +67,11 @@ class NoopTwitchIrcClient implements ITwitchIrcClient {
     // no-op in tests/disabled mode
     return;
   }
+
+  async sendWhisper(_text: string, _userId: string): Promise<void> {
+    // no-op in tests/disabled mode
+    return;
+  }
 }
 
 /**
@@ -72,6 +79,7 @@ class NoopTwitchIrcClient implements ITwitchIrcClient {
  */
 export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcClient {
   private chat: any | null = null;
+  private helix: any | null = null;
   private disconnecting = false;
   private readonly cfg?: IConfig;
   private readonly credentialsProvider?: ITwitchCredentialsProvider;
@@ -123,11 +131,14 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
 
     // Attempt to load Twurple Chat/Auth dynamically to avoid hard coupling in tests
     let ChatClient: any;
+    let ApiClient: any;
     let StaticAuthProvider: any;
     let RefreshingAuthProvider: any;
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       ChatClient = require('@twurple/chat').ChatClient;
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      ApiClient = require('@twurple/api').ApiClient;
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       StaticAuthProvider = require('@twurple/auth').StaticAuthProvider;
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -211,13 +222,24 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     this.snapshot.state = 'CONNECTING';
     this.disconnecting = false;
 
-    // Construct chat client
-    this.chat = new ChatClient({
-      authProvider,
-      channels: normalized,
-      requestMembershipEvents: true,
-      // Twurple auto-reconnects by default, but keep defaults. We monitor events below.
-    });
+    try {
+      // Construct chat client
+      this.chat = new ChatClient({
+        authProvider,
+        channels: normalized,
+        requestMembershipEvents: true,
+        // Twurple auto-reconnects by default, but keep defaults. We monitor events below.
+      });
+
+      if (ApiClient) {
+        this.helix = new ApiClient({ authProvider });
+      }
+    } catch (e: any) {
+      logger.error('Twitch client initialization error', e);
+      this.snapshot.state = 'ERROR';
+      this.snapshot.lastError = { message: e?.message || String(e) };
+      throw e;
+    }
 
     // Wire events
     this.chat.onConnect(() => {
@@ -300,6 +322,36 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     } else {
       // No live connection (tests/disabled). Treat as no-op.
       logger.debug('twitch.egress.noop', { channel: target, reason: 'chat_not_connected' });
+    }
+  }
+
+  /**
+   * Send a whisper (DM) to a user via Helix API.
+   * Requires 'user:manage:whispers' scope.
+   */
+  async sendWhisper(text: string, userId: string): Promise<void> {
+    if (!text || !text.trim()) return;
+    if (!userId) {
+      logger.warn('twitch.whisper.no_userId', { text });
+      return;
+    }
+
+    if (this.helix) {
+      try {
+        const fromUserId = this.snapshot.userId;
+        if (!fromUserId) {
+          throw new Error('bot_user_id_unknown');
+        }
+        // Twitch Helix Whisper API: POST /whispers?from_user_id=...&to_user_id=...
+        // Twurple: helix.whispers.sendWhisper(from, to, text)
+        await this.helix.whispers.sendWhisper(fromUserId, userId, text);
+        logger.info('twitch.whisper.sent', { to: userId });
+      } catch (e: any) {
+        logger.error('twitch.whisper.error', { to: userId, error: e?.message || String(e) });
+        throw e;
+      }
+    } else {
+      logger.debug('twitch.whisper.noop', { to: userId, reason: 'helix_not_connected' });
     }
   }
 
