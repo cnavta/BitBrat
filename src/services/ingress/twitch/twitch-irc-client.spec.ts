@@ -84,4 +84,56 @@ describe('TwitchIrcClient integration scaffolding', () => {
     expect(publishedEvt.egress.destination).toBe('internal.egress.v1.inst1');
     expect(publishedEvt.egress.type).toBe('chat');
   });
+
+  describe('sendWhisper', () => {
+    it('sends whisper via helix client when connected', async () => {
+      const client = new TwitchIrcClient(builder, publisher, ['chan']);
+      await client.start();
+      
+      // Mock snapshot userId (usually set from credentials provider)
+      (client as any).snapshot.userId = 'bot123';
+      
+      const mockHelix = {
+        whispers: {
+          sendWhisper: jest.fn().mockResolvedValue(undefined),
+        }
+      };
+      (client as any).helix = mockHelix;
+
+      await client.sendWhisper('hello whisper', 'user456');
+
+      expect(mockHelix.whispers.sendWhisper).toHaveBeenCalledWith('bot123', 'user456', 'hello whisper');
+    });
+
+    it('throws error if bot userId is unknown', async () => {
+      const client = new TwitchIrcClient(builder, publisher, ['chan']);
+      await client.start();
+      
+      const mockHelix = {
+        whispers: {
+          sendWhisper: jest.fn(),
+        }
+      };
+      (client as any).helix = mockHelix;
+
+      await expect(client.sendWhisper('hi', 'u1')).rejects.toThrow('bot_user_id_unknown');
+    });
+
+    it('logs warning and does nothing if text or userId is missing', async () => {
+      const client = new TwitchIrcClient(builder, publisher, ['chan']);
+      await client.start();
+      
+      const mockHelix = {
+        whispers: {
+          sendWhisper: jest.fn(),
+        }
+      };
+      (client as any).helix = mockHelix;
+
+      await client.sendWhisper('', 'u1');
+      await client.sendWhisper('hi', '');
+
+      expect(mockHelix.whispers.sendWhisper).not.toHaveBeenCalled();
+    });
+  });
 });

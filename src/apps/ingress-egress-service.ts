@@ -302,7 +302,18 @@ export class IngressEgressServer extends BaseServer {
                     }
                   } else {
                     // Default to Twitch (matches legacy behavior)
-                    await this.twitchClient!.sendText(text, evt.channel);
+                    const egressType = evt?.egress?.type || evt?.envelope?.egress?.type || 'chat';
+                    const targetUserId = evt?.userId || evt?.envelope?.userId;
+                    
+                    if (egressType === 'dm' && targetUserId) {
+                      logger.info('ingress-egress.egress.routing_to_whisper', { correlationId, targetUserId });
+                      await this.twitchClient!.sendWhisper(text, targetUserId);
+                    } else {
+                      if (egressType === 'dm' && !targetUserId) {
+                        logger.warn('ingress-egress.egress.dm_requested_but_no_userId', { correlationId });
+                      }
+                      await this.twitchClient!.sendText(text, evt.channel);
+                    }
                   }
                   logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio });
                   await publishFinalize('SENT');
