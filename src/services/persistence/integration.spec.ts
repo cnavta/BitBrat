@@ -78,7 +78,7 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     expect(ack).toHaveBeenCalled();
     const call = firestore.__fns.set.mock.calls[firestore.__fns.set.mock.calls.length - 1];
     expect(call[1]).toEqual({ merge: true });
-    expect(call[0]).toMatchObject({ status: 'FINALIZED', egress: { status: 'SENT', destination: 'egress://default' } });
+    expect(call[0]).toMatchObject({ status: 'FINALIZED', egressResult: { status: 'SENT', destination: 'egress://default' } });
     // TTL should be 7 days after deliveredAt
     const expected = new Date('2024-01-01T00:00:00Z');
     expected.setUTCDate(expected.getUTCDate() + 7);

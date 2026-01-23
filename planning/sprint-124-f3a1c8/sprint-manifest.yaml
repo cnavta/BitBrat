@@ -3,7 +3,7 @@ title: "Enforce --env requirement in brat CLI"
 goal: "Prevent accidental deployments using an unintended environment by requiring env to be specified for brat commands that depend on it."
 owner: "Junie (LLM)"
 createdAt: "2025-12-10T14:34:00-05:00"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/26"
   branch: "feature/sprint-124-f3a1c8-require-env-flag"

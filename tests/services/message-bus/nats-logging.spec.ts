@@ -1,8 +1,9 @@
 jest.mock('nats', () => {
   const publish = jest.fn().mockResolvedValue({ seq: 1 });
   const jetstream = jest.fn(() => ({ publish }));
+  const jetstreamManager = jest.fn().mockResolvedValue({ streams: { add: jest.fn(), find: jest.fn() } });
   const flush = jest.fn().mockResolvedValue(undefined);
-  const connect = jest.fn().mockResolvedValue({ jetstream, flush });
+  const connect = jest.fn().mockResolvedValue({ jetstream, flush, jetstreamManager });
   const headers = jest.fn(() => ({ set: jest.fn() }));
   const StringCodec = () => ({ encode: (s: string) => Buffer.from(s) });
   const consumerOpts = jest.fn(() => ({ durable: jest.fn(), manualAck: jest.fn(), ackExplicit: jest.fn(), maxAckPending: jest.fn(), deliverTo: jest.fn() }));

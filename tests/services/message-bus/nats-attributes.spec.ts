@@ -1,8 +1,9 @@
 jest.mock('nats', () => {
   const publish = jest.fn().mockResolvedValue({ seq: 42 });
   const jetstream = jest.fn(() => ({ publish }));
+  const jetstreamManager = jest.fn().mockResolvedValue({ streams: { add: jest.fn(), find: jest.fn() } });
   const flush = jest.fn().mockResolvedValue(undefined);
-  const connect = jest.fn().mockResolvedValue({ jetstream, flush });
+  const connect = jest.fn().mockResolvedValue({ jetstream, flush, jetstreamManager });
   const hdrStore: Record<string, string> = {};
   const headers = jest.fn(() => ({
     set: (k: string, v: string) => {

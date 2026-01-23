@@ -35,6 +35,7 @@ describe('egress selection', () => {
       source: 'test',
       correlationId: 'corr-1',
       type: 'egress.deliver.v1',
+      egress: { destination: 'test' },
       message: { id: 'm1', role: 'assistant', text: 'ignored' },
       candidates: [
         { id: 'x', kind: 'text', source: 'svc', createdAt: '2025-01-01T00:00:00Z', status: 'proposed', priority: 1, text: 'hello world' },

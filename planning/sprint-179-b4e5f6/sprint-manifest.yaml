@@ -3,7 +3,7 @@ title: "Twilio SMS Integration"
 goal: "Add Twilio-node based SMS integration to ingress-egress service using WebSockets for receiving and Twilio APIs for sending."
 owner: "Junie"
 createdAt: "2025-12-28T00:53:00Z"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/79"
   branch: "feature/sprint-179-b4e5f6-twilio-sms-integration"

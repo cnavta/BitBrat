@@ -3,7 +3,7 @@ title: "Load Balancer HTTPS Configuration"
 goal: "Configure the External Global Load Balancer to use HTTPS with existing certificate and IP, and enable HTTP to HTTPS redirect."
 owner: "Junie"
 createdAt: "2025-12-30T13:35:00Z"
-status: "in-progress"
+status: "complete"
 links:
   branch: "feature/sprint-183-lb-https-config"
 notes: |

@@ -41,7 +41,8 @@ describe('events.ts (Sprint 77 contracts)', () => {
         routingSlip: [
           { id: 'router', status: 'OK' },
           { id: 'llm-bot', status: 'PENDING', nextTopic: INTERNAL_BOT_REQUESTS_V1 }
-        ]
+        ],
+        egress: { destination: 'egress.twitch' }
       },
       type: 'chat.message.v1',
       payload: { channel: '#bitbrat', text: 'Hello' }
