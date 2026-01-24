@@ -1,0 +1,11 @@
+id: sprint-222-b6c5d4
+title: "Admin Service MCP Tool - API Token Creation"
+goal: "Implement an MCP tool in the admin service to create API tokens for users and publish corresponding events."
+owner: "Lead Implementor (Junie)"
+createdAt: "2026-01-23T21:45:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-222-b6c5d4-admin-mcp-token"
+notes: |
+  Adding MCP tool to admin service.
+  Tool logic: create API token for userId, publish event with token and doc values.

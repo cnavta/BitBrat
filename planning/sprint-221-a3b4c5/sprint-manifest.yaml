@@ -3,8 +3,9 @@ title: "Twitch DM (Whisper) Support"
 goal: "Add the ability to send Twitch DMs (whispers) using the new egress.type property."
 owner: "Architect (Junie)"
 createdAt: "2026-01-23T15:15:00Z"
-status: "in-progress"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/134"
   branch: "feature/sprint-221-a3b4c5-twitch-dm-whispers"
 notes: |
   Integrating with Twitch API to support 'dm' egress type.
