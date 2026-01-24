@@ -56,7 +56,7 @@ items:
   - id: BL-004
     title: "Verification & PR"
     priority: P2
-    status: in_progress
+    status: done
     effort: S
     owner: agent
     deps: [BL-001, BL-002, BL-003]
