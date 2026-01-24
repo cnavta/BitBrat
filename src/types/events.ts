@@ -17,6 +17,7 @@ export type InternalEventType =
   | 'system.source.status'
   | 'system.stream.online'
   | 'system.stream.offline'
+  | 'token.created.v1'
   | string;
 
 export type RoutingStatus = 'PENDING' | 'OK' | 'ERROR' | 'SKIP';

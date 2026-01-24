@@ -11,7 +11,7 @@ export interface EnvGetOptions<T> {
   parser?: EnvParser<T>;
 }
 import { buildConfig, safeConfig } from './config';
-import { Logger } from './logging';
+import {logger, Logger} from './logging';
 import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
@@ -333,6 +333,7 @@ export class BaseServer {
     // Avoid initializing Firestore in Jest/CI test runs to prevent lingering async handles
     const isJest = Boolean((global as any).jest || process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test');
     if (!isJest) {
+      logger.debug('base_server.resources.firestore.init');
       defaults.firestore = new FirestoreManager();
     }
     // Merge: overrides replace defaults by key and can add new keys
