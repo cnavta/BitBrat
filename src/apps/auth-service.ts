@@ -355,7 +355,9 @@ export class AuthServer extends McpServer {
           token_hash: hash,
         };
 
+        logger.debug('auth.token.persist.start', {tokenDoc})
         await db.collection('gateways/api/tokens').doc(hash).set(tokenDoc);
+        logger.debug('auth.token.persist.end');
 
         // 3. Publish event
         const correlationId = `token-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
