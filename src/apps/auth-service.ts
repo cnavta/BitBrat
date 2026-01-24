@@ -12,11 +12,12 @@ import { busAttrsFromEvent } from '../common/events/attributes';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { Firestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-class AuthServer extends McpServer {
+export class AuthServer extends McpServer {
   private userRepo?: FirestoreUserRepo;
 
   constructor() {
@@ -133,6 +134,25 @@ class AuthServer extends McpServer {
       async (args) => {
         let userId = args.userId;
 
+        // Remediation: if userId is provided in 'platform:displayName' format (common with llm-bot),
+        // we treat it as a displayName lookup if getById fails.
+        if (userId && userId.includes(':')) {
+          const user = await this.userRepo!.getById(userId).catch(() => null);
+          if (!user) {
+            const parts = userId.split(':');
+            if (parts.length === 2 && isNaN(Number(parts[1]))) {
+              // It's likely platform:displayName
+              const platform = parts[0];
+              const displayName = parts[1];
+              const matches = await this.userRepo!.searchUsers({ displayName });
+              const filtered = matches.filter(m => m.id.startsWith(`${platform}:`));
+              if (filtered.length === 1) {
+                userId = filtered[0].id;
+              }
+            }
+          }
+        }
+
         if (!userId && (args.displayName || args.email)) {
           const matches = await this.userRepo!.searchUsers({
             displayName: args.displayName,
@@ -188,6 +208,25 @@ class AuthServer extends McpServer {
       }),
       async (args) => {
         let userId = args.userId;
+
+        // Remediation: if userId is provided in 'platform:displayName' format (common with llm-bot),
+        // we treat it as a displayName lookup if getById fails.
+        if (userId && userId.includes(':')) {
+          const user = await this.userRepo!.getById(userId).catch(() => null);
+          if (!user) {
+            const parts = userId.split(':');
+            if (parts.length === 2 && isNaN(Number(parts[1]))) {
+              // It's likely platform:displayName
+              const platform = parts[0];
+              const displayName = parts[1];
+              const matches = await this.userRepo!.searchUsers({ displayName });
+              const filtered = matches.filter(m => m.id.startsWith(`${platform}:`));
+              if (filtered.length === 1) {
+                userId = filtered[0].id;
+              }
+            }
+          }
+        }
 
         if (!userId && args.displayName) {
           const matches = await this.userRepo!.searchUsers({ displayName: args.displayName });
@@ -245,6 +284,117 @@ class AuthServer extends McpServer {
 
         return {
           content: [{ type: 'text', text: `User ${user.displayName || user.id} has been banned. Reason: ${args.reason}` }],
+        };
+      }
+    );
+
+    this.registerTool(
+      'create_api_token',
+      'Create an API token for a user. This returns the raw token to be shared with the user and stores the hash for validation.',
+      z.object({
+        userId: z.string().optional().describe('The internal user ID (e.g. twitch:12345)'),
+        displayName: z.string().optional().describe('The user display name for lookup'),
+      }),
+      async (args) => {
+        let userId = args.userId;
+
+        // Remediation: if userId is provided in 'platform:displayName' format (common with llm-bot),
+        // we treat it as a displayName lookup if getById fails.
+        if (userId && userId.includes(':')) {
+          const user = await this.userRepo!.getById(userId).catch(() => null);
+          if (!user) {
+            const parts = userId.split(':');
+            if (parts.length === 2 && isNaN(Number(parts[1]))) {
+              // It's likely platform:displayName
+              const platform = parts[0];
+              const displayName = parts[1];
+              const matches = await this.userRepo!.searchUsers({ displayName });
+              const filtered = matches.filter(m => m.id.startsWith(`${platform}:`));
+              if (filtered.length === 1) {
+                userId = filtered[0].id;
+              }
+            }
+          }
+        }
+
+        if (!userId && args.displayName) {
+          const matches = await this.userRepo!.searchUsers({ displayName: args.displayName });
+          if (matches.length === 0) {
+            return { content: [{ type: 'text', text: 'User not found.' }], isError: true };
+          }
+          if (matches.length > 1) {
+            return { content: [{ type: 'text', text: `Multiple users found with name ${args.displayName}.` }], isError: true };
+          }
+          userId = matches[0].id;
+        }
+
+        if (!userId) {
+          return { content: [{ type: 'text', text: 'Missing userId or displayName.' }], isError: true };
+        }
+
+        logger.debug('auth.userId.lookup', { userId, displayName: args.displayName });
+        const user = await this.userRepo!.getById(userId);
+        if (!user) {
+          return { content: [{ type: 'text', text: 'User not found.' }], isError: true };
+        }
+
+        // 1. Generate token
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+        // 2. Store in Firestore
+        const db = this.getResource<Firestore>('firestore');
+        if (!db) {
+          return { content: [{ type: 'text', text: 'Firestore resource not available.' }], isError: true };
+        }
+
+        const now = new Date();
+        const tokenDoc = {
+          user_id: userId,
+          created_at: now,
+          token_hash: hash,
+        };
+
+        logger.debug('auth.token.persist.start', {tokenDoc})
+        await db.collection('gateways/api/tokens').doc(hash).set(tokenDoc);
+        logger.debug('auth.token.persist.end');
+
+        // 3. Publish event
+        const correlationId = `token-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const event: InternalEventV2 = {
+          v: '1',
+          source: SERVICE_NAME,
+          correlationId,
+          type: 'token.created.v1',
+          userId,
+          payload: {
+            user_id: userId,
+            created_at: now.toISOString(),
+            token_hash: hash,
+            raw_token: rawToken,
+          },
+          egress: { destination: 'system' }
+        };
+
+        const cfg: any = this.getConfig();
+        const prefix = cfg.busPrefix || '';
+        const subject = `${prefix}internal.ingress.v1`;
+        const pubRes = this.getResource<PublisherResource>('publisher');
+        const publisher = pubRes ? pubRes.create(subject) : createMessagePublisher(subject);
+
+        await publisher.publishJson(event, {
+          type: 'token.created.v1',
+          correlationId,
+          source: SERVICE_NAME,
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `API token created for ${user.displayName || user.id}.\n\nIt will be sent to the user via a DM.`,
+            },
+          ],
         };
       }
     );
