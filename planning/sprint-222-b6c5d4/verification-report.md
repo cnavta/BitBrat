@@ -5,6 +5,7 @@
 - [x] Token persistence logic (SHA-256 hashing + Firestore storage in `gateways/api/tokens`).
 - [x] Event publishing (`token.created.v1`) to `internal.ingress.v1`.
 - [x] Unit tests for the new tool in `tests/apps/auth-service.spec.ts`.
+- [x] Remediation of `userId` lookup for `llm-bot` behavior (platform:displayName format).
 - [x] `validate_deliverable.sh` script created and passed.
 
 ## Partial
