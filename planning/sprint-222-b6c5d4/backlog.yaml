@@ -1,0 +1,67 @@
+meta:
+  backlog_id: sprint-222-b6c5d4
+  updated_at: 2026-01-23
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-222-b6c5d4
+  start: 2026-01-23
+  goal: "Add API token creation MCP tool to admin service"
+
+items:
+  - id: BL-001
+    title: "Implement create_api_token MCP tool"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "Tool registered in AuthServer"
+      - "Tool accepts userId"
+      - "Tool returns raw token"
+    updated_at: 2026-01-23
+    log:
+      - at: 2026-01-23T21:50:00Z
+        note: "Starting implementation."
+      - at: 2026-01-23T21:55:00Z
+        note: "Implementation completed."
+
+  - id: BL-002
+    title: "Token persistence logic"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    acceptance:
+      - "Hashes token using SHA-256"
+      - "Stores hash in gateways/api/tokens"
+    updated_at: 2026-01-23
+    log: []
+
+  - id: BL-003
+    title: "Publish token.created.v1 event"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    acceptance:
+      - "Event published to internal.ingress.v1 (or dedicated topic)"
+      - "Event contains raw token and document values"
+    updated_at: 2026-01-23
+    log: []
+
+  - id: BL-004
+    title: "Verification & PR"
+    priority: P2
+    status: in_progress
+    effort: S
+    owner: agent
+    deps: [BL-001, BL-002, BL-003]
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "PR created"
+    updated_at: 2026-01-23
+    log: []
