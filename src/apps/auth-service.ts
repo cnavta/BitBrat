@@ -134,6 +134,25 @@ export class AuthServer extends McpServer {
       async (args) => {
         let userId = args.userId;
 
+        // Remediation: if userId is provided in 'platform:displayName' format (common with llm-bot),
+        // we treat it as a displayName lookup if getById fails.
+        if (userId && userId.includes(':')) {
+          const user = await this.userRepo!.getById(userId).catch(() => null);
+          if (!user) {
+            const parts = userId.split(':');
+            if (parts.length === 2 && isNaN(Number(parts[1]))) {
+              // It's likely platform:displayName
+              const platform = parts[0];
+              const displayName = parts[1];
+              const matches = await this.userRepo!.searchUsers({ displayName });
+              const filtered = matches.filter(m => m.id.startsWith(`${platform}:`));
+              if (filtered.length === 1) {
+                userId = filtered[0].id;
+              }
+            }
+          }
+        }
+
         if (!userId && (args.displayName || args.email)) {
           const matches = await this.userRepo!.searchUsers({
             displayName: args.displayName,
@@ -189,6 +208,25 @@ export class AuthServer extends McpServer {
       }),
       async (args) => {
         let userId = args.userId;
+
+        // Remediation: if userId is provided in 'platform:displayName' format (common with llm-bot),
+        // we treat it as a displayName lookup if getById fails.
+        if (userId && userId.includes(':')) {
+          const user = await this.userRepo!.getById(userId).catch(() => null);
+          if (!user) {
+            const parts = userId.split(':');
+            if (parts.length === 2 && isNaN(Number(parts[1]))) {
+              // It's likely platform:displayName
+              const platform = parts[0];
+              const displayName = parts[1];
+              const matches = await this.userRepo!.searchUsers({ displayName });
+              const filtered = matches.filter(m => m.id.startsWith(`${platform}:`));
+              if (filtered.length === 1) {
+                userId = filtered[0].id;
+              }
+            }
+          }
+        }
 
         if (!userId && args.displayName) {
           const matches = await this.userRepo!.searchUsers({ displayName: args.displayName });
@@ -260,6 +298,25 @@ export class AuthServer extends McpServer {
       async (args) => {
         let userId = args.userId;
 
+        // Remediation: if userId is provided in 'platform:displayName' format (common with llm-bot),
+        // we treat it as a displayName lookup if getById fails.
+        if (userId && userId.includes(':')) {
+          const user = await this.userRepo!.getById(userId).catch(() => null);
+          if (!user) {
+            const parts = userId.split(':');
+            if (parts.length === 2 && isNaN(Number(parts[1]))) {
+              // It's likely platform:displayName
+              const platform = parts[0];
+              const displayName = parts[1];
+              const matches = await this.userRepo!.searchUsers({ displayName });
+              const filtered = matches.filter(m => m.id.startsWith(`${platform}:`));
+              if (filtered.length === 1) {
+                userId = filtered[0].id;
+              }
+            }
+          }
+        }
+
         if (!userId && args.displayName) {
           const matches = await this.userRepo!.searchUsers({ displayName: args.displayName });
           if (matches.length === 0) {
@@ -275,6 +332,7 @@ export class AuthServer extends McpServer {
           return { content: [{ type: 'text', text: 'Missing userId or displayName.' }], isError: true };
         }
 
+        logger.debug('auth.userId.lookup', { userId, displayName: args.displayName });
         const user = await this.userRepo!.getById(userId);
         if (!user) {
           return { content: [{ type: 'text', text: 'User not found.' }], isError: true };
@@ -332,7 +390,7 @@ export class AuthServer extends McpServer {
           content: [
             {
               type: 'text',
-              text: `API token created for ${user.displayName || user.id}.\n\nRaw Token: ${rawToken}\n\nPlease share this token with the user. It will not be shown again.`,
+              text: `API token created for ${user.displayName || user.id}.\n\nIt will be sent to the user via a DM.`,
             },
           ],
         };

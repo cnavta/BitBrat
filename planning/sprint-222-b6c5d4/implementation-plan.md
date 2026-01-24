@@ -22,6 +22,7 @@
 ## Acceptance Criteria
 - `create_api_token` tool is registered and visible via MCP discovery.
 - Calling the tool with a valid `userId` creates a document in `gateways/api/tokens` with hashed token.
+- The tool successfully resolves `userId` even if it is provided as `platform:displayName` (remediation for llm-bot behavior).
 - The tool returns the raw token to the caller (admin/LLM).
 - A `token.created.v1` event is published with the raw token and document metadata.
 - Validation script passes.

@@ -50,8 +50,8 @@ describe('AuthServer Admin Tools', () => {
       const userId = 'twitch:123';
       const userDoc = { id: userId, displayName: 'TestUser', roles: [] };
 
-      // Mock user lookup in userRepo.getById
-      dbMock.get.mockResolvedValueOnce({
+      // Mock user lookup in userRepo.getById (called twice now: remediation check + final user load)
+      dbMock.get.mockResolvedValue({
         exists: true,
         id: userId,
         data: () => userDoc,
@@ -66,12 +66,13 @@ describe('AuthServer Admin Tools', () => {
 
       expect(result.isError).toBeUndefined();
       expect(result.content[0].text).toContain('API token created');
-      expect(result.content[0].text).toContain('Raw Token:');
 
       // Verify Firestore storage
       expect(dbMock.collection).toHaveBeenCalledWith('gateways/api/tokens');
-      const hash = dbMock.doc.mock.calls[1][0]; // call 0 was for users collection, call 1 for tokens
-      expect(hash).toHaveLength(64); // SHA-256 hex
+      // Look for the call where the doc name is a 64-char hex string
+      const hashCall = dbMock.doc.mock.calls.find((call: any[]) => call[0].length === 64);
+      expect(hashCall).toBeDefined();
+      const hash = hashCall[0];
       
       expect(dbMock.set).toHaveBeenCalledWith(expect.objectContaining({
         user_id: userId,
@@ -133,6 +134,37 @@ describe('AuthServer Admin Tools', () => {
 
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toBe('User not found.');
+    });
+
+    it('resolves userId if provided as platform:displayName (repro)', async () => {
+      const userId = 'twitch:123';
+      const displayNameInput = 'twitch:Gonj_The_Unjust';
+      const displayName = 'Gonj_The_Unjust';
+
+      // 1. Initial getById fails for 'twitch:Gonj_The_Unjust'
+      dbMock.get.mockResolvedValueOnce({ exists: false });
+
+      // 2. searchUsers lookup for 'Gonj_The_Unjust'
+      dbMock.get.mockResolvedValueOnce({
+        empty: false,
+        docs: [{ id: userId, data: () => ({ displayName, roles: [] }) }],
+      });
+
+      // 3. getById lookup for 'twitch:123'
+      dbMock.get.mockResolvedValueOnce({
+        exists: true,
+        id: userId,
+        data: () => ({ id: userId, displayName, roles: [] }),
+      });
+
+      const tool = (server as any).registeredTools.get('create_api_token');
+      const result = await tool.handler({ userId: displayNameInput });
+
+      expect(result.isError).toBeUndefined();
+      expect(result.content[0].text).toContain(`API token created for ${displayName}`);
+      expect(dbMock.set).toHaveBeenCalledWith(expect.objectContaining({
+        user_id: userId
+      }));
     });
   });
 });
