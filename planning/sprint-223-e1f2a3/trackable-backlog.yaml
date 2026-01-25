@@ -111,3 +111,5 @@ items:
     log:
       - at: 2026-01-25T12:35:00Z
         note: "Completed final validation. All tests passing. Verification and Retro documents created."
+      - at: 2026-01-25T17:28:00Z
+        note: "Fixed regression in rule-loader-annotations.spec.ts after schema update."
