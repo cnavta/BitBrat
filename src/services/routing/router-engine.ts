@@ -1,4 +1,4 @@
-import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep, AnnotationV1 } from '../../types/events';
+import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep, AnnotationV1, MessageV1, CandidateV1 } from '../../types/events';
 import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
@@ -14,6 +14,11 @@ export interface RouteResult {
   slip: RoutingStep[];
   decision: RoutingDecisionMeta;
   evtOut: InternalEventV2;
+}
+
+export interface IStateStore {
+  getLastCandidateId(userId: string, ruleId: string): Promise<string | undefined>;
+  updateLastCandidateId(userId: string, ruleId: string, candidateId: string): Promise<void>;
 }
 
 export interface IJsonLogicEvaluator {
@@ -54,16 +59,20 @@ function defaultSlip(): RoutingStep[] {
  * - Always normalizes slip entries: status=PENDING, attempt=0, v="1" when undefined.
  */
 export class RouterEngine {
-  constructor(private readonly evaluator: IJsonLogicEvaluator = Eval) {}
+  constructor(
+    private readonly evaluator: IJsonLogicEvaluator = Eval,
+    private readonly stateStore?: IStateStore
+  ) {}
 
-  route(evt: InternalEventV2, rules: ReadonlyArray<RuleDoc> = []): RouteResult {
+  async route(evt: InternalEventV2, rules: ReadonlyArray<RuleDoc> = []): Promise<RouteResult> {
     // Build evaluation context directly from V2
     const ctx = this.evaluator.buildContext(evt);
 
-    // Prepare an immutable output copy; clone annotations array if present
+    // Prepare an immutable output copy; clone annotations/candidates array if present
     const evtOut: InternalEventV2 = {
       ...evt,
       annotations: evt.annotations ? [...evt.annotations] : undefined,
+      candidates: evt.candidates ? [...evt.candidates] : undefined,
     };
 
     let chosen: RoutingStep[] | null = null;
@@ -77,20 +86,39 @@ export class RouterEngine {
           const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
           meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic };
           chosen = slip;
-          // Append annotations from rule if present
-          const anns: AnnotationV1[] | undefined = rule.annotations && rule.annotations.length ? rule.annotations : undefined;
-          if (anns && anns.length) {
-            const before = evtOut.annotations?.length || 0;
-            evtOut.annotations = [...(evtOut.annotations || []), ...anns];
-            const after = evtOut.annotations.length;
-            const appended = after - before;
-            if (appended > 0) {
-              logger.debug('router_engine.annotations_appended', {
-                ruleId: rule.id,
-                appended,
-                before,
-                after,
-              });
+
+          const enrich = rule.enrichments;
+          if (enrich) {
+            // 1. Message Enrichment
+            if (enrich.message) {
+              const msg: MessageV1 = {
+                id: `rule-${rule.id}-${Date.now()}`,
+                role: 'assistant',
+                text: enrich.message,
+              };
+              evtOut.message = msg;
+            }
+
+            // 2. Annotations Enrichment
+            const anns: AnnotationV1[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
+            if (anns && anns.length) {
+              evtOut.annotations = [...(evtOut.annotations || []), ...anns];
+            }
+
+            // 3. Candidates Enrichment
+            const candidates: CandidateV1[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
+            if (candidates && candidates.length) {
+              if (enrich.randomCandidate && this.stateStore && evt.userId) {
+                const lastId = await this.stateStore.getLastCandidateId(evt.userId, rule.id);
+                const eligible = candidates.filter(c => c.id !== lastId);
+                const pool = eligible.length > 0 ? eligible : candidates;
+                const selected = pool[Math.floor(Math.random() * pool.length)];
+
+                evtOut.candidates = [...(evtOut.candidates || []), selected];
+                await this.stateStore.updateLastCandidateId(evt.userId, rule.id, selected.id);
+              } else {
+                evtOut.candidates = [...(evtOut.candidates || []), ...candidates];
+              }
             }
           }
           break; // short-circuit on first match

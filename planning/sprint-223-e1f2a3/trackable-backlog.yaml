@@ -1,0 +1,113 @@
+meta:
+  backlog_id: sprint-223-backlog
+  updated_at: 2026-01-25
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-223-e1f2a3
+  start: 2026-01-25
+  end: 2026-02-08
+  wip_limit: 3
+  goal: "Enhance event-router with message and candidate enrichments including random selection logic."
+
+items:
+  - id: BB-223-01
+    title: "Update RuleDoc and RuleLoader"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "RuleDoc interface includes 'enrichments' property"
+      - "validateRule correctly parses and sanitizes the new structure"
+      - "Unit tests for RuleLoader pass"
+    updated_at: 2026-01-25
+    log:
+      - at: 2026-01-25T12:12:00Z
+        note: "Started implementation. Updating RuleLoader logic to handle enrichments."
+      - at: 2026-01-25T12:16:00Z
+        note: "Updated RuleDoc and RuleLoader. Added unit tests for enrichments. All pass."
+
+  - id: BB-223-02
+    title: "Implement IStateStore and FirestoreStateStore"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "IStateStore interface defined in router-engine.ts"
+      - "FirestoreStateStore implemented and correctly writes to users/{userId}/routerState/{ruleId}"
+    updated_at: 2026-01-25
+    log:
+      - at: 2026-01-25T12:20:00Z
+        note: "Implemented IStateStore and FirestoreStateStore."
+
+  - id: BB-223-03
+    title: "Refactor RouterEngine to async and implement message enrichment"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BB-223-01]
+    blocked_reason: null
+    acceptance:
+      - "RouterEngine.route is async"
+      - "enrichments.message correctly adds or replaces MessageV1 on the event"
+      - "enrichments.annotations correctly appends to the event"
+    updated_at: 2026-01-25
+    log:
+      - at: 2026-01-25T12:25:00Z
+        note: "Refactored RouterEngine to async and implemented message/annotations enrichment logic."
+
+  - id: BB-223-04
+    title: "Implement randomCandidate selection logic"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BB-223-02, BB-223-03]
+    blocked_reason: null
+    acceptance:
+      - "randomCandidate: true selects a single random candidate"
+      - "Selection avoids the last used candidate for that user/rule"
+      - "State store is updated after selection"
+    updated_at: 2026-01-25
+    log:
+      - at: 2026-01-25T12:25:00Z
+        note: "Implemented stateful randomCandidate selection logic."
+
+  - id: BB-223-05
+    title: "Integrate into EventRouterServer"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BB-223-03, BB-223-04]
+    blocked_reason: null
+    acceptance:
+      - "EventRouterServer uses the new async engine"
+      - "FirestoreStateStore is correctly injected"
+    updated_at: 2026-01-25
+    log:
+      - at: 2026-01-25T12:30:00Z
+        note: "Integrated FirestoreStateStore into EventRouterServer and updated all downstream tests."
+
+  - id: BB-223-06
+    title: "Verification and Validation"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BB-223-05]
+    blocked_reason: null
+    acceptance:
+      - "All unit and integration tests pass"
+      - "validate_deliverable.sh passes"
+    updated_at: 2026-01-25
+    log:
+      - at: 2026-01-25T12:35:00Z
+        note: "Completed final validation. All tests passing. Verification and Retro documents created."
