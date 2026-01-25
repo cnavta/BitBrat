@@ -11,9 +11,39 @@ import { counters } from '../common/counters';
 import { busAttrsFromEvent } from '../common/events/attributes';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { PublisherResource } from '../common/resources/publisher-manager';
+import { IStateStore } from '../services/routing/router-engine';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'event-router';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
+
+/**
+ * FirestoreStateStore – Persists event-router state (e.g. last candidate used) in Firestore.
+ * Path: users/{userId}/routerState/{ruleId}
+ */
+export class FirestoreStateStore implements IStateStore {
+  constructor(private readonly db: Firestore) {}
+
+  async getLastCandidateId(userId: string, ruleId: string): Promise<string | undefined> {
+    try {
+      const doc = await this.db.doc(`users/${userId}/routerState/${ruleId}`).get();
+      return doc.exists ? doc.data()?.lastCandidateId : undefined;
+    } catch (e: any) {
+      logger.warn('firestore_state_store.get_error', { userId, ruleId, error: e?.message || String(e) });
+      return undefined;
+    }
+  }
+
+  async updateLastCandidateId(userId: string, ruleId: string, candidateId: string): Promise<void> {
+    try {
+      await this.db.doc(`users/${userId}/routerState/${ruleId}`).set(
+        { lastCandidateId: candidateId, updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+    } catch (e: any) {
+      logger.warn('firestore_state_store.update_error', { userId, ruleId, candidateId, error: e?.message || String(e) });
+    }
+  }
+}
 
 class EventRouterServer extends BaseServer {
   constructor() {
@@ -54,7 +84,9 @@ class EventRouterServer extends BaseServer {
     } catch (e: any) {
       logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
     }
-    const engine = new RouterEngine();
+    const db = this.getResource<Firestore>('firestore');
+    const stateStore = db ? new FirestoreStateStore(db) : undefined;
+    const engine = new RouterEngine(undefined, stateStore);
 
     // Subscribe to default input topic (env override supported)
     const inputTopic = process.env.ROUTER_DEFAULT_INPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
@@ -72,7 +104,7 @@ class EventRouterServer extends BaseServer {
             const tracer = (this as any).getTracer?.();
             const run = async () => {
               // Route using rules (first-match-wins, default path). RouterEngine now returns an immutable evtOut.
-              const { slip, decision, evtOut } = engine.route(v2In, ruleLoader.getRules());
+              const { slip, decision, evtOut } = await engine.route(v2In, ruleLoader.getRules());
               // Attach routing slip to the cloned event to preserve input immutability
               evtOut.routingSlip = slip;
               const v2: InternalEventV2 = evtOut;
