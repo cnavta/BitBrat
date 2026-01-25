@@ -25,7 +25,7 @@ describe('RuleLoader – annotations passthrough and validation', () => {
     const rules = loader.getRules();
     expect(rules).toHaveLength(1);
     const r = rules[0];
-    expect(r.annotations).toBeDefined();
-    expect(r.annotations!.map(a => a.id)).toEqual(['a1']);
+    expect(r.enrichments.annotations).toBeDefined();
+    expect(r.enrichments.annotations!.map(a => a.id)).toEqual(['a1']);
   });
 });
