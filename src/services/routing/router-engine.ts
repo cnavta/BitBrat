@@ -2,6 +2,7 @@ import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep, AnnotationV1, Mes
 import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
+import Mustache from 'mustache';
 
 export interface RoutingDecisionMeta {
   matched: boolean;
@@ -89,35 +90,49 @@ export class RouterEngine {
 
           const enrich = rule.enrichments;
           if (enrich) {
+            // Build interpolation context: event context overrides rule metadata
+            const interpCtx = { ...(rule.metadata || {}), ...ctx };
+
             // 1. Message Enrichment
             if (enrich.message) {
               const msg: MessageV1 = {
                 id: `rule-${rule.id}-${Date.now()}`,
                 role: 'assistant',
-                text: enrich.message,
+                text: Mustache.render(enrich.message, interpCtx),
               };
               evtOut.message = msg;
             }
 
             // 2. Annotations Enrichment
-            const anns: AnnotationV1[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
-            if (anns && anns.length) {
-              evtOut.annotations = [...(evtOut.annotations || []), ...anns];
+            const rawAnns: AnnotationV1[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
+            if (rawAnns && rawAnns.length) {
+              const interpolatedAnns = rawAnns.map(a => ({
+                ...a,
+                label: a.label ? Mustache.render(a.label, interpCtx) : undefined,
+                value: a.value ? Mustache.render(a.value, interpCtx) : undefined,
+              }));
+              evtOut.annotations = [...(evtOut.annotations || []), ...interpolatedAnns];
             }
 
             // 3. Candidates Enrichment
-            const candidates: CandidateV1[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
-            if (candidates && candidates.length) {
+            const rawCandidates: CandidateV1[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
+            if (rawCandidates && rawCandidates.length) {
+              const interpolatedCandidates = rawCandidates.map(c => ({
+                ...c,
+                text: c.text ? Mustache.render(c.text, interpCtx) : undefined,
+                reason: c.reason ? Mustache.render(c.reason, interpCtx) : undefined,
+              }));
+
               if (enrich.randomCandidate && this.stateStore && evt.userId) {
                 const lastId = await this.stateStore.getLastCandidateId(evt.userId, rule.id);
-                const eligible = candidates.filter(c => c.id !== lastId);
-                const pool = eligible.length > 0 ? eligible : candidates;
+                const eligible = interpolatedCandidates.filter(c => c.id !== lastId);
+                const pool = eligible.length > 0 ? eligible : interpolatedCandidates;
                 const selected = pool[Math.floor(Math.random() * pool.length)];
 
                 evtOut.candidates = [...(evtOut.candidates || []), selected];
                 await this.stateStore.updateLastCandidateId(evt.userId, rule.id, selected.id);
               } else {
-                evtOut.candidates = [...(evtOut.candidates || []), ...candidates];
+                evtOut.candidates = [...(evtOut.candidates || []), ...interpolatedCandidates];
               }
             }
           }

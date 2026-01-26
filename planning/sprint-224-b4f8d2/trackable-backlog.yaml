@@ -1,0 +1,43 @@
+sprintId: sprint-224-b4f8d2
+backlog:
+  - id: B1
+    title: "Dependency: Install Mustache"
+    priority: 1
+    status: done
+    tasks:
+      - "Run npm install mustache"
+      - "Run npm install --save-dev @types/mustache"
+  - id: B2
+    title: "RouterEngine: Implement Variable Interpolation"
+    priority: 2
+    status: done
+    tasks:
+      - "Import mustache in src/services/routing/router-engine.ts"
+      - "Implement context building (metadata + event data)"
+      - "Apply interpolation to 'message' field"
+      - "Apply interpolation to 'annotations' (label, value)"
+      - "Apply interpolation to 'candidates' (text, reason)"
+  - id: B3
+    title: "Testing: Unit Tests for Interpolation"
+    priority: 3
+    status: done
+    tasks:
+      - "Create src/services/routing/__tests__/router-engine-interpolation.spec.ts"
+      - "Test basic variable substitution"
+      - "Test nested property access"
+      - "Test metadata override logic"
+      - "Test now/ts timestamp availability"
+  - id: B4
+    title: "Validation: Run Sprint Validation"
+    priority: 4
+    status: done
+    tasks:
+      - "Ensure project builds and all tests pass via validate_deliverable.sh"
+  - id: B5
+    title: "Documentation & Publication"
+    priority: 5
+    status: in-progress
+    tasks:
+      - "Generate verification-report.md"
+      - "Generate retro.md and key-learnings.md"
+      - "Create GitHub Pull Request"
