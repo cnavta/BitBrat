@@ -3,7 +3,7 @@ title: "Mustache Variables in Event Router Enrichments"
 goal: "Add Mustache style variable support to RuleDoc enrichments in the event-router."
 owner: "Architect (Junie)"
 createdAt: "2026-01-25T19:10:00Z"
-status: "in-progress"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/137"
   branch: "feature/sprint-224-b4f8d2-mustache-enrichments"
