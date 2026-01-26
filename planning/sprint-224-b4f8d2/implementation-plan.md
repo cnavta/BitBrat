@@ -1,16 +1,19 @@
 # Implementation Plan — sprint-224-b4f8d2
 
 ## Objective
-Add Mustache-style variable interpolation to `event-router` enrichments to allow dynamic content based on event data, timestamp, and rule metadata.
+Add Mustache-style variable interpolation to `event-router` enrichments and include `BaseServer.config` in the `RuleDoc.logic` execution context.
 
 ## Scope
-- `event-router` service (`RouterEngine`).
-- Fields: `message`, `annotations[].value`, `annotations[].label`, `candidates[].text`, `candidates[].reason`.
+- `event-router` service (`RouterEngine`, `JsonLogicEvaluator`).
+- Enrichment fields: `message`, `annotations[].value`, `annotations[].label`, `candidates[].text`, `candidates[].reason`.
+- Logic execution context: add `config` field.
 
 ## Deliverables
 - `package.json` updates (adding `mustache`).
 - `src/services/routing/router-engine.ts` updates.
-- `src/services/routing/__tests__/router-engine-interpolation.spec.ts` (new test file).
+- `src/services/router/jsonlogic-evaluator.ts` updates.
+- `src/apps/event-router-service.ts` updates.
+- `src/services/routing/__tests__/router-engine-interpolation.spec.ts` (updated with config test).
 
 ## Acceptance Criteria
 - [ ] Mustache variables in `message` are correctly interpolated.
@@ -18,6 +21,7 @@ Add Mustache-style variable interpolation to `event-router` enrichments to allow
 - [ ] Mustache variables in `candidates` (`text`, `reason`) are correctly interpolated.
 - [ ] Context includes event data, `now` (ISO), `ts` (epoch), and `RuleDoc.metadata`.
 - [ ] Event data correctly overrides `RuleDoc.metadata` in the context.
+- [ ] `BaseServer.config` is accessible in `RuleDoc.logic` (JsonLogic) via the `config` key.
 - [ ] Standard project tests pass.
 
 ## Testing Strategy

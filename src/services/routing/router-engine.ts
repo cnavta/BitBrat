@@ -3,6 +3,7 @@ import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
 import Mustache from 'mustache';
+import type { IConfig } from '../../types';
 
 export interface RoutingDecisionMeta {
   matched: boolean;
@@ -23,7 +24,7 @@ export interface IStateStore {
 }
 
 export interface IJsonLogicEvaluator {
-  buildContext: (evt: InternalEventV2, nowIso?: string, ts?: number) => Eval.EvalContext;
+  buildContext: (evt: InternalEventV2, nowIso?: string, ts?: number, config?: IConfig) => Eval.EvalContext;
   evaluate: (logic: unknown, context: Eval.EvalContext) => boolean;
 }
 
@@ -65,9 +66,9 @@ export class RouterEngine {
     private readonly stateStore?: IStateStore
   ) {}
 
-  async route(evt: InternalEventV2, rules: ReadonlyArray<RuleDoc> = []): Promise<RouteResult> {
+  async route(evt: InternalEventV2, rules: ReadonlyArray<RuleDoc> = [], config?: IConfig): Promise<RouteResult> {
     // Build evaluation context directly from V2
-    const ctx = this.evaluator.buildContext(evt);
+    const ctx = this.evaluator.buildContext(evt, undefined, undefined, config);
 
     // Prepare an immutable output copy; clone annotations/candidates array if present
     const evtOut: InternalEventV2 = {
