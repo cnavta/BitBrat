@@ -36,3 +36,11 @@
     - Modify `RouterEngine.route` to collect all matching rule IDs and include them in the result.
     - Set the `metadata` on the outgoing event.
     - Add unit tests.
+## Request ID: R5 (Amended)
+- **Timestamp**: 2026-01-26T14:40:00Z
+- **Summary**: Ensure persistence service persists the new metadata on the event.
+- **Interpretation**: Verify and ensure that the `persistence` service correctly stores the top-level `metadata` field of `InternalEventV2` in Firestore.
+- **Operations**:
+    - Analyzed `src/services/persistence/model.ts` and confirmed spread operator usage.
+    - Created `src/services/persistence/__tests__/metadata-persistence.spec.ts` to verify persistence.
+    - Verified all tests pass.

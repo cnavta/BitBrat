@@ -9,6 +9,7 @@ Add Mustache-style variable interpolation to `event-router` enrichments and incl
 - Logic execution context: add `config` field.
 - Egress replacement: Matched rules can replace the event's `egress`.
 - Event Metadata: Add `matchedRuleIds` and `chosenRuleId` to the outgoing event's metadata.
+- Persistence: Ensure `persistence` service stores the new `metadata` field.
 
 ## Deliverables
 - `package.json` updates (adding `mustache`).
@@ -17,6 +18,7 @@ Add Mustache-style variable interpolation to `event-router` enrichments and incl
 - `src/types/events.ts` updates.
 - `src/apps/event-router-service.ts` updates.
 - `src/services/routing/__tests__/router-engine-interpolation.spec.ts` (updated with config, egress, and metadata tests).
+- `src/services/persistence/__tests__/metadata-persistence.spec.ts` (new tests).
 
 ## Acceptance Criteria
 - [ ] Mustache variables in `message` are correctly interpolated.
@@ -26,6 +28,7 @@ Add Mustache-style variable interpolation to `event-router` enrichments and incl
 - [ ] If `enrichments.egress` is present, it replaces the event's `egress`.
 - [ ] Outgoing event contains `metadata.matchedRuleIds` (array of all matching rule IDs).
 - [ ] Outgoing event contains `metadata.chosenRuleId` (ID of the rule that was chosen for routing/enrichment).
+- [ ] Persistence service persists the top-level `metadata` field on the event document.
 - [ ] Context includes event data, `now` (ISO), `ts` (epoch), and `RuleDoc.metadata`.
 - [ ] Event data correctly overrides `RuleDoc.metadata` in the context.
 - [ ] `BaseServer.config` is accessible in `RuleDoc.logic` (JsonLogic) via the `config` key.

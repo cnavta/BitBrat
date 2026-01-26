@@ -15,6 +15,8 @@
 - [x] Outgoing event now includes `metadata.matchedRuleIds` (all matching rules) and `metadata.chosenRuleId`.
 - [x] `InternalEventV2` updated with `metadata` field.
 - [x] `RouterEngine` refactored to collect all matching rules without premature short-circuit.
+- [x] Persistence service verified to correctly store top-level `metadata` field.
+- [x] New tests added in `src/services/persistence/__tests__/metadata-persistence.spec.ts`.
 - [x] Project builds and lints successfully.
 
 ## Partial
