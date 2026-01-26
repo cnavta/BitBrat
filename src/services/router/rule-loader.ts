@@ -117,6 +117,16 @@ function sanitizeCandidates(rawCandidates: any, id: string): CandidateV1[] | und
   return out.length ? out : undefined;
 }
 
+function sanitizeEnrichmentAnnotations(raw: any): any[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.filter(a => isObject(a));
+}
+
+function sanitizeEnrichmentCandidates(raw: any): any[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.filter(c => isObject(c));
+}
+
 function validateRule(raw: any, id: string): RuleDoc | null {
   if (!isObject(raw)) return null;
   if (raw.enabled !== true) return null; // only cache enabled
@@ -145,9 +155,10 @@ function validateRule(raw: any, id: string): RuleDoc | null {
   const rawEnrich = isObject(raw.enrichments) ? raw.enrichments : {};
   const enrichments: RuleDoc['enrichments'] = {
     message: typeof rawEnrich.message === 'string' ? rawEnrich.message : undefined,
-    annotations: sanitizeAnnotations(rawEnrich.annotations || raw.annotations, id),
-    candidates: sanitizeCandidates(rawEnrich.candidates, id),
+    annotations: sanitizeEnrichmentAnnotations(rawEnrich.annotations || raw.annotations),
+    candidates: sanitizeEnrichmentCandidates(rawEnrich.candidates),
     randomCandidate: !!rawEnrich.randomCandidate,
+    egress: isObject(rawEnrich.egress) ? (rawEnrich.egress as Egress) : undefined,
   };
 
   return {
