@@ -49,3 +49,11 @@ backlog:
       - "Update EvalContext to include config field"
       - "Pass config from EventRouterServer to RouterEngine"
       - "Add unit test for config access in JsonLogic"
+  - id: B7
+    title: "RouterEngine: Implement Egress Enrichment"
+    priority: 2
+    status: done
+    tasks:
+      - "Interpolate egress.destination in RouterEngine"
+      - "Replace evtOut.egress with interpolated egress"
+      - "Add unit test for egress enrichment"

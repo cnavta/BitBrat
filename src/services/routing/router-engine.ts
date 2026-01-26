@@ -136,6 +136,14 @@ export class RouterEngine {
                 evtOut.candidates = [...(evtOut.candidates || []), ...interpolatedCandidates];
               }
             }
+
+            // 4. Egress Enrichment
+            if (enrich.egress) {
+              evtOut.egress = {
+                ...enrich.egress,
+                destination: Mustache.render(enrich.egress.destination, interpCtx),
+              };
+            }
           }
           break; // short-circuit on first match
         }

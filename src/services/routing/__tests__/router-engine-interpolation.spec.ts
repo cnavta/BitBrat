@@ -109,4 +109,28 @@ describe('RouterEngine – interpolation', () => {
     const res2 = await engine.route(baseEvt, rules, { botUsername: 'OtherBot' } as any);
     expect(res2.decision.matched).toBe(false);
   });
+
+  it('interpolates and replaces egress', async () => {
+    const rules: RuleDoc[] = [
+      {
+        id: 'r-egress', enabled: true, priority: 1,
+        logic: 'true',
+        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        enrichments: {
+          egress: {
+            destination: 'dynamic-{{channel}}',
+            type: 'dm'
+          }
+        },
+      } as any,
+    ];
+
+    const engine = new RouterEngine();
+    const { evtOut } = await engine.route(baseEvt, rules);
+
+    expect(evtOut.egress).toEqual({
+      destination: 'dynamic-#general',
+      type: 'dm'
+    });
+  });
 });
