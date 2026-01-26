@@ -69,6 +69,7 @@ export interface EnvelopeV1 {
     userRef?: string; // e.g., users/<docId>
     at: string; // ISO timestamp
   };
+  metadata?: Record<string, any>;
 }
 
 export interface InternalEventV1 {
