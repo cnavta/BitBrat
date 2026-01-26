@@ -14,6 +14,7 @@
  * - text_contains(value, needle[, ci]): boolean — substring test; optional case-insensitive
  */
 import type { InternalEventV2 } from '../../types/events';
+import type { IConfig } from '../../types';
 
 // json-logic-js does not ship perfect TS types in all versions; use a safe import
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -36,12 +37,13 @@ export interface EvalContext {
   annotations?: any[];
   candidates?: any[];
   routingSlip?: any[];
+  config?: IConfig;
   now: string; // ISO8601
   ts: number; // epoch ms
 }
 
 /** Build a deterministic evaluation context for JsonLogic from an InternalEventV2. */
-export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number): EvalContext {
+export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number, config?: IConfig): EvalContext {
   const now = nowIso || new Date().toISOString();
   const n = typeof ts === 'number' ? ts : Date.now();
   return {
@@ -58,6 +60,7 @@ export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number)
     candidates: (evt as any).candidates,
     routingSlip: (evt as any).routingSlip,
     payload: (evt as any)?.message?.rawPlatformPayload || {},
+    config,
     now,
     ts: n,
   };

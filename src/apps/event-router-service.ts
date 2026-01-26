@@ -104,7 +104,7 @@ class EventRouterServer extends BaseServer {
             const tracer = (this as any).getTracer?.();
             const run = async () => {
               // Route using rules (first-match-wins, default path). RouterEngine now returns an immutable evtOut.
-              const { slip, decision, evtOut } = await engine.route(v2In, ruleLoader.getRules());
+              const { slip, decision, evtOut } = await engine.route(v2In, ruleLoader.getRules(), this.getConfig());
               // Attach routing slip to the cloned event to preserve input immutability
               evtOut.routingSlip = slip;
               const v2: InternalEventV2 = evtOut;

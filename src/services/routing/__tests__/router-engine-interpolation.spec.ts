@@ -83,4 +83,30 @@ describe('RouterEngine – interpolation', () => {
 
     expect(evtOut.message?.text).toBe('Missing: ');
   });
+
+  it('allows access to config in logic context', async () => {
+    const rules: RuleDoc[] = [
+      {
+        id: 'r-config', enabled: true, priority: 1,
+        // Match only if botUsername in config is 'TestBot'
+        logic: JSON.stringify({ '==': [{ var: 'config.botUsername' }, 'TestBot'] }),
+        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        enrichments: {
+          message: 'Matched with {{config.botUsername}}',
+        },
+      } as any,
+    ];
+
+    const engine = new RouterEngine();
+    const config = { botUsername: 'TestBot' } as any;
+    
+    // Should match
+    const res1 = await engine.route(baseEvt, rules, config);
+    expect(res1.decision.matched).toBe(true);
+    expect(res1.evtOut.message?.text).toBe('Matched with TestBot');
+
+    // Should not match with different config
+    const res2 = await engine.route(baseEvt, rules, { botUsername: 'OtherBot' } as any);
+    expect(res2.decision.matched).toBe(false);
+  });
 });

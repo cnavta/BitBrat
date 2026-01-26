@@ -8,6 +8,8 @@
 - [x] Event data correctly overrides `RuleDoc.metadata`.
 - [x] `mustache` dependency added to `package.json`.
 - [x] Comprehensive unit tests created in `src/services/routing/__tests__/router-engine-interpolation.spec.ts`.
+- [x] `BaseServer.config` is now included in the `EvalContext` and accessible in `RuleDoc.logic` (JsonLogic).
+- [x] `BaseServer.config` is also available for Mustache interpolation in enrichments.
 - [x] Project builds and lints successfully.
 
 ## Partial

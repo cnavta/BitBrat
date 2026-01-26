@@ -35,9 +35,17 @@ backlog:
       - "Ensure project builds and all tests pass via validate_deliverable.sh"
   - id: B5
     title: "Documentation & Publication"
-    priority: 5
-    status: in-progress
+    priority: 6
+    status: done
     tasks:
       - "Generate verification-report.md"
       - "Generate retro.md and key-learnings.md"
       - "Create GitHub Pull Request"
+  - id: B6
+    title: "Logic Context: BaseServer.config integration"
+    priority: 5
+    status: done
+    tasks:
+      - "Update EvalContext to include config field"
+      - "Pass config from EventRouterServer to RouterEngine"
+      - "Add unit test for config access in JsonLogic"
