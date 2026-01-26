@@ -94,6 +94,7 @@ export class RouterEngine {
             meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
             chosen = slip;
 
+
             const enrich = rule.enrichments;
             if (enrich) {
               // Build interpolation context: event context overrides rule metadata
@@ -110,23 +111,33 @@ export class RouterEngine {
               }
 
               // 2. Annotations Enrichment
-              const rawAnns: AnnotationV1[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
+              const rawAnns: any[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
               if (rawAnns && rawAnns.length) {
                 const interpolatedAnns = rawAnns.map(a => ({
                   ...a,
-                  label: a.label ? Mustache.render(a.label, interpCtx) : undefined,
-                  value: a.value ? Mustache.render(a.value, interpCtx) : undefined,
+                  id: a.id || `rule-${rule.id}-ann-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  kind: a.kind || 'custom',
+                  source: a.source || `rule:${rule.id}`,
+                  createdAt: a.createdAt || ctx.now,
+                  label: a.label ? Mustache.render(String(a.label), interpCtx) : undefined,
+                  value: a.value ? Mustache.render(String(a.value), interpCtx) : undefined,
                 }));
                 evtOut.annotations = [...(evtOut.annotations || []), ...interpolatedAnns];
               }
 
               // 3. Candidates Enrichment
-              const rawCandidates: CandidateV1[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
+              const rawCandidates: any[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
               if (rawCandidates && rawCandidates.length) {
                 const interpolatedCandidates = rawCandidates.map(c => ({
                   ...c,
-                  text: c.text ? Mustache.render(c.text, interpCtx) : undefined,
-                  reason: c.reason ? Mustache.render(c.reason, interpCtx) : undefined,
+                  id: c.id || `rule-${rule.id}-cand-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  kind: c.kind || 'text',
+                  source: c.source || `rule:${rule.id}`,
+                  createdAt: c.createdAt || ctx.now,
+                  status: c.status || 'proposed',
+                  priority: typeof c.priority === 'number' ? c.priority : 10,
+                  text: c.text ? Mustache.render(String(c.text), interpCtx) : undefined,
+                  reason: c.reason ? Mustache.render(String(c.reason), interpCtx) : undefined,
                 }));
 
                 if (enrich.randomCandidate && this.stateStore && evt.userId) {
@@ -146,14 +157,16 @@ export class RouterEngine {
               if (enrich.egress) {
                 evtOut.egress = {
                   ...enrich.egress,
-                  destination: Mustache.render(enrich.egress.destination, interpCtx),
+                  destination: enrich.egress.destination ? Mustache.render(String(enrich.egress.destination), interpCtx) : (evtOut.egress?.destination || ''),
                 };
               }
+
+              logger.debug('router_engine.enrichment.complete', { ruleId: rule.id, evtOut })
             }
           }
         }
       } catch (e: any) {
-        logger.warn('router_engine.rule_eval_error', { id: rule.id, error: e?.message || String(e) });
+        logger.error('router_engine.enrichment_error', { id: rule.id, error: e?.message || String(e), stack: e?.stack });
       }
     }
 

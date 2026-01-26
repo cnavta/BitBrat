@@ -44,3 +44,15 @@
     - Analyzed `src/services/persistence/model.ts` and confirmed spread operator usage.
     - Created `src/services/persistence/__tests__/metadata-persistence.spec.ts` to verify persistence.
     - Verified all tests pass.
+
+## Request ID: R6 (Issue Remediation)
+- **Timestamp**: 2026-01-26T15:23:00Z
+- **Summary**: Investigate and remediate missing enrichments on published events.
+- **Interpretation**: Enrichment data was being lost either during loading or application.
+- **Operations**:
+    - Identified that `RuleLoader` was missing `egress` in its validation logic.
+    - Loosened `RuleLoader` validation for `annotations` and `candidates` in enrichments to allow partial objects (templates).
+    - Updated `RouterEngine` to provide defaults (`id`, `createdAt`, `source`, `kind`, `status`) for enriched items.
+    - Added robustness to `Mustache.render` calls in `RouterEngine` to prevent crashes on missing fields.
+    - Created `src/services/routing/__tests__/enrichment-repro.spec.ts` to verify the fix.
+    - Updated existing tests.

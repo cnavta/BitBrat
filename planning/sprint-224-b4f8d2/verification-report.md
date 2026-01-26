@@ -17,6 +17,10 @@
 - [x] `RouterEngine` refactored to collect all matching rules without premature short-circuit.
 - [x] Persistence service verified to correctly store top-level `metadata` field.
 - [x] New tests added in `src/services/persistence/__tests__/metadata-persistence.spec.ts`.
+- [x] `RuleLoader` fixed to correctly load `egress` enrichments.
+- [x] `RuleLoader` fixed to allow partial `annotations` and `candidates` in enrichments.
+- [x] `RouterEngine` fixed to provide defaults for enriched items and handle missing template fields gracefully.
+- [x] Remediation verified with `src/services/routing/__tests__/enrichment-repro.spec.ts`.
 - [x] Project builds and lints successfully.
 
 ## Partial
