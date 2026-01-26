@@ -20,7 +20,7 @@ import type { IConfig } from '../../types';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const jsonLogic: any = require('json-logic-js');
 
-export interface EvalContext {
+export interface EvalContext extends Record<string, any> {
   type: string;
   channel?: string;
   userId?: string;
@@ -48,24 +48,12 @@ export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number,
   const now = nowIso || new Date().toISOString();
   const n = typeof ts === 'number' ? ts : Date.now();
   return {
-    type: evt.type,
-    channel: evt.channel,
-    userId: evt.userId,
-    user: (evt as any).user,
-    v: (evt as any).v,
-    source: (evt as any).source,
-    correlationId: (evt as any).correlationId,
-    traceId: (evt as any).traceId,
-    message: (evt as any).message,
-    annotations: (evt as any).annotations,
-    candidates: (evt as any).candidates,
-    routingSlip: (evt as any).routingSlip,
-    egress: (evt as any).egress,
-    payload: (evt as any)?.message?.rawPlatformPayload || {},
+    ...evt,
+    payload: evt.message?.rawPlatformPayload || evt.payload || {},
     config,
     now,
     ts: n,
-  };
+  } as any;
 }
 
 /**
