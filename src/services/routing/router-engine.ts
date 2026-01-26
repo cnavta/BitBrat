@@ -10,6 +10,7 @@ export interface RoutingDecisionMeta {
   ruleId?: string;
   priority?: number;
   selectedTopic: string;
+  matchedRuleIds: string[];
 }
 
 export interface RouteResult {
@@ -79,73 +80,77 @@ export class RouterEngine {
 
     let chosen: RoutingStep[] | null = null;
     let meta: RoutingDecisionMeta | null = null;
+    const matchedRuleIds: string[] = [];
 
     for (const rule of rules) {
       try {
         const ok = this.evaluator.evaluate(rule.logic, ctx);
         if (ok) {
-          const slip = normalizeSlip(rule.routingSlip);
-          const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
-          meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic };
-          chosen = slip;
+          matchedRuleIds.push(rule.id);
 
-          const enrich = rule.enrichments;
-          if (enrich) {
-            // Build interpolation context: event context overrides rule metadata
-            const interpCtx = { ...(rule.metadata || {}), ...ctx };
+          if (!chosen) {
+            const slip = normalizeSlip(rule.routingSlip);
+            const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
+            meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
+            chosen = slip;
 
-            // 1. Message Enrichment
-            if (enrich.message) {
-              const msg: MessageV1 = {
-                id: `rule-${rule.id}-${Date.now()}`,
-                role: 'assistant',
-                text: Mustache.render(enrich.message, interpCtx),
-              };
-              evtOut.message = msg;
-            }
+            const enrich = rule.enrichments;
+            if (enrich) {
+              // Build interpolation context: event context overrides rule metadata
+              const interpCtx = { ...(rule.metadata || {}), ...ctx };
 
-            // 2. Annotations Enrichment
-            const rawAnns: AnnotationV1[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
-            if (rawAnns && rawAnns.length) {
-              const interpolatedAnns = rawAnns.map(a => ({
-                ...a,
-                label: a.label ? Mustache.render(a.label, interpCtx) : undefined,
-                value: a.value ? Mustache.render(a.value, interpCtx) : undefined,
-              }));
-              evtOut.annotations = [...(evtOut.annotations || []), ...interpolatedAnns];
-            }
+              // 1. Message Enrichment
+              if (enrich.message) {
+                const msg: MessageV1 = {
+                  id: `rule-${rule.id}-${Date.now()}`,
+                  role: 'assistant',
+                  text: Mustache.render(enrich.message, interpCtx),
+                };
+                evtOut.message = msg;
+              }
 
-            // 3. Candidates Enrichment
-            const rawCandidates: CandidateV1[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
-            if (rawCandidates && rawCandidates.length) {
-              const interpolatedCandidates = rawCandidates.map(c => ({
-                ...c,
-                text: c.text ? Mustache.render(c.text, interpCtx) : undefined,
-                reason: c.reason ? Mustache.render(c.reason, interpCtx) : undefined,
-              }));
+              // 2. Annotations Enrichment
+              const rawAnns: AnnotationV1[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
+              if (rawAnns && rawAnns.length) {
+                const interpolatedAnns = rawAnns.map(a => ({
+                  ...a,
+                  label: a.label ? Mustache.render(a.label, interpCtx) : undefined,
+                  value: a.value ? Mustache.render(a.value, interpCtx) : undefined,
+                }));
+                evtOut.annotations = [...(evtOut.annotations || []), ...interpolatedAnns];
+              }
 
-              if (enrich.randomCandidate && this.stateStore && evt.userId) {
-                const lastId = await this.stateStore.getLastCandidateId(evt.userId, rule.id);
-                const eligible = interpolatedCandidates.filter(c => c.id !== lastId);
-                const pool = eligible.length > 0 ? eligible : interpolatedCandidates;
-                const selected = pool[Math.floor(Math.random() * pool.length)];
+              // 3. Candidates Enrichment
+              const rawCandidates: CandidateV1[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
+              if (rawCandidates && rawCandidates.length) {
+                const interpolatedCandidates = rawCandidates.map(c => ({
+                  ...c,
+                  text: c.text ? Mustache.render(c.text, interpCtx) : undefined,
+                  reason: c.reason ? Mustache.render(c.reason, interpCtx) : undefined,
+                }));
 
-                evtOut.candidates = [...(evtOut.candidates || []), selected];
-                await this.stateStore.updateLastCandidateId(evt.userId, rule.id, selected.id);
-              } else {
-                evtOut.candidates = [...(evtOut.candidates || []), ...interpolatedCandidates];
+                if (enrich.randomCandidate && this.stateStore && evt.userId) {
+                  const lastId = await this.stateStore.getLastCandidateId(evt.userId, rule.id);
+                  const eligible = interpolatedCandidates.filter(c => c.id !== lastId);
+                  const pool = eligible.length > 0 ? eligible : interpolatedCandidates;
+                  const selected = pool[Math.floor(Math.random() * pool.length)];
+
+                  evtOut.candidates = [...(evtOut.candidates || []), selected];
+                  await this.stateStore.updateLastCandidateId(evt.userId, rule.id, selected.id);
+                } else {
+                  evtOut.candidates = [...(evtOut.candidates || []), ...interpolatedCandidates];
+                }
+              }
+
+              // 4. Egress Enrichment
+              if (enrich.egress) {
+                evtOut.egress = {
+                  ...enrich.egress,
+                  destination: Mustache.render(enrich.egress.destination, interpCtx),
+                };
               }
             }
-
-            // 4. Egress Enrichment
-            if (enrich.egress) {
-              evtOut.egress = {
-                ...enrich.egress,
-                destination: Mustache.render(enrich.egress.destination, interpCtx),
-              };
-            }
           }
-          break; // short-circuit on first match
         }
       } catch (e: any) {
         logger.warn('router_engine.rule_eval_error', { id: rule.id, error: e?.message || String(e) });
@@ -154,8 +159,15 @@ export class RouterEngine {
 
     if (!chosen) {
       chosen = defaultSlip();
-      meta = { matched: false, selectedTopic: chosen[0].nextTopic! };
+      meta = { matched: false, selectedTopic: chosen[0].nextTopic!, matchedRuleIds };
     }
+
+    // Add routing metadata to event
+    evtOut.metadata = {
+      ...(evtOut.metadata || {}),
+      matchedRuleIds,
+      chosenRuleId: meta!.ruleId || null,
+    };
 
     return { slip: chosen, decision: meta!, evtOut };
   }

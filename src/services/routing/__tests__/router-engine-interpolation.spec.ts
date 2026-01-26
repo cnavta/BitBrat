@@ -133,4 +133,57 @@ describe('RouterEngine – interpolation', () => {
       type: 'dm'
     });
   });
+
+  it('adds matchedRuleIds and chosenRuleId to event metadata', async () => {
+    const rules: RuleDoc[] = [
+      {
+        id: 'rule-1', enabled: true, priority: 10,
+        logic: 'true',
+        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        enrichments: {},
+      } as any,
+      {
+        id: 'rule-2', enabled: true, priority: 20,
+        logic: 'true',
+        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        enrichments: {},
+      } as any,
+      {
+        id: 'rule-3', enabled: true, priority: 30,
+        logic: 'false',
+        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        enrichments: {},
+      } as any,
+    ];
+
+    const engine = new RouterEngine();
+    const { evtOut, decision } = await engine.route(baseEvt, rules);
+
+    expect(decision.matched).toBe(true);
+    expect(decision.ruleId).toBe('rule-1');
+    expect(decision.matchedRuleIds).toEqual(['rule-1', 'rule-2']);
+
+    expect(evtOut.metadata).toBeDefined();
+    expect(evtOut.metadata?.matchedRuleIds).toEqual(['rule-1', 'rule-2']);
+    expect(evtOut.metadata?.chosenRuleId).toBe('rule-1');
+  });
+
+  it('sets chosenRuleId to null and matchedRuleIds to empty array when no match', async () => {
+    const rules: RuleDoc[] = [
+      {
+        id: 'rule-fail', enabled: true, priority: 1,
+        logic: 'false',
+        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        enrichments: {},
+      } as any,
+    ];
+
+    const engine = new RouterEngine();
+    const { evtOut, decision } = await engine.route(baseEvt, rules);
+
+    expect(decision.matched).toBe(false);
+    expect(decision.matchedRuleIds).toEqual([]);
+    expect(evtOut.metadata?.matchedRuleIds).toEqual([]);
+    expect(evtOut.metadata?.chosenRuleId).toBeNull();
+  });
 });

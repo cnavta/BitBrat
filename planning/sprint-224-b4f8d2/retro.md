@@ -9,8 +9,9 @@
 ## What Didn't Work
 - Initial `npm install` command failed due to unquoted `^` in the version string, which was quickly resolved.
 - Large output from `validate_deliverable.sh` made it difficult to find the final status, requiring targeted grep commands.
-- The sprint had to be reopened twice to accommodate additional tasks, but the protocol handled it well.
-- Implementation of Egress enrichment was straightforward as it followed the same pattern as other enrichments.
+- The sprint had to be reopened multiple times to accommodate additional tasks, but the protocol handled it well.
+- Implementation of Egress enrichment and Event Metadata was straightforward as it followed the same pattern as other enrichments.
+- Refactoring `RouterEngine` to collect all matches required removing a short-circuit, which is slightly less performant but necessary for the requirement.
 
 ## Future Improvements
 - Consider if we want to support custom Mustache delimiters in RuleDocs.

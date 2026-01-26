@@ -13,7 +13,7 @@
  * - has_candidate(candidatesOrEvent[, provider]): boolean — presence of candidate; optional filter by provider/source
  * - text_contains(value, needle[, ci]): boolean — substring test; optional case-insensitive
  */
-import type { InternalEventV2 } from '../../types/events';
+import type {Egress, InternalEventV2} from '../../types/events';
 import type { IConfig } from '../../types';
 
 // json-logic-js does not ship perfect TS types in all versions; use a safe import
@@ -34,6 +34,7 @@ export interface EvalContext {
   correlationId?: string;
   traceId?: string;
   message?: any;
+  egress?: Egress;
   annotations?: any[];
   candidates?: any[];
   routingSlip?: any[];
@@ -59,6 +60,7 @@ export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number,
     annotations: (evt as any).annotations,
     candidates: (evt as any).candidates,
     routingSlip: (evt as any).routingSlip,
+    egress: (evt as any).egress,
     payload: (evt as any)?.message?.rawPlatformPayload || {},
     config,
     now,
