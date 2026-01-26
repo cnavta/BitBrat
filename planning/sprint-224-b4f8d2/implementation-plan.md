@@ -5,20 +5,23 @@ Add Mustache-style variable interpolation to `event-router` enrichments and incl
 
 ## Scope
 - `event-router` service (`RouterEngine`, `JsonLogicEvaluator`).
-- Enrichment fields: `message`, `annotations[].value`, `annotations[].label`, `candidates[].text`, `candidates[].reason`.
+- Enrichment fields: `message`, `annotations[].value`, `annotations[].label`, `candidates[].text`, `candidates[].reason`, `egress.destination`.
 - Logic execution context: add `config` field.
+- Egress replacement: Matched rules can replace the event's `egress`.
 
 ## Deliverables
 - `package.json` updates (adding `mustache`).
 - `src/services/routing/router-engine.ts` updates.
 - `src/services/router/jsonlogic-evaluator.ts` updates.
 - `src/apps/event-router-service.ts` updates.
-- `src/services/routing/__tests__/router-engine-interpolation.spec.ts` (updated with config test).
+- `src/services/routing/__tests__/router-engine-interpolation.spec.ts` (updated with config and egress tests).
 
 ## Acceptance Criteria
 - [ ] Mustache variables in `message` are correctly interpolated.
 - [ ] Mustache variables in `annotations` (`label`, `value`) are correctly interpolated.
 - [ ] Mustache variables in `candidates` (`text`, `reason`) are correctly interpolated.
+- [ ] Mustache variables in `egress.destination` are correctly interpolated.
+- [ ] If `enrichments.egress` is present, it replaces the event's `egress`.
 - [ ] Context includes event data, `now` (ISO), `ts` (epoch), and `RuleDoc.metadata`.
 - [ ] Event data correctly overrides `RuleDoc.metadata` in the context.
 - [ ] `BaseServer.config` is accessible in `RuleDoc.logic` (JsonLogic) via the `config` key.
@@ -31,6 +34,7 @@ Add Mustache-style variable interpolation to `event-router` enrichments and incl
     - Nested property access (e.g., `{{user.displayName}}`).
     - Overriding metadata with event data.
     - Using `now` and `ts`.
+    - Egress interpolation and replacement.
     - Edge case: undefined/missing variables (expect empty string).
     - Edge case: null/undefined templates (expect no change).
 

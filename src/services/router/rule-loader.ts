@@ -7,7 +7,7 @@
  * - Subscribes via onSnapshot to keep cache up to date
  */
 import { logger } from '../../common/logging';
-import {AnnotationV1, CandidateV1} from '../../types/events';
+import {AnnotationV1, CandidateV1, Egress} from '../../types/events';
 
 export interface RoutingStepRef {
   id: string;
@@ -30,6 +30,7 @@ export interface RuleDoc {
     annotations?: AnnotationV1[];// Annotations to add to the event when matched.
     candidates?: CandidateV1[]; // Candidates to add to the event when matched.
     randomCandidate?: boolean; // Add a single, random candidate that was not previously used from the candidates set instead of all of them.
+    egress?: Egress; // Egress replacement for the matched event.
   }
   metadata?: Record<string, unknown>;
 }

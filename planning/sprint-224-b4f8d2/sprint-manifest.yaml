@@ -8,6 +8,7 @@ links:
   pr: "https://github.com/cnavta/BitBrat/pull/137"
   branch: "feature/sprint-224-b4f8d2-mustache-enrichments"
 notes: |
-  Enrichments to support Mustache variables: message, annotations[].value, annotations[].label, candidates[].text, candidates[].reason.
+  Enrichments to support Mustache variables: message, annotations[].value, annotations[].label, candidates[].text, candidates[].reason, egress.destination.
   Added task: Add BaseServer.config to the context for RuleDoc.logic execution.
+  Added task: Egress replacement in enrichments with interpolation.
   Context: incoming event + current timestamp + RuleDoc metadata.

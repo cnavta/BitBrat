@@ -10,6 +10,8 @@
 - [x] Comprehensive unit tests created in `src/services/routing/__tests__/router-engine-interpolation.spec.ts`.
 - [x] `BaseServer.config` is now included in the `EvalContext` and accessible in `RuleDoc.logic` (JsonLogic).
 - [x] `BaseServer.config` is also available for Mustache interpolation in enrichments.
+- [x] Mustache variables in `egress.destination` implemented and tested.
+- [x] `enrichments.egress` correctly replaces the matched event's `egress`.
 - [x] Project builds and lints successfully.
 
 ## Partial
