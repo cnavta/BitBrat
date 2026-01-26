@@ -12,6 +12,9 @@
 - [x] `BaseServer.config` is also available for Mustache interpolation in enrichments.
 - [x] Mustache variables in `egress.destination` implemented and tested.
 - [x] `enrichments.egress` correctly replaces the matched event's `egress`.
+- [x] Outgoing event now includes `metadata.matchedRuleIds` (all matching rules) and `metadata.chosenRuleId`.
+- [x] `InternalEventV2` updated with `metadata` field.
+- [x] `RouterEngine` refactored to collect all matching rules without premature short-circuit.
 - [x] Project builds and lints successfully.
 
 ## Partial

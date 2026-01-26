@@ -159,6 +159,7 @@ export interface InternalEventV2 extends EnvelopeV1 {
   candidates?: CandidateV1[];
   errors?: ErrorEntryV1[];
   qos?: QOSV1;
+  metadata?: Record<string, any>;
 }
 
 // Topic/Subject constants (keep identical across drivers)

@@ -57,3 +57,12 @@ backlog:
       - "Interpolate egress.destination in RouterEngine"
       - "Replace evtOut.egress with interpolated egress"
       - "Add unit test for egress enrichment"
+  - id: B8
+    title: "Event Metadata: Routing Information"
+    priority: 3
+    status: done
+    tasks:
+      - "Add metadata field to InternalEventV2 in src/types/events.ts"
+      - "Modify RouterEngine to collect all matching rule IDs"
+      - "Add matchedRuleIds and chosenRuleId to evtOut.metadata"
+      - "Add unit test for event metadata"
