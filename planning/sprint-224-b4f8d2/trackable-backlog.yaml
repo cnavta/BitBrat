@@ -66,3 +66,10 @@ backlog:
       - "Modify RouterEngine to collect all matching rule IDs"
       - "Add matchedRuleIds and chosenRuleId to evtOut.metadata"
       - "Add unit test for event metadata"
+  - id: B9
+    title: "Persistence: Store Event Metadata"
+    priority: 4
+    status: done
+    tasks:
+      - "Verify metadata persistence in PersistenceStore"
+      - "Create src/services/persistence/__tests__/metadata-persistence.spec.ts"
