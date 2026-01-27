@@ -3,7 +3,7 @@ import type { InternalEventV2 } from '../../../types/events';
 import type { IConfig } from '../../../types';
 
 describe('Sprint 225: JsonLogic !lurk matching reproduction', () => {
-  const config: IConfig = {
+  const config: any = {
     port: 8080,
     logLevel: 'info',
     commandSigil: '!',
