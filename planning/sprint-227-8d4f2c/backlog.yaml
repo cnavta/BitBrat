@@ -1,0 +1,109 @@
+meta:
+  backlog_id: sprint-227-8d4f2c
+  updated_at: 2026-01-27
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-227-8d4f2c
+  start: 2026-01-27
+  end: 2026-02-10
+  wip_limit: 3
+  goal: "Implement generic egress destination via internal.egress.v1"
+
+items:
+  - id: BL-227-001
+    title: "Enhance DLQ logic for egress failure types"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "src/services/routing/dlq.ts updated to handle egress errors"
+      - "Unit tests verify DLQ payload for egress failures"
+    updated_at: 2026-01-27
+    log:
+      - at: 2026-01-27T15:25:00Z
+        note: "Updated buildDlqEvent to support V2 events and egress metadata. Verified with unit tests."
+
+  - id: BL-227-002
+    title: "Update EgressManager for status reporting"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "EgressManager.handleEgressEvent returns delivery status"
+      - "Supports identification of users across all instances"
+    updated_at: 2026-01-27
+    log:
+      - at: 2026-01-27T15:35:00Z
+        note: "Modified handleEgressEvent to return EgressResult (DELIVERED, NOT_FOUND, FAILED, IGNORED). Updated unit tests."
+
+  - id: BL-227-003
+    title: "Generic Egress Subscription in API Gateway"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-002]
+    blocked_reason: null
+    acceptance:
+      - "api-gateway.ts subscribes to internal.egress.v1"
+      - "Events are routed to EgressManager"
+    updated_at: 2026-01-27
+    log:
+      - at: 2026-01-27T15:45:00Z
+        note: "Added subscription to internal.egress.v1 in ApiGatewayServer. Integrated EgressManager and DLQ for failures."
+
+  - id: BL-227-004
+    title: "Generic Egress Subscription in Ingress-Egress Service"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "ingress-egress-service.ts subscribes to internal.egress.v1"
+      - "Correctly routes to Twitch/Discord/Twilio clients based on source/annotations"
+      - "DLQ logic triggered on terminal delivery failures"
+    updated_at: 2026-01-27
+    log:
+      - at: 2026-01-27T16:00:00Z
+        note: "Refactored IngressEgressServer to reuse delivery logic. Added subscription to internal.egress.v1 with queue group. Integrated DLQ."
+
+  - id: BL-227-005
+    title: "Integration Tests for Generic Egress"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-227-003, BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "End-to-end tests verify message flow from generic topic to simulated clients"
+      - "DLQ verified on simulated failures"
+    updated_at: 2026-01-27
+    log:
+      - at: 2026-01-27T20:25:00Z
+        note: "Created tests/integration/generic-egress.integration.test.ts. Verified delivery to Discord and WebSockets, and DLQ on failure."
+
+  - id: BL-227-006
+    title: "Sprint Validation and Publication"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-005]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "PR created with all changes"
+    updated_at: 2026-01-27
+    log:
+      - at: 2026-01-27T20:26:00Z
+        note: "All validation steps passed. Sprint ready for completion."

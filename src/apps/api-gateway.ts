@@ -7,7 +7,9 @@ import { AuthService } from '../services/api-gateway/auth';
 import { IngressManager } from '../services/api-gateway/ingress';
 import { EgressManager } from '../services/api-gateway/egress';
 import { PublisherResource } from '../common/resources/publisher-manager';
-import { InternalEventV2 } from '../types/events';
+import { InternalEventV2, INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1 } from '../types/events';
+import { EgressResult } from '../services/api-gateway/egress';
+import { buildDlqEvent } from '../services/routing/dlq';
 
 /**
  * ApiGatewayServer
@@ -74,6 +76,19 @@ export class ApiGatewayServer extends McpServer {
     const egressTopic = `internal.api.egress.v1.${instanceId}`;
     await this.onMessage<InternalEventV2>(egressTopic, async (evt) => {
       await this.egressManager?.handleEgressEvent(evt);
+    });
+
+    // Subscribe to generic egress topic (broadcast to all instances)
+    await this.onMessage<InternalEventV2>(INTERNAL_EGRESS_V1, async (evt) => {
+      const result = await this.egressManager?.handleEgressEvent(evt);
+      if (result === EgressResult.FAILED) {
+        const dlqEvent = buildDlqEvent({
+          source: `api-gateway.${instanceId}`,
+          original: evt,
+          reason: 'websocket_delivery_failed'
+        });
+        await publisher.create(INTERNAL_DEADLETTER_V1).publishJson(dlqEvent);
+      }
     });
 
     this.httpServer.on('upgrade', async (request, socket, head) => {
