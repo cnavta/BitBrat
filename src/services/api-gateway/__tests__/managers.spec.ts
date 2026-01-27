@@ -1,5 +1,5 @@
 import { IngressManager } from '../ingress';
-import { EgressManager } from '../egress';
+import { EgressManager, EgressResult } from '../egress';
 import { WebSocket } from 'ws';
 
 describe('Ingress and Egress Managers', () => {
@@ -67,21 +67,35 @@ describe('Ingress and Egress Managers', () => {
         type: 'chat.message',
         userId: 'user-123',
         correlationId: 'c-1',
+        source: 'api-gateway',
         payload: { text: 'reply' }
       } as any;
 
-      await egress.handleEgressEvent(event);
+      const result = await egress.handleEgressEvent(event);
 
+      expect(result).toBe(EgressResult.DELIVERED);
       expect(mockWs1.send).toHaveBeenCalledWith(expect.stringContaining('chat.message.received'));
       expect(mockWs2.send).toHaveBeenCalledWith(expect.stringContaining('chat.message.received'));
       expect(mockWs1.send).toHaveBeenCalledWith(expect.stringContaining('reply'));
     });
 
-    it('should ignore if no active connections', async () => {
+    it('should return NOT_FOUND if no active connections', async () => {
       const egress = new EgressManager(userConnections, mockLogger);
-      const event = { userId: 'user-456' } as any;
-      await egress.handleEgressEvent(event);
+      const event = { userId: 'user-456', source: 'api-gateway' } as any;
+      const result = await egress.handleEgressEvent(event);
+      expect(result).toBe(EgressResult.NOT_FOUND);
       expect(mockLogger.debug).toHaveBeenCalledWith('egress.no_active_connections', expect.anything());
+    });
+
+    it('should return IGNORED if destination is not api-gateway', async () => {
+      const egress = new EgressManager(userConnections, mockLogger);
+      const event = { 
+        userId: 'user-123', 
+        egress: { destination: 'twitch' },
+        source: 'ingress.twitch'
+      } as any;
+      const result = await egress.handleEgressEvent(event);
+      expect(result).toBe(EgressResult.IGNORED);
     });
   });
 });
