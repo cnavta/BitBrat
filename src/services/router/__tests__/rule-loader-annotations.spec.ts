@@ -26,6 +26,7 @@ describe('RuleLoader – annotations passthrough and validation', () => {
     expect(rules).toHaveLength(1);
     const r = rules[0];
     expect(r.enrichments.annotations).toBeDefined();
-    expect(r.enrichments.annotations!.map(a => a.id)).toEqual(['a1']);
+    // Now both should be included because we are lenient for enrichments
+    expect(r.enrichments.annotations!.map(a => a.id)).toEqual(['a1', 'missing-fields']);
   });
 });

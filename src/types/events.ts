@@ -69,6 +69,7 @@ export interface EnvelopeV1 {
     userRef?: string; // e.g., users/<docId>
     at: string; // ISO timestamp
   };
+  metadata?: Record<string, any>;
 }
 
 export interface InternalEventV1 {
@@ -159,6 +160,7 @@ export interface InternalEventV2 extends EnvelopeV1 {
   candidates?: CandidateV1[];
   errors?: ErrorEntryV1[];
   qos?: QOSV1;
+  metadata?: Record<string, any>;
 }
 
 // Topic/Subject constants (keep identical across drivers)

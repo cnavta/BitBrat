@@ -178,7 +178,7 @@ services:
       - BOT_USERNAME
 
   obs-mcp:
-    active: true
+    active: false
     description: MCP server for controlling OBS
     image: us-central1-docker.pkg.dev/bitbrat-local/obs-mcp/obs-mcp:latest
     env:

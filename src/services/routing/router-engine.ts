@@ -2,12 +2,15 @@ import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep, AnnotationV1, Mes
 import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
+import Mustache from 'mustache';
+import type { IConfig } from '../../types';
 
 export interface RoutingDecisionMeta {
   matched: boolean;
   ruleId?: string;
   priority?: number;
   selectedTopic: string;
+  matchedRuleIds: string[];
 }
 
 export interface RouteResult {
@@ -22,7 +25,7 @@ export interface IStateStore {
 }
 
 export interface IJsonLogicEvaluator {
-  buildContext: (evt: InternalEventV2, nowIso?: string, ts?: number) => Eval.EvalContext;
+  buildContext: (evt: InternalEventV2, nowIso?: string, ts?: number, config?: IConfig) => Eval.EvalContext;
   evaluate: (logic: unknown, context: Eval.EvalContext) => boolean;
 }
 
@@ -64,9 +67,9 @@ export class RouterEngine {
     private readonly stateStore?: IStateStore
   ) {}
 
-  async route(evt: InternalEventV2, rules: ReadonlyArray<RuleDoc> = []): Promise<RouteResult> {
+  async route(evt: InternalEventV2, rules: ReadonlyArray<RuleDoc> = [], config?: IConfig): Promise<RouteResult> {
     // Build evaluation context directly from V2
-    const ctx = this.evaluator.buildContext(evt);
+    const ctx = this.evaluator.buildContext(evt, undefined, undefined, config);
 
     // Prepare an immutable output copy; clone annotations/candidates array if present
     const evtOut: InternalEventV2 = {
@@ -77,61 +80,107 @@ export class RouterEngine {
 
     let chosen: RoutingStep[] | null = null;
     let meta: RoutingDecisionMeta | null = null;
+    const matchedRuleIds: string[] = [];
 
     for (const rule of rules) {
       try {
         const ok = this.evaluator.evaluate(rule.logic, ctx);
         if (ok) {
-          const slip = normalizeSlip(rule.routingSlip);
-          const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
-          meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic };
-          chosen = slip;
+          matchedRuleIds.push(rule.id);
 
-          const enrich = rule.enrichments;
-          if (enrich) {
-            // 1. Message Enrichment
-            if (enrich.message) {
-              const msg: MessageV1 = {
-                id: `rule-${rule.id}-${Date.now()}`,
-                role: 'assistant',
-                text: enrich.message,
-              };
-              evtOut.message = msg;
-            }
+          if (!chosen) {
+            const slip = normalizeSlip(rule.routingSlip);
+            const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
+            meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
+            chosen = slip;
 
-            // 2. Annotations Enrichment
-            const anns: AnnotationV1[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
-            if (anns && anns.length) {
-              evtOut.annotations = [...(evtOut.annotations || []), ...anns];
-            }
 
-            // 3. Candidates Enrichment
-            const candidates: CandidateV1[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
-            if (candidates && candidates.length) {
-              if (enrich.randomCandidate && this.stateStore && evt.userId) {
-                const lastId = await this.stateStore.getLastCandidateId(evt.userId, rule.id);
-                const eligible = candidates.filter(c => c.id !== lastId);
-                const pool = eligible.length > 0 ? eligible : candidates;
-                const selected = pool[Math.floor(Math.random() * pool.length)];
+            const enrich = rule.enrichments;
+            if (enrich) {
+              // Build interpolation context: event context overrides rule metadata
+              const interpCtx = { ...(rule.metadata || {}), ...ctx };
 
-                evtOut.candidates = [...(evtOut.candidates || []), selected];
-                await this.stateStore.updateLastCandidateId(evt.userId, rule.id, selected.id);
-              } else {
-                evtOut.candidates = [...(evtOut.candidates || []), ...candidates];
+              // 1. Message Enrichment
+              if (enrich.message) {
+                const msg: MessageV1 = {
+                  id: `rule-${rule.id}-${Date.now()}`,
+                  role: 'assistant',
+                  text: Mustache.render(enrich.message, interpCtx),
+                };
+                evtOut.message = msg;
               }
+
+              // 2. Annotations Enrichment
+              const rawAnns: any[] | undefined = enrich.annotations && enrich.annotations.length ? enrich.annotations : undefined;
+              if (rawAnns && rawAnns.length) {
+                const interpolatedAnns = rawAnns.map(a => ({
+                  ...a,
+                  id: a.id || `rule-${rule.id}-ann-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  kind: a.kind || 'custom',
+                  source: a.source || `rule:${rule.id}`,
+                  createdAt: a.createdAt || ctx.now,
+                  label: a.label ? Mustache.render(String(a.label), interpCtx) : undefined,
+                  value: a.value ? Mustache.render(String(a.value), interpCtx) : undefined,
+                }));
+                evtOut.annotations = [...(evtOut.annotations || []), ...interpolatedAnns];
+              }
+
+              // 3. Candidates Enrichment
+              const rawCandidates: any[] | undefined = enrich.candidates && enrich.candidates.length ? enrich.candidates : undefined;
+              if (rawCandidates && rawCandidates.length) {
+                const interpolatedCandidates = rawCandidates.map(c => ({
+                  ...c,
+                  id: c.id || `rule-${rule.id}-cand-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  kind: c.kind || 'text',
+                  source: c.source || `rule:${rule.id}`,
+                  createdAt: c.createdAt || ctx.now,
+                  status: c.status || 'proposed',
+                  priority: typeof c.priority === 'number' ? c.priority : 10,
+                  text: c.text ? Mustache.render(String(c.text), interpCtx) : undefined,
+                  reason: c.reason ? Mustache.render(String(c.reason), interpCtx) : undefined,
+                }));
+
+                if (enrich.randomCandidate && this.stateStore && evt.userId) {
+                  const lastId = await this.stateStore.getLastCandidateId(evt.userId, rule.id);
+                  const eligible = interpolatedCandidates.filter(c => c.id !== lastId);
+                  const pool = eligible.length > 0 ? eligible : interpolatedCandidates;
+                  const selected = pool[Math.floor(Math.random() * pool.length)];
+
+                  evtOut.candidates = [...(evtOut.candidates || []), selected];
+                  await this.stateStore.updateLastCandidateId(evt.userId, rule.id, selected.id);
+                } else {
+                  evtOut.candidates = [...(evtOut.candidates || []), ...interpolatedCandidates];
+                }
+              }
+
+              // 4. Egress Enrichment
+              if (enrich.egress) {
+                evtOut.egress = {
+                  ...enrich.egress,
+                  destination: enrich.egress.destination ? Mustache.render(String(enrich.egress.destination), interpCtx) : (evtOut.egress?.destination || ''),
+                };
+              }
+
+              logger.debug('router_engine.enrichment.complete', { ruleId: rule.id, evtOut })
             }
           }
-          break; // short-circuit on first match
         }
       } catch (e: any) {
-        logger.warn('router_engine.rule_eval_error', { id: rule.id, error: e?.message || String(e) });
+        logger.error('router_engine.enrichment_error', { id: rule.id, error: e?.message || String(e), stack: e?.stack });
       }
     }
 
     if (!chosen) {
       chosen = defaultSlip();
-      meta = { matched: false, selectedTopic: chosen[0].nextTopic! };
+      meta = { matched: false, selectedTopic: chosen[0].nextTopic!, matchedRuleIds };
     }
+
+    // Add routing metadata to event
+    evtOut.metadata = {
+      ...(evtOut.metadata || {}),
+      matchedRuleIds,
+      chosenRuleId: meta!.ruleId || null,
+    };
 
     return { slip: chosen, decision: meta!, evtOut };
   }

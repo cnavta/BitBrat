@@ -1,0 +1,16 @@
+id: sprint-224-b4f8d2
+title: "Mustache Variables in Event Router Enrichments"
+goal: "Add Mustache style variable support to RuleDoc enrichments in the event-router."
+owner: "Architect (Junie)"
+createdAt: "2026-01-25T19:10:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/137"
+  branch: "feature/sprint-224-b4f8d2-mustache-enrichments"
+notes: |
+  Enrichments to support Mustache variables: message, annotations[].value, annotations[].label, candidates[].text, candidates[].reason, egress.destination.
+  Added task: Add BaseServer.config to the context for RuleDoc.logic execution.
+  Added task: Egress replacement in enrichments with interpolation.
+  Added task: Add matchedRuleIds and chosenRuleId to event metadata.
+  Added task: Persistence service to persist the new metadata on events.
+  Context: incoming event + current timestamp + RuleDoc metadata.
