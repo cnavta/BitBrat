@@ -128,15 +128,8 @@ class EventRouterServer extends BaseServer {
               correlationId: (v2 as any)?.correlationId,
             });
 
-              // Publish to the next topic (first step)
-              const outSubject = `${cfg.busPrefix || ''}${decision.selectedTopic}`;
-              const pubRes = this.getResource<PublisherResource>('publisher');
-              const pub = pubRes
-                ? pubRes.create(outSubject)
-                : require('../services/message-bus').createMessagePublisher(outSubject);
-              const pubAttrs: AttributeMap = busAttrsFromEvent(v2);
-              await pub.publishJson(v2, pubAttrs);
-              logger.info('event_router.publish.ok', { subject: outSubject, selectedTopic: decision.selectedTopic });
+              // Publish to the next topic using advance routing slip pattern
+              await this.next(v2);
             };
             if (tracer && typeof tracer.startActiveSpan === 'function') {
               await tracer.startActiveSpan('route-message', async (span: any) => {
