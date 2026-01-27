@@ -15,29 +15,6 @@ export interface IConfig {
   /** Log verbosity */
   logLevel: LogLevel;
 
-  /** Command Processor: leading character to denote a command (default '!') */
-  commandSigil?: string;
-  /** Command Processor: whitelist of allowed sigils to consider during parsing/matching (supports multi-char) */
-  allowedSigils?: string[];
-  /** Command Processor: bot display name used in templates */
-  botUsername?: string;
-  /** Command Processor: Firestore collection for commands (default 'commands') */
-  commandsCollection?: string;
-  /** Command Processor: default global cooldown ms (0 disables) */
-  defaultGlobalCooldownMs?: number;
-  /** Command Processor: default per-user cooldown ms (0 disables) */
-  defaultUserCooldownMs?: number;
-  /** Command Processor: default max executions per window (0 disables) */
-  defaultRateMax?: number;
-  /** Command Processor: default window size in ms for rate limiting (default 60000) */
-  defaultRatePerMs?: number;
-
-  /** Regex cache: optional cap on number of regex commands to cache */
-  regexMaxCommands?: number;
-  /** Regex cache: optional cap on patterns compiled per command */
-  regexMaxPatternsPerCommand?: number;
-  /** Regex evaluation: optional max message length considered for regex matching */
-  regexMaxMessageLength?: number;
 
   /** Twitch integration master switch */
   twitchEnabled?: boolean;
