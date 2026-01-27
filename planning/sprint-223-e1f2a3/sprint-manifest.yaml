@@ -1,0 +1,13 @@
+id: sprint-223-e1f2a3
+title: "Event Router Enrichments Enhancement"
+goal: "Enhance event-router to support 'message' and 'candidates' enrichments in matched rules."
+owner: "Architect (Junie)"
+createdAt: "2026-01-25T11:57:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-223-e1f2a3-event-router-enrichments"
+  pr: "https://github.com/cnavta/BitBrat/pull/136"
+notes: |
+  Updating RuleDoc to use 'enrichments' property.
+  Implementing logic for message and candidate enrichments in RouterEngine.
+  Supporting randomCandidate selection logic.

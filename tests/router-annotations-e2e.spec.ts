@@ -20,7 +20,7 @@ describe('E2E (mocked evaluator) — RouterEngine annotations propagation', () =
     evaluate: (_logic: unknown) => true,
   };
 
-  it('appends RuleDoc.annotations and selects routing slip on match', () => {
+  it('appends RuleDoc.annotations and selects routing slip on match', async () => {
     const ruleAnns: AnnotationV1[] = [
       { id: 'r-ann-1', kind: 'intent', source: 'rule', createdAt: '2025-01-02T00:00:00Z' },
       { id: 'r-ann-2', kind: 'topic', source: 'rule', createdAt: '2025-01-03T00:00:00Z' },
@@ -30,13 +30,15 @@ describe('E2E (mocked evaluator) — RouterEngine annotations propagation', () =
         id: 'r-match', enabled: true, priority: 1,
         logic: JSON.stringify({ always: true }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
-        annotations: ruleAnns,
-      },
+        enrichments: {
+          annotations: ruleAnns,
+        },
+      } as any,
     ];
 
     const engine = new RouterEngine(mockEval);
     const before = baseEvt.annotations && [...baseEvt.annotations];
-    const { slip, decision, evtOut } = engine.route(baseEvt, rules);
+    const { slip, decision, evtOut } = await engine.route(baseEvt, rules);
 
     // Slip normalized and topic selected
     expect(Array.isArray(slip)).toBe(true);
