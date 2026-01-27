@@ -7,6 +7,9 @@
 - Investigation of `jsonlogic-evaluator.ts` and `router-engine.ts`.
 - Bug reproduction through unit tests.
 - Bug fix for the matching logic or recommendation for rule update.
+- Ensure empty routing slips follow the "completed slip" convention and route to egress.
+- Synchronize top-level `channel` with enriched `egress.destination`.
+- Migrate `event-router-service` to use `BaseServer.next()` for routing consistency.
 - Validation of the fix.
 
 ## Deliverables
@@ -18,6 +21,9 @@
 ## Acceptance Criteria
 - A message with text `!lurk` must match the provided JsonLogic rule when `config.commandSigil` is `!`.
 - The rule must handle optional case-insensitivity as defined in the rule parameters.
+- Empty routing slips must result in a terminal `OK` step and route to `internal.egress.v1`.
+- Enriched `egress.destination` must be synced to the top-level `channel` field.
+- Publishing must be handled via `BaseServer.next()` to advance the routing slip correctly.
 
 ## Testing Strategy
 - Add a new unit test in `src/services/router/__tests__/jsonlogic-evaluator.spec.ts` that uses the specific rule from the issue description.

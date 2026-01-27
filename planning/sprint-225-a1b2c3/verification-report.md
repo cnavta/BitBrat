@@ -10,6 +10,8 @@
 - [x] Verified empty routingSlip logic with new test suite.
 - [x] Fixed issue where `egress.destination` enrichment was not reflected in message bus attributes because the top-level `channel` was not synced.
 - [x] Added regression tests for `egress.destination` and `channel` syncing.
+- [x] Migrated `event-router-service` to use `BaseServer.next()` for routing consistency.
+- [x] Verified that `next()` correctly advances the routing slip and handles fallback to egress.
 
 ## Partial
 - None
