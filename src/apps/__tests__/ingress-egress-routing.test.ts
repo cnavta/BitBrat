@@ -147,7 +147,7 @@ describe('IngressEgressServer routing', () => {
 
     const genericEvent: InternalEventV2 = {
       v: '1',
-      source: 'command-processor', // Generic source
+      source: 'llm-bot', // Generic source
       correlationId: 'corr-3',
       type: 'chat.message.v1',
       channel: 'discord-channel-id',

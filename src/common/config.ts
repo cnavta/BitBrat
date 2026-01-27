@@ -34,21 +34,7 @@ const ConfigSchema = z.object({
   port: z.coerce.number().int().min(0).default(3000),
   logLevel: z.custom<LogLevel>().default('info'),
 
-  // Command Processor specific (optional; service-level validation may enforce presence)
   commandSigil: z.string().optional(),
-  allowedSigils: z.array(z.string()).optional(),
-  botUsername: z.string().optional(),
-  commandsCollection: z.string().optional(),
-  defaultGlobalCooldownMs: z.coerce.number().int().min(0).optional(),
-  defaultUserCooldownMs: z.coerce.number().int().min(0).optional(),
-  defaultRateMax: z.coerce.number().int().min(0).optional(),
-  defaultRatePerMs: z.coerce.number().int().min(1).optional(),
-
-  // Regex-related safeguards
-  regexMaxCommands: z.coerce.number().int().min(0).optional(),
-  regexMaxPatternsPerCommand: z.coerce.number().int().min(0).optional(),
-  regexMaxMessageLength: z.coerce.number().int().min(0).optional(),
-
   twitchEnabled: z.boolean().optional(),
   twitchDisableConnect: z.boolean().optional(),
   twitchBotUsername: z.string().optional(),
@@ -101,21 +87,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     port: Number(env.SERVICE_PORT || env.PORT || 3000),
     logLevel: parseLogLevel(env.LOG_LEVEL, 'info'),
 
-    // Command Processor
     commandSigil: (env.COMMAND_SIGIL || '!').slice(0, 1),
-    allowedSigils: parseList(env.ALLOWED_SIGILS).length ? parseList(env.ALLOWED_SIGILS) : ['!'],
-    botUsername: env.BOT_USERNAME || env.TWITCH_BOT_USERNAME,
-    commandsCollection: env.COMMANDS_COLLECTION || 'commands',
-    defaultGlobalCooldownMs: env.DEFAULT_GLOBAL_COOLDOWN_MS ? Number(env.DEFAULT_GLOBAL_COOLDOWN_MS) : 0,
-    defaultUserCooldownMs: env.DEFAULT_USER_COOLDOWN_MS ? Number(env.DEFAULT_USER_COOLDOWN_MS) : 0,
-    defaultRateMax: env.DEFAULT_RATE_MAX ? Number(env.DEFAULT_RATE_MAX) : 0,
-    defaultRatePerMs: env.DEFAULT_RATE_PER_MS ? Number(env.DEFAULT_RATE_PER_MS) : 60000,
-
-    // Regex safeguards
-    regexMaxCommands: env.REGEX_MAX_COMMANDS ? Number(env.REGEX_MAX_COMMANDS) : undefined,
-    regexMaxPatternsPerCommand: env.REGEX_MAX_PATTERNS_PER_COMMAND ? Number(env.REGEX_MAX_PATTERNS_PER_COMMAND) : undefined,
-    regexMaxMessageLength: env.REGEX_MAX_MESSAGE_LENGTH ? Number(env.REGEX_MAX_MESSAGE_LENGTH) : undefined,
-
     twitchEnabled: parseBool(env.TWITCH_ENABLED, true),
     twitchDisableConnect: parseBool(env.TWITCH_DISABLE_CONNECT, false),
     twitchBotUsername: env.TWITCH_BOT_USERNAME,

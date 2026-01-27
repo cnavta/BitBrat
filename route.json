@@ -5,13 +5,6 @@
   "logic": "{\"and\":[{\"re_test\":[{\"var\":\"message.text\"},[\"^cnj\",\"i\"]]},{\"!\":[{\"slip_complete\":[{\"var\":\"routingSlip\"}]}]}]}",
   "routingSlip": [
     {
-      "id": "command-processor",
-      "v": "1",
-      "nextTopic": "internal.command.v1",
-      "maxAttempts": 3,
-      "attributes": { "origin": "event-router" }
-    },
-    {
       "id": "llm-bot",
       "v": "1",
       "nextTopic": "internal.llmbot.v1",
