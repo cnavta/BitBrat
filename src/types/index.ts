@@ -15,7 +15,7 @@ export interface IConfig {
   /** Log verbosity */
   logLevel: LogLevel;
 
-
+  commandSigil?: string;
   /** Twitch integration master switch */
   twitchEnabled?: boolean;
   /** Disable live Twitch connections (useful for tests/CI) */

@@ -34,7 +34,7 @@ const ConfigSchema = z.object({
   port: z.coerce.number().int().min(0).default(3000),
   logLevel: z.custom<LogLevel>().default('info'),
 
-
+  commandSigil: z.string().optional(),
   twitchEnabled: z.boolean().optional(),
   twitchDisableConnect: z.boolean().optional(),
   twitchBotUsername: z.string().optional(),
@@ -87,7 +87,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     port: Number(env.SERVICE_PORT || env.PORT || 3000),
     logLevel: parseLogLevel(env.LOG_LEVEL, 'info'),
 
-
+    commandSigil: (env.COMMAND_SIGIL || '!').slice(0, 1),
     twitchEnabled: parseBool(env.TWITCH_ENABLED, true),
     twitchDisableConnect: parseBool(env.TWITCH_DISABLE_CONNECT, false),
     twitchBotUsername: env.TWITCH_BOT_USERNAME,
