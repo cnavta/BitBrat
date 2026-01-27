@@ -1,0 +1,10 @@
+id: sprint-226-e4b2d1
+title: "Deprecation of Command-Processor Service"
+goal: "Remove command-processor service from active project and move artifacts to deprecated/"
+owner: "Lead Implementor"
+createdAt: "2026-01-27T13:10:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-226-deprecate-command-processor"
+notes: |
+  Deprecated as its behavior is now accomplished via other services in more flexible ways.

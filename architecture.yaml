@@ -167,18 +167,8 @@ services:
         - internal.deadletter.v1
         - internal.router.dlq.v1
 
-  command-processor:
-    active: true
-    description: "Command processor service handles incoming commands and executes them, producing responses."
-    entry: src/apps/command-processor-service.ts
-    topics:
-      consumes:
-        - internal.command.v1
-    env:
-      - BOT_USERNAME
-
   obs-mcp:
-    active: false
+    active: true
     description: MCP server for controlling OBS
     image: us-central1-docker.pkg.dev/bitbrat-local/obs-mcp/obs-mcp:latest
     env:

@@ -1,0 +1,115 @@
+meta:
+  backlog_id: deprecate-command-processor
+  updated_at: 2026-01-27
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-226-e4b2d1
+  start: 2026-01-27
+  end: 2026-02-10
+  wip_limit: 3
+  goal: "Deprecate command-processor service and move all its artifacts to the deprecated directory."
+
+items:
+  - id: CP-DEP-001
+    title: "Move command-processor source code to deprecated/"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "src/apps/command-processor-service.ts moved to deprecated/services/command-processor/src/apps/"
+      - "src/services/command-processor/ moved to deprecated/services/command-processor/src/services/"
+    updated_at: 2026-01-27
+    log: []
+
+  - id: CP-DEP-002
+    title: "Move command-processor tests to deprecated/"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [CP-DEP-001]
+    blocked_reason: null
+    acceptance:
+      - "tests/services/command-processor/ moved to deprecated/services/command-processor/tests/services/"
+      - "tests/apps/command-processor-error-policy.spec.ts moved to deprecated/services/command-processor/tests/apps/"
+      - "tests/integration/command-processor-smoke.spec.ts moved to deprecated/services/command-processor/tests/integration/"
+      - "src/apps/__tests__/command-processor-service.test.ts moved to deprecated/services/command-processor/src/apps/__tests__/"
+    updated_at: 2026-01-27
+    log: []
+
+  - id: CP-DEP-003
+    title: "Move command-processor auxiliary artifacts to deprecated/"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Dockerfile.command-processor moved to deprecated/services/command-processor/"
+      - "documentation/services/command-processor.md moved to deprecated/services/command-processor/docs/"
+      - "env/*/command-processor.yaml moved to deprecated/services/command-processor/env/"
+      - "infrastructure/docker-compose/services/command-processor.compose.yaml moved to deprecated/services/command-processor/infra/"
+    updated_at: 2026-01-27
+    log: []
+
+  - id: CP-DEP-004
+    title: "Remove command-processor from architecture.yaml"
+    priority: P0
+    status: todo
+    effort: XS
+    owner: agent
+    deps: [CP-DEP-001]
+    blocked_reason: null
+    acceptance:
+      - "command-processor entry removed from architecture.yaml"
+    updated_at: 2026-01-27
+    log: []
+
+  - id: CP-DEP-005
+    title: "Remove unique dependencies from active code"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [CP-DEP-001, CP-DEP-004]
+    blocked_reason: null
+    acceptance:
+      - "command-processor specific fields removed from IConfig in src/types/index.ts"
+      - "command-processor specific fields removed from buildConfig in src/common/config.ts"
+      - "INTERNAL_COMMAND_V1 constant removed from src/types/events.ts"
+    updated_at: 2026-01-27
+    log: []
+
+  - id: CP-DEP-006
+    title: "Update routing configurations"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [CP-DEP-004]
+    blocked_reason: null
+    acceptance:
+      - "route.json updated to remove command-processor step"
+      - "Verify no other route.json or rule refers to internal.command.v1"
+    updated_at: 2026-01-27
+    log: []
+
+  - id: CP-DEP-007
+    title: "Final validation and verification"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [CP-DEP-001, CP-DEP-002, CP-DEP-003, CP-DEP-004, CP-DEP-005, CP-DEP-006]
+    blocked_reason: null
+    acceptance:
+      - "Project builds successfully"
+      - "Tests pass (excluding moved tests)"
+      - "validate_deliverable.sh passes"
+    updated_at: 2026-01-27
+    log: []
