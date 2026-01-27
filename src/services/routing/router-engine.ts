@@ -164,10 +164,15 @@ export class RouterEngine {
 
               // 4. Egress Enrichment
               if (enrich.egress) {
+                const enrichedDest = enrich.egress.destination ? Mustache.render(String(enrich.egress.destination), interpCtx) : (evtOut.egress?.destination || '');
                 evtOut.egress = {
                   ...enrich.egress,
-                  destination: enrich.egress.destination ? Mustache.render(String(enrich.egress.destination), interpCtx) : (evtOut.egress?.destination || ''),
+                  destination: enrichedDest,
                 };
+                // Sync top-level channel with egress destination to ensure correct message bus attributes
+                if (enrichedDest) {
+                  evtOut.channel = enrichedDest;
+                }
               }
 
               logger.debug('router_engine.enrichment.complete', { ruleId: rule.id, evtOut })

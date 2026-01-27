@@ -8,6 +8,8 @@
 - [x] All router tests passed.
 - [x] Refined empty routingSlip handling to route to egress with a terminal OK step.
 - [x] Verified empty routingSlip logic with new test suite.
+- [x] Fixed issue where `egress.destination` enrichment was not reflected in message bus attributes because the top-level `channel` was not synced.
+- [x] Added regression tests for `egress.destination` and `channel` syncing.
 
 ## Partial
 - None
