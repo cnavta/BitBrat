@@ -5,9 +5,9 @@
 - [x] Fix for `text_contains` custom operator to handle trailing spaces in the needle when it occurs at the end of the message text.
 - [x] Verified that both "!lurk" and "!lurk " match the rule containingsigil + "lurk ".
 - [x] Verified that existing `text_contains` behavior remains intact.
-- [x] Reproduction test case for empty `routingSlip` in `RuleDoc`.
-- [x] Logic update in `RouterEngine` to default to `internal.egress.v1` when a matching rule has an empty `routingSlip`.
-- [x] All router and routing tests passed.
+- [x] All router tests passed.
+- [x] Refined empty routingSlip handling to route to egress with a terminal OK step.
+- [x] Verified empty routingSlip logic with new test suite.
 
 ## Partial
 - None
@@ -16,5 +16,4 @@
 - None
 
 ## Alignment Notes
-- The fix for `text_contains` specifically addresses the scenario where a rule concatenates a command sigil with a command name and a trailing space, which previously failed to match if the message contained exactly the command without a trailing space.
-- The `routingSlip` update ensures that matched events with no explicit routing are sent to egress instead of being dropped into the DLQ.
+- The fix specifically addresses the scenario where a rule concatenates a command sigil with a command name and a trailing space, which previously failed to match if the message contained exactly the command without a trailing space.

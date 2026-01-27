@@ -1,14 +1,14 @@
 # Retro – sprint-225-a1b2c3
 
 ## What worked
-- Quick reproduction of the issues using focused unit tests.
+- Quick reproduction of the issue using a focused unit test.
 - The `text_contains` operator was easily identifiable and extensible.
-- The sprint protocol helped maintain structure even when amending the sprint with new tasks.
-- `RouterEngine` logic for slip normalization was centralized, making the default-to-egress change straightforward.
+- The sprint protocol helped maintain structure.
+- Successfully pivoted to address clarified requirement for empty routing slips.
 
 ## What didn’t
-- Initial crash in the empty slip test due to accessing `slip[0]` on an empty array. This highlighted the importance of robust default slips.
+- Initial confusion about why the rule included a trailing space, but it's common for matching commands with arguments.
+- The default DLQ behavior for empty slips was non-intuitive for "matching but terminating" rules.
 
 ## Future Improvements
 - Consider adding more "command-aware" operators that handle sigils and spaces automatically.
-- Add more validation in `RuleLoader` or at the API level to warn if a rule is created with an empty `routingSlip`.

@@ -2,25 +2,22 @@
 
 ## Objective
 - Resolve the issue where the JsonLogic rule for `!lurk` fails to match when the message text is exactly `!lurk`.
-- Change the handling of empty `routingSlip` arrays in `RuleDoc` so they are sent to egress instead of DLQ.
 
 ## Scope
 - Investigation of `jsonlogic-evaluator.ts` and `router-engine.ts`.
 - Bug reproduction through unit tests.
 - Bug fix for the matching logic or recommendation for rule update.
-- Logic update for empty `routingSlip` handling in `RouterEngine`.
 - Validation of the fix.
 
 ## Deliverables
-- Reproduction test cases.
-- Fix for the matching logic.
-- Logic update for empty routing slip.
+- Reproduction test case.
+- Fix for the matching logic (if applicable).
 - Updated `verification-report.md`.
 - `validate_deliverable.sh` script.
 
 ## Acceptance Criteria
 - A message with text `!lurk` must match the provided JsonLogic rule when `config.commandSigil` is `!`.
-- If a matching rule has an empty `routingSlip` array, the message should be routed to egress (`internal.egress.v1`) instead of DLQ.
+- The rule must handle optional case-insensitivity as defined in the rule parameters.
 
 ## Testing Strategy
 - Add a new unit test in `src/services/router/__tests__/jsonlogic-evaluator.spec.ts` that uses the specific rule from the issue description.

@@ -3,7 +3,7 @@ title: "Fix JsonLogic !lurk matching"
 goal: "Ensure the !lurk command rule matches correctly regardless of trailing spaces in the message text"
 owner: "Lead Implementor"
 createdAt: "2026-01-26T20:10:00Z"
-status: "in-progress"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/manual-sprint-225"
   branch: "feature/sprint-225-lurk-rule-fix"

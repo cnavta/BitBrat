@@ -90,20 +90,16 @@ export class RouterEngine {
 
           if (!chosen) {
             let slip = normalizeSlip(rule.routingSlip);
-            if (slip.length === 0) {
-              logger.info('router_engine.rule_match.empty_slip_default_to_egress', { ruleId: rule.id });
-              slip = [
-                {
-                  id: 'router',
-                  v: '1',
-                  status: 'PENDING',
-                  attempt: 0,
-                  maxAttempts: 3,
-                  nextTopic: INTERNAL_EGRESS_V1,
-                },
-              ];
+            let selectedTopic: string;
+
+            if (slip.length > 0) {
+              selectedTopic = slip[0].nextTopic || INTERNAL_ROUTER_DLQ_V1;
+            } else {
+              // Sprint 225: Matched rule with empty slip defaults to egress + terminal OK step
+              selectedTopic = INTERNAL_EGRESS_V1;
+              slip = [{ id: 'router', v: '1', status: 'OK' }];
             }
-            const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
+
             meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
             chosen = slip;
 
