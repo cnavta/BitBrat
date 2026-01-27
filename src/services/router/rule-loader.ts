@@ -149,7 +149,6 @@ function validateRule(raw: any, id: string): RuleDoc | null {
   }
   if (!Array.isArray(raw.routingSlip)) return null;
   const routingSlip = raw.routingSlip.filter((s: any) => isObject(s) && typeof s.nextTopic === 'string');
-  if (routingSlip.length === 0) return null;
 
   // Handle enrichments
   const rawEnrich = isObject(raw.enrichments) ? raw.enrichments : {};
