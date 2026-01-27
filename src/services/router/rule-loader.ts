@@ -7,7 +7,7 @@
  * - Subscribes via onSnapshot to keep cache up to date
  */
 import { logger } from '../../common/logging';
-import {AnnotationV1, CandidateV1} from '../../types/events';
+import {AnnotationV1, CandidateV1, Egress} from '../../types/events';
 
 export interface RoutingStepRef {
   id: string;
@@ -30,6 +30,7 @@ export interface RuleDoc {
     annotations?: AnnotationV1[];// Annotations to add to the event when matched.
     candidates?: CandidateV1[]; // Candidates to add to the event when matched.
     randomCandidate?: boolean; // Add a single, random candidate that was not previously used from the candidates set instead of all of them.
+    egress?: Egress; // Egress replacement for the matched event.
   }
   metadata?: Record<string, unknown>;
 }
@@ -116,6 +117,16 @@ function sanitizeCandidates(rawCandidates: any, id: string): CandidateV1[] | und
   return out.length ? out : undefined;
 }
 
+function sanitizeEnrichmentAnnotations(raw: any): any[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.filter(a => isObject(a));
+}
+
+function sanitizeEnrichmentCandidates(raw: any): any[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.filter(c => isObject(c));
+}
+
 function validateRule(raw: any, id: string): RuleDoc | null {
   if (!isObject(raw)) return null;
   if (raw.enabled !== true) return null; // only cache enabled
@@ -138,15 +149,15 @@ function validateRule(raw: any, id: string): RuleDoc | null {
   }
   if (!Array.isArray(raw.routingSlip)) return null;
   const routingSlip = raw.routingSlip.filter((s: any) => isObject(s) && typeof s.nextTopic === 'string');
-  if (routingSlip.length === 0) return null;
 
   // Handle enrichments
   const rawEnrich = isObject(raw.enrichments) ? raw.enrichments : {};
   const enrichments: RuleDoc['enrichments'] = {
     message: typeof rawEnrich.message === 'string' ? rawEnrich.message : undefined,
-    annotations: sanitizeAnnotations(rawEnrich.annotations || raw.annotations, id),
-    candidates: sanitizeCandidates(rawEnrich.candidates, id),
+    annotations: sanitizeEnrichmentAnnotations(rawEnrich.annotations || raw.annotations),
+    candidates: sanitizeEnrichmentCandidates(rawEnrich.candidates),
     randomCandidate: !!rawEnrich.randomCandidate,
+    egress: isObject(rawEnrich.egress) ? (rawEnrich.egress as Egress) : undefined,
   };
 
   return {
