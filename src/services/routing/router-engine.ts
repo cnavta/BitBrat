@@ -1,4 +1,4 @@
-import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep, AnnotationV1, MessageV1, CandidateV1 } from '../../types/events';
+import { INTERNAL_ROUTER_DLQ_V1, INTERNAL_EGRESS_V1, InternalEventV2, RoutingStep, AnnotationV1, MessageV1, CandidateV1 } from '../../types/events';
 import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
@@ -89,7 +89,20 @@ export class RouterEngine {
           matchedRuleIds.push(rule.id);
 
           if (!chosen) {
-            const slip = normalizeSlip(rule.routingSlip);
+            let slip = normalizeSlip(rule.routingSlip);
+            if (slip.length === 0) {
+              logger.info('router_engine.rule_match.empty_slip_default_to_egress', { ruleId: rule.id });
+              slip = [
+                {
+                  id: 'router',
+                  v: '1',
+                  status: 'PENDING',
+                  attempt: 0,
+                  maxAttempts: 3,
+                  nextTopic: INTERNAL_EGRESS_V1,
+                },
+              ];
+            }
             const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
             meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
             chosen = slip;
