@@ -2,6 +2,12 @@
 
 > [!WARNING]
 > **Early & Experimental Development Stage**: This project started as a way for me to better understand scalable LLM Agent collaboration. As is, it has been mainly a work between myself and a Junie LLM coding agent. It is currently in early development. APIs, configuration schemas, and core architectures are subject to significant changes. We do not recommend using this in a production environment yet.
+>
+> Several design decisions were deliberately fixed to keep scope simple and focus exploration:
+> - The only target platforms are Docker Compose and Google Cloud.
+> - The only persistence framework supported is Firestore.
+> 
+> These both could be fairly easily updated to support additoinal options, I have just not focused on them specifically in favor of learning and exploring AI agent orchestration.
 
 <p align="center">
   <img src="./assets/BitBrat.png" alt="Description of Image" width="300"/>
