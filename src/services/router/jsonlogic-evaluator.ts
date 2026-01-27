@@ -182,10 +182,26 @@ export function registerOperatorsOnce(): void {
   // text_contains: substring search with optional ci
   jsonLogic.add_operation('text_contains', (value: any, needle: any, ci?: any) => {
     const hay = toText(value);
-    const ndl = toText(needle);
+    let ndl = toText(needle);
     const caseInsensitive = ci === true || toText(ci).toLowerCase() === 'true';
-    if (caseInsensitive) return hay.toLowerCase().includes(ndl.toLowerCase());
-    return hay.includes(ndl);
+
+    if (caseInsensitive) {
+      const lowerHay = hay.toLowerCase();
+      const lowerNdl = ndl.toLowerCase();
+      if (lowerHay.includes(lowerNdl)) return true;
+
+      // Sprint 225: If trailing space in needle causes mismatch at end of string, try trimmed
+      if (lowerNdl.endsWith(' ') && lowerHay.endsWith(lowerNdl.trimEnd())) {
+        return true;
+      }
+      return false;
+    }
+
+    if (hay.includes(ndl)) return true;
+    if (ndl.endsWith(' ') && hay.endsWith(ndl.trimEnd())) {
+      return true;
+    }
+    return false;
   });
 
   // has_annotation: accepts (annotationsOrEvent, key[, value])

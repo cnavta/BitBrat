@@ -1,0 +1,11 @@
+id: sprint-225-a1b2c3
+title: "JsonLogic, Routing, and Enrichment Enhancements"
+goal: "Fix !lurk matching, refine empty routing slips, sync channel enrichment, and migrate to BaseServer.next()"
+owner: "Lead Implementor"
+createdAt: "2026-01-26T20:10:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/manual-sprint-225"
+  branch: "feature/sprint-225-lurk-rule-fix"
+notes: |
+  Investigating why "!lurk" doesn't match the rule with trailing space.

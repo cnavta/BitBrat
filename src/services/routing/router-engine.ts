@@ -1,4 +1,4 @@
-import { INTERNAL_ROUTER_DLQ_V1, InternalEventV2, RoutingStep, AnnotationV1, MessageV1, CandidateV1 } from '../../types/events';
+import { INTERNAL_ROUTER_DLQ_V1, INTERNAL_EGRESS_V1, InternalEventV2, RoutingStep, AnnotationV1, MessageV1, CandidateV1 } from '../../types/events';
 import type { RuleDoc, RoutingStepRef } from '../router/rule-loader';
 import * as Eval from '../router/jsonlogic-evaluator';
 import { logger } from '../../common/logging';
@@ -89,8 +89,17 @@ export class RouterEngine {
           matchedRuleIds.push(rule.id);
 
           if (!chosen) {
-            const slip = normalizeSlip(rule.routingSlip);
-            const selectedTopic = slip[0]?.nextTopic || INTERNAL_ROUTER_DLQ_V1;
+            let slip = normalizeSlip(rule.routingSlip);
+            let selectedTopic: string;
+
+            if (slip.length > 0) {
+              selectedTopic = slip[0].nextTopic || INTERNAL_ROUTER_DLQ_V1;
+            } else {
+              // Sprint 225: Matched rule with empty slip defaults to egress + terminal OK step
+              selectedTopic = INTERNAL_EGRESS_V1;
+              slip = [{ id: 'router', v: '1', status: 'OK' }];
+            }
+
             meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
             chosen = slip;
 
@@ -155,10 +164,15 @@ export class RouterEngine {
 
               // 4. Egress Enrichment
               if (enrich.egress) {
+                const enrichedDest = enrich.egress.destination ? Mustache.render(String(enrich.egress.destination), interpCtx) : (evtOut.egress?.destination || '');
                 evtOut.egress = {
                   ...enrich.egress,
-                  destination: enrich.egress.destination ? Mustache.render(String(enrich.egress.destination), interpCtx) : (evtOut.egress?.destination || ''),
+                  destination: enrichedDest,
                 };
+                // Sync top-level channel with egress destination to ensure correct message bus attributes
+                if (enrichedDest) {
+                  evtOut.channel = enrichedDest;
+                }
               }
 
               logger.debug('router_engine.enrichment.complete', { ruleId: rule.id, evtOut })
