@@ -14,7 +14,7 @@ describe('RouterEngine – annotations propagation', () => {
     ] as AnnotationV1[],
   } as any;
 
-  it('appends rule annotations to evtOut and preserves input immutability', () => {
+  it('appends rule annotations to evtOut and preserves input immutability', async () => {
     const ruleAnns: AnnotationV1[] = [
       { id: 'r1', kind: 'intent', source: 'rule', createdAt: '2025-01-02T00:00:00Z', label: 'cmd' },
       { id: 'r2', kind: 'topic', source: 'rule', createdAt: '2025-01-03T00:00:00Z', label: 'routing' },
@@ -24,13 +24,15 @@ describe('RouterEngine – annotations propagation', () => {
         id: 'r-yes', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.command.v1' ] }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
-        annotations: ruleAnns,
-      },
+        enrichments: {
+          annotations: ruleAnns,
+        },
+      } as any,
     ];
 
     const before = baseEvt.annotations && [...baseEvt.annotations];
     const engine = new RouterEngine();
-    const { evtOut } = engine.route(baseEvt, rules);
+    const { evtOut } = await engine.route(baseEvt, rules);
 
     // input not mutated
     expect(baseEvt.annotations).toEqual(before);
@@ -39,17 +41,18 @@ describe('RouterEngine – annotations propagation', () => {
     expect(evtOut.annotations!.map(a => a.id)).toEqual(['a1', 'r1', 'r2']);
   });
 
-  it('no-op when rule has no annotations', () => {
+  it('no-op when rule has no annotations', async () => {
     const rules: RuleDoc[] = [
       {
         id: 'r-yes', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.command.v1' ] }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
-      },
+        enrichments: {},
+      } as any,
     ];
 
     const engine = new RouterEngine();
-    const { evtOut } = engine.route(baseEvt, rules);
+    const { evtOut } = await engine.route(baseEvt, rules);
     expect(evtOut.annotations?.map(a => a.id)).toEqual(['a1']);
   });
 });

@@ -14,13 +14,14 @@ describe('RouterEngine + JsonLogic custom operators integration', () => {
     message: { id: 'm1', role: 'user', text: '!PiNg', rawPlatformPayload: { text: '!PiNg' } },
   } as any;
 
-  it('evaluates rules using ci_eq and re_test', () => {
+  it('evaluates rules using ci_eq and re_test', async () => {
     const rules: RuleDoc[] = [
       {
         id: 'r-no', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.message.v1' ] }),
         routingSlip: [{ id: 'router', nextTopic: 'internal.never.v1' }],
-      },
+        enrichments: {},
+      } as any,
       {
         id: 'r-yes', enabled: true, priority: 2,
         logic: JSON.stringify({
@@ -31,10 +32,11 @@ describe('RouterEngine + JsonLogic custom operators integration', () => {
           ],
         }),
         routingSlip: [{ id: 'router', v: '1', nextTopic: 'internal.llmbot.v1' }],
-      },
+        enrichments: {},
+      } as any,
     ];
     const engine = new RouterEngine();
-    const { decision, slip } = engine.route(evt, rules);
+    const { decision, slip } = await engine.route(evt, rules);
     expect(decision.matched).toBe(true);
     expect(decision.ruleId).toBe('r-yes');
     expect(slip[0].nextTopic).toBe('internal.llmbot.v1');
