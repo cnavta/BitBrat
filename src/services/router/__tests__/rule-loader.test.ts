@@ -15,7 +15,7 @@ describe('RuleLoader', () => {
       makeDoc('a', { enabled: true, priority: 10, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't2' }] }),
       makeDoc('c', { enabled: false, priority: 5, logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't3' }] }), // disabled → ignored
       makeDoc('d', { enabled: true, priority: 'x', logic: JSON.stringify({}), routingSlip: [{ id: 'r', nextTopic: 't4' }] }), // invalid priority
-      makeDoc('e', { enabled: true, priority: 10, logic: JSON.stringify({}), routingSlip: [] }), // invalid slip
+      makeDoc('e', { enabled: true, priority: 10, logic: JSON.stringify({}), routingSlip: undefined }), // invalid slip
     ];
     const warmSnap = makeSnap(docs);
 
