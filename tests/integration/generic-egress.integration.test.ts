@@ -87,7 +87,10 @@ describe('Generic Egress Integration', () => {
   it('should deliver Discord and WebSocket messages from the same generic topic', async () => {
     // Setup mocks explicitly after initialization
     const discordSpy = jest.fn().mockResolvedValue(undefined);
-    (ingressEgress as any).discordClient = { sendText: discordSpy };
+    (ingressEgress as any).discordClient = { 
+      sendText: discordSpy,
+      getSnapshot: () => ({ state: 'CONNECTED' }) 
+    };
 
     // 1. Setup WebSocket connection in API Gateway
     const mockWs = { 
@@ -161,7 +164,10 @@ describe('Generic Egress Integration', () => {
     
     // Let's simulate a failure in ingress-egress
     const failedDiscordSpy = jest.fn().mockRejectedValue(new Error('Discord offline'));
-    (ingressEgress as any).discordClient = { sendText: failedDiscordSpy };
+    (ingressEgress as any).discordClient = { 
+      sendText: failedDiscordSpy,
+      getSnapshot: () => ({ state: 'CONNECTED' })
+    };
     
     const failedDiscordEvt = {
       v: '1',

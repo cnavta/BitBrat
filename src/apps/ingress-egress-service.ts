@@ -243,13 +243,14 @@ export class IngressEgressServer extends BaseServer {
         logger.error('ingress-egress.egress_subscribe.error', { subject: egressSubject, error: e?.message || String(e) });
       }
 
-      // Subscribe to generic egress topic (shared among all instances of this service)
-      const genericEgressSubject = `${cfg.busPrefix || ''}${INTERNAL_EGRESS_V1}`;
-      const genericQueue = 'ingress-egress-shared';
+      // Subscribe to generic egress topic (broadcast to all instances)
+      const genericEgressTopic = INTERNAL_EGRESS_V1;
+      const genericEgressSubject = `${cfg.busPrefix || ''}${genericEgressTopic}`;
+      const genericQueue = `ingress-egress.${instanceId}`;
       logger.info('ingress-egress.generic_egress_subscribe.start', { subject: genericEgressSubject, queue: genericQueue });
       try {
         await this.onMessage<any>(
-          { destination: genericEgressSubject, queue: genericQueue, ack: 'explicit' },
+          { destination: genericEgressTopic, queue: genericQueue, ack: 'explicit' },
           async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             try {
               // Determine if this service supports the platform for this event
@@ -263,7 +264,17 @@ export class IngressEgressServer extends BaseServer {
                               (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch'));
 
               if (isDiscord || isTwilio || isTwitch) {
-                await this.processEgress(evt, genericEgressSubject);
+                const result = await this.processEgress(evt, genericEgressSubject);
+                if (result === 'FAILED') {
+                  const dlqEvent = buildDlqEvent({
+                    source: `${SERVICE_NAME}.${instanceId}`,
+                    original: evt,
+                    reason: 'egress_delivery_failed'
+                  });
+                  const pubRes = this.getResource<PublisherResource>('publisher');
+                  const prefix = cfg.busPrefix || '';
+                  await pubRes?.create(`${prefix}${INTERNAL_DEADLETTER_V1}`).publishJson(dlqEvent);
+                }
               }
               await ctx.ack();
             } catch (e: any) {
@@ -322,9 +333,9 @@ export class IngressEgressServer extends BaseServer {
     }
   }
 
-  private async processEgress(evt: any, destinationTopic: string): Promise<void> {
+  private async processEgress(evt: any, destinationTopic: string): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> {
     const tracer = (this as any).getTracer?.();
-    const run = async () => {
+    const run = async (): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> => {
       logger.debug('ingress-egress.egress.received', { correlationId: evt?.correlationId || evt?.envelope?.correlationId, topic: destinationTopic });
       // Mark selected candidate on V2 events (if candidates exist) and log rationale
       let evtForDelivery: any = evt;
@@ -349,7 +360,7 @@ export class IngressEgressServer extends BaseServer {
       const text = extractEgressTextFromEvent(evtForDelivery);
       if (!text) {
         logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
-        return;
+        return 'FAILED';
       }
       const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
       const publishFinalize = async (status: 'SENT' | 'FAILED', error?: { code: string; message?: string }) => {
@@ -389,18 +400,26 @@ export class IngressEgressServer extends BaseServer {
 
         if (isDiscord) {
           if (this.discordClient) {
+            // Check if Discord client is connected; if not, return IGNORED to avoid false FAILED in broadcast
+            const snap = this.discordClient.getSnapshot();
+            if (snap.state !== 'CONNECTED') {
+              logger.debug('ingress-egress.egress.discord.ignored_disconnected', { correlationId });
+              return 'IGNORED';
+            }
             await this.discordClient.sendText(text, evt.channel);
           } else {
-            throw new Error('discord_client_not_available');
+            return 'IGNORED';
           }
         } else if (isTwilio) {
           if (this.twilioClient) {
             await this.twilioClient.sendText(text, evt.channel);
           } else {
-            throw new Error('twilio_client_not_available');
+            return 'IGNORED';
           }
         } else {
           // Default to Twitch
+          if (!this.twitchClient) return 'IGNORED';
+          
           const egressType = evt?.egress?.type || evt?.envelope?.egress?.type || 'chat';
           const targetUserId = evt?.userId || evt?.envelope?.userId;
 
@@ -408,46 +427,43 @@ export class IngressEgressServer extends BaseServer {
 
           if (egressType === 'dm' && targetUserId) {
             logger.info('ingress-egress.egress.twitch.routing_to_whisper', { correlationId, targetUserId });
-            await this.twitchClient!.sendWhisper(text, targetUserId);
+            await this.twitchClient.sendWhisper(text, targetUserId);
           } else {
             if (egressType === 'dm' && !targetUserId) {
               logger.warn('ingress-egress.egress.twitch.dm_requested_but_no_userId', { correlationId });
             }
-            await this.twitchClient!.sendText(text, evt.channel);
+            await this.twitchClient.sendText(text, evt.channel);
           }
         }
         logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio });
         await publishFinalize('SENT');
+        return 'DELIVERED';
       } catch (e: any) {
+        // If the error indicates the target was not found on this instance/client, return IGNORED
+        const msg = (e?.message || String(e)).toLowerCase();
+        if (msg.includes('not_connected') || msg.includes('not_found') || msg.includes('no_channel')) {
+          logger.debug('ingress-egress.egress.ignored_not_found', { correlationId, error: e.message });
+          return 'IGNORED';
+        }
+
         logger.error('ingress-egress.egress.delivery_error', { correlationId, error: e.message });
         await publishFinalize('FAILED', { code: 'send_error', message: e?.message || String(e) });
         
-        // Publish to DLQ if it was a generic egress topic or a specifically routed one that failed
-        const dlqEvent = buildDlqEvent({
-          source: SERVICE_NAME,
-          original: evt,
-          reason: 'egress_delivery_failed',
-          error: e
-        });
-        const pubRes = this.getResource<PublisherResource>('publisher');
-        const cfg: any = this.getConfig?.() || {};
-        const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
-        await pubRes?.create(`${prefix}${INTERNAL_DEADLETTER_V1}`).publishJson(dlqEvent);
-
-        throw e;
+        // Return FAILED to caller so they can DLQ if appropriate
+        return 'FAILED';
       }
     };
 
     if (tracer && typeof tracer.startActiveSpan === 'function') {
-      await tracer.startActiveSpan('deliver-egress', async (span: any) => {
+      return await tracer.startActiveSpan('deliver-egress', async (span: any) => {
         try {
-          await run();
+          return await run();
         } finally {
           span.end();
         }
       });
     } else {
-      await run();
+      return await run();
     }
   }
 

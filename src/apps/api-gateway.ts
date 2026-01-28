@@ -79,7 +79,10 @@ export class ApiGatewayServer extends McpServer {
     });
 
     // Subscribe to generic egress topic (broadcast to all instances)
-    await this.onMessage<InternalEventV2>(INTERNAL_EGRESS_V1, async (evt) => {
+    await this.onMessage<InternalEventV2>({ 
+      destination: INTERNAL_EGRESS_V1, 
+      queue: `api-gateway.${instanceId}` 
+    }, async (evt) => {
       const result = await this.egressManager?.handleEgressEvent(evt);
       if (result === EgressResult.FAILED) {
         const dlqEvent = buildDlqEvent({

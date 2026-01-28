@@ -49,7 +49,7 @@ describe('IngressEgressServer - Generic Egress', () => {
     expect(subscriber.subscribe).toHaveBeenCalledWith(
       expect.stringContaining(INTERNAL_EGRESS_V1),
       expect.any(Function),
-      expect.objectContaining({ queue: 'ingress-egress-shared' })
+      expect.objectContaining({ queue: expect.stringMatching(/^ingress-egress\..+$/) })
     );
   });
 
@@ -57,7 +57,7 @@ describe('IngressEgressServer - Generic Egress', () => {
     const { createMessageSubscriber } = require('../../src/services/message-bus');
     let capturedHandler: any;
     createMessageSubscriber().subscribe.mockImplementation((subj: string, handler: any, opts: any) => {
-      if (subj === INTERNAL_EGRESS_V1 && opts?.queue === 'ingress-egress-shared') {
+      if (subj === INTERNAL_EGRESS_V1 && opts?.queue?.startsWith('ingress-egress.')) {
         capturedHandler = handler;
       }
       return jest.fn();
@@ -78,7 +78,10 @@ describe('IngressEgressServer - Generic Egress', () => {
     }
 
     // Mock discordClient
-    const mockDiscordClient = { sendText: jest.fn().mockResolvedValue(undefined) };
+    const mockDiscordClient = { 
+      sendText: jest.fn().mockResolvedValue(undefined),
+      getSnapshot: () => ({ state: 'CONNECTED' })
+    };
     (server as any).discordClient = mockDiscordClient;
 
     // Simulate message
@@ -100,7 +103,7 @@ describe('IngressEgressServer - Generic Egress', () => {
     const { createMessageSubscriber } = require('../../src/services/message-bus');
     let capturedHandler: any;
     createMessageSubscriber().subscribe.mockImplementation((subj: string, handler: any, opts: any) => {
-      if (subj === INTERNAL_EGRESS_V1 && opts?.queue === 'ingress-egress-shared') {
+      if (subj === INTERNAL_EGRESS_V1 && opts?.queue?.startsWith('ingress-egress.')) {
         capturedHandler = handler;
       }
       return jest.fn();
@@ -126,7 +129,10 @@ describe('IngressEgressServer - Generic Egress', () => {
     });
 
     // Mock discordClient to fail
-    const mockDiscordClient = { sendText: jest.fn().mockRejectedValue(new Error('Discord API down')) };
+    const mockDiscordClient = { 
+      sendText: jest.fn().mockRejectedValue(new Error('Discord API down')),
+      getSnapshot: () => ({ state: 'CONNECTED' })
+    };
     (server as any).discordClient = mockDiscordClient;
 
     // Simulate message
