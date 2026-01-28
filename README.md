@@ -29,9 +29,8 @@ The platform consists of several core services:
 
 - **Ingress-Egress**: The gateway for external platforms.
 - **Auth Service**: Handles user enrichment and authorization.
-- **Event Router**: Assigns routing slips to incoming events.
+- **Event Router**: Matches incoming events, enriches them, and routes them through the platform.
 - **LLM Bot**: The brain of the platform, processing events using LLMs.
-- **Command Processor**: Executes specific bot commands.
 - **Persistence**: Ensures events and states are stored reliably.
 - **Scheduler**: Manages periodic tasks and ticks.
 

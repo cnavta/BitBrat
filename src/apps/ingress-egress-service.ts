@@ -244,7 +244,7 @@ export class IngressEgressServer extends BaseServer {
       }
 
       // Subscribe to generic egress topic (shared among all instances of this service)
-      const genericEgressSubject = INTERNAL_EGRESS_V1;
+      const genericEgressSubject = `${cfg.busPrefix || ''}${INTERNAL_EGRESS_V1}`;
       const genericQueue = 'ingress-egress-shared';
       logger.info('ingress-egress.generic_egress_subscribe.start', { subject: genericEgressSubject, queue: genericQueue });
       try {
@@ -403,13 +403,15 @@ export class IngressEgressServer extends BaseServer {
           // Default to Twitch
           const egressType = evt?.egress?.type || evt?.envelope?.egress?.type || 'chat';
           const targetUserId = evt?.userId || evt?.envelope?.userId;
-          
+
+          logger.debug('ingress-egress.egress.twitch.start', {evt});
+
           if (egressType === 'dm' && targetUserId) {
-            logger.info('ingress-egress.egress.routing_to_whisper', { correlationId, targetUserId });
+            logger.info('ingress-egress.egress.twitch.routing_to_whisper', { correlationId, targetUserId });
             await this.twitchClient!.sendWhisper(text, targetUserId);
           } else {
             if (egressType === 'dm' && !targetUserId) {
-              logger.warn('ingress-egress.egress.dm_requested_but_no_userId', { correlationId });
+              logger.warn('ingress-egress.egress.twitch.dm_requested_but_no_userId', { correlationId });
             }
             await this.twitchClient!.sendText(text, evt.channel);
           }
