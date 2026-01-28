@@ -1,0 +1,157 @@
+{
+  "ts": "2026-01-28T00:32:28.994Z",
+  "service": "ingress-egress",
+  "level": "debug",
+  "severity": "DEBUG",
+  "msg": "ingress-egress.egress.twitch.start",
+  "evt": {
+    "v": "1",
+    "source": "ingress.twitch",
+    "correlationId": "9f05598d-1357-4837-9317-981dee8c40e6",
+    "traceId": "5c253569-6a34-4f31-ae48-42572fd17834",
+    "routingSlip": [
+      {
+        "id": "llm-bot",
+        "v": "1",
+        "status": "OK",
+        "attempt": 1,
+        "maxAttempts": 3,
+        "nextTopic": "internal.llmbot.v1",
+        "attributes": {
+          "origin": "event-router"
+        },
+        "startedAt": "2026-01-28T00:32:24.320Z",
+        "endedAt": "2026-01-28T00:32:28.992Z"
+      }
+    ],
+    "egress": {
+      "destination": "internal.egress.v1.19a08cfe3191",
+      "type": "chat"
+    },
+    "type": "egress.deliver.v1",
+    "channel": "#gonj_the_unjust",
+    "userId": "91960688",
+    "message": {
+      "id": "63209a4d-35e9-43bd-ba6d-08f74b6059ea",
+      "role": "user",
+      "text": "@bitbrat_the_ai Create a new API Token for me",
+      "rawPlatformPayload": {
+        "text": "@bitbrat_the_ai Create a new API Token for me",
+        "messageId": "63209a4d-35e9-43bd-ba6d-08f74b6059ea",
+        "user": {
+          "login": "gonj_the_unjust",
+          "displayName": "Gonj_The_Unjust"
+        },
+        "roomId": "91960688",
+        "badges": [],
+        "isMod": false,
+        "isSubscriber": true,
+        "emotes": [],
+        "raw": {
+          "tags": {
+            "badge-info": "subscriber/5",
+            "badges": "broadcaster/1,subscriber/0",
+            "client-nonce": "fa***f3a3",
+            "color": "#8A2BE2",
+            "display-name": "Gonj_The_Unjust",
+            "emotes": "",
+            "first-msg": "0",
+            "flags": "",
+            "id": "63209a4d-35e9-43bd-ba6d-08f74b6059ea",
+            "mod": "0",
+            "returning-chatter": "0",
+            "room-id": "91960688",
+            "subscriber": "1",
+            "tmi-sent-ts": "1769560344170",
+            "turbo": "0",
+            "user-id": "91960688",
+            "user-type": ""
+          }
+        },
+        "timestamp": "2026-01-28T00:32:24.295Z"
+      }
+    },
+    "user": {
+      "id": "twitch:91960688",
+      "displayName": "Gonj_The_Unjust",
+      "roles": [
+        "subscriber",
+        "unjust"
+      ],
+      "profile": {
+        "username": "gonj_the_unjust",
+        "updatedAt": "2026-01-28T00:32:24.298Z"
+      },
+      "rolesMeta": {
+        "twitch": [
+          "subscriber"
+        ]
+      },
+      "tags": [
+        "PROVIDER_TWITCH",
+        "RETURNING_USER"
+      ]
+    },
+    "auth": {
+      "v": "1",
+      "method": "enrichment",
+      "matched": true,
+      "at": "2026-01-28T00:32:24.298Z",
+      "provider": "twitch",
+      "userRef": "users/twitch:91960688"
+    },
+    "annotations": [
+      {
+        "id": "a1",
+        "kind": "personality",
+        "value": "bitbrat_the_ai",
+        "source": "rule:bitbrat-mention",
+        "createdAt": "2026-01-28T00:32:24.320Z"
+      },
+      {
+        "id": "a2",
+        "kind": "prompt",
+        "value": "Create an appropriate answer to user 's latest message.",
+        "source": "rule:bitbrat-mention",
+        "createdAt": "2026-01-28T00:32:24.320Z"
+      },
+      {
+        "id": "ctx-9f05598d-1357-4837-9317-981dee8c40e6",
+        "kind": "prompt",
+        "source": "llm-bot.user-context",
+        "createdAt": "2026-01-28T00:32:24.321Z",
+        "label": "user-context-v1",
+        "payload": {
+          "username": "Gonj_The_Unjust",
+          "roles": [
+            "subscriber",
+            "unjust"
+          ],
+          "rolePrompts": [],
+          "mode": "append",
+          "text": "Username: Gonj_The_Unjust"
+        },
+        "value": "Username: Gonj_The_Unjust"
+      }
+    ],
+    "metadata": {
+      "matchedRuleIds": [
+        "bitbrat-mention"
+      ],
+      "chosenRuleId": "bitbrat-mention"
+    },
+    "candidates": [
+      {
+        "id": "cand-9f05598d-1357-4837-9317-981dee8c40e6",
+        "kind": "text",
+        "source": "llm-bot",
+        "createdAt": "2026-01-28T00:32:28.992Z",
+        "status": "selected",
+        "priority": 10,
+        "text": "I've created a new API token for you, Gonj_The_Unjust. It will be sent to you via a direct message. If you need anything else, just let me know!",
+        "reason": "model:gpt-4.1-mini"
+      }
+    ]
+  }
+}
+

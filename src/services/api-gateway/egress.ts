@@ -3,6 +3,13 @@ import { WebSocket } from 'ws';
 import { InternalEventV2 } from '../../types/events';
 import { extractEgressTextFromEvent } from '../../common/events/selection';
 
+export enum EgressResult {
+  DELIVERED = 'DELIVERED',
+  NOT_FOUND = 'NOT_FOUND',
+  FAILED = 'FAILED',
+  IGNORED = 'IGNORED'
+}
+
 export class EgressManager {
   constructor(
     private readonly userConnections: Map<string, Set<WebSocket>>,
@@ -15,23 +22,31 @@ export class EgressManager {
    * 2. Identifies target user(s).
    * 3. Forwards to all active WebSocket connections for that user.
    */
-  public async handleEgressEvent(event: InternalEventV2): Promise<void> {
+  public async handleEgressEvent(event: InternalEventV2): Promise<EgressResult> {
+    const isWebSocketTarget = event.egress?.destination === 'api-gateway' || 
+                             event.source === 'api-gateway' ||
+                             event.type?.startsWith('api.');
+
+    if (!isWebSocketTarget && event.egress?.destination !== undefined) {
+      return EgressResult.IGNORED;
+    }
+
     const userId = event.userId;
     if (!userId) {
       this.logger.warn('egress.missing_user_id', { correlationId: event.correlationId });
-      return;
+      return EgressResult.FAILED;
     }
 
     const connections = this.userConnections.get(userId);
     if (!connections || connections.size === 0) {
       this.logger.debug('egress.no_active_connections', { userId, correlationId: event.correlationId });
-      return;
+      return EgressResult.NOT_FOUND;
     }
 
     const text = extractEgressTextFromEvent(event);
     if (!text && !event.payload) {
       this.logger.warn('egress.empty_content', { userId, correlationId: event.correlationId });
-      return;
+      return EgressResult.FAILED;
     }
 
     const outboundFrame = {
@@ -69,5 +84,7 @@ export class EgressManager {
       failCount,
       correlationId: event.correlationId 
     });
+
+    return successCount > 0 ? EgressResult.DELIVERED : EgressResult.FAILED;
   }
 }
