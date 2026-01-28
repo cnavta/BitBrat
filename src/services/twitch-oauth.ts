@@ -20,6 +20,7 @@ function buildAuthUrl(cfg: IConfig, state: string, redirectUri: string): string 
     'bits:read',
     'moderator:read:shoutouts',
     'user:read:email',
+    'user:manage:whispers'
   ];
   const scopes = (cfg.twitchScopes && cfg.twitchScopes.length ? cfg.twitchScopes : defaultScopes).join(' ');
   const params = new URLSearchParams({

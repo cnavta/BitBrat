@@ -6,6 +6,10 @@
 - [x] API Gateway generic egress subscription implemented (`src/apps/api-gateway.ts`)
 - [x] Ingress-Egress Service generic egress subscription implemented with platform routing (`src/apps/ingress-egress-service.ts`)
 - [x] Integration tests for generic egress message flow and DLQ fallback (`tests/integration/generic-egress.integration.test.ts`)
+- [x] Fallback to user platform (`auth.provider`) implemented in `ingress-egress-service`
+- [x] Corrected `provider` property persistence and enrichment across services
+- [x] Twitch whisper sender identity enforced as Bot account
+- [x] Strip platform prefixes from userId in whispers
 - [x] Full validation suite passed via `validate_deliverable.sh`
 
 ## Partial

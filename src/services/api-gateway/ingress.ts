@@ -49,6 +49,13 @@ export class IngressManager {
         userId: userId,
         channel: frame.payload.channel || frame.payload.room, // Support both naming conventions
         egress: { destination: 'api-gateway' },
+        auth: {
+          v: '1',
+          method: 'enrichment', // Gateway provides userId so it's pre-enriched in a sense
+          matched: true,
+          provider: 'api-gateway',
+          at: new Date().toISOString()
+        },
         message: (type === 'chat.message' || type === 'chat.message.send') ? {
           id: frame.metadata?.id || uuidv4(),
           role: 'user',
