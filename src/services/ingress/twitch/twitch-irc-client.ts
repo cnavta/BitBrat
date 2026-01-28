@@ -161,12 +161,22 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
         const login = normalized[0].replace(/^#/, '');
         authData = await this.credentialsProvider.getChatAuth(login);
         accessToken = authData.accessToken || '';
-        this.snapshot.userId = authData.userId;
+        this.snapshot.userId = authData.userId || this.cfg?.twitchBotUserId;
         this.snapshot.displayName = authData.login || login;
       }
     } catch (e) {
       // fallthrough; error handled below
       logger.error('Failed to retrieve Twitch credentials', { error: (e as any)?.message || String(e) });
+    }
+
+    // Resolve broadcaster credentials if supported (Sprint 152/Generic Egress Alignment)
+    let broadcasterAuth: TwitchChatAuth | null = null;
+    try {
+      if (this.credentialsProvider?.getBroadcasterAuth && normalized.length > 0) {
+        broadcasterAuth = await this.credentialsProvider.getBroadcasterAuth(normalized[0].replace(/^#/, ''));
+      }
+    } catch (e) {
+      logger.debug('Failed to retrieve broadcaster credentials', { error: (e as any)?.message || String(e) });
     }
 
     // Fallback: allow direct config-provided token if provider was not configured or failed
@@ -211,6 +221,16 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
           expiresIn: authData.expiresIn ?? null,
           obtainmentTimestamp: authData.obtainmentTimestamp ?? null,
         }, ['chat']);
+
+        if (broadcasterAuth) {
+          await authProvider.addUserForToken({
+            accessToken: broadcasterAuth.accessToken,
+            refreshToken: broadcasterAuth.refreshToken,
+            scope: broadcasterAuth.scope ?? [],
+            expiresIn: broadcasterAuth.expiresIn ?? null,
+            obtainmentTimestamp: broadcasterAuth.obtainmentTimestamp ?? null,
+          }, ['chat']);
+        }
       } catch (e: any) {
         logger.warn('Falling back to StaticAuthProvider due to RefreshingAuthProvider init failure', { error: e?.message || String(e) });
         authProvider = new StaticAuthProvider(clientId, accessToken);
@@ -338,16 +358,17 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
 
     if (this.helix) {
       try {
-        const fromUserId = this.snapshot.userId;
+        const fromUserId = this.cfg?.twitchBotUserId || this.snapshot.userId;
         if (!fromUserId) {
           throw new Error('bot_user_id_unknown');
         }
         // Twitch Helix Whisper API: POST /whispers?from_user_id=...&to_user_id=...
         // Twurple: helix.whispers.sendWhisper(from, to, text)
+        logger.debug('twitch.whisper.send', { to: userId, from: fromUserId  });
         await this.helix.whispers.sendWhisper(fromUserId, userId, text);
-        logger.info('twitch.whisper.sent', { to: userId });
+        logger.info('twitch.whisper.sent', { to: userId, from: fromUserId });
       } catch (e: any) {
-        logger.error('twitch.whisper.error', { to: userId, error: e?.message || String(e) });
+        logger.error('twitch.whisper.error', { to: userId, error: e });
         throw e;
       }
     } else {
