@@ -62,8 +62,19 @@ export class AuthServer extends McpServer {
             // Create a child span for enrichment and publish for better trace visibility
             const tracer = (this as any).getTracer?.();
             const run = async () => {
+              const source = (asV2 as any)?.source || '';
+              let provider = (asV2 as any)?.auth?.provider;
+              
+              if (!provider) {
+                if (source.includes('twitch')) provider = 'twitch';
+                else if (source.includes('discord')) provider = 'discord';
+                else if (source.includes('twilio')) provider = 'twilio';
+                else if (source.includes('api-gateway')) provider = 'api-gateway';
+                else provider = source.split('.')?.[1];
+              }
+
               const { event: enrichedV2Initial, matched, userRef, created, isFirstMessage, isNewSession } = await enrichEvent(asV2, userRepo, {
-                provider: (asV2 as any)?.source?.split('.')?.[1],
+                provider,
               });
 
               // Do NOT append an 'auth' step to the routingSlip here.

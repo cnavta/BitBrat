@@ -15,3 +15,7 @@
 ## Future Improvements
 - Consider a dedicated "Egress Service" if the number of supported platforms grows significantly, rather than bundling them in `ingress-egress`.
 - Shared state (e.g. Redis) for user connections could optimize API Gateway delivery by routing specifically to the instance where the user is connected, rather than broadcasting to all.
+
+- **Platform Fallback**: Implemented fallback to user-associated platform (`auth.provider`) when no explicit platform is detected in the egress event. Verified with tests.
+20:
+21:- **User Provider Persistence**: Fixed an issue where the `provider` property was not being updated in Firestore if a user document already existed but was missing the field. Also enhanced platform derivation in `AuthServer` and ensured WebSocket events carry a `provider: 'api-gateway'` property. Additionally, fixed the enrichment logic in `enrichment.ts` to properly copy the `provider` from the Firestore user document onto the enriched event. Verified with reproduction tests and full suite.

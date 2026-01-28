@@ -107,3 +107,39 @@ items:
     log:
       - at: 2026-01-27T20:26:00Z
         note: "All validation steps passed. Sprint ready for completion."
+
+  - id: BL-227-007
+    title: "Implement fallback to user platform in ingress-egress"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "ingress-egress-service.ts uses auth.provider as fallback platform"
+      - "Unit tests verify fallback to Discord/Twilio"
+    updated_at: 2026-01-28
+    log:
+      - at: 2026-01-28T18:30:00Z
+        note: "Added auth.provider check to processEgress and generic egress subscription. Verified with tests/apps/ingress-egress-fallback.test.ts."
+
+  - id: BL-227-008
+    title: "Ensure provider property is set in auth processes"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "FirestoreUserRepo ensures provider/providerUserId are persisted"
+      - "API Gateway IngressManager includes provider in event auth"
+      - "AuthServer robustly derives provider from source/event"
+      - "enrichment.ts prioritizes provider from user document"
+    updated_at: 2026-01-28
+    log:
+      - at: 2026-01-28T18:45:00Z
+        note: "Updated FirestoreUserRepo, IngressManager, and AuthServer to correctly handle and persist the 'provider' property."
+      - at: 2026-01-28T19:05:00Z
+        note: "Fixed enrichment.ts to correctly copy 'provider' from user document onto enriched events."
