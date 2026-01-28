@@ -20,9 +20,36 @@
 
 ## [2026-01-27T15:20:00Z] - Implementation Start
 - **Prompt summary**: Planning approved, please move forward with implementation
-- **Interpretation**: Begin implementing tasks from backlog.yaml starting with BL-227-001.
+- **Interpretation**: Begin implementing tasks from backlog.yaml.
 - **Shell/git commands executed**:
-  - None yet.
+  - Implementation of BL-227-001 through BL-227-006.
 - **Files modified or created**:
-  - `planning/sprint-227-8d4f2c/sprint-manifest.yaml` (updated status)
-  - `planning/sprint-227-8d4f2c/request-log.md` (updated)
+  - `src/apps/ingress-egress-service.ts`
+  - `src/apps/api-gateway.ts`
+  - `src/services/api-gateway/egress.ts`
+  - `src/services/routing/dlq.ts`
+  - `tests/integration/generic-egress.integration.test.ts`
+  - ... and others.
+
+## [2026-01-27T21:30:00Z] - Generic Egress Topic Investigation
+- **Prompt summary**: Investigation into ingress-egress service not receiving events on generic egress topic.
+- **Interpretation**: Diagnose and fix messaging pattern issues.
+- **Shell/git commands executed**:
+  - `npm test -- tests/repro-prefixing.test.ts`
+- **Files modified or created**:
+  - `src/apps/ingress-egress-service.ts` (fixed double-prefixing bug)
+  - `planning/sprint-227-8d4f2c/retro.md` (updated)
+
+## [2026-01-27T21:45:00Z] - Egress Fan-out Verification & Alignment
+- **Prompt summary**: Is fan-out appropriately handled by the NATS driver? Make sure the ingress-egress doesn't have the same fan-out bug as the api-gateway.
+- **Interpretation**: Verify one-to-many delivery in NATS driver and ensure both api-gateway and ingress-egress use it correctly for generic egress.
+- **Shell/git commands executed**:
+  - `npm test -- tests/nats-fanout.test.ts`
+  - `npm test -- tests/integration/generic-egress.integration.test.ts`
+  - `./validate_deliverable.sh`
+- **Files modified or created**:
+  - `src/apps/api-gateway.ts` (updated generic egress subscription to use unique queue per instance)
+  - `src/apps/ingress-egress-service.ts` (aligned generic egress to use unique queue per instance; refactored processEgress to handle IGNORED state)
+  - `tests/integration/generic-egress.integration.test.ts` (updated to mock CONNECTED state)
+  - `tests/apps/ingress-egress-egress.test.ts` (updated queue name expectations)
+  - `planning/sprint-227-8d4f2c/retro.md` (updated)
