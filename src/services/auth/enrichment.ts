@@ -142,7 +142,7 @@ export async function enrichEvent(
       method: 'enrichment',
       matched: true,
       at: nowIso,
-      ...(provider ? { provider } : {}),
+      provider: effectiveDoc.provider || provider,
       userRef: `users/${effectiveDoc.id}`,
     };
     return { event: evt, matched: true, userRef: `users/${effectiveDoc.id}`, created, isFirstMessage, isNewSession };
@@ -184,7 +184,7 @@ export async function enrichEvent(
         method: 'enrichment',
         matched: true,
         at: nowIso,
-        ...(provider ? { provider } : {}),
+        provider: createdDoc.provider || provider,
         userRef: `users/${createdDoc.id}`,
       };
       return { event: evt, matched: true, userRef: `users/${createdDoc.id}`, created: true, isFirstMessage: true, isNewSession: true };
@@ -199,7 +199,7 @@ export async function enrichEvent(
     method: 'enrichment',
     matched: false,
     at: nowIso,
-    ...(provider ? { provider } : {}),
+    provider,
   };
   return { event: evt, matched: false };
 }
