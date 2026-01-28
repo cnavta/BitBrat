@@ -91,3 +91,11 @@
   - `./validate_deliverable.sh`
 - **Files modified or created**:
   - `src/services/auth/enrichment.ts`
+
+## [2026-01-28T20:05:00Z] - Whisper UserId Prefix Stripping
+- **Prompt summary**: Make sure when the ingress-egress sends a whisper, if the user ID is prefixed with the platform, it should remove the platform part.
+- **Interpretation**: Update `ingress-egress-service.ts` or `twitch-irc-client.ts` to strip 'twitch:' prefix from userId before calling Helix whisper API.
+- **Shell/git commands executed**:
+  - `touch tests/repro-whisper-prefix.test.ts`
+- **Files modified or created**:
+  - `tests/repro-whisper-prefix.test.ts` (pending)

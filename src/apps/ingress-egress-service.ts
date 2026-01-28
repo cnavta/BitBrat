@@ -247,12 +247,12 @@ export class IngressEgressServer extends BaseServer {
       const genericEgressTopic = INTERNAL_EGRESS_V1;
       const genericEgressSubject = `${cfg.busPrefix || ''}${genericEgressTopic}`;
       const genericQueue = `ingress-egress.${instanceId}`;
-      logger.info('ingress-egress.generic_egress_subscribe.start', { subject: genericEgressSubject, queue: genericQueue });
+      logger.info('ingress-egress.egress.generic_subscribe.start', { subject: genericEgressSubject, queue: genericQueue });
       try {
         await this.onMessage<any>(
           { destination: genericEgressTopic, queue: genericQueue, ack: 'explicit' },
           async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
-            logger.debug('ingress-egress.generic_egress.received', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
+            logger.debug('ingress-egress.egress.generic.received', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
             try {
               // Determine if this service supports the platform for this event
               const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
@@ -265,7 +265,7 @@ export class IngressEgressServer extends BaseServer {
               const isTwitch = egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || 
                               (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''));
 
-              logger.debug('ingress-egress.generic_egress.platforms', { isDiscord, isTwilio, isTwitch })
+              logger.debug('ingress-egress.egress.generic.platforms', { isDiscord, isTwilio, isTwitch })
               if (isDiscord || isTwilio || isTwitch) {
                 const result = await this.processEgress(evt, genericEgressSubject);
                 if (result === 'FAILED') {
@@ -282,14 +282,14 @@ export class IngressEgressServer extends BaseServer {
               await ctx.ack();
             } catch (e: any) {
               const msg = e?.message || String(e);
-              logger.error('ingress-egress.generic_egress.process_error', { subject: genericEgressSubject, error: msg });
+              logger.error('ingress-egress.egress.generic.process_error', { subject: genericEgressSubject, error: msg });
               await ctx.ack();
             }
           }
         );
-        logger.info('ingress-egress.generic_egress_subscribe.ok', { subject: genericEgressSubject });
+        logger.info('ingress-egress.egress.generic_subscribe.ok', { subject: genericEgressSubject });
       } catch (e: any) {
-        logger.error('ingress-egress.generic_egress_subscribe.error', { subject: genericEgressSubject, error: e?.message || String(e) });
+        logger.error('ingress-egress.egress.generic_subscribe.error', { subject: genericEgressSubject, error: e?.message || String(e) });
       }
     }
 
@@ -339,7 +339,7 @@ export class IngressEgressServer extends BaseServer {
   private async processEgress(evt: any, destinationTopic: string): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> {
     const tracer = (this as any).getTracer?.();
     const run = async (): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> => {
-      logger.debug('ingress-egress.egress.received', { evt });
+      logger.debug('ingress-egress.egress.received', { evt, destinationTopic });
       // Mark selected candidate on V2 events (if candidates exist) and log rationale
       let evtForDelivery: any = evt;
       try {
@@ -425,7 +425,10 @@ export class IngressEgressServer extends BaseServer {
           if (!this.twitchClient) return 'IGNORED';
           
           const egressType = evt?.egress?.type || evt?.envelope?.egress?.type || 'chat';
-          const targetUserId = evt?.userId || evt?.envelope?.userId;
+          let targetUserId = evt?.userId || evt?.envelope?.userId;
+          if (targetUserId && targetUserId.includes(':')) {
+            targetUserId = targetUserId.split(':')[1];
+          }
 
           logger.debug('ingress-egress.egress.twitch.start', {evt});
 
