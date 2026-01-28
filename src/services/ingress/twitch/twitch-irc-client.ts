@@ -214,22 +214,33 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
           }
         });
         // add the user token to provider for chat scope
-        await authProvider.addUserForToken({
+        const tokenData = {
           accessToken: authData.accessToken,
           refreshToken: authData.refreshToken,
           scope: authData.scope ?? [],
           expiresIn: authData.expiresIn ?? null,
           obtainmentTimestamp: authData.obtainmentTimestamp ?? null,
-        }, ['chat']);
+        };
+        const botId = authData.userId || this.cfg?.twitchBotUserId;
+        if (botId) {
+          authProvider.addUser(botId, tokenData, ['chat']);
+        } else {
+          await authProvider.addUserForToken(tokenData, ['chat']);
+        }
 
         if (broadcasterAuth) {
-          await authProvider.addUserForToken({
+          const bTokenData = {
             accessToken: broadcasterAuth.accessToken,
             refreshToken: broadcasterAuth.refreshToken,
             scope: broadcasterAuth.scope ?? [],
             expiresIn: broadcasterAuth.expiresIn ?? null,
             obtainmentTimestamp: broadcasterAuth.obtainmentTimestamp ?? null,
-          }, ['chat']);
+          };
+          if (broadcasterAuth.userId) {
+            authProvider.addUser(broadcasterAuth.userId, bTokenData, ['chat']);
+          } else {
+            await authProvider.addUserForToken(bTokenData, ['chat']);
+          }
         }
       } catch (e: any) {
         logger.warn('Falling back to StaticAuthProvider due to RefreshingAuthProvider init failure', { error: e?.message || String(e) });
@@ -356,6 +367,9 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
       return;
     }
 
+    // Strip platform prefix if present (e.g. "twitch:12345")
+    const cleanUserId = userId.includes(':') ? userId.split(':')[1] : userId;
+
     if (this.helix) {
       try {
         const fromUserId = this.cfg?.twitchBotUserId || this.snapshot.userId;
@@ -364,15 +378,15 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
         }
         // Twitch Helix Whisper API: POST /whispers?from_user_id=...&to_user_id=...
         // Twurple: helix.whispers.sendWhisper(from, to, text)
-        logger.debug('twitch.whisper.send', { to: userId, from: fromUserId  });
-        await this.helix.whispers.sendWhisper(fromUserId, userId, text);
-        logger.info('twitch.whisper.sent', { to: userId, from: fromUserId });
+        logger.debug('twitch.whisper.send', { to: cleanUserId, from: fromUserId  });
+        await this.helix.whispers.sendWhisper(fromUserId, cleanUserId, text);
+        logger.info('twitch.whisper.sent', { to: cleanUserId, from: fromUserId });
       } catch (e: any) {
-        logger.error('twitch.whisper.error', { to: userId, error: e });
+        logger.error('twitch.whisper.error', { to: cleanUserId, error: e });
         throw e;
       }
     } else {
-      logger.debug('twitch.whisper.noop', { to: userId, reason: 'helix_not_connected' });
+      logger.debug('twitch.whisper.noop', { to: cleanUserId, reason: 'helix_not_connected' });
     }
   }
 

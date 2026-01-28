@@ -161,3 +161,19 @@ items:
         note: "Added task to strip platform prefixes from userId for whispers."
       - at: 2026-01-28T20:10:00Z
         note: "Implemented prefix stripping in IngressEgressServer. Verified with tests/repro-whisper-prefix.test.ts."
+
+  - id: BL-227-010
+    title: "Fix missing Twitch whisper scope"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "TwitchAdapter default scopes include user:manage:whispers"
+      - "TwitchIrcClient robustly registers tokens with RefreshingAuthProvider"
+    updated_at: 2026-01-28
+    log:
+      - at: 2026-01-28T20:55:00Z
+        note: "Aligned default scopes in TwitchAdapter and improved token registration in TwitchIrcClient. Verified with unit tests."

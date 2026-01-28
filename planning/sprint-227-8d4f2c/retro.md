@@ -13,6 +13,7 @@
 - **Personality Resolution**: Fixed an issue where short-format personality annotations (using `value` instead of `payload.name`) were being ignored or incorrectly treated as inline text. Updated `personality-resolver` to correctly fallback to `value` as the lookup name.
 - **User Provider Persistence**: Fixed an issue where the `provider` property was not being updated in Firestore if a user document already existed but was missing the field. Also enhanced platform derivation in `AuthServer` and ensured WebSocket events carry a `provider: 'api-gateway'` property. Additionally, fixed the enrichment logic in `enrichment.ts` to properly copy the `provider` from the Firestore user document onto the enriched event. Verified with reproduction tests and full suite.
 - **Whisper UserId Stripping**: Implemented stripping of platform prefixes (e.g., `twitch:`) from user IDs before sending whispers via the Twitch Helix API. This ensures internal user IDs are correctly mapped back to platform-specific IDs.
+- **Twitch Whisper Scope Fix**: Resolved an issue where Twitch whispers would fail with a missing `user:manage:whispers` scope error. Aligned default scopes in `TwitchAdapter` with `twitch-oauth` service and improved token registration robustness in `TwitchIrcClient` by using explicit user IDs when adding to `RefreshingAuthProvider`.
 
 ## Future Improvements
 - Consider a dedicated "Egress Service" if the number of supported platforms grows significantly, rather than bundling them in `ingress-egress`.
