@@ -252,17 +252,20 @@ export class IngressEgressServer extends BaseServer {
         await this.onMessage<any>(
           { destination: genericEgressTopic, queue: genericQueue, ack: 'explicit' },
           async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+            logger.debug('ingress-egress.generic_egress.received', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
             try {
               // Determine if this service supports the platform for this event
               const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
               const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
               const egressDest = (evt?.egress?.destination || evt?.envelope?.egress?.destination || '').toLowerCase();
+              const authProvider = (evt?.auth?.provider || evt?.envelope?.auth?.provider || '').toLowerCase();
 
-              const isDiscord = egressDest === 'discord' || source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
-              const isTwilio = egressDest === 'twilio' || source.includes('twilio') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
-              const isTwitch = egressDest === 'twitch' || source.includes('twitch') || 
-                              (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch'));
+              const isDiscord = egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+              const isTwilio = egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
+              const isTwitch = egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || 
+                              (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''));
 
+              logger.debug('ingress-egress.generic_egress.platforms', { isDiscord, isTwilio, isTwitch })
               if (isDiscord || isTwilio || isTwitch) {
                 const result = await this.processEgress(evt, genericEgressSubject);
                 if (result === 'FAILED') {
@@ -336,7 +339,7 @@ export class IngressEgressServer extends BaseServer {
   private async processEgress(evt: any, destinationTopic: string): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> {
     const tracer = (this as any).getTracer?.();
     const run = async (): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> => {
-      logger.debug('ingress-egress.egress.received', { correlationId: evt?.correlationId || evt?.envelope?.correlationId, topic: destinationTopic });
+      logger.debug('ingress-egress.egress.received', { evt });
       // Mark selected candidate on V2 events (if candidates exist) and log rationale
       let evtForDelivery: any = evt;
       try {
@@ -394,9 +397,10 @@ export class IngressEgressServer extends BaseServer {
         const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
         const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
         const egressDest = (evt?.egress?.destination || evt?.envelope?.egress?.destination || '').toLowerCase();
+        const authProvider = (evt?.auth?.provider || evt?.envelope?.auth?.provider || '').toLowerCase();
 
-        const isDiscord = egressDest === 'discord' || source.includes('discord') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
-        const isTwilio = egressDest === 'twilio' || source.includes('twilio') || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
+        const isDiscord = egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
+        const isTwilio = egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
 
         if (isDiscord) {
           if (this.discordClient) {
