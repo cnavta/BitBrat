@@ -41,6 +41,7 @@ function defaultTwitchScopes(cfg: IConfig): string[] {
         'bits:read',
         'moderator:read:shoutouts',
         'user:read:email',
+        'user:manage:whispers'
       ]);
 }
 

@@ -99,3 +99,13 @@
   - `touch tests/repro-whisper-prefix.test.ts`
 - **Files modified or created**:
   - `tests/repro-whisper-prefix.test.ts` (pending)
+
+## [2026-01-28T20:55:00Z] - Twitch Whisper Scope Fix
+- **Prompt summary**: We are repeatedly getting this error when trying to send whispers, even through both accounts have the user:manage:whispers scope associated with it.
+- **Interpretation**: The `user:manage:whispers` scope was missing from the default list in the new OAuth flow (`TwitchAdapter`). Also improved token registration in `TwitchIrcClient`.
+- **Shell/git commands executed**:
+  - `npm test -- src/services/oauth/providers/twitch-adapter.scope.test.ts`
+  - `./validate_deliverable.sh`
+- **Files modified or created**:
+  - `src/services/oauth/providers/twitch-adapter.ts` (added whisper scope)
+  - `src/services/ingress/twitch/twitch-irc-client.ts` (improved token registration)
