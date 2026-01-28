@@ -126,6 +126,7 @@ class EventRouterServer extends BaseServer {
               selectedTopic: decision.selectedTopic,
               type: v2?.type,
               correlationId: (v2 as any)?.correlationId,
+              routingSlip: v2.routingSlip
             });
 
               // Publish to the next topic using advance routing slip pattern

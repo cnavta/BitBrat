@@ -79,6 +79,7 @@ services:
         # Per-instance egress topic subscription. The service resolves {instanceId} at runtime
         # using K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id
         - internal.egress.v1.{instanceId}
+        - internal.egress.v1
     paths:
       - /_debug/twitch # Debug endpoint that displays the current state of the Twitch IRC and EventSub connections
       - /_debug/discord # Debug endpoint for Discord connection state
@@ -201,6 +202,7 @@ services:
         # Per-instance egress topic subscription. The service resolves {instanceId} at runtime
         # using K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id
         - internal.api.egress.v1.{instanceId}
+        - internal.egress.v1
 
 infrastructure:
   target: gcp

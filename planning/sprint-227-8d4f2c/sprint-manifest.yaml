@@ -5,6 +5,7 @@ owner: "Architect"
 createdAt: "2026-01-27T15:10:00Z"
 status: published
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/140"
   branch: "feature/sprint-227-8d4f2c-generic-egress"
 notes: |
   Both ingress-egress and api-gateway services will listen to internal.egress.v1.
