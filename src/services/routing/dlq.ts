@@ -1,4 +1,4 @@
-import { InternalEventV1 } from '../../types/events';
+import { InternalEventV1, InternalEventV2 } from '../../types/events';
 import { summarizeSlip } from './slip';
 
 /**
@@ -13,21 +13,29 @@ import { summarizeSlip } from './slip';
  */
 export function buildDlqEvent(params: {
   source?: string;
-  original: InternalEventV1;
+  original: InternalEventV1 | InternalEventV2 | any;
   reason: string;
   error?: unknown;
   lastStepId?: string;
 }): InternalEventV1 {
   const { original, reason, error, lastStepId } = params;
   const err = normalizeError(error);
+
+  // Extract common fields regardless of V1 (nested envelope) or V2 (flattened)
+  const isV1 = !!original.envelope;
+  const correlationId = isV1 ? original.envelope.correlationId : original.correlationId;
+  const traceId = isV1 ? original.envelope.traceId : original.traceId;
+  const routingSlip = isV1 ? original.envelope.routingSlip : original.routingSlip;
+  const egress = isV1 ? original.envelope.egress : original.egress;
+
   return {
     envelope: {
       v: '1',
       source: params.source || 'router',
-      correlationId: original.envelope.correlationId,
-      traceId: original.envelope.traceId,
-      routingSlip: original.envelope.routingSlip,
-      egress: original.envelope.egress,
+      correlationId,
+      traceId,
+      routingSlip,
+      egress,
     },
     type: 'router.deadletter.v1',
     channel: original.channel,
@@ -37,8 +45,11 @@ export function buildDlqEvent(params: {
       error: err,
       lastStepId: lastStepId || inferLastStepId(original),
       originalType: original.type,
-      slipSummary: summarizeSlip(original.envelope.routingSlip),
+      slipSummary: summarizeSlip(routingSlip),
       originalPayloadPreview: safePreview(original.payload),
+      // Egress context enrichment
+      egressSource: original.source,
+      metadata: original.metadata || (isV1 ? original.envelope.metadata : undefined),
     },
   };
 }
@@ -56,10 +67,10 @@ function normalizeError(e: unknown): { code: string; message?: string } | null {
 }
 
 /** Infer the last relevant step id to aid debugging. */
-function inferLastStepId(original: InternalEventV1): string | undefined {
-  const slip = original.envelope.routingSlip || [];
+function inferLastStepId(original: any): string | undefined {
+  const slip = (original.envelope ? original.envelope.routingSlip : original.routingSlip) || [];
   // last step with a status not OK/SKIP (or the last overall)
-  const idx = slip.findIndex((s) => s.status !== 'OK' && s.status !== 'SKIP');
+  const idx = slip.findIndex((s: any) => s.status !== 'OK' && s.status !== 'SKIP');
   if (idx >= 0) return slip[idx].id;
   return slip.length ? slip[slip.length - 1].id : undefined;
 }

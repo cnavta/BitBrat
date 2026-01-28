@@ -1,0 +1,13 @@
+id: sprint-227-8d4f2c
+title: "Generic Egress Destination"
+goal: "Add a generic egress destination for system and derived events to send messages to external systems via internal.egress.v1 topic."
+owner: "Architect"
+createdAt: "2026-01-27T15:10:00Z"
+status: published
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/140"
+  branch: "feature/sprint-227-8d4f2c-generic-egress"
+notes: |
+  Both ingress-egress and api-gateway services will listen to internal.egress.v1.
+  Each service will determine if it supports the target platform and deliver the message.
+  Undeliverable messages go to a DLQ for the persistence service.
