@@ -73,7 +73,9 @@ export async function resolvePersonalityParts(
   deps: ResolverDeps = {}
 ): Promise<ResolvedPersonality[]> {
   const anns = Array.isArray(annotations) ? annotations : [];
-  const personalityAnns = anns.filter((a) => a?.kind === 'personality' && a?.payload && (a.payload.text || a.payload.name));
+  const personalityAnns = anns.filter((a) => a?.kind === 'personality' && (
+    a?.payload && (a.payload.text || a.payload.name) || a?.value
+  ));
   if (personalityAnns.length === 0) return [];
 
   const { maxAnnotations, maxChars, cacheTtlMs } = opts;
@@ -88,14 +90,17 @@ export async function resolvePersonalityParts(
 
   const results: ResolvedPersonality[] = [];
   for (const ann of selected) {
+    const value = ann.value as string | undefined;
     const inline = (ann.payload as any)?.text as string | undefined;
-    const name = (ann.payload as any)?.name as string | undefined;
-    if (inline && inline.trim()) {
-      const clean = sanitize(inline);
+    const name = (ann.payload as any)?.name as string | undefined || value;
+    const trimmedInline = inline?.trim();
+
+    if (trimmedInline) {
+      const clean = sanitize(trimmedInline);
       const text = clamp(clean, maxChars);
       if (text.length < clean.length) metrics.inc(METRIC_PERSONALITY_CLAMPED);
       metrics.inc(METRIC_PERSONALITIES_RESOLVED);
-      results.push({ name, text, source: 'inline' });
+      results.push({ name: name || undefined, text, source: 'inline' });
       continue;
     }
     if (!name) {

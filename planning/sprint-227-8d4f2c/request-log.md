@@ -41,15 +41,15 @@
   - `planning/sprint-227-8d4f2c/retro.md` (updated)
 
 ## [2026-01-27T21:45:00Z] - Egress Fan-out Verification & Alignment
-- **Prompt summary**: Is fan-out appropriately handled by the NATS driver? Make sure the ingress-egress doesn't have the same fan-out bug as the api-gateway.
-- **Interpretation**: Verify one-to-many delivery in NATS driver and ensure both api-gateway and ingress-egress use it correctly for generic egress.
-- **Shell/git commands executed**:
-  - `npm test -- tests/nats-fanout.test.ts`
-  - `npm test -- tests/integration/generic-egress.integration.test.ts`
-  - `./validate_deliverable.sh`
-- **Files modified or created**:
-  - `src/apps/api-gateway.ts` (updated generic egress subscription to use unique queue per instance)
-  - `src/apps/ingress-egress-service.ts` (aligned generic egress to use unique queue per instance; refactored processEgress to handle IGNORED state)
-  - `tests/integration/generic-egress.integration.test.ts` (updated to mock CONNECTED state)
-  - `tests/apps/ingress-egress-egress.test.ts` (updated queue name expectations)
+... (previous entry content) ...
   - `planning/sprint-227-8d4f2c/retro.md` (updated)
+
+## [2026-01-27T22:30:00Z] - Personality Short Format Fix
+- **Prompt summary**: Make sure the llm-bot handles the short `{"id":"a1","kind":"personality","value":"bitbrat_the_ai"}` format for personality annotations.
+- **Interpretation**: Update `personality-resolver.ts` to use `value` as a fallback for the personality name when resolving Firestore-backed personalities.
+- **Shell/git commands executed**:
+  - `npm test -- src/services/llm-bot/personality-resolver.repro.test.ts`
+  - `./validate_deliverable.sh --scope llm-bot`
+- **Files modified or created**:
+  - `src/services/llm-bot/personality-resolver.ts`
+  - `src/services/llm-bot/personality-resolver.repro.test.ts` (created)
