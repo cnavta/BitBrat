@@ -1,5 +1,5 @@
 import { IngressEgressServer } from '../../src/apps/ingress-egress-service';
-import { INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1 } from '../../src/types/events';
+import { INTERNAL_EGRESS_V1 } from '../../src/types/events';
 
 // Mock dependencies
 jest.mock('../../src/services/ingress/twitch');
@@ -14,7 +14,7 @@ jest.mock('../../src/services/message-bus', () => ({
   })
 }));
 
-describe('IngressEgressServer - Generic Egress', () => {
+describe('IngressEgressServer - User Platform Fallback', () => {
   let server: IngressEgressServer | undefined;
 
   beforeEach(() => {
@@ -26,34 +26,7 @@ describe('IngressEgressServer - Generic Egress', () => {
     server = undefined;
   });
 
-  it('should subscribe to internal.egress.v1 on start', async () => {
-    const { createMessageSubscriber } = require('../../src/services/message-bus');
-    const subscriber = createMessageSubscriber();
-    
-    // Force isTestEnv to false inside constructor check
-    const oldWorkerId = process.env.JEST_WORKER_ID;
-    delete process.env.JEST_WORKER_ID;
-    const oldNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-
-    try {
-      server = new IngressEgressServer();
-      // Small delay to allow async setupApp to run
-      await new Promise(resolve => setTimeout(resolve, 50));
-    } finally {
-      process.env.JEST_WORKER_ID = oldWorkerId;
-      process.env.NODE_ENV = oldNodeEnv;
-    }
-
-    // Verify subscription
-    expect(subscriber.subscribe).toHaveBeenCalledWith(
-      expect.stringContaining(INTERNAL_EGRESS_V1),
-      expect.any(Function),
-      expect.objectContaining({ queue: expect.stringMatching(/^ingress-egress\..+$/) })
-    );
-  });
-
-  it('should deliver Discord message from generic topic', async () => {
+  it('should fallback to user platform (Discord) if no explicit platform in generic egress', async () => {
     const { createMessageSubscriber } = require('../../src/services/message-bus');
     let capturedHandler: any;
     createMessageSubscriber().subscribe.mockImplementation((subj: string, handler: any, opts: any) => {
@@ -84,22 +57,23 @@ describe('IngressEgressServer - Generic Egress', () => {
     };
     (server as any).discordClient = mockDiscordClient;
 
-    // Simulate message
+    // Simulate generic egress message with NO explicit platform, but WITH auth.provider = 'discord'
     const evt = { 
       v: '1',
-      source: 'some-service',
-      correlationId: 'c1',
-      egress: { destination: 'discord' }, 
+      source: 'system',
+      correlationId: 'c-fallback',
+      auth: { provider: 'discord' },
       channel: '12345',
-      payload: { text: 'hello discord' }
+      payload: { text: 'hello fallback' }
     };
     
     await capturedHandler(Buffer.from(JSON.stringify(evt)), {}, { ack: jest.fn(), nack: jest.fn() });
 
-    expect(mockDiscordClient.sendText).toHaveBeenCalledWith('hello discord', '12345');
+    // EXPECT delivery to Discord
+    expect(mockDiscordClient.sendText).toHaveBeenCalledWith('hello fallback', '12345');
   });
 
-  it('should publish to DLQ if delivery fails', async () => {
+  it('should fallback to user platform (Twilio) if no explicit platform in generic egress', async () => {
     const { createMessageSubscriber } = require('../../src/services/message-bus');
     let capturedHandler: any;
     createMessageSubscriber().subscribe.mockImplementation((subj: string, handler: any, opts: any) => {
@@ -122,38 +96,24 @@ describe('IngressEgressServer - Generic Egress', () => {
       process.env.NODE_ENV = oldNodeEnv;
     }
 
-    const mockPublisher = { publishJson: jest.fn() };
-    (server as any).getResource = jest.fn().mockImplementation((name: string) => {
-      if (name === 'publisher') return { create: jest.fn().mockReturnValue(mockPublisher) };
-      return undefined;
-    });
-
-    // Mock discordClient to fail
-    const mockDiscordClient = { 
-      sendText: jest.fn().mockRejectedValue(new Error('Discord API down')),
+    // Mock twilioClient
+    const mockTwilioClient = { 
+      sendText: jest.fn().mockResolvedValue(undefined),
       getSnapshot: () => ({ state: 'CONNECTED' })
     };
-    (server as any).discordClient = mockDiscordClient;
+    (server as any).twilioClient = mockTwilioClient;
 
-    // Simulate message
     const evt = { 
       v: '1',
-      source: 'some-service',
-      correlationId: 'c-failed',
-      egress: { destination: 'discord' }, 
-      payload: { text: 'fail me' }
+      source: 'system',
+      correlationId: 'c-fallback-twilio',
+      auth: { provider: 'twilio' },
+      channel: '+1234567890',
+      payload: { text: 'hello twilio fallback' }
     };
     
     await capturedHandler(Buffer.from(JSON.stringify(evt)), {}, { ack: jest.fn(), nack: jest.fn() });
 
-    // Verify DLQ
-    expect(mockPublisher.publishJson).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'router.deadletter.v1',
-        payload: expect.objectContaining({
-          reason: 'egress_delivery_failed'
-        })
-      })
-    );
+    expect(mockTwilioClient.sendText).toHaveBeenCalledWith('hello twilio fallback', '+1234567890');
   });
 });

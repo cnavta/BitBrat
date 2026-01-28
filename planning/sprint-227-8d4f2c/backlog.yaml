@@ -107,3 +107,73 @@ items:
     log:
       - at: 2026-01-27T20:26:00Z
         note: "All validation steps passed. Sprint ready for completion."
+
+  - id: BL-227-007
+    title: "Implement fallback to user platform in ingress-egress"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "ingress-egress-service.ts uses auth.provider as fallback platform"
+      - "Unit tests verify fallback to Discord/Twilio"
+    updated_at: 2026-01-28
+    log:
+      - at: 2026-01-28T18:30:00Z
+        note: "Added auth.provider check to processEgress and generic egress subscription. Verified with tests/apps/ingress-egress-fallback.test.ts."
+
+  - id: BL-227-008
+    title: "Ensure provider property is set in auth processes"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "FirestoreUserRepo ensures provider/providerUserId are persisted"
+      - "API Gateway IngressManager includes provider in event auth"
+      - "AuthServer robustly derives provider from source/event"
+      - "enrichment.ts prioritizes provider from user document"
+    updated_at: 2026-01-28
+    log:
+      - at: 2026-01-28T18:45:00Z
+        note: "Updated FirestoreUserRepo, IngressManager, and AuthServer to correctly handle and persist the 'provider' property."
+      - at: 2026-01-28T19:05:00Z
+        note: "Fixed enrichment.ts to correctly copy 'provider' from user document onto enriched events."
+
+  - id: BL-227-009
+    title: "Strip platform prefix from userId in whispers"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "ingress-egress-service.ts removes platform prefix (e.g. 'twitch:') before sending whispers"
+      - "Unit tests verify prefix stripping"
+    updated_at: 2026-01-28
+    log:
+      - at: 2026-01-28T20:00:00Z
+        note: "Added task to strip platform prefixes from userId for whispers."
+      - at: 2026-01-28T20:10:00Z
+        note: "Implemented prefix stripping in IngressEgressServer. Verified with tests/repro-whisper-prefix.test.ts."
+
+  - id: BL-227-010
+    title: "Fix missing Twitch whisper scope"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-227-004]
+    blocked_reason: null
+    acceptance:
+      - "TwitchAdapter default scopes include user:manage:whispers"
+      - "TwitchIrcClient robustly registers tokens with RefreshingAuthProvider"
+    updated_at: 2026-01-28
+    log:
+      - at: 2026-01-28T20:55:00Z
+        note: "Aligned default scopes in TwitchAdapter and improved token registration in TwitchIrcClient. Verified with unit tests."

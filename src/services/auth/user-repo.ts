@@ -246,6 +246,8 @@ export class FirestoreUserRepo implements UserRepo {
       rolesMeta: mergedRolesMeta,
     };
 
+    if (data.provider) update.provider = data.provider;
+    if (data.providerUserId) update.providerUserId = data.providerUserId;
     if (data.displayName) update.displayName = data.displayName;
     if (data.email) update.email = data.email;
     if (data.profile) update.profile = data.profile;
