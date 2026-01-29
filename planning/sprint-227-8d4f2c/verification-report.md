@@ -10,6 +10,7 @@
 - [x] Corrected `provider` property persistence and enrichment across services
 - [x] Twitch whisper sender identity enforced as Bot account
 - [x] Strip platform prefixes from userId in whispers
+- [x] Twitch whisper scope issue resolved (`src/services/oauth/providers/twitch-adapter.ts`)
 - [x] Full validation suite passed via `validate_deliverable.sh`
 
 ## Partial
