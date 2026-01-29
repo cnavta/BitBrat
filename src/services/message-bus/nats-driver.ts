@@ -185,7 +185,7 @@ export class NatsSubscriber implements MessageSubscriber {
             logger.error('message_consumer.nack.error', { driver: 'nats', subject: subj, error: e?.message || String(e) });
           }
         };
-        logger.debug('message_consumer.receive', {
+        logger.trace('message_consumer.receive', {
           driver: 'nats',
           subject: subj,
           bytes: dataBuf?.length || 0,
@@ -194,7 +194,7 @@ export class NatsSubscriber implements MessageSubscriber {
         const started = Date.now();
         try {
           await handler(dataBuf, attrs, { ack, nack });
-          logger.debug('message_consumer.process.ok', { driver: 'nats', subject: subj, durationMs: Date.now() - started });
+          logger.trace('message_consumer.process.ok', { driver: 'nats', subject: subj, durationMs: Date.now() - started });
           if ((options.ack || 'auto') === 'auto') await ack();
         } catch (e: any) {
           logger.error('message_consumer.process.error', { driver: 'nats', subject: subj, error: e?.message || String(e), durationMs: Date.now() - started });

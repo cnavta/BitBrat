@@ -155,6 +155,13 @@ class LlmBotServer extends BaseServer {
               // Preferred: LLM processor
               logger.debug('llm_bot.processing');
               const status = await processEvent(this, data as InternalEventV2, { registry: this.registry });
+              
+              // If status is OK but no candidates were generated, we might want to log it
+              if (status === 'OK' && (!data.candidates || data.candidates.length === 0)) {
+                logger.warn('llm_bot.processed.no_candidates', { correlationId: data.correlationId });
+                // We still call next() which will fall back to egress, but now selection logic returns null
+              }
+
               await (this as any).next?.(data as InternalEventV2, status);
               logger.info('llm_bot.processed', {correlationId: (data as any)?.correlationId, status});
             } catch (e) {

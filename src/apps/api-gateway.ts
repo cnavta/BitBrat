@@ -36,6 +36,35 @@ export class ApiGatewayServer extends McpServer {
     });
   }
 
+  private async publishFinalize(event: InternalEventV2, status: 'SENT' | 'FAILED', destination: string, error?: { code: string; message?: string }) {
+    try {
+      const publisher = this.getResource<PublisherResource>('publisher');
+      if (!publisher) return;
+
+      const cfg: any = this.getConfig?.() || {};
+      const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+      const finalizeSubject = `${prefix}internal.persistence.finalize.v1`;
+
+      const payload = {
+        correlationId: event.correlationId,
+        destination,
+        deliveredAt: new Date().toISOString(),
+        status,
+        error: error ? { code: error.code, message: error.message } : undefined,
+        candidates: Array.isArray(event.candidates) ? event.candidates : undefined,
+        annotations: Array.isArray(event.annotations) ? event.annotations : undefined,
+      };
+
+      await publisher.create(finalizeSubject).publishJson(payload, { 
+        correlationId: String(event.correlationId || ''), 
+        type: 'egress.deliver.v1' 
+      });
+      this.getLogger().info('api_gateway.finalize.published', { correlationId: event.correlationId, status });
+    } catch (err: any) {
+      this.getLogger().warn('api_gateway.finalize.publish_error', { error: err.message, correlationId: event.correlationId });
+    }
+  }
+
   /**
    * Overrides start to also initialize WebSocket server
    */
@@ -61,7 +90,12 @@ export class ApiGatewayServer extends McpServer {
     }
 
     this.authService = new AuthService(firestore, this.getLogger());
-    this.ingressManager = new IngressManager(publisher, this.getLogger());
+
+    // Subscribe to instance-specific egress topic
+    const instanceId = process.env.K_REVISION || process.env.EGRESS_INSTANCE_ID || process.env.HOSTNAME || 'local';
+    const egressTopic = `internal.api.egress.v1.${instanceId}`;
+
+    this.ingressManager = new IngressManager(publisher, this.getLogger(), egressTopic);
     this.egressManager = new EgressManager(this.userConnections, this.getLogger());
 
     this.httpServer = http.createServer(this.getApp());
@@ -71,20 +105,26 @@ export class ApiGatewayServer extends McpServer {
       path: '/ws/v1'
     });
 
-    // Subscribe to instance-specific egress topic
-    const instanceId = process.env.K_REVISION || process.env.EGRESS_INSTANCE_ID || process.env.HOSTNAME || 'local';
-    const egressTopic = `internal.api.egress.v1.${instanceId}`;
-    await this.onMessage<InternalEventV2>(egressTopic, async (evt) => {
-      await this.egressManager?.handleEgressEvent(evt);
+    await this.onMessage<InternalEventV2>(egressTopic, async (evt, attributes, ctx) => {
+      const result = await this.egressManager?.handleEgressEvent(evt);
+      if (result === EgressResult.DELIVERED) {
+        await this.publishFinalize(evt, 'SENT', egressTopic);
+      } else if (result === EgressResult.FAILED) {
+        await this.publishFinalize(evt, 'FAILED', egressTopic, { code: 'EGR_FAILED', message: 'Delivery failed' });
+      }
+      await ctx.ack();
     });
 
     // Subscribe to generic egress topic (broadcast to all instances)
     await this.onMessage<InternalEventV2>({ 
       destination: INTERNAL_EGRESS_V1, 
       queue: `api-gateway.${instanceId}` 
-    }, async (evt) => {
+    }, async (evt, attributes, ctx) => {
       const result = await this.egressManager?.handleEgressEvent(evt);
-      if (result === EgressResult.FAILED) {
+      if (result === EgressResult.DELIVERED) {
+        await this.publishFinalize(evt, 'SENT', INTERNAL_EGRESS_V1);
+      } else if (result === EgressResult.FAILED) {
+        await this.publishFinalize(evt, 'FAILED', INTERNAL_EGRESS_V1, { code: 'EGR_FAILED', message: 'Delivery failed' });
         const dlqEvent = buildDlqEvent({
           source: `api-gateway.${instanceId}`,
           original: evt,
@@ -92,6 +132,7 @@ export class ApiGatewayServer extends McpServer {
         });
         await publisher.create(INTERNAL_DEADLETTER_V1).publishJson(dlqEvent);
       }
+      await ctx.ack();
     });
 
     this.httpServer.on('upgrade', async (request, socket, head) => {
@@ -146,6 +187,10 @@ export class ApiGatewayServer extends McpServer {
 
       ws.on('message', async (data) => {
         try {
+          const frame = JSON.parse(data.toString());
+          if (frame.type === 'heartbeat') {
+            return;
+          }
           await this.ingressManager?.handleMessage(userId, data.toString());
         } catch (err: any) {
           ws.send(JSON.stringify({
@@ -199,7 +244,7 @@ export class ApiGatewayServer extends McpServer {
 
 if (require.main === module) {
   const server = new ApiGatewayServer();
-  const port = parseInt(process.env.PORT || '8080', 10);
+  const port = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
   server.start(port).catch((err) => {
     console.error('Failed to start api-gateway:', err);
     process.exit(1);

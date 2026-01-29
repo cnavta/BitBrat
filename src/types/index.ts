@@ -2,7 +2,7 @@
  * Shared types for BitBrat
  */
 
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';
 
 /**
  * Central application configuration object.

@@ -49,9 +49,9 @@ describe('PubSubSubscriber logging', () => {
     jest.resetModules();
     dbg.mockClear();
     err.mockClear();
-    // set logger to debug so debug logs are emitted
+    // set logger to trace so trace logs are emitted
     const logging = await import('../../../common/logging');
-    logging.logger.setLevel('debug');
+    logging.logger.setLevel('trace');
   });
 
   it('logs receive, process.ok, and ack on successful handler', async () => {

@@ -36,6 +36,7 @@ interface GlobalFlags {
   imageTag?: string;
   repoName?: string;
   envExplicit?: boolean;
+  url?: string;
 }
 
 export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; rest: string[] } {
@@ -58,6 +59,7 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
     else if (a === '--ci') { flags.ci = true; }
     else if (a === '--image-tag') { flags.imageTag = String(args[++i]); }
     else if (a === '--repo') { flags.repoName = String(args[++i]); }
+    else if (a === '--url' || a === '-u') { flags.url = String(args[++i]); }
     else if (a.startsWith('-')) {
       const next = args[i + 1];
       if (next && !next.startsWith('-')) {
@@ -109,6 +111,8 @@ Usage:
   brat lb urlmap render --env <name> [--out <path>] [--project-id <id>]
   brat lb urlmap import --env <name> [--project-id <id>] [--dry-run]
   brat apis enable --env <name> [--project-id <id>] [--dry-run] [--json]
+
+  brat chat [--env <name>] [--project-id <id>]
 
   brat cloud-run shutdown --env <name> [--project-id <id>] [--region <r>] [--dry-run]
 
@@ -665,6 +669,11 @@ async function main() {
         }
       }
     }
+    return;
+  }
+  if (c1 === 'chat') {
+    const { cmdChat } = require('./chat');
+    await cmdChat(flags);
     return;
   }
   if (c1 === 'cloud-run' && c2 === 'shutdown') {

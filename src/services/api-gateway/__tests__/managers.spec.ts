@@ -39,7 +39,7 @@ describe('Ingress and Egress Managers', () => {
       expect(mockPublishers.create).toHaveBeenCalledWith('internal.ingress.v1');
       expect(mockPublisher.publishJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'chat.message',
+          type: 'chat.message.v1',
           userId,
           channel: '#general',
           payload
@@ -64,7 +64,7 @@ describe('Ingress and Egress Managers', () => {
       const egress = new EgressManager(userConnections, mockLogger);
       const event = {
         v: '1',
-        type: 'chat.message',
+        type: 'chat.message.v1',
         userId: 'user-123',
         correlationId: 'c-1',
         source: 'api-gateway',
