@@ -26,6 +26,7 @@ export class EgressManager {
     const isWebSocketTarget = event.egress?.destination === 'api-gateway' || 
                              event.source === 'api-gateway' ||
                              event.type?.startsWith('api.');
+    this.logger.debug('egress.handle_event', { event });
 
     if (!isWebSocketTarget && event.egress?.destination !== undefined) {
       return EgressResult.IGNORED;
@@ -50,8 +51,12 @@ export class EgressManager {
     }
 
     const outboundFrame = {
-      type: event.type === 'chat.message' ? 'chat.message.received' : event.type,
-      payload: event.payload || { text },
+      type: (event.type === 'chat.message.v1' || event.type === 'egress.deliver.v1') 
+        ? 'chat.message.received' 
+        : event.type,
+      // If we have extracted text from a candidate, prioritize it over event.payload
+      // to avoid echoing the original user message from event.payload.
+      payload: text ? { text } : (event.payload || { text }),
       metadata: {
         id: event.correlationId,
         timestamp: new Date().toISOString(),

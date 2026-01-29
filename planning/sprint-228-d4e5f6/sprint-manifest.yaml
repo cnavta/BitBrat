@@ -1,0 +1,10 @@
+id: sprint-228-d4e5f6
+title: "Direct Interactive Chat CLI Tool"
+goal: "Create an interactive CLI chat tool accessible via `npm run brat -- chat`"
+owner: "Junie"
+createdAt: "2026-01-29T12:15:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-228-d4e5f6-brat-chat-tool"
+notes: |
+  Starting with a Technical Architecture doc as requested.

@@ -67,6 +67,7 @@ export class Logger {
     warn: 1,
     info: 2,
     debug: 3,
+    trace: 4,
   };
 
   // Global/static service name shared across all logger instances
@@ -123,6 +124,7 @@ export class Logger {
       case 'warn': return 'WARNING';
       case 'info': return 'INFO';
       case 'debug': return 'DEBUG';
+      case 'trace': return 'DEBUG';
       default: return 'INFO';
     }
   }
@@ -140,6 +142,11 @@ export class Logger {
   info(msg: string, context?: Record<string, unknown>) {
     if (!this.shouldLog('info')) return;
     console.log(JSON.stringify(this.base({ level: 'info', severity: this.severityOf('info'), msg, ...(this.sanitize(context) || {}) })));
+  }
+
+  trace(msg: string, context?: Record<string, unknown>) {
+    if (!this.shouldLog('trace')) return;
+    console.debug(JSON.stringify(this.base({ level: 'trace', severity: this.severityOf('trace'), msg, ...(this.sanitize(context) || {}) })));
   }
 
   debug(msg: string, context?: Record<string, unknown>) {

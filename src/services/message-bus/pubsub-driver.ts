@@ -326,7 +326,7 @@ export class PubSubSubscriber implements MessageSubscriber {
           logger.error('message_consumer.nack.error', { driver: 'pubsub', subscription: subName, messageId: msgId, error: e?.message || String(e) });
         }
       };
-      logger.debug('message_consumer.receive', {
+      logger.trace('message_consumer.receive', {
         driver: 'pubsub',
         subscription: subName,
         messageId: msgId,
@@ -364,7 +364,7 @@ export class PubSubSubscriber implements MessageSubscriber {
       const started = Date.now();
       try {
         await handler(data, attrs, { ack, nack });
-        logger.debug('message_consumer.process.ok', {
+        logger.trace('message_consumer.process.ok', {
           driver: 'pubsub',
           subscription: subName,
           messageId: msgId,

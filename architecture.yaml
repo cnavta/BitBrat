@@ -233,6 +233,10 @@ infrastructure:
           - path_prefix: /oauth
             service: oauth-flow
 
+          # API Gateway (WebSocket)
+          - path_prefix: /ws/v1
+            service: api-gateway
+
           # Debug Routes
           - path_prefix: /_debug/ingress/twitch
             rewrite_prefix: /_debug/twitch
