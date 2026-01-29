@@ -16,7 +16,8 @@ export interface InboundFrame {
 export class IngressManager {
   constructor(
     private readonly publishers: PublisherResource,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly egressDestinationTopic?: string
   ) {}
 
   /**
@@ -38,7 +39,7 @@ export class IngressManager {
       let type = frame.type as any;
       
       // Map external chat events to internal platform events if necessary
-      if (type === 'chat.message.send') type = 'chat.message';
+      if (type === 'chat.message.send') type = 'chat.message.v1';
       
       const event: InternalEventV2 = {
         v: '1',
@@ -48,15 +49,11 @@ export class IngressManager {
         traceId: uuidv4(),
         userId: userId,
         channel: frame.payload.channel || frame.payload.room, // Support both naming conventions
-        egress: { destination: 'api-gateway' },
-        auth: {
-          v: '1',
-          method: 'enrichment', // Gateway provides userId so it's pre-enriched in a sense
-          matched: true,
-          provider: 'api-gateway',
-          at: new Date().toISOString()
+        egress: { 
+          destination: this.egressDestinationTopic || 'api-gateway',
+          type: 'chat'
         },
-        message: (type === 'chat.message' || type === 'chat.message.send') ? {
+        message: (type === 'chat.message.v1' || type === 'chat.message.send') ? {
           id: frame.metadata?.id || uuidv4(),
           role: 'user',
           text: frame.payload.text,

@@ -1,0 +1,245 @@
+meta:
+  backlog_id: sprint-228-d4e5f6-backlog
+  updated_at: 2026-01-29
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-228-d4e5f6
+  start: 2026-01-29
+  end: 2026-02-12
+  wip_limit: 3
+  goal: "Create an interactive CLI chat tool via `npm run brat -- chat`"
+
+items:
+  - id: BRAT-001
+    title: "Update architecture.yaml with API Gateway LB routing"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml contains /ws/v1 path prefix for api-gateway"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T12:22:00Z
+        note: "Added /ws/v1 path prefix for api-gateway in architecture.yaml"
+
+  - id: BRAT-002
+    title: "Extend brat CLI with 'chat' command"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-001]
+    blocked_reason: null
+    acceptance:
+      - "brat CLI parses 'chat' command"
+      - "Flags --env and --project-id are correctly passed"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T12:25:00Z
+        note: "Updated tools/brat/src/cli/index.ts to recognize 'chat' command and use dynamic require for chat module."
+
+  - id: BRAT-003
+    title: "Implement ChatController (tools/brat/src/cli/chat.ts)"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BRAT-002]
+    blocked_reason: null
+    acceptance:
+      - "File chat.ts exists and implements WebSocket connection"
+      - "Authentication header is correctly sent"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T12:28:00Z
+        note: "Implemented ChatController with WebSocket lifecycle management and config resolution."
+
+  - id: BRAT-004
+    title: "Implement Terminal REPL for Chat"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BRAT-003]
+    blocked_reason: null
+    acceptance:
+      - "User can type messages in terminal and send to gateway"
+      - "Incoming messages from gateway are displayed in real-time"
+      - "/exit command terminates the session"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T12:28:00Z
+        note: "Implemented Terminal REPL using Node.js readline in ChatController."
+
+  - id: BRAT-005
+    title: "Add Heartbeat and Reconnection Logic"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [BRAT-003]
+    blocked_reason: null
+    acceptance:
+      - "Connection remains stable over long periods"
+      - "Tool attempts to reconnect on disconnection"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T12:30:00Z
+        note: "Added 30s heartbeat and exponential backoff reconnection logic to ChatController."
+
+  - id: BRAT-006
+    title: "Create Validation Script and Tests"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BRAT-004]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh exists and passes"
+      - "Unit tests for ChatController protocol handling exist"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T12:40:00Z
+        note: "Created validate_deliverable.sh and unit tests for ChatController protocol handling."
+
+  - id: BRAT-011
+    title: "Fix duplicate response delivery (missing ACKs)"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "api-gateway egress handlers call ctx.ack()"
+      - "egress.deliver.v1 is mapped to chat.message.received"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T17:35:00Z
+        note: "Added missing ACKs in api-gateway.ts and updated egress mapping in egress.ts."
+
+  - id: BRAT-007
+    title: "Add --url flag to brat chat command"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-003]
+    blocked_reason: null
+    acceptance:
+      - "brat chat --url <ws_url> connects to the specified URL"
+      - "Environment discovery is bypassed when --url is provided"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T14:35:00Z
+        note: "Added requirement to support custom WebSocket URL via --url flag."
+
+  - id: BRAT-008
+    title: "Fix api-gateway local port discrepancy"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "api-gateway defaults to port 3000 (standard) instead of 8080"
+      - "api-gateway respects SERVICE_PORT and PORT environment variables"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T14:55:00Z
+        note: "Updated api-gateway.ts to default to 3000 and support SERVICE_PORT/PORT."
+
+  - id: BRAT-009
+    title: "Fix api-gateway egress destination metadata"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "api-gateway sets egress.destination to the instance-specific topic"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T15:33:00Z
+        note: "Identified hardcoded egress.destination in IngressManager."
+      - at: 2026-01-29T15:45:00Z
+        note: "Implemented fix and verified with unit tests."
+
+  - id: BRAT-010
+    title: "Fix response redelivery issue in brat chat"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Original message is not redelivered if bot fails to respond"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T15:55:00Z
+        note: "Identified that extractEgressTextFromEvent was falling back to original message text."
+      - at: 2026-01-29T16:10:00Z
+        note: "Implemented fix in selection.ts and added reproduction test."
+
+  - id: BRAT-011
+    title: "Remediate api-gateway log spam"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "message_consumer.receive and process.ok logs are moved to trace level"
+      - "Log spam is eliminated at debug level"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T20:55:00Z
+        note: "Identified nats-driver and pubsub-driver logging every message at debug level."
+      - at: 2026-01-29T21:05:00Z
+        note: "Added trace level to Logger and LogLevel type."
+      - at: 2026-01-29T21:10:00Z
+        note: "Moved driver logs to trace and updated subscriber tests."
+
+  - id: BRAT-012
+    title: "Fix brat chat egress payload selection"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "EgressManager prioritizes extracted candidate text over event.payload"
+      - "Original input message is not echoed when bot fails to respond"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T21:30:00Z
+        note: "Identified that EgressManager falls back to event.payload when candidates are missing, causing user echo."
+      - at: 2026-01-29T21:40:00Z
+        note: "Implemented fix in EgressManager to prioritize text payload if extracted."
+
+  - id: BRAT-013
+    title: "Add persistence finalization to api-gateway"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "api-gateway publishes to internal.persistence.finalize.v1 after egress delivery"
+    updated_at: 2026-01-29
+    log:
+      - at: 2026-01-29T21:30:00Z
+        note: "Identified missing finalization logic in ApiGatewayServer compared to IngressEgressServer."
+      - at: 2026-01-29T21:45:00Z
+        note: "Implemented publishFinalize helper and integrated it into egress message handlers."
