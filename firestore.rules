@@ -4,7 +4,7 @@ service cloud.firestore {
     // Emulator/local development rules — permissive for rapid iteration.
     // DO NOT USE IN PRODUCTION.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write, delete: if true;
     }
 
     // Production guidance (non-enforced here):

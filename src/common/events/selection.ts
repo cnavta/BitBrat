@@ -62,6 +62,13 @@ export function extractEgressTextFromEvent(evt: InternalEventV2 | any): string |
     if (typeof text === 'string' && text.trim()) return text.trim();
 
     // Fallback to potential legacy shapes inside raw platform payload
+    // Fallback to potential legacy shapes inside raw platform payload ONLY if no candidates were expected
+    // or if we explicitly want to support echoing. 
+    // In V2, if we have candidates array (even empty), we should probably NOT fall back to the input message.
+    if (Array.isArray(evt.candidates)) {
+       return null;
+    }
+
     const legacy1 = unwrapQuoted(evt?.message?.rawPlatformPayload?.chat?.text ?? evt?.message?.rawPlatformPayload?.text);
     if (typeof legacy1 === 'string' && legacy1.trim()) return legacy1.trim();
     // Fallback to pre-V2 legacy event shapes that carried payload at root
