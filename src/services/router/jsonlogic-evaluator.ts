@@ -21,23 +21,27 @@ import type { IConfig } from '../../types';
 const jsonLogic: any = require('json-logic-js');
 
 export interface EvalContext extends Record<string, any> {
+  // --- New Root Paths (V2) ---
+  v: '2';
   type: string;
-  channel?: string;
-  userId?: string;
-  user?: any;
-  // Back-compat fields to ease rule expressions during V1→V2 migration:
-  // - payload maps to message.rawPlatformPayload
-  // - envelope-like fields are exposed at top-level where useful
-  payload: Record<string, any>;
-  v?: string;
-  source?: string;
-  correlationId?: string;
+  correlationId: string;
   traceId?: string;
+  ingress: any;
+  identity: any;
+  egress: Egress;
   message?: any;
-  egress?: Egress;
+  payload: Record<string, any>;
   annotations?: any[];
   candidates?: any[];
   routingSlip?: any[];
+
+  // --- Legacy Paths (Flattened for backward compatibility) ---
+  source?: string;    // Maps to ingress.source
+  channel?: string;   // Maps to ingress.channel
+  userId?: string;    // Maps to identity.external.id
+  user?: any;         // Maps to identity.user
+  auth?: any;         // Maps to identity.auth
+
   config?: IConfig;
   now: string; // ISO8601
   ts: number; // epoch ms
@@ -49,6 +53,13 @@ export function buildContext(evt: InternalEventV2, nowIso?: string, ts?: number,
   const n = typeof ts === 'number' ? ts : Date.now();
   return {
     ...evt,
+    // Flattened legacy paths to keep existing JsonLogic rules working
+    source: evt.ingress?.source,
+    channel: evt.ingress?.channel,
+    userId: evt.identity?.external?.id,
+    user: evt.identity?.user,
+    auth: evt.identity?.auth,
+    // Payload normalized to message or fallback
     payload: evt.message?.rawPlatformPayload || evt.payload || {},
     config,
     now,

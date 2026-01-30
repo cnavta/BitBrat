@@ -4,12 +4,12 @@ import type { InternalEventV2, RoutingStep } from '../../../types/events';
 
 describe('RouterEngine + JsonLogic custom operators integration', () => {
   const evt: InternalEventV2 = {
-    v: '1', source: 'test', correlationId: 'c-ops',
+    v: '2', source: 'test', correlationId: 'c-ops',
     type: 'chat.command.v1', channel: '#ch', userId: 'u1',
     user: { id: 'u1', roles: ['Mod'] },
     routingSlip: [
-      { id: 'router', v: '1', status: 'OK', attempt: 1, nextTopic: 'internal.llmbot.v1' },
-      { id: 'llm-bot', v: '1', status: 'OK', attempt: 1 }, // terminal OK (no nextTopic)
+      { id: 'router', v: '2', status: 'OK', attempt: 1, nextTopic: 'internal.llmbot.v1' },
+      { id: 'llm-bot', v: '2', status: 'OK', attempt: 1 }, // terminal OK (no nextTopic)
     ] as RoutingStep[],
     message: { id: 'm1', role: 'user', text: '!PiNg', rawPlatformPayload: { text: '!PiNg' } },
   } as any;
@@ -31,7 +31,7 @@ describe('RouterEngine + JsonLogic custom operators integration', () => {
             { slip_complete: [ { var: 'routingSlip' } ] },
           ],
         }),
-        routingSlip: [{ id: 'router', v: '1', nextTopic: 'internal.llmbot.v1' }],
+        routingSlip: [{ id: 'router', v: '2', nextTopic: 'internal.llmbot.v1' }],
         enrichments: {},
       } as any,
     ];

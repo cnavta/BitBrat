@@ -4,10 +4,16 @@ import type { InternalEventV2 } from '../../types/events';
 describe('persistence/model', () => {
   test('normalizeIngressEvent maps InternalEventV2 into EventDocV1', () => {
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
       correlationId: 'abc-123',
       type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch' }
+      },
       message: { id: 'm1', role: 'user', text: 'hello' },
       annotations: [{ id: 'a1', kind: 'intent', source: 'test', createdAt: new Date().toISOString() }],
       candidates: [],
@@ -22,20 +28,26 @@ describe('persistence/model', () => {
     expect(doc.status).toBe('INGESTED');
     expect(typeof doc.ingestedAt).toBe('string');
     // Ingress metadata should be captured
-    expect(doc.ingress).toBeTruthy();
-    expect(doc.ingress!.source).toBe('ingress.twitch');
-    expect(doc.ingress!.destination).toBe('internal.ingress.v1');
-    expect(typeof doc.ingress!.receivedAt).toBe('string');
+    expect(doc.ingressDoc).toBeTruthy();
+    expect(doc.ingressDoc!.destination).toBe('internal.ingress.v1');
+    expect(typeof doc.ingressDoc!.receivedAt).toBe('string');
     // raw property removed from EventDocV1 to avoid duplication
     expect('raw' in (doc as any)).toBe(false);
   });
 
   test('normalizeIngressEvent strips undefined properties recursively', () => {
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
       correlationId: 'undef-1',
       type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch' }
+      },
+      egress: { destination: 'test' },
       // Explicit undefineds to simulate problematic payloads
       annotations: undefined as any,
       candidates: undefined as any,
@@ -89,8 +101,16 @@ describe('persistence/model', () => {
 
   test('normalizeSourceStatus handles Twilio status events', () => {
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twilio',
+      v: '2',
+      correlationId: 'c-1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twilio',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twilio' }
+      },
+      egress: { destination: 'test' },
       type: 'system.source.status',
       payload: {
         platform: 'twilio',

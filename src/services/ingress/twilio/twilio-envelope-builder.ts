@@ -42,15 +42,28 @@ export class TwilioEnvelopeBuilder {
     const conversationSid = message.conversation.sid;
 
     return {
-      v: '1',
-      source: 'ingress.twilio',
+      v: '2',
+      type: 'chat.message.v1',
       correlationId,
       traceId,
-      routingSlip: [],
+      ingress: {
+        ingressAt: nowIso(),
+        source: 'ingress.twilio',
+        channel: conversationSid,
+      },
+      identity: {
+        external: {
+          id: author,
+          platform: 'twilio',
+          displayName: message.participant?.friendlyName || author,
+          metadata: {
+            conversationSid: conversationSid,
+            participantSid: message.participant?.sid,
+            channelType: message.participant?.messagingBinding?.type || 'chat'
+          }
+        }
+      },
       egress: { destination: '' }, // populated by client
-      type: 'chat.message.v1',
-      channel: conversationSid,
-      userId: author,
       message: {
         id: message.sid || `msg-${correlationId}`,
         role: 'user',

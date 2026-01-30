@@ -1,0 +1,97 @@
+sprint: sprint-230-e4f1a2
+title: "InternalEventV2 Comprehensive Refactor"
+status: planning
+owner: Lead Implementor
+items:
+  - id: T-001
+    title: "Refactor src/types/events.ts: Remove V1, Update V2 schema"
+    priority: 1
+    status: complete
+    estimate: 2
+    depends_on: []
+    acceptance_criteria:
+      - "InternalEventV1 and EnvelopeV1 removed"
+      - "InternalEventV2 includes Ingress and Identity groups"
+      - "Identity.external defined for platform user info"
+    tags: [types, schema]
+
+  - id: T-002
+    title: "Clean up common libraries: adapters.ts, base-server.ts, attributes.ts"
+    priority: 2
+    status: complete
+    estimate: 3
+    depends_on: [T-001]
+    acceptance_criteria:
+      - "toV1 and toV2 removed from adapters.ts"
+      - "BaseServer.onMessage no longer attempts V1->V2 conversion"
+      - "busAttrsFromEvent updated to use new V2 root properties"
+    tags: [common, cleanup]
+
+  - id: T-003
+    title: "Migrate Ingress Services (API Gateway, Twitch, Discord)"
+    priority: 3
+    status: complete
+    estimate: 4
+    depends_on: [T-002]
+    acceptance_criteria:
+      - "API Gateway IngressManager populates ingress and identity.external"
+      - "Twitch and Discord connectors updated to new schema"
+      - "No usage of root-level userId/source in ingress output"
+    tags: [ingress]
+
+  - id: T-004
+    title: "Migrate Auth Service Enrichment"
+    priority: 4
+    status: complete
+    estimate: 3
+    depends_on: [T-003]
+    acceptance_criteria:
+      - "enrichEvent uses identity.external for lookup"
+      - "Auth user/auth data written to identity.user/auth"
+      - "Unit tests updated for new schema"
+    tags: [auth, enrichment]
+
+  - id: T-005
+    title: "Migrate Routing and Processing (Router, LLM Bot)"
+    priority: 5
+    status: complete
+    estimate: 4
+    depends_on: [T-004]
+    acceptance_criteria:
+      - "RouterEngine updated for V2-only"
+      - "JsonLogic context mapping updated in jsonlogic-evaluator.ts"
+      - "LLM Bot processor updated to read from new V2 paths"
+    tags: [routing, llm-bot]
+
+  - id: T-006
+    title: "Migrate Egress Services (API Gateway Egress)"
+    priority: 6
+    status: complete
+    estimate: 2
+    depends_on: [T-005]
+    acceptance_criteria:
+      - "EgressManager reads recipient from identity.user/external"
+    tags: [egress]
+
+  - id: T-007
+    title: "Test Suite Alignment and Global Cleanup"
+    priority: 7
+    status: complete
+    estimate: 5
+    depends_on: [T-006]
+    acceptance_criteria:
+      - "All tests across the project pass"
+      - "Remaining InternalEventV1 references removed"
+      - "validate_deliverable.sh passes"
+    tags: [tests, cleanup]
+
+  - id: T-008
+    title: "Publication and PR creation"
+    priority: 8
+    status: complete
+    estimate: 1
+    depends_on: [T-007]
+    acceptance_criteria:
+      - "PR created via GitHub CLI"
+      - "publication.yaml updated"
+    tags: [publish]

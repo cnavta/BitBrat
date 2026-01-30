@@ -20,7 +20,7 @@ describe('Twurple onMessage → Envelope → Publish (mocked)', () => {
     await client.start();
 
     const evt = {
-      v: '1',
+      v: '2',
       source: 'ingress.twitch',
       correlationId: 'c1',
       routingSlip: [],

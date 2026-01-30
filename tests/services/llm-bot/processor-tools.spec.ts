@@ -67,14 +67,20 @@ describe('Processor Tools', () => {
     const evt: InternalEventV2 = {
       correlationId: 'corr-1',
       type: 'internal.llmbot.v1' as any,
-      source: 'test',
-      v: '1',
+      v: '2',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'test' },
+        user: { id: 'u1', roles: ['admin'] }
+      },
       annotations: [
         { id: 'a1', kind: 'prompt', value: 'Use the tool', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routingSlip: [],
       egress: { destination: 'test' },
-      user: { id: 'u1', roles: ['admin'] },
     };
 
     await processEvent(mockServer as BaseServer, evt, { registry: mockRegistry });

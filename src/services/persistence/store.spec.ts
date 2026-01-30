@@ -15,10 +15,16 @@ describe('PersistenceStore', () => {
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
     const store = new PersistenceStore({ firestore: db, logger });
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
       correlationId: 'c-1',
       type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch' }
+      },
       message: { id: 'm1', role: 'user', text: 'hi' },
     } as any;
     await store.upsertIngressEvent(evt);
@@ -106,12 +112,17 @@ describe('PersistenceStore', () => {
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
     const store = new PersistenceStore({ firestore: db, logger });
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twilio',
+      v: '2',
       correlationId: 'c-twilio',
       type: 'chat.message.v1',
-      channel: 'CH123',
-      userId: '+1234567890',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twilio',
+        channel: 'CH123',
+      },
+      identity: {
+        external: { id: '+1234567890', platform: 'twilio' }
+      },
       message: {
         id: 'msg-twilio',
         role: 'user',
@@ -125,7 +136,7 @@ describe('PersistenceStore', () => {
     await store.upsertIngressEvent(evt);
     const setCall = db.__fns.set.mock.calls[0];
     expect(setCall[0].message.rawPlatformPayload.conversationSid).toBe('CH123');
-    expect(setCall[0].source).toBe('ingress.twilio');
+    expect(setCall[0].ingress.source).toBe('ingress.twilio');
   });
 
   test('upsertSourceState handles Twilio status', async () => {
@@ -133,9 +144,13 @@ describe('PersistenceStore', () => {
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
     const store = new PersistenceStore({ firestore: db, logger });
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twilio',
+      v: '2',
+      correlationId: 'c-twilio-status',
       type: 'system.source.status',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twilio',
+      },
       payload: {
         platform: 'twilio',
         id: '+1234567890',
@@ -181,14 +196,23 @@ describe('PersistenceStore', () => {
     const store = new PersistenceStore({ firestore: db, logger });
     
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch.eventsub',
-      type: 'system.stream.online',
+      v: '2',
       correlationId: 'c-stream-1',
-      userId: '12345',
+      type: 'system.stream.online',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch.eventsub',
+      },
+      identity: {
+        external: { id: '12345', platform: 'twitch' }
+      },
       externalEvent: {
+        id: 'ee1',
         source: 'twitch.eventsub',
-        payload: {
+        kind: 'stream.online',
+        version: '1',
+        createdAt: new Date().toISOString(),
+        metadata: {
           broadcasterId: '12345',
           broadcasterLogin: 'testuser',
           viewer_count: 100

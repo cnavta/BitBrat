@@ -41,49 +41,56 @@ export interface Egress {
   type?: 'chat' | 'dm' | 'event'; // Requested type of response to send.
 }
 
-export interface EnvelopeV1 {
-  v: '1';
-  source: string; // e.g., "ingress.twitch"
-  correlationId: string; // uuid
-  traceId?: string; // w3c trace id
-  replyTo?: string; // topic for direct reply if not default
-  timeoutAt?: string; // optional absolute timeout for the end-to-end processing
-  routingSlip?: RoutingStep[]; // at least one step after routing
-  egress: Egress;
-  /** Optional: added by Auth service (User Enrichment v1) */
+export interface Ingress {
+  ingressAt: string; // ISO8601
+  source: string;    // e.g., "ingress.twitch", "api-gateway"
+  channel?: string;  // #channel or room ID
+}
+
+export interface Identity {
+  /** 
+   * Provided by Ingress. 
+   * Processes should map platform-specific user info here.
+   */
+  external: {
+    id: string;
+    platform: string;
+    displayName?: string;
+    roles?: string[];
+    metadata?: Record<string, any>;
+  };
+
+  /** 
+   * Provided by Auth Service (Enrichment).
+   * Maps internal user database information.
+   */
   user?: {
     id: string;
     email?: string;
     displayName?: string;
     roles?: string[];
     status?: string;
-    notes?: string; // Ad-hoc notes about this user sourced from Firebase.
-    tags?: string[]; // Internal tags, such as FIRST_ALLTIME_MESSAGE, FIRST_SESSION_MESSAGE, NEW_USER, etc.
+    notes?: string;
+    tags?: string[];
   };
-  /** Optional: added by Auth service (User Enrichment v1) */
+
+  /** 
+   * Provided by Auth Service.
+   * Authentication process details.
+   */
   auth?: {
-    v: '1';
+    v: '2';
     provider?: string;
     method: 'enrichment';
     matched: boolean;
-    userRef?: string; // e.g., users/<docId>
-    at: string; // ISO timestamp
+    userRef?: string;
+    at: string;
   };
-  metadata?: Record<string, any>;
-}
-
-export interface InternalEventV1 {
-  envelope: EnvelopeV1;
-  type: InternalEventType;
-  channel?: string; // #channel if applicable
-  userId?: string; // optional twitch user id, etc.
-  payload: Record<string, any>;
 }
 
 /**
  * Sprint 107 — Internal Event Contracts (v2)
  * InternalEventV2 flattens the V1 envelope and introduces message/annotations/candidates.
- * This interface is the preferred shape for new services. V1 remains for backward compatibility.
  */
 export interface MessageV1 {
   id: string;
@@ -141,25 +148,33 @@ export interface ExternalEventV1 {
   kind: string; // e.g., "channel.follow", "channel.update"
   version: string; // Event schema version from the platform
   createdAt: string; // ISO8601
-  payload: Record<string, any>; // Normalized platform-specific data
+  metadata?: Record<string, any>; // Grouped metadata (formerly payload)
   rawPayload?: Record<string, any>; // Optional original platform payload
 }
 
 /**
- * InternalEventV2 extends the EnvelopeV1 fields at the top level (no `envelope` nesting),
- * and adds normalized message metadata along with annotations and candidate replies.
+ * InternalEventV2 (Refactored)
+ * Consolidated version incorporating legacy envelope fields at the root.
  */
-export interface InternalEventV2 extends EnvelopeV1 {
+export interface InternalEventV2 {
+  v: '2';
+  correlationId: string; // uuid
+  traceId?: string; // w3c trace id
   type: InternalEventType;
-  channel?: string; // #channel if applicable
-  userId?: string; // optional twitch user id, etc.
-  payload?: Record<string, any>; // Optional: fallback for system or non-message events
-  message?: MessageV1; // Optional: present for chat/text events
+  ingress: Ingress;
+  identity: Identity;
+  egress: Egress;
+
   externalEvent?: ExternalEventV1; // Optional: present for behavioral events
+  message?: MessageV1; // Optional: present for chat/text events
+  payload?: Record<string, any>; // Optional: fallback for system or non-message events
+
   annotations?: AnnotationV1[];
   candidates?: CandidateV1[];
-  errors?: ErrorEntryV1[];
   qos?: QOSV1;
+
+  routingSlip?: RoutingStep[]; // at least one step after routing
+  errors?: ErrorEntryV1[];
   metadata?: Record<string, any>;
 }
 

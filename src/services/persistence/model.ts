@@ -36,8 +36,7 @@ export interface EventDocV1 extends InternalEventV2 {
   /** Timestamp used by Firestore TTL to auto-expire documents */
   ttl?: FirebaseFirestore.Timestamp;
   /** Ingress metadata: where, when and how the event entered the system */
-  ingress?: {
-    source?: string; // e.g., ingress.twitch
+  ingressDoc?: {
     receivedAt: string; // ISO8601
     destination?: string; // e.g., internal.ingress.v1
     transport?: string; // e.g., pubsub|nats
@@ -107,11 +106,10 @@ export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
   const now = new Date().toISOString();
   // Build and sanitize to avoid undefined values in Firestore writes
   const doc: EventDocV1 = {
-    ...(evt as any),
+    ...evt,
     status: 'INGESTED',
     ingestedAt: now,
-    ingress: {
-      source: (evt as any)?.source,
+    ingressDoc: {
       receivedAt: now,
       destination: 'internal.ingress.v1',
     },
@@ -123,7 +121,7 @@ export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
  * Normalizes system.source.status events into a SourceDocV1 patch.
  */
 export function normalizeSourceStatus(evt: InternalEventV2): Partial<SourceDocV1> {
-  const payload = evt.payload || evt.externalEvent?.payload || {};
+  const payload = evt.payload || evt.externalEvent?.metadata || {};
   const now = new Date().toISOString();
   
   const patch: Partial<SourceDocV1> = {
@@ -151,13 +149,13 @@ export function normalizeSourceStatus(evt: InternalEventV2): Partial<SourceDocV1
  * Normalizes system.stream.online/offline events into a SourceDocV1 patch.
  */
 export function normalizeStreamEvent(evt: InternalEventV2): Partial<SourceDocV1> {
-  const payload = evt.payload || evt.externalEvent?.payload || {};
+  const payload = evt.payload || evt.externalEvent?.metadata || {};
   const now = new Date().toISOString();
   const isOnline = evt.type === 'system.stream.online';
 
   // Derive platform and id
-  const platform = payload.platform || evt.externalEvent?.source?.split('.')[0] || evt.source?.split('.')[1] || 'unknown';
-  const id = payload.id || payload.broadcasterId || evt.userId || (payload.source && payload.source.includes(':') ? payload.source.split(':')[1] : undefined);
+  const platform = payload.platform || evt.externalEvent?.source?.split('.')[0] || evt.ingress?.source?.split('.')[1] || 'unknown';
+  const id = payload.id || payload.broadcasterId || evt.identity?.user?.id || evt.identity?.external?.id || (payload.source && payload.source.includes(':') ? payload.source.split(':')[1] : undefined);
 
   const patch: Partial<SourceDocV1> = {
     platform,

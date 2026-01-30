@@ -4,12 +4,18 @@ import type { InternalEventV2, AnnotationV1, CandidateV1 } from '../../../types/
 
 describe('RouterEngine – interpolation', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'c-interp-1',
     type: 'chat.message.v1',
-    channel: '#general',
-    user: { displayName: 'Alice' },
+    ingress: {
+      ingressAt: '2026-01-29T22:00:00Z',
+      source: 'test',
+      channel: '#general',
+    },
+    identity: {
+      user: { displayName: 'Alice' },
+      external: { id: 'u1', platform: 'test' }
+    },
     message: { id: 'm1', role: 'user', text: 'Hello' },
   } as any;
 
@@ -40,7 +46,7 @@ describe('RouterEngine – interpolation', () => {
 
     expect(evtOut.message?.text).toBe('Hello Alice from #general (v2.0)');
     
-    expect(evtOut.annotations?.[0].label).toBe('label-1');
+    expect(evtOut.annotations?.[0].label).toBe('label-2');
     expect(evtOut.annotations?.[0].value).toBe('value-test');
 
     expect(evtOut.candidates?.[0].text).toBe('Reply to Alice');

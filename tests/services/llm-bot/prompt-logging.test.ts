@@ -14,7 +14,7 @@ jest.mock('../../../src/common/prompt-assembly/redaction', () => ({
 
 function makeEvent(overrides: Partial<InternalEventV2> = {}): InternalEventV2 {
   return {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'corr-log-1',
     type: 'llm.request.v1',

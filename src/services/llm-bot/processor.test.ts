@@ -6,7 +6,7 @@ class TestServer extends BaseServer { constructor() { super({ serviceName: 'test
 
 function baseEvt(): InternalEventV2 {
   return {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'c-1',
     type: 'llm.request.v1',

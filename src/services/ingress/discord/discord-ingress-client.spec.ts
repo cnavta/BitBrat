@@ -96,7 +96,7 @@ describe('DiscordIngressClient filters', () => {
     const mod: any = require('discord.js');
     mod.__mock.emit('messageCreate', mockMessage());
     expect(published.length).toBe(1);
-    expect(published[0].source).toBe('ingress.discord');
+    expect(published[0].ingress.source).toBe('ingress.discord');
     expect(published[0].message.text).toBe('hi');
     expect(published[0].egress.destination).toBe('internal.egress.v1.test');
     expect(published[0].egress.type).toBe('chat');

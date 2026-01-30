@@ -7,12 +7,17 @@ class TestServer extends BaseServer { constructor() { super({ serviceName: 'test
 
 function baseEvt(): InternalEventV2 {
   return {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'c-inst',
     type: 'llm.request.v1',
-    channel: 'twitch',
-    user: { id: 'u1' } as any,
+    ingress: {
+      ingressAt: new Date().toISOString(),
+      source: 'test',
+      channel: 'twitch',
+    },
+    identity: {
+      external: { id: 'u1', platform: 'test' }
+    },
     message: { id: 'm1', role: 'user', text: 'hello' },
     routingSlip: [{ id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.finalize.v1' }],
   } as any;
@@ -54,12 +59,12 @@ describe('llm-bot instance-scoped memory across events', () => {
   test('different keys are isolated', async () => {
     const server = new TestServer();
     const evtA = baseEvt();
-    evtA.user = { id: 'uA' } as any;
+    evtA.identity.external.id = 'uA';
     evtA.annotations = [ { id: 'a', kind: 'prompt', source: 't', createdAt: new Date().toISOString(), value: 'From A' } ] as any;
     await processEvent(server, evtA, { callLLM: async () => 'respA' });
 
     const evtB = baseEvt();
-    evtB.user = { id: 'uB' } as any;
+    evtB.identity.external.id = 'uB';
     evtB.annotations = [ { id: 'b', kind: 'prompt', source: 't', createdAt: new Date().toISOString(), value: 'From B' } ] as any;
     let captured = '';
     await processEvent(server, evtB, { callLLM: async (_m, input) => { captured = input; return 'respB'; } });

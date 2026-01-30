@@ -155,8 +155,8 @@ export async function buildUserContextAnnotation(evt: InternalEventV2, cfg: User
   const descriptionEnabled = cfg.includeDescription;
   try {
     const rolesMap = await loadEnabledRoles(cfg, db);
-    const userId = evt.user?.id || evt.userId;
-    let username = evt.user?.displayName || evt.message?.rawPlatformPayload?.username || evt.message?.rawPlatformPayload?.user || undefined;
+    const userId = evt.identity?.user?.id || evt.identity?.external?.id;
+    let username = evt.identity?.user?.displayName || evt.identity?.external?.displayName || evt.message?.rawPlatformPayload?.username || evt.message?.rawPlatformPayload?.user || undefined;
     let roles: string[] | undefined;
     let description: string | undefined;
 
@@ -168,8 +168,13 @@ export async function buildUserContextAnnotation(evt: InternalEventV2, cfg: User
       if (descriptionEnabled && profile.description) description = String(profile.description);
     }
     if (!roles || roles.length === 0) {
-      // fallback to evt.user.roles if present
-      const rs = Array.isArray(evt.user?.roles) ? evt.user!.roles! : [];
+      // fallback to enriched user roles if present
+      const rs = Array.isArray(evt.identity?.user?.roles) ? evt.identity.user!.roles! : [];
+      roles = rs.map((r) => String(r || '').toLowerCase()).filter(Boolean);
+    }
+    if (!roles || roles.length === 0) {
+      // fallback to external roles
+      const rs = Array.isArray(evt.identity?.external?.roles) ? evt.identity.external!.roles! : [];
       roles = rs.map((r) => String(r || '').toLowerCase()).filter(Boolean);
     }
 
@@ -204,7 +209,7 @@ export async function buildUserContextAnnotation(evt: InternalEventV2, cfg: User
     return ann;
   } catch {
     // degraded
-    const username = evt.user?.displayName || evt.message?.rawPlatformPayload?.username || undefined;
+    const username = evt.identity?.user?.displayName || evt.identity?.external?.displayName || evt.message?.rawPlatformPayload?.username || undefined;
     const text = composeContextText({ username }, cfg.maxChars);
     const isPrompt = cfg.injectionMode === 'append';
     const ann: AnnotationV1 = {

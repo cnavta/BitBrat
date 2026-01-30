@@ -4,7 +4,7 @@ import type { InternalEventV2 } from '../../../src/types/events';
 
 function makeEvent(overrides: Partial<InternalEventV2> = {}): InternalEventV2 {
   return {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'corr-mem-1',
     type: 'llm.request.v1',

@@ -16,23 +16,18 @@ function pick<T extends object>(obj: any, keys: (keyof T)[]): Partial<T> {
 }
 
 function resolveCandidateId(evt: InternalEventV2): string | undefined {
-  const anyEvt: any = evt as any;
-  return (
-    anyEvt?.user?.id ||
-    (typeof anyEvt.userId === 'string' ? anyEvt.userId : undefined) ||
-    anyEvt?.message?.rawPlatformPayload?.userId ||
-    anyEvt?.message?.rawPlatformPayload?.user?.id ||
-    anyEvt?.externalEvent?.payload?.userId ||
-    anyEvt?.externalEvent?.payload?.broadcasterId ||
-    undefined
-  );
+  const ext = evt.externalEvent?.metadata;
+  if (ext) {
+    const candidate = ext.userId || ext.broadcasterId || ext.id;
+    if (candidate) return candidate;
+  }
+  return evt.identity?.external?.id;
 }
 
 function resolveCandidateEmail(evt: InternalEventV2): string | undefined {
-  const anyEvt: any = evt as any;
-  const fromUser = anyEvt?.user?.email;
-  if (typeof fromUser === 'string' && fromUser) return fromUser;
-  const fromPayload = anyEvt?.message?.rawPlatformPayload?.user?.email || anyEvt?.message?.rawPlatformPayload?.email;
+  const fromExternal = evt.identity?.external?.metadata?.email;
+  if (typeof fromExternal === 'string' && fromExternal) return fromExternal;
+  const fromPayload = evt.message?.rawPlatformPayload?.user?.email || evt.message?.rawPlatformPayload?.email || evt.payload?.email;
   if (typeof fromPayload === 'string' && fromPayload) return fromPayload;
   return undefined;
 }
@@ -52,11 +47,11 @@ export async function enrichEvent(
   repo: UserRepo,
   opts: EnrichOptions = {}
 ): Promise<EnrichResult> {
-  const nowIso = opts.now ? opts.now() : new Date().toISOString();
-  const provider = opts.provider;
-
   // Shallow copy event to avoid mutating caller references
   const evt: InternalEventV2 = { ...event };
+
+  const nowIso = opts.now ? opts.now() : new Date().toISOString();
+  const provider = evt.identity?.external?.platform || opts.provider;
 
   const rawId = resolveCandidateId(evt);
   const email = resolveCandidateEmail(evt);
@@ -136,9 +131,9 @@ export async function enrichEvent(
     if (didEnsure) {
       userOut.tags = computeTags(created, isFirstMessage, isNewSession, Array.isArray((effectiveDoc as any).tags) ? (effectiveDoc as any).tags : undefined);
     }
-    (evt as any).user = userOut;
-    (evt as any).auth = {
-      v: '1',
+    evt.identity.user = userOut;
+    evt.identity.auth = {
+      v: '2',
       method: 'enrichment',
       matched: true,
       at: nowIso,
@@ -178,9 +173,9 @@ export async function enrichEvent(
       const createdDoc: AuthUserDoc = res.doc;
       const userOut: any = pick<AuthUserDoc>(createdDoc, ['id', 'email', 'displayName', 'roles', 'status', 'notes', 'profile', 'rolesMeta']) as any;
       userOut.tags = computeTags(true, true, true, Array.isArray((createdDoc as any).tags) ? (createdDoc as any).tags : undefined);
-      (evt as any).user = userOut;
-      (evt as any).auth = {
-        v: '1',
+      evt.identity.user = userOut;
+      evt.identity.auth = {
+        v: '2',
         method: 'enrichment',
         matched: true,
         at: nowIso,
@@ -194,8 +189,8 @@ export async function enrichEvent(
   }
 
   // Unmatched path
-  (evt as any).auth = {
-    v: '1',
+  evt.identity.auth = {
+    v: '2',
     method: 'enrichment',
     matched: false,
     at: nowIso,

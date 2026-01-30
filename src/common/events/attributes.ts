@@ -6,12 +6,12 @@ export function busAttrsFromEvent(evt: InternalEventV2): AttributeMap {
   const attrs: AttributeMap = {
     type: String(evt?.type || ''),
   } as AttributeMap;
-  if ((evt as any)?.correlationId) attrs.correlationId = String((evt as any).correlationId);
+  if (evt?.correlationId) attrs.correlationId = String(evt.correlationId);
   // Provide an explicit idempotency key for at-least-once delivery dedupe. Default to correlationId.
-  if ((evt as any)?.correlationId) attrs.idempotencyKey = String((evt as any).correlationId);
-  if ((evt as any)?.source) attrs.source = String((evt as any).source);
-  if ((evt as any)?.traceId) attrs.traceId = String((evt as any).traceId);
-  if ((evt as any)?.channel) attrs.channel = String((evt as any).channel);
+  if (evt?.correlationId) attrs.idempotencyKey = String(evt.correlationId);
+  if (evt?.ingress?.source) attrs.source = String(evt.ingress.source);
+  if (evt?.traceId) attrs.traceId = String(evt.traceId);
+  if (evt?.ingress?.channel) attrs.channel = String(evt.ingress.channel);
   return attrs;
 }
 

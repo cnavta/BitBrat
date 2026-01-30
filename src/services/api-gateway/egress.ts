@@ -24,7 +24,7 @@ export class EgressManager {
    */
   public async handleEgressEvent(event: InternalEventV2): Promise<EgressResult> {
     const isWebSocketTarget = event.egress?.destination === 'api-gateway' || 
-                             event.source === 'api-gateway' ||
+                             event.ingress?.source === 'api-gateway' ||
                              event.type?.startsWith('api.');
     this.logger.debug('egress.handle_event', { event });
 
@@ -32,7 +32,7 @@ export class EgressManager {
       return EgressResult.IGNORED;
     }
 
-    const userId = event.userId;
+    const userId = event.identity?.external?.id || event.identity?.user?.id;
     if (!userId) {
       this.logger.warn('egress.missing_user_id', { correlationId: event.correlationId });
       return EgressResult.FAILED;
@@ -60,7 +60,7 @@ export class EgressManager {
       metadata: {
         id: event.correlationId,
         timestamp: new Date().toISOString(),
-        source: event.source
+        source: event.ingress?.source
       }
     };
 

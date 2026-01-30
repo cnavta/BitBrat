@@ -86,7 +86,7 @@ describe('IngressEgressServer - Generic Egress', () => {
 
     // Simulate message
     const evt = { 
-      v: '1',
+      v: '2',
       source: 'some-service',
       correlationId: 'c1',
       egress: { destination: 'discord' }, 
@@ -137,7 +137,7 @@ describe('IngressEgressServer - Generic Egress', () => {
 
     // Simulate message
     const evt = { 
-      v: '1',
+      v: '2',
       source: 'some-service',
       correlationId: 'c-failed',
       egress: { destination: 'discord' }, 

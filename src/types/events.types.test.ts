@@ -9,10 +9,10 @@ import {
   INTERNAL_EGRESS_V1,
   INTERNAL_INGRESS_V1,
   INTERNAL_ROUTES_V1,
-  InternalEventV1,
+  InternalEventV2,
 } from './events';
 
-describe('events.ts (Sprint 77 contracts)', () => {
+describe('events.ts (InternalEventV2 refactor)', () => {
   it('exports topic constants', () => {
     expect(INTERNAL_INGRESS_V1).toBe('internal.ingress.v1');
     expect(INTERNAL_ROUTES_V1).toBe('internal.routes.v1');
@@ -22,37 +22,44 @@ describe('events.ts (Sprint 77 contracts)', () => {
     expect(INTERNAL_DEADLETTER_V1).toBe('internal.deadletter.v1');
   });
 
-  it('InternalEventV1 sample conforms to envelope schema', () => {
-    const ajv = new Ajv2020({ allErrors: true, strict: false });
-    addFormats(ajv);
-
-    const schemaDir = path.join(__dirname, '..', '..', 'documentation', 'schemas');
-    const envelopeSchema = JSON.parse(fs.readFileSync(path.join(schemaDir, 'envelope.v1.json'), 'utf-8'));
-    const routingSchema = JSON.parse(fs.readFileSync(path.join(schemaDir, 'routing-slip.v1.json'), 'utf-8'));
-    ajv.addSchema(routingSchema, routingSchema.$id || 'routing-slip.v1.json');
-    const validate = ajv.getSchema(envelopeSchema.$id) || ajv.compile(envelopeSchema);
-
-    const event: InternalEventV1 = {
-      envelope: {
-        v: '1',
-        source: 'ingress.twitch',
-        correlationId: 'c-123',
-        traceId: 't-123',
-        routingSlip: [
-          { id: 'router', status: 'OK' },
-          { id: 'llm-bot', status: 'PENDING', nextTopic: INTERNAL_BOT_REQUESTS_V1 }
-        ],
-        egress: { destination: 'egress.twitch' }
-      },
+  it('InternalEventV2 sample conforms to refactored structure', () => {
+    const event: InternalEventV2 = {
+      v: '2',
       type: 'chat.message.v1',
-      payload: { channel: '#bitbrat', text: 'Hello' }
+      correlationId: 'c-123',
+      traceId: 't-123',
+      ingress: {
+        ingressAt: '2026-01-29T22:00:00Z',
+        source: 'ingress.twitch',
+        channel: '#bitbrat',
+      },
+      identity: {
+        external: {
+          id: 'u123',
+          platform: 'twitch',
+          displayName: 'Alice',
+        }
+      },
+      egress: { 
+        destination: 'egress.twitch' 
+      },
+      routingSlip: [
+        { id: 'router', status: 'OK' },
+        { id: 'llm-bot', status: 'PENDING', nextTopic: INTERNAL_BOT_REQUESTS_V1 }
+      ],
+      message: {
+        id: 'msg-1',
+        role: 'user',
+        text: 'Hello',
+      },
+      payload: { 
+        foo: 'bar' 
+      }
     };
 
-    const ok = validate!(event.envelope);
-    if (!ok) {
-      // eslint-disable-next-line no-console
-      console.error('[DEBUG_LOG] schema errors', validate!.errors);
-    }
-    expect(ok).toBe(true);
+    expect(event.v).toBe('2');
+    expect(event.ingress.source).toBe('ingress.twitch');
+    expect(event.identity.external.id).toBe('u123');
+    expect(event.message?.text).toBe('Hello');
   });
 });

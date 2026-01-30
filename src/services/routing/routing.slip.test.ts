@@ -1,12 +1,15 @@
-import { ensureSlip, findNextActionable, isComplete, markStepResult } from './slip';
-import { InternalEventV1, RoutingStep } from '../../types/events';
+import { ensureSlip, findNextActionable, isComplete } from './slip';
+import { InternalEventV2, RoutingStep } from '../../types/events';
 
 describe('slip utils', () => {
   it('ensures slip and finds next actionable', () => {
-    const evt: InternalEventV1 = {
-      envelope: { v: '1', source: 'ingress', correlationId: 'c1' },
+    const evt: InternalEventV2 = {
+      v: '2',
+      correlationId: 'c1',
       type: 'chat.message.v1',
-      channel: '#chan',
+      ingress: { ingressAt: '2026-01-29T22:00:00Z', source: 'ingress', channel: '#chan' },
+      identity: { external: { id: 'u1', platform: 'test' } },
+      egress: { destination: 'test' },
       payload: { text: 'hello' },
     } as any;
     const planned: RoutingStep[] = [
@@ -14,7 +17,7 @@ describe('slip utils', () => {
       { id: 'llm-bot', status: 'PENDING' },
       { id: 'egress', status: 'PENDING' },
     ];
-    const slip = ensureSlip(evt.envelope, planned);
+    const slip = ensureSlip(evt, planned);
     const next = findNextActionable(slip);
     expect(next).not.toBeNull();
     expect(next!.step.id).toBe('llm-bot');

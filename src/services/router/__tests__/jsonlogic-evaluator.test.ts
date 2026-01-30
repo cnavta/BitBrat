@@ -3,7 +3,7 @@ import type { InternalEventV2 } from '../../../types/events';
 
 describe('JsonLogicEvaluator', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'abc',
     type: 'chat.command.v1',
