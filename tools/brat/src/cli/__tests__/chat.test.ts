@@ -81,4 +81,20 @@ describe('Chat CLI Protocol Simple', () => {
       }
     }, 50);
   });
+
+  it('should respect API_GATEWAY_HOST_PORT environment variable for local env', (done) => {
+    process.env.API_GATEWAY_HOST_PORT = '4000';
+    cmdChat({ env: 'local' });
+
+    const check = setInterval(() => {
+      const ws = SimpleMockWS.instance;
+      if (ws) {
+        clearInterval(check);
+        const WS = require('ws').default;
+        expect(WS).toHaveBeenCalledWith(expect.stringContaining('localhost:4000'), expect.any(Object));
+        delete process.env.API_GATEWAY_HOST_PORT;
+        done();
+      }
+    }, 50);
+  });
 });

@@ -1,0 +1,29 @@
+# REQUIRED: Google Application Credentials (JSON key file)
+# This MUST be an absolute path on your host machine.
+# Example: /Users/username/keys/bitbrat-service-account.json
+GOOGLE_APPLICATION_CREDENTIALS=/Users/christophernavta/google/twitch-452523-2416ce4891da.json
+
+# --- OpenAI (Required for llm-bot) ---
+# Use "sk-local-dev-stub" if you don't have a real key for local testing.
+OPENAI_API_KEY=sk-test-key
+
+# --- MCP (Model Context Protocol) ---
+# Shared secret for authenticating between scheduler and MCP servers
+MCP_AUTH_TOKEN=local-dev-mcp-token
+
+# --- Twitch Integration (Required for auth, ingress-egress, oauth-flow) ---
+TWITCH_CLIENT_ID=kbkfeqg0pm889vkglxvrufm2vw3vvq
+TWITCH_CLIENT_SECRET=uyrlmk8x5m9dyzqi7qn4d7t7ioukrw
+OAUTH_STATE_SECRET=local-state-secret
+
+# --- Discord Integration (Optional) ---
+DISCORD_BOT_TOKEN=lMTQ0OTU1ODU5Mjc2MzA3MjUzMg.GLwXO-.sshNTB9gvoR83iKo2rwVQCIS3q2rRLgvaP8tKw
+DISCORD_CLIENT_ID=1449558592763072532
+DISCORD_CLIENT_SECRET=5Y2LvO8RjPxMkntyhd6Gj0MoHmQo1peo
+
+# --- Twilio Integration (Optional) ---
+TWILIO_ACCOUNT_SID=fdsa
+TWILIO_AUTH_TOKEN=fdsa
+TWILIO_API_KEY=fdsa
+TWILIO_API_SECRET=fds
+TWILIO_CHAT_SERVICE_SID=fdsafdsa
