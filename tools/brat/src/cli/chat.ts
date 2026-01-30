@@ -114,7 +114,8 @@ class ChatController {
     } else {
       const { env } = this.options;
       if (env === 'local') {
-        url = 'ws://localhost:3001/ws/v1';
+        const port = process.env.API_GATEWAY_HOST_PORT || '3001';
+        url = `ws://localhost:${port}/ws/v1`;
       } else if (env === 'prod') {
         url = 'wss://api.bitbrat.ai/ws/v1';
       } else {
