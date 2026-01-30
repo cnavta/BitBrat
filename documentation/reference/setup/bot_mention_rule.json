@@ -1,0 +1,31 @@
+{
+  "description": "%botUsername% Bot mention",
+  "enabled": true,
+  "enrichments": {
+    "annotations": [
+      {
+        "id": "a1",
+        "kind": "personality",
+        "value": "%botUsername%"
+      },
+      {
+        "id": "a2",
+        "kind": "prompt",
+        "value": "Create an appropriate answer to user {{username}}'s latest message."
+      }
+    ]
+  },
+  "logic": "{ \"text_contains\": [ { \"var\": \"message.text\" }, \"@%botUsername%\", true ] }",
+  "priority": 10,
+  "routingSlip": [
+    {
+      "attributes": {
+        "origin": "event-router"
+      },
+      "id": "llm-bot",
+      "maxAttempts": 3,
+      "nextTopic": "internal.llmbot.v1",
+      "v": "1"
+    }
+  ]
+}
