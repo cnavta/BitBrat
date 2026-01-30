@@ -3,6 +3,7 @@ import path from 'path';
 import WebSocket from 'ws';
 import readline from 'readline';
 import { v4 as uuidv4 } from 'uuid';
+import { execSync } from 'child_process';
 
 interface ChatOptions {
   env: string;
@@ -114,7 +115,7 @@ class ChatController {
     } else {
       const { env } = this.options;
       if (env === 'local') {
-        const port = process.env.API_GATEWAY_HOST_PORT || '3001';
+        const port = process.env.API_GATEWAY_HOST_PORT || this.discoverLocalPort() || '3001';
         url = `ws://localhost:${port}/ws/v1`;
       } else if (env === 'prod') {
         url = 'wss://api.bitbrat.ai/ws/v1';
@@ -128,6 +129,27 @@ class ChatController {
       url += `${separator}userId=brat-chat:${encodeURIComponent(this.name)}`;
     }
     return url;
+  }
+
+  private discoverLocalPort(): string | null {
+    try {
+      // Use more specific filters: look for a container belonging to this project (via labels)
+      // or specifically named with api-gateway.
+      const cmd = 'docker ps --filter "label=com.docker.compose.service=api-gateway" --filter "status=running" --format "{{.Ports}}"';
+      const output = execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+      
+      // Look for something like 0.0.0.0:3006->3000/tcp or [::]:3006->3000/tcp
+      const lines = output.split('\n').filter(Boolean);
+      for (const line of lines) {
+        const match = line.match(/:([0-9]+)->3000\/tcp/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    } catch (err) {
+      // Docker might not be running or command failed, fall back to default
+    }
+    return null;
   }
 
   private setupWebSocket() {
