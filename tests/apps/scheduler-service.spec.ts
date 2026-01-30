@@ -102,7 +102,7 @@ describe('Scheduler Service', () => {
       const [event, attrs] = (publishJsonMock.mock.calls as any)[0];
       expect(event.type).toBe('test.event');
       expect(event.payload.foo).toBe('bar');
-      expect(event.source).toBe('scheduler');
+      expect(event.ingress.source).toBe('scheduler');
       expect(attrs.source).toBe('scheduler');
 
       // Verify schedule was updated

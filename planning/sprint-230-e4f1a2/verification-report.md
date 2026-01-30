@@ -10,6 +10,7 @@
 - [x] Full test suite pass (198 suites passed, 1 skipped).
 - [x] Removed all lingering `InternalEventV1` and `EnvelopeV1` references.
 - [x] Validated build and tests via `validate_deliverable.sh`.
+- [x] Fixed regression in `tests/apps/scheduler-service.spec.ts` where assertions still expected root-level `source`.
 
 ## Partial
 - None.

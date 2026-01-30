@@ -278,11 +278,24 @@ class SchedulerServer extends McpServer {
   }
 
   private async executeSchedule(schedule: ScheduleDoc, publisher: any) {
+    const now = new Date().toISOString();
+    const correlationId = uuidv4();
     const event: InternalEventV2 = {
-      v: '1',
-      source: 'scheduler',
-      correlationId: uuidv4(),
+      v: '2',
+      correlationId,
+      traceId: uuidv4(),
       type: schedule.event.type,
+      ingress: {
+        ingressAt: now,
+        source: 'scheduler',
+      },
+      identity: {
+        external: {
+          id: 'scheduler',
+          platform: 'system',
+        }
+      },
+      egress: { destination: 'system' },
       payload: schedule.event.payload || {},
       message: schedule.event.message ? {
         id: uuidv4(),
@@ -290,7 +303,7 @@ class SchedulerServer extends McpServer {
         text: schedule.event.message.text,
       } : undefined,
       annotations: schedule.event.annotations,
-    } as any;
+    };
 
     this.getLogger().info('scheduler.executing_event', { 
         id: schedule.id, 
