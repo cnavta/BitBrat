@@ -42,11 +42,11 @@ For a detailed view, see [architecture.yaml](./architecture.yaml) and the [docum
 
 - Node.js (v24.x recommended)
 - npm
-- Google Cloud Project (for GCP deployment)
-- NATS Server (for local development)
-- Firebase/Firestore
+- Docker and Docker Compose
+- Google Cloud Project (for project ID)
+- OpenAI API Key
 
-### Installation
+### Installation & Setup
 
 1. Clone the repository:
    ```bash
@@ -59,13 +59,22 @@ For a detailed view, see [architecture.yaml](./architecture.yaml) and the [docum
    npm install
    ```
 
-3. Configure environment variables:
-   Copy `.env.example` to `.secure.local` and fill in the required values (especially `GOOGLE_APPLICATION_CREDENTIALS` and API keys).
-   `.secure.local` is used to generate the final `.env.local` for the services.
+3. Initialize the platform:
+   ```bash
+   npm run brat -- setup
+   ```
+   The `setup` command will guide you through configuring your GCP Project ID, OpenAI API Key, and Bot Name. It will also bootstrap your local environment using Docker.
+
+### Chatting with your Bot
+
+Once setup is complete, you can start an interactive chat session with your bot:
+```bash
+npm run brat -- chat
+```
 
 ### Running Locally
 
-To start the platform locally using Docker Compose:
+To manually start the platform locally using Docker Compose:
 ```bash
 npm run local
 ```
@@ -73,16 +82,6 @@ npm run local
 To stop the local environment:
 ```bash
 npm run local:down
-```
-
-To view logs for all services:
-```bash
-npm run local:logs
-```
-
-To view logs for a specific service:
-```bash
-npm run local:logs -- --service-name auth
 ```
 
 ### Building and Testing
@@ -115,6 +114,10 @@ npm run brat -- <command> [options]
 - `--json`: Output results in JSON format.
 
 ### Core Commands
+
+#### Setup & Interaction
+- `brat setup [--project-id <id>] [--openai-key <key>] [--bot-name <name>]`: Interactive platform initialization.
+- `brat chat [--env <name>] [--url <url>]`: Start an interactive chat session with the platform.
 
 #### Diagnostics & Config
 - `brat doctor`: Run diagnostic checks to ensure required tools (`gcloud`, `terraform`, `docker`) are installed.
