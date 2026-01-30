@@ -3,7 +3,7 @@ title: "Brat Setup Re-run Warning"
 goal: "Add a warning and confirmation prompt to the 'brat setup' command if the platform is already initialized."
 owner: "Junie"
 createdAt: "2026-01-30T11:25:00Z"
-status: planning
+status: complete
 links:
   branch: "feature/sprint-232-a1b2c3-setup-rerun-warning"
 notes: |
