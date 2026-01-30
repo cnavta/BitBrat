@@ -7,7 +7,7 @@
 > - The only target platforms are Docker Compose and Google Cloud.
 > - The only persistence framework supported is Firestore.
 > 
-> These both could be fairly easily updated to support additoinal options, I have just not focused on them specifically in favor of learning and exploring AI agent orchestration.
+> These both could be fairly easily updated to support additional options, I have just not focused on them specifically in favor of learning and exploring AI agent orchestration.
 
 <p align="center">
   <img src="./assets/BitBrat.png" alt="Description of Image" width="300"/>
@@ -99,6 +99,8 @@ npm test
 ## Management CLI (brat)
 
 `brat` (BitBrat Rapid Administration Tool) is the primary CLI tool for managing the platform. It simplifies common tasks such as environment validation, service bootstrapping, deployment, and infrastructure management.
+
+For more details, see the [brat documentation](./documentation/tools/brat.md).
 
 **Usage:**
 ```bash

@@ -285,8 +285,7 @@ We are standardizing our prompt pipeline to include Conversation State / History
   - Validate using CLI rendering and adapter fixtures.
 
 ## Roadmap
-- v2 (this sprint): Documentation and plan only.
-- v2.1 (next): Implement types, assembly, and provider adapters with tests.
+- v2 (completed): Documentation and implementation of Conversation State / History section and updated provider adapters.
 - v2.2: Token estimation and structured output validators.
 
 ## References
