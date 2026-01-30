@@ -1,0 +1,11 @@
+id: sprint-237-f1g2h3
+title: "Fix Setup Token Format and Rule Location"
+goal: "Align token document format with AuthService and correct event-router rules collection path during setup."
+owner: "Junie"
+createdAt: "2026-01-30T13:25:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-237-f1g2h3-fix-setup-token-format"
+notes: |
+  Fixes issues where 'brat setup' was using 'user_id' instead of 'uid' for tokens,
+  and 'rules' collection instead of 'configs/routingRules/rules' for event-router.
