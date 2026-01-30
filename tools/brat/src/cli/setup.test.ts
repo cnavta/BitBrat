@@ -1,6 +1,38 @@
-import { updateYaml, updateEnv, replacePlaceholders } from './setup';
+import fs from 'fs';
+import path from 'path';
+import { updateYaml, updateEnv, replacePlaceholders, isAlreadyInitialized } from './setup';
+
+jest.mock('fs');
 
 describe('Setup Utilities', () => {
+  const mockFs = fs as jest.Mocked<typeof fs>;
+
+  describe('isAlreadyInitialized', () => {
+    const root = '/mock/root';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should return empty array if no markers exist', () => {
+      mockFs.existsSync.mockReturnValue(false);
+      const result = isAlreadyInitialized(root);
+      expect(result).toEqual([]);
+    });
+
+    it('should return detected markers', () => {
+      mockFs.existsSync.mockImplementation((p: any) => {
+        if (typeof p === 'string' && p.endsWith('.bitbrat.json')) return true;
+        if (typeof p === 'string' && p.endsWith('.secure.local')) return true;
+        return false;
+      });
+      const result = isAlreadyInitialized(root);
+      expect(result).toContain('.bitbrat.json');
+      expect(result).toContain('.secure.local');
+      expect(result).not.toContain('env/local/global.yaml');
+    });
+  });
+
   describe('updateYaml', () => {
     it('should add a new key to empty content', () => {
       const result = updateYaml('', 'KEY', 'VALUE');

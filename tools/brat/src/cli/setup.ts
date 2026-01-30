@@ -41,6 +41,15 @@ export const replacePlaceholders = (content: string, vars: Record<string, string
   return result;
 };
 
+export const isAlreadyInitialized = (root: string): string[] => {
+  const markers = [
+    { path: path.join(root, '.bitbrat.json'), name: '.bitbrat.json' },
+    { path: path.join(root, '.secure.local'), name: '.secure.local' },
+    { path: path.join(root, 'env', 'local', 'global.yaml'), name: 'env/local/global.yaml' },
+  ];
+  return markers.filter((m) => fs.existsSync(m.path)).map((m) => m.name);
+};
+
 export async function cmdSetup(opts: any, log: Logger) {
   const root = process.cwd();
   const rl = readline.createInterface({
@@ -53,6 +62,18 @@ export async function cmdSetup(opts: any, log: Logger) {
   try {
     log.info({ action: 'setup.start' }, 'Starting BitBrat Platform Setup');
     console.log('\n--- BitBrat Platform Setup ---\n');
+
+    const markers = isAlreadyInitialized(root);
+    if (markers.length > 0) {
+      console.log('\x1b[33m%s\x1b[0m', 'WARNING: This platform appears to be already initialized.');
+      console.log('Detected configuration files:', markers.join(', '));
+      const confirm = await ask('\nAre you sure you want to continue and overwrite existing settings? (y/N): ');
+      if (confirm.toLowerCase() !== 'y') {
+        console.log('Setup aborted.');
+        log.info({ action: 'setup.aborted' }, 'User aborted setup due to existing configuration');
+        return;
+      }
+    }
 
     const projectId = opts.projectId || await ask('GCP Project ID: ');
     if (!projectId) throw new Error('Project ID is required');
