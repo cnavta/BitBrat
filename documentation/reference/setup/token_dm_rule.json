@@ -1,0 +1,20 @@
+{
+  "description": "Token Created DM",
+  "enabled": true,
+  "enrichments": {
+    "candidates": [
+      {
+        "id": "c1",
+        "kind": "text",
+        "text": "Your BitBrat Platform token is {{payload.raw_token}}"
+      }
+    ],
+    "egress": {
+      "destination": "internal.egress.v1",
+      "type": "dm"
+    }
+  },
+  "logic": "{ \"==\": [{ \"var\": \"type\" }, \"token.created.v1\"] }",
+  "priority": 40,
+  "routingSlip": []
+}
