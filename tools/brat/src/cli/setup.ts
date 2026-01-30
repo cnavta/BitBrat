@@ -32,6 +32,11 @@ export const updateEnv = (content: string, key: string, value: string) => {
   }
 };
 
+export const removeYamlKey = (content: string, key: string) => {
+  const regex = new RegExp(`^${key}:.*\\n?`, 'm');
+  return content.replace(regex, '');
+};
+
 export const replacePlaceholders = (content: string, vars: Record<string, string>) => {
   let result = content;
   for (const [key, value] of Object.entries(vars)) {
@@ -102,7 +107,9 @@ export async function cmdSetup(opts: any, log: Logger) {
     
     globalYamlContent = updateYaml(globalYamlContent, 'PROJECT_ID', projectId);
     globalYamlContent = updateYaml(globalYamlContent, 'BOT_NAME', botName);
-    globalYamlContent = updateYaml(globalYamlContent, 'API_GATEWAY_HOST_PORT', '3001');
+    // Clear API_GATEWAY_HOST_PORT from global.yaml to allow deploy-local.sh to auto-assign if there's a collision.
+    // brat chat will then dynamically discover the assigned port from Docker.
+    globalYamlContent = removeYamlKey(globalYamlContent, 'API_GATEWAY_HOST_PORT');
     fs.writeFileSync(globalYamlPath, globalYamlContent, 'utf8');
 
     // Update .secure.local

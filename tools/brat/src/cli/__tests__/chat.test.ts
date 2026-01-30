@@ -10,6 +10,10 @@ const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: string |
 const mockLog = jest.spyOn(console, 'log').mockImplementation();
 const mockError = jest.spyOn(console, 'error').mockImplementation();
 
+jest.mock('child_process', () => ({
+  execSync: jest.fn()
+}));
+
 class SimpleMockWS extends EventEmitter {
   readyState = 0; // CONNECTING
   send = jest.fn();
@@ -93,6 +97,24 @@ describe('Chat CLI Protocol Simple', () => {
         const WS = require('ws').default;
         expect(WS).toHaveBeenCalledWith(expect.stringContaining('localhost:4000'), expect.any(Object));
         delete process.env.API_GATEWAY_HOST_PORT;
+        done();
+      }
+    }, 50);
+  });
+
+  it('should dynamically discover port from docker if API_GATEWAY_HOST_PORT is missing', (done) => {
+    const { execSync } = require('child_process');
+    const mockExecSync = execSync as jest.Mock;
+    mockExecSync.mockReturnValue(Buffer.from('0.0.0.0:3006->3000/tcp'));
+
+    cmdChat({ env: 'local' });
+
+    const check = setInterval(() => {
+      const ws = SimpleMockWS.instance;
+      if (ws) {
+        clearInterval(check);
+        const WS = require('ws').default;
+        expect(WS).toHaveBeenCalledWith(expect.stringContaining('localhost:3006'), expect.any(Object));
         done();
       }
     }, 50);
