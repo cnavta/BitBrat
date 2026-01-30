@@ -1,0 +1,10 @@
+id: sprint-238-g1h2i3
+title: "Fix Auth Token Field Mismatch"
+goal: "Align API Gateway AuthService with the token document structure in Firestore (uid vs user_id)"
+owner: "Junie"
+createdAt: "2026-01-30T13:25:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-238-g1h2i3-fix-auth-token-field"
+notes: |
+  The previous sprint updated the setup command to save tokens with 'uid' field, but AuthService still expects 'user_id'.
