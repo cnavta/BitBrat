@@ -32,7 +32,7 @@ export class EgressManager {
       return EgressResult.IGNORED;
     }
 
-    const userId = event.identity?.user?.id || event.identity?.external?.id;
+    const userId = event.identity?.external?.id || event.identity?.user?.id;
     if (!userId) {
       this.logger.warn('egress.missing_user_id', { correlationId: event.correlationId });
       return EgressResult.FAILED;

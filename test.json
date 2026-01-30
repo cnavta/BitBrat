@@ -1,14 +1,86 @@
 {
-  "ts": "2026-01-28T00:32:28.994Z",
-  "service": "ingress-egress",
+  "ts": "2026-01-30T04:30:06.661Z",
+  "service": "api-gateway",
   "level": "debug",
   "severity": "DEBUG",
-  "msg": "ingress-egress.egress.twitch.start",
-  "evt": {
-    "v": "1",
-    "source": "ingress.twitch",
-    "correlationId": "9f05598d-1357-4837-9317-981dee8c40e6",
-    "traceId": "5c253569-6a34-4f31-ae48-42572fd17834",
+  "msg": "egress.handle_event",
+  "event": {
+    "v": "2",
+    "type": "egress.deliver.v1",
+    "correlationId": "649350a2-696c-407f-9312-b7602ac59ce3",
+    "traceId": "0932b894-305c-4765-b0f7-5bc2b9aa6f2e",
+    "ingress": {
+      "ingressAt": "2026-01-30T04:30:04.765Z",
+      "source": "api-gateway"
+    },
+    "identity": {
+      "external": {
+        "id": "brat-chat:thorpe",
+        "platform": "api-gateway"
+      },
+      "user": {
+        "id": "api-gateway:brat-chat:thorpe",
+        "roles": [],
+        "tags": [
+          "PROVIDER_API-GATEWAY",
+          "NEW_USER",
+          "FIRST_ALLTIME_MESSAGE",
+          "FIRST_SESSION_MESSAGE"
+        ]
+      },
+      "auth": {
+        "v": "2",
+        "method": "enrichment",
+        "matched": true,
+        "at": "2026-01-30T04:30:04.771Z",
+        "provider": "api-gateway",
+        "userRef": "users/api-gateway:brat-chat:thorpe"
+      }
+    },
+    "egress": {
+      "destination": "internal.api.egress.v1.f99c6a67fc04",
+      "type": "chat"
+    },
+    "message": {
+      "id": "649350a2-696c-407f-9312-b7602ac59ce3",
+      "role": "user",
+      "text": "cnj",
+      "rawPlatformPayload": {
+        "text": "cnj"
+      }
+    },
+    "payload": {
+      "text": "cnj"
+    },
+    "annotations": [
+      {
+        "id": "a2",
+        "kind": "prompt",
+        "value": "Generate one original Chuck Norris joke. Do not reuse classic structures like roundhouse kicks, counting to infinity, or glaring-atoms tropes. Avoid tech-centric humor unless it’s genuinely unexpected. Explore any domain—nature, mythology, sports, cooking, art, everyday life, or the absurd. Use a fresh comedic structure and keep it under 20 words with a surprising punchline.",
+        "source": "rule:cnj",
+        "createdAt": "2026-01-30T04:30:04.786Z"
+      },
+      {
+        "id": "ctx-649350a2-696c-407f-9312-b7602ac59ce3",
+        "kind": "prompt",
+        "source": "llm-bot.user-context",
+        "createdAt": "2026-01-30T04:30:04.807Z",
+        "label": "user-context-v1",
+        "payload": {
+          "roles": [],
+          "rolePrompts": [],
+          "mode": "append",
+          "text": ""
+        },
+        "value": ""
+      }
+    ],
+    "metadata": {
+      "matchedRuleIds": [
+        "cnj"
+      ],
+      "chosenRuleId": "cnj"
+    },
     "routingSlip": [
       {
         "id": "llm-bot",
@@ -20,135 +92,19 @@
         "attributes": {
           "origin": "event-router"
         },
-        "startedAt": "2026-01-28T00:32:24.320Z",
-        "endedAt": "2026-01-28T00:32:28.992Z"
+        "startedAt": "2026-01-30T04:30:04.787Z",
+        "endedAt": "2026-01-30T04:30:06.656Z"
       }
     ],
-    "egress": {
-      "destination": "internal.egress.v1.19a08cfe3191",
-      "type": "chat"
-    },
-    "type": "egress.deliver.v1",
-    "channel": "#gonj_the_unjust",
-    "userId": "91960688",
-    "message": {
-      "id": "63209a4d-35e9-43bd-ba6d-08f74b6059ea",
-      "role": "user",
-      "text": "@bitbrat_the_ai Create a new API Token for me",
-      "rawPlatformPayload": {
-        "text": "@bitbrat_the_ai Create a new API Token for me",
-        "messageId": "63209a4d-35e9-43bd-ba6d-08f74b6059ea",
-        "user": {
-          "login": "gonj_the_unjust",
-          "displayName": "Gonj_The_Unjust"
-        },
-        "roomId": "91960688",
-        "badges": [],
-        "isMod": false,
-        "isSubscriber": true,
-        "emotes": [],
-        "raw": {
-          "tags": {
-            "badge-info": "subscriber/5",
-            "badges": "broadcaster/1,subscriber/0",
-            "client-nonce": "fa***f3a3",
-            "color": "#8A2BE2",
-            "display-name": "Gonj_The_Unjust",
-            "emotes": "",
-            "first-msg": "0",
-            "flags": "",
-            "id": "63209a4d-35e9-43bd-ba6d-08f74b6059ea",
-            "mod": "0",
-            "returning-chatter": "0",
-            "room-id": "91960688",
-            "subscriber": "1",
-            "tmi-sent-ts": "1769560344170",
-            "turbo": "0",
-            "user-id": "91960688",
-            "user-type": ""
-          }
-        },
-        "timestamp": "2026-01-28T00:32:24.295Z"
-      }
-    },
-    "user": {
-      "id": "twitch:91960688",
-      "displayName": "Gonj_The_Unjust",
-      "roles": [
-        "subscriber",
-        "unjust"
-      ],
-      "profile": {
-        "username": "gonj_the_unjust",
-        "updatedAt": "2026-01-28T00:32:24.298Z"
-      },
-      "rolesMeta": {
-        "twitch": [
-          "subscriber"
-        ]
-      },
-      "tags": [
-        "PROVIDER_TWITCH",
-        "RETURNING_USER"
-      ]
-    },
-    "auth": {
-      "v": "1",
-      "method": "enrichment",
-      "matched": true,
-      "at": "2026-01-28T00:32:24.298Z",
-      "provider": "twitch",
-      "userRef": "users/twitch:91960688"
-    },
-    "annotations": [
-      {
-        "id": "a1",
-        "kind": "personality",
-        "value": "bitbrat_the_ai",
-        "source": "rule:bitbrat-mention",
-        "createdAt": "2026-01-28T00:32:24.320Z"
-      },
-      {
-        "id": "a2",
-        "kind": "prompt",
-        "value": "Create an appropriate answer to user 's latest message.",
-        "source": "rule:bitbrat-mention",
-        "createdAt": "2026-01-28T00:32:24.320Z"
-      },
-      {
-        "id": "ctx-9f05598d-1357-4837-9317-981dee8c40e6",
-        "kind": "prompt",
-        "source": "llm-bot.user-context",
-        "createdAt": "2026-01-28T00:32:24.321Z",
-        "label": "user-context-v1",
-        "payload": {
-          "username": "Gonj_The_Unjust",
-          "roles": [
-            "subscriber",
-            "unjust"
-          ],
-          "rolePrompts": [],
-          "mode": "append",
-          "text": "Username: Gonj_The_Unjust"
-        },
-        "value": "Username: Gonj_The_Unjust"
-      }
-    ],
-    "metadata": {
-      "matchedRuleIds": [
-        "bitbrat-mention"
-      ],
-      "chosenRuleId": "bitbrat-mention"
-    },
     "candidates": [
       {
-        "id": "cand-9f05598d-1357-4837-9317-981dee8c40e6",
+        "id": "cand-649350a2-696c-407f-9312-b7602ac59ce3",
         "kind": "text",
         "source": "llm-bot",
-        "createdAt": "2026-01-28T00:32:28.992Z",
+        "createdAt": "2026-01-30T04:30:06.655Z",
         "status": "selected",
         "priority": 10,
-        "text": "I've created a new API token for you, Gonj_The_Unjust. It will be sent to you via a direct message. If you need anything else, just let me know!",
+        "text": "Chuck Norris once painted a sunset so real, the sun took the day off just to watch.",
         "reason": "model:gpt-4.1-mini"
       }
     ]
