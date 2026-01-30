@@ -79,6 +79,27 @@ describe('Ingress and Egress Managers', () => {
       expect(mockWs1.send).toHaveBeenCalledWith(expect.stringContaining('reply'));
     });
 
+    it('should treat dm.message.v1 the same as chat.message.v1', async () => {
+      const mockWs = { send: jest.fn(), readyState: WebSocket.OPEN } as any;
+      userConnections.set('user-123', new Set([mockWs]));
+
+      const egress = new EgressManager(userConnections, mockLogger);
+      const event = {
+        v: '1',
+        type: 'dm.message.v1',
+        userId: 'user-123',
+        correlationId: 'c-dm',
+        source: 'llm-bot',
+        payload: { text: 'private reply' }
+      } as any;
+
+      const result = await egress.handleEgressEvent(event);
+
+      expect(result).toBe(EgressResult.DELIVERED);
+      expect(mockWs.send).toHaveBeenCalledWith(expect.stringContaining('chat.message.received'));
+      expect(mockWs.send).toHaveBeenCalledWith(expect.stringContaining('private reply'));
+    });
+
     it('should return NOT_FOUND if no active connections', async () => {
       const egress = new EgressManager(userConnections, mockLogger);
       const event = { userId: 'user-456', source: 'api-gateway' } as any;

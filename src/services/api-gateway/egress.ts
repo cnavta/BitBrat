@@ -51,7 +51,7 @@ export class EgressManager {
     }
 
     const outboundFrame = {
-      type: (event.type === 'chat.message.v1' || event.type === 'egress.deliver.v1') 
+      type: (event.type === 'chat.message.v1' || event.type === 'egress.deliver.v1' || event.type === 'dm.message.v1') 
         ? 'chat.message.received' 
         : event.type,
       // If we have extracted text from a candidate, prioritize it over event.payload

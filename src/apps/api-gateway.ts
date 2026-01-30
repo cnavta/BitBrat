@@ -153,12 +153,20 @@ export class ApiGatewayServer extends McpServer {
           return;
         }
 
-        const userId = await this.authService?.validateToken(token);
+        let userId = await this.authService?.validateToken(token);
         if (!userId) {
           this.getLogger().warn('api_gateway.auth.invalid_token', { remoteAddress: request.socket.remoteAddress });
           socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
           socket.destroy();
           return;
+        }
+
+        // Allow brat-chat to specify a dynamic name if they have a valid token
+        const url = new URL(request.url || '', `http://${request.headers.host}`);
+        const preferredUserId = url.searchParams.get('userId');
+        if (preferredUserId && preferredUserId.startsWith('brat-chat:')) {
+          this.getLogger().info('api_gateway.auth.userid_override', { original: userId, override: preferredUserId });
+          userId = preferredUserId;
         }
 
         this.wss?.handleUpgrade(request, socket, head, (ws) => {
