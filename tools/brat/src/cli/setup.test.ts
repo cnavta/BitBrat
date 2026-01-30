@@ -45,6 +45,13 @@ describe('Setup Utilities', () => {
       expect(result).toBe('PROJECT_ID: "new-id"\nBOT_NAME: "old-bot"\n');
     });
 
+    it('should remove a key', () => {
+      const { removeYamlKey } = require('./setup');
+      const content = 'PROJECT_ID: "id"\nAPI_GATEWAY_HOST_PORT: "3001"\nBOT_NAME: "bot"\n';
+      const result = removeYamlKey(content, 'API_GATEWAY_HOST_PORT');
+      expect(result).toBe('PROJECT_ID: "id"\nBOT_NAME: "bot"\n');
+    });
+
     it('should add a key to existing content', () => {
       const content = 'PROJECT_ID: "my-id"\n';
       const result = updateYaml(content, 'BOT_NAME', 'my-bot');
@@ -66,14 +73,15 @@ describe('Setup Utilities', () => {
   });
 
   describe('replacePlaceholders', () => {
-    it('should replace %PROJECT_ID% and %BOT_NAME%', () => {
-      const content = 'Project is %PROJECT_ID% and bot is %BOT_NAME%.';
+    it('should replace %PROJECT_ID%, %BOT_NAME%, and %API_GATEWAY_HOST_PORT%', () => {
+      const content = 'Project is %PROJECT_ID%, bot is %BOT_NAME%, port is %API_GATEWAY_HOST_PORT%.';
       const vars = {
         PROJECT_ID: 'pid-123',
-        BOT_NAME: 'Bratty'
+        BOT_NAME: 'Bratty',
+        API_GATEWAY_HOST_PORT: '3001'
       };
       const result = replacePlaceholders(content, vars);
-      expect(result).toBe('Project is pid-123 and bot is Bratty.');
+      expect(result).toBe('Project is pid-123, bot is Bratty, port is 3001.');
     });
 
     it('should handle multiple occurrences', () => {
