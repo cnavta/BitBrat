@@ -73,15 +73,16 @@ describe('Setup Utilities', () => {
   });
 
   describe('replacePlaceholders', () => {
-    it('should replace %PROJECT_ID%, %BOT_NAME%, and %API_GATEWAY_HOST_PORT%', () => {
-      const content = 'Project is %PROJECT_ID%, bot is %BOT_NAME%, port is %API_GATEWAY_HOST_PORT%.';
+    it('should replace %PROJECT_ID%, %BOT_NAME%, %API_GATEWAY_HOST_PORT%, and %BITBRAT_API_TOKEN%', () => {
+      const content = 'Project is %PROJECT_ID%, bot is %BOT_NAME%, port is %API_GATEWAY_HOST_PORT%, token is %BITBRAT_API_TOKEN%.';
       const vars = {
         PROJECT_ID: 'pid-123',
         BOT_NAME: 'Bratty',
-        API_GATEWAY_HOST_PORT: '3001'
+        API_GATEWAY_HOST_PORT: '3001',
+        BITBRAT_API_TOKEN: 'token-456'
       };
       const result = replacePlaceholders(content, vars);
-      expect(result).toBe('Project is pid-123, bot is Bratty, port is 3001.');
+      expect(result).toBe('Project is pid-123, bot is Bratty, port is 3001, token is token-456.');
     });
 
     it('should handle multiple occurrences', () => {
