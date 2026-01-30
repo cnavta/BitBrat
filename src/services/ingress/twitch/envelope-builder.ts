@@ -66,15 +66,30 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
     const traceId = uuid();
 
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
+      type: 'chat.message.v1',
       correlationId,
       traceId,
-      routingSlip: [],
+      ingress: {
+        ingressAt: nowIso(),
+        source: 'ingress.twitch',
+        channel,
+      },
+      identity: {
+        external: {
+          id: msg.userId || msg.userLogin,
+          platform: 'twitch',
+          displayName: msg.userDisplayName || msg.userLogin,
+          metadata: {
+            login: msg.userLogin,
+            color: msg.color,
+            badges: msg.badges || [],
+            isMod: !!msg.isMod,
+            isSubscriber: !!msg.isSubscriber,
+          }
+        }
+      },
       egress: { destination: '' }, // populated by client
-      type: 'chat.message.v1',
-      channel,
-      userId: msg.userId,
       message: {
         id: msg.messageId || `msg-${correlationId}`,
         role: 'user',

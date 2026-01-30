@@ -103,20 +103,28 @@ describe('Generic Egress Integration', () => {
 
     // 2. Publish generic egress event for Discord
     const discordEvt = {
-      v: '1',
-      source: 'test',
+      v: '2',
       correlationId: 'c-discord',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+        channel: 'discord-chan',
+      },
       egress: { destination: 'discord' },
-      channel: 'discord-chan',
       payload: { text: 'hello discord' }
     };
     
     // 3. Publish generic egress event for WebSocket
     const wsEvt = {
-      v: '1',
-      source: 'test',
+      v: '2',
       correlationId: 'c-ws',
-      userId: 'user-ws',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+      },
+      identity: {
+        external: { id: 'user-ws', platform: 'test' }
+      },
       egress: { destination: 'api-gateway' },
       payload: { text: 'hello websocket' }
     };
@@ -146,9 +154,12 @@ describe('Generic Egress Integration', () => {
 
     // Publish event for unknown platform
     const unknownEvt = {
-      v: '1',
-      source: 'test',
+      v: '2',
       correlationId: 'c-unknown',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+      },
       egress: { destination: 'unknown-platform' },
       payload: { text: 'where do I go?' }
     };
@@ -170,9 +181,12 @@ describe('Generic Egress Integration', () => {
     };
     
     const failedDiscordEvt = {
-      v: '1',
-      source: 'test',
+      v: '2',
       correlationId: 'c-failed-discord',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+      },
       egress: { destination: 'discord' },
       payload: { text: 'fail me' }
     };
@@ -180,6 +194,6 @@ describe('Generic Egress Integration', () => {
 
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    expect(dlqEvents.some(e => e.envelope.correlationId === 'c-failed-discord')).toBe(true);
+    expect(dlqEvents.some(e => e.correlationId === 'c-failed-discord')).toBe(true);
   });
 });

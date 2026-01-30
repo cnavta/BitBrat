@@ -25,13 +25,13 @@ describe('TwitchEnvelopeBuilder', () => {
     };
 
     const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
-    expect(evt.v).toBe('1');
-    expect(evt.source).toBe('ingress.twitch');
+    expect(evt.v).toBe('2');
+    expect(evt.ingress.source).toBe('ingress.twitch');
     expect(evt.correlationId).toBe('u1');
     expect(evt.traceId).toBe('u2');
     expect(evt.type).toBe('chat.message.v1');
-    expect(evt.channel).toBe('#bitbrat');
-    expect(evt.userId).toBe('123');
+    expect(evt.ingress.channel).toBe('#bitbrat');
+    expect(evt.identity.external.id).toBe('123');
     expect(evt.message?.text).toBe('Hello 👋');
     expect(evt.message?.id).toBe('abc');
     expect(evt.message?.rawPlatformPayload?.user?.login).toBe('someuser');
@@ -51,7 +51,7 @@ describe('TwitchEnvelopeBuilder', () => {
       text: 'hi',
     } as any;
     const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
-    expect(evt.channel).toBe('#room');
+    expect(evt.ingress.channel).toBe('#room');
     expect(evt.message?.id).toBeDefined();
     expect(evt.message?.rawPlatformPayload?.badges).toEqual([]);
     expect(evt.message?.rawPlatformPayload?.raw).toEqual({});

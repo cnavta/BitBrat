@@ -9,7 +9,7 @@
  * - MESSAGE_BUS_DRIVER=nats | pubsub (alias: MESSAGE_BUS) — defaults to 'pubsub' if unset.
  *
  * Contracts and subjects:
- * - Prefer the versioned InternalEventV1 contracts from src/types/events.ts and the INTERNAL_* constants for subjects.
+ * - Prefer the versioned InternalEventV2 contracts from src/types/events.ts and the INTERNAL_* constants for subjects.
  * - Always propagate attributes like correlationId, traceparent, and type.
  *
  * Acknowledgement model:
@@ -54,7 +54,7 @@ export interface MessagePublisher {
 
 /**
  * Signature for subscriber handlers.
- * - data: raw body buffer. You will typically JSON.parse it to InternalEventV1.
+ * - data: raw body buffer. You will typically JSON.parse it to InternalEventV2.
  * - attributes: transport-normalized AttributeMap.
  * - ctx.ack(): acknowledge successful processing.
  * - ctx.nack(requeue?): indicate failure; drivers may redeliver based on policy. Ignored flag on drivers that lack requeue.

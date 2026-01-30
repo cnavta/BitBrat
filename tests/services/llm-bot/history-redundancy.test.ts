@@ -4,12 +4,18 @@ import type { InternalEventV2 } from '../../../src/types/events';
 
 function makeEvent(overrides: Partial<InternalEventV2> = {}): InternalEventV2 {
   return {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'corr-history-1',
     type: 'llm.request.v1',
-    channel: '#chat',
-    user: { id: 'user-456', displayName: 'Gonj' } as any,
+    ingress: {
+      ingressAt: new Date().toISOString(),
+      source: 'test',
+      channel: '#chat',
+    },
+    identity: {
+      user: { id: 'user-456', displayName: 'Gonj' } as any,
+      external: { id: 'user-456', platform: 'test' }
+    },
     message: { id: 'm-new', role: 'user', text: 'Current Message' } as any,
     annotations: [
         { id: 'p1', kind: 'prompt', source: 'test', createdAt: new Date().toISOString(), value: 'Current Message' } as any

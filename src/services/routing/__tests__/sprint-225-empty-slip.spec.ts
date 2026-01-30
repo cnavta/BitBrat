@@ -6,7 +6,7 @@ import { buildContext, evaluate } from '../../router/jsonlogic-evaluator';
 
 describe('Sprint 225: Empty routingSlip handling', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'c-empty-slip',
     routingSlip: [],

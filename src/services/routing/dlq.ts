@@ -1,4 +1,4 @@
-import { InternalEventV1, InternalEventV2 } from '../../types/events';
+import { InternalEventV2 } from '../../types/events';
 import { summarizeSlip } from './slip';
 
 /**
@@ -13,43 +13,38 @@ import { summarizeSlip } from './slip';
  */
 export function buildDlqEvent(params: {
   source?: string;
-  original: InternalEventV1 | InternalEventV2 | any;
+  original: InternalEventV2 | any;
   reason: string;
   error?: unknown;
   lastStepId?: string;
-}): InternalEventV1 {
+}): InternalEventV2 {
   const { original, reason, error, lastStepId } = params;
   const err = normalizeError(error);
 
-  // Extract common fields regardless of V1 (nested envelope) or V2 (flattened)
-  const isV1 = !!original.envelope;
-  const correlationId = isV1 ? original.envelope.correlationId : original.correlationId;
-  const traceId = isV1 ? original.envelope.traceId : original.traceId;
-  const routingSlip = isV1 ? original.envelope.routingSlip : original.routingSlip;
-  const egress = isV1 ? original.envelope.egress : original.egress;
+  const correlationId = original.correlationId;
+  const traceId = original.traceId;
+  const routingSlip = original.routingSlip;
+  const egress = original.egress || { destination: 'deadletter' };
 
   return {
-    envelope: {
-      v: '1',
-      source: params.source || 'router',
-      correlationId,
-      traceId,
-      routingSlip,
-      egress,
-    },
+    v: '2',
     type: 'router.deadletter.v1',
-    channel: original.channel,
-    userId: original.userId,
+    correlationId,
+    traceId,
+    ingress: original.ingress || { ingressAt: new Date().toISOString(), source: params.source || 'router' },
+    identity: original.identity || { external: { id: 'unknown', platform: 'system' } },
+    egress,
+    routingSlip,
     payload: {
       reason,
       error: err,
       lastStepId: lastStepId || inferLastStepId(original),
       originalType: original.type,
       slipSummary: summarizeSlip(routingSlip),
-      originalPayloadPreview: safePreview(original.payload),
+      originalPayloadPreview: safePreview(original.payload || original.message?.rawPlatformPayload),
       // Egress context enrichment
-      egressSource: original.source,
-      metadata: original.metadata || (isV1 ? original.envelope.metadata : undefined),
+      egressSource: original.ingress?.source,
+      metadata: original.metadata,
     },
   };
 }
@@ -68,7 +63,7 @@ function normalizeError(e: unknown): { code: string; message?: string } | null {
 
 /** Infer the last relevant step id to aid debugging. */
 function inferLastStepId(original: any): string | undefined {
-  const slip = (original.envelope ? original.envelope.routingSlip : original.routingSlip) || [];
+  const slip = original.routingSlip || [];
   // last step with a status not OK/SKIP (or the last overall)
   const idx = slip.findIndex((s: any) => s.status !== 'OK' && s.status !== 'SKIP');
   if (idx >= 0) return slip[idx].id;

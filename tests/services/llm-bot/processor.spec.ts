@@ -49,15 +49,20 @@ describe('Processor', () => {
     const evt: InternalEventV2 = {
       correlationId: 'corr-1',
       type: 'internal.llmbot.v1',
-      source: 'test',
-      v: '1',
+      v: '2',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+        channel: 'test',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'test' }
+      },
       annotations: [
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routingSlip: [],
       egress: { destination: 'test' },
-      channel: 'test',
-      user: { id: 'u1' },
     };
 
     const result = await processEvent(mockServer as BaseServer, evt);
@@ -72,8 +77,14 @@ describe('Processor', () => {
     const evt: InternalEventV2 = {
       correlationId: 'corr-1',
       type: 'internal.llmbot.v1',
-      source: 'test',
-      v: '1',
+      v: '2',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'test' }
+      },
       annotations: [],
       routingSlip: [],
       egress: { destination: 'test' },
@@ -91,8 +102,14 @@ describe('Processor', () => {
     const evt: InternalEventV2 = {
       correlationId: 'corr-1',
       type: 'internal.llmbot.v1',
-      source: 'test',
-      v: '1',
+      v: '2',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'test' }
+      },
       annotations: [
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],

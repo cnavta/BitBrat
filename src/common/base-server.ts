@@ -21,7 +21,6 @@ import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from '
 import type { InternalEventV2, RoutingStep } from '../types/events';
 import type { RoutingStatus } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
-import { toV2 } from './events/adapters';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -300,15 +299,12 @@ export class BaseServer {
             if (tracer) {
               await startActiveSpan(`msg ${subject}`, async () => {
                 // Assume JSON payloads: parse Buffer/string into object for typed handler
-                const raw = JSON.parse((data as any)?.toString('utf8'));
-                // Standardize InternalEventV2: convert V1 (wrapped in envelope) to V2 (flat)
-                const parsed = (raw && raw.envelope) ? toV2(raw) : (raw as T);
-                await Promise.resolve(handler(parsed as any, attributes, ctx));
+                const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+                await Promise.resolve(handler(parsed, attributes, ctx));
               });
             } else {
-              const raw = JSON.parse((data as any)?.toString('utf8'));
-              const parsed = (raw && raw.envelope) ? toV2(raw) : (raw as T);
-              await Promise.resolve(handler(parsed as any, attributes, ctx));
+              const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
+              await Promise.resolve(handler(parsed, attributes, ctx));
             }
           } catch (e: any) {
             // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves

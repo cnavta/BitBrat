@@ -4,12 +4,18 @@ import type { InternalEventV2 } from '../../../types/events';
 
 describe('Enrichment Robustness', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'c-repro',
     type: 'chat.message.v1',
-    channel: '#general',
-    user: { displayName: 'Alice' },
+    ingress: {
+      ingressAt: '2026-01-29T22:00:00Z',
+      source: 'test',
+      channel: '#general',
+    },
+    identity: {
+      user: { displayName: 'Alice' },
+      external: { id: 'u1', platform: 'test' }
+    },
     message: { id: 'm1', role: 'user', text: 'Hello' },
   } as any;
 

@@ -21,7 +21,7 @@ describe('Sprint 225: JsonLogic !lurk matching reproduction', () => {
 
   it('matches "!lurk" even when rule has a trailing space (Sprint 225 fix)', () => {
     const evt: InternalEventV2 = {
-      v: '1',
+      v: '2',
       source: 'test',
       correlationId: 'abc',
       type: 'chat.message.v1',
@@ -37,7 +37,7 @@ describe('Sprint 225: JsonLogic !lurk matching reproduction', () => {
 
   it('matches "!lurk " (with space) when rule has a trailing space in "lurk "', () => {
     const evt: InternalEventV2 = {
-      v: '1',
+      v: '2',
       source: 'test',
       correlationId: 'abc',
       type: 'chat.message.v1',
@@ -59,7 +59,7 @@ describe('Sprint 225: JsonLogic !lurk matching reproduction', () => {
       ]
     };
     const evt: InternalEventV2 = {
-      v: '1',
+      v: '2',
       source: 'test',
       correlationId: 'abc',
       type: 'chat.message.v1',

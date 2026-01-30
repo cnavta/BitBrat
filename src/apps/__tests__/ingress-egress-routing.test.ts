@@ -50,6 +50,17 @@ jest.mock('../../services/ingress/twilio', () => ({
   TwilioTokenProvider: jest.fn().mockImplementation(() => ({})),
 }));
 
+// Mock message bus to avoid real PubSub in "development" mode simulation
+jest.mock('../../services/message-bus', () => ({
+  createMessageSubscriber: jest.fn().mockReturnValue({
+    subscribe: jest.fn().mockResolvedValue(jest.fn())
+  }),
+  createMessagePublisher: jest.fn().mockReturnValue({
+    publishJson: jest.fn().mockResolvedValue({ messageId: '123' })
+  }),
+  normalizeAttributes: (a: any) => a
+}));
+
 // Mock BaseServer.onMessage
 jest.spyOn(BaseServer.prototype as any, 'onMessage');
 
@@ -90,6 +101,7 @@ describe('IngressEgressServer routing', () => {
   });
 
   afterEach(async () => {
+    if (server) await server.stop();
     delete process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
   });
 
@@ -104,11 +116,17 @@ describe('IngressEgressServer routing', () => {
     }
 
     const discordEvent: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.discord',
+      v: '2',
       correlationId: 'corr-1',
       type: 'chat.message.v1',
-      channel: 'discord-channel-1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.discord',
+        channel: 'discord-channel-1',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'discord' }
+      },
       message: {
         id: 'msg-1',
         role: 'assistant',
@@ -124,7 +142,8 @@ describe('IngressEgressServer routing', () => {
           priority: 1,
           text: 'Hello Discord',
         }
-      ]
+      ],
+      egress: { destination: 'discord' }
     } as any;
 
     const ctx = {
@@ -146,11 +165,17 @@ describe('IngressEgressServer routing', () => {
     )?.[1];
 
     const genericEvent: InternalEventV2 = {
-      v: '1',
-      source: 'llm-bot', // Generic source
+      v: '2',
       correlationId: 'corr-3',
       type: 'chat.message.v1',
-      channel: 'discord-channel-id',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'llm-bot',
+        channel: 'discord-channel-id',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'discord' }
+      },
       message: {
         id: 'msg-3',
         role: 'assistant',
@@ -174,7 +199,8 @@ describe('IngressEgressServer routing', () => {
           priority: 1,
           text: 'Command Response',
         }
-      ]
+      ],
+      egress: { destination: 'discord' }
     } as any;
 
     const ctx = {
@@ -196,18 +222,23 @@ describe('IngressEgressServer routing', () => {
       (call: any) => call[0].destination?.startsWith('internal.egress.v1')
     )?.[1];
 
-    const v1Event = {
-      envelope: {
-        v: '1',
-        source: 'ingress.discord',
-        correlationId: 'corr-v1',
-      },
+    const v1Event: InternalEventV2 = {
+      v: '2',
+      correlationId: 'corr-v1',
       type: 'chat.message.v1',
-      channel: 'discord-v1-chan',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.discord',
+        channel: 'discord-v1-chan',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'discord' }
+      },
       payload: {
         text: 'Hello V1 Discord',
-      }
-    };
+      },
+      egress: { destination: 'discord' }
+    } as any;
 
     const ctx = {
       ack: jest.fn().mockResolvedValue(undefined),
@@ -228,11 +259,17 @@ describe('IngressEgressServer routing', () => {
     )?.[1];
 
     const twitchEvent: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
       correlationId: 'corr-2',
       type: 'chat.message.v1',
-      channel: '#twitch-channel',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+        channel: '#twitch-channel',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch' }
+      },
       message: {
         id: 'msg-2',
         role: 'assistant',
@@ -248,7 +285,8 @@ describe('IngressEgressServer routing', () => {
           priority: 1,
           text: 'Hello Twitch',
         }
-      ]
+      ],
+      egress: { destination: 'twitch' }
     } as any;
 
     const ctx = {
@@ -270,11 +308,17 @@ describe('IngressEgressServer routing', () => {
     )?.[1];
 
     const twilioEvent: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twilio',
+      v: '2',
       correlationId: 'corr-twilio',
       type: 'chat.message.v1',
-      channel: 'CH123',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twilio',
+        channel: 'CH123',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twilio' }
+      },
       message: {
         id: 'msg-twilio',
         role: 'assistant',
@@ -290,7 +334,8 @@ describe('IngressEgressServer routing', () => {
           priority: 1,
           text: 'Hello Twilio',
         }
-      ]
+      ],
+      egress: { destination: 'twilio' }
     } as any;
 
     const ctx = {

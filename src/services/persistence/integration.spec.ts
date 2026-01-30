@@ -46,7 +46,7 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
     const ack = jest.fn(async () => {});
     const ctx = { ack };
     const msg = {
-      v: '1',
+      v: '2',
       source: 'ingress.twitch',
       correlationId: 'it-1',
       type: 'chat.message.v1',

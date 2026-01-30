@@ -15,13 +15,20 @@ class MockStateStore implements IStateStore {
 
 describe('RouterEngine', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'c-1',
-    routingSlip: [],
     type: 'chat.command.v1',
-    channel: '#ch',
-    userId: 'u1',
+    ingress: {
+      ingressAt: '2026-01-29T22:00:00Z',
+      source: 'test',
+      channel: '#ch',
+    },
+    identity: {
+      external: {
+        id: 'u1',
+        platform: 'test',
+      }
+    },
     message: { id: 'm1', role: 'user', text: '!ping', rawPlatformPayload: { text: '!ping' } },
   } as any;
 
@@ -36,7 +43,7 @@ describe('RouterEngine', () => {
       {
         id: 'r1', enabled: true, priority: 10, description: 'match',
         logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.command.v1'] }),
-        routingSlip: [{ id: 'router', v: '1', nextTopic: 'internal.llmbot.v1' }],
+        routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
         enrichments: {},
       },
       {
@@ -54,7 +61,7 @@ describe('RouterEngine', () => {
     expect(slip[0].id).toBe('router');
     expect(slip[0].status).toBe('PENDING');
     expect(slip[0].attempt).toBe(0);
-    expect(slip[0].v).toBe('1');
+    expect(slip[0].v).toBe('2');
     expect(slip[0].nextTopic).toBe('internal.llmbot.v1');
 
     expect(decision.matched).toBe(true);
@@ -77,7 +84,7 @@ describe('RouterEngine', () => {
     expect(slip).toHaveLength(1);
     expect(slip[0].status).toBe('PENDING');
     expect(slip[0].attempt).toBe(0);
-    expect(slip[0].v).toBe('1');
+    expect(slip[0].v).toBe('2');
     expect(slip[0].nextTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
     expect(decision.matched).toBe(false);
     expect(decision.selectedTopic).toBe(INTERNAL_ROUTER_DLQ_V1);

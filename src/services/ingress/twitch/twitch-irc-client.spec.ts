@@ -27,11 +27,12 @@ describe('TwitchIrcClient integration scaffolding', () => {
     const client = new TwitchIrcClient(builder, publisher, ['chan']);
     await client.start();
     builder.build.mockReturnValue({
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
       correlationId: 'c',
       routingSlip: [],
       type: 'chat.message.v1',
+      ingress: { ingressAt: new Date().toISOString(), source: 'ingress.twitch' },
+      identity: { external: { id: 'u1', platform: 'twitch' } },
       message: { id: 'm1', role: 'user', text: 'hi', rawPlatformPayload: { ok: true } },
     } as any);
     publisher.publish.mockResolvedValue('mid-1');
@@ -42,8 +43,8 @@ describe('TwitchIrcClient integration scaffolding', () => {
     expect(publisher.publish).toHaveBeenCalledTimes(1);
     const published = (publisher.publish.mock.calls[0] as any[])[0];
     // Published event is V2 with flattened envelope fields
-    expect(published.v).toBe('1');
-    expect(published.source).toBe('ingress.twitch');
+    expect(published.v).toBe('2');
+    expect(published.ingress.source).toBe('ingress.twitch');
     expect(published.type).toBe('chat.message.v1');
     expect(published.correlationId).toBe('c');
     // rawPlatformPayload should carry original payload
@@ -60,7 +61,7 @@ describe('TwitchIrcClient integration scaffolding', () => {
     const client = new TwitchIrcClient(builder, publisher, ['chan']);
     await client.start();
     builder.build.mockReturnValue({
-      v: '1', source: 'ingress.twitch', correlationId: 'c', routingSlip: [], type: 'chat.message.v1', message: { id: 'm2', role: 'user', text: 'hi' },
+      v: '2', ingress: { source: 'ingress.twitch' }, correlationId: 'c', routingSlip: [], type: 'chat.message.v1', message: { id: 'm2', role: 'user', text: 'hi' },
     } as any);
     publisher.publish.mockRejectedValue(new Error('bus down'));
 
@@ -73,7 +74,7 @@ describe('TwitchIrcClient integration scaffolding', () => {
   it('injects egress metadata when missing and option provided', async () => {
     const client = new TwitchIrcClient(builder, publisher, ['chan'], { egressDestinationTopic: 'internal.egress.v1.inst1' });
     await client.start();
-    const evt: any = { v: '1', source: 'ingress.twitch', correlationId: 'c', routingSlip: [], type: 'chat.message.v1', message: { id: 'm3', role: 'user', text: 'hi' } };
+    const evt: any = { v: '2', ingress: { source: 'ingress.twitch' }, correlationId: 'c', routingSlip: [], type: 'chat.message.v1', message: { id: 'm3', role: 'user', text: 'hi' } };
     builder.build.mockReturnValue(evt);
     publisher.publish.mockResolvedValue('mid-2');
 

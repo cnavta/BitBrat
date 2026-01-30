@@ -96,7 +96,7 @@ describe('Discord – integration behavior (disabled mode and publish path)', ()
     expect(published.length).toBe(1);
     const evt = published[0];
     expect(evt).toBeTruthy();
-    expect(evt.source).toBe('ingress.discord');
+    expect(evt.ingress.source).toBe('ingress.discord');
     expect(evt.type).toBe('chat.message.v1');
     expect(evt.message?.text).toBe('Hello Discord');
     expect(evt.egress?.destination).toBe(egressDest);

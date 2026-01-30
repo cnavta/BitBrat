@@ -22,7 +22,7 @@ export class DiscordIngressPublisher implements IngressPublisher {
     await this.pub.publishJson(evt, {
       type: evt.type,
       correlationId: evt.correlationId,
-      source: evt.source,
+      source: evt.ingress.source,
     });
   }
 }

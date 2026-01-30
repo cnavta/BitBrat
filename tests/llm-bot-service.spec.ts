@@ -33,7 +33,7 @@ function makeEvent(overrides: Partial<InternalEventV2> = {}): InternalEventV2 {
     { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.finalize.v1', attempt: 0 },
   ];
   return {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'corr-1',
     type: 'llm.request.v1',
