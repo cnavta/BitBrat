@@ -31,7 +31,7 @@ export class EventSubEnvelopeBuilder {
       kind: 'channel.follow',
       version: '2',
       createdAt: event.followDate.toISOString(),
-      payload: {
+      metadata: {
         userId: event.userId,
         userLogin: event.userName,
         userDisplayName: event.userDisplayName,
@@ -43,15 +43,29 @@ export class EventSubEnvelopeBuilder {
     };
 
     return {
-      v: '1',
-      source: 'ingress.twitch.eventsub',
+      v: '2',
+      type: 'twitch.eventsub.v1',
       correlationId,
       traceId: uuid(),
-      routingSlip: [],
+      ingress: {
+        ingressAt: nowIso(),
+        source: 'ingress.twitch.eventsub',
+        channel: `#${event.broadcasterName}`,
+      },
+      identity: {
+        external: {
+          id: event.userId,
+          platform: 'twitch',
+          displayName: event.userDisplayName,
+          metadata: {
+            login: event.userName,
+            broadcasterId: event.broadcasterId,
+            broadcasterLogin: event.broadcasterName,
+            broadcasterDisplayName: event.broadcasterDisplayName,
+          }
+        }
+      },
       egress: { destination: opts?.finalizationDestination || '' },
-      type: 'twitch.eventsub.v1',
-      channel: `#${event.broadcasterName}`,
-      userId: event.userId,
       externalEvent,
     };
   }
@@ -82,7 +96,7 @@ export class EventSubEnvelopeBuilder {
       kind: 'channel.update',
       version: '2',
       createdAt: nowIso(),
-      payload: {
+      metadata: {
         broadcasterId: event.broadcasterId,
         broadcasterLogin: event.broadcasterName,
         broadcasterDisplayName: event.broadcasterDisplayName,
@@ -96,15 +110,26 @@ export class EventSubEnvelopeBuilder {
     };
 
     return {
-      v: '1',
-      source: 'ingress.twitch.eventsub',
+      v: '2',
+      type: 'twitch.eventsub.v1',
       correlationId,
       traceId: uuid(),
-      routingSlip: [],
+      ingress: {
+        ingressAt: nowIso(),
+        source: 'ingress.twitch.eventsub',
+        channel: `#${event.broadcasterName}`,
+      },
+      identity: {
+        external: {
+          id: event.broadcasterId,
+          platform: 'twitch',
+          displayName: event.broadcasterDisplayName,
+          metadata: {
+            login: event.broadcasterName,
+          }
+        }
+      },
       egress: { destination: opts?.finalizationDestination || '' },
-      type: 'twitch.eventsub.v1',
-      channel: `#${event.broadcasterName}`,
-      userId: event.broadcasterId, // In update events, the "actor" is the broadcaster
       externalEvent,
     };
   }
@@ -123,6 +148,7 @@ export class EventSubEnvelopeBuilder {
     },
     opts?: EnvelopeBuilderOptions
   ): InternalEventV2 {
+    if (!event) throw new Error('event_is_null');
     const uuid = opts?.uuid || crypto.randomUUID;
     const nowIso = opts?.nowIso || (() => new Date().toISOString());
     const correlationId = uuid();
@@ -135,7 +161,7 @@ export class EventSubEnvelopeBuilder {
       kind: 'stream.online',
       version: '1',
       createdAt: startedAt,
-      payload: {
+      metadata: {
         id: event.id,
         broadcasterId: event.broadcasterId,
         broadcasterLogin: event.broadcasterName,
@@ -147,15 +173,26 @@ export class EventSubEnvelopeBuilder {
     };
 
     return {
-      v: '1',
-      source: 'ingress.twitch.eventsub',
+      v: '2',
+      type: 'system.stream.online',
       correlationId,
       traceId: uuid(),
-      routingSlip: [],
+      ingress: {
+        ingressAt: nowIso(),
+        source: 'ingress.twitch.eventsub',
+        channel: `#${event.broadcasterName}`,
+      },
+      identity: {
+        external: {
+          id: event.broadcasterId,
+          platform: 'twitch',
+          displayName: event.broadcasterDisplayName,
+          metadata: {
+            login: event.broadcasterName,
+          }
+        }
+      },
       egress: { destination: opts?.finalizationDestination || '' },
-      type: 'system.stream.online',
-      channel: `#${event.broadcasterName}`,
-      userId: event.broadcasterId,
       externalEvent,
     };
   }
@@ -171,6 +208,7 @@ export class EventSubEnvelopeBuilder {
     },
     opts?: EnvelopeBuilderOptions
   ): InternalEventV2 {
+    if (!event) throw new Error('event_is_null');
     const uuid = opts?.uuid || crypto.randomUUID;
     const correlationId = uuid();
     const nowIso = opts?.nowIso || (() => new Date().toISOString());
@@ -181,7 +219,7 @@ export class EventSubEnvelopeBuilder {
       kind: 'stream.offline',
       version: '1',
       createdAt: nowIso(),
-      payload: {
+      metadata: {
         broadcasterId: event.broadcasterId,
         broadcasterLogin: event.broadcasterName,
         broadcasterDisplayName: event.broadcasterDisplayName,
@@ -190,15 +228,26 @@ export class EventSubEnvelopeBuilder {
     };
 
     return {
-      v: '1',
-      source: 'ingress.twitch.eventsub',
+      v: '2',
+      type: 'system.stream.offline',
       correlationId,
       traceId: uuid(),
-      routingSlip: [],
+      ingress: {
+        ingressAt: nowIso(),
+        source: 'ingress.twitch.eventsub',
+        channel: `#${event.broadcasterName}`,
+      },
+      identity: {
+        external: {
+          id: event.broadcasterId,
+          platform: 'twitch',
+          displayName: event.broadcasterDisplayName,
+          metadata: {
+            login: event.broadcasterName,
+          }
+        }
+      },
       egress: { destination: opts?.finalizationDestination || '' },
-      type: 'system.stream.offline',
-      channel: `#${event.broadcasterName}`,
-      userId: event.broadcasterId,
       externalEvent,
     };
   }

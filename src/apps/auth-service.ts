@@ -266,11 +266,24 @@ export class AuthServer extends McpServer {
         const platform = userId.split(':')[0];
         const platformUserId = userId.split(':')[1];
 
-        const moderationEvent = {
-          v: '1',
-          source: 'auth',
+        const moderationEvent: InternalEventV2 = {
+          v: '2',
           correlationId: `ban-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          traceId: crypto.randomUUID(),
           type: 'moderation.action.v1',
+          ingress: {
+            ingressAt: new Date().toISOString(),
+            source: 'auth',
+          },
+          identity: {
+            external: {
+              id: platformUserId,
+              platform: platform,
+            },
+            user: {
+              id: userId,
+            }
+          },
           payload: {
             action: 'ban',
             userId,
@@ -279,6 +292,7 @@ export class AuthServer extends McpServer {
             reason: args.reason,
             actor: 'llm-bot',
           },
+          egress: { destination: 'system' }
         };
 
         const cfg: any = this.getConfig();
@@ -372,12 +386,28 @@ export class AuthServer extends McpServer {
 
         // 3. Publish event
         const correlationId = `token-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        
+        const [platform, ...idParts] = userId.split(':');
+        const externalId = idParts.join(':') || userId;
+        const externalPlatform = idParts.length > 0 ? platform : 'system';
+
         const event: InternalEventV2 = {
-          v: '1',
-          source: SERVICE_NAME,
+          v: '2',
           correlationId,
           type: 'token.created.v1',
-          userId,
+          ingress: {
+            ingressAt: now.toISOString(),
+            source: SERVICE_NAME,
+          },
+          identity: {
+            external: {
+              id: externalId,
+              platform: externalPlatform,
+            },
+            user: {
+              id: userId,
+            }
+          },
           payload: {
             user_id: userId,
             created_at: now.toISOString(),

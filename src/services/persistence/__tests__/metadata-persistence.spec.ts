@@ -15,7 +15,7 @@ describe('PersistenceStore – Metadata Persistence', () => {
     const store = new PersistenceStore({ firestore: db, logger });
     
     const evt: InternalEventV2 = {
-      v: '1',
+      v: '2',
       source: 'test',
       correlationId: 'c-meta-1',
       type: 'chat.message.v1',

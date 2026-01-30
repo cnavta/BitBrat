@@ -15,18 +15,31 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
     const traceId = uuid();
 
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.discord',
+      v: '2',
+      type: 'chat.message.v1',
       correlationId,
       traceId,
-      routingSlip: [],
+      ingress: {
+        ingressAt: nowIso(),
+        source: 'ingress.discord',
+        channel: meta.channelId,
+      },
+      identity: {
+        external: {
+          id: meta.authorId,
+          platform: 'discord',
+          displayName: meta.authorName,
+          metadata: {
+            guildId: meta.guildId,
+            roles: meta.roles || [],
+            isOwner: !!meta.isOwner,
+          }
+        }
+      },
       egress: { 
         destination: opts?.egressDestination || '',
         type: 'chat'
       },
-      type: 'chat.message.v1',
-      channel: meta.channelId, // optional; for Discord, we use channel ID
-      userId: meta.authorId,
       message: {
         id: meta.messageId || `msg-${correlationId}`,
         role: 'user',

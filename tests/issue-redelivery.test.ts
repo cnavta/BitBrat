@@ -4,11 +4,16 @@ import { InternalEventV2 } from '../src/types/events';
 describe('Egress Selection - Redelivery Reproduction', () => {
   it('should NOT redeliver original message text if no candidates are present', () => {
     const event: InternalEventV2 = {
-      v: '1',
-      type: 'chat.message',
-      source: 'api-gateway',
+      v: '2',
+      type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'api-gateway',
+      },
+      identity: {
+        external: { id: 'test-user', platform: 'test' }
+      },
       correlationId: 'test-corr',
-      userId: 'test-user',
       egress: { destination: 'api-gateway', type: 'chat' },
       message: {
         id: 'msg-1',
@@ -33,11 +38,16 @@ describe('Egress Selection - Redelivery Reproduction', () => {
 
   it('should deliver candidate text when present', () => {
     const event: InternalEventV2 = {
-      v: '1',
-      type: 'chat.message',
-      source: 'api-gateway',
+      v: '2',
+      type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'api-gateway',
+      },
+      identity: {
+        external: { id: 'test-user', platform: 'test' }
+      },
       correlationId: 'test-corr',
-      userId: 'test-user',
       egress: { destination: 'api-gateway', type: 'chat' },
       message: {
         id: 'msg-1',

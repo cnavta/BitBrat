@@ -5,13 +5,18 @@ import { INTERNAL_EGRESS_V1 } from '../src/types/events';
 
 describe('Sprint 225: Egress destination enrichment', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'c-egress-dest',
     routingSlip: [],
     type: 'chat.command.v1',
-    channel: '#original',
-    userId: 'u1',
+    ingress: {
+      ingressAt: '2026-01-29T22:00:00Z',
+      source: 'test',
+      channel: '#original',
+    },
+    identity: {
+      external: { id: 'u1', platform: 'test' }
+    },
     egress: {
       destination: '#original',
       type: 'chat'
@@ -44,9 +49,6 @@ describe('Sprint 225: Egress destination enrichment', () => {
     expect(evtOut.egress).toBeDefined();
     expect(evtOut.egress.destination).toBe('#new-destination');
     expect(evtOut.egress.type).toBe('dm');
-    
-    // Check if channel was also updated to match the new destination
-    expect(evtOut.channel).toBe('#new-destination');
   });
 
   it('correctly interpolates Mustache templates in egress.destination', async () => {

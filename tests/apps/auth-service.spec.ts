@@ -84,7 +84,10 @@ describe('AuthServer Admin Tools', () => {
       expect(publishJsonMock).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'token.created.v1',
-          userId: userId,
+          v: '2',
+          identity: expect.objectContaining({
+            external: expect.objectContaining({ id: '123', platform: 'twitch' })
+          }),
           payload: expect.objectContaining({
             user_id: userId,
             raw_token: expect.any(String),

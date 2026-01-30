@@ -154,9 +154,9 @@ export async function processEvent(
   const corr = evt.correlationId;
   const store = getInstanceMemoryStore(server);
   
-  function memoryKeyFor(e: any): string {
-    const channel = (e?.dispatch?.channel) || (e?.channel) || 'default';
-    const userId = e?.user?.id || 'anon';
+  function memoryKeyFor(e: InternalEventV2): string {
+    const channel = e.ingress?.channel || 'default';
+    const userId = e.identity?.user?.id || e.identity?.external?.id || 'anon';
     return `${channel}:${userId}`;
   }
   const memKey = memoryKeyFor(evt);
@@ -281,7 +281,7 @@ export async function processEvent(
       ];
 
       const allTools = deps?.registry?.getTools() || {};
-      const userRoles = evt.user?.roles || [];
+      const userRoles = evt.identity?.user?.roles || evt.identity?.external?.roles || [];
       const toolContext = {
         userRoles,
         correlationId: evt.correlationId

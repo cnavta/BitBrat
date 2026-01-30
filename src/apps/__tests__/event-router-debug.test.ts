@@ -38,7 +38,7 @@ jest.mock('../../common/firebase', () => {
 
 import request from 'supertest';
 import { createApp } from '../event-router-service';
-import type { InternalEventV1 } from '../../types/events';
+import type { InternalEventV2 } from '../../types/events';
 import { counters } from '../../common/counters';
 
 describe('/_debug/counters endpoint (event-router)', () => {
@@ -67,11 +67,14 @@ describe('/_debug/counters endpoint (event-router)', () => {
     const before = await request(app).get('/_debug/counters').expect(200);
     expect(before.body.counters['router.events.total']).toBe(0);
 
-    const evt: InternalEventV1 = {
-      envelope: { v: '1', source: 'test', correlationId: 'c-1', routingSlip: [] },
+    const evt: InternalEventV2 = {
+      v: '2',
+      correlationId: 'c-1',
       type: 'chat.message.v1',
+      ingress: { ingressAt: '2026-01-29T22:00:00Z', source: 'test', channel: '#ch' },
+      identity: { external: { id: 'u1', platform: 'test' } },
+      egress: { destination: 'test' },
       payload: { text: 'hello' },
-      channel: '#ch',
     } as any;
     await handlerFn!(Buffer.from(JSON.stringify(evt), 'utf8'), {});
 

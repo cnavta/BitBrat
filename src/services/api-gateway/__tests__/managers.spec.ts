@@ -40,8 +40,13 @@ describe('Ingress and Egress Managers', () => {
       expect(mockPublisher.publishJson).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'chat.message.v1',
-          userId,
-          channel: '#general',
+          identity: expect.objectContaining({
+            external: expect.objectContaining({ id: userId })
+          }),
+          ingress: expect.objectContaining({
+            source: 'api-gateway',
+            channel: '#general'
+          }),
           payload
         }),
         expect.anything()
@@ -63,11 +68,11 @@ describe('Ingress and Egress Managers', () => {
 
       const egress = new EgressManager(userConnections, mockLogger);
       const event = {
-        v: '1',
+        v: '2',
         type: 'chat.message.v1',
-        userId: 'user-123',
+        identity: { external: { id: 'user-123', platform: 'test' } },
         correlationId: 'c-1',
-        source: 'api-gateway',
+        ingress: { source: 'api-gateway', ingressAt: new Date().toISOString() },
         payload: { text: 'reply' }
       } as any;
 
@@ -85,11 +90,11 @@ describe('Ingress and Egress Managers', () => {
 
       const egress = new EgressManager(userConnections, mockLogger);
       const event = {
-        v: '1',
+        v: '2',
         type: 'dm.message.v1',
-        userId: 'user-123',
+        identity: { external: { id: 'user-123', platform: 'test' } },
         correlationId: 'c-dm',
-        source: 'llm-bot',
+        ingress: { source: 'llm-bot', ingressAt: new Date().toISOString() },
         payload: { text: 'private reply' }
       } as any;
 
@@ -102,7 +107,10 @@ describe('Ingress and Egress Managers', () => {
 
     it('should return NOT_FOUND if no active connections', async () => {
       const egress = new EgressManager(userConnections, mockLogger);
-      const event = { userId: 'user-456', source: 'api-gateway' } as any;
+      const event = { 
+        identity: { external: { id: 'user-456', platform: 'test' } }, 
+        ingress: { source: 'api-gateway', ingressAt: new Date().toISOString() } 
+      } as any;
       const result = await egress.handleEgressEvent(event);
       expect(result).toBe(EgressResult.NOT_FOUND);
       expect(mockLogger.debug).toHaveBeenCalledWith('egress.no_active_connections', expect.anything());
@@ -111,9 +119,9 @@ describe('Ingress and Egress Managers', () => {
     it('should return IGNORED if destination is not api-gateway', async () => {
       const egress = new EgressManager(userConnections, mockLogger);
       const event = { 
-        userId: 'user-123', 
+        identity: { external: { id: 'user-123', platform: 'twitch' } }, 
         egress: { destination: 'twitch' },
-        source: 'ingress.twitch'
+        ingress: { source: 'ingress.twitch', ingressAt: new Date().toISOString() }
       } as any;
       const result = await egress.handleEgressEvent(event);
       expect(result).toBe(EgressResult.IGNORED);

@@ -3,8 +3,18 @@ import type { InternalEventV2 } from '../../../types/events';
 
 describe('JsonLogic extra ops: has_role, has_annotation, has_candidate, text_contains', () => {
   const evt: InternalEventV2 = {
-    v: '1', source: 'test', correlationId: 'abc', type: 'chat.message.v1', channel: '#test', userId: 'u1',
-    user: { id: 'u1', roles: ['Mod', 'Subscriber'] },
+    v: '2',
+    correlationId: 'abc',
+    type: 'chat.message.v1',
+    ingress: {
+      ingressAt: '2020-01-01T00:00:00Z',
+      source: 'test',
+      channel: '#test',
+    },
+    identity: {
+      external: { id: 'u1', platform: 'test' },
+      user: { id: 'u1', roles: ['Mod', 'Subscriber'] },
+    },
     annotations: [
       { id: 'a1', kind: 'custom', source: 'test', createdAt: '2020-01-01T00:00:00Z', label: 'intent', value: 'greet' },
       { id: 'a2', kind: 'custom', source: 'test', createdAt: '2020-01-01T00:00:01Z', label: 'topic', value: 'games' },
@@ -13,6 +23,7 @@ describe('JsonLogic extra ops: has_role, has_annotation, has_candidate, text_con
       { id: 'c1', kind: 'text', source: 'llm-bot', createdAt: '2020-01-01T00:00:02Z', status: 'proposed', priority: 1, text: 'hi' },
     ] as any,
     message: { id: 'm1', role: 'user', text: 'Hello World', rawPlatformPayload: { text: 'Hello World' } },
+    egress: { destination: 'test' }
   } as any;
 
   it('has_role works with case-insensitive option', () => {

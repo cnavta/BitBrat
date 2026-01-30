@@ -22,7 +22,7 @@ class TestServer extends BaseServer { constructor() { super({ serviceName: 'test
 
 function baseEvt(): InternalEventV2 {
   return {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'c-pers-mixed',
     type: 'llm.request.v1',

@@ -1,57 +1,86 @@
 import { buildDlqEvent } from './dlq';
-import { InternalEventV1 } from '../../types/events';
+import { InternalEventV2 } from '../../types/events';
 
 describe('dlq builder', () => {
   it('builds a router.deadletter.v1 event with slip summary', () => {
-    const original: InternalEventV1 = {
-      envelope: { v: '1', source: 'ingress', correlationId: 'c-1', egress: { destination: 'test' }, routingSlip: [
+    const original: InternalEventV2 = {
+      v: '2',
+      type: 'chat.message.v1',
+      correlationId: 'c-1',
+      ingress: {
+        ingressAt: '2026-01-29T22:00:00Z',
+        source: 'ingress',
+        channel: '#chan',
+      },
+      identity: {
+        external: {
+          id: 'u1',
+          platform: 'test',
+        }
+      },
+      egress: { destination: 'test' },
+      routingSlip: [
         { id: 'router', status: 'OK' },
         { id: 'llm-bot', status: 'PENDING' },
-      ] },
-      type: 'chat.message.v1',
-      channel: '#chan',
-      userId: 'u1',
+      ],
       payload: { text: 'hi' },
     } as any;
 
     const dlq = buildDlqEvent({ original, reason: 'test', error: new Error('boom') });
     expect(dlq.type).toBe('router.deadletter.v1');
-    expect(dlq.envelope.correlationId).toBe('c-1');
-    expect(dlq.payload.reason).toBe('test');
-    expect(dlq.payload.slipSummary).toContain('router:OK');
-    expect(dlq.payload.lastStepId).toBe('llm-bot');
+    expect(dlq.correlationId).toBe('c-1');
+    expect(dlq.payload!.reason).toBe('test');
+    expect(dlq.payload!.slipSummary).toContain('router:OK');
+    expect(dlq.payload!.lastStepId).toBe('llm-bot');
   });
 
-  it('handles V2 events (flattened)', () => {
-    const originalV2 = {
-      v: '1',
-      source: 'api-gateway',
+  it('handles V2 events', () => {
+    const originalV2: InternalEventV2 = {
+      v: '2',
       correlationId: 'c-v2',
+      type: 'chat.message.v1',
+      ingress: {
+        ingressAt: '2026-01-29T22:00:00Z',
+        source: 'api-gateway',
+      },
+      identity: {
+        external: {
+          id: 'user-1',
+          platform: 'api-gateway',
+        }
+      },
       egress: { destination: 'api-gateway' },
-      type: 'chat.message',
-      userId: 'user-1',
       payload: { text: 'hello' }
     } as any;
 
     const dlq = buildDlqEvent({ original: originalV2, reason: 'user_not_found' });
-    expect(dlq.envelope.correlationId).toBe('c-v2');
-    expect(dlq.payload.originalType).toBe('chat.message');
+    expect(dlq.correlationId).toBe('c-v2');
+    expect(dlq.payload!.originalType).toBe('chat.message.v1');
   });
 
   it('captures egress context and metadata', () => {
-    const original = {
-      v: '1',
-      source: 'ingress.twitch',
+    const original: InternalEventV2 = {
+      v: '2',
       correlationId: 'c-egress',
+      type: 'chat.message.v1',
+      ingress: {
+        ingressAt: '2026-01-29T22:00:00Z',
+        source: 'ingress.twitch',
+      },
+      identity: {
+        external: {
+          id: 'user-twitch',
+          platform: 'twitch',
+        }
+      },
       egress: { destination: 'twitch' },
-      type: 'chat.message',
       metadata: { platform: 'twitch', channelId: '123' },
       payload: { text: 'failed message' }
     } as any;
 
     const dlq = buildDlqEvent({ original, reason: 'terminal_delivery_failure' });
-    expect(dlq.payload.egressSource).toBe('ingress.twitch');
-    expect(dlq.payload.metadata.platform).toBe('twitch');
-    expect(dlq.payload.metadata.channelId).toBe('123');
+    expect(dlq.payload!.egressSource).toBe('ingress.twitch');
+    expect(dlq.payload!.metadata.platform).toBe('twitch');
+    expect(dlq.payload!.metadata.channelId).toBe('123');
   });
 });

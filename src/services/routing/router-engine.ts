@@ -32,7 +32,7 @@ export interface IJsonLogicEvaluator {
 function normalizeSlip(refs: RoutingStepRef[]): RoutingStep[] {
   return refs.map((r) => ({
     id: r.id,
-    v: r.v ?? '1',
+    v: r.v ?? '2',
     status: 'PENDING',
     attempt: 0,
     maxAttempts: r.maxAttempts ?? 3,
@@ -45,7 +45,7 @@ function defaultSlip(): RoutingStep[] {
   return [
     {
       id: 'router',
-      v: '1',
+      v: '2',
       status: 'PENDING',
       attempt: 0,
       maxAttempts: 3,
@@ -97,7 +97,7 @@ export class RouterEngine {
             } else {
               // Sprint 225: Matched rule with empty slip defaults to egress + terminal OK step
               selectedTopic = INTERNAL_EGRESS_V1;
-              slip = [{ id: 'router', v: '1', status: 'OK' }];
+              slip = [{ id: 'router', v: '2', status: 'OK' }];
             }
 
             meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
@@ -149,14 +149,14 @@ export class RouterEngine {
                   reason: c.reason ? Mustache.render(String(c.reason), interpCtx) : undefined,
                 }));
 
-                if (enrich.randomCandidate && this.stateStore && evt.userId) {
-                  const lastId = await this.stateStore.getLastCandidateId(evt.userId, rule.id);
+                if (enrich.randomCandidate && this.stateStore && evt.identity?.external?.id) {
+                  const lastId = await this.stateStore.getLastCandidateId(evt.identity.external.id, rule.id);
                   const eligible = interpolatedCandidates.filter(c => c.id !== lastId);
                   const pool = eligible.length > 0 ? eligible : interpolatedCandidates;
                   const selected = pool[Math.floor(Math.random() * pool.length)];
 
                   evtOut.candidates = [...(evtOut.candidates || []), selected];
-                  await this.stateStore.updateLastCandidateId(evt.userId, rule.id, selected.id);
+                  await this.stateStore.updateLastCandidateId(evt.identity.external.id, rule.id, selected.id);
                 } else {
                   evtOut.candidates = [...(evtOut.candidates || []), ...interpolatedCandidates];
                 }
@@ -169,10 +169,6 @@ export class RouterEngine {
                   ...enrich.egress,
                   destination: enrichedDest,
                 };
-                // Sync top-level channel with egress destination to ensure correct message bus attributes
-                if (enrichedDest) {
-                  evtOut.channel = enrichedDest;
-                }
               }
 
               logger.debug('router_engine.enrichment.complete', { ruleId: rule.id, evtOut })

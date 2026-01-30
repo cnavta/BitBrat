@@ -31,10 +31,11 @@ describe('egress selection', () => {
 
   test('extractEgressTextFromEvent prefers V2 candidates then legacy payload', () => {
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'test',
+      v: '2',
       correlationId: 'corr-1',
       type: 'egress.deliver.v1',
+      ingress: { ingressAt: '2025-01-01T00:00:00Z', source: 'test' },
+      identity: { external: { id: 'u1', platform: 'test' } },
       egress: { destination: 'test' },
       message: { id: 'm1', role: 'assistant', text: 'ignored' },
       candidates: [

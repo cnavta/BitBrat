@@ -4,7 +4,7 @@ import type { InternalEventV2, AnnotationV1 } from '../../../types/events';
 
 describe('RouterEngine – annotations propagation', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'c-ann-1',
     type: 'chat.command.v1',

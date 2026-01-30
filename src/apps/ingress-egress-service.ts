@@ -25,7 +25,7 @@ import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
 import { AttributeMap } from '../services/message-bus';
-import { INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1 } from '../types/events';
+import {INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1, InternalEventV2} from '../types/events';
 import { buildDlqEvent } from '../services/routing/dlq';
 import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../common/events/selection';
 import type { PublisherResource } from '../common/resources/publisher-manager';
@@ -249,16 +249,16 @@ export class IngressEgressServer extends BaseServer {
       const genericQueue = `ingress-egress.${instanceId}`;
       logger.info('ingress-egress.egress.generic_subscribe.start', { subject: genericEgressSubject, queue: genericQueue });
       try {
-        await this.onMessage<any>(
+        await this.onMessage<InternalEventV2>(
           { destination: genericEgressTopic, queue: genericQueue, ack: 'explicit' },
-          async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
-            logger.debug('ingress-egress.egress.generic.received', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
+          async (evt: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+            logger.debug('ingress-egress.egress.generic.received', { correlationId: evt?.correlationId });
             try {
               // Determine if this service supports the platform for this event
-              const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
+              const source = (evt?.ingress?.source || '').toLowerCase();
               const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
-              const egressDest = (evt?.egress?.destination || evt?.envelope?.egress?.destination || '').toLowerCase();
-              const authProvider = (evt?.auth?.provider || evt?.envelope?.auth?.provider || '').toLowerCase();
+              const egressDest = (evt?.egress?.destination || '').toLowerCase();
+              const authProvider = (evt?.identity?.auth?.provider || '').toLowerCase();
 
               const isDiscord = egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
               const isTwilio = egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
@@ -362,10 +362,10 @@ export class IngressEgressServer extends BaseServer {
 
       const text = extractEgressTextFromEvent(evtForDelivery);
       if (!text) {
-        logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId || evt?.envelope?.correlationId });
+        logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId });
         return 'FAILED';
       }
-      const correlationId = evt?.correlationId || evt?.envelope?.correlationId;
+      const correlationId = evt?.correlationId;
       const publishFinalize = async (status: 'SENT' | 'FAILED', error?: { code: string; message?: string }) => {
         try {
           const cfg: any = this.getConfig?.() || {};
@@ -394,10 +394,10 @@ export class IngressEgressServer extends BaseServer {
       };
 
       try {
-        const source = (evt?.source || evt?.envelope?.source || '').toLowerCase();
+        const source = (evt?.ingress?.source || '').toLowerCase();
         const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
-        const egressDest = (evt?.egress?.destination || evt?.envelope?.egress?.destination || '').toLowerCase();
-        const authProvider = (evt?.auth?.provider || evt?.envelope?.auth?.provider || '').toLowerCase();
+        const egressDest = (evt?.egress?.destination || '').toLowerCase();
+        const authProvider = (evt?.identity?.auth?.provider || '').toLowerCase();
 
         const isDiscord = egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
         const isTwilio = egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
@@ -410,13 +410,13 @@ export class IngressEgressServer extends BaseServer {
               logger.debug('ingress-egress.egress.discord.ignored_disconnected', { correlationId });
               return 'IGNORED';
             }
-            await this.discordClient.sendText(text, evt.channel);
+            await this.discordClient.sendText(text, evt.ingress?.channel || evt.channel);
           } else {
             return 'IGNORED';
           }
         } else if (isTwilio) {
           if (this.twilioClient) {
-            await this.twilioClient.sendText(text, evt.channel);
+            await this.twilioClient.sendText(text, evt.ingress?.channel || evt.channel);
           } else {
             return 'IGNORED';
           }
@@ -424,8 +424,8 @@ export class IngressEgressServer extends BaseServer {
           // Default to Twitch
           if (!this.twitchClient) return 'IGNORED';
           
-          const egressType = evt?.egress?.type || evt?.envelope?.egress?.type || 'chat';
-          let targetUserId = evt?.userId || evt?.envelope?.userId;
+          const egressType = evt?.egress?.type || 'chat';
+          let targetUserId = evt?.identity?.user?.id || evt?.identity?.external?.id;
           if (targetUserId && targetUserId.includes(':')) {
             targetUserId = targetUserId.split(':')[1];
           }
@@ -439,7 +439,7 @@ export class IngressEgressServer extends BaseServer {
             if (egressType === 'dm' && !targetUserId) {
               logger.warn('ingress-egress.egress.twitch.dm_requested_but_no_userId', { correlationId });
             }
-            await this.twitchClient.sendText(text, evt.channel);
+            await this.twitchClient.sendText(text, evt.ingress?.channel || evt.channel);
           }
         }
         logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio });
@@ -550,8 +550,17 @@ export class IngressEgressServer extends BaseServer {
       const id = (snap as any).id || (platform === 'twitch' ? process.env.TWITCH_BOT_USERNAME : undefined) || name;
 
       const evt: any = {
-        v: '1',
-        source: `ingress.${name}`,
+        v: '2',
+        ingress: {
+          ingressAt: new Date().toISOString(),
+          source: `ingress.${name}`,
+        },
+        identity: {
+          external: {
+            id: id,
+            platform: platform,
+          }
+        },
         correlationId: `status-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: 'system.source.status',
         payload: {

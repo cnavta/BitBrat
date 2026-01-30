@@ -3,7 +3,7 @@ import type { InternalEventV2 } from '../../../types/events';
 
 describe('JsonLogic op: ci_eq', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1', source: 'test', correlationId: 'abc',
+    v: '2', source: 'test', correlationId: 'abc',
     type: 'chat.command.v1', channel: '#test', userId: 'u1',
     message: { id: 'm1', role: 'user', text: '!Ping', rawPlatformPayload: { text: '!Ping' } },
   } as any;
