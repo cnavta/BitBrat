@@ -297,8 +297,7 @@ See documentation/runbooks/llm-bot-prompt-assembly.md for llm-bot configuration 
 - Types are emitted and tree-shakable exports enable minimal bundles.
 
 ## Roadmap
-- v1 (this sprint): Documentation and plan; no code changes.
-- v1.1 (next): Implement src/common/prompt-assembly/ with tests and provider adapters.
+- v1 (completed): Documentation and implementation of core sections, rendering rules, and provider adapters.
 - v1.2: Add token estimation and structured output validators (JSON Schema).
 
 ## References
