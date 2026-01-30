@@ -4,14 +4,14 @@ import { Logger } from '../../common/logging';
 
 export interface TokenInfo {
   token_hash: string;
-  user_id: string;
+  uid: string;
   expires_at?: Date | null;
   created_at: Date;
   last_used_at?: Date | null;
 }
 
 export class AuthService {
-  private cache: Map<string, { user_id: string; expires_at?: Date | null }> = new Map();
+  private cache: Map<string, { uid: string; expires_at?: Date | null }> = new Map();
   private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(
@@ -39,7 +39,7 @@ export class AuthService {
         this.logger.warn('auth.token_expired.cache', { hash: hash.substring(0, 8) });
         return null;
       }
-      return cached.user_id;
+      return cached.uid;
     }
 
     // Query Firestore
@@ -55,23 +55,23 @@ export class AuthService {
       if (!data) return null;
 
       const expires_at = data.expires_at ? data.expires_at.toDate() : null;
-      const user_id = data.user_id;
+      const uid = data.uid || data.user_id;
 
       if (expires_at && expires_at.getTime() < Date.now()) {
-        this.logger.warn('auth.token_expired.db', { user_id, hash: hash.substring(0, 8) });
+        this.logger.warn('auth.token_expired.db', { uid, hash: hash.substring(0, 8) });
         return null;
       }
 
       // Update cache
-      this.cache.set(hash, { user_id, expires_at });
+      this.cache.set(hash, { uid, expires_at });
       setTimeout(() => this.cache.delete(hash), this.CACHE_TTL_MS);
 
       // Async update last_used_at
       tokenDoc.ref.update({ last_used_at: new Date() }).catch(err => {
-        this.logger.error('auth.update_last_used_failed', { error: err.message, user_id });
+        this.logger.error('auth.update_last_used_failed', { error: err.message, uid });
       });
 
-      return user_id;
+      return uid;
     } catch (err: any) {
       this.logger.error('auth.validate_token_error', { error: err.message });
       return null;

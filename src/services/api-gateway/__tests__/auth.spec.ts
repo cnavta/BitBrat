@@ -46,7 +46,7 @@ describe('AuthService', () => {
 
     mockDoc.exists = true;
     mockDoc.data.mockReturnValue({
-      user_id: userId,
+      uid: userId,
       expires_at: null
     });
 
@@ -76,7 +76,7 @@ describe('AuthService', () => {
     const token = 'expired_token';
     mockDoc.exists = true;
     mockDoc.data.mockReturnValue({
-      user_id: 'user-123',
+      uid: 'user-123',
       expires_at: {
         toDate: () => new Date(Date.now() - 10000) // 10s ago
       }
@@ -85,5 +85,19 @@ describe('AuthService', () => {
     const result = await authService.validateToken(token);
     expect(result).toBeNull();
     expect(mockLogger.warn).toHaveBeenCalledWith('auth.token_expired.db', expect.anything());
+  });
+
+  it('should fallback to user_id if uid is missing', async () => {
+    const token = 'legacy_token';
+    const userId = 'legacy-user';
+
+    mockDoc.exists = true;
+    mockDoc.data.mockReturnValue({
+      user_id: userId,
+      expires_at: null
+    });
+
+    const result = await authService.validateToken(token);
+    expect(result).toBe(userId);
   });
 });
