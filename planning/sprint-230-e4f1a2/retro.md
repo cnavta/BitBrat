@@ -1,15 +1,17 @@
-# Retro – sprint-230-e4f1a2
+# Retrospective – sprint-230-e4f1a2
 
-## What Worked
-- **Big Bang Migration Strategy**: Despite being a breaking change across the entire platform, the migration was managed effectively by following a phased approach (Types -> Common -> Ingress -> Auth -> Router -> Egress -> Tests).
-- **JsonLogic Compatibility**: Proactively mapping the new V2 paths to legacy context fields in `JsonLogicEvaluator` prevented major breakage of existing routing rules stored in the database.
-- **Global Search/Replace for Tests**: Using `sed` to update common version strings and field names significantly sped up the test alignment phase.
+## What Went Well
+- **Comprehensive Refactor**: Successfully transitioned the entire platform to `InternalEventV2` without maintaining dual versions, significantly reducing technical debt.
+- **Protocol Adherence**: The Sprint Protocol v2.5 provided a clear framework for managing complex changes across multiple services.
+- **Rapid Issue Resolution**: Regressions found in the `scheduler-service`, `api-gateway`, and `auth-service` were quickly identified, reproduced with tests, and fixed.
+- **Improved Data Model**: The grouping of `ingress` and `identity` metadata makes the event structure much more intuitive and extensible.
 
 ## Challenges
-- **Resource Leaks in Integration Tests**: Some tests were leaking `setInterval` timers because `server.stop()` wasn't being called, causing extremely long test runs and console spam.
-- **Integration Test Complexity**: `IngressEgressServer` tests required careful mocking of the `message-bus` to avoid real PubSub connection attempts when simulating production environments.
+- **Test Regressions**: The breadth of the refactor led to several test failures where old schema assumptions were hardcoded.
+- **Egress Mapping Complexity**: The `api-gateway` egress matching logic proved sensitive to the identity enrichment process, requiring a fix to prioritize external IDs.
+- **Tooling Consistency**: Ensuring that admin tools like `create_api_token` followed the same identity mapping patterns as ingress processes required manual alignment.
 
-## Lessons Learned
-- Ensure all tests that initialize servers have an `afterEach` that calls `stop()` or equivalent cleanup.
-- Standardizing property locations (`ingress.source` vs `source`) simplifies downstream processing logic and makes the event flow more predictable.
-- Grouping user information into `identity.external` and `identity.user` clearly separates platform-level data from internal database data.
+## Summary of Results
+- All services (Twitch, Discord, Twilio, Auth, Router, LLM Bot, Scheduler, API Gateway) are now fully aligned with `InternalEventV2`.
+- Legacy `InternalEventV1` and `EnvelopeV1` structures have been completely removed.
+- 100% pass rate on all relevant test suites (198 suites passing).

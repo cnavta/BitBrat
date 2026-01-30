@@ -86,7 +86,7 @@ describe('AuthServer Admin Tools', () => {
           type: 'token.created.v1',
           v: '2',
           identity: expect.objectContaining({
-            external: expect.objectContaining({ id: userId })
+            external: expect.objectContaining({ id: '123', platform: 'twitch' })
           }),
           payload: expect.objectContaining({
             user_id: userId,

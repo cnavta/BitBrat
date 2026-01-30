@@ -386,6 +386,11 @@ export class AuthServer extends McpServer {
 
         // 3. Publish event
         const correlationId = `token-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        
+        const [platform, ...idParts] = userId.split(':');
+        const externalId = idParts.join(':') || userId;
+        const externalPlatform = idParts.length > 0 ? platform : 'system';
+
         const event: InternalEventV2 = {
           v: '2',
           correlationId,
@@ -396,8 +401,8 @@ export class AuthServer extends McpServer {
           },
           identity: {
             external: {
-              id: userId,
-              platform: 'system',
+              id: externalId,
+              platform: externalPlatform,
             },
             user: {
               id: userId,

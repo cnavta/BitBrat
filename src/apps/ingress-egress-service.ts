@@ -25,7 +25,7 @@ import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
 import { AttributeMap } from '../services/message-bus';
-import { INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1 } from '../types/events';
+import {INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1, InternalEventV2} from '../types/events';
 import { buildDlqEvent } from '../services/routing/dlq';
 import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../common/events/selection';
 import type { PublisherResource } from '../common/resources/publisher-manager';
@@ -249,9 +249,9 @@ export class IngressEgressServer extends BaseServer {
       const genericQueue = `ingress-egress.${instanceId}`;
       logger.info('ingress-egress.egress.generic_subscribe.start', { subject: genericEgressSubject, queue: genericQueue });
       try {
-        await this.onMessage<any>(
+        await this.onMessage<InternalEventV2>(
           { destination: genericEgressTopic, queue: genericQueue, ack: 'explicit' },
-          async (evt: any, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+          async (evt: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
             logger.debug('ingress-egress.egress.generic.received', { correlationId: evt?.correlationId });
             try {
               // Determine if this service supports the platform for this event

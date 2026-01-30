@@ -11,6 +11,8 @@
 - [x] Removed all lingering `InternalEventV1` and `EnvelopeV1` references.
 - [x] Validated build and tests via `validate_deliverable.sh`.
 - [x] Fixed regression in `tests/apps/scheduler-service.spec.ts` where assertions still expected root-level `source`.
+- [x] Resolved `egress.no_active_connections` in `api-gateway` by prioritizing `external.id` for socket lookup.
+- [x] Updated `auth-service` `create_api_token` to correctly map `platform` and `external.id` in the `token.created.v1` event.
 
 ## Partial
 - None.
