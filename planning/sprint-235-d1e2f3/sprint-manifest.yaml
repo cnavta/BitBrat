@@ -1,0 +1,10 @@
+id: sprint-235-d1e2f3
+title: "Dynamic Chat Port Discovery"
+goal: "Allow 'brat chat' to dynamically discover the api-gateway port from Docker and resolve setup port collisions."
+owner: "Junie"
+createdAt: "2026-01-30T12:30:00Z"
+status: in-progress
+links:
+  branch: "feature/sprint-235-d1e2f3-dynamic-chat-port"
+notes: |
+  Addresses the port collision error during 'brat setup' and makes 'brat chat' more resilient by querying Docker for the actual mapped port.

@@ -45,6 +45,13 @@ describe('Setup Utilities', () => {
       expect(result).toBe('PROJECT_ID: "new-id"\nBOT_NAME: "old-bot"\n');
     });
 
+    it('should remove a key', () => {
+      const { removeYamlKey } = require('./setup');
+      const content = 'PROJECT_ID: "id"\nAPI_GATEWAY_HOST_PORT: "3001"\nBOT_NAME: "bot"\n';
+      const result = removeYamlKey(content, 'API_GATEWAY_HOST_PORT');
+      expect(result).toBe('PROJECT_ID: "id"\nBOT_NAME: "bot"\n');
+    });
+
     it('should add a key to existing content', () => {
       const content = 'PROJECT_ID: "my-id"\n';
       const result = updateYaml(content, 'BOT_NAME', 'my-bot');
