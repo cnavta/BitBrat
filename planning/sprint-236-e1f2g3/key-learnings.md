@@ -1,0 +1,2 @@
+- The BitBrat CLI merges environment variables from `.env.local` which is generated from `.secure.local`.
+- If a sensitive variable like an API token is updated, it MUST be updated in `.secure.local` to persist correctly across CLI invocations.

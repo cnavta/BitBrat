@@ -152,9 +152,12 @@ export async function cmdSetup(opts: any, log: Logger) {
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
     
-    // Save token locally for chat CLI
+    // Save token locally for chat CLI and environment
     const bitbratJsonPath = path.join(root, '.bitbrat.json');
     fs.writeFileSync(bitbratJsonPath, JSON.stringify({ apiToken }, null, 2), 'utf8');
+
+    secureLocalContent = updateEnv(secureLocalContent, 'BITBRAT_API_TOKEN', apiToken);
+    fs.writeFileSync(secureLocalPath, secureLocalContent, 'utf8');
 
     // B. Personality
     await db.collection('personalities').doc(botName.toLowerCase()).set({
@@ -171,7 +174,8 @@ export async function cmdSetup(opts: any, log: Logger) {
         PROJECT_ID: projectId,
         BOT_NAME: botName,
         botUsername: botName,
-        OPENAI_API_KEY: openaiKey
+        OPENAI_API_KEY: openaiKey,
+        BITBRAT_API_TOKEN: apiToken
       };
 
       for (const file of files) {
