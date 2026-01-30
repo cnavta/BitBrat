@@ -81,6 +81,7 @@ jest-stare/
 # Firebase local emulator
 .firebase/
 firebase-debug.log*
+.bitbrat.json
 
 # CDKTF and generated infra output
 infrastructure/cdktf/out/

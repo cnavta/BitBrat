@@ -1,0 +1,52 @@
+sprint: sprint-231-f1a2b3
+tasks:
+  - id: CLI-1
+    title: "Register setup command in brat CLI"
+    priority: high
+    status: complete
+    estimate: 1h
+  - id: CLI-2
+    title: "Implement interactive prompts (GCP ID, OpenAI Key, Bot Name)"
+    priority: high
+    status: complete
+    estimate: 2h
+  - id: CFG-1
+    title: "Implement configuration file persistence (.env.local, secrets.yaml)"
+    priority: high
+    status: complete
+    estimate: 1h
+  - id: ENV-1
+    title: "Implement local environment bootstrap trigger"
+    priority: medium
+    status: complete
+    estimate: 1h
+  - id: ENV-2
+    title: "Implement Firestore emulator health check/wait logic"
+    priority: medium
+    status: complete
+    estimate: 1h
+  - id: DATA-1
+    title: "Implement API Gateway token generation and Firestore storage"
+    priority: high
+    status: complete
+    estimate: 1h
+  - id: DATA-2
+    title: "Implement Personality creation in Firestore"
+    priority: high
+    status: complete
+    estimate: 1h
+  - id: DATA-3
+    title: "Implement Rule import with placeholder replacement"
+    priority: high
+    status: complete
+    estimate: 3h
+  - id: TEST-1
+    title: "Unit tests for placeholder replacement and config writing"
+    priority: medium
+    status: complete
+    estimate: 2h
+  - id: TEST-2
+    title: "Manual E2E verification of setup flow"
+    priority: high
+    status: complete
+    estimate: 2h
