@@ -102,6 +102,7 @@ export async function cmdSetup(opts: any, log: Logger) {
     
     globalYamlContent = updateYaml(globalYamlContent, 'PROJECT_ID', projectId);
     globalYamlContent = updateYaml(globalYamlContent, 'BOT_NAME', botName);
+    globalYamlContent = updateYaml(globalYamlContent, 'API_GATEWAY_HOST_PORT', '3001');
     fs.writeFileSync(globalYamlPath, globalYamlContent, 'utf8');
 
     // Update .secure.local

@@ -1,0 +1,10 @@
+id: sprint-234-c1d2e3
+title: "Brat Setup Auto Port"
+goal: "Automate setting the API_GATEWAY_HOST_PORT during the brat setup process."
+owner: "Junie"
+createdAt: "2026-01-30T12:25:00Z"
+status: planning
+links:
+  branch: "feature/sprint-234-c1d2e3-setup-auto-port"
+notes: |
+  Ensures that 'brat chat' can connect to the api-gateway immediately after a fresh setup without requiring manual port configuration.
