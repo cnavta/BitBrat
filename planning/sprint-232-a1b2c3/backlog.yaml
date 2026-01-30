@@ -1,0 +1,22 @@
+sprint: sprint-232-a1b2c3
+tasks:
+  - id: DETECT-1
+    title: "Implement initialization detection logic"
+    priority: high
+    status: complete
+    estimate: 1h
+  - id: UI-1
+    title: "Implement warning and confirmation prompt"
+    priority: high
+    status: complete
+    estimate: 1h
+  - id: TEST-1
+    title: "Update unit tests for setup command"
+    priority: medium
+    status: complete
+    estimate: 1h
+  - id: VAL-1
+    title: "Manual E2E verification"
+    priority: high
+    status: complete
+    estimate: 1h
