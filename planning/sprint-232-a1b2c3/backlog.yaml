@@ -13,10 +13,10 @@ tasks:
   - id: TEST-1
     title: "Update unit tests for setup command"
     priority: medium
-    status: todo
+    status: complete
     estimate: 1h
   - id: VAL-1
     title: "Manual E2E verification"
     priority: high
-    status: todo
+    status: complete
     estimate: 1h
