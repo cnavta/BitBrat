@@ -1,0 +1,26 @@
+{
+  "description": "Create a random Chuck Norris joke",
+  "enabled": true,
+  "enrichments": {
+    "annotations": [
+      {
+        "id": "a2",
+        "kind": "prompt",
+        "value": "Generate one original Chuck Norris joke. Do not reuse classic structures like roundhouse kicks, counting to infinity, or glaring-atoms tropes. Avoid tech-centric humor unless it’s genuinely unexpected. Explore any domain—nature, mythology, sports, cooking, art, everyday life, or the absurd. Use a fresh comedic structure and keep it under 20 words with a surprising punchline."
+      }
+    ]
+  },
+  "logic": "{     \"and\": [       { \"re_test\": [ { \"var\": \"message.text\" }, [\"^cnj\", \"i\"] ] },       { \"!\": [ { \"slip_complete\": [ { \"var\": \"routingSlip\" } ] } ] }     ]   }",
+  "priority": 10,
+  "routingSlip": [
+    {
+      "attributes": {
+        "origin": "event-router"
+      },
+      "id": "llm-bot",
+      "maxAttempts": 3,
+      "nextTopic": "internal.llmbot.v1",
+      "v": "1"
+    }
+  ]
+}

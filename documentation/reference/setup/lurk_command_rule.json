@@ -1,0 +1,48 @@
+{
+  "enrichments": {
+    "candidates": [
+      {
+        "id": "c1",
+        "kind": "text",
+        "source": "event-router",
+        "text": ". . . and so @{{user.displayName}} folds into the night, unseen, yes, but still very present . . ."
+      },
+      {
+        "id": "c2",
+        "kind": "text",
+        "source": "event-router",
+        "text": "It is ok @{{user.displayName}} , no interactions are needed. Feel secure in your lurk, you are wanted here."
+      },
+      {
+        "id": "c3",
+        "kind": "text",
+        "source": "event-router",
+        "text": "And forsooth! @{{user.displayName}}  didst Lurk, and it was good, and all quietly smiled in their hearts."
+      },
+      {
+        "id": "c4",
+        "kind": "text",
+        "source": "event-router",
+        "text": "Some say Transcendental Lurking is a myth, a fantasy made of vapors! @{{user.displayName}} , in one majestic swoop, you have proven them all wrong."
+      },
+      {
+        "id": "c5",
+        "kind": "text",
+        "source": "event-router",
+        "text": "There are rumors, or maybe rumors of rumors, that @{{user.displayName}}  is lurking in these chat hallways . . ."
+      },
+      {
+        "id": "c6",
+        "kind": "text",
+        "source": "event-router",
+        "text": "@{{user.displayName}} stepped into the quantum leap accelerator . . . and vanished. Enjoy your lurk."
+      }
+    ],
+    "randomCandidate": true
+  },
+  "description": "Lurk Command",
+  "enabled": true,
+  "logic": "{\n  \"text_contains\": [\n    { \"var\": \"message.text\" },\n    { \"cat\": [ { \"var\": \"config.commandSigil\" }, \"lurk \" ] },\n    true\n  ]\n}",
+  "priority": 50,
+  "routingSlip": []
+}

@@ -19,6 +19,7 @@ import { renderAndWrite } from '../lb/urlmap';
 import { importUrlMap } from '../lb/importer';
 import { enableApis, getRequiredApis } from '../providers/gcp/apis';
 import { cmdServiceBootstrap } from './bootstrap';
+import { cmdSetup } from './setup';
 
 const RUN_ID = deriveTag();
 const log = createLogger({ base: { runId: RUN_ID, component: 'brat' } });
@@ -94,6 +95,7 @@ function printHelp() {
   console.log(`brat — BitBrat Rapid Administration Tool
 
 Usage:
+  brat setup [--projectId <id>] [--openaiKey <key>] [--botName <name>]
   brat doctor [--json] [--ci]
   brat config show [--json]
   brat config validate [--json]
@@ -588,6 +590,29 @@ async function main() {
   }
   if (cmd.length === 0) { printHelp(); return; }
   const [c1, c2] = cmd;
+  if (c1 === 'setup') {
+    if (rest.includes('--help') || rest.includes('-h')) {
+      console.log(`brat setup — Interactive platform initialization
+
+Usage:
+  brat setup [--project-id <id>] [--openai-key <key>] [--bot-name <name>]
+
+Options:
+  --project-id  GCP Project ID
+  --openai-key  OpenAI API Key
+  --bot-name     Name of the bot
+`);
+      return;
+    }
+    const m = parseKeyValueFlags(rest);
+    const opts = {
+      projectId: m['projectId'] || m['project-id'] || (flags.envExplicit ? flags.projectId : undefined),
+      openaiKey: m['openaiKey'] || m['openai-key'],
+      botName: m['botName'] || m['bot-name'],
+    };
+    await cmdSetup(opts, log);
+    return;
+  }
   if (c1 === 'doctor') {
     await cmdDoctor(flags);
     return;
