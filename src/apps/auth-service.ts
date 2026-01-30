@@ -266,11 +266,24 @@ export class AuthServer extends McpServer {
         const platform = userId.split(':')[0];
         const platformUserId = userId.split(':')[1];
 
-        const moderationEvent = {
-          v: '1',
-          source: 'auth',
+        const moderationEvent: InternalEventV2 = {
+          v: '2',
           correlationId: `ban-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          traceId: crypto.randomUUID(),
           type: 'moderation.action.v1',
+          ingress: {
+            ingressAt: new Date().toISOString(),
+            source: 'auth',
+          },
+          identity: {
+            external: {
+              id: platformUserId,
+              platform: platform,
+            },
+            user: {
+              id: userId,
+            }
+          },
           payload: {
             action: 'ban',
             userId,
@@ -279,6 +292,7 @@ export class AuthServer extends McpServer {
             reason: args.reason,
             actor: 'llm-bot',
           },
+          egress: { destination: 'system' }
         };
 
         const cfg: any = this.getConfig();
