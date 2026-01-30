@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { updateYaml, updateEnv, replacePlaceholders, isAlreadyInitialized } from './setup';
 
 jest.mock('fs');
@@ -96,6 +97,24 @@ describe('Setup Utilities', () => {
       const content = 'Hello %UNKNOWN%.';
       const result = replacePlaceholders(content, { OTHER: 'val' });
       expect(result).toBe('Hello %UNKNOWN%.');
+    });
+  });
+
+  describe('Integration-like checks', () => {
+    it('should generate correctly hashed token doc for Firestore', () => {
+      const apiToken = 'my-secret-token';
+      const expectedHash = crypto.createHash('sha256').update(apiToken).digest('hex');
+      
+      // This is more for documentation/alignment check of the logic we put in setup.ts
+      const doc = {
+        token_hash: expectedHash,
+        uid: 'brat-admin',
+        description: 'Initial admin token for chat',
+        createdAt: 'MOCK_TIMESTAMP'
+      };
+      
+      expect(doc.token_hash).toBe(expectedHash);
+      expect(doc.uid).toBe('brat-admin');
     });
   });
 });

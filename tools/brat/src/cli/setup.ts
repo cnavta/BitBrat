@@ -1,6 +1,7 @@
 import readline from 'readline';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { execCmd } from '../orchestration/exec';
 import { Logger } from '../orchestration/logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -146,7 +147,10 @@ export async function cmdSetup(opts: any, log: Logger) {
 
     // A. API Gateway Token
     const apiToken = uuidv4();
-    await db.collection('tokens').doc(apiToken).set({
+    const tokenHash = crypto.createHash('sha256').update(apiToken).digest('hex');
+    
+    await db.collection('gateways/api/tokens').doc(tokenHash).set({
+      token_hash: tokenHash,
       uid: 'brat-admin',
       description: 'Initial admin token for chat',
       createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -186,7 +190,7 @@ export async function cmdSetup(opts: any, log: Logger) {
 
         const ruleData = JSON.parse(content);
         const ruleId = path.basename(file, '.json');
-        await db.collection('rules').doc(ruleId).set(ruleData);
+        await db.collection('configs/routingRules/rules').doc(ruleId).set(ruleData);
       }
     }
 
