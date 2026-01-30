@@ -76,7 +76,7 @@ items:
   - id: T-007
     title: "Test Suite Alignment and Global Cleanup"
     priority: 7
-    status: in-progress
+    status: complete
     estimate: 5
     depends_on: [T-006]
     acceptance_criteria:
@@ -88,7 +88,7 @@ items:
   - id: T-008
     title: "Publication and PR creation"
     priority: 8
-    status: todo
+    status: complete
     estimate: 1
     depends_on: [T-007]
     acceptance_criteria:

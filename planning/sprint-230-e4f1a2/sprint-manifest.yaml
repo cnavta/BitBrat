@@ -3,8 +3,11 @@ title: "InternalEventV2 Comprehensive Refactor"
 goal: "Refactor InternalEventV2 to incorporate EnvelopeV1, group properties into Ingress and Identity, and remove InternalEventV1 legacy code."
 owner: "Junie"
 createdAt: "2026-01-29T22:15:00Z"
-status: "in-progress"
+status: published
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/144"
   branch: "feature/sprint-230-e4f1a2-internal-event-v2-refactor"
 notes: |
-  Assumed role of Architect. Eliminating InternalEventV1 and side-by-side versioning.
+  Refactored core event schema to flatten EnvelopeV1 into InternalEventV2 root.
+  Grouped properties into ingress and identity.
+  Removed all InternalEventV1 code and associated adapters.

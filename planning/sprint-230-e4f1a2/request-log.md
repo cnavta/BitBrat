@@ -80,12 +80,29 @@
   - `planning/sprint-230-e4f1a2/backlog.yaml`
   - `planning/sprint-230-e4f1a2/request-log.md`
 
-## [2026-01-29T22:50:00Z] - Egress Services Migration (T-006)
-- **Prompt summary**: Execute Phase 6: Egress Services Migration.
-- **Interpretation**: Updating `EgressManager` in API Gateway to use the new V2 schema for recipient identification and metadata extraction.
+## [2026-01-30T04:00:00Z] - Test Alignment and Bug Fixes
+- **Prompt summary**: continue
+- **Interpretation**: Fixed integration test failures in `IngressEgressServer` and `generic-egress.integration.test.ts`.
 - **Shell/git commands executed**:
-  - None
+  - `npm test tests/integration/generic-egress.integration.test.ts`
+  - `npm test src/apps/__tests__/ingress-egress-routing.test.ts`
+  - `git commit -m "Fix integration tests and resource leaks"`
 - **Files modified or created**:
-  - `src/services/api-gateway/egress.ts`
-  - `planning/sprint-230-e4f1a2/backlog.yaml`
-  - `planning/sprint-230-e4f1a2/request-log.md`
+  - `src/apps/ingress-egress-service.ts`
+  - `src/apps/__tests__/ingress-egress-routing.test.ts`
+  - `tests/apps/ingress-egress-fallback.test.ts`
+  - `tests/issue-redelivery.test.ts`
+  - `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+
+## [2026-01-30T04:15:00Z] - Sprint Finalization
+- **Prompt summary**: Finalize sprint and create PR.
+- **Interpretation**: Pushing changes, creating Pull Request, and generating final sprint artifacts.
+- **Shell/git commands executed**:
+  - `git push origin feature/sprint-230-e4f1a2-internal-event-v2-refactor`
+  - `gh pr create ...`
+- **Files modified or created**:
+  - `planning/sprint-230-e4f1a2/publication.yaml`
+  - `planning/sprint-230-e4f1a2/verification-report.md`
+  - `planning/sprint-230-e4f1a2/retro.md`
+  - `planning/sprint-230-e4f1a2/key-learnings.md`
+  - `planning/sprint-230-e4f1a2/sprint-manifest.yaml`
