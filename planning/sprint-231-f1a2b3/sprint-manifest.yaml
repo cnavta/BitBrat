@@ -3,8 +3,9 @@ title: "Brat CLI Setup Command"
 goal: "Implement 'npm run brat -- setup' to guide users through platform initialization, including GCP/OpenAI configuration and basic Firebase artifact population."
 owner: "Junie"
 createdAt: "2026-01-30T10:55:00Z"
-status: validating
+status: complete
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/145"
   branch: "feature/sprint-231-f1a2b3-brat-setup-command"
 notes: |
   The setup command will prompt for bare minimum information (GCP ID, OpenAI key, bot name).
