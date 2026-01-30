@@ -1,11 +1,11 @@
-import { EnvelopeV1, RoutingStep, RoutingStatus } from '../../types/events';
+import { InternalEventV2, RoutingStep, RoutingStatus } from '../../types/events';
 
 /**
  * Routing Slip Utilities
  *
  * Purpose:
  * - Provide small, focused helpers to create, inspect, and mutate RoutingStep[] entries
- *   that travel inside the InternalEventV1.envelope.routingSlip.
+ *   that travel inside the InternalEventV2.routingSlip.
  *
  * Notes for LLM agents:
  * - Keep step transitions explicit and side-effect free except for timestamping fields.
@@ -14,18 +14,18 @@ import { EnvelopeV1, RoutingStep, RoutingStatus } from '../../types/events';
  */
 
 /**
- * Ensure that the envelope has a routingSlip. If missing or empty, initialize it
+ * Ensure that the event has a routingSlip. If missing or empty, initialize it
  * from the provided planned steps (shallow copy to avoid aliasing).
  *
- * @param envelope - The event envelope to host the routingSlip.
- * @param planned  - Planned steps returned by the router's planRoutingSlip.
- * @returns The (possibly newly created) routingSlip array on the envelope.
+ * @param event   - The internal event to host the routingSlip.
+ * @param planned - Planned steps returned by the router's planRoutingSlip.
+ * @returns The (possibly newly created) routingSlip array on the event.
  */
-export function ensureSlip(envelope: EnvelopeV1, planned: RoutingStep[]): RoutingStep[] {
-  if (!Array.isArray(envelope.routingSlip) || envelope.routingSlip.length === 0) {
-    envelope.routingSlip = planned.map((s) => ({ ...s }));
+export function ensureSlip(event: InternalEventV2, planned: RoutingStep[]): RoutingStep[] {
+  if (!Array.isArray(event.routingSlip) || event.routingSlip.length === 0) {
+    event.routingSlip = planned.map((s) => ({ ...s }));
   }
-  return envelope.routingSlip;
+  return event.routingSlip;
 }
 
 /**

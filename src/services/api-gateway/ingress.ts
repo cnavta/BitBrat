@@ -42,13 +42,21 @@ export class IngressManager {
       if (type === 'chat.message.send') type = 'chat.message.v1';
       
       const event: InternalEventV2 = {
-        v: '1',
+        v: '2',
         type: type,
-        source: 'api-gateway',
         correlationId: frame.metadata?.id || uuidv4(),
         traceId: uuidv4(),
-        userId: userId,
-        channel: frame.payload.channel || frame.payload.room, // Support both naming conventions
+        ingress: {
+          ingressAt: new Date().toISOString(),
+          source: 'api-gateway',
+          channel: frame.payload.channel || frame.payload.room,
+        },
+        identity: {
+          external: {
+            id: userId,
+            platform: 'api-gateway',
+          }
+        },
         egress: { 
           destination: this.egressDestinationTopic || 'api-gateway',
           type: 'chat'

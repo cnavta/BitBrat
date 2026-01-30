@@ -57,13 +57,19 @@ describe('IngressEgressServer - User Platform Fallback', () => {
     };
     (server as any).discordClient = mockDiscordClient;
 
-    // Simulate generic egress message with NO explicit platform, but WITH auth.provider = 'discord'
+    // Simulate generic egress message with NO explicit platform, but WITH identity.auth.provider = 'discord'
     const evt = { 
-      v: '1',
-      source: 'system',
+      v: '2',
       correlationId: 'c-fallback',
-      auth: { provider: 'discord' },
-      channel: '12345',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'system',
+        channel: '12345',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'discord' },
+        auth: { provider: 'discord' }
+      },
       payload: { text: 'hello fallback' }
     };
     
@@ -104,11 +110,17 @@ describe('IngressEgressServer - User Platform Fallback', () => {
     (server as any).twilioClient = mockTwilioClient;
 
     const evt = { 
-      v: '1',
-      source: 'system',
+      v: '2',
       correlationId: 'c-fallback-twilio',
-      auth: { provider: 'twilio' },
-      channel: '+1234567890',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'system',
+        channel: '+1234567890',
+      },
+      identity: {
+        external: { id: '+1234567890', platform: 'twilio' },
+        auth: { provider: 'twilio' }
+      },
       payload: { text: 'hello twilio fallback' }
     };
     

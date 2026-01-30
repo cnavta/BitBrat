@@ -373,11 +373,22 @@ export class AuthServer extends McpServer {
         // 3. Publish event
         const correlationId = `token-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const event: InternalEventV2 = {
-          v: '1',
-          source: SERVICE_NAME,
+          v: '2',
           correlationId,
           type: 'token.created.v1',
-          userId,
+          ingress: {
+            ingressAt: now.toISOString(),
+            source: SERVICE_NAME,
+          },
+          identity: {
+            external: {
+              id: userId,
+              platform: 'system',
+            },
+            user: {
+              id: userId,
+            }
+          },
           payload: {
             user_id: userId,
             created_at: now.toISOString(),

@@ -22,11 +22,11 @@ describe('EventSubEnvelopeBuilder', () => {
     const result = builder.buildFollow(followEvent as any, opts);
 
     expect(result.type).toBe('twitch.eventsub.v1');
-    expect(result.channel).toBe('#bitbrat');
-    expect(result.userId).toBe('123');
+    expect(result.ingress.channel).toBe('#bitbrat');
+    expect(result.identity.external.id).toBe('123');
     expect(result.externalEvent).toBeDefined();
     expect(result.externalEvent?.kind).toBe('channel.follow');
-    expect(result.externalEvent?.payload.userLogin).toBe('alice');
+    expect(result.externalEvent?.metadata?.userLogin).toBe('alice');
     expect(result.externalEvent?.createdAt).toBe('2025-12-20T10:00:00.000Z');
   });
 
@@ -45,11 +45,11 @@ describe('EventSubEnvelopeBuilder', () => {
     const result = builder.buildUpdate(updateEvent as any, opts);
 
     expect(result.type).toBe('twitch.eventsub.v1');
-    expect(result.channel).toBe('#bitbrat');
-    expect(result.userId).toBe('999');
+    expect(result.ingress.channel).toBe('#bitbrat');
+    expect(result.identity.external.id).toBe('999');
     expect(result.externalEvent).toBeDefined();
     expect(result.externalEvent?.kind).toBe('channel.update');
-    expect(result.externalEvent?.payload.title).toBe('Coding Sprint');
+    expect(result.externalEvent?.metadata?.title).toBe('Coding Sprint');
     expect(result.externalEvent?.createdAt).toBe(fixedNow);
   });
 });

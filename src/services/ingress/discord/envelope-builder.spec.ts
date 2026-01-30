@@ -23,13 +23,13 @@ describe('DiscordEnvelopeBuilder', () => {
     };
 
     const evt = builder.build(meta, { uuid, nowIso: () => fixedNow, egressDestination: 'internal.egress.v1.proc123' });
-    expect(evt.v).toBe('1');
-    expect(evt.source).toBe('ingress.discord');
+    expect(evt.v).toBe('2');
+    expect(evt.ingress.source).toBe('ingress.discord');
     expect(evt.correlationId).toBe('u1');
     expect(evt.traceId).toBe('u2');
     expect(evt.type).toBe('chat.message.v1');
-    expect(evt.channel).toBe('c1');
-    expect(evt.userId).toBe('u42');
+    expect(evt.ingress.channel).toBe('c1');
+    expect(evt.identity.external.id).toBe('u42');
     expect(evt.egress?.destination).toBe('internal.egress.v1.proc123');
     expect(evt.egress?.type).toBe('chat');
     expect(evt.message?.id).toBe('m1');

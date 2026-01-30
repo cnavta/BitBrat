@@ -44,7 +44,7 @@ jest.mock('../../common/firebase', () => {
 });
 
 import { createApp } from '../event-router-service';
-import type { InternalEventV1 } from '../../types/events';
+import type { InternalEventV2 } from '../../types/events';
 import { INTERNAL_ROUTER_DLQ_V1, INTERNAL_USER_ENRICHED_V1 } from '../../types/events';
 import { logger } from '../../common/logging';
 
@@ -66,11 +66,23 @@ describe('event-router ingress integration', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(subscribeSubject).toBe(`dev.${INTERNAL_USER_ENRICHED_V1}`);
 
-    const evt: InternalEventV1 = {
-      envelope: { v: '1', source: 'ingress.test', correlationId: 'c-evt', routingSlip: [] },
+    const evt: InternalEventV2 = {
+      v: '2',
+      correlationId: 'c-evt',
       type: 'chat.message.v1',
+      ingress: {
+        ingressAt: '2026-01-29T22:00:00Z',
+        source: 'ingress.test',
+        channel: '#ch',
+      },
+      identity: {
+        external: {
+          id: 'u1',
+          platform: 'test',
+        }
+      },
+      egress: { destination: 'test' },
       payload: { text: 'hi' },
-      channel: '#ch',
     } as any;
 
     // simulate delivery

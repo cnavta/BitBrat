@@ -33,13 +33,20 @@ describe('TwitchIngressPublisher', () => {
     const pub = new TwitchIngressPublisher({ busPrefix: 'dev.', jitterMs: 0 });
 
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+        channel: '#ch',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch' }
+      },
       correlationId: 'c1',
       traceId: 't1',
       type: 'chat.message.v1',
-      channel: '#ch',
       message: { id: 'm1', role: 'user', text: 'hi', rawPlatformPayload: { foo: 'bar' } },
+      egress: { destination: '' }
     } as any;
 
     const res = await pub.publish(evt);
@@ -69,11 +76,13 @@ describe('TwitchIngressPublisher', () => {
 
     const pub = new TwitchIngressPublisher({ busPrefix: '', maxRetries: 3, baseDelayMs: 1, maxDelayMs: 2, jitterMs: 0 });
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
+      ingress: { ingressAt: new Date().toISOString(), source: 'ingress.twitch' },
+      identity: { external: { id: 'u1', platform: 'twitch' } },
       correlationId: 'c2',
       type: 'chat.message.v1',
       message: { id: 'm2', role: 'user', text: 'hello' },
+      egress: { destination: '' }
     } as any;
 
     const res = await pub.publish(evt);
@@ -92,11 +101,13 @@ describe('TwitchIngressPublisher', () => {
 
     const pub = new TwitchIngressPublisher({ maxRetries: 3, baseDelayMs: 1, maxDelayMs: 2, jitterMs: 0 });
     const evt: InternalEventV2 = {
-      v: '1',
-      source: 'ingress.twitch',
+      v: '2',
+      ingress: { ingressAt: new Date().toISOString(), source: 'ingress.twitch' },
+      identity: { external: { id: 'u1', platform: 'twitch' } },
       correlationId: 'c3',
       type: 'chat.message.v1',
       message: { id: 'm3', role: 'user', text: 'yo' },
+      egress: { destination: '' }
     } as any;
 
     await expect(pub.publish(evt)).rejects.toThrow(/timeout/i);

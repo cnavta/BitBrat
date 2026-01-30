@@ -16,7 +16,7 @@ class TestServer extends BaseServer {
 
 function makeEvent(partial: Partial<InternalEventV2>): InternalEventV2 {
   const base: InternalEventV2 = {
-    v: '1',
+    v: '2',
     source: 'test',
     correlationId: 'c-1',
     type: 'chat.command.v1',

@@ -184,7 +184,7 @@ describe('TwitchEventSubClient Repro', () => {
       type: 'system.stream.online',
       externalEvent: expect.objectContaining({
         createdAt: '2025-12-21T18:29:14.359Z',
-        payload: expect.objectContaining({
+        metadata: expect.objectContaining({
           startedAt: '2025-12-21T18:29:14.359Z'
         })
       })

@@ -56,11 +56,17 @@ class TestServer extends BaseServer { constructor() { super({ serviceName: 'test
 
 function baseEvt(): InternalEventV2 {
   return {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'c-userctx-append',
     type: 'llm.request.v1',
-    user: { id: 'u1', displayName: 'Alice' },
+    ingress: {
+      ingressAt: new Date().toISOString(),
+      source: 'test',
+    },
+    identity: {
+      user: { id: 'u1', displayName: 'Alice' },
+      external: { id: 'u1', platform: 'test' }
+    },
     message: { id: 'm1', role: 'user', text: 'hello', rawPlatformPayload: { username: 'Alice' } },
     routingSlip: [{ id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.finalize.v1' }],
   } as any;

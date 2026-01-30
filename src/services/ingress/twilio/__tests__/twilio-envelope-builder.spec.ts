@@ -20,13 +20,13 @@ describe('TwilioEnvelopeBuilder', () => {
 
     const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
 
-    expect(evt.v).toBe('1');
-    expect(evt.source).toBe('ingress.twilio');
+    expect(evt.v).toBe('2');
+    expect(evt.ingress.source).toBe('ingress.twilio');
     expect(evt.correlationId).toBe('u1');
     expect(evt.traceId).toBe('u2');
     expect(evt.type).toBe('chat.message.v1');
-    expect(evt.channel).toBe('CH456');
-    expect(evt.userId).toBe('+1234567890');
+    expect(evt.ingress.channel).toBe('CH456');
+    expect(evt.identity.external.id).toBe('+1234567890');
     expect(evt.message?.text).toBe('Hello from Twilio');
     expect(evt.message?.id).toBe('IM123');
     expect(evt.message?.rawPlatformPayload?.author).toBe('+1234567890');
@@ -77,7 +77,7 @@ describe('TwilioEnvelopeBuilder', () => {
     };
 
     const evt = builder.build(msg, { uuid, nowIso: () => fixedNow });
-    expect(evt.userId).toBe('unknown');
+    expect(evt.identity.external.id).toBe('unknown');
     expect(evt.message?.rawPlatformPayload?.timestamp).toBe(fixedNow);
   });
 });

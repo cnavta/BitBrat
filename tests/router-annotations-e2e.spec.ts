@@ -4,10 +4,16 @@ import type { InternalEventV2, AnnotationV1, RoutingStep } from '../src/types/ev
 
 describe('E2E (mocked evaluator) — RouterEngine annotations propagation', () => {
   const baseEvt: InternalEventV2 = {
-    v: '1',
-    source: 'test',
+    v: '2',
     correlationId: 'c-e2e-1',
     type: 'chat.command.v1',
+    ingress: {
+      ingressAt: new Date().toISOString(),
+      source: 'test',
+    },
+    identity: {
+      external: { id: 'u1', platform: 'test' }
+    },
     message: { id: 'm1', role: 'user', text: '!hello' },
     annotations: [
       { id: 'pre', kind: 'custom', source: 'pre', createdAt: '2025-01-01T00:00:00Z' },
@@ -46,7 +52,7 @@ describe('E2E (mocked evaluator) — RouterEngine annotations propagation', () =
     const step = slip[0] as RoutingStep;
     expect(step.status).toBe('PENDING');
     expect(step.attempt).toBe(0);
-    expect(step.v).toBe('1');
+    expect(step.v).toBe('2');
     expect(step.nextTopic).toBe('internal.llmbot.v1');
     expect(decision.matched).toBe(true);
     expect(decision.ruleId).toBe('r-match');
