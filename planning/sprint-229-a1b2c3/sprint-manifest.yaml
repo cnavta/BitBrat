@@ -1,0 +1,11 @@
+id: sprint-229-a1b2c3
+title: "Brat Chat Enhancements & API Gateway Egress Update"
+goal: "Enhance brat chat with color coding and dynamic user names, and update api-gateway to handle 'dm' egress."
+owner: "Junie"
+createdAt: "2026-01-29T18:04:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/143"
+  branch: "feature/sprint-229-a1b2c3-brat-chat-enhancements"
+notes: |
+  Lead Implementor role assumed. Addressing brat chat followups and api-gateway egress logic.

@@ -12,6 +12,15 @@ interface ChatOptions {
 
 const WS = WebSocket;
 
+const COLORS = {
+  reset: '\x1b[0m',
+  cyan: '\x1b[36m',
+  green: '\x1b[32m',
+  red: '\x1b[31m',
+  yellow: '\x1b[33m',
+  gray: '\x1b[90m'
+};
+
 export async function cmdChat(flags: any) {
   const env = flags.env || process.env.BITBRAT_ENV || 'local';
   const projectId = flags.projectId || process.env.PROJECT_ID || 'twitch-452523';
@@ -25,6 +34,7 @@ class ChatController {
   private ws: any = null;
   private rl: readline.Interface | null = null;
   private token: string | null = null;
+  private name: string | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
@@ -36,9 +46,13 @@ class ChatController {
     console.log(`\n--- BitBrat Chat CLI (${this.options.env}) ---`);
     
     try {
+      if (process.env.NODE_ENV !== 'test') {
+        this.name = await this.promptForName();
+      }
+
       this.token = this.resolveToken();
       if (!this.token) {
-        console.error('Error: No API token found. Please set BITBRAT_API_TOKEN or create a .bitbrat.json file.');
+        console.error(`${COLORS.red}Error: No API token found. Please set BITBRAT_API_TOKEN or create a .bitbrat.json file.${COLORS.reset}`);
         process.exit(1);
       }
 
@@ -56,9 +70,23 @@ class ChatController {
         this.setupTerminal();
       }
     } catch (err: any) {
-      console.error(`Initialization error: ${err.message}`);
+      console.error(`${COLORS.red}Initialization error: ${err.message}${COLORS.reset}`);
       process.exit(1);
     }
+  }
+
+  private async promptForName(): Promise<string> {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    return new Promise((resolve) => {
+      rl.question('Enter your name: ', (answer) => {
+        rl.close();
+        resolve(answer.trim() || 'anonymous');
+      });
+    });
   }
 
   private resolveToken(): string | null {
@@ -80,19 +108,25 @@ class ChatController {
   }
 
   private resolveUrl(): string {
+    let url = '';
     if (this.options.url) {
-      return this.options.url;
-    }
-    const { env } = this.options;
-    if (env === 'local') {
-      return 'ws://localhost:3001/ws/v1';
-    }
-    
-    if (env === 'prod') {
-      return 'wss://api.bitbrat.ai/ws/v1';
+      url = this.options.url;
+    } else {
+      const { env } = this.options;
+      if (env === 'local') {
+        url = 'ws://localhost:3001/ws/v1';
+      } else if (env === 'prod') {
+        url = 'wss://api.bitbrat.ai/ws/v1';
+      } else {
+        url = `wss://api.${env}.bitbrat.ai/ws/v1`;
+      }
     }
 
-    return `wss://api.${env}.bitbrat.ai/ws/v1`;
+    if (this.name) {
+      const separator = url.includes('?') ? '&' : '?';
+      url += `${separator}userId=brat-chat:${encodeURIComponent(this.name)}`;
+    }
+    return url;
   }
 
   private setupWebSocket() {
@@ -198,16 +232,19 @@ class ChatController {
 
   private handleIncomingFrame(frame: any) {
     if (frame.type === 'connection.ready') {
-      console.log(`Session ready. User ID: ${frame.payload.user_id}`);
+      console.log(`${COLORS.gray}Session ready. User ID: ${frame.payload.user_id}${COLORS.reset}`);
     } else if (frame.type === 'chat.message.received') {
-      const source = frame.payload.source || 'platform';
-      const text = frame.payload.text || '';
-      process.stdout.write(`\r[${source}] ${text}\n`);
+      const source = frame.metadata?.source || frame.payload?.source || 'platform';
+      const text = frame.payload?.text || '';
+      const isUser = source === 'api-gateway';
+      const color = isUser ? COLORS.cyan : COLORS.green;
+      const label = isUser ? 'You' : source;
+      process.stdout.write(`\r${color}[${label}]${COLORS.reset} ${text}\n`);
     } else if (frame.type === 'chat.error') {
-      process.stdout.write(`\r[Platform Error] ${frame.payload.message}\n`);
+      process.stdout.write(`\r${COLORS.red}[Platform Error] ${frame.payload.message}${COLORS.reset}\n`);
     } else {
       // Generic output for other types
-      process.stdout.write(`\r[${frame.type}] ${JSON.stringify(frame.payload)}\n`);
+      process.stdout.write(`\r${COLORS.yellow}[${frame.type}]${COLORS.reset} ${JSON.stringify(frame.payload)}\n`);
     }
     this.rl?.prompt();
   }
