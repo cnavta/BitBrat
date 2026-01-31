@@ -305,9 +305,9 @@ export async function processEvent(
             inputSchema: tool.inputSchema,
             execute: tool.execute ? async (args: any) => {
               try {
-                logger.debug(`llm_bot.tool_call.${name}`, { tool: tool.id, args});
+                logger.debug(`llm_bot.tool_call.${name}`, { tool: tool.id});
                 const resp = await tool.execute!(args, toolContext);
-                logger?.debug(`llm_bot.tool_call.${name}.success`, { tool: tool.id, resp });
+                logger?.debug(`llm_bot.tool_call.${name}.success`, { tool: tool.id });
                 return resp;
               } catch (e: any) {
                 logger.error('llm_bot.tool_error', { tool: tool.id, error: e.message });
