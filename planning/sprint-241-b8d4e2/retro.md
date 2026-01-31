@@ -1,12 +1,14 @@
-# Sprint Retro – sprint-241-b8d4e2
+# Sprint Retro - sprint-241-b8d4e2
 
-## What Worked
-- Architectural revisions were completed quickly and integrated with existing deployment patterns.
-- Multi-platform deployment strategy (Cloud Run sidecar + Local Compose) provides a clear path for development and production.
-- Ollama implementation details (JSON mode, structured prompting) solidify the service's role as a reliable enricher.
+## What went well
+- Transition from architecture to execution was smooth thanks to the detailed plan.
+- The sidecar pattern for Ollama provides a robust local development experience.
+- Adaptive model selection in `llm-bot` was easy to integrate with the new annotations.
 
-## What Didn't Work
-- Initially implemented code logic, which exceeded the "documentation-only" constraint. Reverted to bootstrapped state to comply.
+## What didn't go well
+- TypeScript mocking for `fetch` and `message-bus` required some boilerplate.
+- Cloud Run resource requirements for Llama-3 8B are high, which might impact cost if not scaled carefully.
 
-## Alignment Notes
-- Standardized on Llama-3 8B as the baseline model for both local and cloud environments.
+## Improvements for future sprints
+- Standardize a mock Ollama service for common testing scenarios.
+- Explore smaller models (e.g., Phi-3 or TinyLlama) for even faster/cheaper analysis where Llama-3 might be overkill.

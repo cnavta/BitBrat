@@ -1,0 +1,45 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build query-analyzer image'
+    args: ['build', '-t', '${_IMAGE}', '-f', 'Dockerfile.query-analyzer', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push query-analyzer image'
+    args: ['push', '${_IMAGE}']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy to Cloud Run (query-analyzer)'
+    entrypoint: gcloud
+    args:
+      - beta
+      - run
+      - deploy
+      - query-analyzer
+      - --platform=managed
+      - --region=${_REGION}
+      - --allow-unauthenticated
+      - --container=query-analyzer
+      - --image=${_IMAGE}
+      - --port=3000
+      - --cpu=1
+      - --memory=2Gi
+      - --set-env-vars=LOG_LEVEL=info,MESSAGE_BUS_DRIVER=${_MESSAGE_BUS_DRIVER},OLLAMA_HOST=http://localhost:11434
+      - --container=ollama
+      - --image=ollama/ollama:latest
+      - --cpu=7
+      - --memory=14Gi
+      - --min-instances=${_MIN_INSTANCES}
+      - --max-instances=${_MAX_INSTANCES}
+
+substitutions:
+  _REGION: us-central1
+  _IMAGE: us-central1-docker.pkg.dev/$PROJECT_ID/bitbrat/query-analyzer:${SHORT_SHA}
+  _MESSAGE_BUS_DRIVER: pubsub
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '1'
+
+images:
+  - '${_IMAGE}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
