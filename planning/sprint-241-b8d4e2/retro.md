@@ -4,6 +4,7 @@
 - Transition from architecture to execution was smooth thanks to the detailed plan.
 - The sidecar pattern for Ollama provides a robust local development experience.
 - Adaptive model selection in `llm-bot` was easy to integrate with the new annotations.
+- Comprehensive documentation and runbooks provide clear guidance for operation and troubleshooting.
 
 ## What didn't go well
 - TypeScript mocking for `fetch` and `message-bus` required some boilerplate.

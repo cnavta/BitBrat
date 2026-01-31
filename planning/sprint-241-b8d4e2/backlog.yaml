@@ -100,16 +100,35 @@ items:
     updated_at: 2026-01-31
     log: []
 
-  - id: QA-007
-    title: "Multi-Container Cloud Run Configuration"
+  - id: QA-008
+    title: "Ollama Model Initialization & Resiliency"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-002]
+    blocked_reason: null
+    acceptance:
+      - "Service supports OLLAMA_MODEL env var"
+      - "Error logging includes model name and response body"
+      - "Documentation updated with model pull instructions"
+    updated_at: 2026-01-31
+    log:
+      - at: 2026-01-31T20:50:00Z
+        note: "Normalized model name to 'llama3' and improved error logging."
+
+  - id: QA-009
+    title: "Service Documentation & Runbook"
     priority: P2
     status: done
     effort: S
     owner: agent
-    deps: [QA-001]
+    deps: [QA-006]
     blocked_reason: null
     acceptance:
-      - "cloudbuild.query-analyzer.yaml supports sidecars"
-      - "Memory/CPU resources meet Llama-3 8B requirements"
+      - "Service documentation exists in documentation/services"
+      - "Runbook exists in documentation/runbooks"
     updated_at: 2026-01-31
-    log: []
+    log:
+      - at: 2026-01-31T20:58:00Z
+        note: "Created documentation/services/query-analyzer.md and documentation/runbooks/query-analyzer.md."

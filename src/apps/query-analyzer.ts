@@ -37,12 +37,13 @@ class QueryAnalyzerServer extends BaseServer {
 
   private async analyzeQuery(text: string): Promise<OllamaAnalysis | null> {
     const url = `${OLLAMA_HOST}/api/generate`;
+    const model = process.env.OLLAMA_MODEL || 'llama3';
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'llama3:8b',
+          model,
           prompt: text,
           system: SYSTEM_PROMPT,
           stream: false,
@@ -54,13 +55,14 @@ class QueryAnalyzerServer extends BaseServer {
       });
 
       if (!response.ok) {
-        throw new Error(`Ollama error: ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        throw new Error(`Ollama error: ${response.statusText} ${errorBody}`);
       }
 
       const data = await response.json() as { response: string };
       return JSON.parse(data.response) as OllamaAnalysis;
     } catch (e: any) {
-      this.getLogger().error('query-analyzer.ollama_error', { error: e.message, text });
+      this.getLogger().error('query-analyzer.ollama_error', { error: e.message, text, model });
       return null;
     }
   }
