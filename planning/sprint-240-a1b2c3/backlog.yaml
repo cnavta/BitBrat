@@ -1,0 +1,49 @@
+sprintId: sprint-240-a1b2c3
+tasks:
+  - id: T1
+    title: "Enhance McpStatsCollector with errorRate and latency metrics"
+    priority: high
+    status: complete
+    estimate: 1h
+    assignee: "Lead Implementor"
+    description: "Add errorRate and ensure min/max/avg latency are correctly tracked and reported."
+
+  - id: T2
+    title: "Capture personality names in processor.ts"
+    priority: medium
+    status: complete
+    estimate: 0.5h
+    assignee: "Lead Implementor"
+    description: "Extract names from resolved personality parts for later logging."
+
+  - id: T3
+    title: "Extract toolCalls and toolResults from generateText"
+    priority: high
+    status: complete
+    estimate: 1h
+    assignee: "Lead Implementor"
+    description: "Capture the multi-step tool interactions from the AI SDK result."
+
+  - id: T4
+    title: "Update prompt_logs Firestore entry with expanded schema"
+    priority: high
+    status: complete
+    estimate: 1h
+    assignee: "Lead Implementor"
+    description: "Write personalityName and toolCalls to Firestore, including redaction."
+
+  - id: T5
+    title: "Implement/Update tests for MCP visibility"
+    priority: medium
+    status: complete
+    estimate: 1h
+    assignee: "Quality Lead"
+    description: "Verify that tool calls and personality names are correctly recorded in mock Firestore."
+
+  - id: T6
+    title: "Finalize sprint artifacts"
+    priority: low
+    status: complete
+    estimate: 0.5h
+    assignee: "Lead Implementor"
+    description: "Create verification report, retro, and PR."

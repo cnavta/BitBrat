@@ -1,6 +1,7 @@
 export interface ToolStats {
   invocations: number;
   errors: number;
+  errorRate: number;
   avgLatencyMs: number;
   lastUsed?: string;
   lastResponseSize?: number;
@@ -16,6 +17,7 @@ export interface ServerStats {
   uptime?: string;
   totalInvocations: number;
   totalErrors: number;
+  errorRate: number;
   avgLatencyMs: number;
   lastUsed?: string;
   discoveryCount: number;
@@ -73,6 +75,7 @@ export class McpStatsCollector {
     const tStats = this.toolStats.get(toolId) || this.createDefaultToolStats();
     tStats.invocations++;
     if (error) tStats.errors++;
+    tStats.errorRate = Number((tStats.errors / tStats.invocations).toFixed(4));
     tStats.totalLatencyMs += durationMs;
     tStats.avgLatencyMs = Math.round(tStats.totalLatencyMs / tStats.invocations);
     tStats.minLatencyMs = Math.min(tStats.minLatencyMs, durationMs);
@@ -85,6 +88,7 @@ export class McpStatsCollector {
     const sStats = this.serverStats.get(serverName) || this.createDefaultServerStats();
     sStats.totalInvocations++;
     if (error) sStats.totalErrors++;
+    sStats.errorRate = Number((sStats.totalErrors / sStats.totalInvocations).toFixed(4));
     // We could track total server latency too, but architecture showed it as avg.
     // Let's keep it simple and just update based on invocations.
     // Re-calculating avg server latency is a bit tricky if we don't store total latency at server level.
@@ -106,6 +110,7 @@ export class McpStatsCollector {
       status: 'disconnected',
       totalInvocations: 0,
       totalErrors: 0,
+      errorRate: 0,
       avgLatencyMs: 0,
       discoveryCount: 0,
       discoveryTimeMs: 0,
@@ -117,6 +122,7 @@ export class McpStatsCollector {
     return {
       invocations: 0,
       errors: 0,
+      errorRate: 0,
       avgLatencyMs: 0,
       totalLatencyMs: 0,
       minLatencyMs: Infinity,
