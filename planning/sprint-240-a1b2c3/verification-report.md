@@ -6,10 +6,12 @@
 - [x] **Error Tracking**: Tool errors are captured in the `toolCalls` array within `prompt_logs`.
 - [x] **Debug Endpoint Enhancements**: `/_debug/mcp` now includes `errorRate` and consistent latency metrics for tools and servers.
 - [x] **Redaction**: All tool results logged to Firestore are passed through `redactText`.
+- [x] **Fallback for Non-Text Tool Results**: MCP tools returning non-textual or complex content now have their full result logged to Firestore as a stringified object, instead of an empty string.
 
 ## Tests
 - `tests/services/llm-bot/mcp-visibility.test.ts`: Verified personality names and tool calls/results/errors logging.
 - `tests/services/llm-bot/mcp-stats.test.ts`: Verified `errorRate` and latency calculations in `McpStatsCollector`.
+- Manual verification with reproduction test (complex/non-text results are correctly captured and stringified).
 - All `src/services/llm-bot` tests passed (19 suites).
 
 ## Alignment Notes
