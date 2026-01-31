@@ -3,7 +3,7 @@ title: "Brat Setup Auto Port"
 goal: "Automate setting the API_GATEWAY_HOST_PORT during the brat setup process."
 owner: "Junie"
 createdAt: "2026-01-30T12:25:00Z"
-status: planning
+status: "complete"
 links:
   branch: "feature/sprint-234-c1d2e3-setup-auto-port"
 notes: |

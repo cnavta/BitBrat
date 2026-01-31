@@ -3,7 +3,7 @@ title: "Update Platform Documentation"
 goal: "Update README.md and documentation to include 'brat setup' and 'brat chat' features."
 owner: "Junie"
 createdAt: "2026-01-30T15:15:00Z"
-status: "verifying"
+status: "complete"
 links:
   branch: "feature/sprint-239-a7b8c9-update-documentation"
 notes: |

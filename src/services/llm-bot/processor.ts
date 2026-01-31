@@ -213,6 +213,7 @@ export async function processEvent(
     });
     let resolvedIdentity: string | undefined;
     let resolvedConstraints: any[] | undefined;
+    let resolvedPersonalityNames: string[] = [];
 
     if (personalitiesEnabled) {
       try {
@@ -229,6 +230,7 @@ export async function processEvent(
         };
         const parts = await resolvePersonalityParts(anns as any, opts, { fetchByName, logger });
         resolvedIdentity = parts.map((p: any) => p.text || p.payload?.text || p.summary || p.name).filter(Boolean).join('\n\n');
+        resolvedPersonalityNames = parts.map(p => p.name).filter((n): n is string => !!n);
         // Simple constraint extraction heuristic
         resolvedConstraints = [];
         for (const p of parts) {
@@ -336,9 +338,25 @@ export async function processEvent(
         abortSignal: AbortSignal.timeout(timeoutMs),
       });
 
+      // Aggregate tool calls and results from all steps for complete logging
+      const steps = result.steps || [];
+      const allToolCalls = steps.length > 0 
+        ? steps.flatMap(s => s.toolCalls || [])
+        : (result.toolCalls || []);
+      const allToolResults = steps.length > 0
+        ? steps.flatMap(s => s.toolResults || [])
+        : (result.toolResults || []);
+
       logger.debug('llm_bot.generate_text.finish', { 
-        textPreview: preview(result.text)
+        textPreview: preview(result.text),
+        steps: result.steps?.length || 0,
+        toolCalls: allToolCalls.length,
+        toolResults: allToolResults.length
       });
+
+      // Capture aggregated tool calls/results for logging
+      (evt as any)._lastToolCalls = allToolCalls;
+      (evt as any)._lastToolResults = allToolResults;
 
       finalResponse = result.text;
     }
@@ -350,11 +368,36 @@ export async function processEvent(
     if (isFeatureEnabled('llm.promptLogging.enabled')) {
       const fullPrompt = payload.messages.map((m: any) => `(${m.role}) ${m.content}`).join('\n\n');
       const db = getFirestore();
+      
+      const toolLogs = ((evt as any)._lastToolCalls || []).map((call: any) => {
+        const matchingResult = ((evt as any)._lastToolResults || []).find((r: any) => r.toolCallId === call.toolCallId);
+        let resultStr = '';
+        if (matchingResult) {
+          if (typeof matchingResult.result === 'string') {
+            resultStr = matchingResult.result;
+          } else {
+            try {
+              resultStr = JSON.stringify(matchingResult.result);
+            } catch (e) {
+              resultStr = String(matchingResult.result);
+            }
+          }
+        }
+        return {
+          tool: call.toolName,
+          args: call.args,
+          result: matchingResult ? redactText(resultStr) : undefined,
+          error: matchingResult?.error ? String(matchingResult.error) : undefined,
+        };
+      });
+
       db.collection('prompt_logs').add({
         correlationId: corr,
         prompt: redactText(fullPrompt),
         response: redactText(finalResponse),
         model: modelName,
+        personalityNames: resolvedPersonalityNames,
+        toolCalls: toolLogs,
         createdAt: new Date(),
       }).catch((e: any) => {
         logger?.warn?.('llm_bot.prompt_logging_failed', { correlationId: corr, error: e?.message });
