@@ -11,3 +11,4 @@ notes: |
   Logging tool invocations, prompts, messages, and errors to prompt_logs collection.
   Adding personality name to prompt_logs.
   Enhancing /_debug/mcp endpoint with tool usage and error rates.
+  Fixed empty tool results in logs by providing robust fallback in McpBridge for empty or whitespace-only results.
