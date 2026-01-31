@@ -373,7 +373,7 @@ export async function processEvent(
         const matchingResult = ((evt as any)._lastToolResults || []).find((r: any) => r.toolCallId === call.toolCallId);
         
         const stringify = (val: any) => {
-          if (val === undefined || val === null) return '';
+          if (val === undefined || val === null) return undefined;
           if (typeof val === 'string') return val;
           try {
             return JSON.stringify(val);
@@ -382,10 +382,13 @@ export async function processEvent(
           }
         };
 
+        const rawArgs = stringify(call.args);
+        const rawResult = matchingResult ? stringify(matchingResult.result) : undefined;
+
         return {
           tool: call.toolName,
-          args: redactText(stringify(call.args)),
-          result: matchingResult ? redactText(stringify(matchingResult.result)) : undefined,
+          args: rawArgs ? redactText(rawArgs) : '',
+          result: rawResult ? redactText(rawResult) : '',
           error: matchingResult?.error ? String(matchingResult.error) : undefined,
         };
       });
