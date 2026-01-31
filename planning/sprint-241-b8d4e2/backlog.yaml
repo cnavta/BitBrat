@@ -1,0 +1,134 @@
+meta:
+  backlog_id: query-analyzer-implementation
+  updated_at: 2026-01-31
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-241-b8d4e2
+  start: 2026-01-31
+  end: 2026-02-14
+  wip_limit: 3
+  goal: "Implement and validate the Query Analyzer service with Ollama sidecar integration."
+
+items:
+  - id: QA-001
+    title: "Service Scaffolding & Env Configuration"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "OLLAMA_HOST env var is supported"
+      - "Dockerfile.query-analyzer builds successfully"
+      - "Local compose environment starts both containers"
+    updated_at: 2026-01-31
+    log: []
+
+  - id: QA-002
+    title: "Ollama HTTP Client Implementation"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-001]
+    blocked_reason: null
+    acceptance:
+      - "Client can communicate with Ollama /api/generate"
+      - "JSON mode is enabled in the request"
+      - "System prompt matches the technical architecture"
+    updated_at: 2026-01-31
+    log: []
+
+  - id: QA-003
+    title: "Event Enrichment Logic"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-002]
+    blocked_reason: null
+    acceptance:
+      - "Consumes from internal.query.analysis.v1"
+      - "Produces annotations for intent, tone, and risk"
+      - "Preserves correlationId and traceId"
+    updated_at: 2026-01-31
+    log: []
+
+  - id: QA-004
+    title: "Routing Logic & Short-Circuiting"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-003]
+    blocked_reason: null
+    acceptance:
+      - "Calls this.complete() for spam or trivial queries"
+      - "Calls this.next() for complex queries"
+      - "Routing slip is correctly updated/bypassed"
+    updated_at: 2026-01-31
+    log: []
+
+  - id: QA-005
+    title: "Adaptive Model Selection in LLM Bot"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-003]
+    blocked_reason: null
+    acceptance:
+      - "llm-bot reads pre-analysis annotations"
+      - "Selects model based on complexity score"
+    updated_at: 2026-01-31
+    log: []
+
+  - id: QA-006
+    title: "Validation Suite & CI Tests"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-004]
+    blocked_reason: null
+    acceptance:
+      - "Unit tests for analyzer logic exist"
+      - "Integration tests with Mock Ollama pass"
+      - "validate_deliverable.sh is updated and green"
+    updated_at: 2026-01-31
+    log: []
+
+  - id: QA-008
+    title: "Ollama Model Initialization & Resiliency"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-002]
+    blocked_reason: null
+    acceptance:
+      - "Service supports OLLAMA_MODEL env var"
+      - "Error logging includes model name and response body"
+      - "Documentation updated with model pull instructions"
+    updated_at: 2026-01-31
+    log:
+      - at: 2026-01-31T20:50:00Z
+        note: "Normalized model name to 'llama3' and improved error logging."
+
+  - id: QA-009
+    title: "Service Documentation & Runbook"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-006]
+    blocked_reason: null
+    acceptance:
+      - "Service documentation exists in documentation/services"
+      - "Runbook exists in documentation/runbooks"
+    updated_at: 2026-01-31
+    log:
+      - at: 2026-01-31T20:58:00Z
+        note: "Created documentation/services/query-analyzer.md and documentation/runbooks/query-analyzer.md."
