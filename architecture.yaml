@@ -210,6 +210,12 @@ services:
     topics:
       consumes:
         - internal.query.analysis.v1
+    env:
+      - LLM_PROVIDER
+      - LLM_MODEL
+      - OLLAMA_HOST
+    secrets:
+      - OPENAI_API_KEY
 
 infrastructure:
   target: gcp
