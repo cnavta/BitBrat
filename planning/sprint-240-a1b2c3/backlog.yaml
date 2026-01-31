@@ -3,7 +3,7 @@ tasks:
   - id: T1
     title: "Enhance McpStatsCollector with errorRate and latency metrics"
     priority: high
-    status: todo
+    status: complete
     estimate: 1h
     assignee: "Lead Implementor"
     description: "Add errorRate and ensure min/max/avg latency are correctly tracked and reported."
@@ -11,7 +11,7 @@ tasks:
   - id: T2
     title: "Capture personality names in processor.ts"
     priority: medium
-    status: todo
+    status: complete
     estimate: 0.5h
     assignee: "Lead Implementor"
     description: "Extract names from resolved personality parts for later logging."
@@ -19,7 +19,7 @@ tasks:
   - id: T3
     title: "Extract toolCalls and toolResults from generateText"
     priority: high
-    status: todo
+    status: complete
     estimate: 1h
     assignee: "Lead Implementor"
     description: "Capture the multi-step tool interactions from the AI SDK result."
@@ -27,7 +27,7 @@ tasks:
   - id: T4
     title: "Update prompt_logs Firestore entry with expanded schema"
     priority: high
-    status: todo
+    status: complete
     estimate: 1h
     assignee: "Lead Implementor"
     description: "Write personalityName and toolCalls to Firestore, including redaction."
@@ -35,7 +35,7 @@ tasks:
   - id: T5
     title: "Implement/Update tests for MCP visibility"
     priority: medium
-    status: todo
+    status: complete
     estimate: 1h
     assignee: "Quality Lead"
     description: "Verify that tool calls and personality names are correctly recorded in mock Firestore."

@@ -5,7 +5,7 @@ owner: "Junie"
 createdAt: "2026-01-31T10:37:00Z"
 status: "complete"
 links:
-  pr: "https://github.com/BitBratPlatform/BitBratPlatform/pull/240"
+  pr: "https://github.com/cnavta/BitBrat/pull/154"
   branch: "feature/sprint-240-a1b2c3-mcp-visibility"
 notes: |
   Logging tool invocations, prompts, messages, and errors to prompt_logs collection.
