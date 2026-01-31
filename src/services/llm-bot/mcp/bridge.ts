@@ -57,14 +57,17 @@ export class McpBridge {
             .map((c: any) => c.text);
 
           if (textParts.length > 0) {
-            const response = textParts.join('\n');
-            responseSize = Buffer.byteLength(response, 'utf8');
-            return response;
+            const response = textParts.join('\n').trim();
+            if (response.length > 0) {
+              responseSize = Buffer.byteLength(response, 'utf8');
+              return response;
+            }
           }
 
-          // Fallback: If no text content, return the whole content object so it gets logged in prompt_logs
-          responseSize = Buffer.byteLength(JSON.stringify(result.content), 'utf8');
-          return result.content;
+          // Fallback: If no text content (or only empty text parts), return the whole content object so it gets logged in prompt_logs
+          const fallback = result.content;
+          responseSize = Buffer.byteLength(JSON.stringify(fallback), 'utf8');
+          return fallback;
         } catch (e) {
           error = true;
           throw e;
