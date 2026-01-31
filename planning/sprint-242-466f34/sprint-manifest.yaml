@@ -1,0 +1,11 @@
+id: sprint-242-466f34
+title: "Query Analyzer LLM Abstraction Layer"
+goal: "Introduce an abstraction layer for LLM providers in query-analyzer, supporting Ollama and OpenAI (gpt-4o-mini)."
+owner: "Junie"
+createdAt: "2026-01-31T18:41:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-242-466f34-query-analyzer-abstraction"
+notes: |
+  We will evaluate Vercel AI SDK as the preferred framework for abstraction.
+  Goal is to swap between Ollama and OpenAI mini models easily.
