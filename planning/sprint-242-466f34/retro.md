@@ -4,6 +4,7 @@
 - The Vercel AI SDK provides a very clean abstraction for switching between Ollama and OpenAI.
 - Structured output via `generateObject` significantly simplifies the code by removing manual JSON parsing and providing type safety (via Zod).
 - The implementation plan was accurate and followed closely.
+- Documentation was updated to provide clear guidance on the new configuration options.
 
 ## What Didn't Work
 - Initial package name `@ai-sdk/ollama` from the TA was not available; switched to `ai-sdk-ollama`.
