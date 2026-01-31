@@ -72,10 +72,10 @@ describe('llm-bot processor — MCP Visibility', () => {
     (generateText as jest.Mock).mockResolvedValue({
       text: 'Final response',
       toolCalls: [
-        { toolCallId: 'tc1', toolName: 'mcp:get_weather', args: { city: 'Berlin' } }
+        { toolCallId: 'tc1', toolName: 'mcp:get_weather', input: { city: 'Berlin' } }
       ],
       toolResults: [
-        { toolCallId: 'tc1', toolName: 'mcp:get_weather', args: { city: 'Berlin' }, result: 'Sunny, 25°C' }
+        { toolCallId: 'tc1', toolName: 'mcp:get_weather', input: { city: 'Berlin' }, output: 'Sunny, 25°C' }
       ]
     });
 
@@ -100,10 +100,10 @@ describe('llm-bot processor — MCP Visibility', () => {
     (generateText as jest.Mock).mockResolvedValue({
       text: 'Error occurred',
       toolCalls: [
-        { toolCallId: 'tc2', toolName: 'mcp:faulty_tool', args: {} }
+        { toolCallId: 'tc2', toolName: 'mcp:faulty_tool', input: {} }
       ],
       toolResults: [
-        { toolCallId: 'tc2', toolName: 'mcp:faulty_tool', args: {}, error: 'Tool failed intentionally' }
+        { toolCallId: 'tc2', toolName: 'mcp:faulty_tool', input: {}, error: 'Tool failed intentionally' }
       ]
     });
 
