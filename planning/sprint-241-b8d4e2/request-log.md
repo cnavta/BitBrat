@@ -37,3 +37,12 @@
   - Used `gpt-4o` for questions/commands and `gpt-4o-mini` for other intents in LLM Bot.
   - Implemented sidecar deployment in Cloud Build using `beta run deploy` with multiple containers.
   - Verified logic with mocked Ollama API in tests.
+
+## [2026-01-31 20:55] - Documentation & Runbook
+- **Prompt Summary**: Create basic documentation and a runbook for the newly implemented query-analyzer.
+- **Interpretation**: Creating operational and architectural documentation to ensure the service can be maintained and deployed reliably.
+- **Files Created**:
+  - `documentation/services/query-analyzer.md`
+  - `documentation/runbooks/query-analyzer.md`
+- **Key Decisions**:
+  - Split content between architectural/functional documentation and operational/troubleshooting runbook.

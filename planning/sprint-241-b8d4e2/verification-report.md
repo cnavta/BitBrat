@@ -6,6 +6,7 @@
 - [x] Unit/Integration tests for analyzer logic (`src/apps/query-analyzer.test.ts`)
 - [x] Multi-container Cloud Build config (`cloudbuild.query-analyzer.yaml`)
 - [x] Local development sidecar config (`infrastructure/docker-compose/services/query-analyzer.compose.yaml`)
+- [x] Service documentation and operational runbook
 
 ## Partial
 - None

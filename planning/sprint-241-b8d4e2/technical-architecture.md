@@ -51,7 +51,7 @@ The `query-analyzer` service uses the `/api/generate` or `/api/chat` endpoint:
 - **Body**:
   ```json
   {
-    "model": "llama3:8b",
+    "model": "llama3",
     "prompt": "<user_message>",
     "system": "<system_prompt>",
     "stream": false,
@@ -74,7 +74,7 @@ In Google Cloud Run, multiple containers are supported within a single revision.
 - **Resource Allocation**:
   - The sidecar requires significantly more memory/CPU for Llama-3 8B.
   - Recommend: 8 vCPUs and 16GiB Memory for the Revision (shared).
-- **Model Pre-loading**: To avoid cold-start delays, the `Dockerfile.query-analyzer` (or a custom Ollama image) should bake the model into the image or use a startup script to pull it.
+- **Model Pre-loading**: To avoid cold-start delays and runtime errors, models must be available in the Ollama instance. For local development, run `docker exec ollama ollama pull llama3`. For production, consider baking the model into a custom Ollama image or using a startup script to pull it.
 
 ### 2. Local Docker Compose Implementation
 For local development, the sidecar is simulated as a linked service in `infrastructure/docker-compose/services/query-analyzer.compose.yaml`.
