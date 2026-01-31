@@ -305,7 +305,10 @@ export async function processEvent(
             inputSchema: tool.inputSchema,
             execute: tool.execute ? async (args: any) => {
               try {
-                return await tool.execute!(args, toolContext);
+                logger.debug(`llm_bot.tool_call.${name}`, { tool: tool.id, args});
+                const resp = await tool.execute!(args, toolContext);
+                logger?.debug(`llm_bot.tool_call.${name}.success`, { tool: tool.id, resp });
+                return resp;
               } catch (e: any) {
                 logger.error('llm_bot.tool_error', { tool: tool.id, error: e.message });
                 if (!Array.isArray(evt.errors)) evt.errors = [];
@@ -382,8 +385,8 @@ export async function processEvent(
           }
         };
 
-        const rawArgs = stringify(call.args);
-        const rawResult = matchingResult ? stringify(matchingResult.result) : undefined;
+        const rawArgs = stringify(call.args ?? (call as any).input);
+        const rawResult = matchingResult ? stringify(matchingResult.result ?? (matchingResult as any).output) : undefined;
 
         return {
           tool: call.toolName,

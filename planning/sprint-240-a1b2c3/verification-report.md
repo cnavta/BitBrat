@@ -9,7 +9,7 @@
 - [x] **Redaction**: All tool results logged to Firestore are passed through `redactText`.
 - [x] **Fallback for Non-Text Tool Results**: MCP tools returning non-textual or complex content now have their full result logged to Firestore as a stringified object, instead of an empty string.
 - [x] **Whitespace Handling in Tool Results**: Improved `McpBridge` to treat whitespace-only text parts as empty, triggering the fallback to the full content object for better visibility.
-- [x] **Robust Stringification**: Refined the `stringify` and `redactText` flow in `processor.ts` to ensure that `args` and `result` are always logged as strings (defaulting to `''` if missing) and never silently omitted.
+- [x] **Robust Stringification and Property Handling**: Refined the `stringify` and `redactText` flow in `processor.ts` to ensure that `args`/`input` and `result`/`output` are always captured, stringified, and logged as redacted strings (defaulting to `''` if missing). This resolves issues where blank fields were appearing due to property name mismatches in the AI SDK.
 
 ## Tests
 - `tests/services/llm-bot/mcp-visibility.test.ts`: Verified personality names and tool calls/results/args/errors logging.
