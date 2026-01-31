@@ -35,4 +35,44 @@ describe('llm-bot processor', () => {
     expect(Array.isArray(evt.candidates)).toBe(true);
     expect(evt.candidates![0].text).toContain('Hi');
   });
+
+  test('Adaptive Model Selection: selects gpt-4o for questions', async () => {
+    const server = new TestServer();
+    const evt = baseEvt();
+    evt.annotations = [
+      { id: 'a1', kind: 'prompt', source: 'test', createdAt: new Date().toISOString(), value: 'Answer this' },
+      { id: 'a2', kind: 'intent', source: 'query-analyzer', createdAt: new Date().toISOString(), label: 'question' },
+    ] as any;
+
+    let selectedModel = '';
+    const status = await processEvent(server, evt, {
+      callLLM: async (model) => {
+        selectedModel = model;
+        return 'The answer is 42.';
+      }
+    });
+
+    expect(status).toBe('OK');
+    expect(selectedModel).toBe('gpt-4o');
+  });
+
+  test('Adaptive Model Selection: selects gpt-4o-mini for jokes', async () => {
+    const server = new TestServer();
+    const evt = baseEvt();
+    evt.annotations = [
+      { id: 'a1', kind: 'prompt', source: 'test', createdAt: new Date().toISOString(), value: 'Tell a joke' },
+      { id: 'a2', kind: 'intent', source: 'query-analyzer', createdAt: new Date().toISOString(), label: 'joke' },
+    ] as any;
+
+    let selectedModel = '';
+    const status = await processEvent(server, evt, {
+      callLLM: async (model) => {
+        selectedModel = model;
+        return 'Why did the chicken cross the road?';
+      }
+    });
+
+    expect(status).toBe('OK');
+    expect(selectedModel).toBe('gpt-4o-mini');
+  });
 });

@@ -204,6 +204,13 @@ services:
         - internal.api.egress.v1.{instanceId}
         - internal.egress.v1
 
+  query-analyzer:
+    description: Executes fast, efficient pre-analysis of incoming events to better route and respond
+    entry: src/apps/query-analyzer.ts
+    topics:
+      consumes:
+        - internal.query.analysis.v1
+
 infrastructure:
   target: gcp
   resources:

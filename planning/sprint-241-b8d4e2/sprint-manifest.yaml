@@ -1,0 +1,10 @@
+id: sprint-241-b8d4e2
+title: "Query Analyzer Service Implementation"
+goal: "Implement and validate the Query Analyzer service with Ollama sidecar integration, including adaptive model selection and documentation."
+owner: "Junie"
+createdAt: "2026-01-31T14:36:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-241-b8d4e2-query-analyzer-setup"
+notes: |
+  Starting with discovery and architectural refinement. The goal is to move from a conceptual proposal to a concrete implementation plan.
