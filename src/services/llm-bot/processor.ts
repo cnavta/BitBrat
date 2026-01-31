@@ -371,22 +371,21 @@ export async function processEvent(
       
       const toolLogs = ((evt as any)._lastToolCalls || []).map((call: any) => {
         const matchingResult = ((evt as any)._lastToolResults || []).find((r: any) => r.toolCallId === call.toolCallId);
-        let resultStr = '';
-        if (matchingResult) {
-          if (typeof matchingResult.result === 'string') {
-            resultStr = matchingResult.result;
-          } else {
-            try {
-              resultStr = JSON.stringify(matchingResult.result);
-            } catch (e) {
-              resultStr = String(matchingResult.result);
-            }
+        
+        const stringify = (val: any) => {
+          if (val === undefined || val === null) return '';
+          if (typeof val === 'string') return val;
+          try {
+            return JSON.stringify(val);
+          } catch (e) {
+            return String(val);
           }
-        }
+        };
+
         return {
           tool: call.toolName,
-          args: call.args,
-          result: matchingResult ? redactText(resultStr) : undefined,
+          args: redactText(stringify(call.args)),
+          result: matchingResult ? redactText(stringify(matchingResult.result)) : undefined,
           error: matchingResult?.error ? String(matchingResult.error) : undefined,
         };
       });

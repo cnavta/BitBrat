@@ -86,7 +86,7 @@ describe('llm-bot processor — MCP Visibility', () => {
       toolCalls: [
         expect.objectContaining({
           tool: 'mcp:get_weather',
-          args: { city: 'Berlin' },
+          args: '{"city":"Berlin"}',
           result: 'Sunny, 25°C'
         })
       ]
