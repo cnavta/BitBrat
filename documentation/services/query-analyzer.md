@@ -12,18 +12,18 @@ The `query-analyzer` is a high-performance linguistic analysis service that acts
 
 ## Architecture
 
-The service is built on the `BaseServer` framework and uses an **Ollama** sidecar for local LLM inference.
+The service is built on the `BaseServer` framework and uses the **Vercel AI SDK** to interface with LLM providers. It defaults to a local **Ollama** sidecar for inference but can be configured to use external providers like **OpenAI**.
 
 - **Primary Container**: Node.js application (`src/apps/query-analyzer.ts`).
-- **Sidecar Container**: Ollama (`ollama/ollama:latest`).
-- **Communication**: The Node.js app communicates with Ollama over `localhost:11434` (Sidecar) or via `OLLAMA_HOST`.
-- **Model**: Defaulting to `llama3` (Llama-3 8B).
+- **Sidecar Container (Optional)**: Ollama (`ollama/ollama:latest`) when using the `ollama` provider.
+- **Providers**: Supports `ollama` (default) and `openai`.
+- **Model**: Defaulting to `llama3` for Ollama. For OpenAI, `gpt-4o-mini` is recommended for performance.
 
 ## Event Flow
 
 1. **Ingress**: `event-router` assigns a routing slip starting with `query-analyzer`.
 2. **Topic**: Consumes from `internal.query.analysis.v1`.
-3. **Analysis**: Query text is sent to Ollama with a strict system prompt and JSON mode enabled.
+3. **Analysis**: Query text is sent to the configured LLM provider using `generateObject` with a Zod schema to ensure structured output.
 4. **Enrichment**: Results are attached to the `InternalEventV2` as `AnnotationV1` objects.
 5. **Routing**:
    - **Trivial/Spam**: Calls `this.complete()`, bypassing `llm-bot` and sending directly to `egress`.
@@ -43,6 +43,8 @@ The service produces three types of annotations with the source `query-analyzer`
 
 | Environment Variable | Default | Description |
 |----------------------|---------|-------------|
-| `OLLAMA_HOST` | `http://localhost:11434` | URL of the Ollama API |
-| `OLLAMA_MODEL` | `llama3` | Llama model to use for analysis |
+| `LLM_PROVIDER` | `ollama` | LLM provider to use (`ollama`, `openai`) |
+| `LLM_MODEL` | `llama3` | Model to use for analysis (e.g., `llama3`, `gpt-4o-mini`) |
+| `OLLAMA_HOST` | `http://localhost:11434` | URL of the Ollama API (only for `ollama` provider) |
+| `OPENAI_API_KEY` | N/A | OpenAI API Key (required for `openai` provider) |
 | `SERVICE_PORT` | `3000` | Port for the service to listen on |
