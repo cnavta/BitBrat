@@ -1,0 +1,3920 @@
+[validate_deliverable] Notice: PROJECT_ID not provided. Will run install/build/tests only and skip infra + deployment steps.
+🔧 Installing dependencies...
+
+up to date, audited 900 packages in 1s
+
+169 packages are looking for funding
+  run `npm fund` for details
+
+13 vulnerabilities (1 low, 7 moderate, 5 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+🧱 Compiling...
+
+> bitbrat-platform@1.0.0 build
+> tsc -p tsconfig.json
+
+🧹 Linting...
+
+> bitbrat-platform@1.0.0 lint
+> eslint .
+
+🧪 Running tests (scope=all)...
+🔒 Discord validation state: DISCORD_ENABLED=false
+
+> bitbrat-platform@1.0.0 test
+> jest
+
+PASS src/apps/__tests__/ingress-egress-routing.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.673Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.690Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.691Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.691Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.692Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.694Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.696Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.696Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.696Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.697Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.697Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.698Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.698Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.698Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-npgsx1j6","queue":"ingress-egress.proc-npgsx1j6"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.698Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-npgsx1j6","queue":"ingress-egress.proc-npgsx1j6"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.698Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-npgsx1j6","queue":"ingress-egress.proc-npgsx1j6"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-npgsx1j6"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-npgsx1j6"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-npgsx1j6"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-npgsx1j6"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.699Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.700Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.700Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.700Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.700Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.700Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.700Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:38.700Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.201Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-1","candidateId":"cand-1","priority":1,"createdAt":"2026-01-30T20:22:39.200Z"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.205Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-1","source":"ingress.discord","isDiscord":true,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.205Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-1","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.207Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.207Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.207Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.207Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.207Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.207Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-drszn9b0","queue":"ingress-egress.proc-drszn9b0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-drszn9b0","queue":"ingress-egress.proc-drszn9b0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-drszn9b0","queue":"ingress-egress.proc-drszn9b0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-drszn9b0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-drszn9b0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-drszn9b0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-drszn9b0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.711Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-3","candidateId":"cand-3","priority":1,"createdAt":"2026-01-30T20:22:39.711Z"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.712Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-3","source":"llm-bot","isDiscord":true,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.712Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-3","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.712Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.713Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.713Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.713Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.713Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.713Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.714Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.714Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.714Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.714Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.714Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-d6dv1mqy","queue":"ingress-egress.proc-d6dv1mqy"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-d6dv1mqy","queue":"ingress-egress.proc-d6dv1mqy"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-d6dv1mqy","queue":"ingress-egress.proc-d6dv1mqy"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-d6dv1mqy"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-d6dv1mqy"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.715Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-d6dv1mqy"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-d6dv1mqy"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:39.716Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.217Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-v1","source":"ingress.discord","isDiscord":true,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.217Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-v1","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.217Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.217Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.217Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.217Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.218Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.218Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.218Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.218Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.219Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-tw7prtwj","queue":"ingress-egress.proc-tw7prtwj"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-tw7prtwj","queue":"ingress-egress.proc-tw7prtwj"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-tw7prtwj","queue":"ingress-egress.proc-tw7prtwj"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-tw7prtwj"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-tw7prtwj"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-tw7prtwj"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-tw7prtwj"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.220Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.721Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-2","candidateId":"cand-2","priority":1,"createdAt":"2026-01-30T20:22:40.721Z"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-2","source":"ingress.twitch","isDiscord":false,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-2","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.722Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.723Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.723Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.723Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.724Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-turbr2fa","queue":"ingress-egress.proc-turbr2fa"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-turbr2fa","queue":"ingress-egress.proc-turbr2fa"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-turbr2fa","queue":"ingress-egress.proc-turbr2fa"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-turbr2fa"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-turbr2fa"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-turbr2fa"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-turbr2fa"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:40.725Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.226Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"corr-twilio","candidateId":"cand-twilio","priority":1,"createdAt":"2026-01-30T20:22:41.226Z"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.226Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"corr-twilio","source":"ingress.twilio","isDiscord":false,"isTwilio":true}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"corr-twilio","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.227Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/apps/ingress-egress-service.finalize.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.369Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.370Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.371Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.371Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.371Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.371Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.372Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:41.425Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"connector.start_error","name":"twitch","error":"twitch_auth_missing"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:48:34)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.425Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.425Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.425Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-zb7u9q5e","queue":"ingress-egress.proc-zb7u9q5e"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.425Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-zb7u9q5e"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.425Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-zb7u9q5e"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.425Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.426Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.426Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.426Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.426Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.426Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.426Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.426Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.427Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.candidate_selected","correlationId":"fx-1","candidateId":"c1","priority":1,"createdAt":"2026-01-30T20:22:41.427Z"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.427Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"fx-1","source":"","isDiscord":false,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.427Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"fx-1","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/apps/api-gateway.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.633Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.636Z","service":"service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.636Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.642Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.642Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.642Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.669Z","service":"service","level":"info","severity":"INFO","msg":"api_gateway.closing","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.669Z","service":"service","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"test","activeTransports":0}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.669Z","service":"service","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.669Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS tests/apps/api-gateway-egress.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.773Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.786Z","service":"service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.786Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.789Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.789Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.789Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.790Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.api.egress.v1.local","queue":"service"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.791Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.api.egress.v1.local","queue":"service"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.791Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"api-gateway.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.791Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"api-gateway.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.795Z","service":"service","level":"info","severity":"INFO","msg":"api_gateway.started","port":0,"host":"0.0.0.0","path":"/ws/v1","egressTopic":"internal.api.egress.v1.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.796Z","service":"service","level":"info","severity":"INFO","msg":"api_gateway.closing","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.796Z","service":"service","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"test","activeTransports":0}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.796Z","service":"service","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.797Z","service":"service","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.797Z","service":"service","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.797Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.797Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.798Z","service":"service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.798Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.799Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.800Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.800Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.801Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.api.egress.v1.local","queue":"service"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.801Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.api.egress.v1.local","queue":"service"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.801Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"api-gateway.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.801Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"api-gateway.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.803Z","service":"service","level":"info","severity":"INFO","msg":"api_gateway.started","port":0,"host":"0.0.0.0","path":"/ws/v1","egressTopic":"internal.api.egress.v1.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.804Z","service":"service","level":"info","severity":"INFO","msg":"api_gateway.finalize.published","correlationId":"c1","status":"FAILED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.805Z","service":"service","level":"info","severity":"INFO","msg":"api_gateway.closing","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.806Z","service":"service","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"test","activeTransports":0}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.806Z","service":"service","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.806Z","service":"service","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.806Z","service":"service","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.806Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/services/persistence/integration.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.900Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.903Z","service":"persistence","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.903Z","service":"persistence","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.904Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.ingress.v1","queue":"persistence"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.904Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.persistence.finalize.v1","queue":"persistence"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.904Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.deadletter.v1","queue":"persistence"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.904Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.subscribe.ok","destination":"internal.router.dlq.v1","queue":"persistence"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.904Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.ingress.v1","type":"chat.message.v1","correlationId":"it-1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.905Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.upsert.ok","correlationId":"it-1","status":"INGESTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.907Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.persistence.finalize.v1","correlationId":"it-2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.907Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.finalize.ok","correlationId":"it-2","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.908Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.persistence.finalize.v1","correlationId":"it-3"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.908Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.finalize.ok","correlationId":"it-3","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.909Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.message.received","destination":"internal.persistence.finalize.v1","correlationId":"it-ttl-seconds"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:41.909Z","service":"persistence","level":"info","severity":"INFO","msg":"persistence.finalize.ok","correlationId":"it-ttl-seconds","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS tests/services/llm-bot/mcp/web-search.test.ts
+  ● Console
+
+    console.log
+      mcp_search_web schema: {
+        "jsonSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+
+      at Object.<anonymous> (tests/services/llm-bot/mcp/web-search.test.ts:37:13)
+
+PASS src/services/router/__tests__/jsonlogic-extra-ops.spec.ts
+PASS src/services/ingress/discord/discord-ingress-client.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.717Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.720Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.message.published","correlationId":"40eee8d1-df2f-4895-86ce-6f57618afb47","channelId":"c1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.720Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.721Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.721Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/services/ingress/discord/discord-integration.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.757Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.start","guildId":"g1","channelsCount":1}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.758Z","service":"bitbrat","level":"info","severity":"INFO","msg":"ingress-egress.discord.message.published","correlationId":"a3603cf3-f5a1-4d8d-824a-b0cc98842384","channelId":"c1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/services/ingress/twitch/publisher.spec.ts
+  ● Console
+
+    console.warn
+      {"ts":"2026-01-30T20:22:42.788Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.retry","subject":"internal.ingress.v1","attempt":1,"code":14}
+
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+      138 |     if (!this.shouldLog('warn')) return;
+    > 139 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      140 |   }
+      141 |
+      142 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:139:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:78:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:88:17)
+
+    console.warn
+      {"ts":"2026-01-30T20:22:42.791Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.retry","subject":"internal.ingress.v1","attempt":2,"code":14}
+
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+      138 |     if (!this.shouldLog('warn')) return;
+    > 139 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      140 |   }
+      141 |
+      142 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:139:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:78:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:88:17)
+
+    console.warn
+      {"ts":"2026-01-30T20:22:42.794Z","service":"bitbrat","level":"warn","severity":"WARNING","msg":"ingress.publish.no_retry_on_timeout","subject":"dev.internal.ingress.v1","attempt":1,"code":4,"reason":"publish_timeout"}
+
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+      138 |     if (!this.shouldLog('warn')) return;
+    > 139 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      140 |   }
+      141 |
+      142 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:139:13)
+      at Object.shouldRetry (src/services/ingress/twitch/publisher.ts:67:18)
+      at withBackoff (src/common/retry.ts:41:37)
+      at TwitchIngressPublisher.publish (src/services/ingress/twitch/publisher.ts:48:17)
+      at Object.<anonymous> (src/services/ingress/twitch/publisher.spec.ts:113:5)
+
+PASS src/apps/__tests__/ingress-egress-webhooks.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.898Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.899Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.899Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.900Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.901Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.902Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.902Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.903Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.903Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.disabled","reason":"config or test env"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.904Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.904Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:42.904Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Starting Twilio Ingress Client","identity":"BotUser"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:43.094Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"Failed to initialize Twilio Conversations client","error":"Cannot read properties of undefined (reading 'AccessToken')"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at TwilioIngressClient.start (src/services/ingress/twilio/twilio-ingress-client.ts:230:14)
+      at TwilioConnectorAdapter.start (src/services/ingress/twilio/connector-adapter.ts:12:23)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:44:30)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.094Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.094Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.414Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.received","EventType":"onConversationAdded","ConversationSid":"CH123"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.414Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.inject_bot","ConversationSid":"CH123","botIdentity":"BotUser","trigger":"onConversationAdded"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.415Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.inject_bot.ok","ConversationSid":"CH123","trigger":"onConversationAdded"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.418Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.418Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.418Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.418Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.disabled","reason":"config or test env"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Starting Twilio Ingress Client","identity":"BotUser"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"Failed to initialize Twilio Conversations client","error":"Cannot read properties of undefined (reading 'AccessToken')"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at TwilioIngressClient.start (src/services/ingress/twilio/twilio-ingress-client.ts:230:14)
+      at TwilioConnectorAdapter.start (src/services/ingress/twilio/connector-adapter.ts:12:23)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:44:30)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.419Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.420Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.420Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.420Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.420Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.927Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.received","EventType":"onMessageAdded","ConversationSid":"CH456"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.927Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.inject_bot","ConversationSid":"CH456","botIdentity":"BotUser","trigger":"onMessageAdded"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.928Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.inject_bot.ok","ConversationSid":"CH456","trigger":"onMessageAdded"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.930Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.931Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.931Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.931Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.931Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.931Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.931Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.931Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.disabled","reason":"config or test env"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Starting Twilio Ingress Client","identity":"BotUser"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"Failed to initialize Twilio Conversations client","error":"Cannot read properties of undefined (reading 'AccessToken')"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at TwilioIngressClient.start (src/services/ingress/twilio/twilio-ingress-client.ts:230:14)
+      at TwilioConnectorAdapter.start (src/services/ingress/twilio/connector-adapter.ts:12:23)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:44:30)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.932Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.933Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.933Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:43.933Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.435Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.received","EventType":"onMessageAdded","ConversationSid":"CH789"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.435Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.inject_bot","ConversationSid":"CH789","botIdentity":"BotUser","trigger":"onMessageAdded"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.436Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.webhook.inject_bot.already_participant","ConversationSid":"CH789","trigger":"onMessageAdded"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.449Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.449Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.450Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.450Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.450Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twilio.init_ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.450Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/webhooks/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.450Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.451Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.disabled","reason":"config or test env"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.520Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.520Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.520Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Starting Twilio Ingress Client","identity":"BotUser"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:44.520Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"Failed to initialize Twilio Conversations client","error":"Cannot read properties of undefined (reading 'AccessToken')"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at TwilioIngressClient.start (src/services/ingress/twilio/twilio-ingress-client.ts:230:14)
+      at TwilioConnectorAdapter.start (src/services/ingress/twilio/connector-adapter.ts:12:23)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:44:30)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.520Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.520Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.521Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.521Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.521Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.521Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.521Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.521Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twilio","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.warn
+      {"ts":"2026-01-30T20:22:44.955Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"twilio.webhook.invalid_signature","url":"http://127.0.0.1:64214/webhooks/twilio"}
+
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+      138 |     if (!this.shouldLog('warn')) return;
+    > 139 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      140 |   }
+      141 |
+      142 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:139:13)
+      at src/apps/ingress-egress-service.ts:171:20
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at next (node_modules/router/lib/route.js:157:13)
+      at Route.dispatch (node_modules/router/lib/route.js:117:3)
+      at handle (node_modules/router/index.js:435:11)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at node_modules/router/index.js:295:15
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at urlencodedParser (node_modules/body-parser/lib/types/urlencoded.js:57:7)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/body-parser/lib/read.js:132:5
+      at invokeCallback (node_modules/raw-body/index.js:238:16)
+      at done (node_modules/raw-body/index.js:227:7)
+      at IncomingMessage.onEnd (node_modules/raw-body/index.js:287:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.956Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:44.957Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS tests/integration/generic-egress.integration.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.084Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.085Z","service":"service","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.086Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.086Z","service":"service","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.086Z","service":"service","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.086Z","service":"service","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.088Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.088Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.094Z","service":"service","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/health"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.094Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.api.egress.v1.local","queue":"service"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.094Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.api.egress.v1.local","queue":"service"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.094Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"api-gateway.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.094Z","service":"service","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"api-gateway.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.095Z","service":"service","level":"info","severity":"INFO","msg":"api_gateway.started","port":0,"host":"0.0.0.0","path":"/ws/v1","egressTopic":"internal.api.egress.v1.local"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.095Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.096Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.096Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.096Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.096Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:45.104Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"connector.start_error","name":"twitch","error":"twitch_auth_missing"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:48:34)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.104Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.starting","channels":[]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.104Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Token document not found in Firestore","docPath":"oauth/twitch/bot"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:45.105Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"twitch.eventsub.start_failed","error":"FirestoreTwitchCredentialsProvider: no token in store"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at TwitchEventSubClient.start (src/services/ingress/twitch/eventsub-client.ts:207:14)
+      at TwitchConnectorAdapter.start (src/services/ingress/twitch/connector-adapter.ts:23:5)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:44:9)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.error
+      {"ts":"2026-01-30T20:22:45.105Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"connector.start_error","name":"twitch-eventsub","error":"FirestoreTwitchCredentialsProvider: no token in store"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at ConnectorManager.start (src/services/ingress/core/connector-manager.ts:48:34)
+      at IngressEgressServer.setupApp (src/apps/ingress-egress-service.ts:210:7)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.105Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.105Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-0l6lhloq","queue":"ingress-egress.proc-0l6lhloq"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.105Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-0l6lhloq","queue":"ingress-egress.proc-0l6lhloq"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.105Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-0l6lhloq","queue":"ingress-egress.proc-0l6lhloq"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-0l6lhloq"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-0l6lhloq"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-0l6lhloq"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-0l6lhloq"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.106Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.107Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.107Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.107Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.107Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.107Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.606Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"c-discord","source":"test","isDiscord":true,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.606Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c-discord","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.607Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"egress.forwarded","userId":"user-ws","successCount":1,"failCount":0,"correlationId":"c-ws"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.warn
+      {"ts":"2026-01-30T20:22:45.607Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"twitch.egress.no_channel","text":"hello websocket"}
+
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+      138 |     if (!this.shouldLog('warn')) return;
+    > 139 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      140 |   }
+      141 |
+      142 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:139:13)
+      at TwitchIrcClient.sendText (src/services/ingress/twitch/twitch-irc-client.ts:342:14)
+      at run (src/apps/ingress-egress-service.ts:442:37)
+      at src/apps/ingress-egress-service.ts:467:24
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at IngressEgressServer.processEgress (src/apps/ingress-egress-service.ts:465:27)
+      at src/apps/ingress-egress-service.ts:270:43
+      at src/common/base-server.ts:303:39
+      at src/common/tracing.ts:104:20
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at startActiveSpan (src/common/tracing.ts:102:17)
+      at subscriber.subscribe (src/common/base-server.ts:300:36)
+      at EventEmitter.wrapper (tests/integration/generic-egress.integration.test.ts:27:9)
+      at Immediate._onImmediate (tests/integration/generic-egress.integration.test.ts:15:19)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.609Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"c-ws","source":"test","isDiscord":false,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.610Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"api_gateway.finalize.published","correlationId":"c-ws","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:45.610Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c-ws","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.warn
+      {"ts":"2026-01-30T20:22:46.108Z","service":"ingress-egress","level":"warn","severity":"WARNING","msg":"twitch.egress.no_channel","text":"where do I go?"}
+
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+      138 |     if (!this.shouldLog('warn')) return;
+    > 139 |     console.warn(JSON.stringify(this.base({ level: 'warn', severity: this.severityOf('warn'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      140 |   }
+      141 |
+      142 |   info(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.warn (src/common/logging.ts:139:13)
+      at TwitchIrcClient.sendText (src/services/ingress/twitch/twitch-irc-client.ts:342:14)
+      at run (src/apps/ingress-egress-service.ts:442:37)
+      at src/apps/ingress-egress-service.ts:467:24
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at IngressEgressServer.processEgress (src/apps/ingress-egress-service.ts:465:27)
+      at src/apps/ingress-egress-service.ts:270:43
+      at src/common/base-server.ts:303:39
+      at src/common/tracing.ts:104:20
+      at NoopContextManager.with (node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+      at ContextAPI.with (node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+      at NoopTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+      at ProxyTracer.startActiveSpan (node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+      at startActiveSpan (src/common/tracing.ts:102:17)
+      at subscriber.subscribe (src/common/base-server.ts:300:36)
+      at EventEmitter.wrapper (tests/integration/generic-egress.integration.test.ts:27:9)
+      at Immediate._onImmediate (tests/integration/generic-egress.integration.test.ts:15:19)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.109Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"c-unknown","source":"test","isDiscord":false,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.109Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c-unknown","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:46.310Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"ingress-egress.egress.delivery_error","correlationId":"c-failed-discord","error":"Discord offline"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at run (src/apps/ingress-egress-service.ts:456:16)
+      at src/apps/ingress-egress-service.ts:467:18
+      at IngressEgressServer.processEgress (src/apps/ingress-egress-service.ts:465:14)
+      at src/apps/ingress-egress-service.ts:270:32
+      at src/common/base-server.ts:303:17
+      at src/common/tracing.ts:104:14
+      at subscriber.subscribe (src/common/base-server.ts:300:15)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.310Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c-failed-discord","status":"FAILED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.512Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"api_gateway.closing","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.514Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"mcp_server.closing","reason":"test","activeTransports":0}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.514Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"test"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.514Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.514Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.514Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.514Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.515Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.515Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.515Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.515Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.515Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.516Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS tools/brat/src/cli/setup.test.ts
+PASS tools/brat/src/cli/__tests__/chat.test.ts
+PASS src/services/llm-bot/processor.instance-memory.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.986Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.987Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.987Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:46.988Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:48.715Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:48.716Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:48.716Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/services/api-gateway/__tests__/auth.spec.ts
+PASS tests/apps/ingress-egress-fallback.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.154Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.155Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.155Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.155Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.155Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.156Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.156Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-x313iqe9","queue":"ingress-egress.proc-x313iqe9"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-x313iqe9","queue":"ingress-egress.proc-x313iqe9"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-x313iqe9","queue":"ingress-egress.proc-x313iqe9"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-x313iqe9"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-x313iqe9"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-x313iqe9"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-x313iqe9"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.157Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.158Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"c-fallback","source":"system","isDiscord":true,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c-fallback","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.208Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.209Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-zxdt1lt8","queue":"ingress-egress.proc-zxdt1lt8"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-zxdt1lt8","queue":"ingress-egress.proc-zxdt1lt8"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-zxdt1lt8","queue":"ingress-egress.proc-zxdt1lt8"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-zxdt1lt8"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.210Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-zxdt1lt8"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-zxdt1lt8"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-zxdt1lt8"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.211Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.261Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"c-fallback-twilio","source":"system","isDiscord":false,"isTwilio":true}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.261Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c-fallback-twilio","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.262Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.262Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.262Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.262Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.262Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.262Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS tests/services/llm-bot/personality-with-memory.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:49.331Z","service":"bitbrat","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS tests/apps/ingress-egress-egress.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.175Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.176Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.176Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.176Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.176Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.177Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.177Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-xs8zt0c0","queue":"ingress-egress.proc-xs8zt0c0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-xs8zt0c0","queue":"ingress-egress.proc-xs8zt0c0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-xs8zt0c0","queue":"ingress-egress.proc-xs8zt0c0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-xs8zt0c0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-xs8zt0c0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-xs8zt0c0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-xs8zt0c0"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.178Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.179Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.179Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.179Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.179Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.230Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.231Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-o3ggavzx","queue":"ingress-egress.proc-o3ggavzx"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-o3ggavzx","queue":"ingress-egress.proc-o3ggavzx"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-o3ggavzx","queue":"ingress-egress.proc-o3ggavzx"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-o3ggavzx"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-o3ggavzx"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-o3ggavzx"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-o3ggavzx"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.232Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.233Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.233Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.233Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.233Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.233Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.282Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.sent","correlationId":"c1","source":"","isDiscord":true,"isTwilio":false}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.282Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c1","status":"SENT"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.282Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.282Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.282Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.282Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.282Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.283Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.283Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher","firestore"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.283Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.283Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"firestore.manager.setup.reuse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.start","subject":"internal.egress.v1.proc-txc0h6i2","queue":"ingress-egress.proc-txc0h6i2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1.proc-txc0h6i2","queue":"ingress-egress.proc-txc0h6i2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1.proc-txc0h6i2","queue":"ingress-egress.proc-txc0h6i2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.284Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress_subscribe.ok","subject":"internal.egress.v1.proc-txc0h6i2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-txc0h6i2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.egress.v1","queue":"ingress-egress.proc-txc0h6i2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.egress.v1","queue":"ingress-egress.proc-txc0h6i2"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.egress.generic_subscribe.ok","subject":"internal.egress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.moderation_subscribe.start","subject":"internal.ingress.v1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.start","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.message.subscribe.ok","subject":"internal.ingress.v1","queue":"ingress-egress-moderation"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.285Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"ERROR"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.error
+      {"ts":"2026-01-30T20:22:50.336Z","service":"ingress-egress","level":"error","severity":"ERROR","msg":"ingress-egress.egress.delivery_error","correlationId":"c-failed","error":"Discord API down"}
+
+      132 |   error(msg: string, context?: Record<string, unknown>) {
+      133 |     if (!this.shouldLog('error')) return;
+    > 134 |     console.error(JSON.stringify(this.base({ level: 'error', severity: this.severityOf('error'), msg, ...(this.sanitize(context) || {}) })));
+          |             ^
+      135 |   }
+      136 |
+      137 |   warn(msg: string, context?: Record<string, unknown>) {
+
+      at Logger.error (src/common/logging.ts:134:13)
+      at run (src/apps/ingress-egress-service.ts:456:16)
+      at src/apps/ingress-egress-service.ts:467:18
+      at IngressEgressServer.processEgress (src/apps/ingress-egress-service.ts:465:14)
+      at src/apps/ingress-egress-service.ts:270:32
+      at src/common/base-server.ts:303:17
+      at src/common/tracing.ts:104:14
+      at subscriber.subscribe (src/common/base-server.ts:300:15)
+      at Object.<anonymous> (tests/apps/ingress-egress-egress.test.ts:147:5)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.336Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.finalize.published","correlationId":"c-failed","status":"FAILED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.336Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.shutdown.start","reason":"manual"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.336Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.336Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.336Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.unsubscribe.ok"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.337Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"fi***tore"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.337Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.shutdown.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/apps/__tests__/auth-service-mcp.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.428Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.431Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.431Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.433Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.433Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.434Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.434Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"update_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.434Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"ban_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.434Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"create_api_token"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/apps/auth-service.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.515Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.517Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.517Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.519Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.519Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.520Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.520Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"update_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.520Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"ban_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.520Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"create_api_token"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS tests/apps/auth-service.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.620Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.621Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.621Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.624Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.624Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.624Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.625Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"update_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.625Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"ban_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.625Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"create_api_token"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.627Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.627Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.627Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.628Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.628Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.628Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.628Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"update_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.628Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"ban_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.629Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"create_api_token"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.635Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.635Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.635Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.636Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.636Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.636Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.636Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"update_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.636Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"ban_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.636Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"create_api_token"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.637Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.637Z","service":"auth","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.637Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.638Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/sse"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.638Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"POST","path":"/message"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.638Z","service":"auth","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/counters"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.639Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"update_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.639Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"ban_user"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.639Z","service":"auth","level":"info","severity":"INFO","msg":"mcp_server.tool_registered","name":"create_api_token"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/services/llm-bot/processor.empty-response.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.712Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.713Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.713Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:50.713Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.389Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.389Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.389Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/apps/ingress-egress-service.krevision.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.550Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.550Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.551Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.551Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.config","messageBusDriver":"noop","pubsub":{"batchMaxMs":"(default: 20)","batchMaxMessages":"(default: 100)","publishTimeoutMs":"(auto: 2000 in Cloud Run, 0 locally)","ensureMode":"(default: on-publish-fail)"}}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.564Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"twitch.eventsub.disabled","reason":"config or test env"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"twitch-eventsub"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"connector.started","name":"discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twitch"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/discord"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"base_server.http.register","method":"GET","path":"/_debug/twilio"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"twitch-eventsub","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.571Z","service":"ingress-egress","level":"info","severity":"INFO","msg":"ingress-egress.status_change","name":"discord","from":"NONE","to":"CONNECTED"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/services/llm-bot/processor.personality.spec.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.867Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.868Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.868Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:51.868Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+PASS src/services/llm-bot/processor.test.ts
+  ● Console
+
+    console.log
+      {"ts":"2026-01-30T20:22:52.838Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:52.839Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:52.839Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:52.839Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"Initializing Firestore","databaseId":"(default)","emulatorHost":"none"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:53.792Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"llm_bot.no_prompt","correlationId":"c-1"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:53.793Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resources.init","keys":["publisher"]}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:53.793Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"publisher.manager.setup"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
+    console.log
+      {"ts":"2026-01-30T20:22:53.793Z","service":"test-llm-bot","level":"info","severity":"INFO","msg":"base_server.resource.setup.ok","key":"pu***sher"}
+
+      at Logger.info (src/common/logging.ts:144:13)
+
