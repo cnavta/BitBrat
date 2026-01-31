@@ -269,7 +269,19 @@ export async function processEvent(
     const payload = openaiAdapter(assembled);
 
     // 5. Call LLM
-    const modelName = server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-4o' });
+    let modelName = server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-4o' });
+
+    // QA-005: Adaptive Model Selection
+    const intentAnn = evt.annotations?.find(a => a.kind === 'intent' && a.source === 'query-analyzer');
+    if (intentAnn) {
+      const intent = intentAnn.label || intentAnn.value;
+      if (intent === 'question' || intent === 'command') {
+        modelName = 'gpt-4o';
+      } else {
+        modelName = 'gpt-4o-mini';
+      }
+      logger.info('llm_bot.adaptive_model_selection', { correlationId: corr, intent, selectedModel: modelName });
+    }
     const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 30000, parser: (v: any) => Number(v) });
     let finalResponse: string;
 
