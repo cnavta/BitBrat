@@ -8,6 +8,7 @@
 - **Tool Latency in Logs**: Capturing individual tool latency in the `prompt_logs` document is slightly complex because `generateText` handles the loop. We'd need to manually time the wrappers and attach the timings to the event object.
 - **Top-level vs Step Tool Calls**: Realized that the AI SDK returns `toolCalls`/`toolResults` at the top level for single steps or when execution doesn't complete, but they must be aggregated from `steps` for multi-step runs. The code now handles both.
 - **AI SDK Property Mapping**: Discovered that the AI SDK types (e.g. `StaticToolCall`) often use `input` instead of `args`, and `output` instead of `result`. Failing to check both caused blank logs in Firestore.
+- **Tool Error Capture**: Realized that errors can live on either the `toolCall` (if invalid) or `toolResult` (if failed execution). Checking both ensures robust error logging.
 
 ## Lessons Learned
 - Always check the AI SDK's return object for rich metadata like tool interactions; it's often more comprehensive than manual tracking.

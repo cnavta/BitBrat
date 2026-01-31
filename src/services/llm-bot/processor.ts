@@ -388,11 +388,14 @@ export async function processEvent(
         const rawArgs = stringify(call.args ?? (call as any).input);
         const rawResult = matchingResult ? stringify(matchingResult.result ?? (matchingResult as any).output) : undefined;
 
+        const rawError = matchingResult?.error ?? (call as any).error;
+        const stringifiedError = rawError ? String(rawError) : undefined;
+
         return {
           tool: call.toolName,
           args: rawArgs ? redactText(rawArgs) : '',
           result: rawResult ? redactText(rawResult) : '',
-          error: matchingResult?.error ? String(matchingResult.error) : undefined,
+          error: stringifiedError ? redactText(stringifiedError) : undefined,
         };
       });
 
