@@ -5,6 +5,7 @@
 - Structured output via `generateObject` significantly simplifies the code by removing manual JSON parsing and providing type safety (via Zod).
 - The implementation plan was accurate and followed closely.
 - Documentation was updated to provide clear guidance on the new configuration options.
+- Refactored prompt logging to a more scalable sub-collection strategy (`services/{service}/prompt_logs`) and added token usage tracking.
 
 ## What Didn't Work
 - Initial package name `@ai-sdk/ollama` from the TA was not available; switched to `ai-sdk-ollama`.

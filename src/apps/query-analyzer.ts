@@ -17,9 +17,10 @@ class QueryAnalyzerServer extends BaseServer {
     this.setupApp(this.getApp() as any, this.getConfig() as any);
   }
 
-  private async analyzeQuery(text: string): Promise<QueryAnalysis | null> {
+  private async analyzeQuery(text: string, correlationId?: string): Promise<QueryAnalysis | null> {
     return analyzeWithLlm(text, {
-      logger: this.getLogger() as any
+      logger: this.getLogger() as any,
+      correlationId
     });
   }
 
@@ -58,7 +59,7 @@ class QueryAnalyzerServer extends BaseServer {
                   return;
                 }
 
-                const analysis = await this.analyzeQuery(text);
+                const analysis = await this.analyzeQuery(text, msg.correlationId);
                 if (analysis) {
                   const now = new Date().toISOString();
                   const annotations: AnnotationV1[] = [

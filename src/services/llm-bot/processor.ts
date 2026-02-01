@@ -284,6 +284,7 @@ export async function processEvent(
     }
     const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 30000, parser: (v: any) => Number(v) });
     let finalResponse: string;
+    let usage: any;
 
     if (deps?.callLLM) {
       const fullPrompt = payload.messages.map((m: any) => `(${m.role}) ${m.content}`).join('\n\n');
@@ -374,6 +375,7 @@ export async function processEvent(
       (evt as any)._lastToolResults = allToolResults;
 
       finalResponse = result.text;
+      usage = result.usage;
     }
 
     finalResponse = unwrapQuoted(finalResponse.trim());
@@ -411,13 +413,18 @@ export async function processEvent(
         };
       });
 
-      db.collection('prompt_logs').add({
+      db.collection('services').doc('llm-bot').collection('prompt_logs').add({
         correlationId: corr,
         prompt: redactText(fullPrompt),
         response: redactText(finalResponse),
         model: modelName,
         personalityNames: resolvedPersonalityNames,
         toolCalls: toolLogs,
+        usage: usage ? {
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          totalTokens: usage.totalTokens,
+        } : undefined,
         createdAt: new Date(),
       }).catch((e: any) => {
         logger?.warn?.('llm_bot.prompt_logging_failed', { correlationId: corr, error: e?.message });

@@ -55,7 +55,7 @@ describe('llm-provider', () => {
   });
 
   it('should return null and log error when generateObject fails', async () => {
-    const mockLogger = { error: jest.fn() };
+    const mockLogger = { error: jest.fn(), info: jest.fn() };
     (ai.generateObject as jest.Mock).mockRejectedValue(new Error('AI error'));
 
     const result = await analyzeWithLlm('error', { logger: mockLogger });
