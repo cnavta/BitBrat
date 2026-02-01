@@ -85,12 +85,14 @@ export async function analyzeWithLlm(
   try {
     const provider = getLlmProvider(providerName, modelName);
     const fullPrompt = `System: ${SYSTEM_PROMPT}\n\nUser: ${text}`;
+    const start = Date.now();
     const result = await (generateObject as any)({
       model: provider,
       schema: queryAnalysisSchema,
       prompt: text,
       system: SYSTEM_PROMPT,
     });
+    const processingTimeMs = Date.now() - start;
     const object = result.object;
 
     // Prompt Logging (Fire and forget)
@@ -104,6 +106,7 @@ export async function analyzeWithLlm(
         response: redactText(JSON.stringify(object)),
         platform: providerName,
         model: modelName,
+        processingTimeMs,
         usage: usage ? {
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
