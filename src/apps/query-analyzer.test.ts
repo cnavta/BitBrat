@@ -115,6 +115,31 @@ describe('query-analyzer service', () => {
       expect(ctx.ack).toHaveBeenCalled();
     });
 
+    it('skips analysis for very short messages (< 3 tokens)', async () => {
+      const event = {
+        v: '2',
+        correlationId: 'test-short',
+        type: 'chat.message.v1',
+        message: { text: 'Hi' }, // 1 token
+        routingSlip: [
+          { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' }
+        ],
+        egress: { destination: 'internal.egress.v1' }
+      };
+
+      const payload = Buffer.from(JSON.stringify(event));
+      const ctx = { ack: jest.fn(), nack: jest.fn() };
+
+      await capturedHandler(payload, {}, ctx);
+
+      expect(analyzeWithLlm).not.toHaveBeenCalled();
+      expect(publishJsonMock).toHaveBeenCalled();
+      
+      const published = publishJsonMock.mock.calls[0][0] as any;
+      expect(published.routingSlip[0].status).toBe('OK');
+      expect(ctx.ack).toHaveBeenCalled();
+    });
+
     it('falls back to next() on LLM failure', async () => {
       (analyzeWithLlm as jest.Mock).mockResolvedValue(null);
 
