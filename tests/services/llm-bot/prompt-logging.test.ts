@@ -56,7 +56,12 @@ describe('llm-bot processor — Prompt Logging', () => {
     features.reset();
     
     mockAdd = jest.fn().mockResolvedValue({ id: 'doc-123' });
-    mockCollection = jest.fn().mockReturnValue({ add: mockAdd });
+    const mockCollectionInner = jest.fn().mockReturnValue({ add: mockAdd });
+    const mockDoc = jest.fn().mockReturnValue({ collection: mockCollectionInner });
+    mockCollection = jest.fn().mockImplementation((name) => {
+      if (name === 'services') return { doc: mockDoc };
+      return { add: mockAdd };
+    });
     mockDb = { collection: mockCollection };
     (getFirestore as jest.Mock).mockReturnValue(mockDb);
   });
@@ -80,7 +85,7 @@ describe('llm-bot processor — Prompt Logging', () => {
 
     await processEvent(server, evt, deps);
 
-    expect(mockCollection).toHaveBeenCalledWith('prompt_logs');
+    expect(mockCollection).toHaveBeenCalledWith('services');
     expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
       correlationId: 'corr-123',
       model: 'gpt-5-mini',
