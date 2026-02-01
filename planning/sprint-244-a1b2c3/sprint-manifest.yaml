@@ -3,8 +3,9 @@ title: "Remove Adaptive Model Selection"
 goal: "Remove the 'Adaptive Model Selection' logic from the llm-bot processor.ts."
 owner: "Junie"
 createdAt: "2026-02-01T12:46:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/158"
   branch: "feature/sprint-244-a1b2c3-remove-adaptive-model-selection"
 notes: |
   The user requested to remove 'Adaptive Model Selection' from processor.ts as they will be using a different approach.
