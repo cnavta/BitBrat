@@ -3,7 +3,7 @@ title: "Query Analyzer Service Updates"
 goal: "Perform a series of small updates to the query-analyzer service, starting with token-based filtering."
 owner: "Junie"
 createdAt: "2026-02-01T13:31:00Z"
-status: "in-progress"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/160"
   branch: "feature/sprint-246-e5f6g7-query-analyzer-updates"
