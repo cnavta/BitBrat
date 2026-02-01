@@ -1,0 +1,10 @@
+id: sprint-248-b1c2d3
+title: "Architecture Refinement: Phased Flow Updates"
+goal: "Refine phased event flow by removing event-router from Egress and adding guidance for phase-specific routing rules."
+owner: "Junie"
+createdAt: "2026-02-01T15:05:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-248-b1c2d3-update-architecture-phases"
+notes: |
+  Updating the newly created architecture documents based on feedback.
