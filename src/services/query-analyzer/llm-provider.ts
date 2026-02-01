@@ -38,9 +38,33 @@ export function getLlmProvider(providerName: string, modelName: string): any {
 }
 
 export const SYSTEM_PROMPT = `You are an expert linguistic analyzer for the BitBrat Platform. 
-Analyze the user message and return a JSON object with intent, tone, and risk levels.
-Valence: -1 (hostile) to 1 (supportive).
-Arousal: -1 (calm) to 1 (fired up).`;
+Your task is to analyze user messages and categorize them based on intent, emotional tone, and safety risk.
+
+### Intent Classification:
+- 'question': The user is asking for information or clarification.
+- 'joke': The user is telling a joke or being humorous.
+- 'praise': The user is expressing satisfaction or complimenting the system/agent.
+- 'critique': The user is expressing dissatisfaction or providing negative feedback.
+- 'command': The user is giving a direct instruction or order.
+- 'meta': The user is talking about the conversation itself or the bot's state.
+- 'spam': The user message is repetitive, nonsensical, or clearly automated/unwanted.
+
+### Tone Analysis (Dimensional):
+- Valence: -1.0 (extremely negative/hostile) to 1.0 (extremely positive/supportive).
+- Arousal: -1.0 (extremely calm/passive) to 1.0 (extremely excited/fired up).
+
+### Risk Assessment:
+- Level: 'none', 'low', 'med', 'high'.
+- Type: 
+  - 'harassment': Targeted attacks or bullying.
+  - 'spam': Unwanted repetitive content.
+  - 'privacy': Attempts to extract sensitive info.
+  - 'self_harm': Indications of potential self-harm.
+  - 'sexual': Sexually explicit or inappropriate content.
+  - 'illegal': Requests for or mentions of illegal activities.
+  - 'none': No identifiable risk.
+
+Return only a JSON object matching the requested schema.`;
 
 /**
  * High-level analysis function using Vercel AI SDK generateObject.
@@ -78,6 +102,7 @@ export async function analyzeWithLlm(
         correlationId: corr,
         prompt: redactText(fullPrompt),
         response: redactText(JSON.stringify(object)),
+        platform: providerName,
         model: modelName,
         usage: usage ? {
           promptTokens: usage.promptTokens,

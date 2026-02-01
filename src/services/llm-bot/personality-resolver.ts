@@ -19,6 +19,8 @@ export interface PersonalityDoc {
   tags?: string[];
   createdAt?: string;
   updatedAt?: string;
+  platform?: string;
+  model?: string;
 }
 
 export interface ResolverDeps {
@@ -38,9 +40,11 @@ export interface ResolvedPersonality {
   text: string;
   source: 'inline' | 'firestore' | 'unknown';
   version?: number;
+  platform?: string;
+  model?: string;
 }
 
-type CacheEntry = { text: string; version?: number; expiresAt: number };
+type CacheEntry = { text: string; version?: number; platform?: string; model?: string; expiresAt: number };
 
 const cache = new Map<string, CacheEntry>();
 
@@ -92,6 +96,8 @@ export async function resolvePersonalityParts(
   for (const ann of selected) {
     const value = ann.value as string | undefined;
     const inline = (ann.payload as any)?.text as string | undefined;
+    const inlinePlatform = (ann.payload as any)?.platform as string | undefined;
+    const inlineModel = (ann.payload as any)?.model as string | undefined;
     const name = (ann.payload as any)?.name as string | undefined || value;
     const trimmedInline = inline?.trim();
 
@@ -100,7 +106,13 @@ export async function resolvePersonalityParts(
       const text = clamp(clean, maxChars);
       if (text.length < clean.length) metrics.inc(METRIC_PERSONALITY_CLAMPED);
       metrics.inc(METRIC_PERSONALITIES_RESOLVED);
-      results.push({ name: name || undefined, text, source: 'inline' });
+      results.push({ 
+        name: name || undefined, 
+        text, 
+        source: 'inline',
+        platform: inlinePlatform,
+        model: inlineModel
+      });
       continue;
     }
     if (!name) {
@@ -115,7 +127,14 @@ export async function resolvePersonalityParts(
       if (clamped.length < cached.text.length) metrics.inc(METRIC_PERSONALITY_CLAMPED);
       metrics.inc(METRIC_PERSONALITY_CACHE_HIT);
       metrics.inc(METRIC_PERSONALITIES_RESOLVED);
-      results.push({ name, text: clamped, source: 'firestore', version: cached.version });
+      results.push({ 
+        name, 
+        text: clamped, 
+        source: 'firestore', 
+        version: cached.version,
+        platform: cached.platform,
+        model: cached.model
+      });
       continue;
     }
 
@@ -141,8 +160,21 @@ export async function resolvePersonalityParts(
       const text = clamp(clean, maxChars);
       if (text.length < clean.length) metrics.inc(METRIC_PERSONALITY_CLAMPED);
       metrics.inc(METRIC_PERSONALITIES_RESOLVED);
-      results.push({ name: doc.name, text, source: 'firestore', version: doc.version });
-      cache.set(name, { text: clean, version: doc.version, expiresAt: now + Math.max(0, cacheTtlMs || 0) });
+      results.push({ 
+        name: doc.name, 
+        text, 
+        source: 'firestore', 
+        version: doc.version,
+        platform: doc.platform,
+        model: doc.model
+      });
+      cache.set(name, { 
+        text: clean, 
+        version: doc.version, 
+        platform: doc.platform,
+        model: doc.model,
+        expiresAt: now + Math.max(0, cacheTtlMs || 0) 
+      });
     } catch (e: any) {
       deps.logger?.warn?.('personality.resolve.error', { name, error: e?.message || String(e) });
       metrics.inc(METRIC_PERSONALITIES_FAILED);
