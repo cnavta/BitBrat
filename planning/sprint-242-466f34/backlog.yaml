@@ -136,6 +136,17 @@ items:
     acceptance:
       - "prompt_logs entries include promptTokens, completionTokens, and totalTokens"
     updated_at: 2026-02-01
+  - id: QA-LOG-003
+    title: "Fix query-analyzer prompt logging to include system prompt"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-LOG-001]
+    blocked_reason: null
+    acceptance:
+      - "prompt_logs in query-analyzer contains full realized prompt (System + User)"
+    updated_at: 2026-02-01
     log:
-      - at: 2026-02-01T19:50:00Z
-        note: "Added context size metrics to prompt logs."
+      - at: 2026-02-01T00:55:00Z
+        note: "Refactored analyzeWithLlm to log fullPrompt including SYSTEM_PROMPT."

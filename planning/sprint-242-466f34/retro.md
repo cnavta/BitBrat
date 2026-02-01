@@ -6,6 +6,7 @@
 - The implementation plan was accurate and followed closely.
 - Documentation was updated to provide clear guidance on the new configuration options, including the creation of a new central `llm-bot.md` service document.
 - Refactored prompt logging to a more scalable sub-collection strategy (`services/{service}/prompt_logs`) and added token usage tracking.
+- Fixed an issue where `query-analyzer` was logging only the user message instead of the full prompt sent to the LLM.
 
 ## What Didn't Work
 - Initial package name `@ai-sdk/ollama` from the TA was not available; switched to `ai-sdk-ollama`.
