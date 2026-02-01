@@ -72,6 +72,16 @@ Search for the following log keys in Cloud Logging or via `npm run local:logs`:
 - `query-analyzer.llm_provider_error`: Errors communicating with the LLM provider (Ollama or OpenAI).
 - `llm_bot.adaptive_model_selection`: Downstream model selection based on analyzer output.
 
+### Firestore Monitoring
+
+You can inspect analysis results and token usage in Firestore:
+
+- **Collection**: `services/query-analyzer/prompt_logs`
+- **Use Case**:
+    - Auditing classification accuracy.
+    - Debugging risk assessment false positives.
+    - Monitoring token consumption for cost management.
+
 ### Health Checks
 - `GET /healthz`: Basic liveness check for the Node.js app.
 - `GET /readyz`: Readiness check (currently matches healthz).
