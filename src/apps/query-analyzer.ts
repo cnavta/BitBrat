@@ -3,9 +3,12 @@ import { Express } from 'express';
 import type { InternalEventV2, AnnotationV1 } from '../types/events';
 import crypto from 'crypto';
 import { analyzeWithLlm, QueryAnalysis } from '../services/query-analyzer/llm-provider';
+import { encodingForModel } from 'js-tiktoken';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'query-analyzer';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
+
+const encoder = encodingForModel('gpt-4o');
 
 const RAW_CONSUMED_TOPICS: string[] = [
   "internal.query.analysis.v1"
@@ -54,6 +57,18 @@ class QueryAnalyzerServer extends BaseServer {
                 const text = msg.message?.text;
                 if (!text) {
                   this.getLogger().warn('query-analyzer.no_text', { correlationId: msg.correlationId });
+                  await this.next(msg, 'OK');
+                  await ctx.ack();
+                  return;
+                }
+
+                // Skip analysis for very short messages (QA-005)
+                const tokens = encoder.encode(text);
+                if (tokens.length < 3) {
+                  this.getLogger().info('query-analyzer.skip_short_message', {
+                    correlationId: msg.correlationId,
+                    tokenCount: tokens.length
+                  });
                   await this.next(msg, 'OK');
                   await ctx.ack();
                   return;
