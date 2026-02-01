@@ -1,0 +1,152 @@
+meta:
+  backlog_id: sprint-242-466f34-backlog
+  updated_at: 2026-01-31
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-242-466f34
+  start: 2026-01-31
+  end: 2026-02-14
+  wip_limit: 3
+  goal: "Introduce LLM abstraction layer in query-analyzer using Vercel AI SDK"
+
+items:
+  - id: QA-ABS-001
+    title: "Add @ai-sdk/ollama dependency"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "package.json contains @ai-sdk/ollama (or equivalent)"
+      - "npm install runs successfully"
+    updated_at: 2026-01-31
+    log:
+      - at: 2026-01-31T23:47:00Z
+        note: "Installed ollama-ai-provider as @ai-sdk/ollama was not found."
+
+  - id: QA-ABS-002
+    title: "Implement LLM Provider Factory and Schema"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-ABS-001]
+    blocked_reason: null
+    acceptance:
+      - "src/services/query-analyzer/llm-provider.ts exists"
+      - "Zod schema matches TA specifications"
+      - "Factory correctly instantiates Ollama and OpenAI providers"
+    updated_at: 2026-01-31
+    log:
+      - at: 2026-01-31T23:55:00Z
+        note: "Implemented LLM provider factory with Zod schema."
+
+  - id: QA-ABS-003
+    title: "Refactor query-analyzer app to use LLM provider"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-ABS-002]
+    blocked_reason: null
+    acceptance:
+      - "src/apps/query-analyzer.ts uses generateObject via abstraction"
+      - "Manual fetch calls to Ollama are removed"
+      - "Configurable via LLM_PROVIDER and LLM_MODEL env vars"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T00:05:00Z
+        note: "Refactored query-analyzer app to use analyzeWithLlm."
+
+  - id: QA-ABS-004
+    title: "Update environment configuration"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-ABS-003]
+    blocked_reason: null
+    acceptance:
+      - "Dockerfile.query-analyzer includes new env vars"
+      - "architecture.yaml updated with new service config"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T00:15:00Z
+        note: "Updated Dockerfile and architecture.yaml with new environment variables."
+
+  - id: QA-ABS-005
+    title: "Create validation script and verify implementation"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-ABS-003]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh exists and passes"
+      - "Unit tests for LLM provider abstraction pass"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T00:30:00Z
+        note: "Created validation script and passed unit tests."
+
+  - id: QA-ABS-006
+    title: "Final Verification and PR Publication"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-ABS-005]
+    blocked_reason: null
+    acceptance:
+      - "Verification report generated"
+      - "PR created via GitHub CLI"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T00:35:00Z
+        note: "Generated verification report, retro, and key learnings."
+
+  - id: QA-LOG-001
+    title: "Refactor prompt logging to service sub-collections"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-ABS-003]
+    blocked_reason: null
+    acceptance:
+      - "llm-bot logs to services/llm-bot/prompt_logs"
+      - "query-analyzer logs to services/query-analyzer/prompt_logs"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T19:50:00Z
+        note: "Refactored prompt logging to use service sub-collections."
+
+  - id: QA-LOG-002
+    title: "Implement context size metrics in prompt logs"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-LOG-001]
+    blocked_reason: null
+    acceptance:
+      - "prompt_logs entries include promptTokens, completionTokens, and totalTokens"
+    updated_at: 2026-02-01
+  - id: QA-LOG-003
+    title: "Fix query-analyzer prompt logging to include system prompt"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-LOG-001]
+    blocked_reason: null
+    acceptance:
+      - "prompt_logs in query-analyzer contains full realized prompt (System + User)"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T00:55:00Z
+        note: "Refactored analyzeWithLlm to log fullPrompt including SYSTEM_PROMPT."

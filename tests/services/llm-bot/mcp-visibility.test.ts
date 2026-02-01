@@ -54,12 +54,20 @@ describe('llm-bot processor — MCP Visibility', () => {
     features.setOverride('llm.promptLogging.enabled', 'true');
     
     mockAdd = jest.fn().mockResolvedValue({ id: 'doc-123' });
-    mockCollection = jest.fn().mockReturnValue({ 
-        add: mockAdd,
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        get: jest.fn().mockResolvedValue({ docs: [{ data: () => ({ name: 'Bratty', text: 'You are bratty.', status: 'active' }) }] })
+    const mockCollectionInner = jest.fn().mockReturnValue({ add: mockAdd });
+    const mockDoc = jest.fn().mockReturnValue({ 
+        collection: mockCollectionInner
+    });
+
+    mockCollection = jest.fn().mockImplementation((name) => {
+        if (name === 'services') return { doc: mockDoc };
+        return { 
+            add: mockAdd,
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({ docs: [{ data: () => ({ name: 'Bratty', text: 'You are bratty.', status: 'active' }) }] })
+        };
     });
     mockDb = { collection: mockCollection };
     (getFirestore as jest.Mock).mockReturnValue(mockDb);
