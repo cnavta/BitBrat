@@ -89,7 +89,7 @@ class LlmBotServer extends BaseServer {
   protected static CONFIG_DEFAULTS: Record<string, any> = {
     SERVICE_NAME: 'llm-bot',
     PORT: 3000,
-    OPENAI_MODEL: 'gpt-5-mini',
+    OPENAI_MODEL: 'gpt-4.1-mini',
     OPENAI_TIMEOUT_MS: 15000,
     // Short-term, in-run memory bounds
     LLM_BOT_MEMORY_MAX_MESSAGES: 8,

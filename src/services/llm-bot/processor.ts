@@ -1,6 +1,7 @@
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { generateText, ModelMessage, stepCountIs } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { ollama } from 'ai-sdk-ollama';
 import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
 import { resolvePersonalityParts, PersonalityDoc } from './personality-resolver';
@@ -148,6 +149,7 @@ export async function processEvent(
   deps?: { 
     registry?: IToolRegistry;
     callLLM?: (model: string, input: string) => Promise<string>;
+    fetchByName?: (name: string) => Promise<PersonalityDoc | undefined>;
   }
 ): Promise<'SKIP'|'OK'|'ERROR'> {
   const logger = (server as any).getLogger?.();
@@ -214,6 +216,7 @@ export async function processEvent(
     let resolvedIdentity: string | undefined;
     let resolvedConstraints: any[] | undefined;
     let resolvedPersonalityNames: string[] = [];
+    let resolvedParts: any[] = [];
 
     if (personalitiesEnabled) {
       try {
@@ -224,16 +227,17 @@ export async function processEvent(
         };
         const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
         const fetchByName = async (name: string): Promise<PersonalityDoc | undefined> => {
+          if (deps?.fetchByName) return deps.fetchByName(name);
           const db = getFirestore();
           const snap = await db.collection(collection).where('name', '==', name).where('status', '==', 'active').orderBy('version', 'desc').limit(1).get();
           return snap.docs[0]?.data() as PersonalityDoc | undefined;
         };
-        const parts = await resolvePersonalityParts(anns as any, opts, { fetchByName, logger });
-        resolvedIdentity = parts.map((p: any) => p.text || p.payload?.text || p.summary || p.name).filter(Boolean).join('\n\n');
-        resolvedPersonalityNames = parts.map(p => p.name).filter((n): n is string => !!n);
+        resolvedParts = await resolvePersonalityParts(anns as any, opts, { fetchByName, logger });
+        resolvedIdentity = resolvedParts.map((p: any) => p.text || p.payload?.text || p.summary || p.name).filter(Boolean).join('\n\n');
+        resolvedPersonalityNames = resolvedParts.map(p => p.name).filter((n): n is string => !!n);
         // Simple constraint extraction heuristic
         resolvedConstraints = [];
-        for (const p of parts) {
+        for (const p of resolvedParts) {
           const t = String((p as any)?.text || (p as any)?.payload?.text || '').trim();
           const lines = t.split(/\n/);
           for (const line of lines) {
@@ -270,6 +274,8 @@ export async function processEvent(
 
     // 5. Call LLM
     let modelName = server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-4o' });
+    let platformName = server.getConfig<string>('LLM_PLATFORM', { default: 'openai' });
+    const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 30000, parser: (v: any) => Number(v) });
 
     // QA-005: Adaptive Model Selection
     const intentAnn = evt.annotations?.find(a => a.kind === 'intent' && a.source === 'query-analyzer');
@@ -282,7 +288,15 @@ export async function processEvent(
       }
       logger.info('llm_bot.adaptive_model_selection', { correlationId: corr, intent, selectedModel: modelName });
     }
-    const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 30000, parser: (v: any) => Number(v) });
+
+    // Check for personality overrides (highest priority first)
+    const override = resolvedParts.find(p => p.model || p.platform);
+    if (override) {
+      if (override.model) modelName = override.model;
+      if (override.platform) platformName = override.platform;
+      logger.info('llm_bot.personality_override', { correlationId: corr, platform: platformName, model: modelName });
+    }
+
     let finalResponse: string;
     let usage: any;
 
@@ -347,7 +361,7 @@ export async function processEvent(
       });
 
       const result = await generateText({
-        model: openai(modelName),
+        model: platformName === 'ollama' ? ollama(modelName) : openai(modelName),
         messages: coreMessages,
         tools: filteredTools,
         stopWhen: stepCountIs(5),
@@ -417,6 +431,7 @@ export async function processEvent(
         correlationId: corr,
         prompt: redactText(fullPrompt),
         response: redactText(finalResponse),
+        platform: platformName,
         model: modelName,
         personalityNames: resolvedPersonalityNames,
         toolCalls: toolLogs,
