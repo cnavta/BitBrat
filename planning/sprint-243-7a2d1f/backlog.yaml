@@ -1,0 +1,87 @@
+meta:
+  backlog_id: sprint-243-7a2d1f-backlog
+  updated_at: 2026-02-01
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-243-7a2d1f
+  start: 2026-02-01
+  end: 2026-02-08
+  wip_limit: 2
+  goal: "Enhance platform flexibility with personality overrides and improved logging/analysis."
+
+items:
+  - id: BL-QA-001
+    title: "Improve Query Analyzer system prompt"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "System prompt is updated with better descriptions"
+      - "Analysis results are consistent and accurate"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T12:45:00Z
+        note: "Starting improvement of Query Analyzer system prompt."
+      - at: 2026-02-01T12:50:00Z
+        note: "Updated SYSTEM_PROMPT in llm-provider.ts."
+
+  - id: BL-LB-001
+    title: "Update Personality schema and resolver for platform/model"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "PersonalityDoc interface includes platform and model"
+      - "resolvePersonalityParts returns platform and model if present"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T12:55:00Z
+        note: "Updated PersonalityDoc, ResolvedPersonality, and CacheEntry. Updated resolvePersonalityParts to handle platform and model."
+
+  - id: BL-LB-002
+    title: "Update LLM Bot processor for platform/model overrides"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-LB-001]
+    acceptance:
+      - "Processor uses model/platform from personalities if provided"
+      - "Overrides existing config default"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T13:00:00Z
+        note: "Updated processor.ts to support platform/model overrides and ollama platform."
+
+  - id: BL-PL-001
+    title: "Add 'platform' to Query Analyzer prompt logs"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "prompt_logs in Firestore include 'platform' field"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T12:51:00Z
+        note: "Added platform to query-analyzer prompt logs."
+
+  - id: BL-PL-002
+    title: "Add 'platform' to LLM Bot prompt logs"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "prompt_logs in Firestore include 'platform' field"
+    updated_at: 2026-02-01
+    log:
+      - at: 2026-02-01T13:01:00Z
+        note: "Added platform to llm-bot prompt logs."

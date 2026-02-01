@@ -1,0 +1,13 @@
+id: sprint-243-7a2d1f
+title: "Platform Enhancements: Personality Configs, Platform Metadata & Query Analyzer Optimization"
+goal: "Enhance platform flexibility by adding platform/model overrides to personalities, improving query analysis, and tracking platform metadata in prompt logs."
+owner: "Junie (Lead Implementor)"
+createdAt: "2026-02-01T12:35:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-243-7a2d1f-platform-enhancements"
+notes: |
+  Focus on:
+  - Improving Query Analyzer prompt accuracy.
+  - Supporting platform/model overrides in personalities.
+  - Adding 'platform' metadata to prompt_logs for llm-bot and query-analyzer.
