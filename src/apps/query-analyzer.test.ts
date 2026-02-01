@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { createApp } from './query-analyzer';
+import { analyzeWithLlm } from '../services/query-analyzer/llm-provider';
 
 // Mock message-bus to capture and trigger handlers
 let capturedHandler: any;
@@ -14,6 +15,10 @@ const createMessagePublisherMock = jest.fn(() => ({ publishJson: publishJsonMock
 jest.mock('../services/message-bus', () => ({
   createMessageSubscriber: () => createMessageSubscriberMock(),
   createMessagePublisher: () => createMessagePublisherMock(),
+}));
+
+jest.mock('../services/query-analyzer/llm-provider', () => ({
+  analyzeWithLlm: jest.fn(),
 }));
 
 // Mock process.env for BaseServer
@@ -31,22 +36,16 @@ describe('query-analyzer service', () => {
   describe('message handling', () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      global.fetch = jest.fn();
     });
 
     it('processes a normal message and calls next()', async () => {
-      const mockOllamaResponse = {
-        response: JSON.stringify({
-          intent: 'question',
-          tone: { valence: 0.5, arousal: 0.1 },
-          risk: { level: 'none', type: 'none' }
-        })
+      const mockAnalysis = {
+        intent: 'question',
+        tone: { valence: 0.5, arousal: 0.1 },
+        risk: { level: 'none', type: 'none' }
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockOllamaResponse
-      });
+      (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
 
       const event = {
         v: '2',
@@ -68,7 +67,7 @@ describe('query-analyzer service', () => {
 
       await capturedHandler(payload, {}, ctx);
 
-      expect(global.fetch).toHaveBeenCalled();
+      expect(analyzeWithLlm).toHaveBeenCalled();
       expect(publishJsonMock).toHaveBeenCalled();
       
       const published = publishJsonMock.mock.calls[0][0] as any;
@@ -83,18 +82,13 @@ describe('query-analyzer service', () => {
     });
 
     it('short-circuits spam messages', async () => {
-      const mockOllamaResponse = {
-        response: JSON.stringify({
-          intent: 'spam',
-          tone: { valence: -0.8, arousal: 0.5 },
-          risk: { level: 'high', type: 'spam' }
-        })
+      const mockAnalysis = {
+        intent: 'spam',
+        tone: { valence: -0.8, arousal: 0.5 },
+        risk: { level: 'high', type: 'spam' }
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockOllamaResponse
-      });
+      (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
 
       const event = {
         v: '2',
@@ -121,8 +115,8 @@ describe('query-analyzer service', () => {
       expect(ctx.ack).toHaveBeenCalled();
     });
 
-    it('falls back to next() on Ollama failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+    it('falls back to next() on LLM failure', async () => {
+      (analyzeWithLlm as jest.Mock).mockResolvedValue(null);
 
       const event = {
         v: '2',

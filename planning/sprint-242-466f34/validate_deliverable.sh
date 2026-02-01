@@ -9,5 +9,6 @@ npm run build
 
 echo "🧪 Running tests..."
 npx jest tests/services/query-analyzer/llm-provider.test.ts
+npx jest src/apps/query-analyzer.test.ts
 
 echo "✅ Validation complete."
