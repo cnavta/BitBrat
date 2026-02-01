@@ -6,7 +6,7 @@
 - [x] Refactored `query-analyzer` app to use the new abstraction layer, removing manual fetch calls.
 - [x] Updated `Dockerfile.query-analyzer` with new environment variables.
 - [x] Updated `architecture.yaml` to include new configuration options for `query-analyzer`.
-- [x] Updated service documentation (`documentation/services/query-analyzer.md`) and runbook (`documentation/runbooks/query-analyzer.md`).
+- [x] Updated service documentation (`documentation/services/query-analyzer.md`, `documentation/services/llm-bot.md`) and runbook (`documentation/runbooks/query-analyzer.md`).
 - [x] Created and successfully ran `validate_deliverable.sh`.
 - [x] Implemented and passed unit tests for the LLM provider abstraction.
 - [x] Fixed broken tests in `llm-bot` (`prompt-logging.test.ts`, `mcp-visibility.test.ts`) after refactoring prompt logging.

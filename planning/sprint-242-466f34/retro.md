@@ -4,7 +4,7 @@
 - The Vercel AI SDK provides a very clean abstraction for switching between Ollama and OpenAI.
 - Structured output via `generateObject` significantly simplifies the code by removing manual JSON parsing and providing type safety (via Zod).
 - The implementation plan was accurate and followed closely.
-- Documentation was updated to provide clear guidance on the new configuration options.
+- Documentation was updated to provide clear guidance on the new configuration options, including the creation of a new central `llm-bot.md` service document.
 - Refactored prompt logging to a more scalable sub-collection strategy (`services/{service}/prompt_logs`) and added token usage tracking.
 
 ## What Didn't Work
