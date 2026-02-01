@@ -3,8 +3,9 @@ title: "Platform Enhancements: Personality Configs, Platform Metadata & Query An
 goal: "Enhance platform flexibility by adding platform/model overrides to personalities, improving query analysis, and tracking platform metadata in prompt logs."
 owner: "Junie (Lead Implementor)"
 createdAt: "2026-02-01T12:35:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/157"
   branch: "feature/sprint-243-7a2d1f-platform-enhancements"
 notes: |
   Focus on:
