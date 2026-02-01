@@ -277,18 +277,6 @@ export async function processEvent(
     let platformName = server.getConfig<string>('LLM_PLATFORM', { default: 'openai' });
     const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 30000, parser: (v: any) => Number(v) });
 
-    // QA-005: Adaptive Model Selection
-    const intentAnn = evt.annotations?.find(a => a.kind === 'intent' && a.source === 'query-analyzer');
-    if (intentAnn) {
-      const intent = intentAnn.label || intentAnn.value;
-      if (intent === 'question' || intent === 'command') {
-        modelName = 'gpt-4o';
-      } else {
-        modelName = 'gpt-4o-mini';
-      }
-      logger.info('llm_bot.adaptive_model_selection', { correlationId: corr, intent, selectedModel: modelName });
-    }
-
     // Check for personality overrides (highest priority first)
     const override = resolvedParts.find(p => p.model || p.platform);
     if (override) {
