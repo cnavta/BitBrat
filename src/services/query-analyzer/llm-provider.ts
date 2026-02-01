@@ -2,6 +2,9 @@ import { generateObject, LanguageModel } from 'ai';
 import { ollama } from 'ai-sdk-ollama';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
+import { getFirestore } from '../../common/firebase';
+import { isFeatureEnabled } from '../../common/feature-flags';
+import { redactText } from '../../common/prompt-assembly/redaction';
 
 /**
  * Zod schema for query analysis, matching the specification in the TA.
@@ -47,20 +50,47 @@ export async function analyzeWithLlm(
   options: {
     providerName?: string;
     modelName?: string;
-    logger?: { error: (msg: string, meta?: any) => void };
+    logger?: { error: (msg: string, meta?: any) => void; info: (msg: string, meta?: any) => void };
+    correlationId?: string;
   } = {}
 ): Promise<QueryAnalysis | null> {
   const providerName = options.providerName || process.env.LLM_PROVIDER || 'ollama';
   const modelName = options.modelName || process.env.LLM_MODEL || (providerName === 'openai' ? 'gpt-4o-mini' : 'llama3');
+  const corr = options.correlationId;
   
   try {
     const provider = getLlmProvider(providerName, modelName);
-    const { object } = await (generateObject as any)({
+    const result = await (generateObject as any)({
       model: provider,
       schema: queryAnalysisSchema,
       prompt: text,
       system: SYSTEM_PROMPT,
     });
+    const object = result.object;
+
+    // Prompt Logging (Fire and forget)
+    if (isFeatureEnabled('llm.promptLogging.enabled')) {
+      const db = getFirestore();
+      const usage = result.usage;
+
+      db.collection('services').doc('query-analyzer').collection('prompt_logs').add({
+        correlationId: corr,
+        prompt: redactText(text),
+        response: redactText(JSON.stringify(object)),
+        model: modelName,
+        usage: usage ? {
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          totalTokens: usage.totalTokens,
+        } : undefined,
+        createdAt: new Date(),
+      }).catch((e: any) => {
+        if (options.logger) {
+          options.logger.error('query-analyzer.prompt_logging_failed', { correlationId: corr, error: e?.message });
+        }
+      });
+    }
+
     return object;
   } catch (error: any) {
     if (options.logger) {

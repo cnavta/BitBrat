@@ -9,6 +9,9 @@
 - [x] Updated service documentation (`documentation/services/query-analyzer.md`) and runbook (`documentation/runbooks/query-analyzer.md`).
 - [x] Created and successfully ran `validate_deliverable.sh`.
 - [x] Implemented and passed unit tests for the LLM provider abstraction.
+- [x] Refactored `llm-bot` prompt logging to use service-specific sub-collections (`services/llm-bot/prompt_logs`).
+- [x] Implemented prompt logging in `query-analyzer` using service-specific sub-collections (`services/query-analyzer/prompt_logs`).
+- [x] Added token usage metrics (`promptTokens`, `completionTokens`, `totalTokens`) to prompt logs in both services.
 
 ## Partial
 - None

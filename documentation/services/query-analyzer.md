@@ -9,6 +9,7 @@ The `query-analyzer` is a high-performance linguistic analysis service that acts
 - **Risk Assessment**: Detects harassment, spam, privacy violations, and other risky content.
 - **Short-Circuiting**: Automatically terminates processing for spam or high-risk messages, saving expensive primary LLM tokens.
 - **Adaptive Model Selection Support**: Enriches events with annotations that allow `llm-bot` to select the most appropriate model (e.g., GPT-4o vs. GPT-4o-mini).
+- **Prompt Logging**: Logs all queries and analysis results to Firestore for audit and training purposes, including token usage metrics.
 
 ## Architecture
 
