@@ -10,3 +10,7 @@
 | 2026-02-01T00:15:00Z | Update Configuration | Updated `Dockerfile.query-analyzer` and `architecture.yaml` with new env vars. | `search_replace` | `Dockerfile.query-analyzer`, `architecture.yaml` |
 | 2026-02-01T00:30:00Z | Validation | Created validation script and unit tests. | `create`, `bash` | `validate_deliverable.sh`, `llm-provider.test.ts` |
 | 2026-02-01T00:40:00Z | Verification & PR Prep | Generated reports and prepared for PR publication. | `create` | `verification-report.md`, `retro.md`, `key-learnings.md` |
+| 2026-02-01T19:50:00Z | Prompt Logging Refactor | Refactored prompt logging to service-specific sub-collections and added token metrics. | `search_replace` | `src/services/llm-bot/processor.ts`, `src/services/query-analyzer/llm-provider.ts` |
+| 2026-02-01T20:10:00Z | Fix Broken Tests | Resolved test failures in llm-bot due to logging structure changes. | `search_replace` | `tests/services/llm-bot/prompt-logging.test.ts`, `tests/services/llm-bot/mcp-visibility.test.ts`, `validate_deliverable.sh` |
+| 2026-02-01T20:30:00Z | Documentation Update | Updated service docs and runbooks for prompt logging changes. | `create`, `search_replace` | `documentation/services/llm-bot.md`, `documentation/services/query-analyzer.md`, `documentation/runbooks/query-analyzer.md` |
+| 2026-02-01T20:55:00Z | Fix Prompt Content | Fixed query-analyzer to log the full realized prompt (System + User). | `search_replace` | `src/services/query-analyzer/llm-provider.ts`, `tests/services/query-analyzer/llm-provider.test.ts` |
