@@ -287,10 +287,13 @@ export async function processEvent(
 
     let finalResponse: string;
     let usage: any;
+    let processingTimeMs: number | undefined;
 
+    const start = Date.now();
     if (deps?.callLLM) {
       const fullPrompt = payload.messages.map((m: any) => `(${m.role}) ${m.content}`).join('\n\n');
       finalResponse = await deps.callLLM(modelName, fullPrompt);
+      processingTimeMs = Date.now() - start;
     } else {
       const coreMessages: ModelMessage[] = [
         { role: 'system', content: payload.messages[0].content },
@@ -378,6 +381,7 @@ export async function processEvent(
 
       finalResponse = result.text;
       usage = result.usage;
+      processingTimeMs = Date.now() - start;
     }
 
     finalResponse = unwrapQuoted(finalResponse.trim());
@@ -421,6 +425,7 @@ export async function processEvent(
         response: redactText(finalResponse),
         platform: platformName,
         model: modelName,
+        processingTimeMs,
         personalityNames: resolvedPersonalityNames,
         toolCalls: toolLogs,
         usage: usage ? {

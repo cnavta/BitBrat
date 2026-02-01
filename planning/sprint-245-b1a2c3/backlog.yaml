@@ -1,0 +1,38 @@
+meta:
+  backlog_id: sprint-245-b1a2c3-backlog
+  updated_at: 2026-02-01
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-245-b1a2c3
+  start: 2026-02-01
+  end: 2026-02-08
+  wip_limit: 2
+  goal: "Add prompt processing time to llm-bot and query-analyzer prompt_logs."
+
+items:
+  - id: BL-LB-003
+    title: "Log processing time in llm-bot"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "processor.ts measures generateText time"
+      - "Firestore prompt_logs include processingTimeMs"
+    updated_at: 2026-02-01
+    log: []
+
+  - id: BL-QA-002
+    title: "Log processing time in query-analyzer"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "llm-provider.ts measures generateObject time"
+      - "Firestore prompt_logs include processingTimeMs"
+    updated_at: 2026-02-01
+    log: []
