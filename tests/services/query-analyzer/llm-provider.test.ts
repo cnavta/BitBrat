@@ -66,6 +66,26 @@ describe('llm-provider', () => {
     }));
   });
 
+  it('should include processingTimeMs in prompt logs', async () => {
+    const mockObject = {
+      intent: 'question',
+      tone: { valence: 0.5, arousal: 0.5 },
+      risk: { level: 'none', type: 'none' },
+    };
+    (ai.generateObject as jest.Mock).mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      return { object: mockObject };
+    });
+
+    await analyzeWithLlm('hello', { correlationId: 'test-time-corr' });
+
+    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+      processingTimeMs: expect.any(Number),
+    }));
+    const logData = mockAdd.mock.calls.find(call => call[0].correlationId === 'test-time-corr')[0];
+    expect(logData.processingTimeMs).toBeGreaterThanOrEqual(50);
+  });
+
   it('should call generateObject with correct parameters for openai', async () => {
     const mockObject = {
       intent: 'joke',

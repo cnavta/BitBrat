@@ -1,0 +1,10 @@
+id: sprint-245-b1a2c3
+title: "Log LLM Processing Time"
+goal: "Add prompt processing time to llm-bot and query-analyzer prompt_logs to monitor platform/model performance."
+owner: "Junie"
+createdAt: "2026-02-01T12:58:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-245-b1a2c3-log-llm-processing-time"
+notes: |
+  Measuring duration of LLM calls in both services and updating Firestore logs.
