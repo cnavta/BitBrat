@@ -13,6 +13,7 @@
 - [x] Refactored `llm-bot` prompt logging to use service-specific sub-collections (`services/llm-bot/prompt_logs`).
 - [x] Implemented prompt logging in `query-analyzer` using service-specific sub-collections (`services/query-analyzer/prompt_logs`).
 - [x] Added token usage metrics (`promptTokens`, `completionTokens`, `totalTokens`) to prompt logs in both services.
+- [x] Fixed `query-analyzer` prompt logging to include the fully realized prompt (System + User).
 
 ## Partial
 - None

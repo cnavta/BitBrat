@@ -1,5 +1,7 @@
-import { analyzeWithLlm, getLlmProvider } from '../../../src/services/query-analyzer/llm-provider';
+import { analyzeWithLlm, getLlmProvider, SYSTEM_PROMPT } from '../../../src/services/query-analyzer/llm-provider';
 import * as ai from 'ai';
+import { getFirestore } from '../../../src/common/firebase';
+import { features } from '../../../src/common/feature-flags';
 
 jest.mock('ai', () => ({
   generateObject: jest.fn(),
@@ -13,28 +15,55 @@ jest.mock('@ai-sdk/openai', () => ({
   openai: jest.fn(() => ({})),
 }));
 
+jest.mock('../../../src/common/firebase', () => ({
+  getFirestore: jest.fn(),
+}));
+
 describe('llm-provider', () => {
+  let mockAdd: jest.Mock;
+  let mockCollection: jest.Mock;
+  let mockDb: any;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    features.setOverride('llm.promptLogging.enabled', 'true');
+
+    mockAdd = jest.fn().mockResolvedValue({ id: 'doc-123' });
+    const mockCollectionInner = jest.fn().mockReturnValue({ add: mockAdd });
+    const mockDoc = jest.fn().mockReturnValue({ collection: mockCollectionInner });
+    mockCollection = jest.fn().mockImplementation((name) => {
+      if (name === 'services') return { doc: mockDoc };
+      return { add: mockAdd };
+    });
+    mockDb = { collection: mockCollection };
+    (getFirestore as jest.Mock).mockReturnValue(mockDb);
   });
 
-  it('should call generateObject with correct parameters for ollama', async () => {
+  it('should call generateObject with correct parameters for ollama and log full prompt', async () => {
     const mockObject = {
       intent: 'question',
       tone: { valence: 0.5, arousal: 0.5 },
       risk: { level: 'none', type: 'none' },
     };
-    (ai.generateObject as jest.Mock).mockResolvedValue({ object: mockObject });
+    (ai.generateObject as jest.Mock).mockResolvedValue({ object: mockObject, usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } });
 
-    const result = await analyzeWithLlm('hello', { providerName: 'ollama', modelName: 'llama3' });
+    const result = await analyzeWithLlm('hello', { providerName: 'ollama', modelName: 'llama3', correlationId: 'test-corr' });
 
     expect(ai.generateObject).toHaveBeenCalledWith(expect.objectContaining({
       model: expect.anything(),
       prompt: 'hello',
-      system: expect.any(String),
+      system: SYSTEM_PROMPT,
       schema: expect.anything(),
     }));
     expect(result).toEqual(mockObject);
+
+    // Verify logging
+    expect(mockCollection).toHaveBeenCalledWith('services');
+    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+      correlationId: 'test-corr',
+      prompt: `System: ${SYSTEM_PROMPT}\n\nUser: hello`,
+      model: 'llama3',
+    }));
   });
 
   it('should call generateObject with correct parameters for openai', async () => {

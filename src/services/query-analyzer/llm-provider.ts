@@ -60,6 +60,7 @@ export async function analyzeWithLlm(
   
   try {
     const provider = getLlmProvider(providerName, modelName);
+    const fullPrompt = `System: ${SYSTEM_PROMPT}\n\nUser: ${text}`;
     const result = await (generateObject as any)({
       model: provider,
       schema: queryAnalysisSchema,
@@ -75,7 +76,7 @@ export async function analyzeWithLlm(
 
       db.collection('services').doc('query-analyzer').collection('prompt_logs').add({
         correlationId: corr,
-        prompt: redactText(text),
+        prompt: redactText(fullPrompt),
         response: redactText(JSON.stringify(object)),
         model: modelName,
         usage: usage ? {
