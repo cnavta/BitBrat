@@ -1,0 +1,2 @@
+1. Always check res.headersSent when manually sending responses in Express routes that might be wrapped in middleware or other handlers.
+2. MCP SSE transport is particularly sensitive to response stream state.
