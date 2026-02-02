@@ -3,8 +3,9 @@ title: "Fix Query Analyzer Ollama Host"
 goal: "Ensure query-analyzer uses the OLLAMA_HOST environment variable for LLM analysis."
 owner: "Junie"
 createdAt: "2026-02-02T16:40:00Z"
-status: "planning"
+status: "published"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/163"
   branch: "feature/sprint-249-c3d4e5-fix-query-analyzer-ollama-host"
 notes: |
   The query-analyzer was defaulting to localhost for Ollama because OLLAMA_HOST was not being passed to the provider factory.
