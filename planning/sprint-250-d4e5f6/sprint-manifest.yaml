@@ -1,0 +1,10 @@
+id: sprint-250-d4e5f6
+title: "Fix Query Analyzer Tests"
+goal: "Fix failing query-analyzer tests caused by ai-sdk-ollama integration changes."
+owner: "Junie"
+createdAt: "2026-02-02T21:38:35Z"
+status: "complete"
+links:
+  branch: "feature/sprint-250-d4e5f6-fix-query-analyzer-tests"
+notes: |
+  The previous sprint updated query-analyzer to use createOllama from ai-sdk-ollama, but the tests were still mocking the old ollama export and were failing because createOllama was undefined in the test environment.
