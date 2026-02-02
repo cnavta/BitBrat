@@ -1,0 +1,11 @@
+id: sprint-247-a8b9c0
+title: "Phase-based Event Flow Architecture"
+goal: "Define System and Technical Architecture for dividing event flow into Ingress, Enrichment, Reaction, and Egress phases."
+owner: "Junie"
+createdAt: "2026-02-01T14:40:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/161"
+  branch: "feature/sprint-247-a8b9c0-phase-based-event-flow"
+notes: |
+  Defining the core architectural shift towards a phased event processing pipeline.
