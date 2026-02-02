@@ -8,6 +8,7 @@ jest.mock('ai', () => ({
 }));
 
 jest.mock('ai-sdk-ollama', () => ({
+  createOllama: jest.fn(() => jest.fn(() => ({}))),
   ollama: jest.fn(() => ({})),
 }));
 

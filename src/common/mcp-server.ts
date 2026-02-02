@@ -232,6 +232,9 @@ export class McpServer extends BaseServer {
             sessionId: transport.sessionId,
           });
           this.transports.delete(transport.sessionId);
+          if (!res.headersSent) {
+            res.status(500).send("Connection error");
+          }
         }
       });
     });
@@ -242,7 +245,9 @@ export class McpServer extends BaseServer {
         authMiddleware(req, res, async () => {
           const sessionId = req.query.sessionId as string;
           if (!sessionId) {
-            res.status(400).send("sessionId is required");
+            if (!res.headersSent) {
+              res.status(400).send("sessionId is required");
+            }
             return;
           }
 
@@ -261,7 +266,9 @@ export class McpServer extends BaseServer {
             }
           } else {
             this.getLogger().warn("mcp_server.session_not_found", { sessionId });
-            res.status(404).send("Session not found");
+            if (!res.headersSent) {
+              res.status(404).send("Session not found");
+            }
           }
         });
       }

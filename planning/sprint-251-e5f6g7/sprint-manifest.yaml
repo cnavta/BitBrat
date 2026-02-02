@@ -1,0 +1,10 @@
+id: sprint-251-e5f6g7
+title: 'Fix MCP Server Security Tests'
+goal: 'Address the failing security tests in tests/common/mcp-server.spec.ts caused by protocol mismatch.'
+owner: 'Junie'
+createdAt: '2026-02-02T21:42:43Z'
+status: 'complete'
+links:
+  branch: 'feature/sprint-251-e5f6g7-fix-mcp-server-tests'
+notes: |
+  The failure 'Parse Error: Expected HTTP/, RTSP/ or ICE/' suggests an issue with how the mock server or client is handling HTTP requests in the test environment.
