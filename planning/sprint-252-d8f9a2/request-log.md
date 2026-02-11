@@ -33,11 +33,12 @@
     - Cleaned up redundant `ENV` values in `Dockerfile.query-analyzer`.
     - Verified fix via `validate_deliverable.sh`.
 
-- **Timestamp**: 2026-02-11T04:10:00Z
-  **Prompt**: We now seem to be having issues where the llm-bot is using the same LLM_* values as the query-analyzer even though its environtment overlay values are different.
-  **Interpretation**: The `merge-env.js` script flattens all service YAMLs into one `.env.local`, causing collisions for shared variable names like `LLM_PROVIDER`.
+- **Timestamp**: 2026-02-11T04:25:00Z
+  **Prompt**: The new LLM_PROVIDER, LLM_MODEL and LLM_BASE_URL env vars in the environmental overlays are conflicting with each other between the query-analyzer and the llm-bot. Please have the two services use namespaced env var names for these values so configuration information does not override
+  **Interpretation**: Detected environment variable collision in the shared `.env.local` file due to non-unique names in service overlays. Need to namespace these variables at the overlay level and map them in Docker Compose.
   **Actions**:
-    - Prefixed LLM variables in `env/local/query-analyzer.yaml` with `QUERY_ANALYZER_`.
-    - Prefixed LLM variables in `env/local/llm-bot.yaml` with `LLM_BOT_`.
-    - Updated `query-analyzer.compose.yaml` and `llm-bot.compose.yaml` to map these prefixed variables back to the standard `LLM_*` names inside the container.
-    - Verified isolation by regenerating `.env.local`.
+    - Updated `env/local/query-analyzer.yaml` with `QUERY_ANALYZER_` prefixes.
+    - Updated `env/local/llm-bot.yaml` with `LLM_BOT_` prefixes.
+    - Updated `infrastructure/docker-compose/services/query-analyzer.compose.yaml` and `llm-bot.compose.yaml` to map namespaced variables back to standard `LLM_*` names.
+    - Verified isolation in `.env.local` after merge.
+    - Verified all tests pass.
