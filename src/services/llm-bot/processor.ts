@@ -1,7 +1,5 @@
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { generateText, ModelMessage, stepCountIs } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { ollama } from 'ai-sdk-ollama';
 import { BaseServer } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
 import { resolvePersonalityParts, PersonalityDoc } from './personality-resolver';
@@ -13,6 +11,7 @@ import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
 import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser, AssemblerConfig } from '../../common/prompt-assembly/types';
 import { redactText } from '../../common/prompt-assembly/redaction';
 import { IToolRegistry } from '../../types/tools';
+import { getLlmProvider } from '../../common/llm/provider-factory';
 import { metrics,
   METRIC_PERSONALITIES_RESOLVED,
   METRIC_PERSONALITIES_FAILED,
@@ -273,8 +272,8 @@ export async function processEvent(
     const payload = openaiAdapter(assembled);
 
     // 5. Call LLM
-    let modelName = server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-4o' });
-    let platformName = server.getConfig<string>('LLM_PLATFORM', { default: 'openai' });
+    let modelName = server.getConfig<string>('LLM_MODEL', { default: server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-4o' }) });
+    let platformName = server.getConfig<string>('LLM_PROVIDER', { default: server.getConfig<string>('LLM_PLATFORM', { default: 'openai' }) });
     const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 30000, parser: (v: any) => Number(v) });
 
     // Check for personality overrides (highest priority first)
@@ -351,8 +350,15 @@ export async function processEvent(
         tools: Object.keys(filteredTools)
       });
 
+      const provider = getLlmProvider({
+        provider: platformName,
+        model: modelName,
+        baseURL: server.getConfig('LLM_BASE_URL'),
+        apiKey: server.getConfig('LLM_API_KEY'),
+      });
+
       const result = await generateText({
-        model: platformName === 'ollama' ? ollama(modelName) : openai(modelName),
+        model: provider,
         messages: coreMessages,
         tools: filteredTools,
         stopWhen: stepCountIs(5),

@@ -1,10 +1,9 @@
-import { generateObject, LanguageModel } from 'ai';
-import { createOllama } from 'ai-sdk-ollama';
-import { openai } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getFirestore } from '../../common/firebase';
 import { isFeatureEnabled } from '../../common/feature-flags';
 import { redactText } from '../../common/prompt-assembly/redaction';
+import { getLlmProvider } from '../../common/llm/provider-factory';
 
 /**
  * Zod schema for query analysis, matching the specification in the TA.
@@ -23,22 +22,6 @@ export const queryAnalysisSchema = z.object({
 
 export type QueryAnalysis = z.infer<typeof queryAnalysisSchema>;
 
-/**
- * Factory to get the appropriate LLM provider.
- */
-export function getLlmProvider(providerName: string, modelName: string, config: { host?: string } = {}): any {
-  switch (providerName.toLowerCase()) {
-    case 'ollama':
-      const ollama = createOllama({
-        baseURL: config.host ? `${config.host}/api` : undefined,
-      });
-      return ollama(modelName);
-    case 'openai':
-      return openai(modelName);
-    default:
-      throw new Error(`Unsupported LLM provider: ${providerName}`);
-  }
-}
 
 export const SYSTEM_PROMPT = `You are an expert linguistic analyzer for the BitBrat Platform. 
 Your task is to analyze user messages and categorize them based on intent, emotional tone, and safety risk.
@@ -86,8 +69,12 @@ export async function analyzeWithLlm(
   const corr = options.correlationId;
   
   try {
-    const host = process.env.OLLAMA_HOST;
-    const provider = getLlmProvider(providerName, modelName, { host });
+    const provider = getLlmProvider({
+      provider: providerName,
+      model: modelName,
+      baseURL: process.env.LLM_BASE_URL,
+      apiKey: process.env.LLM_API_KEY,
+    });
     const fullPrompt = `System: ${SYSTEM_PROMPT}\n\nUser: ${text}`;
     const start = Date.now();
     const result = await (generateObject as any)({
