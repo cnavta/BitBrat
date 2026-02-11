@@ -1,0 +1,14 @@
+id: sprint-253-a2b3c4
+title: "Realign Event Flow Destinations"
+goal: "Update service topic consumption and publication based on architecture.yaml changes, specifically for auth and event-router services."
+owner: "@LeadImplementor"
+createdAt: "2026-02-11T16:55:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/167"
+  branch: "feature/sprint-253-a2b3c4-realign-event-destinations"
+notes: |
+  Following updated architecture.yaml:
+  - auth: consumes internal.auth.v1, no longer publishes internal.user.enriched.v1
+  - event-router: consumes internal.ingress.v1 and internal.enriched.v1, no longer publishes internal.llmbot.v1
+  - query-analyzer: moved in architecture.yaml but configuration remains the same.

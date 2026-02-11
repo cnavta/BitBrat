@@ -189,3 +189,6 @@ export const INTERNAL_DEADLETTER_V1 = 'internal.deadletter.v1';
 export const INTERNAL_ROUTER_DLQ_V1 = 'internal.router.dlq.v1';
 // User-enriched stream default (Auth service output; Router default input per sprint-104)
 export const INTERNAL_USER_ENRICHED_V1 = 'internal.user.enriched.v1';
+// Sprint 253: New alignment topics
+export const INTERNAL_AUTH_V1 = 'internal.auth.v1';
+export const INTERNAL_ENRICHED_V1 = 'internal.enriched.v1';

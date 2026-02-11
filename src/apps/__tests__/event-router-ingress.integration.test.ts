@@ -1,6 +1,6 @@
 // Mocks must be declared before importing the module under test
-let subscribeSubject: string | undefined;
-let handlerFn: ((data: Buffer, attrs: Record<string, string>) => Promise<void>) | undefined;
+let subscribeSubjects: string[] = [];
+let handlerFns: Map<string, (data: Buffer, attrs: Record<string, string>) => Promise<void>> = new Map();
 let publishedSubject: string | undefined;
 let publishCalls: Array<{ data: any; attrs: Record<string, string> }> = [];
 
@@ -9,8 +9,8 @@ jest.mock('../../services/message-bus', () => {
     createMessageSubscriber: () => {
       return {
         subscribe: async (subject: string, handler: any) => {
-          subscribeSubject = subject;
-          handlerFn = async (data: Buffer, attrs: Record<string, string>) => handler(data, attrs, { ack: async () => {}, nack: async () => {} });
+          subscribeSubjects.push(subject);
+          handlerFns.set(subject, async (data: Buffer, attrs: Record<string, string>) => handler(data, attrs, { ack: async () => {}, nack: async () => {} }));
           return async () => {};
         },
       };
@@ -45,16 +45,16 @@ jest.mock('../../common/firebase', () => {
 
 import { createApp } from '../event-router-service';
 import type { InternalEventV2 } from '../../types/events';
-import { INTERNAL_ROUTER_DLQ_V1, INTERNAL_USER_ENRICHED_V1 } from '../../types/events';
+import { INTERNAL_ROUTER_DLQ_V1, INTERNAL_INGRESS_V1, INTERNAL_ENRICHED_V1 } from '../../types/events';
 import { logger } from '../../common/logging';
 
 // Test doubles and captors
 
 describe('event-router ingress integration', () => {
   beforeEach(() => {
-    subscribeSubject = undefined;
+    subscribeSubjects = [];
     publishedSubject = undefined;
-    handlerFn = undefined;
+    handlerFns.clear();
     publishCalls = [];
     process.env.BUS_PREFIX = 'dev.';
   });
@@ -64,7 +64,8 @@ describe('event-router ingress integration', () => {
     createApp();
     // Allow async setup() inside BaseServer to progress to subscription
     await new Promise((r) => setTimeout(r, 0));
-    expect(subscribeSubject).toBe(`dev.${INTERNAL_USER_ENRICHED_V1}`);
+    expect(subscribeSubjects).toContain(`dev.${INTERNAL_INGRESS_V1}`);
+    expect(subscribeSubjects).toContain(`dev.${INTERNAL_ENRICHED_V1}`);
 
     const evt: InternalEventV2 = {
       v: '2',
@@ -86,7 +87,8 @@ describe('event-router ingress integration', () => {
     } as any;
 
     // simulate delivery
-    await handlerFn!(Buffer.from(JSON.stringify(evt), 'utf8'), {});
+    const handler = handlerFns.get(`dev.${INTERNAL_INGRESS_V1}`);
+    await handler!(Buffer.from(JSON.stringify(evt), 'utf8'), {});
 
     // Assert publish subject and attributes
     expect(publishedSubject).toBe(`dev.${INTERNAL_ROUTER_DLQ_V1}`);
