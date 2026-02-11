@@ -1,0 +1,12 @@
+id: sprint-252-d8f9a2
+title: "Centralize LLM Provider Management and Enable vLLM Support"
+goal: "Implement a shared LLM provider factory to centralize provider instantiation and enable OpenAI-compatible vLLM support across query-analyzer and llm-bot services."
+owner: "@LeadImplementor"
+createdAt: "2026-02-10T21:44:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/166"
+  branch: "feature/sprint-252-d8f9a2-centralize-llm-provider"
+notes: |
+  Following the architecture document for vLLM support and centralized provider management.
+  Build failure in local deployment addressed by switching Docker images to Bookworm.

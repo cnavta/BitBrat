@@ -3,7 +3,7 @@
 # Brat CLI image (draft for Phase 4 packaging)
 # Builds the TypeScript CLI and packages only the CLI runtime bits.
 
-FROM node:24-bullseye AS builder
+FROM node:24-bookworm AS builder
 WORKDIR /workspace
 COPY package*.json ./
 RUN npm ci
@@ -11,7 +11,7 @@ COPY tsconfig.json ./
 COPY tools ./tools
 RUN npm run build
 
-FROM node:24-bullseye AS runner
+FROM node:24-bookworm AS runner
 WORKDIR /workspace
 ENV NODE_ENV=production
 # Install only runtime dependencies required by the CLI
