@@ -1,0 +1,1 @@
+- When using `ai-sdk-ollama`, use `createOllama` if you need to override the `baseURL` or other global settings. The default `ollama` export is a pre-configured instance using default settings.
