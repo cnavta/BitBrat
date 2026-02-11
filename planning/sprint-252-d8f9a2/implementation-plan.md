@@ -17,6 +17,7 @@ Implement a shared LLM provider factory to centralize provider instantiation and
 - Updated `infrastructure/docker-compose/services/*.compose.yaml` to correctly pass new environment variables.
 - Unit tests for `provider-factory.ts`
 - Updated `infrastructure/docker-compose/Dockerfile.emulator` to fix Debian Bullseye GPG issues.
+- Fixed environment variable isolation for `query-analyzer` and `llm-bot` by using service-specific prefixes in YAML overlays and mapping them in Compose.
 
 ## Acceptance Criteria
 - `provider-factory.ts` correctly instantiates OpenAI, Ollama, and vLLM providers.
