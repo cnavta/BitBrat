@@ -1,4 +1,5 @@
-import { analyzeWithLlm, getLlmProvider, SYSTEM_PROMPT } from '../../../src/services/query-analyzer/llm-provider';
+import { analyzeWithLlm, SYSTEM_PROMPT } from '../../../src/services/query-analyzer/llm-provider';
+import { getLlmProvider } from '../../../src/common/llm/provider-factory';
 import * as ai from 'ai';
 import { getFirestore } from '../../../src/common/firebase';
 import { features } from '../../../src/common/feature-flags';
@@ -9,11 +10,10 @@ jest.mock('ai', () => ({
 
 jest.mock('ai-sdk-ollama', () => ({
   createOllama: jest.fn(() => jest.fn(() => ({}))),
-  ollama: jest.fn(() => ({})),
 }));
 
 jest.mock('@ai-sdk/openai', () => ({
-  openai: jest.fn(() => ({})),
+  createOpenAI: jest.fn(() => jest.fn(() => ({}))),
 }));
 
 jest.mock('../../../src/common/firebase', () => ({
@@ -117,6 +117,6 @@ describe('llm-provider', () => {
   });
 
   it('should throw error for unsupported provider in getLlmProvider', () => {
-    expect(() => getLlmProvider('unsupported', 'model')).toThrow('Unsupported LLM provider: unsupported');
+    expect(() => getLlmProvider({ provider: 'unsupported', model: 'model' })).toThrow('Unsupported LLM provider: unsupported');
   });
 });

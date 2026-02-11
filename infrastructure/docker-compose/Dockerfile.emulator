@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:20-bullseye
+FROM node:20-bookworm
 
 # Install Java 21 (required for Firestore/PubSub emulators in latest firebase-tools)
 # Install gcloud CLI (required for auth/bootstrap)
@@ -15,10 +15,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get update && apt-get install -y google-cloud-cli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install OpenJDK 21 manually as it's not in Bullseye main repos easily
+# Install OpenJDK 21 manually as it's not in Bookworm main repos easily
 RUN mkdir -p /etc/apt/keyrings \
     && wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/keyrings/adoptium.gpg > /dev/null \
-    && echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bullseye main" | tee /etc/apt/sources.list.d/adoptium.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" | tee /etc/apt/sources.list.d/adoptium.list \
     && apt-get update && apt-get install -y temurin-21-jre \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
