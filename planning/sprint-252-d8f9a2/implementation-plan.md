@@ -14,6 +14,7 @@ Implement a shared LLM provider factory to centralize provider instantiation and
 - Updated `src/services/query-analyzer/llm-provider.ts` (or equivalent)
 - Updated `src/services/llm-bot/processor.ts`
 - Updated `env/local/query-analyzer.yaml` and `env/local/llm-bot.yaml`
+- Updated `infrastructure/docker-compose/services/*.compose.yaml` to correctly pass new environment variables.
 - Unit tests for `provider-factory.ts`
 - Updated `infrastructure/docker-compose/Dockerfile.emulator` to fix Debian Bullseye GPG issues.
 

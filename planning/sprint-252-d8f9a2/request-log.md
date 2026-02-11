@@ -24,3 +24,11 @@
   **Actions**:
     - Updated `implementation-plan.md` and `backlog.yaml` (BL-006).
     - Switching `Dockerfile.emulator` to `node:20-bookworm`.
+
+- **Timestamp**: 2026-02-11T03:45:00Z
+  **Prompt**: The new LLM_* env vars do not seem to be populating correctly from the environmental overlays. Please investigate and remediate any issues you find.
+  **Interpretation**: Investigation revealed that `compose.yaml` files were explicitly overriding or missing new `LLM_*` environment variables, preventing values from `.env.local` (generated from overlays) from reaching the containers.
+  **Actions**:
+    - Updated `infrastructure/docker-compose/services/query-analyzer.compose.yaml` and `llm-bot.compose.yaml` to include new `LLM_*` and `FF_*` variables.
+    - Cleaned up redundant `ENV` values in `Dockerfile.query-analyzer`.
+    - Verified fix via `validate_deliverable.sh`.
