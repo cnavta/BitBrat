@@ -99,20 +99,18 @@ items:
       - at: 2026-02-10T22:05:00Z
         note: "Created unit tests for provider factory and updated validate_deliverable.sh with llm-factory scope."
 
-  - id: BL-006
-    title: "Fix Docker Build (Debian GPG Issue)"
+  - id: BL-007
+    title: "Fix Environment Variable Population in Compose"
     priority: P0
     status: done
     effort: S
     owner: agent
-    deps: []
+    deps: [BL-002]
     blocked_reason: null
     acceptance:
-      - "Dockerfile.emulator updated to node:20-bookworm"
-      - "Build succeeds locally"
-    updated_at: 2026-02-10
+      - "query-analyzer.compose.yaml and llm-bot.compose.yaml updated"
+      - "New LLM_* vars passed to containers"
+    updated_at: 2026-02-11
     log:
-      - at: 2026-02-10T22:38:00Z
-        note: "Issue identified: Debian Bullseye GPG keys/repo signature invalid. Switching to Bookworm."
-      - at: 2026-02-10T22:45:00Z
-        note: "Updated all Dockerfiles from Bullseye to Bookworm and fixed repo strings."
+      - at: 2026-02-11T03:55:00Z
+        note: "Identified that compose files were overriding or missing new LLM vars. Fixed by updating environment sections in compose files."

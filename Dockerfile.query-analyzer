@@ -20,7 +20,4 @@ COPY architecture.yaml ./architecture.yaml
 EXPOSE 3000
 ENV SERVICE_NAME=query-analyzer
 ENV SERVICE_PORT=3000
-ENV LLM_PROVIDER=ollama
-ENV LLM_MODEL=llama3
-ENV OLLAMA_HOST=http://localhost:11434
 CMD ["node", "dist/apps/query-analyzer.js"]

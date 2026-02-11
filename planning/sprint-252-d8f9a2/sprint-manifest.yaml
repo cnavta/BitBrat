@@ -9,3 +9,4 @@ links:
   branch: "feature/sprint-252-d8f9a2-centralize-llm-provider"
 notes: |
   Following the architecture document for vLLM support and centralized provider management.
+  Build failure in local deployment addressed by switching Docker images to Bookworm.
