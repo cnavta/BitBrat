@@ -112,24 +112,34 @@ services:
     description: "Authentication service that handles user authentication and authorization."
     entry: src/apps/auth-service.ts
     topics:
-      publishes:
-        - internal.user.enriched.v1
       consumes:
-        - internal.ingress.v1
+        - internal.auth.v1
     secrets:
       - TWITCH_CLIENT_ID
       - TWITCH_CLIENT_SECRET
       - MCP_AUTH_TOKEN
+
+  query-analyzer:
+    description: Executes fast, efficient pre-analysis of incoming events to better route and respond
+    entry: src/apps/query-analyzer.ts
+    topics:
+      consumes:
+        - internal.query.analysis.v1
+    env:
+      - LLM_PROVIDER
+      - LLM_MODEL
+      - LLM_BASE_URL
+    secrets:
+      - OPENAI_API_KEY
 
   event-router:
     active: true
     description: "Internal event routing service that reads from ingress channel(s) and assigns routing slips."
     entry: src/apps/event-router-service.ts
     topics:
-      publishes:
-        - internal.llmbot.v1
       consumes:
-        - internal.user.enriched.v1
+        - internal.ingress.v1
+        - internal.enriched.v1
 
   llm-bot:
     active: true
@@ -204,18 +214,6 @@ services:
         - internal.api.egress.v1.{instanceId}
         - internal.egress.v1
 
-  query-analyzer:
-    description: Executes fast, efficient pre-analysis of incoming events to better route and respond
-    entry: src/apps/query-analyzer.ts
-    topics:
-      consumes:
-        - internal.query.analysis.v1
-    env:
-      - LLM_PROVIDER
-      - LLM_MODEL
-      - LLM_BASE_URL
-    secrets:
-      - OPENAI_API_KEY
 
 infrastructure:
   target: gcp

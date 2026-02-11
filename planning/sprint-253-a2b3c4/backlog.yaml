@@ -1,0 +1,71 @@
+meta:
+  backlog_id: sprint-253-backlog
+  updated_at: 2026-02-11
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-253-a2b3c4
+  start: 2026-02-11
+  end: 2026-02-25
+  wip_limit: 3
+  goal: "Realign event flow destinations for auth and event-router services."
+
+items:
+  - id: BL-253-001
+    title: "Update event constants in src/types/events.ts"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "INTERNAL_AUTH_V1 is defined as 'internal.auth.v1'"
+      - "INTERNAL_ENRICHED_V1 is defined as 'internal.enriched.v1'"
+    updated_at: 2026-02-11
+    log:
+      - at: 2026-02-11T17:00:00Z
+        note: "Added INTERNAL_AUTH_V1 and INTERNAL_ENRICHED_V1 constants."
+
+  - id: BL-253-002
+    title: "Update auth-service to new topics and use this.next()"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-253-001]
+    acceptance:
+      - "auth-service consumes internal.auth.v1"
+      - "auth-service uses this.next(event) instead of a static publisher"
+    updated_at: 2026-02-11
+    log:
+      - at: 2026-02-11T17:05:00Z
+        note: "Updated auth-service to consume INTERNAL_AUTH_V1 and use this.next()."
+
+  - id: BL-253-003
+    title: "Update event-router-service to new topics"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-253-001]
+    acceptance:
+      - "event-router-service consumes internal.ingress.v1"
+      - "event-router-service consumes internal.enriched.v1"
+    updated_at: 2026-02-11
+    log:
+      - at: 2026-02-11T17:10:00Z
+        note: "Updated event-router-service to consume both INTERNAL_INGRESS_V1 and INTERNAL_ENRICHED_V1."
+
+  - id: BL-253-004
+    title: "Update tests for auth and event-router"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-253-002, BL-253-003]
+    acceptance:
+      - "All relevant tests pass with new topic names"
+    updated_at: 2026-02-11
+    log:
+      - at: 2026-02-11T17:20:00Z
+        note: "Updated and verified tests for both services."
