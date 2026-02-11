@@ -15,6 +15,7 @@ Implement a shared LLM provider factory to centralize provider instantiation and
 - Updated `src/services/llm-bot/processor.ts`
 - Updated `env/local/query-analyzer.yaml` and `env/local/llm-bot.yaml`
 - Unit tests for `provider-factory.ts`
+- Updated `infrastructure/docker-compose/Dockerfile.emulator` to fix Debian Bullseye GPG issues.
 
 ## Acceptance Criteria
 - `provider-factory.ts` correctly instantiates OpenAI, Ollama, and vLLM providers.
@@ -22,6 +23,7 @@ Implement a shared LLM provider factory to centralize provider instantiation and
 - `llm-bot` service successfully uses the factory.
 - Services correctly read and use the new standardized environment variables.
 - `validate_deliverable.sh` passes.
+- `Dockerfile.emulator` builds successfully locally (addressed by switching to Bookworm).
 
 ## Testing Strategy
 - Unit tests for the new `provider-factory.ts` using mocks for `@ai-sdk/openai` and `ai-sdk-ollama`.
