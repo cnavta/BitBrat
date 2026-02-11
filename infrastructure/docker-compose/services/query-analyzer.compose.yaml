@@ -7,10 +7,11 @@ services:
       - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
-      - LLM_PROVIDER=${LLM_PROVIDER}
-      - LLM_MODEL=${LLM_MODEL}
-      - LLM_BASE_URL=${LLM_BASE_URL}
-      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_PROVIDER=${QUERY_ANALYZER_LLM_PROVIDER:-${LLM_PROVIDER}}
+      - LLM_MODEL=${QUERY_ANALYZER_LLM_MODEL:-${LLM_MODEL}}
+      - LLM_BASE_URL=${QUERY_ANALYZER_LLM_BASE_URL:-${LLM_BASE_URL}}
+      - LLM_API_KEY=${QUERY_ANALYZER_LLM_API_KEY:-${LLM_API_KEY}}
+      - FF_LLM_PROMPT_LOGGING=${QUERY_ANALYZER_FF_LLM_PROMPT_LOGGING:-${FF_LLM_PROMPT_LOGGING}}
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
