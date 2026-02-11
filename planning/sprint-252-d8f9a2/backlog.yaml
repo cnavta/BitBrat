@@ -116,7 +116,7 @@ items:
         note: "Identified that compose files were overriding or missing new LLM vars. Fixed by updating environment sections in compose files."
 
   - id: BL-008
-    title: "Isolate Service-Specific LLM Environment Variables"
+    title: "Isolate service-specific LLM environment variables"
     priority: P0
     status: done
     effort: S
@@ -124,9 +124,10 @@ items:
     deps: [BL-007]
     blocked_reason: null
     acceptance:
-      - "LLM variables isolated per service in YAML overlays"
-      - "Compose files map service-specific vars to standard LLM_* names"
+      - "env/local/query-analyzer.yaml uses QUERY_ANALYZER_ prefixes"
+      - "env/local/llm-bot.yaml uses LLM_BOT_ prefixes"
+      - "Compose files map prefixed variables back to standard names"
     updated_at: 2026-02-11
     log:
-      - at: 2026-02-11T04:15:00Z
-        note: "Fixed collision of LLM variables between services by prefixing them in YAML and mapping in Compose."
+      - at: 2026-02-11T04:20:00Z
+        note: "Detected environment variable collision due to shared names in flat .env.local. Implemented namespacing in overlays and mapped them in Docker Compose."
