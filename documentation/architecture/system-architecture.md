@@ -36,7 +36,7 @@ The BitBrat Platform utilizes a phased event processing pipeline to ensure order
 ### 4. Egress Phase
 **Objective:** Deliver the system's reaction to the appropriate external or internal sinks and perform final persistence.
 
-- **Trigger:** Event Router assigns an "Egress" routing slip.
+- **Trigger:** A completed routing slip or direct publication to an egress topic.
 - **Core Services:**
   - `api-gateway`: Delivers responses to connected clients via WebSocket.
   - `ingress-egress`: Sends messages back to external platforms (Twitch chat, Discord).
@@ -49,5 +49,4 @@ The BitBrat Platform utilizes a phased event processing pipeline to ensure order
 3. **Enrichment** -> `auth`, `query-analyzer` add context.
 4. **Event Router** -> Inspects enriched event, assigns Reaction slip.
 5. **Reaction** -> `llm-bot` generates response.
-6. **Event Router** -> Assigns Egress slip.
-7. **Egress** -> `api-gateway`/`ingress-egress` deliver result; `persistence` finalizes.
+6. **Egress** -> `api-gateway`/`ingress-egress` deliver result; `persistence` finalizes.
