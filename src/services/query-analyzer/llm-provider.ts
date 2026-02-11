@@ -1,5 +1,5 @@
 import { generateObject, LanguageModel } from 'ai';
-import { ollama } from 'ai-sdk-ollama';
+import { createOllama } from 'ai-sdk-ollama';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { getFirestore } from '../../common/firebase';
@@ -26,9 +26,12 @@ export type QueryAnalysis = z.infer<typeof queryAnalysisSchema>;
 /**
  * Factory to get the appropriate LLM provider.
  */
-export function getLlmProvider(providerName: string, modelName: string): any {
+export function getLlmProvider(providerName: string, modelName: string, config: { host?: string } = {}): any {
   switch (providerName.toLowerCase()) {
     case 'ollama':
+      const ollama = createOllama({
+        baseURL: config.host ? `${config.host}/api` : undefined,
+      });
       return ollama(modelName);
     case 'openai':
       return openai(modelName);
@@ -83,7 +86,8 @@ export async function analyzeWithLlm(
   const corr = options.correlationId;
   
   try {
-    const provider = getLlmProvider(providerName, modelName);
+    const host = process.env.OLLAMA_HOST;
+    const provider = getLlmProvider(providerName, modelName, { host });
     const fullPrompt = `System: ${SYSTEM_PROMPT}\n\nUser: ${text}`;
     const start = Date.now();
     const result = await (generateObject as any)({
