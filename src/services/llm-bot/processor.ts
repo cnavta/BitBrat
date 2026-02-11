@@ -353,8 +353,8 @@ export async function processEvent(
       const provider = getLlmProvider({
         provider: platformName,
         model: modelName,
-        baseURL: server.getConfig('LLM_BASE_URL'),
-        apiKey: server.getConfig('LLM_API_KEY'),
+        baseURL: server.getConfig('LLM_BASE_URL', { required: false }),
+        apiKey: server.getConfig('LLM_API_KEY', { required: false }),
       });
 
       const result = await generateText({

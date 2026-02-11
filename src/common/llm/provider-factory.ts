@@ -16,7 +16,8 @@ export interface LlmProviderConfig {
  * Centralizes the instantiation logic for OpenAI, Ollama, and vLLM (OpenAI-compatible).
  */
 export function getLlmProvider(config: LlmProviderConfig) {
-  const { provider, model, baseURL, apiKey } = config;
+  const { provider, model, apiKey } = config;
+  const baseURL = config.baseURL === 'n/a' || config.baseURL === '' ? undefined : config.baseURL;
 
   switch (provider.toLowerCase()) {
     case 'openai':

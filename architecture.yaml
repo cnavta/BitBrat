@@ -213,7 +213,7 @@ services:
     env:
       - LLM_PROVIDER
       - LLM_MODEL
-      - OLLAMA_HOST
+      - LLM_BASE_URL
     secrets:
       - OPENAI_API_KEY
 
