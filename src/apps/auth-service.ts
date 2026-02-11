@@ -2,7 +2,7 @@ import '../common/safe-timers';
 import { BaseServer } from '../common/base-server';
 import { McpServer } from '../common/mcp-server';
 import { Express } from 'express';
-import { INTERNAL_INGRESS_V1, INTERNAL_USER_ENRICHED_V1, InternalEventV2 } from '../types/events';
+import { INTERNAL_AUTH_V1, InternalEventV2 } from '../types/events';
 import { AttributeMap, createMessagePublisher } from '../services/message-bus';
 import { FirestoreUserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
@@ -38,24 +38,20 @@ export class AuthServer extends McpServer {
 
     this.registerAdminTools();
 
-    // Message bus subscription (skipped in test to avoid external clients during Jest)
-    if (isTestEnv) {
-      logger.debug('auth.subscribe.disabled_for_tests');
+    // Message bus subscription (skipped if disabled by env)
+    if (process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1') {
+      logger.debug('auth.subscribe.disabled_by_env');
       return;
     }
 
-    const inputSubject = `${cfg.busPrefix || ''}${INTERNAL_INGRESS_V1}`;
-    const outTopic = process.env.AUTH_ENRICH_OUTPUT_TOPIC || INTERNAL_USER_ENRICHED_V1;
-    const outputSubject = `${cfg.busPrefix || ''}${outTopic}`;
-    const pubRes = this.getResource<PublisherResource>('publisher');
-    const publisher = pubRes ? pubRes.create(outputSubject) : createMessagePublisher(outputSubject);
+    const inputSubject = `${cfg.busPrefix || ''}${INTERNAL_AUTH_V1}`;
     const userRepo = this.userRepo;
 
     logger.info('auth.subscribe.start', { subject: inputSubject, queue: 'auth' });
     try {
       await this.onMessage<InternalEventV2>(
-        { destination: INTERNAL_INGRESS_V1, queue: 'auth', ack: 'explicit' },
-        async (asV2: InternalEventV2, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+        { destination: INTERNAL_AUTH_V1, queue: 'auth', ack: 'explicit' },
+        async (asV2: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
           try {
             counters.increment('auth.enrich.total');
 
@@ -83,19 +79,18 @@ export class AuthServer extends McpServer {
 
               if (matched) {
                 counters.increment('auth.enrich.matched');
-                logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef, outputSubject });
+                logger.debug('auth.enrich.matched', { correlationId: enrichedV2.correlationId, userRef });
                 if (created) counters.increment('auth.enrich.created_user');
                 if (isFirstMessage) counters.increment('auth.enrich.first_message');
                 if (isNewSession) counters.increment('auth.enrich.new_session');
               } else {
                 counters.increment('auth.enrich.unmatched');
-                logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId, outputSubject });
+                logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId });
               }
 
-              const pubAttrs: AttributeMap = busAttrsFromEvent(enrichedV2);
-              publisher.publishJson(enrichedV2, pubAttrs);
-              logger.debug('auth.publish', { event: enrichedV2 });
-              logger.info('auth.publish.ok', { subject: outputSubject });
+              // Forward to the next step in the routing slip
+              await this.next(enrichedV2, 'OK');
+              logger.info('auth.forward.ok', { correlationId: enrichedV2.correlationId });
             };
             if (tracer && typeof tracer.startActiveSpan === 'function') {
               await tracer.startActiveSpan('user-enrichment', async (span: any) => {
