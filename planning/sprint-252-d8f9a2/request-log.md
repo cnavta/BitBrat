@@ -17,3 +17,10 @@
     - Updated `sprint-manifest.yaml` status to `in-progress`.
     - Updated `backlog.yaml` BL-001 status to `in_progress`.
     - Investigating codebase for provider factory implementation.
+
+- **Timestamp**: 2026-02-10T22:33:00Z
+  **Prompt**: When deploying locally we are now getting the following errors: [Docker build failure in firebase-emulator]
+  **Interpretation**: Build regression identified in `Dockerfile.emulator` due to Debian Bullseye repository signature issues. Amending sprint to fix the build failure.
+  **Actions**:
+    - Updated `implementation-plan.md` and `backlog.yaml` (BL-006).
+    - Switching `Dockerfile.emulator` to `node:20-bookworm`.
