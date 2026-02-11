@@ -13,7 +13,7 @@ jest.mock('ai', () => ({
 }));
 
 jest.mock('@ai-sdk/openai', () => ({
-  openai: jest.fn(),
+  createOpenAI: jest.fn(() => jest.fn(() => ({}))),
 }));
 
 function makeEvent(overrides: any = {}): any {
