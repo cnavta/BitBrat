@@ -42,3 +42,12 @@
     - Updated `infrastructure/docker-compose/services/query-analyzer.compose.yaml` and `llm-bot.compose.yaml` to map namespaced variables back to standard `LLM_*` names.
     - Verified isolation in `.env.local` after merge.
     - Verified all tests pass.
+
+- **Timestamp**: 2026-02-11T09:45:00Z
+  **Prompt**: If the LLM_BOT_LLM_BASE_URL is not populated, say for when we want to use OpenAI, the llm-bot still fails with an error saying the LLM_BASE_URL is not defined even when it is not needed.
+  **Interpretation**: `llm-bot` fails because `server.getConfig('LLM_BASE_URL')` defaults to required. Also need to handle `"n/a"` stub values gracefully in the provider factory.
+  **Actions**:
+    - Modified `src/services/llm-bot/processor.ts` to make `LLM_BASE_URL` and `LLM_API_KEY` optional.
+    - Modified `src/common/llm/provider-factory.ts` to treat `"n/a"` and `""` as `undefined` for `baseURL`.
+    - Added unit test to `provider-factory.test.ts`.
+    - Verified with `npm test` and `validate_deliverable.sh --scope llm-bot`.

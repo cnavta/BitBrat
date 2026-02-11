@@ -26,6 +26,20 @@ describe('provider-factory', () => {
     expect(provider).toBeDefined();
   });
 
+  it('should handle "n/a" or empty string as undefined baseURL', () => {
+    const config = {
+      provider: 'openai',
+      model: 'gpt-4',
+      baseURL: 'n/a',
+    };
+    getLlmProvider(config);
+    expect(createOpenAI).toHaveBeenCalledWith(expect.objectContaining({ baseURL: undefined }));
+
+    jest.clearAllMocks();
+    getLlmProvider({ ...config, baseURL: '' });
+    expect(createOpenAI).toHaveBeenCalledWith(expect.objectContaining({ baseURL: undefined }));
+  });
+
   it('should instantiate vLLM provider as OpenAI-compatible', () => {
     const config = {
       provider: 'vllm',
