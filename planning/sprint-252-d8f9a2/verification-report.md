@@ -1,14 +1,16 @@
 # Deliverable Verification – sprint-252-d8f9a2
 
 ## Completed
-- [x] Shared LLM provider factory implemented in `src/common/llm/provider-factory.ts`
-- [x] vLLM support enabled via OpenAI-compatible baseURL configuration
-- [x] Environment variables standardized across the platform
-- [x] `query-analyzer` service refactored to use the factory
-- [x] `llm-bot` service refactored to use the factory
-- [x] Unit tests for `provider-factory.ts` created and passing
-- [x] `validate_deliverable.sh` updated and passing
-- [x] Existing tests in `tests/services/query-analyzer/llm-provider.test.ts` fixed to match new factory
+- [x] Centralized LLM Provider Factory (`src/common/llm/provider-factory.ts`)
+- [x] Standardized Environment Variables across services (`LLM_PROVIDER`, `LLM_MODEL`, etc.)
+- [x] Refactored `query-analyzer` to use the new factory
+- [x] Refactored `llm-bot` to use the new factory
+- [x] OpenAI-compatible vLLM support via configuration
+- [x] Fixed Debian Bullseye GPG issues in Dockerfiles (moved to Bookworm)
+- [x] Isolated service-specific LLM environment variables using prefixes (`QUERY_ANALYZER_`, `LLM_BOT_`)
+- [x] Relaxed `LLM_BASE_URL` requirement in `llm-bot` for OpenAI support
+- [x] Comprehensive unit tests for the provider factory
+- [x] Updated `validate_deliverable.sh` with `llm-factory` scope
 
 ## Partial
 - None
@@ -17,5 +19,6 @@
 - None
 
 ## Alignment Notes
-- Maintained backward compatibility for environment variables in `llm-bot` to ensure no breaking changes in different environments.
-- Updated `validate_deliverable.sh` to include a specific `llm-factory` scope for targeted testing.
+- Environment variable namespacing was added to resolve collisions in the flat `.env.local` file.
+- `LLM_BASE_URL` was made optional to support OpenAI without requiring a dummy URL.
+- Docker base images were upgraded from Bullseye to Bookworm to fix build failures caused by expired GPG signatures.
