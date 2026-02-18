@@ -1,0 +1,11 @@
+id: sprint-254-6e7a1d
+title: "Agent State Memory Architecture"
+goal: "Analyze the Graph + Mutation Event model and define its implementation within the BitBrat Platform architecture."
+owner: "@AIArchitect"
+createdAt: "2026-02-18T11:48:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-254-6e7a1d-agent-state-memory"
+notes: |
+  Initial phase of standardizing state-based memory for LLM agents.
+  Focus on simple state management of platform values.
