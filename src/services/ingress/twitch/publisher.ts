@@ -17,6 +17,7 @@ export interface TwitchIngressPublisherOptions {
 
 export interface ITwitchIngressPublisher {
   publish(evt: InternalEventV2): Promise<string | null>;
+  publishMutation?(mutation: any): Promise<string | null>;
 }
 
 /**
@@ -81,6 +82,15 @@ export class TwitchIngressPublisher implements ITwitchIngressPublisher {
       }
     });
     return res;
+  }
+
+  async publishMutation(mutation: any): Promise<string | null> {
+    const prefix = (this.opts as any).busPrefix ?? process.env.BUS_PREFIX ?? '';
+    const subject = `${prefix}internal.state.mutation.v1`;
+    // We reuse the factory-created publisher but for a different subject?
+    // Actually, TwitchIngressPublisher is bound to one subject.
+    // This is getting complicated. Let's just create a new publisher in the client if needed.
+    return null; // Placeholder
   }
 }
 

@@ -8,6 +8,8 @@ import { ITwitchCredentialsProvider } from './credentials-provider';
 import { ITwitchIngressPublisher } from './publisher';
 import { EventSubEnvelopeBuilder } from './eventsub-envelope-builder';
 import { TwitchConnectionState } from './twitch-irc-client';
+import { MutationProposal, INTERNAL_STATE_MUTATION_V1 } from '../../../types/state';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface TwitchEventSubClientOptions {
   cfg: IConfig;
@@ -17,6 +19,7 @@ export interface TwitchEventSubClientOptions {
 }
 
 export class TwitchEventSubClient {
+  private mutationPublisher: import('../../message-bus').MessagePublisher | null = null;
   private listener: EventSubWsListener | null = null;
   private readonly builder: EventSubEnvelopeBuilder;
   private readonly subscriptions: any[] = [];
@@ -174,6 +177,28 @@ export class TwitchEventSubClient {
             this.publisher.publish(internalEvent).catch(err => {
               logger.error('twitch.eventsub.publish_failed', { kind: 'stream.online', error: err.message });
             });
+
+            // Sprint 254: Publish mutation proposal for stream.state (on)
+            const mutation: MutationProposal = {
+              id: uuidv4(),
+              op: 'set',
+              key: 'stream.state',
+              value: 'on',
+              actor: 'ingress-egress:twitch',
+              reason: 'Twitch EventSub: stream.online',
+              ts: new Date().toISOString(),
+              metadata: {
+                streamId: event.id,
+                broadcasterId: event.broadcasterId,
+              }
+            };
+            if (this.mutationPublisher) {
+              this.mutationPublisher.publishJson(mutation).catch((err: any) => {
+                logger.error('twitch.eventsub.mutation_publish_failed', { key: 'stream.state', error: err.message });
+              });
+            } else {
+              logger.warn('twitch.eventsub.mutation_publisher_unavailable');
+            }
           } catch (err: any) {
             logger.error('twitch.eventsub.handler_error', { kind: 'stream.online', channel, error: err.message, stack: err.stack });
           }
@@ -190,11 +215,43 @@ export class TwitchEventSubClient {
             this.publisher.publish(internalEvent).catch(err => {
               logger.error('twitch.eventsub.publish_failed', { kind: 'stream.offline', error: err.message });
             });
+
+            // Sprint 254: Publish mutation proposal for stream.state (off)
+            const mutation: MutationProposal = {
+              id: uuidv4(),
+              op: 'set',
+              key: 'stream.state',
+              value: 'off',
+              actor: 'ingress-egress:twitch',
+              reason: 'Twitch EventSub: stream.offline',
+              ts: new Date().toISOString(),
+              metadata: {
+                broadcasterId: event.broadcasterId,
+              }
+            };
+            if (this.mutationPublisher) {
+              this.mutationPublisher.publishJson(mutation).catch((err: any) => {
+                logger.error('twitch.eventsub.mutation_publish_failed', { key: 'stream.state', error: err.message });
+              });
+            } else {
+              logger.warn('twitch.eventsub.mutation_publisher_unavailable');
+            }
           } catch (err: any) {
             logger.error('twitch.eventsub.handler_error', { kind: 'stream.offline', channel, error: err.message, stack: err.stack });
           }
         });
         this.subscriptions.push(offlineSub);
+      }
+
+      // Initialize mutation publisher for state-engine
+      try {
+        const prefix = this.options.cfg?.busPrefix ?? process.env.BUS_PREFIX ?? '';
+        const subject = `${prefix}${INTERNAL_STATE_MUTATION_V1}`;
+        const { createMessagePublisher } = require('../../message-bus');
+        this.mutationPublisher = createMessagePublisher(subject);
+      } catch (e: any) {
+        logger.warn('twitch.eventsub.mutation_publisher_init_failed', { error: e?.message || String(e) });
+        this.mutationPublisher = null;
       }
 
       this.listener.start();

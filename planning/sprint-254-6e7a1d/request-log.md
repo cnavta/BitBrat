@@ -32,3 +32,18 @@
   - `planning/sprint-254-6e7a1d/sprint-manifest.yaml`
   - `planning/sprint-254-6e7a1d/implementation-plan.md`
   - `planning/sprint-254-6e7a1d/request-log.md`
+
+
+## [2026-02-19T17:05:00Z] Implementation – Foundation & Service Wiring
+- **Prompt Summary**: Implement backlog items STATE-001 through STATE-006.
+- **Interpretation**: Add core TS types, update Firestore rules, wire state-engine with MCP tools and mutation handling, and trigger state mutations from Twitch EventSub.
+- **Shell/Git Commands**:
+  - `npm run build`
+- **Files Created**:
+  - `src/types/state.ts` (STATE-001)
+- **Files Modified**:
+  - `firestore.rules` (STATE-002)
+  - `src/apps/state-engine.ts` (uses McpServer, health endpoint, MCP tools, mutation handler) (STATE-003/004/005)
+  - `src/services/ingress/twitch/eventsub-client.ts` (publish MutationProposal on stream.online/offline) (STATE-006)
+- **Notes**:
+  - Build validated locally; further integration tests pending.

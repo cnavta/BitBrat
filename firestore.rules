@@ -25,5 +25,16 @@ service cloud.firestore {
     //   allow read: if false;            // or restrict to privileged viewer roles
     //   allow write: if false;           // all writes via Admin SDK/service account
     // }
+
+    // Sprint 254: Agent State Memory
+    match /state/{doc} {
+      allow read: if true; // Ingress-Egress, LLM Bot, and State Engine need access
+      allow write: if false; // All writes MUST go through State Engine (Admin SDK)
+    }
+
+    match /mutation_log/{doc} {
+      allow read: if true; // For auditability
+      allow write: if false; // All writes MUST go through State Engine (Admin SDK)
+    }
   }
 }
