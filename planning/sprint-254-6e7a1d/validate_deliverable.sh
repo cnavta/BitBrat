@@ -16,6 +16,8 @@ ARTIFACTS=(
     "planning/sprint-254-6e7a1d/sprint-manifest.yaml"
     "planning/sprint-254-6e7a1d/implementation-plan.md"
     "planning/sprint-254-6e7a1d/request-log.md"
+    "planning/sprint-254-6e7a1d/execution-plan.md"
+    "planning/sprint-254-6e7a1d/backlog.yaml"
 )
 
 for art in "${ARTIFACTS[@]}"; do
