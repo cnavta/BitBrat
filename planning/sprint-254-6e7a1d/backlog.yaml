@@ -1,0 +1,90 @@
+meta:
+  backlog_id: agent-state-memory-impl
+  updated_at: 2026-02-19
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-254-6e7a1d
+  goal: "Implement foundation for Agent State Memory and the first Stream State use case."
+
+items:
+  - id: STATE-001
+    title: "Define TS types for Mutation and State"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "Interfaces for MutationProposal and StateSnapshot exist in src/types"
+    updated_at: 2026-02-19
+
+  - id: STATE-002
+    title: "Initialize Firestore collections for State"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "firestore.rules updated to include 'state' and 'mutation_log' collections"
+    updated_at: 2026-02-19
+
+  - id: STATE-003
+    title: "Scaffold state-engine service"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [STATE-001]
+    acceptance:
+      - "state-engine service exists and uses McpServer"
+      - "Health checks pass"
+    updated_at: 2026-02-19
+
+  - id: STATE-004
+    title: "Implement Mutation Handler in state-engine"
+    priority: P0
+    status: todo
+    effort: L
+    owner: agent
+    deps: [STATE-003, STATE-002]
+    acceptance:
+      - "Consumes from internal.state.mutation.v1"
+      - "Validates mutations against allowlist"
+      - "Commits to Firestore with version checks"
+    updated_at: 2026-02-19
+
+  - id: STATE-005
+    title: "Expose State MCP tools"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [STATE-003, STATE-004]
+    acceptance:
+      - "get_state and propose_mutation tools available via MCP"
+    updated_at: 2026-02-19
+
+  - id: STATE-006
+    title: "Update ingress-egress for Twitch triggers"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [STATE-004]
+    acceptance:
+      - "Twitch EventSub stream.online triggers a mutation proposal"
+    updated_at: 2026-02-19
+
+  - id: STATE-007
+    title: "Implement Rule Engine in state-engine"
+    priority: P2
+    status: todo
+    effort: L
+    owner: agent
+    deps: [STATE-004]
+    acceptance:
+      - "JsonLogic rules can be evaluated on state changes"
+      - "Triggers egress events based on rules"
+    updated_at: 2026-02-19
