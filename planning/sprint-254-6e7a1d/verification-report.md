@@ -4,6 +4,7 @@
 - [x] Analyzed `llm_graph_mutation_architecture.md`.
 - [x] Mapped core components to BitBrat Platform (Firestore, NATS, MCP).
 - [x] Created `documentation/bitbrat_state_memory_architecture.md` laying out the platform-specific architecture.
+- [x] Updated flow to use Twitch EventSub as trigger for `stream.state`.
 - [x] Defined the first use case (Stream State) in the TA document.
 
 ## Partial

@@ -25,7 +25,7 @@ In BitBrat, this architecture enables:
 | **State Snapshot Store** | Fast read/write, versioned | **Firestore** (`state` collection) |
 | **Mutation Event Log** | Append-only, ordered | **NATS JetStream** (`internal.state.mutation.v1`) + **Firestore** (`mutation_log`) |
 | **Rule Engine** | Reactive derivation | **`state-engine` Service** (Node/TS) |
-| **LLM Interface** | Controlled tools | **MCP Server** (`state-mcp` or integrated into `llm-bot`) |
+| **LLM Interface** | Controlled tools | **MCP API exposed by `state-engine` via McpServer base class** (consumed by `llm-bot`) |
 
 ---
 
@@ -43,11 +43,11 @@ Authoritative current state is stored in Firestore.
 {
   "value": "on",
   "updatedAt": "2026-02-18T13:02:00Z",
-  "updatedBy": "obs-mcp",
+  "updatedBy": "ingress-egress (Twitch)",
   "version": 42,
   "ttl": null,
   "metadata": {
-    "source": "obs-websocket-event"
+    "source": "twitch-eventsub-stream-online"
   }
 }
 ```
@@ -66,8 +66,8 @@ All state changes MUST be proposed as mutations.
   "op": "set",
   "key": "stream.state",
   "value": "on",
-  "actor": "agent:bot-01",
-  "reason": "Detected OBS stream start event",
+  "actor": "ingress-egress:twitch",
+  "reason": "Twitch EventSub: stream.online",
   "expectedVersion": 41,
   "ts": "2026-02-18T13:02:00Z"
 }
@@ -91,12 +91,17 @@ rules:
         args: { "name": "Live" }
 ```
 
-## 3.4 LLM Tool Interface (MCP)
+## 3.4 LLM Tool Interface (MCP via state-engine)
 
-`llm-bot` interacts with state through MCP tools:
+`llm-bot` MUST NOT access Firestore or NATS directly for state. Instead, it uses MCP tools implemented by the `state-engine` service, which exposes its API using the shared `McpServer` base class. This keeps policy, validation, and concurrency control centralized in `state-engine` while providing a clean tool surface for agents.
 
-- `get_state(keys: string[])`: Returns current values and versions.
-- `propose_mutation(key, value, reason, expectedVersion?)`: Proposes a change.
+- `get_state(keys: string[])`: Returns current values and versions from the authoritative snapshot store via `state-engine`.
+- `get_state_prefix(prefix: string)`: Returns key/value pairs matching a prefix (optimization for grouped reads) via `state-engine`.
+- `propose_mutation(key, value, reason, expectedVersion?)`: Submits a mutation proposal that `state-engine` validates and commits.
+
+Notes:
+- Transport MAY be in-process (stdio) or networked (WebSocket/HTTP) depending on deployment, but the contract remains MCP on `state-engine` using `McpServer`.
+- All write paths go through `state-engine`; LLM tools are thin adapters over its MCP endpoints.
 
 ---
 
@@ -105,7 +110,7 @@ rules:
 The first implementation focuses on `stream.state`.
 
 ### Flow:
-1.  **OBS Starts**: `obs-mcp` detects stream start -> publishes `internal.state.mutation.v1` with `key: "stream.state", value: "on"`.
+1.  **Twitch Starts**: `ingress-egress` receives a Twitch EventSub `stream.online` event -> publishes `internal.state.mutation.v1` with `key: "stream.state", value: "on"`.
 2.  **State Engine**: Validates mutation -> Updates Firestore `state/stream.state` -> Publishes success.
 3.  **LLM Bot**: Periodically or on-trigger reads `stream.state`. Now knows the stream is ON without guessing.
 4.  **Agent Action**: If Agent wants to stop stream, it calls `propose_mutation(key: "stream.state", value: "off")`.

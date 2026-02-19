@@ -7,7 +7,7 @@ Analyze the Graph + Mutation Event model and define a standardized implementatio
 - Analysis of `documentation/llm_graph_mutation_architecture.md`.
 - Mapping components to BitBrat services and infrastructure.
 - Creation of a new TA document: `documentation/bitbrat_state_memory_architecture.md`.
-- Defining the first use case: Stream State management.
+- Defining the first use case: Stream State management triggered by Twitch EventSub.
 
 ## Deliverables
 - `documentation/bitbrat_state_memory_architecture.md`
