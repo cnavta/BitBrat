@@ -13,6 +13,7 @@
 - [x] Integrated Twitch EventSub to publish mutation proposals.
 - [x] Implemented config-driven Rule Engine with JsonLogic and egress actions.
 - [x] Added unit tests for `state-engine` (`tests/unit/apps/state-engine.test.ts`).
+- [x] Fixed Twitch IRC client to default to bot-only replies (hotfix).
 
 ## Partial
 - None
