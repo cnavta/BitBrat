@@ -228,7 +228,11 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
           await authProvider.addUserForToken(tokenData, ['chat']);
         }
 
-        if (broadcasterAuth) {
+        // Optionally add broadcaster credentials to the auth provider. By default, we DO NOT attach
+        // broadcaster credentials for chat to ensure all IRC messages are sent via the bot identity.
+        // Enable via cfg.twitchChatUseBotOnly=false or env TWITCH_CHAT_USE_BOT_ONLY=false if needed.
+        const chatUseBotOnly = (this.cfg as any)?.twitchChatUseBotOnly ?? (process.env.TWITCH_CHAT_USE_BOT_ONLY !== 'false');
+        if (!chatUseBotOnly && broadcasterAuth) {
           const bTokenData = {
             accessToken: broadcasterAuth.accessToken,
             refreshToken: broadcasterAuth.refreshToken,
@@ -277,7 +281,12 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
       this.snapshot.state = 'CONNECTED';
       this.snapshot.lastError = null;
       this.snapshot.joinedChannels = normalized;
-      logger.debug('Twitch IRC connected to channels:', {normalized});
+      try {
+        const nick = (this.chat as any)?.currentNick || '(unknown)';
+        logger.info('twitch.irc.connected', { channels: normalized, nick });
+      } catch {
+        logger.debug('Twitch IRC connected to channels:', { normalized });
+      }
     });
     this.chat.onDisconnect((manually: boolean, reason: unknown) => {
       this.snapshot.state = this.disconnecting ? 'DISCONNECTED' : 'ERROR';
@@ -344,8 +353,9 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     }
     if (this.chat && typeof this.chat.say === 'function') {
       try {
+        const nick = (this.chat as any)?.currentNick || '(unknown)';
         await this.chat.say(target, text);
-        logger.debug('twitch.egress.sent', { channel: target });
+        logger.info('twitch.egress.sent', { channel: target, nick });
       } catch (e: any) {
         logger.error('twitch.egress.send_error', { channel: target, error: e?.message || String(e) });
         throw e;
