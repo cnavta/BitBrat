@@ -11,7 +11,7 @@ items:
   - id: STATE-001
     title: "Define TS types for Mutation and State"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: []
@@ -22,7 +22,7 @@ items:
   - id: STATE-002
     title: "Initialize Firestore collections for State"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: []
@@ -33,7 +33,7 @@ items:
   - id: STATE-003
     title: "Scaffold state-engine service"
     priority: P1
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [STATE-001]
@@ -45,7 +45,7 @@ items:
   - id: STATE-004
     title: "Implement Mutation Handler in state-engine"
     priority: P0
-    status: todo
+    status: done
     effort: L
     owner: agent
     deps: [STATE-003, STATE-002]
@@ -58,7 +58,7 @@ items:
   - id: STATE-005
     title: "Expose State MCP tools"
     priority: P1
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [STATE-003, STATE-004]
@@ -69,7 +69,7 @@ items:
   - id: STATE-006
     title: "Update ingress-egress for Twitch triggers"
     priority: P1
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [STATE-004]
@@ -80,11 +80,12 @@ items:
   - id: STATE-007
     title: "Implement Rule Engine in state-engine"
     priority: P2
-    status: todo
+    status: done
     effort: L
     owner: agent
     deps: [STATE-004]
     acceptance:
       - "JsonLogic rules can be evaluated on state changes"
       - "Triggers egress events based on rules"
-    updated_at: 2026-02-19
+      - "Rules are config-driven"
+    updated_at: 2026-02-20

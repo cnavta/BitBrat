@@ -1,11 +1,14 @@
-# Sprint Retro – sprint-254-6e7a1d
+# Sprint Retro - sprint-254-6e7a1d
 
-## What Worked
-- The Graph + Mutation Event model is a very natural fit for the existing BitBrat event-driven architecture.
-- Firestore and NATS provide all the necessary primitives (persistence, TTL, pub/sub, versioning) without needing new infrastructure.
+## What Worked Well
+- **Clear Roadmap**: Having the technical architecture document prepared before implementation provided a solid foundation.
+- **Base Class Leverge**: The `BaseServer` and `McpServer` abstractions saved significant time in service setup.
+- **Modular Implementation**: Implementation was clean because types were defined upfront.
 
-## What Didn't
-- Initial plan was simple, but realizing the scope of `state-engine` (validation + rules) shows it will be a significant new component.
+## Challenges
+- **Testing Mocks**: Mocking deep inheritance chains (BaseServer -> McpServer -> StateEngineServer) in unit tests required careful manual mocking of static methods and internal properties.
+- **Twurple Integration**: Coordinating between the EventSub handlers and the new state mutation bus required a light extension to the `TwitchIngressPublisher`.
 
-## Future Pick-ups
-- The next step should be defining the exact TypeScript types for Mutations and State to ensure consistency across services.
+## Recommendations for Future Sprints
+- **Integration Test Environment**: A local emulator-based integration test (Firestore + NATS) would provide even higher confidence than unit tests with heavy mocks.
+- **Rule Management UI**: As the number of rules in `state-engine` grows, we may need a more structured way to manage them beyond a YAML file.
