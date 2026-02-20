@@ -10,37 +10,64 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { FieldPath } from 'firebase-admin/firestore';
 import { PublisherResource } from '../common/resources/publisher-manager';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import yaml from 'js-yaml';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'state-engine';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-const ALLOWED_KEYS = ['stream.state', 'stream.title', 'stream.category', 'obs.scene'];
-
 type RuleAction = { type: 'publishEgress'; payload: Record<string, any> };
 interface RuleDef { id: string; when: any; actions: RuleAction[] }
+interface StateEngineConfig {
+  rules: RuleDef[];
+  allowedKeys: string[];
+}
 
-const RULES: RuleDef[] = [
-  {
-    id: 'on_stream_start',
-    when: { 'and': [ { '==': [ { var: 'key' }, 'stream.state' ] }, { '==': [ { var: 'value' }, 'on' ] } ] },
-    actions: [
-      {
-        type: 'publishEgress',
-        payload: {
-          type: 'system.stream.online',
-          message: 'Stream detected online',
-          annotations: [{ id: 'state-engine', kind: 'intent', label: 'stream.online', source: 'state-engine', createdAt: new Date().toISOString() }]
+const DEFAULT_CONFIG: StateEngineConfig = {
+  allowedKeys: ['stream.state', 'stream.title', 'stream.category', 'obs.scene'],
+  rules: [
+    {
+      id: 'on_stream_start',
+      when: { 'and': [ { '==': [ { var: 'key' }, 'stream.state' ] }, { '==': [ { var: 'value' }, 'on' ] } ] },
+      actions: [
+        {
+          type: 'publishEgress',
+          payload: {
+            type: 'system.stream.online',
+            message: 'Stream detected online',
+            annotations: [{ id: 'state-engine', kind: 'intent', label: 'stream.online', source: 'state-engine', createdAt: new Date().toISOString() }]
+          }
         }
-      }
-    ]
-  }
-];
+      ]
+    }
+  ]
+};
 
-class StateEngineServer extends McpServer {
+export class StateEngineServer extends McpServer {
+  private stateConfig: StateEngineConfig;
+
   constructor() {
     super({ serviceName: SERVICE_NAME });
+    this.stateConfig = this.loadStateConfig();
     this.setupApp(this.getApp() as any, this.getConfig() as any);
     this.setupMcpTools();
+  }
+
+  private loadStateConfig(): StateEngineConfig {
+    const configPath = process.env.STATE_ENGINE_CONFIG_PATH;
+    if (configPath && fs.existsSync(configPath)) {
+      try {
+        const fileContent = fs.readFileSync(configPath, 'utf8');
+        const loaded = yaml.load(fileContent) as any;
+        return {
+          allowedKeys: loaded.allowedKeys || DEFAULT_CONFIG.allowedKeys,
+          rules: loaded.rules || DEFAULT_CONFIG.rules,
+        };
+      } catch (e: any) {
+        this.getLogger().error('state-engine.config.load_error', { path: configPath, error: e.message });
+      }
+    }
+    return DEFAULT_CONFIG;
   }
 
   private setupMcpTools() {
@@ -183,7 +210,7 @@ class StateEngineServer extends McpServer {
     if (!firestore) throw new Error('Firestore not available');
 
     // 1. Validate
-    if (!ALLOWED_KEYS.includes(mutation.key)) {
+    if (!this.stateConfig.allowedKeys.includes(mutation.key)) {
       await this.logMutation(mutation, 'rejected', 'Key not allowed');
       return;
     }
@@ -257,7 +284,7 @@ class StateEngineServer extends McpServer {
   }
 
   private async evaluateRules(key: string, value: any) {
-    for (const rule of RULES) {
+    for (const rule of this.stateConfig.rules) {
       try {
         const matched = jsonLogic.apply(rule.when, { key, value });
         if (!matched) continue;
