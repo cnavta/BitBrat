@@ -214,6 +214,13 @@ services:
         - internal.api.egress.v1.{instanceId}
         - internal.egress.v1
 
+  state-engine:
+    active: true
+    description: State engine for managing application state
+    entry: src/apps/state-engine.ts
+    topics:
+      consumes:
+        - internal.state.mutation.v1
 
 infrastructure:
   target: gcp
