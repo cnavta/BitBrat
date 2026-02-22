@@ -1,0 +1,10 @@
+id: sprint-255-a1b2c3
+title: "State Engine Service Documentation"
+goal: "Create technical overview, runbook, and rule examples for the State Engine service."
+owner: "@LeadImplementor"
+createdAt: "2026-02-21T20:25:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-255-a1b2c3-state-engine-docs"
+notes: |
+  Documentation-focused sprint for the recently implemented State Engine service.
