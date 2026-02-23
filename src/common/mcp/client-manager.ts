@@ -152,6 +152,13 @@ export class McpClientManager {
 
     if (!client || !bridge) return;
 
+    // Check capabilities if available
+    const capabilities = (client as any).getServerCapabilities?.();
+    if (capabilities && capabilities.tools === false) {
+      logger.debug('mcp.client_manager.skipping_tools_discovery', { server: serverName, reason: 'Server does not declare tools capability' });
+      return;
+    }
+
     const toolIds: string[] = [];
     const start = Date.now();
     try {
@@ -172,8 +179,12 @@ export class McpClientManager {
       }
       this.serverTools.set(serverName, toolIds);
       this.stats.updateServerTools(serverName, toolIds);
-    } catch (e) {
-      logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'tools', error: e });
+    } catch (e: any) {
+      if (e?.code === -32601) {
+        logger.info('mcp.client_manager.tools_not_supported', { name: serverName });
+      } else {
+        logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'tools', error: e });
+      }
     }
   }
 
@@ -184,6 +195,13 @@ export class McpClientManager {
 
     if (!client || !bridge) return;
 
+    // Check capabilities if available
+    const capabilities = (client as any).getServerCapabilities?.();
+    if (capabilities && capabilities.resources === false) {
+      logger.debug('mcp.client_manager.skipping_resources_discovery', { server: serverName, reason: 'Server does not declare resources capability' });
+      return;
+    }
+
     const uris: string[] = [];
     try {
       const result = await client.listResources();
@@ -193,8 +211,12 @@ export class McpClientManager {
         uris.push(translated.uri);
       }
       this.serverResources.set(serverName, uris);
-    } catch (e) {
-      logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'resources', error: e });
+    } catch (e: any) {
+      if (e?.code === -32601) {
+        logger.info('mcp.client_manager.resources_not_supported', { name: serverName });
+      } else {
+        logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'resources', error: e });
+      }
     }
   }
 
@@ -205,6 +227,13 @@ export class McpClientManager {
 
     if (!client || !bridge) return;
 
+    // Check capabilities if available
+    const capabilities = (client as any).getServerCapabilities?.();
+    if (capabilities && capabilities.prompts === false) {
+      logger.debug('mcp.client_manager.skipping_prompts_discovery', { server: serverName, reason: 'Server does not declare prompts capability' });
+      return;
+    }
+
     const ids: string[] = [];
     try {
       const result = await client.listPrompts();
@@ -214,8 +243,12 @@ export class McpClientManager {
         ids.push(translated.id);
       }
       this.serverPrompts.set(serverName, ids);
-    } catch (e) {
-      logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'prompts', error: e });
+    } catch (e: any) {
+      if (e?.code === -32601) {
+        logger.info('mcp.client_manager.prompts_not_supported', { name: serverName });
+      } else {
+        logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'prompts', error: e });
+      }
     }
   }
 
