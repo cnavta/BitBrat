@@ -241,6 +241,7 @@ class EventRouterServer extends McpServer {
         priority: z.number().optional().default(100).describe('Rule priority.'),
         promptTemplate: z.string().optional().describe('A template for a prompt annotation.'),
         responseTemplate: z.string().optional().describe('A template for a text candidate.'),
+        personalityId: z.string().optional().describe('The ID of a personality to attach to matched events.'),
         customAnnotation: z.object({
           key: z.string(),
           value: z.string(),

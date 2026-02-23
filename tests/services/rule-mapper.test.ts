@@ -28,15 +28,19 @@ describe('RuleMapper', () => {
       services: ['llm-bot'],
       promptTemplate: 'System prompt here',
       responseTemplate: 'Assistant response here',
+      personalityId: 'test-personality',
       customAnnotation: { key: 'foo', value: 'bar' },
     };
     const rule = RuleMapper.mapToRuleDoc(params);
 
-    expect(rule.enrichments?.annotations).toHaveLength(2);
+    expect(rule.enrichments?.annotations).toHaveLength(3);
     expect(rule.enrichments?.candidates).toHaveLength(1);
 
     const promptAnn = rule.enrichments?.annotations?.find(a => a.kind === 'prompt');
     expect(promptAnn?.value).toBe('System prompt here');
+
+    const personalityAnn = rule.enrichments?.annotations?.find(a => a.kind === 'personality');
+    expect(personalityAnn?.value).toBe('test-personality');
 
     const customAnn = rule.enrichments?.annotations?.find(a => a.kind === 'custom');
     expect(customAnn?.label).toBe('foo');

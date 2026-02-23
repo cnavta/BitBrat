@@ -256,9 +256,7 @@ export class BaseServer {
       method === 'PATCH' ? app.patch : app.get).bind(app);
     this.logger.info('base_server.http.register', { service: this.serviceName, method, path });
     methodFn(path, (req: Request, res: Response, next: any) => {
-      // Ensure req.body is parsed if it's a POST/PUT/PATCH and body-parser isn't globally active
-      // or if it was already parsed, use it.
-      // BaseServer usually handles this via express.json() in initializeExpress, but let's be safe.
+      // req.body is already parsed by the global express.json() middleware in constructor.
       handler(req, res, next);
     });
   }
