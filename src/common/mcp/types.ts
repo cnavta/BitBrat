@@ -10,3 +10,10 @@ export interface McpServerConfig {
   agentAllowlist?: string[];
   status?: 'active' | 'inactive';
 }
+
+export interface SessionContext {
+  userId?: string;
+  roles: string[];
+  agentName?: string;
+  tenantId?: string;
+}

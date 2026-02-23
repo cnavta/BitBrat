@@ -63,6 +63,15 @@ export class McpServer extends BaseServer {
   }
 
   /**
+   * Subclasses can override this to provide a per-connection Server instance.
+   * Default: use the shared server instance.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async getMcpServerForConnection(_req: Request): Promise<Server> {
+    return this.mcpServer;
+  }
+
+  /**
    * Register a tool with type-safe Zod schema validation.
    */
   public registerTool<T extends z.ZodType>(
@@ -233,7 +242,8 @@ export class McpServer extends BaseServer {
         };
 
         try {
-          await this.mcpServer.connect(transport);
+          const sessionServer = await this.getMcpServerForConnection(req);
+          await sessionServer.connect(transport);
           this.getLogger().info("mcp_server.connected", {
             sessionId: transport.sessionId,
           });
