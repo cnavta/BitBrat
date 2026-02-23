@@ -10,7 +10,7 @@ fi
 # Parse arguments
 ENV_ARG=""
 PROJECT_ID_ARG=""
-SCOPE_ARG="all" # all | llm-bot | persistence | api-gateway
+SCOPE_ARG="all" # all | llm-bot | tool-gateway | persistence | api-gateway
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
@@ -82,6 +82,8 @@ export PUBSUB_ENSURE_DISABLE=1
 case "$SCOPE_ARG" in
   llm-bot)
     npm test -- src/services/llm-bot tests/services/llm-bot ;;
+  tool-gateway)
+    npm test -- src/apps/tool-gateway.ts tests/apps/tool-gateway-rest.spec.ts tests/common/mcp tests/services/llm-bot/mcp ;;
   llm-factory)
     npm test -- src/common/llm ;;
   persistence)
@@ -130,7 +132,10 @@ if [[ "$SKIP_INFRA" != "1" ]]; then
   echo "➡️  URL map import (dry-run)"
   npm run brat -- lb urlmap import --env "$ENV_ARG" --project-id "$PROJECT_ID_ARG" --dry-run
 
-  # Sprint 172: Image-based deployment dry-run
+  # Image-based deployment validation
+  echo "➡️  Image-based deployment validation (tool-gateway dry-run)"
+  npm run brat -- deploy service tool-gateway --env "$ENV_ARG" --project-id "$PROJECT_ID_ARG" --dry-run
+
   echo "➡️  Image-based deployment validation (obs-mcp dry-run)"
   npm run brat -- deploy service obs-mcp --env "$ENV_ARG" --project-id "$PROJECT_ID_ARG" --dry-run
 

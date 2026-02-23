@@ -123,15 +123,29 @@ class LlmBotServer extends BaseServer {
     this.registry.registerTool(createListAvailableToolsTool(this.registry));
 
     // Initialize MCP Registry Watcher
-    this.registryWatcher = new RegistryWatcher(this, {
-      onServerActive: async (config) => {
-        await this.mcpManager.connectServer(config);
-      },
-      onServerInactive: async (name) => {
-        await this.mcpManager.disconnectServer(name);
-      }
-    });
-    this.registryWatcher.start();
+    const gatewayUrl = this.getConfig<string>('MCP_GATEWAY_URL', { required: false });
+    if (gatewayUrl) {
+      this.getLogger().info('llm_bot.mcp.connecting_gateway', { url: gatewayUrl });
+      await this.mcpManager.connectServer({
+        name: 'tool-gateway',
+        transport: 'sse',
+        url: gatewayUrl,
+        env: { 
+          'x-mcp-token': process.env.MCP_AUTH_TOKEN || '',
+          'x-agent-name': this.serviceName
+        }
+      });
+    } else {
+      this.registryWatcher = new RegistryWatcher(this, {
+        onServerActive: async (config) => {
+          await this.mcpManager.connectServer(config);
+        },
+        onServerInactive: async (name) => {
+          await this.mcpManager.disconnectServer(name);
+        }
+      });
+      this.registryWatcher.start();
+    }
 
     return super.start(port);
   }

@@ -122,7 +122,7 @@ items:
   - id: TG-008
     title: "Final Validation & Agent Migration"
     priority: P0
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [TG-007]
@@ -130,4 +130,6 @@ items:
       - "llm-bot successfully uses tool-gateway as its only MCP server"
       - "Validation script passes for all components"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T18:40:00Z
+        note: "Updated llm-bot to support MCP_GATEWAY_URL for direct connection to the Tool Gateway. Updated validate_deliverable.sh with tool-gateway scope and dry-run deployment validation. Verified all components with tests."

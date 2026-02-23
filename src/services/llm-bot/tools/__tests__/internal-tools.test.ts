@@ -67,7 +67,15 @@ describe('Internal Tools', () => {
       getTools: () => mockTools,
       registerTool: jest.fn(),
       unregisterTool: jest.fn(),
-      getTool: jest.fn()
+      getTool: jest.fn(),
+      registerResource: jest.fn(),
+      unregisterResource: jest.fn(),
+      getResources: jest.fn().mockReturnValue({}),
+      getResource: jest.fn(),
+      registerPrompt: jest.fn(),
+      unregisterPrompt: jest.fn(),
+      getPrompts: jest.fn().mockReturnValue({}),
+      getPrompt: jest.fn()
     };
 
     it('should list all tools for an admin', async () => {
