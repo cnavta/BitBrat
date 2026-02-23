@@ -1,4 +1,5 @@
 import '../common/safe-timers'; // install safe timer clamps early for this process
+import { McpServer } from '../common/mcp-server';
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
@@ -6,6 +7,8 @@ import { InternalEventV2, INTERNAL_INGRESS_V1, INTERNAL_ENRICHED_V1 } from '../t
 import { AttributeMap } from '../services/message-bus';
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
+import { RuleMapper } from '../services/router/rule-mapper';
+import { z } from 'zod';
 // Firestore is provided via BaseServer resources
 import { counters } from '../common/counters';
 import { busAttrsFromEvent } from '../common/events/attributes';
@@ -45,7 +48,7 @@ export class FirestoreStateStore implements IStateStore {
   }
 }
 
-class EventRouterServer extends BaseServer {
+class EventRouterServer extends McpServer {
   constructor() {
     super({ serviceName: SERVICE_NAME });
     // Synchronously perform setup after BaseServer constructed
@@ -53,6 +56,9 @@ class EventRouterServer extends BaseServer {
   }
 
   private async setupApp(_app: Express, cfg: any) {
+    // Register MCP Tools
+    this.registerAdminTools();
+
     // ---------------- Debug endpoints (via BaseServer helper) ----------------
     this.onHTTPRequest('/_debug/counters', (_req, res) => {
       try {
@@ -171,6 +177,105 @@ class EventRouterServer extends BaseServer {
         logger.error('event_router.subscribe.error', { subject, error: e?.message || String(e) });
       }
     }
+  }
+
+  private registerAdminTools() {
+    const db = this.getResource<Firestore>('firestore');
+
+    // --- list_rules ---
+    this.registerTool(
+      'list_rules',
+      'List all active routing rules stored in Firestore.',
+      z.object({}),
+      async () => {
+        if (!db) {
+          return {
+            content: [{ type: 'text', text: 'Firestore not available' }],
+            isError: true,
+          };
+        }
+        const snap = await db.collection('configs/routingRules/rules').get();
+        const rules = snap.docs.map(doc => ({
+          id: doc.id,
+          description: doc.data().description,
+          priority: doc.data().priority,
+          enabled: doc.data().enabled,
+        }));
+        return { content: [{ type: 'text', text: JSON.stringify(rules, null, 2) }] };
+      }
+    );
+
+    // --- get_rule ---
+    this.registerTool(
+      'get_rule',
+      'Retrieve the full details of a specific routing rule.',
+      z.object({
+        id: z.string().describe('The ID of the rule to retrieve.'),
+      }),
+      async ({ id }) => {
+        if (!db) {
+          return {
+            content: [{ type: 'text', text: 'Firestore not available' }],
+            isError: true,
+          };
+        }
+        const doc = await db.collection('configs/routingRules/rules').doc(id).get();
+        if (!doc.exists) {
+          return {
+            content: [{ type: 'text', text: `Rule ${id} not found` }],
+            isError: true,
+          };
+        }
+        return { content: [{ type: 'text', text: JSON.stringify({ id: doc.id, ...doc.data() }, null, 2) }] };
+      }
+    );
+
+    // --- create_rule ---
+    this.registerTool(
+      'create_rule',
+      'Create a new routing rule with specific logic and routing slip.',
+      z.object({
+        logic: z.string().describe('A JsonLogic expression as a JSON string.'),
+        services: z.array(z.string()).describe('A list of service names (e.g., llm-bot, auth) to form the routing slip.'),
+        description: z.string().optional().describe('A description for the rule.'),
+        priority: z.number().optional().default(100).describe('Rule priority.'),
+        promptTemplate: z.string().optional().describe('A template for a prompt annotation.'),
+        responseTemplate: z.string().optional().describe('A template for a text candidate.'),
+        customAnnotation: z.object({
+          key: z.string(),
+          value: z.string(),
+        }).optional().describe('A key-value pair for a custom annotation.'),
+      }),
+      async (params) => {
+        if (!db) {
+          return {
+            content: [{ type: 'text', text: 'Firestore not available' }],
+            isError: true,
+          };
+        }
+        try {
+          const ruleDoc = RuleMapper.mapToRuleDoc(params);
+          const res = await db.collection('configs/routingRules/rules').add({
+            ...ruleDoc,
+            createdAt: new Date().toISOString(),
+          });
+          return {
+            content: [{
+              type: 'text',
+              text: `Successfully created rule ${res.id}`,
+            }],
+          };
+        } catch (e: any) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Failed to create rule: ${e.message}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
   }
 }
 

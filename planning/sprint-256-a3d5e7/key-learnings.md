@@ -1,0 +1,3 @@
+- Decouple complex logic from MCP handlers into standalone, testable services (e.g., `RuleMapper`).
+- Use Zod schemas in `registerTool` to benefit from automatic type-safe validation and JSON Schema generation.
+- SSE testing remains a manual or complex process with the current MCP SDK; prefer unit tests for logic and simple mocks for tool registration.

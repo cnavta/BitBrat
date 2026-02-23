@@ -1,0 +1,119 @@
+meta:
+  backlog_id: sprint-256-a3d5e7-backlog
+  updated_at: 2026-02-22
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-256-a3d5e7
+  start: 2026-02-22
+  end: 2026-03-08
+  wip_limit: 3
+  goal: "Implement MCP administrative tools in the event-router service."
+
+items:
+  - id: BL-001
+    title: "Refactor EventRouterServer to extend McpServer"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "EventRouterServer extends McpServer"
+      - "SSE /sse and POST /message routes are registered"
+      - "Existing routing functionality remains operational"
+    updated_at: 2026-02-22
+    log:
+      - at: 2026-02-22T20:25:00Z
+        note: "Starting refactor of EventRouterServer to extend McpServer."
+      - at: 2026-02-22T20:26:00Z
+        note: "Refactored EventRouterServer to extend McpServer. SSE endpoints /sse and /message are now available."
+
+  - id: BL-002
+    title: "Implement rule-mapper.ts for rule construction"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Service names are correctly mapped to internal topics"
+      - "JsonLogic expressions are validated"
+      - "Rule objects are correctly assembled from inputs"
+    updated_at: 2026-02-22
+    log:
+      - at: 2026-02-22T20:27:00Z
+        note: "Starting implementation of rule-mapper.ts."
+      - at: 2026-02-22T20:28:00Z
+        note: "Implemented rule-mapper.ts with service-to-topic mapping and rule construction logic."
+
+  - id: BL-003
+    title: "Implement create_rule MCP tool"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "create_rule tool is registered"
+      - "Correctly creates rules in Firestore with all parameters"
+      - "Returns success message and rule ID"
+    updated_at: 2026-02-22
+    log:
+      - at: 2026-02-22T20:29:00Z
+        note: "Starting implementation of create_rule MCP tool."
+      - at: 2026-02-22T20:30:00Z
+        note: "Implemented and registered create_rule MCP tool."
+
+  - id: BL-004
+    title: "Implement list_rules and get_rule tools"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "list_rules returns active rule metadata"
+      - "get_rule returns full RuleDoc by ID"
+    updated_at: 2026-02-22
+    log:
+      - at: 2026-02-22T20:30:00Z
+        note: "Implemented and registered list_rules and get_rule tools."
+
+  - id: BL-005
+    title: "Write unit and integration tests"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-003, BL-004]
+    blocked_reason: null
+    acceptance:
+      - "Unit tests cover rule mapping and validation"
+      - "Integration tests verify MCP endpoints using a client"
+    updated_at: 2026-02-22
+    log:
+      - at: 2026-02-22T20:31:00Z
+        note: "Starting implementation of unit and integration tests."
+      - at: 2026-02-22T20:35:00Z
+        note: "Implemented unit tests for RuleMapper and integration test scaffold for EventRouterServer MCP tools."
+
+  - id: BL-006
+    title: "Update validate_deliverable.sh"
+    priority: P1
+    status: in_progress
+    effort: S
+    owner: agent
+    deps: [BL-005]
+    blocked_reason: null
+    acceptance:
+      - "Script runs build and test suite"
+      - "Verification report summarizes results"
+    updated_at: 2026-02-22
+    log:
+      - at: 2026-02-22T20:36:00Z
+        note: "Updating validate_deliverable.sh to include new tests."
