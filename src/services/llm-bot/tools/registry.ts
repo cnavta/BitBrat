@@ -1,7 +1,9 @@
-import { BitBratTool, IToolRegistry } from '../../../types/tools';
+import { BitBratTool, BitBratResource, BitBratPrompt, IToolRegistry } from '../../../types/tools';
 
 export class ToolRegistry implements IToolRegistry {
   private tools: Map<string, BitBratTool> = new Map();
+  private resources: Map<string, BitBratResource> = new Map();
+  private prompts: Map<string, BitBratPrompt> = new Map();
 
   /**
    * Register a new tool in the registry.
@@ -41,6 +43,46 @@ export class ToolRegistry implements IToolRegistry {
    */
   getTool(id: string): BitBratTool | undefined {
     return this.tools.get(id);
+  }
+
+  registerResource(resource: BitBratResource): void {
+    this.resources.set(resource.uri, resource);
+  }
+
+  unregisterResource(uri: string): void {
+    this.resources.delete(uri);
+  }
+
+  getResources(): Record<string, BitBratResource> {
+    const record: Record<string, BitBratResource> = {};
+    for (const resource of this.resources.values()) {
+      record[resource.uri] = resource;
+    }
+    return record;
+  }
+
+  getResource(uri: string): BitBratResource | undefined {
+    return this.resources.get(uri);
+  }
+
+  registerPrompt(prompt: BitBratPrompt): void {
+    this.prompts.set(prompt.id, prompt);
+  }
+
+  unregisterPrompt(id: string): void {
+    this.prompts.delete(id);
+  }
+
+  getPrompts(): Record<string, BitBratPrompt> {
+    const record: Record<string, BitBratPrompt> = {};
+    for (const prompt of this.prompts.values()) {
+      record[prompt.id] = prompt;
+    }
+    return record;
+  }
+
+  getPrompt(id: string): BitBratPrompt | undefined {
+    return this.prompts.get(id);
   }
 
   /**
