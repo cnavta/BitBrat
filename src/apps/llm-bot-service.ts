@@ -3,7 +3,7 @@ import { Express } from 'express';
 import type { InternalEventV2, RoutingStep, CandidateV1 } from '../types/events';
 import { processEvent } from '../services/llm-bot/processor';
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
-import { McpClientManager } from '../services/llm-bot/mcp/client-manager';
+import { McpClientManager } from '../common/mcp/client-manager';
 import { createGetBotStatusTool, createListAvailableToolsTool } from '../services/llm-bot/tools/internal-tools';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
