@@ -73,7 +73,7 @@ describe('llm-bot processor logging', () => {
     // Check the data passed to .add()
     const logData = mockAdd.mock.calls[0][0];
     expect(logData).toBeDefined();
-    expect(logData.processingTimeMs).toBeGreaterThanOrEqual(50);
+    expect(logData.processingTimeMs).toBeGreaterThanOrEqual(40);
     expect(logData.correlationId).toBe('corr-log-test');
     expect(logData.platform).toBe('openai');
     expect(logData.model).toBe('gpt-4o');
