@@ -8,6 +8,8 @@ ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 # 1) Verify required files exist
 ls "$ROOT_DIR/technical-architecture.md" >/dev/null
 ls "$ROOT_DIR/implementation-plan.md" >/dev/null
+ls "$ROOT_DIR/execution-plan.md" >/dev/null
+ls "$ROOT_DIR/backlog.yaml" >/dev/null
 
 # 2) Basic structure checks
 if ! grep -q "Technical Architecture: Tool Gateway Service" "$ROOT_DIR/technical-architecture.md"; then

@@ -12,6 +12,8 @@ Create the technical architecture for the `tool-gateway` service.
 
 ## Deliverables
 - `technical-architecture.md`
+- `execution-plan.md`
+- `backlog.yaml`
 - Updates to `architecture.yaml` (if applicable)
 
 ## Acceptance Criteria
@@ -20,6 +22,8 @@ Create the technical architecture for the `tool-gateway` service.
   - Proxying logic for tools.
   - Role-based access control (RBAC).
   - Observability metrics.
+- `execution-plan.md` provides a logical sequence of implementation phases.
+- `backlog.yaml` contains prioritized, trackable tasks with acceptance criteria.
 - The plan is consistent with `AGENTS.md` and `architecture.yaml`.
 
 ## Testing Strategy

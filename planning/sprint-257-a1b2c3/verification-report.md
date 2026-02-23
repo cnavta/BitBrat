@@ -2,8 +2,10 @@
 
 ## Completed
 - [x] Technical Architecture document for Tool Gateway (`technical-architecture.md`)
+- [x] Execution Plan (`execution-plan.md`)
+- [x] Trackable Prioritized YAML Backlog (`backlog.yaml`)
 - [x] Implementation plan updated
-- [x] Validation script created (`validate_deliverable.sh`)
+- [x] Validation script updated (`validate_deliverable.sh`)
 
 ## Partial
 - [ ] Publication PR not yet created (credentials required)
