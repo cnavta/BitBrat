@@ -1,4 +1,4 @@
-import { BitBratTool } from '../../types/tools';
+import { BitBratTool, BitBratResource, BitBratPrompt } from '../../types/tools';
 import { McpServerConfig, SessionContext } from './types';
 
 export class RbacEvaluator {
@@ -16,22 +16,38 @@ export class RbacEvaluator {
     return true;
   }
 
-  isAllowedTool(tool: BitBratTool, serverConfig: McpServerConfig | undefined, context: SessionContext): boolean {
+  private isAllowedItem(
+    item: { requiredRoles?: string[]; agentAllowlist?: string[] },
+    serverConfig: McpServerConfig | undefined,
+    context: SessionContext
+  ): boolean {
     // If server-level policy blocks, deny
     if (serverConfig && !this.isAllowedServer(serverConfig, context)) return false;
 
-    // Tool-level roles (any-match). If no roles specified, allow.
-    if (tool.requiredRoles && tool.requiredRoles.length > 0) {
-      const hasAny = tool.requiredRoles.some((r) => context.roles.includes(r));
+    // Item-level roles (any-match). If no roles specified, allow.
+    if (item.requiredRoles && item.requiredRoles.length > 0) {
+      const hasAny = item.requiredRoles.some((r) => context.roles.includes(r));
       if (!hasAny) return false;
     }
 
-    // Tool-level agent allowlist (if provided on tool metadata)
-    if (tool.agentAllowlist && tool.agentAllowlist.length > 0) {
+    // Item-level agent allowlist
+    if (item.agentAllowlist && item.agentAllowlist.length > 0) {
       const agent = (context.agentName || '').trim();
-      if (!agent || !tool.agentAllowlist.includes(agent)) return false;
+      if (!agent || !item.agentAllowlist.includes(agent)) return false;
     }
 
     return true;
+  }
+
+  isAllowedTool(tool: BitBratTool, serverConfig: McpServerConfig | undefined, context: SessionContext): boolean {
+    return this.isAllowedItem(tool, serverConfig, context);
+  }
+
+  isAllowedResource(resource: BitBratResource, serverConfig: McpServerConfig | undefined, context: SessionContext): boolean {
+    return this.isAllowedItem(resource, serverConfig, context);
+  }
+
+  isAllowedPrompt(prompt: BitBratPrompt, serverConfig: McpServerConfig | undefined, context: SessionContext): boolean {
+    return this.isAllowedItem(prompt, serverConfig, context);
   }
 }

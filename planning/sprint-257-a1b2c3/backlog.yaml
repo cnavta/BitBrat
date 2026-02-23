@@ -92,7 +92,7 @@ items:
   - id: TG-006
     title: "Non-Agent HTTP Proxy Endpoints"
     priority: P2
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [TG-005]
@@ -100,12 +100,14 @@ items:
       - "REST API available for tool calls and resource reads"
       - "Uses same RBAC logic as MCP path"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T18:30:00Z
+        note: "Implemented REST endpoints /v1/tools, /v1/tools/:id, and /v1/resources with RBAC filtering. Enhanced registry and bridge to support resources and prompts. Verified with unit tests."
 
   - id: TG-007
     title: "Observability: Metrics & Usage Logs"
     priority: P1
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [TG-005]
@@ -113,7 +115,9 @@ items:
       - "tool_usage collection populated on every call"
       - "OTel metrics exported for latency and status"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T18:35:00Z
+        note: "Implemented McpObservability for Firestore audit logging (tool_usage) and OTel metrics. Integrated into ProxyInvoker to capture all tool, resource, and prompt calls. Updated all interfaces to propagate session context. Verified with tests."
 
   - id: TG-008
     title: "Final Validation & Agent Migration"

@@ -1,7 +1,14 @@
 import { McpServer } from '../common/mcp-server';
 import { Express, Request, Response } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { 
+  ListToolsRequestSchema, 
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema
+} from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
@@ -12,7 +19,7 @@ import { ProxyInvoker } from '../common/mcp/proxy-invoker';
 const SERVICE_NAME = process.env.SERVICE_NAME || 'tool-gateway';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-class ToolGatewayServer extends McpServer {
+export class ToolGatewayServer extends McpServer {
   private registry = new ToolRegistry();
   private mcpManager = new McpClientManager(this as any, this.registry);
   private registryWatcher?: RegistryWatcher;
@@ -55,6 +62,74 @@ class ToolGatewayServer extends McpServer {
       res.status(200).json({ status: 'ok', service: SERVICE_NAME, ts: new Date().toISOString() });
     });
 
+    // REST: GET /v1/tools
+    this.onHTTPRequest('/v1/tools', (req: Request, res: Response) => {
+      const context = this.extractSessionContext(req);
+      const tools = Object.values(this.registry.getTools())
+        .filter((t) => this.rbac.isAllowedTool(t, t.originServer ? this.serverConfigs.get(t.originServer) : undefined, context))
+        .map((t) => ({
+          id: t.id,
+          name: t.displayName || t.id,
+          description: t.description,
+          inputSchema: (t as any).inputSchema?.jsonSchema || {},
+        }));
+      res.json({ tools });
+    });
+
+    // REST: POST /v1/tools/:id
+    this.onHTTPRequest({ path: '/v1/tools/:id', method: 'POST' }, async (req: Request, res: Response) => {
+      const toolId = req.params.id;
+      const context = this.extractSessionContext(req);
+      const tool = this.registry.getTool(toolId);
+
+      if (!tool) return res.status(404).json({ error: 'Tool not found' });
+      
+      const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, context);
+      if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+      try {
+        const args = req.body.args || req.body.arguments || req.body;
+        const result = await tool.execute?.(args as any, { 
+          userRoles: context.roles,
+          userId: context.userId,
+          agentName: context.agentName
+        });
+        res.json({ result });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // REST: GET /v1/resources
+    this.onHTTPRequest('/v1/resources', (req: Request, res: Response) => {
+      const uri = req.query.uri as string;
+      const context = this.extractSessionContext(req);
+
+      if (uri) {
+        const resource = this.registry.getResource(uri);
+        if (!resource) return res.status(404).json({ error: 'Resource not found' });
+        
+        const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, context);
+        if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+        resource.read?.({
+          userRoles: context.roles,
+          userId: context.userId,
+          agentName: context.agentName
+        }).then(result => res.json({ result })).catch(e => res.status(500).json({ error: e.message }));
+      } else {
+        const resources = Object.values(this.registry.getResources())
+          .filter(r => this.rbac.isAllowedResource(r, r.originServer ? this.serverConfigs.get(r.originServer) : undefined, context))
+          .map(r => ({
+            uri: r.uri,
+            name: r.name,
+            description: r.description,
+            mimeType: r.mimeType
+          }));
+        res.json({ resources });
+      }
+    });
+
     // MCP SSE endpoints are registered by McpServer constructor (/sse and /message)
   }
 
@@ -87,7 +162,32 @@ class ToolGatewayServer extends McpServer {
       return { tools } as any;
     });
 
-    // Invocation: delegate to tool.execute (which proxies to upstream via McpBridge)
+    // Discovery: listResources filtered by RBAC
+    sessionServer.setRequestHandler(ListResourcesRequestSchema, async () => {
+      const resources = Object.values(this.registry.getResources())
+        .filter((r) => this.rbac.isAllowedResource(r, r.originServer ? this.serverConfigs.get(r.originServer) : undefined, context))
+        .map((r) => ({
+          uri: r.uri,
+          name: r.name,
+          description: r.description,
+          mimeType: r.mimeType,
+        }));
+      return { resources } as any;
+    });
+
+    // Discovery: listPrompts filtered by RBAC
+    sessionServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+      const prompts = Object.values(this.registry.getPrompts())
+        .filter((p) => this.rbac.isAllowedPrompt(p, p.originServer ? this.serverConfigs.get(p.originServer) : undefined, context))
+        .map((p) => ({
+          name: p.id,
+          description: p.description,
+          arguments: p.arguments,
+        }));
+      return { prompts } as any;
+    });
+
+    // Invocation: callTool
     sessionServer.setRequestHandler(CallToolRequestSchema, async (request) => {
       const id = request.params.name;
       const tool = this.registry.getTool(id);
@@ -98,12 +198,49 @@ class ToolGatewayServer extends McpServer {
       if (!allowed) throw new Error('Forbidden');
 
       const args = request.params.arguments || {};
-      const result = await tool.execute?.(args as any, { userRoles: context.roles });
+      const result = await tool.execute?.(args as any, { 
+        userRoles: context.roles,
+        userId: context.userId,
+        agentName: context.agentName
+      });
       // Translate result to MCP CallToolResult-like content
       if (typeof result === 'string') {
         return { content: [{ type: 'text', text: result }] } as any;
       }
       return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
+    });
+
+    // Invocation: readResource
+    sessionServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const uri = request.params.uri;
+      const resource = this.registry.getResource(uri);
+      if (!resource) throw new Error(`Resource not found: ${uri}`);
+
+      const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, context);
+      if (!allowed) throw new Error('Forbidden');
+
+      return await resource.read?.({
+        userRoles: context.roles,
+        userId: context.userId,
+        agentName: context.agentName
+      }) as any;
+    });
+
+    // Invocation: getPrompt
+    sessionServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      const id = request.params.name;
+      const prompt = this.registry.getPrompt(id);
+      if (!prompt) throw new Error(`Prompt not found: ${id}`);
+
+      const allowed = this.rbac.isAllowedPrompt(prompt, prompt.originServer ? this.serverConfigs.get(prompt.originServer) : undefined, context);
+      if (!allowed) throw new Error('Forbidden');
+
+      const args = (request.params.arguments as Record<string, string>) || {};
+      return await prompt.get?.(args, {
+        userRoles: context.roles,
+        userId: context.userId,
+        agentName: context.agentName
+      }) as any;
     });
 
     return sessionServer;

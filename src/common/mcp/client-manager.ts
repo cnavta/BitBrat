@@ -12,6 +12,8 @@ export class McpClientManager {
   private clients: Map<string, Client> = new Map();
   private bridges: Map<string, McpBridge> = new Map();
   private serverTools: Map<string, string[]> = new Map();
+  private serverResources: Map<string, string[]> = new Map();
+  private serverPrompts: Map<string, string[]> = new Map();
   private stats = new McpStatsCollector();
   private invoker = new ProxyInvoker();
 
@@ -87,6 +89,8 @@ export class McpClientManager {
 
       // Initial discovery
       await this.discoverTools(config.name, config.requiredRoles);
+      await this.discoverResources(config.name, config.requiredRoles);
+      await this.discoverPrompts(config.name, config.requiredRoles);
 
       logger.info('mcp.client_manager.connected', { name: config.name });
     } catch (e) {
@@ -120,6 +124,20 @@ export class McpClientManager {
     }
     this.serverTools.delete(name);
 
+    // Remove resources
+    const resourceUris = this.serverResources.get(name) || [];
+    for (const uri of resourceUris) {
+      this.registry.unregisterResource(uri);
+    }
+    this.serverResources.delete(name);
+
+    // Remove prompts
+    const promptIds = this.serverPrompts.get(name) || [];
+    for (const id of promptIds) {
+      this.registry.unregisterPrompt(id);
+    }
+    this.serverPrompts.delete(name);
+
     logger.info('mcp.client_manager.disconnected', { name });
   }
 
@@ -151,7 +169,49 @@ export class McpClientManager {
       this.serverTools.set(serverName, toolIds);
       this.stats.updateServerTools(serverName, toolIds);
     } catch (e) {
-      logger.error('mcp.client_manager.discovery_error', { name: serverName, error: e });
+      logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'tools', error: e });
+    }
+  }
+
+  async discoverResources(serverName: string, requiredRoles?: string[]): Promise<void> {
+    const client = this.clients.get(serverName);
+    const bridge = this.bridges.get(serverName);
+    const logger = (this.server as any).getLogger();
+
+    if (!client || !bridge) return;
+
+    const uris: string[] = [];
+    try {
+      const result = await client.listResources();
+      for (const resource of result.resources) {
+        const translated = bridge.translateResource(resource, requiredRoles);
+        this.registry.registerResource(translated);
+        uris.push(translated.uri);
+      }
+      this.serverResources.set(serverName, uris);
+    } catch (e) {
+      logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'resources', error: e });
+    }
+  }
+
+  async discoverPrompts(serverName: string, requiredRoles?: string[]): Promise<void> {
+    const client = this.clients.get(serverName);
+    const bridge = this.bridges.get(serverName);
+    const logger = (this.server as any).getLogger();
+
+    if (!client || !bridge) return;
+
+    const ids: string[] = [];
+    try {
+      const result = await client.listPrompts();
+      for (const prompt of result.prompts) {
+        const translated = bridge.translatePrompt(prompt, requiredRoles);
+        this.registry.registerPrompt(translated);
+        ids.push(translated.id);
+      }
+      this.serverPrompts.set(serverName, ids);
+    } catch (e) {
+      logger.error('mcp.client_manager.discovery_error', { name: serverName, type: 'prompts', error: e });
     }
   }
 

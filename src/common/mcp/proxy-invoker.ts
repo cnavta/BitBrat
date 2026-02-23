@@ -1,5 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { CallToolResult, CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResult, CallToolResultSchema, ReadResourceResult, ReadResourceResultSchema, GetPromptResult, GetPromptResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ToolExecutionContext } from '../../types/tools';
+import { McpObservability } from './observability';
 
 export interface ProxyInvokerOptions {
   /**
@@ -42,7 +44,59 @@ export class ProxyInvoker {
   /**
    * Invokes a tool on an upstream MCP server with resilience patterns.
    */
-  async invoke(serverName: string, toolName: string, args: any, client: Client): Promise<CallToolResult> {
+  async invoke(serverName: string, toolName: string, args: any, client: Client, context?: ToolExecutionContext): Promise<CallToolResult> {
+    const start = Date.now();
+    try {
+      const result = await this.wrapCall(serverName, `tool:${toolName}`, () => 
+        client.callTool({ name: toolName, arguments: args }, CallToolResultSchema)
+      );
+      void McpObservability.recordCall(serverName, toolName, Date.now() - start, false, context);
+      return result as CallToolResult;
+    } catch (error) {
+      void McpObservability.recordCall(serverName, toolName, Date.now() - start, true, context, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reads a resource from an upstream MCP server with resilience patterns.
+   */
+  async invokeResource(serverName: string, uri: string, client: Client, context?: ToolExecutionContext): Promise<ReadResourceResult> {
+    const start = Date.now();
+    try {
+      const result = await this.wrapCall(serverName, `resource:${uri}`, () =>
+        client.readResource({ uri })
+      );
+      void McpObservability.recordCall(serverName, `resource:${uri}`, Date.now() - start, false, context);
+      return result as ReadResourceResult;
+    } catch (error) {
+      void McpObservability.recordCall(serverName, `resource:${uri}`, Date.now() - start, true, context, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets a prompt from an upstream MCP server with resilience patterns.
+   */
+  async invokePrompt(serverName: string, promptName: string, args: Record<string, string>, client: Client, context?: ToolExecutionContext): Promise<GetPromptResult> {
+    const start = Date.now();
+    try {
+      const result = await this.wrapCall(serverName, `prompt:${promptName}`, () =>
+        client.getPrompt({ name: promptName, arguments: args })
+      );
+      void McpObservability.recordCall(serverName, `prompt:${promptName}`, Date.now() - start, false, context);
+      return result as GetPromptResult;
+    } catch (error) {
+      void McpObservability.recordCall(serverName, `prompt:${promptName}`, Date.now() - start, true, context, error);
+      throw error;
+    }
+  }
+
+  private async wrapCall<T>(
+    serverName: string, 
+    operationId: string, 
+    callFn: () => Promise<T>
+  ): Promise<T> {
     const cb = this.getCircuitBreaker(serverName);
 
     // Check circuit status
@@ -56,37 +110,27 @@ export class ProxyInvoker {
     }
 
     // Set up timeout and invocation
-    const invokePromise = client.callTool(
-      {
-        name: toolName,
-        arguments: args,
-      },
-      CallToolResultSchema
-    );
+    const invokePromise = callFn();
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(
-        () => reject(new Error(`Timeout invoking tool ${toolName} on server ${serverName} after ${this.options.timeoutMs}ms`)),
+        () => reject(new Error(`Timeout invoking ${operationId} on server ${serverName} after ${this.options.timeoutMs}ms`)),
         this.options.timeoutMs
       );
     });
 
     try {
       // Race against timeout
-      const result = (await Promise.race([invokePromise, timeoutPromise])) as CallToolResult;
+      const result = await Promise.race([invokePromise, timeoutPromise]);
 
       // Reset on success or handle tool-reported error
-      if (result.isError) {
-        // Tool reported an internal error (e.g. invalid arguments or logical failure)
-        // Does this count as server failure?
-        // Let's count it for now to be safe, though often these are logical errors.
-        // We could distinguish based on result.content but that's complex.
+      if (result && typeof result === 'object' && (result as any).isError) {
         this.recordFailure(serverName);
       } else {
         this.recordSuccess(serverName);
       }
 
-      return result;
+      return result as T;
     } catch (error: any) {
       // Transport failure, timeout, or server crash
       this.recordFailure(serverName);
