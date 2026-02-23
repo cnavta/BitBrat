@@ -173,4 +173,38 @@ describe('McpClientManager', () => {
 
     expect(mockClientInstance.close).toHaveBeenCalled();
   });
+
+  it('should gracefully handle unsupported discovery methods', async () => {
+    mockClientInstance.listTools.mockRejectedValue({ code: -32601, message: 'Method not found' });
+    mockClientInstance.listResources = jest.fn().mockRejectedValue({ code: -32601, message: 'Method not found' });
+    mockClientInstance.listPrompts = jest.fn().mockRejectedValue({ code: -32601, message: 'Method not found' });
+
+    await manager.connectServer({ name: 'unsupported-srv', command: 'cmd' });
+
+    const logger = mockServer.getLogger();
+    expect(logger.info).toHaveBeenCalledWith('mcp.client_manager.tools_not_supported', { name: 'unsupported-srv' });
+    expect(logger.info).toHaveBeenCalledWith('mcp.client_manager.resources_not_supported', { name: 'unsupported-srv' });
+    expect(logger.info).toHaveBeenCalledWith('mcp.client_manager.prompts_not_supported', { name: 'unsupported-srv' });
+    expect(logger.error).not.toHaveBeenCalledWith('mcp.client_manager.discovery_error', expect.anything());
+  });
+
+  it('should skip discovery if capabilities are explicitly missing', async () => {
+    mockClientInstance.getServerCapabilities = jest.fn().mockReturnValue({
+      tools: true,
+      resources: false,
+      // prompts missing
+    });
+    mockClientInstance.listTools.mockResolvedValue({ tools: [] });
+    mockClientInstance.listResources = jest.fn();
+    mockClientInstance.listPrompts = jest.fn();
+
+    await manager.connectServer({ name: 'cap-srv', command: 'cmd' });
+
+    expect(mockClientInstance.listTools).toHaveBeenCalled();
+    expect(mockClientInstance.listResources).not.toHaveBeenCalled();
+    expect(mockClientInstance.listPrompts).toHaveBeenCalled(); // Should attempt if missing from capabilities object but not false
+
+    const logger = mockServer.getLogger();
+    expect(logger.debug).toHaveBeenCalledWith('mcp.client_manager.skipping_resources_discovery', expect.objectContaining({ server: 'cap-srv' }));
+  });
 });
