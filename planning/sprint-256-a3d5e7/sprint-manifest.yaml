@@ -1,0 +1,11 @@
+id: sprint-256-a3d5e7
+title: "Event Router MCP Administrative Capabilities"
+goal: "Add MCP administrative tools to the event-router service by extending the McpServer base class."
+owner: "Architect"
+createdAt: "2026-02-22T20:12:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-256-a3d5e7-event-router-mcp"
+notes: |
+  The goal is to allow LLM agents to manage routing rules via MCP.
+  Rules include JsonLogic expressions, routing slips, and optional annotations/candidates.
