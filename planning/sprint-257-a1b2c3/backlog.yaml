@@ -1,0 +1,117 @@
+meta:
+  backlog_id: tool-gateway-sprint-257
+  updated_at: 2026-02-23
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-257-a1b2c3
+  start: 2026-02-23
+  end: 2026-03-09
+  wip_limit: 3
+  goal: "Bootstrap Tool Gateway with dynamic discovery, RBAC, and proxying capabilities."
+
+items:
+  - id: TG-001
+    title: "Refactor MCP core to common"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "McpClientManager and McpBridge moved to src/common/mcp/"
+      - "llm-bot still builds and passes tests using the new paths"
+    updated_at: 2026-02-23
+    log: []
+
+  - id: TG-002
+    title: "Implement Tool Gateway Service Shell"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [TG-001]
+    acceptance:
+      - "src/apps/tool-gateway.ts exists"
+      - "Responds to /health and basic MCP SSE endpoints"
+    updated_at: 2026-02-23
+    log: []
+
+  - id: TG-003
+    title: "RegistryWatcher for Firestore"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [TG-002]
+    acceptance:
+      - "Watches mcp_servers collection"
+      - "Calls McpClientManager to connect/disconnect based on snapshot changes"
+    updated_at: 2026-02-23
+    log: []
+
+  - id: TG-004
+    title: "Session-Scoped MCP Filtering & RBAC"
+    priority: P1
+    status: todo
+    effort: L
+    owner: agent
+    deps: [TG-003]
+    acceptance:
+      - "JWT claims correctly parsed for user roles"
+      - "listTools returns different results for different roles/agents"
+      - "Per-connection Server instances managed correctly"
+    updated_at: 2026-02-23
+    log: []
+
+  - id: TG-005
+    title: "Invocation Proxy implementation"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [TG-004]
+    acceptance:
+      - "Tool calls from agent are proxied to correct upstream server"
+      - "Results are streamed back successfully"
+    updated_at: 2026-02-23
+    log: []
+
+  - id: TG-006
+    title: "Non-Agent HTTP Proxy Endpoints"
+    priority: P2
+    status: todo
+    effort: M
+    owner: agent
+    deps: [TG-005]
+    acceptance:
+      - "REST API available for tool calls and resource reads"
+      - "Uses same RBAC logic as MCP path"
+    updated_at: 2026-02-23
+    log: []
+
+  - id: TG-007
+    title: "Observability: Metrics & Usage Logs"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [TG-005]
+    acceptance:
+      - "tool_usage collection populated on every call"
+      - "OTel metrics exported for latency and status"
+    updated_at: 2026-02-23
+    log: []
+
+  - id: TG-008
+    title: "Final Validation & Agent Migration"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [TG-007]
+    acceptance:
+      - "llm-bot successfully uses tool-gateway as its only MCP server"
+      - "Validation script passes for all components"
+    updated_at: 2026-02-23
+    log: []
