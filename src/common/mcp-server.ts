@@ -265,7 +265,7 @@ export class McpServer extends BaseServer {
           const transport = this.transports.get(sessionId);
           if (transport) {
             try {
-              await transport.handlePostMessage(req, res);
+              await transport.handlePostMessage(req, res, req.body);
             } catch (error) {
               this.getLogger().error("mcp_server.message_handle_error", {
                 error,

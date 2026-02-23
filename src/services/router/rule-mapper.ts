@@ -27,6 +27,7 @@ export class RuleMapper {
     priority?: number;
     promptTemplate?: string;
     responseTemplate?: string;
+    personalityId?: string;
     customAnnotation?: { key: string; value: string };
   }): Partial<RuleDoc> {
     const {
@@ -36,6 +37,7 @@ export class RuleMapper {
       priority = 100,
       promptTemplate,
       responseTemplate,
+      personalityId,
       customAnnotation,
     } = params;
 
@@ -81,6 +83,16 @@ export class RuleMapper {
         status: 'proposed',
         priority: 1, // High priority for injected responses
         text: responseTemplate,
+      });
+    }
+
+    if (personalityId) {
+      annotations.push({
+        id: `ann-personality-${Date.now()}`,
+        kind: 'personality',
+        source: 'event-router.mcp',
+        createdAt: now,
+        value: personalityId,
       });
     }
 

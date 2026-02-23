@@ -105,7 +105,7 @@ items:
   - id: BL-006
     title: "Update validate_deliverable.sh"
     priority: P1
-    status: in_progress
+    status: done
     effort: S
     owner: agent
     deps: [BL-005]
@@ -113,7 +113,28 @@ items:
     acceptance:
       - "Script runs build and test suite"
       - "Verification report summarizes results"
-    updated_at: 2026-02-22
+    updated_at: 2026-02-23
     log:
       - at: 2026-02-22T20:36:00Z
         note: "Updating validate_deliverable.sh to include new tests."
+      - at: 2026-02-23T02:28:00Z
+        note: "Validation script execution successful."
+
+  - id: BL-007
+    title: "Add personalityId to create_rule tool"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-003]
+    blocked_reason: null
+    acceptance:
+      - "create_rule accepts optional personalityId"
+      - "personalityId is mapped to personality annotation"
+      - "Tests cover personalityId parameter"
+    updated_at: 2026-02-23
+    log:
+      - at: 2026-02-23T02:25:00Z
+        note: "Implemented personalityId support in RuleMapper and create_rule tool."
+      - at: 2026-02-23T02:28:00Z
+        note: "Verified personalityId support with tests."

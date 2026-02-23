@@ -58,6 +58,7 @@ class TestEventRouterServer extends McpServer {
         priority: z.number().optional().default(100),
         promptTemplate: z.string().optional(),
         responseTemplate: z.string().optional(),
+        personalityId: z.string().optional(),
         customAnnotation: z.object({
           key: z.string(),
           value: z.string(),
@@ -125,6 +126,20 @@ describe('EventRouter MCP Tools Integration', () => {
         services: ['llm-bot'],
         description: 'Test rule',
         promptTemplate: 'Hello'
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.content[0].text).toContain('Successfully created rule');
+  });
+
+  it('should create a rule with personalityId via create_rule tool', async () => {
+    const res = await request(app)
+      .post('/test/tool/create_rule')
+      .send({
+        logic: 'true',
+        services: ['llm-bot'],
+        description: 'Personality rule',
+        personalityId: 'bot-personality-123'
       });
 
     expect(res.status).toBe(200);
