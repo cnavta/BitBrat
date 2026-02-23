@@ -19,10 +19,7 @@ class TestEventRouterServer extends McpServer {
       const toolName = req.params.name;
       const args = req.body;
       try {
-        const result = await (this as any).mcpServer.executeTool({
-          name: toolName,
-          arguments: args
-        });
+        const result = await this.executeTool(toolName, args);
         res.json(result);
       } catch (e: any) {
         console.error('Test tool execute error:', e);
