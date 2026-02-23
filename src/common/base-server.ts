@@ -68,6 +68,7 @@ export class BaseServer {
    */
   constructor(opts: BaseServerOptions = {}) {
     this.app = express();
+    this.app.use(express.json());
     this.serviceName = opts.serviceName || process.env.SERVICE_NAME || 'service';
 
     // Build typed config once for the server lifetime
@@ -254,7 +255,10 @@ export class BaseServer {
       method === 'DELETE' ? app.delete :
       method === 'PATCH' ? app.patch : app.get).bind(app);
     this.logger.info('base_server.http.register', { service: this.serviceName, method, path });
-    methodFn(path, handler);
+    methodFn(path, (req: Request, res: Response, next: any) => {
+      // req.body is already parsed by the global express.json() middleware in constructor.
+      handler(req, res, next);
+    });
   }
 
   /**

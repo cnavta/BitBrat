@@ -136,6 +136,7 @@ export class McpClientManager {
 
       logger.info('mcp.client_manager.connected', { name: config.name });
     } catch (e) {
+      console.error('mcp.client_manager.connect_error_debug', e);
       this.stats.updateServerStatus(config.name, 'error');
       logger.error('mcp.client_manager.connect_error', { name: config.name, error: e });
     }
