@@ -61,7 +61,7 @@ items:
   - id: TG-004
     title: "Session-Scoped MCP Filtering & RBAC"
     priority: P1
-    status: todo
+    status: done
     effort: L
     owner: agent
     deps: [TG-003]
@@ -70,7 +70,9 @@ items:
       - "listTools returns different results for different roles/agents"
       - "Per-connection Server instances managed correctly"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T18:18:00Z
+        note: "Implemented per-session MCP Server with RBAC filtering; added RbacEvaluator and SessionContext; originServer tagging; JWT/x-agent-name extraction. Added unit tests for RBAC. All targeted tests passing."
 
   - id: TG-005
     title: "Invocation Proxy implementation"

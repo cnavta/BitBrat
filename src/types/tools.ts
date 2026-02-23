@@ -30,6 +30,10 @@ export interface BitBratTool<PARAMETERS extends z.ZodTypeAny = any, RESULT = any
   execute?: (args: z.infer<PARAMETERS>, context: ToolExecutionContext) => Promise<RESULT>;
   /** Optional roles required to use this tool (RBAC) */
   requiredRoles?: string[];
+  /** Optional agents allowed to use this tool (RBAC) */
+  agentAllowlist?: string[];
+  /** Optional origin server name for this tool */
+  originServer?: string;
 }
 
 /**
