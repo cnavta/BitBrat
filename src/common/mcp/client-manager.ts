@@ -6,12 +6,14 @@ import { IToolRegistry } from '../../types/tools';
 import { BaseServer } from '../base-server';
 import { McpStatsCollector } from './stats-collector';
 import { McpServerConfig } from './types';
+import { ProxyInvoker } from './proxy-invoker';
 
 export class McpClientManager {
   private clients: Map<string, Client> = new Map();
   private bridges: Map<string, McpBridge> = new Map();
   private serverTools: Map<string, string[]> = new Map();
   private stats = new McpStatsCollector();
+  private invoker = new ProxyInvoker();
 
   constructor(
     private server: BaseServer,
@@ -20,6 +22,10 @@ export class McpClientManager {
 
   getStats(): McpStatsCollector {
     return this.stats;
+  }
+
+  getInvoker(): ProxyInvoker {
+    return this.invoker;
   }
 
   async connectServer(config: McpServerConfig): Promise<void> {
@@ -76,7 +82,7 @@ export class McpClientManager {
       this.clients.set(config.name, client);
       this.stats.updateServerStatus(config.name, 'connected');
 
-      const bridge = new McpBridge(client, config.name, this.stats);
+      const bridge = new McpBridge(client, config.name, this.stats, this.invoker);
       this.bridges.set(config.name, bridge);
 
       // Initial discovery
