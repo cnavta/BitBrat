@@ -1,5 +1,5 @@
 import { createGetBotStatusTool, createListAvailableToolsTool } from '../internal-tools';
-import { McpClientManager } from '../../mcp/client-manager';
+import { McpClientManager } from '../../../../common/mcp/client-manager';
 import { IToolRegistry, BitBratTool } from '../../../../types/tools';
 import { z } from 'zod';
 

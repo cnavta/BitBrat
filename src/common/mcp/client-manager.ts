@@ -2,9 +2,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { McpBridge } from './bridge';
-import { IToolRegistry } from '../../../types/tools';
-import { BaseServer } from '../../../common/base-server';
-import { getFirestore } from '../../../common/firebase';
+import { IToolRegistry } from '../../types/tools';
+import { BaseServer } from '../base-server';
+import { getFirestore } from '../firebase';
 import { McpStatsCollector } from './stats-collector';
 
 export interface McpServerConfig {

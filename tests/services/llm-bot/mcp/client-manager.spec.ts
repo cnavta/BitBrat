@@ -1,4 +1,4 @@
-import { McpClientManager } from '../../../../src/services/llm-bot/mcp/client-manager';
+import { McpClientManager } from '../../../../src/common/mcp/client-manager';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';

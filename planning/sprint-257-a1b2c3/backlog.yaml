@@ -14,7 +14,7 @@ items:
   - id: TG-001
     title: "Refactor MCP core to common"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: []
@@ -22,12 +22,14 @@ items:
       - "McpClientManager and McpBridge moved to src/common/mcp/"
       - "llm-bot still builds and passes tests using the new paths"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T12:55:00Z
+        note: "Moved MCP core to src/common/mcp; updated imports across code and tests; build + targeted tests green."
 
   - id: TG-002
     title: "Implement Tool Gateway Service Shell"
     priority: P0
-    status: todo
+    status: in_progress
     effort: S
     owner: agent
     deps: [TG-001]
@@ -35,7 +37,9 @@ items:
       - "src/apps/tool-gateway.ts exists"
       - "Responds to /health and basic MCP SSE endpoints"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T12:56:00Z
+        note: "Starting implementation: update tool-gateway to extend McpServer and expose /sse, /message, /health."
 
   - id: TG-003
     title: "RegistryWatcher for Firestore"

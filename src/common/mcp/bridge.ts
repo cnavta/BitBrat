@@ -1,4 +1,4 @@
-import { BitBratTool } from '../../../types/tools';
+import { BitBratTool } from '../../types/tools';
 import { jsonSchema } from 'ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';

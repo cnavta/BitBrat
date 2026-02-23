@@ -22,3 +22,27 @@
   - Analyzing `technical-architecture.md`.
   - Drafting `execution-plan.md`.
   - Drafting `backlog.yaml`.
+
+# Request Log – sprint-257-a1b2c3
+
+- 2026-02-23T12:50:00Z | Implementation | TG-001 started: Refactor MCP core to common
+  - shell: mkdir -p src/common/mcp
+  - shell: mv src/services/llm-bot/mcp/*.ts src/common/mcp/
+  - edits:
+    - src/common/mcp/bridge.ts: update imports to ../../types/tools
+    - src/common/mcp/client-manager.ts: update imports to ../base-server, ../firebase, ../../types/tools
+    - src/apps/llm-bot-service.ts: import McpClientManager from ../common/mcp/client-manager
+    - src/services/llm-bot/tools/internal-tools.ts: import McpClientManager from ../../../common/mcp/client-manager
+    - src/services/llm-bot/tools/__tests__/internal-tools.test.ts: import McpClientManager from ../../../../common/mcp/client-manager
+    - tests/services/llm-bot/mcp/bridge.spec.ts: import from src/common/mcp/*
+    - tests/services/llm-bot/mcp/client-manager.spec.ts: import from src/common/mcp/*
+    - tests/services/llm-bot/mcp/web-search.test.ts: import from src/common/mcp/*
+    - tests/services/llm-bot/mcp-stats.test.ts: import from src/common/mcp/stats-collector
+  - verify:
+    - npm run build
+    - npm test tests/services/llm-bot/mcp/client-manager.spec.ts tests/services/llm-bot/mcp/bridge.spec.ts tests/services/llm-bot/mcp/web-search.test.ts src/services/llm-bot/tools/__tests__/internal-tools.test.ts
+  - result: PASS (4/4)
+
+- 2026-02-23T12:56:00Z | Planning Update | TG-001 done, TG-002 in_progress
+  - edits:
+    - planning/sprint-257-a1b2c3/backlog.yaml: TG-001 → done, TG-002 → in_progress
