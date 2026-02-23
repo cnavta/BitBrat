@@ -29,7 +29,7 @@ items:
   - id: TG-002
     title: "Implement Tool Gateway Service Shell"
     priority: P0
-    status: in_progress
+    status: done
     effort: S
     owner: agent
     deps: [TG-001]
@@ -40,11 +40,13 @@ items:
     log:
       - at: 2026-02-23T12:56:00Z
         note: "Starting implementation: update tool-gateway to extend McpServer and expose /sse, /message, /health."
+      - at: 2026-02-23T12:58:00Z
+        note: "Completed shell implementation: ToolGatewayServer extends McpServer and has /health. Verified with tool-gateway.test.ts."
 
   - id: TG-003
     title: "RegistryWatcher for Firestore"
     priority: P0
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [TG-002]
@@ -52,7 +54,9 @@ items:
       - "Watches mcp_servers collection"
       - "Calls McpClientManager to connect/disconnect based on snapshot changes"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T18:05:00Z
+        note: "Implemented RegistryWatcher, moved Firestore logic out of McpClientManager, and updated llm-bot to use the new architecture. Verified with tests."
 
   - id: TG-004
     title: "Session-Scoped MCP Filtering & RBAC"
