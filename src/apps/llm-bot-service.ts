@@ -4,6 +4,7 @@ import type { InternalEventV2, RoutingStep, CandidateV1 } from '../types/events'
 import { processEvent } from '../services/llm-bot/processor';
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { McpClientManager } from '../common/mcp/client-manager';
+import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { createGetBotStatusTool, createListAvailableToolsTool } from '../services/llm-bot/tools/internal-tools';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
@@ -84,6 +85,7 @@ export function appendAssistantCandidate(evt: InternalEventV2, text: string, mod
 class LlmBotServer extends BaseServer {
   private registry = new ToolRegistry();
   private mcpManager = new McpClientManager(this, this.registry);
+  private registryWatcher?: RegistryWatcher;
 
   // Provide sensible defaults via BaseServer CONFIG_DEFAULTS so getConfig() can honor them
   protected static CONFIG_DEFAULTS: Record<string, any> = {
@@ -120,11 +122,24 @@ class LlmBotServer extends BaseServer {
     this.registry.registerTool(createGetBotStatusTool(this.mcpManager));
     this.registry.registerTool(createListAvailableToolsTool(this.registry));
 
-    await this.mcpManager.initFromConfig();
+    // Initialize MCP Registry Watcher
+    this.registryWatcher = new RegistryWatcher(this, {
+      onServerActive: async (config) => {
+        await this.mcpManager.connectServer(config);
+      },
+      onServerInactive: async (name) => {
+        await this.mcpManager.disconnectServer(name);
+      }
+    });
+    this.registryWatcher.start();
+
     return super.start(port);
   }
 
   async close(reason?: string) {
+    if (this.registryWatcher) {
+      this.registryWatcher.stop();
+    }
     await this.mcpManager.shutdown();
     return super.close(reason);
   }

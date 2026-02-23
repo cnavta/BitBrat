@@ -4,24 +4,13 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../types/tools';
 import { BaseServer } from '../base-server';
-import { getFirestore } from '../firebase';
 import { McpStatsCollector } from './stats-collector';
-
-export interface McpServerConfig {
-  name: string;
-  transport?: 'stdio' | 'sse';
-  url?: string;
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  requiredRoles?: string[];
-}
+import { McpServerConfig } from './types';
 
 export class McpClientManager {
   private clients: Map<string, Client> = new Map();
   private bridges: Map<string, McpBridge> = new Map();
   private serverTools: Map<string, string[]> = new Map();
-  private unsubscribe?: () => void;
   private stats = new McpStatsCollector();
 
   constructor(
@@ -31,47 +20,6 @@ export class McpClientManager {
 
   getStats(): McpStatsCollector {
     return this.stats;
-  }
-
-  async initFromConfig(): Promise<void> {
-    // Legacy support or just start watching
-    await this.watchRegistry();
-  }
-
-  async watchRegistry(): Promise<void> {
-    const logger = (this.server as any).getLogger();
-    const db = getFirestore();
-
-    logger.info('mcp.client_manager.watching_registry');
-
-    this.unsubscribe = db.collection('mcp_servers')
-      .onSnapshot(async (snapshot) => {
-        logger.debug('mcp.client_manager.snapshot_received', { 
-          count: snapshot.size, 
-          changes: snapshot.docChanges().length 
-        });
-
-        for (const change of snapshot.docChanges()) {
-          const data = change.doc.data() as McpServerConfig & { status?: string };
-          const name = data.name || change.doc.id;
-
-          logger.debug('mcp.client_manager.registry_change', { 
-            type: change.type, 
-            name, 
-            status: data.status,
-            transport: data.transport || 'stdio'
-          });
-
-          if (change.type === 'removed' || data.status === 'inactive') {
-            await this.disconnectServer(name);
-          } else if (data.status === 'active' || !data.status) {
-            // Added or modified
-            await this.connectServer({ ...data, name });
-          }
-        }
-      }, (err) => {
-        logger.error('mcp.client_manager.watch_error', { error: err });
-      });
   }
 
   async connectServer(config: McpServerConfig): Promise<void> {
@@ -202,11 +150,6 @@ export class McpClientManager {
   }
 
   async shutdown(): Promise<void> {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = undefined;
-    }
-
     for (const name of Array.from(this.clients.keys())) {
       await this.disconnectServer(name);
     }
