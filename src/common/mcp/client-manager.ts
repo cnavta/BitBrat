@@ -49,6 +49,11 @@ export class McpClientManager {
     this.stats.updateServerStatus(config.name, 'connecting', transportType);
 
     try {
+      if (config.transport === 'inactive' || config.status === 'inactive') {
+        logger.info('mcp.client_manager.skipping_inactive', { name: config.name });
+        return;
+      }
+
       let transport;
       if (config.transport === 'sse') {
         if (!config.url) {
@@ -61,7 +66,7 @@ export class McpClientManager {
         });
       } else {
         if (!config.command) {
-          throw new Error(`Stdio transport requires a command for server ${config.name}`);
+          throw new Error(`Stdio transport requires a command for server ${config.name}. Config: ${JSON.stringify(config)}`);
         }
         transport = new StdioClientTransport({
           command: config.command,
@@ -94,7 +99,6 @@ export class McpClientManager {
 
       logger.info('mcp.client_manager.connected', { name: config.name });
     } catch (e) {
-      console.error('mcp.client_manager.connect_error_debug', e);
       this.stats.updateServerStatus(config.name, 'error');
       logger.error('mcp.client_manager.connect_error', { name: config.name, error: e });
     }

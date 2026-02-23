@@ -45,6 +45,26 @@ export class RegistryWatcher {
             name,
             status,
           } as McpServerConfig;
+
+          // Simple validation before calling onServerActive
+          const transport = config.transport || 'stdio';
+          if (transport === 'stdio' && !config.command) {
+            this.logger.warn('mcp.registry_watcher.invalid_config', { 
+              name, 
+              error: 'Stdio transport requires a command',
+              config 
+            });
+            continue;
+          }
+          if (transport === 'sse' && !config.url) {
+            this.logger.warn('mcp.registry_watcher.invalid_config', { 
+              name, 
+              error: 'SSE transport requires a URL',
+              config 
+            });
+            continue;
+          }
+
           await this.options.onServerActive(config);
         }
       }

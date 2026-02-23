@@ -133,3 +133,18 @@ items:
     log:
       - at: 2026-02-23T18:40:00Z
         note: "Updated llm-bot to support MCP_GATEWAY_URL for direct connection to the Tool Gateway. Updated validate_deliverable.sh with tool-gateway scope and dry-run deployment validation. Verified all components with tests."
+
+  - id: TG-009
+    title: "Fix Stdio Transport Validation in Tool Gateway"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [TG-002]
+    acceptance:
+      - "McpClientManager provides detailed error on missing command"
+      - "RegistryWatcher validates server config before connecting"
+    updated_at: 2026-02-23
+    log:
+      - at: 2026-02-23T19:20:00Z
+        note: "Remediated 'Stdio transport requires a command' error by adding pre-validation in RegistryWatcher and enhancing error reporting in McpClientManager. Added reproduction tests."

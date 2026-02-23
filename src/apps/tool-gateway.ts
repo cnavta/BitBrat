@@ -141,6 +141,8 @@ export class ToolGatewayServer extends McpServer {
     const description = svcNode.description || 'BitBrat Tool Gateway (session)';
     const version = arch?.project?.version || '1.0.0';
 
+    const logger = this.getLogger();
+
     const sessionServer = new Server(
       {
         name: `${SERVICE_NAME}-session`,
@@ -152,6 +154,7 @@ export class ToolGatewayServer extends McpServer {
 
     // Discovery: listTools filtered by RBAC
     sessionServer.setRequestHandler(ListToolsRequestSchema, async () => {
+      logger.debug('Handling ListToolsRequestSchema');
       const tools = Object.values(this.registry.getTools())
         .filter((t) => this.rbac.isAllowedTool(t, t.originServer ? this.serverConfigs.get(t.originServer) : undefined, context))
         .map((t) => ({
@@ -159,6 +162,7 @@ export class ToolGatewayServer extends McpServer {
           description: t.description,
           inputSchema: (t as any).inputSchema?.jsonSchema || {},
         }));
+      logger.debug(`Returning ${tools.length} tools`);
       return { tools } as any;
     });
 
