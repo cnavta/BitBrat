@@ -1,6 +1,6 @@
 export interface McpServerConfig {
   name: string;
-  transport?: 'stdio' | 'sse';
+  transport?: 'stdio' | 'sse' | 'inactive';
   url?: string;
   command?: string;
   args?: string[];

@@ -121,6 +121,19 @@ describe('McpClientManager', () => {
     );
   });
 
+  it('should throw error if stdio command is missing', async () => {
+    const logger = mockServer.getLogger();
+    await manager.connectServer({
+      name: 'bad-stdio',
+      transport: 'stdio'
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'mcp.client_manager.connect_error',
+      expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining('Stdio transport requires a command for server bad-stdio') }) })
+    );
+  });
+
   it('should register discovered tools and record discovery stats', async () => {
     mockClientInstance.listTools.mockResolvedValue({
       tools: [
