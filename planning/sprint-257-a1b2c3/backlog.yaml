@@ -77,7 +77,7 @@ items:
   - id: TG-005
     title: "Invocation Proxy implementation"
     priority: P0
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [TG-004]
@@ -85,7 +85,9 @@ items:
       - "Tool calls from agent are proxied to correct upstream server"
       - "Results are streamed back successfully"
     updated_at: 2026-02-23
-    log: []
+    log:
+      - at: 2026-02-23T18:25:00Z
+        note: "Implemented ProxyInvoker with timeout and circuit breaking; integrated into McpBridge and McpClientManager; added unit tests; targeted MCP tests passed; gateway now proxies tool invocations via upstream clients."
 
   - id: TG-006
     title: "Non-Agent HTTP Proxy Endpoints"

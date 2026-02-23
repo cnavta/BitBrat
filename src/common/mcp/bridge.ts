@@ -1,14 +1,15 @@
 import { BitBratTool } from '../../types/tools';
 import { jsonSchema } from 'ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { McpStatsCollector } from './stats-collector';
+import { ProxyInvoker } from './proxy-invoker';
 
 export class McpBridge {
   constructor(
     private client: Client,
     private serverName: string,
-    private stats?: McpStatsCollector
+    private stats?: McpStatsCollector,
+    private invoker?: ProxyInvoker
   ) {}
 
   /**
@@ -41,10 +42,12 @@ export class McpBridge {
         let error = false;
         let responseSize = 0;
         try {
-          const result = await this.client.callTool({
-            name: mcpTool.name,
-            arguments: args,
-          }, CallToolResultSchema);
+          const result = this.invoker
+            ? await this.invoker.invoke(this.serverName, mcpTool.name, args, this.client)
+            : await this.client.callTool({
+                name: mcpTool.name,
+                arguments: args,
+              }, (await import('@modelcontextprotocol/sdk/types.js')).CallToolResultSchema);
 
           if (result.isError) {
             error = true;

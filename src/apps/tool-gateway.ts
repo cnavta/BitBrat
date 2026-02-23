@@ -7,6 +7,7 @@ import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
+import { ProxyInvoker } from '../common/mcp/proxy-invoker';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'tool-gateway';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -17,9 +18,11 @@ class ToolGatewayServer extends McpServer {
   private registryWatcher?: RegistryWatcher;
   private serverConfigs: Map<string, McpServerConfig> = new Map();
   private rbac = new RbacEvaluator();
+  private invoker: ProxyInvoker;
 
   constructor() {
     super({ serviceName: SERVICE_NAME });
+    this.invoker = this.mcpManager.getInvoker();
     this.setupApp(this.getApp() as any);
   }
 
