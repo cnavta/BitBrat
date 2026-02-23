@@ -140,6 +140,8 @@ services:
       consumes:
         - internal.ingress.v1
         - internal.enriched.v1
+    secrets:
+      - MCP_AUTH_TOKEN
 
   llm-bot:
     active: true
@@ -221,6 +223,8 @@ services:
     topics:
       consumes:
         - internal.state.mutation.v1
+    secrets:
+      - MCP_AUTH_TOKEN
 
 infrastructure:
   target: gcp

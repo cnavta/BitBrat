@@ -184,6 +184,17 @@ export class McpServer extends BaseServer {
     return await fn();
   }
 
+  /**
+   * Execute a registered tool by name with arguments.
+   * Useful for internal calls and testing without going through SSE.
+   */
+  public async executeTool(name: string, args: any): Promise<CallToolResult> {
+    const tool = this.registeredTools.get(name);
+    if (!tool) throw new Error(`Tool not found: ${name}`);
+    const validatedArgs = tool.schema.parse(args);
+    return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(validatedArgs));
+  }
+
   private setupMcpRoutes() {
     const authMiddleware = (
       req: Request,
@@ -254,7 +265,7 @@ export class McpServer extends BaseServer {
           const transport = this.transports.get(sessionId);
           if (transport) {
             try {
-              await transport.handlePostMessage(req, res);
+              await transport.handlePostMessage(req, res, req.body);
             } catch (error) {
               this.getLogger().error("mcp_server.message_handle_error", {
                 error,
