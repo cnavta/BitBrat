@@ -55,7 +55,7 @@ describe('RegistryWatcher', () => {
           type: 'added',
           doc: {
             id: 'id1',
-            data: () => ({ name: 'test-server', status: 'active' })
+            data: () => ({ name: 'test-server', status: 'active', command: 'test-cmd' })
           }
         }
       ]
@@ -63,7 +63,8 @@ describe('RegistryWatcher', () => {
 
     expect(options.onServerActive).toHaveBeenCalledWith(expect.objectContaining({
       name: 'test-server',
-      status: 'active'
+      status: 'active',
+      command: 'test-cmd'
     }));
   });
 
@@ -101,6 +102,50 @@ describe('RegistryWatcher', () => {
     });
 
     expect(options.onServerInactive).toHaveBeenCalledWith('test-server');
+  });
+
+  it('should skip invalid configuration (missing command for stdio)', async () => {
+    watcher.start();
+    
+    await snapshotCallback({
+      docChanges: () => [
+        {
+          type: 'added',
+          doc: {
+            id: 'id2',
+            data: () => ({ name: 'invalid-stdio', transport: 'stdio' }) // missing command
+          }
+        }
+      ]
+    });
+
+    expect(options.onServerActive).not.toHaveBeenCalled();
+    expect(mockServer.getLogger().warn).toHaveBeenCalledWith(
+      'mcp.registry_watcher.invalid_config',
+      expect.objectContaining({ name: 'invalid-stdio' })
+    );
+  });
+
+  it('should skip invalid configuration (missing url for sse)', async () => {
+    watcher.start();
+    
+    await snapshotCallback({
+      docChanges: () => [
+        {
+          type: 'added',
+          doc: {
+            id: 'id3',
+            data: () => ({ name: 'invalid-sse', transport: 'sse' }) // missing url
+          }
+        }
+      ]
+    });
+
+    expect(options.onServerActive).not.toHaveBeenCalled();
+    expect(mockServer.getLogger().warn).toHaveBeenCalledWith(
+      'mcp.registry_watcher.invalid_config',
+      expect.objectContaining({ name: 'invalid-sse' })
+    );
   });
 
   it('should stop watching when stop is called', () => {

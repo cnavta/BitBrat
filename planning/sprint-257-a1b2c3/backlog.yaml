@@ -148,3 +148,5 @@ items:
     log:
       - at: 2026-02-23T19:20:00Z
         note: "Remediated 'Stdio transport requires a command' error by adding pre-validation in RegistryWatcher and enhancing error reporting in McpClientManager. Added reproduction tests."
+      - at: 2026-02-23T19:25:00Z
+        note: "Fixed regression in registry-watcher.spec.ts caused by strict validation; added test cases for invalid configuration skipping."
