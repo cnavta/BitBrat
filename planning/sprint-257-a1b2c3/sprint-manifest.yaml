@@ -1,9 +1,9 @@
 id: sprint-257-a1b2c3
-title: "Tool Gateway Service: Technical Architecture"
-goal: "Define the architecture for the tool-gateway service as a central point for all MCP servers in the BitBrat Platform."
-owner: "Architect"
+title: "Tool Gateway Service"
+goal: "Design and implement the tool-gateway service as a central point for all MCP servers in the BitBrat Platform."
+owner: "@github-handle"
 createdAt: "2026-02-23T12:20:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-257-a1b2c3-tool-gateway"
 notes: |
