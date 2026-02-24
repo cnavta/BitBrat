@@ -1,113 +1,119 @@
 {
-  "ts": "2026-01-30T04:30:06.661Z",
-  "service": "api-gateway",
+  "ts": "2026-02-24T18:29:22.620Z",
+  "service": "auth",
   "level": "debug",
   "severity": "DEBUG",
-  "msg": "egress.handle_event",
+  "msg": "auth.enrichment.start",
   "event": {
     "v": "2",
-    "type": "egress.deliver.v1",
-    "correlationId": "649350a2-696c-407f-9312-b7602ac59ce3",
-    "traceId": "0932b894-305c-4765-b0f7-5bc2b9aa6f2e",
+    "type": "system.stream.online",
+    "correlationId": "7b09f727-342c-4829-a330-93157019f263",
+    "traceId": "ace58d61-759a-44e8-a2cd-755e7a175ea6",
     "ingress": {
-      "ingressAt": "2026-01-30T04:30:04.765Z",
-      "source": "api-gateway"
+      "ingressAt": "2026-02-24T18:29:22.600Z",
+      "source": "ingress.twitch.eventsub",
+      "channel": "#gonj_the_unjust"
     },
     "identity": {
       "external": {
-        "id": "brat-chat:thorpe",
-        "platform": "api-gateway"
+        "id": "91960688",
+        "platform": "twitch",
+        "displayName": "Gonj_The_Unjust",
+        "metadata": {
+          "login": "gonj_the_unjust"
+        }
       },
       "user": {
-        "id": "api-gateway:brat-chat:thorpe",
-        "roles": [],
+        "id": "twitch:91960688",
+        "displayName": "Gonj_The_Unjust",
+        "roles": [
+          "subscriber",
+          "unjust"
+        ],
+        "profile": {
+          "username": "",
+          "updatedAt": "2026-02-24T18:29:22.608Z"
+        },
+        "rolesMeta": {
+          "twitch": []
+        },
         "tags": [
-          "PROVIDER_API-GATEWAY",
-          "NEW_USER",
-          "FIRST_ALLTIME_MESSAGE",
-          "FIRST_SESSION_MESSAGE"
+          "PROVIDER_TWITCH",
+          "RETURNING_USER"
         ]
       },
       "auth": {
         "v": "2",
         "method": "enrichment",
         "matched": true,
-        "at": "2026-01-30T04:30:04.771Z",
-        "provider": "api-gateway",
-        "userRef": "users/api-gateway:brat-chat:thorpe"
+        "at": "2026-02-24T18:29:22.608Z",
+        "provider": "twitch",
+        "userRef": "users/twitch:91960688"
       }
     },
     "egress": {
-      "destination": "internal.api.egress.v1.f99c6a67fc04",
-      "type": "chat"
+      "destination": "internal.egress.v1.08de947c4ad5"
     },
-    "message": {
-      "id": "649350a2-696c-407f-9312-b7602ac59ce3",
-      "role": "user",
-      "text": "cnj",
-      "rawPlatformPayload": {
-        "text": "cnj"
-      }
-    },
-    "payload": {
-      "text": "cnj"
-    },
-    "annotations": [
-      {
-        "id": "a2",
-        "kind": "prompt",
-        "value": "Generate one original Chuck Norris joke. Do not reuse classic structures like roundhouse kicks, counting to infinity, or glaring-atoms tropes. Avoid tech-centric humor unless it’s genuinely unexpected. Explore any domain—nature, mythology, sports, cooking, art, everyday life, or the absurd. Use a fresh comedic structure and keep it under 20 words with a surprising punchline.",
-        "source": "rule:cnj",
-        "createdAt": "2026-01-30T04:30:04.786Z"
+    "externalEvent": {
+      "id": "317817398617",
+      "source": "twitch.eventsub",
+      "kind": "stream.online",
+      "version": "1",
+      "createdAt": "2026-02-24T18:29:11.000Z",
+      "metadata": {
+        "id": "317817398617",
+        "broadcasterId": "91960688",
+        "broadcasterLogin": "gonj_the_unjust",
+        "broadcasterDisplayName": "Gonj_The_Unjust",
+        "type": "live",
+        "startedAt": "2026-02-24T18:29:11.000Z"
       },
-      {
-        "id": "ctx-649350a2-696c-407f-9312-b7602ac59ce3",
-        "kind": "prompt",
-        "source": "llm-bot.user-context",
-        "createdAt": "2026-01-30T04:30:04.807Z",
-        "label": "user-context-v1",
-        "payload": {
-          "roles": [],
-          "rolePrompts": [],
-          "mode": "append",
-          "text": ""
-        },
-        "value": ""
-      }
-    ],
+      "rawPayload": {}
+    },
     "metadata": {
       "matchedRuleIds": [
-        "cnj"
+        "wgSnF3cXAjmeJKlopQuX",
+        "6k9tjelLOb631DtbnqDo"
       ],
-      "chosenRuleId": "cnj"
+      "chosenRuleId": "wgSnF3cXAjmeJKlopQuX"
     },
     "routingSlip": [
       {
-        "id": "llm-bot",
+        "id": "auth",
         "v": "1",
-        "status": "OK",
+        "status": "PENDING",
         "attempt": 1,
         "maxAttempts": 3,
-        "nextTopic": "internal.llmbot.v1",
+        "nextTopic": "internal.auth.v1",
         "attributes": {
           "origin": "event-router"
         },
-        "startedAt": "2026-01-30T04:30:04.787Z",
-        "endedAt": "2026-01-30T04:30:06.656Z"
-      }
-    ],
-    "candidates": [
+        "startedAt": "2026-02-24T18:29:22.607Z"
+      },
       {
-        "id": "cand-649350a2-696c-407f-9312-b7602ac59ce3",
-        "kind": "text",
-        "source": "llm-bot",
-        "createdAt": "2026-01-30T04:30:06.655Z",
-        "status": "selected",
-        "priority": 10,
-        "text": "Chuck Norris once painted a sunset so real, the sun took the day off just to watch.",
-        "reason": "model:gpt-4.1-mini"
+        "id": "query-analysis",
+        "v": "1",
+        "status": "PENDING",
+        "attempt": 0,
+        "maxAttempts": 3,
+        "nextTopic": "internal.query.analysis.v1",
+        "attributes": {
+          "origin": "event-router"
+        }
+      },
+      {
+        "id": "enrichment-complete",
+        "v": "1",
+        "status": "PENDING",
+        "attempt": 0,
+        "maxAttempts": 3,
+        "nextTopic": "internal.enriched.v1",
+        "attributes": {
+          "origin": "event-router"
+        }
       }
     ]
-  }
+  },
+  "matched": true
 }
 
