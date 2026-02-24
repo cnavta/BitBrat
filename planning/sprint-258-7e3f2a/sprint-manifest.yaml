@@ -3,8 +3,9 @@ title: "Fix Async Test Failures"
 goal: "Remediate test failures in TwitchEventSubClient and LLMProvider caused by async behavior and timing issues."
 owner: "Junie"
 createdAt: "2026-02-24T13:58:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/172"
   branch: "feature/sprint-258-7e3f2a-fix-async-test-failures"
 notes: |
   Fixes failing tests in TwitchEventSubClient and LLMProvider.
