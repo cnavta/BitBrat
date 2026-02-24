@@ -253,8 +253,9 @@ export class ToolGatewayServer extends McpServer {
   private extractSessionContext(req: Request): SessionContext {
     const auth = (req.headers['authorization'] || '').toString();
     const agentName = (req.headers['x-agent-name'] || '').toString();
+    const userId = (req.headers['x-user-id'] || '').toString() || undefined;
     const roles = this.parseRolesFromAuth(auth, req.headers['x-roles']);
-    return { roles, agentName };
+    return { roles, agentName, userId };
   }
 
   private parseRolesFromAuth(authHeader: string, rolesHeader: any): string[] {
