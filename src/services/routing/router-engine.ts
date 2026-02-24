@@ -109,6 +109,8 @@ export class RouterEngine {
               // Build interpolation context: event context overrides rule metadata
               const interpCtx = { ...(rule.metadata || {}), ...ctx };
 
+              logger.debug('router_engine.enrichment.start', { ruleId: rule.id, interpCtx });
+
               // 1. Message Enrichment
               if (enrich.message) {
                 const msg: MessageV1 = {

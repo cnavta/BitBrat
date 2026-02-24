@@ -176,6 +176,10 @@ describe('TwitchEventSubClient Repro', () => {
       broadcasterDisplayName: 'Broadcaster',
       type: 'live',
       startDate: new Date('2025-12-21T18:29:14.359Z'),
+      getStream: jest.fn().mockResolvedValue({
+        title: 'Mock Stream',
+        gameName: 'Mock Game'
+      })
     };
 
     await handler(mockEvent);
@@ -204,10 +208,9 @@ describe('TwitchEventSubClient Repro', () => {
     // Trigger handler with bad data that would cause an error if not caught
     const handler = mockOnStreamOnline.mock.calls[0][1];
     
-    // This will cause toISOString() to fail if our builder wasn't already defensive,
-    // or we can just mock the builder to throw.
-    // For this test, let's just pass null which would definitely throw if uncaught.
-    await handler(null);
+    // We pass an object that doesn't have getStream, which is what currently happens in some tests
+    // that haven't been updated for the async enrichment.
+    await handler({ id: '123' } as any);
 
     // If we reach here, it didn't crash.
     // We can also verify that logger.error was called.

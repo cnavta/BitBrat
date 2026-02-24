@@ -143,6 +143,7 @@ export class EventSubEnvelopeBuilder {
       broadcasterId: string;
       broadcasterName: string;
       broadcasterDisplayName: string;
+      title?:string;
       type: 'live' | 'playlist' | 'watch_party' | 'premiere' | 'rerun' | string;
       startDate: Date;
     },
@@ -167,6 +168,7 @@ export class EventSubEnvelopeBuilder {
         broadcasterLogin: event.broadcasterName,
         broadcasterDisplayName: event.broadcasterDisplayName,
         type: event.type,
+        title: event.title,
         startedAt,
       },
       rawPayload: event as any,
