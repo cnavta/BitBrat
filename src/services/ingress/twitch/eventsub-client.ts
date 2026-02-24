@@ -193,6 +193,7 @@ export class TwitchEventSubClient {
               }
             };
             if (this.mutationPublisher) {
+              logger.info('twitch.eventsub.mutation_publishing', {mutation});
               this.mutationPublisher.publishJson(mutation).catch((err: any) => {
                 logger.error('twitch.eventsub.mutation_publish_failed', { key: 'stream.state', error: err.message });
               });

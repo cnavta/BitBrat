@@ -145,7 +145,8 @@ export class StateEngineServer extends McpServer {
 
         const cfg: any = this.getConfig?.() || {};
         const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
-        const subject = `${prefix}${INTERNAL_STATE_MUTATION_V1}`;
+        const needsPrefix = (s: string) => !!prefix && !s.startsWith(prefix);
+        const subject = needsPrefix(INTERNAL_STATE_MUTATION_V1) ? `${prefix}${INTERNAL_STATE_MUTATION_V1}` : INTERNAL_STATE_MUTATION_V1;
 
         await publisher.create(subject).publishJson(mutation);
 
@@ -170,11 +171,10 @@ export class StateEngineServer extends McpServer {
         uuidv4().slice(0, 8);
 
       { // subscription for internal.state.mutation.v1
-        const raw = INTERNAL_STATE_MUTATION_V1;
-        const cfg: any = this.getConfig?.() || {};
-        const busPrefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
-        const destination = `${busPrefix}${raw}`;
+        const destination = INTERNAL_STATE_MUTATION_V1; // Let BaseServer apply busPrefix
         const queue = SERVICE_NAME;
+
+        this.getLogger().debug('state-engine.mutation.subscription', { destination, queue });
 
         try {
           await this.onMessage<MutationProposal>(
