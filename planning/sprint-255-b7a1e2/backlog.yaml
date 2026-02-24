@@ -1,0 +1,22 @@
+sprintId: sprint-255-b7a1e2
+backlog:
+  - id: B-1
+    title: "Gateway: Broaden Discovery for Trusted Agents"
+    priority: "P0"
+    status: "done"
+    description: "Update tool-gateway.ts to allow 'llm-bot' or sessions with 'discovery' role to list all tools/resources/prompts."
+  - id: B-2
+    title: "RBAC: Add Discovery Authorization Check"
+    priority: "P1"
+    status: "todo"
+    description: "Optionally centralize discovery bypass logic in RbacEvaluator."
+  - id: B-3
+    title: "Validation: Discovery Test"
+    priority: "P0"
+    status: "done"
+    description: "Create tests verifying that restricted tools are visible to the bot during discovery but still enforced during callTool."
+  - id: B-4
+    title: "Verification & Documentation"
+    priority: "P2"
+    status: "in-progress"
+    description: "Update verification report, retro, and key learnings."

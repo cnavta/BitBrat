@@ -1,0 +1,11 @@
+id: sprint-255-b7a1e2
+title: "Fix Tool Discovery and RBAC Filtering"
+goal: "Investigate and resolve why only 4 tools are available despite users having sufficient roles."
+owner: "Junie"
+createdAt: "2026-02-24T22:50:47Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-255-b7a1e2-fix-tool-discovery"
+notes: |
+  Users report only seeing 4 tools (internal status, list available, search, fetch). 
+  Likely a filtering issue in llm-bot/processor.ts or tool-gateway/listTools.
