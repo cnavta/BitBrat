@@ -48,7 +48,11 @@ export class ProxyInvoker {
     const start = Date.now();
     try {
       const result = await this.wrapCall(serverName, `tool:${toolName}`, () => 
-        client.callTool({ name: toolName, arguments: args }, CallToolResultSchema)
+        client.callTool({ 
+          name: toolName, 
+          arguments: args,
+          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+        } as any, CallToolResultSchema)
       );
       void McpObservability.recordCall(serverName, toolName, Date.now() - start, false, context);
       return result as CallToolResult;
@@ -65,7 +69,10 @@ export class ProxyInvoker {
     const start = Date.now();
     try {
       const result = await this.wrapCall(serverName, `resource:${uri}`, () =>
-        client.readResource({ uri })
+        client.readResource({ 
+          uri,
+          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+        } as any)
       );
       void McpObservability.recordCall(serverName, `resource:${uri}`, Date.now() - start, false, context);
       return result as ReadResourceResult;
@@ -82,7 +89,11 @@ export class ProxyInvoker {
     const start = Date.now();
     try {
       const result = await this.wrapCall(serverName, `prompt:${promptName}`, () =>
-        client.getPrompt({ name: promptName, arguments: args })
+        client.getPrompt({ 
+          name: promptName, 
+          arguments: args,
+          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+        } as any)
       );
       void McpObservability.recordCall(serverName, `prompt:${promptName}`, Date.now() - start, false, context);
       return result as GetPromptResult;
