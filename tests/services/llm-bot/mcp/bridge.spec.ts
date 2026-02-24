@@ -1,6 +1,6 @@
-import { McpBridge } from '../../../../src/services/llm-bot/mcp/bridge';
+import { McpBridge } from '../../../../src/common/mcp/bridge';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { McpStatsCollector } from '../../../../src/services/llm-bot/mcp/stats-collector';
+import { McpStatsCollector } from '../../../../src/common/mcp/stats-collector';
 
 describe('McpBridge', () => {
   let mockClient: jest.Mocked<Client>;

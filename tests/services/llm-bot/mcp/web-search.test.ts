@@ -1,4 +1,4 @@
-import { McpClientManager } from '../../../../src/services/llm-bot/mcp/client-manager';
+import { McpClientManager } from '../../../../src/common/mcp/client-manager';
 import { ToolRegistry } from '../../../../src/services/llm-bot/tools/registry';
 
 describe('Web Search MCP Integration', () => {

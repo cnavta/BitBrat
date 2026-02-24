@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BitBratTool, ToolExecutionContext, IToolRegistry } from '../../../types/tools';
-import { McpClientManager } from '../mcp/client-manager';
+import { McpClientManager } from '../../../common/mcp/client-manager';
 
 /**
  * Tool: get_bot_status

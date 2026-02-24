@@ -3,7 +3,8 @@ import { Express } from 'express';
 import type { InternalEventV2, RoutingStep, CandidateV1 } from '../types/events';
 import { processEvent } from '../services/llm-bot/processor';
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
-import { McpClientManager } from '../services/llm-bot/mcp/client-manager';
+import { McpClientManager } from '../common/mcp/client-manager';
+import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { createGetBotStatusTool, createListAvailableToolsTool } from '../services/llm-bot/tools/internal-tools';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
@@ -84,6 +85,7 @@ export function appendAssistantCandidate(evt: InternalEventV2, text: string, mod
 class LlmBotServer extends BaseServer {
   private registry = new ToolRegistry();
   private mcpManager = new McpClientManager(this, this.registry);
+  private registryWatcher?: RegistryWatcher;
 
   // Provide sensible defaults via BaseServer CONFIG_DEFAULTS so getConfig() can honor them
   protected static CONFIG_DEFAULTS: Record<string, any> = {
@@ -120,11 +122,58 @@ class LlmBotServer extends BaseServer {
     this.registry.registerTool(createGetBotStatusTool(this.mcpManager));
     this.registry.registerTool(createListAvailableToolsTool(this.registry));
 
-    await this.mcpManager.initFromConfig();
+    // Initialize MCP Registry Watcher
+    const gatewayUrl = this.getConfig<string>('MCP_GATEWAY_URL', { required: false });
+    if (gatewayUrl) {
+      this.getLogger().info('llm_bot.mcp.connecting_gateway', { url: gatewayUrl });
+      const cfg = {
+        name: 'tool-gateway',
+        transport: 'sse' as const,
+        url: gatewayUrl,
+        env: { 
+          'x-mcp-token': process.env.MCP_AUTH_TOKEN || '',
+          'x-agent-name': this.serviceName
+        }
+      };
+
+      // Retry loop to handle race conditions where the gateway container isn't ready yet
+      const maxAttempts = parseInt(process.env.MCP_GATEWAY_CONNECT_RETRIES || '10', 10);
+      const initialBackoffMs = parseInt(process.env.MCP_GATEWAY_CONNECT_BACKOFF_MS || '1000', 10);
+      let backoff = isFinite(initialBackoffMs) ? Math.max(100, initialBackoffMs) : 1000;
+      for (let attempt = 1; attempt <= Math.max(1, maxAttempts); attempt++) {
+        await this.mcpManager.connectServer(cfg);
+        const status = this.mcpManager.getStats().getServerStats('tool-gateway')?.status;
+        if (status === 'connected') {
+          this.getLogger().info('llm_bot.mcp.gateway_connected', { attempt });
+          break;
+        }
+        if (attempt === maxAttempts) {
+          this.getLogger().error('llm_bot.mcp.gateway_connect_failed', { attempts: maxAttempts, url: gatewayUrl });
+          break;
+        }
+        this.getLogger().warn('llm_bot.mcp.gateway_connect_retry', { attempt, backoffMs: backoff });
+        await new Promise((r) => setTimeout(r, backoff));
+        backoff = Math.min(backoff * 2, 15000);
+      }
+    } else {
+      this.registryWatcher = new RegistryWatcher(this, {
+        onServerActive: async (config) => {
+          await this.mcpManager.connectServer(config);
+        },
+        onServerInactive: async (name) => {
+          await this.mcpManager.disconnectServer(name);
+        }
+      });
+      this.registryWatcher.start();
+    }
+
     return super.start(port);
   }
 
   async close(reason?: string) {
+    if (this.registryWatcher) {
+      this.registryWatcher.stop();
+    }
     await this.mcpManager.shutdown();
     return super.close(reason);
   }
