@@ -1,5 +1,5 @@
 import { EventSubWsListener } from '@twurple/eventsub-ws';
-import { EventSubListener } from '@twurple/eventsub-base';
+import {EventSubListener, EventSubStreamOnlineEvent} from '@twurple/eventsub-base';
 import { ApiClient } from '@twurple/api';
 import { RefreshingAuthProvider } from '@twurple/auth';
 import { logger } from '../../../common/logging';
@@ -168,12 +168,25 @@ export class TwitchEventSubClient {
         this.subscriptions.push(updateSub);
 
         // stream.online
-        const onlineSub = this.listener.onStreamOnline(userId, (event: any) => {
+        const onlineSub = this.listener.onStreamOnline(userId, async (evt: EventSubStreamOnlineEvent) => {
           try {
-            logger.info('twitch.eventsub.event.stream_online', { channel, streamId: event.id });
+            if (!evt) return;
+            const stream = await evt.getStream();
+            const event = {
+              id: evt.id,
+              broadcasterId: evt.broadcasterId,
+              broadcasterName: evt.broadcasterName,
+              broadcasterDisplayName: evt.broadcasterDisplayName,
+              title: stream?.title,
+              categoryName: stream?.gameName,
+              type: evt.type,
+              startDate: evt.startDate
+            }
+            logger.info('twitch.eventsub.event.stream_online', { channel, streamId: event.id, event });
             const internalEvent = this.builder.buildStreamOnline(event as any, {
               finalizationDestination: this.options.egressDestinationTopic
             });
+            logger.debug('twitch.eventsub.event.stream_online.json', { internalEvent });
             this.publisher.publish(internalEvent).catch(err => {
               logger.error('twitch.eventsub.publish_failed', { kind: 'stream.online', error: err.message });
             });
@@ -187,6 +200,7 @@ export class TwitchEventSubClient {
               actor: 'ingress-egress:twitch',
               reason: 'Twitch EventSub: stream.online',
               ts: new Date().toISOString(),
+              ttl:21600,
               metadata: {
                 streamId: event.id,
                 broadcasterId: event.broadcasterId,
@@ -226,6 +240,7 @@ export class TwitchEventSubClient {
               actor: 'ingress-egress:twitch',
               reason: 'Twitch EventSub: stream.offline',
               ts: new Date().toISOString(),
+              ttl:21600,
               metadata: {
                 broadcasterId: event.broadcasterId,
               }
