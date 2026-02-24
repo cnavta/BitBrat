@@ -44,7 +44,8 @@ export class McpBridge {
             : await this.client.callTool({
                 name: mcpTool.name,
                 arguments: args,
-              }, (await import('@modelcontextprotocol/sdk/types.js')).CallToolResultSchema);
+                _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+              } as any, (await import('@modelcontextprotocol/sdk/types.js')).CallToolResultSchema);
 
           if (result.isError) {
             error = true;
@@ -98,7 +99,10 @@ export class McpBridge {
         if (this.invoker) {
           return await this.invoker.invokeResource(this.serverName, mcpResource.uri, this.client, context);
         }
-        return await this.client.readResource({ uri: mcpResource.uri });
+        return await this.client.readResource({ 
+          uri: mcpResource.uri,
+          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+        } as any);
       }
     };
   }
@@ -119,7 +123,11 @@ export class McpBridge {
         if (this.invoker) {
           return await this.invoker.invokePrompt(this.serverName, mcpPrompt.name, args, this.client, context);
         }
-        return await this.client.getPrompt({ name: mcpPrompt.name, arguments: args });
+        return await this.client.getPrompt({ 
+          name: mcpPrompt.name, 
+          arguments: args,
+          _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
+        } as any);
       }
     };
   }

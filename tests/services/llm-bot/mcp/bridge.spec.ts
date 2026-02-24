@@ -52,6 +52,7 @@ describe('McpBridge', () => {
     expect(mockClient.callTool).toHaveBeenCalledWith({
       name: 'echo',
       arguments: { message: 'hello' },
+      _meta: { userRoles: [], userId: undefined }
     }, expect.anything());
     expect(result).toBe('hello');
 
