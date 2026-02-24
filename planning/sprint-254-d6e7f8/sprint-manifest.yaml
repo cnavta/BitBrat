@@ -3,8 +3,9 @@ title: "Dynamic User-Based Role Selection for Tool Gateway"
 goal: "Enable the tool-gateway to dynamically apply RBAC based on user roles from each request rather than the fixed session roles."
 owner: "Junie"
 createdAt: "2026-02-24T22:08:04Z"
-status: "published"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/174"
   branch: "feature/sprint-254-d6e7f8-dynamic-user-rbac"
 notes: |
   Transitioning from session-based RBAC in tool-gateway to dynamic request-based RBAC. 
