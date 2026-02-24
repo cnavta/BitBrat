@@ -1,0 +1,10 @@
+id: sprint-257-a1b2c3
+title: "Tool Gateway Service"
+goal: "Design and implement the tool-gateway service as a central point for all MCP servers in the BitBrat Platform."
+owner: "@github-handle"
+createdAt: "2026-02-23T12:20:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-257-a1b2c3-tool-gateway"
+notes: |
+  The gateway will manage the mcp_servers Firestore collection, act as a central MCP server, maintain observability, and proxy tools.

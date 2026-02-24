@@ -226,6 +226,13 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
 
+  tool-gateway:
+    active: true
+    description: State engine for managing application state
+    entry: src/apps/tool-gateway.ts
+    secrets:
+      - MCP_AUTH_TOKEN
+
 infrastructure:
   target: gcp
   resources:

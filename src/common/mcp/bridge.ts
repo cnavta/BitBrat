@@ -1,19 +1,17 @@
-import { BitBratTool } from '../../../types/tools';
+import { BitBratTool, BitBratResource, BitBratPrompt } from '../../types/tools';
 import { jsonSchema } from 'ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { McpStatsCollector } from './stats-collector';
+import { ProxyInvoker } from './proxy-invoker';
 
 export class McpBridge {
   constructor(
     private client: Client,
     private serverName: string,
-    private stats?: McpStatsCollector
+    private stats?: McpStatsCollector,
+    private invoker?: ProxyInvoker
   ) {}
 
-  /**
-   * Translates an MCP tool definition into a BitBratTool.
-   */
   translateTool(mcpTool: { name: string; description?: string; inputSchema: any }, requiredRoles?: string[]): BitBratTool {
     const toolId = `mcp:${mcpTool.name}`;
 
@@ -35,15 +33,18 @@ export class McpBridge {
       // Use jsonSchema helper from AI SDK to support raw JSON Schema
       inputSchema: jsonSchema(schema),
       requiredRoles,
-      execute: async (args: any, _context: any) => {
+      originServer: this.serverName,
+      execute: async (args: any, context: any) => {
         const start = Date.now();
         let error = false;
         let responseSize = 0;
         try {
-          const result = await this.client.callTool({
-            name: mcpTool.name,
-            arguments: args,
-          }, CallToolResultSchema);
+          const result = this.invoker
+            ? await this.invoker.invoke(this.serverName, mcpTool.name, args, this.client, context)
+            : await this.client.callTool({
+                name: mcpTool.name,
+                arguments: args,
+              }, (await import('@modelcontextprotocol/sdk/types.js')).CallToolResultSchema);
 
           if (result.isError) {
             error = true;
@@ -78,6 +79,48 @@ export class McpBridge {
           }
         }
       },
+    };
+  }
+
+  /**
+   * Translates an MCP resource definition into a BitBratResource.
+   */
+  translateResource(mcpResource: { uri: string; name: string; description?: string; mimeType?: string }, requiredRoles?: string[]): BitBratResource {
+    return {
+      uri: mcpResource.uri,
+      name: mcpResource.name,
+      description: mcpResource.description,
+      mimeType: mcpResource.mimeType,
+      source: 'mcp',
+      requiredRoles,
+      originServer: this.serverName,
+      read: async (context?: any) => {
+        if (this.invoker) {
+          return await this.invoker.invokeResource(this.serverName, mcpResource.uri, this.client, context);
+        }
+        return await this.client.readResource({ uri: mcpResource.uri });
+      }
+    };
+  }
+
+  /**
+   * Translates an MCP prompt definition into a BitBratPrompt.
+   */
+  translatePrompt(mcpPrompt: { name: string; description?: string; arguments?: any[] }, requiredRoles?: string[]): BitBratPrompt {
+    return {
+      id: `mcp:${mcpPrompt.name}`,
+      name: mcpPrompt.name,
+      description: mcpPrompt.description,
+      arguments: mcpPrompt.arguments,
+      source: 'mcp',
+      requiredRoles,
+      originServer: this.serverName,
+      get: async (args: Record<string, string>, context?: any) => {
+        if (this.invoker) {
+          return await this.invoker.invokePrompt(this.serverName, mcpPrompt.name, args, this.client, context);
+        }
+        return await this.client.getPrompt({ name: mcpPrompt.name, arguments: args });
+      }
     };
   }
 }

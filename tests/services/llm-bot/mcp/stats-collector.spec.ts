@@ -1,4 +1,4 @@
-import { McpStatsCollector } from '../../../../src/services/llm-bot/mcp/stats-collector';
+import { McpStatsCollector } from '../../../../src/common/mcp/stats-collector';
 
 describe('McpStatsCollector', () => {
   let collector: McpStatsCollector;

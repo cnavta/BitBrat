@@ -1,8 +1,9 @@
-import { McpClientManager } from '../../../../src/services/llm-bot/mcp/client-manager';
+import { McpClientManager } from '../../../../src/common/mcp/client-manager';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { getFirestore } from '../../../../src/common/firebase';
+import { RegistryWatcher } from '../../../../src/common/mcp/registry-watcher';
 
 jest.mock('@modelcontextprotocol/sdk/client/index.js');
 jest.mock('@modelcontextprotocol/sdk/client/stdio.js');
@@ -14,8 +15,7 @@ describe('McpClientManager', () => {
   let mockRegistry: any;
   let manager: McpClientManager;
   let mockClientInstance: any;
-  let mockFirestore: any;
-  let snapshotCallback: any;
+  let watcher: RegistryWatcher;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,29 +43,30 @@ describe('McpClientManager', () => {
 
     (Client as unknown as jest.Mock).mockReturnValue(mockClientInstance);
 
-    mockFirestore = {
-      collection: jest.fn().mockReturnThis(),
-      onSnapshot: jest.fn().mockImplementation((cb) => {
-        snapshotCallback = cb;
-        return jest.fn(); // unsubscribe
-      }),
-    };
-
-    (getFirestore as jest.Mock).mockReturnValue(mockFirestore);
-
     manager = new McpClientManager(mockServer, mockRegistry);
+
+    watcher = new RegistryWatcher(mockServer, {
+        onServerActive: async (config) => { await manager.connectServer(config); },
+        onServerInactive: async (name) => { await manager.disconnectServer(name); }
+    });
   });
 
-  it('should initialize and watch registry', async () => {
-    await manager.initFromConfig();
-    expect(mockFirestore.collection).toHaveBeenCalledWith('mcp_servers');
-    expect(mockFirestore.onSnapshot).toHaveBeenCalled();
-  });
+  it('should connect to servers via RegistryWatcher and record status', async () => {
+    // Mock the firestore for the watcher
+    let snapshotCallback: any;
+    const mockFirestore = {
+        collection: jest.fn().mockReturnThis(),
+        onSnapshot: jest.fn().mockImplementation((cb) => {
+          snapshotCallback = cb;
+          return jest.fn(); // unsubscribe
+        }),
+      };
+  
+      (getFirestore as jest.Mock).mockReturnValue(mockFirestore);
 
-  it('should connect to servers when snapshot updates and record status', async () => {
-    await manager.initFromConfig();
-    
-    // Simulate added server
+    watcher.start();
+
+    // Simulate a change AFTER start
     await snapshotCallback({
       docChanges: () => [
         {
@@ -120,6 +121,19 @@ describe('McpClientManager', () => {
     );
   });
 
+  it('should throw error if stdio command is missing', async () => {
+    const logger = mockServer.getLogger();
+    await manager.connectServer({
+      name: 'bad-stdio',
+      transport: 'stdio'
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'mcp.client_manager.connect_error',
+      expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining('Stdio transport requires a command for server bad-stdio') }) })
+    );
+  });
+
   it('should register discovered tools and record discovery stats', async () => {
     mockClientInstance.listTools.mockResolvedValue({
       tools: [
@@ -152,16 +166,45 @@ describe('McpClientManager', () => {
     expect(mockRegistry.unregisterTool).toHaveBeenCalledWith('mcp:tool1');
   });
 
-  it('should shutdown all clients and unsubscribe', async () => {
-    const unsubscribe = jest.fn();
-    mockFirestore.onSnapshot.mockReturnValue(unsubscribe);
-    
-    await manager.initFromConfig();
+  it('should shutdown all clients', async () => {
     await manager.connectServer({ name: 's1', command: 'c1' });
 
     await manager.shutdown();
 
     expect(mockClientInstance.close).toHaveBeenCalled();
-    expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  it('should gracefully handle unsupported discovery methods', async () => {
+    mockClientInstance.listTools.mockRejectedValue({ code: -32601, message: 'Method not found' });
+    mockClientInstance.listResources = jest.fn().mockRejectedValue({ code: -32601, message: 'Method not found' });
+    mockClientInstance.listPrompts = jest.fn().mockRejectedValue({ code: -32601, message: 'Method not found' });
+
+    await manager.connectServer({ name: 'unsupported-srv', command: 'cmd' });
+
+    const logger = mockServer.getLogger();
+    expect(logger.info).toHaveBeenCalledWith('mcp.client_manager.tools_not_supported', { name: 'unsupported-srv' });
+    expect(logger.info).toHaveBeenCalledWith('mcp.client_manager.resources_not_supported', { name: 'unsupported-srv' });
+    expect(logger.info).toHaveBeenCalledWith('mcp.client_manager.prompts_not_supported', { name: 'unsupported-srv' });
+    expect(logger.error).not.toHaveBeenCalledWith('mcp.client_manager.discovery_error', expect.anything());
+  });
+
+  it('should skip discovery if capabilities are explicitly missing', async () => {
+    mockClientInstance.getServerCapabilities = jest.fn().mockReturnValue({
+      tools: true,
+      resources: false,
+      // prompts missing
+    });
+    mockClientInstance.listTools.mockResolvedValue({ tools: [] });
+    mockClientInstance.listResources = jest.fn();
+    mockClientInstance.listPrompts = jest.fn();
+
+    await manager.connectServer({ name: 'cap-srv', command: 'cmd' });
+
+    expect(mockClientInstance.listTools).toHaveBeenCalled();
+    expect(mockClientInstance.listResources).not.toHaveBeenCalled();
+    expect(mockClientInstance.listPrompts).toHaveBeenCalled(); // Should attempt if missing from capabilities object but not false
+
+    const logger = mockServer.getLogger();
+    expect(logger.debug).toHaveBeenCalledWith('mcp.client_manager.skipping_resources_discovery', expect.objectContaining({ server: 'cap-srv' }));
   });
 });

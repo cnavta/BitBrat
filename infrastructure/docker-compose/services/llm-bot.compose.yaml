@@ -29,8 +29,12 @@ services:
     ports:
       - "${LLM_BOT_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     depends_on:
-      - nats
-      - firebase-emulator
+      nats:
+        condition: service_healthy
+      firebase-emulator:
+        condition: service_healthy
+      tool-gateway:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s

@@ -1,0 +1,26 @@
+services:
+  tool-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.tool-gateway
+    env_file:
+      - .env.local
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
+    ports:
+      - "${TOOL_GATEWAY_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+    depends_on:
+      - nats
+      - firebase-emulator
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - tool-gateway.bitbrat.local
