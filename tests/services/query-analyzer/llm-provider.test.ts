@@ -74,7 +74,7 @@ describe('llm-provider', () => {
       risk: { level: 'none', type: 'none' },
     };
     (ai.generateObject as jest.Mock).mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 60));
       return { object: mockObject };
     });
 
