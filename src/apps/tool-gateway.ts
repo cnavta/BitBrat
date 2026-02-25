@@ -153,8 +153,8 @@ export class ToolGatewayServer extends McpServer {
     );
 
     // Discovery: listTools filtered by RBAC
-    sessionServer.setRequestHandler(ListToolsRequestSchema, async () => {
-      logger.debug('Handling ListToolsRequestSchema');
+    sessionServer.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
+      logger.debug('Handling ListToolsRequestSchema', {headers: extra.requestInfo?.headers});
       const tools = Object.values(this.registry.getTools())
         .filter((t) => this.rbac.isAllowedTool(t, t.originServer ? this.serverConfigs.get(t.originServer) : undefined, context))
         .map((t) => ({
@@ -192,20 +192,23 @@ export class ToolGatewayServer extends McpServer {
     });
 
     // Invocation: callTool
-    sessionServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+    sessionServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const id = request.params.name;
       const tool = this.registry.getTool(id);
       if (!tool) throw new Error(`Tool not found: ${id}`);
 
-      // Defense-in-depth RBAC check at invocation time
-      const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, context);
+      // Extract dynamic request context (roles/user)
+      const reqContext = this.getRequestContext(request, extra, context);
+
+      // Defense-in-depth RBAC check at invocation time using request-level context
+      const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
       const args = request.params.arguments || {};
       const result = await tool.execute?.(args as any, { 
-        userRoles: context.roles,
-        userId: context.userId,
-        agentName: context.agentName
+        userRoles: reqContext.roles,
+        userId: reqContext.userId,
+        agentName: reqContext.agentName
       });
       // Translate result to MCP CallToolResult-like content
       if (typeof result === 'string') {
@@ -215,39 +218,79 @@ export class ToolGatewayServer extends McpServer {
     });
 
     // Invocation: readResource
-    sessionServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    sessionServer.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
       const uri = request.params.uri;
       const resource = this.registry.getResource(uri);
       if (!resource) throw new Error(`Resource not found: ${uri}`);
 
-      const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, context);
+      const reqContext = this.getRequestContext(request, extra, context);
+
+      const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
       return await resource.read?.({
-        userRoles: context.roles,
-        userId: context.userId,
-        agentName: context.agentName
+        userRoles: reqContext.roles,
+        userId: reqContext.userId,
+        agentName: reqContext.agentName
       }) as any;
     });
 
     // Invocation: getPrompt
-    sessionServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    sessionServer.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
       const id = request.params.name;
       const prompt = this.registry.getPrompt(id);
       if (!prompt) throw new Error(`Prompt not found: ${id}`);
 
-      const allowed = this.rbac.isAllowedPrompt(prompt, prompt.originServer ? this.serverConfigs.get(prompt.originServer) : undefined, context);
+      const reqContext = this.getRequestContext(request, extra, context);
+
+      const allowed = this.rbac.isAllowedPrompt(prompt, prompt.originServer ? this.serverConfigs.get(prompt.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
       const args = (request.params.arguments as Record<string, string>) || {};
       return await prompt.get?.(args, {
-        userRoles: context.roles,
-        userId: context.userId,
-        agentName: context.agentName
+        userRoles: reqContext.roles,
+        userId: reqContext.userId,
+        agentName: reqContext.agentName
       }) as any;
     });
 
     return sessionServer;
+  }
+
+  /**
+   * getRequestContext
+   * Merges session-level context with per-request metadata (_meta) or headers.
+   */
+  private getRequestContext(request: any, extra: any, sessionContext: SessionContext): SessionContext {
+    const headers = extra?.requestInfo?.headers;
+    const meta = (request as any).params?._meta;
+
+    const context = { ...sessionContext };
+
+    // 1. Extract from headers (if provided via SSE POST /message)
+    if (headers) {
+      if (headers['x-roles']) {
+        context.roles = headers['x-roles'].toString().split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean);
+      }
+      if (headers['x-user-id']) {
+        context.userId = headers['x-user-id'].toString();
+      }
+    }
+
+    // 2. Extract from MCP _meta (Preferred standard way)
+    if (meta) {
+      if (Array.isArray(meta.userRoles)) {
+        context.roles = meta.userRoles;
+      } else if (typeof meta.userRoles === 'string') {
+        context.roles = meta.userRoles.split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean);
+      }
+      
+      if (meta.userId) {
+        context.userId = meta.userId;
+      }
+    }
+
+    return context;
   }
 
   private extractSessionContext(req: Request): SessionContext {

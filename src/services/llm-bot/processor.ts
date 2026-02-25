@@ -301,8 +301,10 @@ export async function processEvent(
 
       const allTools = deps?.registry?.getTools() || {};
       const userRoles = evt.identity?.user?.roles || evt.identity?.external?.roles || [];
+      const userId = evt.identity?.user?.id || evt.identity?.external?.id;
       const toolContext = {
         userRoles,
+        userId,
         correlationId: evt.correlationId
       };
 

@@ -1,0 +1,45 @@
+sprintId: sprint-254-d6e7f8
+backlog:
+  - id: B-1
+    title: "Gateway: Dynamic Context Extraction"
+    priority: "P0"
+    status: "done"
+    description: "Update tool-gateway.ts to extract user roles and id from request _meta or headers."
+    tasks:
+      - "Refactor isAllowed check in callTool handler"
+      - "Refactor isAllowed check in readResource handler"
+      - "Refactor isAllowed check in getPrompt handler"
+  - id: B-2
+    title: "McpBridge: Forward User Context"
+    priority: "P0"
+    status: "done"
+    description: "Update bridge.ts to include the execution context in the MCP call sent to the gateway."
+    tasks:
+      - "Modify translateTool execution to pass _meta"
+      - "Modify translateResource read to pass _meta"
+      - "Modify translatePrompt get to pass _meta"
+  - id: B-3
+    title: "Processor: Identity Alignment"
+    priority: "P1"
+    status: "done"
+    description: "Verify and fix roles propagation from InternalEventV2 into the toolRegistry context."
+    tasks:
+      - "Audit src/services/llm-bot/processor.ts roles extraction"
+      - "Ensure userId and agentName are included in toolContext"
+  - id: B-4
+    title: "Validation: Integration Script"
+    priority: "P0"
+    status: "done"
+    description: "Create a script to verify RBAC enforcement on a shared session."
+    tasks:
+      - "Write validate-rbac-gateway.ts"
+      - "Execute validation script against gateway"
+  - id: B-5
+    title: "Verification & Documentation"
+    priority: "P2"
+    status: "done"
+    description: "Update reports and manifest for sprint closure."
+    tasks:
+      - "Create verification-report.md"
+      - "Create retro.md"
+      - "Submit PR"
