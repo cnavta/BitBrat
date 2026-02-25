@@ -83,7 +83,7 @@ case "$SCOPE_ARG" in
   llm-bot)
     npm test -- src/services/llm-bot tests/services/llm-bot ;;
   tool-gateway)
-    npm test -- src/apps/tool-gateway.ts tests/apps/tool-gateway-rest.spec.ts tests/common/mcp tests/services/llm-bot/mcp ;;
+    npm test -- src/apps/tool-gateway.ts tests/apps/tool-gateway-rest.spec.ts tests/apps/tool-gateway-mcp-rbac.spec.ts tests/common/mcp tests/services/llm-bot/mcp ;;
   llm-factory)
     npm test -- src/common/llm ;;
   persistence)

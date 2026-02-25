@@ -18,5 +18,10 @@ backlog:
   - id: B-4
     title: "Verification & Documentation"
     priority: "P2"
-    status: "in-progress"
+    status: "done"
     description: "Update verification report, retro, and key learnings."
+  - id: B-5
+    title: "Logging: Tool Invocation Debug"
+    priority: "P1"
+    status: "done"
+    description: "Add detailed debug logging for tool/resource/prompt calls in tool-gateway."
