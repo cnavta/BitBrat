@@ -87,15 +87,21 @@ export class ToolGatewayServer extends McpServer {
       const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, context);
       if (!allowed) return res.status(403).json({ error: 'Forbidden' });
 
+      const start = Date.now();
       try {
         const args = req.body.args || req.body.arguments || req.body;
+        this.getLogger().debug('tool_gateway.rest.call_tool.start', { toolId, args, context });
         const result = await tool.execute?.(args as any, { 
           userRoles: context.roles,
           userId: context.userId,
           agentName: context.agentName
         });
+        const duration = Date.now() - start;
+        this.getLogger().debug('tool_gateway.rest.call_tool.success', { toolId, duration });
         res.json({ result });
       } catch (error: any) {
+        const duration = Date.now() - start;
+        this.getLogger().error('tool_gateway.rest.call_tool.error', { toolId, error: error.message, duration });
         res.status(500).json({ error: error.message });
       }
     });
@@ -112,11 +118,21 @@ export class ToolGatewayServer extends McpServer {
         const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, context);
         if (!allowed) return res.status(403).json({ error: 'Forbidden' });
 
+        this.getLogger().debug('tool_gateway.rest.read_resource.start', { uri, context });
+        const start = Date.now();
         resource.read?.({
           userRoles: context.roles,
           userId: context.userId,
           agentName: context.agentName
-        }).then(result => res.json({ result })).catch(e => res.status(500).json({ error: e.message }));
+        }).then(result => {
+          const duration = Date.now() - start;
+          this.getLogger().debug('tool_gateway.rest.read_resource.success', { uri, duration });
+          res.json({ result });
+        }).catch(e => {
+          const duration = Date.now() - start;
+          this.getLogger().error('tool_gateway.rest.read_resource.error', { uri, error: e.message, duration });
+          res.status(500).json({ error: e.message });
+        });
       } else {
         const resources = Object.values(this.registry.getResources())
           .filter(r => this.rbac.isAllowedResource(r, r.originServer ? this.serverConfigs.get(r.originServer) : undefined, context))
@@ -241,16 +257,27 @@ export class ToolGatewayServer extends McpServer {
       if (!allowed) throw new Error('Forbidden');
 
       const args = request.params.arguments || {};
-      const result = await tool.execute?.(args as any, { 
-        userRoles: reqContext.roles,
-        userId: reqContext.userId,
-        agentName: reqContext.agentName
-      });
-      // Translate result to MCP CallToolResult-like content
-      if (typeof result === 'string') {
-        return { content: [{ type: 'text', text: result }] } as any;
+      logger.debug('tool_gateway.mcp.call_tool.start', { id, args, reqContext });
+      const start = Date.now();
+      try {
+        const result = await tool.execute?.(args as any, { 
+          userRoles: reqContext.roles,
+          userId: reqContext.userId,
+          agentName: reqContext.agentName
+        });
+        const duration = Date.now() - start;
+        logger.debug('tool_gateway.mcp.call_tool.success', { id, duration });
+
+        // Translate result to MCP CallToolResult-like content
+        if (typeof result === 'string') {
+          return { content: [{ type: 'text', text: result }] } as any;
+        }
+        return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
+      } catch (error: any) {
+        const duration = Date.now() - start;
+        logger.error('tool_gateway.mcp.call_tool.error', { id, error: error.message, duration });
+        throw error;
       }
-      return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
     });
 
     // Invocation: readResource
@@ -264,11 +291,22 @@ export class ToolGatewayServer extends McpServer {
       const allowed = this.rbac.isAllowedResource(resource, resource.originServer ? this.serverConfigs.get(resource.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
-      return await resource.read?.({
-        userRoles: reqContext.roles,
-        userId: reqContext.userId,
-        agentName: reqContext.agentName
-      }) as any;
+      logger.debug('tool_gateway.mcp.read_resource.start', { uri, reqContext });
+      const start = Date.now();
+      try {
+        const result = await resource.read?.({
+          userRoles: reqContext.roles,
+          userId: reqContext.userId,
+          agentName: reqContext.agentName
+        });
+        const duration = Date.now() - start;
+        logger.debug('tool_gateway.mcp.read_resource.success', { uri, duration });
+        return result as any;
+      } catch (error: any) {
+        const duration = Date.now() - start;
+        logger.error('tool_gateway.mcp.read_resource.error', { uri, error: error.message, duration });
+        throw error;
+      }
     });
 
     // Invocation: getPrompt
@@ -283,11 +321,22 @@ export class ToolGatewayServer extends McpServer {
       if (!allowed) throw new Error('Forbidden');
 
       const args = (request.params.arguments as Record<string, string>) || {};
-      return await prompt.get?.(args, {
-        userRoles: reqContext.roles,
-        userId: reqContext.userId,
-        agentName: reqContext.agentName
-      }) as any;
+      logger.debug('tool_gateway.mcp.get_prompt.start', { id, args, reqContext });
+      const start = Date.now();
+      try {
+        const result = await prompt.get?.(args, {
+          userRoles: reqContext.roles,
+          userId: reqContext.userId,
+          agentName: reqContext.agentName
+        });
+        const duration = Date.now() - start;
+        logger.debug('tool_gateway.mcp.get_prompt.success', { id, duration });
+        return result as any;
+      } catch (error: any) {
+        const duration = Date.now() - start;
+        logger.error('tool_gateway.mcp.get_prompt.error', { id, error: error.message, duration });
+        throw error;
+      }
     });
 
     return sessionServer;
