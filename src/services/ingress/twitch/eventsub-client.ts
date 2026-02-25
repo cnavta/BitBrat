@@ -178,7 +178,6 @@ export class TwitchEventSubClient {
               broadcasterName: evt.broadcasterName,
               broadcasterDisplayName: evt.broadcasterDisplayName,
               title: stream?.title,
-              categoryName: stream?.gameName,
               type: evt.type,
               startDate: evt.startDate
             }
