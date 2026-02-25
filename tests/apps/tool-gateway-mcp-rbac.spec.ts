@@ -39,16 +39,17 @@ describe('Tool Gateway MCP RBAC (Dynamic)', () => {
     const transport = new SSEClientTransport(new URL(`${gatewayUrl}/sse`), {
       requestInit: {
         headers: {
-          'x-roles': 'bot'
+          'x-roles': 'bot',
+          'x-agent-name': 'llm-bot'
         }
       }
     });
     const client = new Client({ name: 'test-bot', version: '1.0.0' }, { capabilities: {} });
     await client.connect(transport);
 
-    // 2. Discover tools - admin tool should NOT be listed (session-based discovery)
+    // 2. Discover tools - as a trusted agent (llm-bot), admin tool SHOULD be listed (discovery bypass)
     const tools = await client.listTools();
-    expect(tools.tools.find(t => t.name === 'admin-only-tool')).toBeUndefined();
+    expect(tools.tools.find(t => t.name === 'admin-only-tool')).toBeDefined();
 
     // 3. Attempt to call admin tool without _meta - should fail (Forbidden)
     await expect(client.callTool({ name: 'admin-only-tool', arguments: {} }))
