@@ -1,0 +1,10 @@
+id: sprint-259-d1sc0v
+title: "Fix Tool Discovery and RBAC in Tool Gateway"
+goal: "Ensure llm-bot can discover all tools from tool-gateway regardless of user roles at connection time, and fix missing userId in session context."
+owner: "Junie"
+createdAt: "2026-02-24T21:35:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-259-d1sc0v-tool-discovery-fix"
+notes: |
+  The tool-gateway was filtering tools based on the roles of the client at connection time. Since llm-bot connects without roles, it was only seeing public tools. This sprint changes the RBAC logic to allow allowlisted agents to see all tools during discovery.

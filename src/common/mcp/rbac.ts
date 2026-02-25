@@ -3,16 +3,23 @@ import { McpServerConfig, SessionContext } from './types';
 
 export class RbacEvaluator {
   isAllowedServer(config: McpServerConfig, context: SessionContext): boolean {
+    const agent = (context.agentName || '').trim();
+    const isAgentAllowlisted = !!(config.agentAllowlist && config.agentAllowlist.length > 0 && config.agentAllowlist.includes(agent));
+
+    // Trusted agent bypass
+    if (isAgentAllowlisted) return true;
+
     // Roles check (any-match)
     if (config.requiredRoles && config.requiredRoles.length > 0) {
       const hasAny = config.requiredRoles.some((r) => context.roles.includes(r));
       if (!hasAny) return false;
     }
-    // Agent allowlist
+
+    // Agent allowlist (if not already bypassed)
     if (config.agentAllowlist && config.agentAllowlist.length > 0) {
-      const agent = (context.agentName || '').trim();
-      if (!agent || !config.agentAllowlist.includes(agent)) return false;
+      if (!isAgentAllowlisted) return false;
     }
+
     return true;
   }
 
@@ -21,8 +28,20 @@ export class RbacEvaluator {
     serverConfig: McpServerConfig | undefined,
     context: SessionContext
   ): boolean {
+    const agent = (context.agentName || '').trim();
+
+    // If server-level policy allows via agent allowlist, bypass item checks
+    if (serverConfig && serverConfig.agentAllowlist && serverConfig.agentAllowlist.length > 0) {
+      if (serverConfig.agentAllowlist.includes(agent)) return true;
+    }
+
     // If server-level policy blocks, deny
     if (serverConfig && !this.isAllowedServer(serverConfig, context)) return false;
+
+    const isItemAgentAllowlisted = !!(item.agentAllowlist && item.agentAllowlist.length > 0 && item.agentAllowlist.includes(agent));
+
+    // Trusted agent bypass at item level
+    if (isItemAgentAllowlisted) return true;
 
     // Item-level roles (any-match). If no roles specified, allow.
     if (item.requiredRoles && item.requiredRoles.length > 0) {
@@ -32,8 +51,7 @@ export class RbacEvaluator {
 
     // Item-level agent allowlist
     if (item.agentAllowlist && item.agentAllowlist.length > 0) {
-      const agent = (context.agentName || '').trim();
-      if (!agent || !item.agentAllowlist.includes(agent)) return false;
+      if (!isItemAgentAllowlisted) return false;
     }
 
     return true;
