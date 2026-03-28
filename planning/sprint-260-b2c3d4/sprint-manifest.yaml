@@ -1,0 +1,11 @@
+id: sprint-260-b2c3d4
+title: "Remediate Local Deployment Failures (GPG/Space/Build)"
+goal: "Fix GPG signature errors and build issues in firebase-emulator and other services."
+owner: "Junie"
+createdAt: "2026-03-21T16:15:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-260-b2c3d4-fix-deployment-errors (blocked by license)"
+notes: |
+  Investigating 'At least one invalid signature was encountered' and 'not enough free space' during build.
+  Xcode license agreement is pending on the host, blocking git operations.

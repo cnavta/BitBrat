@@ -1,0 +1,11 @@
+id: sprint-261-c3d4e5
+title: "Fix Firebase Emulator Startup Crash"
+goal: "Resolve 'An unexpected error has occurred' during firebase emulator startup."
+owner: "Junie"
+createdAt: "2026-03-21T16:45:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-261-c3d4e5-fix-emulator-crash"
+notes: |
+  Investigating unexpected crash during emulator startup.
+  Suspect missing emulator configs in firebase.json or port/Java issues.
