@@ -8,7 +8,15 @@ set -euo pipefail
 #  - /workspace contains firebase.json, firestore.rules, firestore.indexes.json
 
 PROJECT_ID="${FIREBASE_PROJECT_ID:-bitbrat-local}"
-export HOME=/data
+# Ensure runtime .cache points to the image-stored emulators to avoid re-downloads
+# when mounting a volume to /data
+mkdir -p /data/.cache/firebase
+if [[ ! -L /data/.cache/firebase/emulators ]]; then
+  # Remove any existing directory if it's not a symlink (might be from a previous volume)
+  rm -rf /data/.cache/firebase/emulators
+  ln -s /usr/local/share/firebase/.cache/firebase/emulators /data/.cache/firebase/emulators
+  echo "[firebase-emulator] Linked pre-downloaded emulators to /data/.cache"
+fi
 
 mkdir -p /data/export
 
@@ -24,22 +32,23 @@ cp /workspace/firestore.rules /data/firestore.rules
 echo "[firebase-emulator] Effective firebase.json:"
 cat /data/firebase.json
 
-# Authenticate the Firebase CLI via ADC using the mounted service account key
-# This avoids interactive `firebase login` prompts.
+# Authenticate the Firebase CLI using ADC if GOOGLE_APPLICATION_CREDENTIALS is provided.
+# firebase-tools will pick up GOOGLE_APPLICATION_CREDENTIALS automatically if set.
 if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" && -f "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
   echo "[firebase-emulator] Using ADC: ${GOOGLE_APPLICATION_CREDENTIALS:-unset}; project=${PROJECT_ID}"
-  gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}" >/dev/null 2>&1 || true
+  # No explicit login needed; firebase emulators:start uses GOOGLE_APPLICATION_CREDENTIALS
 else
   echo "[firebase-emulator] WARNING: GOOGLE_APPLICATION_CREDENTIALS not set or file not found; emulator will run without CLI auth."
 fi
 
-# Determine which emulators to start. 
+# Determine which emulators to start.
 # Default to firestore only if not specified via ONLY_EMULATORS
-EMULATORS="${ONLY_EMULATORS:-firestore,pubsub,eventarc,ui}"
+EMULATORS="${ONLY_EMULATORS:-firestore,pubsub,ui}"
 
 echo "[firebase-emulator] Starting emulators: ${EMULATORS}..."
 
 exec firebase emulators:start \
+  --only "${EMULATORS}" \
   --config /data/firebase.json \
   --import=/data/export \
   --log-verbosity=DEBUG \

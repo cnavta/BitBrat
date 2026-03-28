@@ -1,4 +1,4 @@
-# State Engine Rule Examples
+ # State Engine Rule Examples
 
 ## Introduction
 The State Engine uses [JSON-Logic](https://jsonlogic.com/) to define reactive rules. Rules are evaluated after a state key is successfully updated.

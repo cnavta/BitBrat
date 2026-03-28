@@ -2,7 +2,12 @@
 <module type="GENERAL_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/infrastructure/cdktf/out/connectors/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/infrastructure/cdktf/out/load-balancer/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/infrastructure/cdktf/out/network/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/infrastructure/gcp/prod/.terraform" />
+    </content>
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
