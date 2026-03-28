@@ -1,17 +1,18 @@
 {
-  "ts": "2026-02-24T18:29:22.620Z",
-  "service": "auth",
+  "ts": "2026-03-28T02:24:13.831Z",
+  "service": "event-router",
   "level": "debug",
   "severity": "DEBUG",
-  "msg": "auth.enrichment.start",
-  "event": {
+  "msg": "router_engine.enrichment.start",
+  "ruleId": "bitbrat-mention",
+  "interpCtx": {
     "v": "2",
-    "type": "system.stream.online",
-    "correlationId": "7b09f727-342c-4829-a330-93157019f263",
-    "traceId": "ace58d61-759a-44e8-a2cd-755e7a175ea6",
+    "type": "chat.message.v1",
+    "correlationId": "081a35c5-5525-4e3f-b025-ad6294a35c79",
+    "traceId": "f8e23b0f-0390-4d29-b943-bb2557c764ff",
     "ingress": {
-      "ingressAt": "2026-02-24T18:29:22.600Z",
-      "source": "ingress.twitch.eventsub",
+      "ingressAt": "2026-03-28T02:24:11.801Z",
+      "source": "ingress.twitch",
       "channel": "#gonj_the_unjust"
     },
     "identity": {
@@ -20,22 +21,26 @@
         "platform": "twitch",
         "displayName": "Gonj_The_Unjust",
         "metadata": {
-          "login": "gonj_the_unjust"
+          "login": "gonj_the_unjust",
+          "badges": [],
+          "isMod": false,
+          "isSubscriber": true
         }
       },
       "user": {
         "id": "twitch:91960688",
         "displayName": "Gonj_The_Unjust",
         "roles": [
-          "subscriber",
-          "unjust"
+          "subscriber"
         ],
         "profile": {
-          "username": "",
-          "updatedAt": "2026-02-24T18:29:22.608Z"
+          "username": "gonj_the_unjust",
+          "updatedAt": "2026-03-28T02:24:11.811Z"
         },
         "rolesMeta": {
-          "twitch": []
+          "twitch": [
+            "subscriber"
+          ]
         },
         "tags": [
           "PROVIDER_TWITCH",
@@ -46,74 +51,258 @@
         "v": "2",
         "method": "enrichment",
         "matched": true,
-        "at": "2026-02-24T18:29:22.608Z",
+        "at": "2026-03-28T02:24:11.811Z",
         "provider": "twitch",
         "userRef": "users/twitch:91960688"
       }
     },
     "egress": {
-      "destination": "internal.egress.v1.08de947c4ad5"
+      "destination": "internal.egress.v1.1b17c0f3754c",
+      "type": "chat"
     },
-    "externalEvent": {
-      "id": "317817398617",
-      "source": "twitch.eventsub",
-      "kind": "stream.online",
-      "version": "1",
-      "createdAt": "2026-02-24T18:29:11.000Z",
-      "metadata": {
-        "id": "317817398617",
-        "broadcasterId": "91960688",
-        "broadcasterLogin": "gonj_the_unjust",
-        "broadcasterDisplayName": "Gonj_The_Unjust",
-        "type": "live",
-        "startedAt": "2026-02-24T18:29:11.000Z"
-      },
-      "rawPayload": {}
+    "message": {
+      "id": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+      "role": "user",
+      "text": "@bitbrat_the_ai Are you seen, in and through, the blackness smeared that is the sky?",
+      "rawPlatformPayload": {
+        "text": "@bitbrat_the_ai Are you seen, in and through, the blackness smeared that is the sky?",
+        "messageId": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+        "user": {
+          "login": "gonj_the_unjust",
+          "displayName": "Gonj_The_Unjust"
+        },
+        "roomId": "91960688",
+        "badges": [],
+        "isMod": false,
+        "isSubscriber": true,
+        "emotes": [],
+        "raw": {
+          "tags": {
+            "badge-info": "subscriber/7",
+            "badges": "broadcaster/1,subscriber/0",
+            "client-nonce": "97***c3d2",
+            "color": "#8A2BE2",
+            "display-name": "Gonj_The_Unjust",
+            "emotes": "",
+            "first-msg": "0",
+            "flags": "",
+            "id": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+            "mod": "0",
+            "returning-chatter": "0",
+            "room-id": "91960688",
+            "subscriber": "1",
+            "tmi-sent-ts": "1774664651671",
+            "turbo": "0",
+            "user-id": "91960688",
+            "user-type": ""
+          }
+        },
+        "timestamp": "2026-03-28T02:24:11.801Z"
+      }
     },
     "metadata": {
       "matchedRuleIds": [
-        "wgSnF3cXAjmeJKlopQuX",
-        "6k9tjelLOb631DtbnqDo"
+        "query-analysis",
+        "bitbrat-mention"
       ],
-      "chosenRuleId": "wgSnF3cXAjmeJKlopQuX"
+      "chosenRuleId": "query-analysis"
     },
     "routingSlip": [
       {
         "id": "auth",
         "v": "1",
-        "status": "PENDING",
+        "status": "OK",
         "attempt": 1,
         "maxAttempts": 3,
         "nextTopic": "internal.auth.v1",
         "attributes": {
           "origin": "event-router"
         },
-        "startedAt": "2026-02-24T18:29:22.607Z"
+        "startedAt": "2026-03-28T02:24:11.810Z",
+        "endedAt": "2026-03-28T02:24:11.823Z"
       },
       {
-        "id": "query-analysis",
+        "id": "query-analyzer",
         "v": "1",
-        "status": "PENDING",
-        "attempt": 0,
+        "status": "OK",
+        "attempt": 1,
         "maxAttempts": 3,
         "nextTopic": "internal.query.analysis.v1",
         "attributes": {
           "origin": "event-router"
-        }
+        },
+        "startedAt": "2026-03-28T02:24:11.823Z",
+        "endedAt": "2026-03-28T02:24:13.825Z"
       },
       {
-        "id": "enrichment-complete",
+        "id": "event-router",
         "v": "1",
         "status": "PENDING",
-        "attempt": 0,
+        "attempt": 1,
         "maxAttempts": 3,
         "nextTopic": "internal.enriched.v1",
         "attributes": {
           "origin": "event-router"
+        },
+        "startedAt": "2026-03-28T02:24:13.825Z"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "5644b36a-2162-46d4-9f5c-785ced241cee",
+        "kind": "intent",
+        "source": "query-analyzer",
+        "createdAt": "2026-03-28T02:24:13.825Z",
+        "label": "question",
+        "value": "question"
+      },
+      {
+        "id": "4c127acd-09a0-4279-b246-0f4251e840c5",
+        "kind": "tone",
+        "source": "query-analyzer",
+        "createdAt": "2026-03-28T02:24:13.825Z",
+        "payload": {
+          "valence": 0.8,
+          "arousal": 0.2
+        }
+      },
+      {
+        "id": "326d9d23-8415-447b-a3b7-59596020e3b9",
+        "kind": "risk",
+        "source": "query-analyzer",
+        "createdAt": "2026-03-28T02:24:13.825Z",
+        "label": "none",
+        "payload": {
+          "level": "none",
+          "type": "none"
         }
       }
-    ]
-  },
-  "matched": true
+    ],
+    "source": "ingress.twitch",
+    "channel": "#gonj_the_unjust",
+    "userId": "91960688",
+    "user": {
+      "id": "twitch:91960688",
+      "displayName": "Gonj_The_Unjust",
+      "roles": [
+        "subscriber"
+      ],
+      "profile": {
+        "username": "gonj_the_unjust",
+        "updatedAt": "2026-03-28T02:24:11.811Z"
+      },
+      "rolesMeta": {
+        "twitch": [
+          "subscriber"
+        ]
+      },
+      "tags": [
+        "PROVIDER_TWITCH",
+        "RETURNING_USER"
+      ]
+    },
+    "auth": {
+      "v": "2",
+      "method": "enrichment",
+      "matched": true,
+      "at": "2026-03-28T02:24:11.811Z",
+      "provider": "twitch",
+      "userRef": "users/twitch:91960688"
+    },
+    "payload": {
+      "text": "@bitbrat_the_ai Are you seen, in and through, the blackness smeared that is the sky?",
+      "messageId": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+      "user": {
+        "login": "gonj_the_unjust",
+        "displayName": "Gonj_The_Unjust"
+      },
+      "roomId": "91960688",
+      "badges": [],
+      "isMod": false,
+      "isSubscriber": true,
+      "emotes": [],
+      "raw": {
+        "tags": {
+          "badge-info": "subscriber/7",
+          "badges": "broadcaster/1,subscriber/0",
+          "client-nonce": "97***c3d2",
+          "color": "#8A2BE2",
+          "display-name": "Gonj_The_Unjust",
+          "emotes": "",
+          "first-msg": "0",
+          "flags": "",
+          "id": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+          "mod": "0",
+          "returning-chatter": "0",
+          "room-id": "91960688",
+          "subscriber": "1",
+          "tmi-sent-ts": "1774664651671",
+          "turbo": "0",
+          "user-id": "91960688",
+          "user-type": ""
+        }
+      },
+      "timestamp": "2026-03-28T02:24:11.801Z"
+    },
+    "config": {
+      "port": 3000,
+      "logLevel": "debug",
+      "commandSigil": "!",
+      "twitchEnabled": true,
+      "twitchDisableConnect": false,
+      "twitchBotUsername": "bitbrat_the_ai",
+      "twitchBotAccessToken": "***",
+      "twitchClientId": "kb***3vvq",
+      "twitchClientSecret": "uy***ukrw",
+      "twitchScopes": [
+        "chat:read",
+        "chat:edit",
+        "channel:read:subscriptions",
+        "user:read:follows",
+        "moderator:read:followers",
+        "channel:read:vips",
+        "channel:read:redemptions",
+        "moderation:read",
+        "bits:read",
+        "moderator:read:shoutouts",
+        "user:read:email",
+        "user:manage:whispers"
+      ],
+      "twitchChannels": [
+        "gonj_the_unjust"
+      ],
+      "commandWhitelist": [],
+      "oauthStateSecret": "lo***cret",
+      "firestoreEnabled": true,
+      "tokenDocPath": "oa***/bot",
+      "broadcasterTokenDocPath": "oa***ster",
+      "busPrefix": "local.",
+      "discordEnabled": true,
+      "discordBotToken": "lM***8tKw",
+      "discordGuildId": "1324629154695483422",
+      "discordChannels": [
+        "1324629154695483426"
+      ],
+      "discordUseTokenStore": "***",
+      "discordAllowEnvFallback": true,
+      "discordTokenPollMs": "***",
+      "discordClientId": "1449558592763072532",
+      "discordClientSecret": "5Y***1peo",
+      "discordRedirectUri": "",
+      "discordOauthScopes": [
+        "bot"
+      ],
+      "discordOauthPermissions": "***",
+      "twilioEnabled": false,
+      "twilioAccountSid": "fdsa",
+      "twilioAuthToken": "***",
+      "twilioApiKey": "***",
+      "twilioApiSecret": "***",
+      "twilioChatServiceSid": "fdsafdsa",
+      "twilioIdentity": "local-twilio-identity"
+    },
+    "now": "2026-03-28T02:24:13.831Z",
+    "ts": 1774664653831
+  }
 }
 
