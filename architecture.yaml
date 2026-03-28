@@ -228,7 +228,7 @@ services:
 
   tool-gateway:
     active: true
-    description: State engine for managing application state
+    description: MCP Proxy for centralized MCP tool management and security
     entry: src/apps/tool-gateway.ts
     secrets:
       - MCP_AUTH_TOKEN
