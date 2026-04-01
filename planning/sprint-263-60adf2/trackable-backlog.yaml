@@ -1,0 +1,199 @@
+meta:
+  backlog_id: sprint-263-60adf2-backlog
+  updated_at: 2026-04-01
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-263-60adf2
+  start: 2026-04-01
+  end: null
+  wip_limit: 3
+  goal: "Implement the Behavioral Control Layer so query-analyzer intent/tone/risk signals meaningfully affect llm-bot behavior and routing without breaking the existing event contract."
+
+items:
+  - id: BL-263-000
+    title: "Approve the sprint execution plan and backlog"
+    priority: P0
+    status: done
+    effort: S
+    owner: user
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "User explicitly approves `implementation-plan.md` and `trackable-backlog.yaml` for sprint-263-60adf2."
+      - "Approval is recorded in `planning/sprint-263-60adf2/request-log.md` before implementation begins."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:05:15Z
+        note: "Execution plan and prioritized backlog drafted from the TA document and current code hotspots."
+      - at: 2026-04-01T17:14:00Z
+        note: "User approved the sprint planning documentation and authorized implementation to begin."
+
+  - id: BL-263-001
+    title: "Define the behavioral control contract and rollout flags"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-263-000]
+    blocked_reason: null
+    acceptance:
+      - "A documented `BehaviorProfile` contract exists for intent, tone, risk, policy, and response mode without changing `InternalEventV2`."
+      - "Feature-flag/config decisions are wired into the existing config pattern and documented for llm-bot rollout."
+      - "Risk > intent > tone precedence is documented in code/tests and reflected in the implementation notes."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:14:00Z
+        note: "Implementation started with the behavioral contract, rollout-flag baseline, and precedence rules."
+      - at: 2026-04-01T17:22:44Z
+        note: "Added the `BehaviorProfile` contract, rollout flags/defaults, architecture env documentation, and precedence coverage in unit tests."
+
+  - id: BL-263-002
+    title: "Implement annotation normalization and behavior-profile derivation"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-263-001]
+    blocked_reason: null
+    acceptance:
+      - "`llm-bot` reads `intent`, `tone`, and `risk` annotations through a single extractor/normalizer module."
+      - "Defaults and malformed-annotation handling are covered by tests."
+      - "Tone buckets and response-mode selection are deterministic and unit-tested."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:22:44Z
+        note: "Added the shared extractor/normalizer module, wired llm-bot to derive behavior profiles once per event, and passed targeted unit tests for defaults, malformed annotations, tone buckets, and response-mode selection."
+
+  - id: BL-263-003
+    title: "Integrate behavioral guidance into llm-bot prompt assembly and output metadata"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-263-002]
+    blocked_reason: null
+    acceptance:
+      - "Behavioral guidance is added to `PromptSpec` constraints/task framing without replacing the user prompt."
+      - "Generated candidates include behavior-related metadata for downstream inspection."
+      - "Prompt logging persists behavior-profile details alongside the prompt/response record."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:22:44Z
+        note: "Started wiring the derived behavior profile into llm-bot prompt assembly and downstream metadata surfaces."
+      - at: 2026-04-01T17:26:18Z
+        note: "Behavioral guidance now feeds prompt constraints/task framing, candidate metadata, and prompt-log payloads with regression coverage passing."
+
+  - id: BL-263-004
+    title: "Add llm-bot safety gating, safe refusals, and behavioral tool filtering"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-263-003]
+    blocked_reason: null
+    acceptance:
+      - "Pre-generation gate supports `PROCEED`, `SAFE_REFUSAL`, `NO_RESPONSE`, and `ESCALATE` outcomes as applicable."
+      - "Behavioral tool filtering is layered on top of RBAC and is covered by automated tests."
+      - "`llm-bot` emits decision annotations/logs for gating and tool-suppression outcomes."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:26:18Z
+        note: "Started the llm-bot safety gating and behavioral tool-filtering implementation slice."
+      - at: 2026-04-01T17:30:34Z
+        note: "Implemented pre-generation gating, safe refusals, behavioral tool filtering, and decision annotations/logs with focused automated coverage passing."
+
+  - id: BL-263-005
+    title: "Align query-analyzer behavioral annotations with the llm-bot contract"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-263-001, BL-263-002]
+    blocked_reason: null
+    acceptance:
+      - "`query-analyzer` continues to emit `intent`, `tone`, and `risk` annotations in the agreed stable shape."
+      - "Existing short-circuit behavior for `spam` and `risk.level === high` is preserved or explicitly refined with tests."
+      - "Any new safety/decision annotation handoff needed upstream is documented and tested."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:30:34Z
+        note: "Started query-analyzer alignment work to lock the annotation shape and short-circuit behavior to the llm-bot contract."
+      - at: 2026-04-01T17:31:34Z
+        note: "Validated the stable `intent`/`tone`/`risk` annotation shape and preserved spam/high-risk short-circuit behavior with focused automated tests; no extra upstream handoff annotation was required for this slice."
+
+  - id: BL-263-006
+    title: "Add router rules and examples for annotation-aware branching"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-263-004, BL-263-005]
+    blocked_reason: null
+    acceptance:
+      - "Representative routing rules or fixtures exist for `spam`, `high-risk`, and `meta` annotation cases."
+      - "Router mapping/loading/evaluation tests cover the annotation-aware branches."
+      - "Routing changes do not require schema changes or break existing rule behavior."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:31:34Z
+        note: "Started router fixture/example updates for annotation-aware branching cases."
+      - at: 2026-04-01T17:36:34Z
+        note: "Added annotation-aware routing examples/tests for `spam`, `high-risk`, and `meta` cases, and extended `has_annotation` to support the query-analyzer annotation shape without breaking existing behavior."
+
+  - id: BL-263-007
+    title: "Add observability, config documentation, and validation coverage"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-263-003, BL-263-004, BL-263-005, BL-263-006]
+    blocked_reason: null
+    acceptance:
+      - "Structured logs exist for behavior derivation, policy application, response gating, and behavioral tool suppression."
+      - "Configuration/documentation covers rollout flags, safe defaults, and known operational trade-offs."
+      - "`validate_deliverable.sh` and relevant test commands are updated to cover the changed services/modules."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:36:34Z
+        note: "Started the observability/documentation/validation sweep for the completed behavioral-control slices."
+      - at: 2026-04-01T17:38:07Z
+        note: "Documented rollout flags and behavioral policy notes, added a behavioral-control validation scope, and verified the updated validation flow successfully."
+
+  - id: BL-263-008
+    title: "Run end-to-end validation and prepare sprint verification artifacts"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-263-004, BL-263-005, BL-263-006, BL-263-007]
+    blocked_reason: null
+    acceptance:
+      - "All newly added and existing relevant tests pass across modified services."
+      - "End-to-end fixtures demonstrate the intended behavior for safe, risky, and routing-sensitive event types."
+      - "Verification artifacts summarize completed, partial, and deferred scope with explicit traceability to backlog items."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:38:07Z
+        note: "Validation passed across llm-bot, query-analyzer, and router behavioral-control coverage; preparing verification artifacts and final traceability notes."
+      - at: 2026-04-01T17:39:02Z
+        note: "Created `verification-report.md`, confirmed behavioral-control validation success, and captured workspace status for final traceability."
+
+  - id: BL-263-009
+    title: "Remediate local Docker Compose shared-network ownership and base-service attachment"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-263-008]
+    blocked_reason: null
+    acceptance:
+      - "`docker-compose.local.yaml` treats `bitbrat-network` consistently as the pre-created external shared network used by local tooling."
+      - "Base local support services that need peer connectivity attach to `bitbrat-network` so they do not fall onto an isolated default network."
+      - "A regression test or equivalent script covers the shared-network ownership contract to prevent the warning from returning unnoticed."
+    updated_at: 2026-04-01
+    log:
+      - at: 2026-04-01T17:57:24Z
+        note: "Started investigating the local Docker Compose warning about `bitbrat-network` already existing outside Compose and found that the base file still declared it as Compose-managed while `deploy-local.sh` pre-created it as a shared external network."
+      - at: 2026-04-01T17:57:24Z
+        note: "Remediated the warning by restoring `bitbrat-network` to an external shared network in `docker-compose.local.yaml`, attaching `nats-box` to the shared network, and adding a regression test plus compose-config validation for the local network contract."

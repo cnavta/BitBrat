@@ -161,6 +161,11 @@ services:
       # Short-term memory bounds (in-run)
       - LLM_BOT_MEMORY_MAX_MESSAGES
       - LLM_BOT_MEMORY_MAX_CHARS
+      - LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED
+      - LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED
+      - LLM_BOT_BEHAVIORAL_GATING_ENABLED
+      - LLM_BOT_RISK_RESPONSE_MODE
+      - LLM_BOT_TONE_STYLE_ENABLED
       # Optional system primer for conversations (prepended once when memory empty)
       - LLM_BOT_SYSTEM_PROMPT
       # Instance-scoped short-term memory (cross-event within process lifetime)

@@ -39,6 +39,20 @@ describe('JsonLogic extra ops: has_role, has_annotation, has_candidate, text_con
     expect(evaluate({ has_annotation: [ { var: 'annotations' }, 'intent', 'other' ] } as any, ctx)).toBe(false);
   });
 
+  it('has_annotation also supports query-analyzer kind/value and kind/label lookups', () => {
+    const qaCtx = buildContext({
+      ...evt,
+      annotations: [
+        { id: 'a1', kind: 'intent', source: 'query-analyzer', createdAt: '2026-04-01T00:00:00Z', label: 'meta', value: 'meta' },
+        { id: 'a2', kind: 'risk', source: 'query-analyzer', createdAt: '2026-04-01T00:00:01Z', label: 'high', payload: { level: 'high', type: 'privacy' } },
+      ],
+    } as any);
+
+    expect(evaluate({ has_annotation: [ { var: 'annotations' }, 'intent', 'meta' ] } as any, qaCtx)).toBe(true);
+    expect(evaluate({ has_annotation: [ { var: 'annotations' }, 'risk', 'high' ] } as any, qaCtx)).toBe(true);
+    expect(evaluate({ has_annotation: [ { var: 'annotations' }, 'intent', 'spam' ] } as any, qaCtx)).toBe(false);
+  });
+
   it('has_candidate matches any or by provider/source', () => {
     const ctx = buildContext(evt);
     expect(evaluate({ has_candidate: [ { var: 'candidates' } ] } as any, ctx)).toBe(true);
