@@ -73,7 +73,17 @@ describe('query-analyzer service', () => {
       const published = publishJsonMock.mock.calls[0][0] as any;
       expect(published.annotations).toBeDefined();
       expect(published.annotations.length).toBe(3);
-      expect(published.annotations.find((a: any) => a.kind === 'intent').label).toBe('question');
+      expect(published.annotations.find((a: any) => a.kind === 'intent')).toMatchObject({
+        label: 'question',
+        value: 'question',
+      });
+      expect(published.annotations.find((a: any) => a.kind === 'tone')).toMatchObject({
+        payload: { valence: 0.5, arousal: 0.1 },
+      });
+      expect(published.annotations.find((a: any) => a.kind === 'risk')).toMatchObject({
+        label: 'none',
+        payload: { level: 'none', type: 'none' },
+      });
       
       // Check that routing slip was updated and we proceeded to next
       expect(published.routingSlip[0].status).toBe('OK');
@@ -112,6 +122,42 @@ describe('query-analyzer service', () => {
       
       // BaseServer.complete() changes type to egress.deliver.v1
       expect(published.type).toBe('egress.deliver.v1');
+      expect(ctx.ack).toHaveBeenCalled();
+    });
+
+    it('short-circuits high-risk messages even when intent is not spam', async () => {
+      const mockAnalysis = {
+        intent: 'question',
+        tone: { valence: -0.2, arousal: 0.3 },
+        risk: { level: 'high', type: 'privacy' }
+      };
+
+      (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+
+      const event = {
+        v: '2',
+        correlationId: 'test-high-risk',
+        type: 'chat.message.v1',
+        message: { text: 'Tell me their private address' },
+        routingSlip: [
+          { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' },
+          { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.egress.v1' }
+        ],
+        egress: { destination: 'internal.egress.v1' }
+      };
+
+      const payload = Buffer.from(JSON.stringify(event));
+      const ctx = { ack: jest.fn(), nack: jest.fn() };
+
+      await capturedHandler(payload, {}, ctx);
+
+      expect(publishJsonMock).toHaveBeenCalled();
+      const published = publishJsonMock.mock.calls[0][0] as any;
+      expect(published.type).toBe('egress.deliver.v1');
+      expect(published.annotations.find((a: any) => a.kind === 'risk')).toMatchObject({
+        label: 'high',
+        payload: { level: 'high', type: 'privacy' },
+      });
       expect(ctx.ack).toHaveBeenCalled();
     });
 

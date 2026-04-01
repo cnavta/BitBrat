@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { generateText, ModelMessage, stepCountIs } from 'ai';
 import { BaseServer } from '../../common/base-server';
@@ -12,6 +13,7 @@ import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequesti
 import { redactText } from '../../common/prompt-assembly/redaction';
 import { IToolRegistry } from '../../types/tools';
 import { getLlmProvider } from '../../common/llm/provider-factory';
+import { buildBehavioralGuidance, buildBehavioralTaskInstruction, deriveBehaviorProfile, type BehaviorProfile } from './behavior-profile';
 import { metrics,
   METRIC_PERSONALITIES_RESOLVED,
   METRIC_PERSONALITIES_FAILED,
@@ -37,6 +39,60 @@ function isAbortError(err: any): boolean {
   const name = (err && err.name) || '';
   const msg = (err && err.message) || '';
   return name === 'AbortError' || /abort(ed)?/i.test(msg) || /The operation was aborted/i.test(msg);
+}
+
+function parseBooleanFlag(value: any): boolean {
+  return value === true || value === 'true';
+}
+
+const META_TOOL_ALLOWLIST = new Set(['internal:get_bot_status', 'internal:list_available_tools']);
+
+function appendRuntimeAnnotation(evt: InternalEventV2, kind: string, label: string, payload: Record<string, any>): void {
+  if (!Array.isArray(evt.annotations)) evt.annotations = [];
+  evt.annotations.push({
+    id: crypto.randomUUID(),
+    kind,
+    source: 'llm-bot',
+    createdAt: new Date().toISOString(),
+    label,
+    payload,
+  });
+}
+
+function buildSafeRefusalText(profile: BehaviorProfile): string {
+  switch (profile.risk.type) {
+    case 'self_harm':
+      return 'I can’t help with harming yourself. If you’re in immediate danger or think you might act on these thoughts, please call emergency services now or reach out to a local crisis hotline or a trusted person right away.';
+    case 'privacy':
+      return 'I can’t help expose or share someone’s private or sensitive information.';
+    case 'illegal':
+      return 'I can’t help with illegal or dangerous activity.';
+    case 'sexual':
+      return 'I can’t help with that request.';
+    default:
+      return 'I can’t help with that request, but I can try to help with a safer alternative.';
+  }
+}
+
+function evaluateBehavioralToolEligibility(tool: any, profile: BehaviorProfile): { allowed: boolean; reason: string } {
+  if (profile.risk.level === 'high') {
+    return { allowed: false, reason: 'high-risk traffic disables tools' };
+  }
+  if (profile.risk.type === 'privacy' || profile.risk.type === 'illegal' || profile.risk.type === 'self_harm' || profile.risk.type === 'sexual') {
+    return { allowed: false, reason: `risk type ${profile.risk.type} disables tools` };
+  }
+  if (profile.risk.level === 'med') {
+    return { allowed: false, reason: 'medium-risk traffic disables tools by policy' };
+  }
+  if (profile.intent === 'meta') {
+    return META_TOOL_ALLOWLIST.has(tool.id)
+      ? { allowed: true, reason: 'meta intent allowlisted tool' }
+      : { allowed: false, reason: 'meta intent only allows internal status tools' };
+  }
+  if (!profile.policy.shouldUseTools) {
+    return { allowed: false, reason: 'behavior policy disabled tools for this request' };
+  }
+  return { allowed: true, reason: 'behavior policy allows tool use' };
 }
 
 function toHuman(text: string): ChatMessage {
@@ -190,9 +246,86 @@ export async function processEvent(
     }
 
     const anns = Array.isArray(evt.annotations) ? evt.annotations : [];
+    const behavioralFlags = {
+      guidanceEnabled: server.getConfig<boolean>('LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED', { default: true, parser: parseBooleanFlag }),
+      toolFilterEnabled: server.getConfig<boolean>('LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED', { default: true, parser: parseBooleanFlag }),
+      gatingEnabled: server.getConfig<boolean>('LLM_BOT_BEHAVIORAL_GATING_ENABLED', { default: true, parser: parseBooleanFlag }),
+      toneStyleEnabled: server.getConfig<boolean>('LLM_BOT_TONE_STYLE_ENABLED', { default: true, parser: parseBooleanFlag }),
+      riskResponseMode: server.getConfig<'refuse' | 'safe-complete'>('LLM_BOT_RISK_RESPONSE_MODE', {
+        default: 'refuse',
+        parser: (v: any) => String(v || 'refuse').trim() === 'safe-complete' ? 'safe-complete' : 'refuse',
+      }),
+    };
+    const behaviorProfile = deriveBehaviorProfile(anns as any, {
+      riskResponseMode: behavioralFlags.riskResponseMode,
+    });
+    const behaviorProfileSummary = {
+      intent: behaviorProfile.intent,
+      tone: behaviorProfile.tone,
+      risk: behaviorProfile.risk,
+      responseMode: behaviorProfile.responseMode,
+      gate: behaviorProfile.gate,
+      policy: {
+        shouldRespond: behaviorProfile.policy.shouldRespond,
+        shouldUseTools: behaviorProfile.policy.shouldUseTools,
+        shouldDeescalate: behaviorProfile.policy.shouldDeescalate,
+        shouldRefuse: behaviorProfile.policy.shouldRefuse,
+        requiresSafeCompletion: behaviorProfile.policy.requiresSafeCompletion,
+        requiresEscalationAnnotation: behaviorProfile.policy.requiresEscalationAnnotation,
+      },
+    };
+    logger?.debug?.('llm_bot.behavior_profile.derived', {
+      correlationId: corr,
+      ...behaviorProfileSummary,
+      rollout: behavioralFlags,
+    });
+    appendRuntimeAnnotation(evt, 'behavior-profile', behaviorProfile.responseMode, behaviorProfileSummary as Record<string, any>);
     const combinedPrompt = buildCombinedPrompt(anns as any);
     if (!combinedPrompt) {
       logger?.info?.('llm_bot.no_prompt', { correlationId: corr });
+      return 'SKIP';
+    }
+    const gatingOutcome = behavioralFlags.gatingEnabled ? behaviorProfile.gate : 'PROCEED';
+    logger?.debug?.('llm_bot.behavior_policy.applied', {
+      correlationId: corr,
+      ...behaviorProfileSummary,
+      appliedGate: gatingOutcome,
+      gatingEnabled: behavioralFlags.gatingEnabled,
+      toolFilterEnabled: behavioralFlags.toolFilterEnabled,
+    });
+    if (behavioralFlags.gatingEnabled && gatingOutcome !== 'PROCEED') {
+      appendRuntimeAnnotation(evt, 'response-strategy', behaviorProfile.responseMode, {
+        ...behaviorProfileSummary,
+        toolUse: 'disabled',
+        gate: gatingOutcome,
+      });
+      appendRuntimeAnnotation(evt, 'safety-decision', gatingOutcome.toLowerCase(), {
+        ...behaviorProfileSummary,
+        reason: gatingOutcome.toLowerCase(),
+      });
+      logger?.info?.('llm_bot.response_gated', {
+        correlationId: corr,
+        gate: gatingOutcome,
+        risk: behaviorProfile.risk,
+        intent: behaviorProfile.intent,
+      });
+      if (gatingOutcome === 'SAFE_REFUSAL') {
+        if (!Array.isArray(evt.candidates)) evt.candidates = [];
+        evt.candidates.push({
+          id: `cand-${corr || Date.now()}-safe-refusal`,
+          kind: 'text',
+          source: 'llm-bot',
+          createdAt: new Date().toISOString(),
+          status: 'proposed',
+          priority: 5,
+          text: buildSafeRefusalText(behaviorProfile),
+          reason: 'behavior:safe-refusal',
+          metadata: {
+            behaviorProfile: behaviorProfileSummary,
+          },
+        });
+        return 'OK';
+      }
       return 'SKIP';
     }
 
@@ -254,12 +387,23 @@ export async function processEvent(
     const sysPrompt = server.getConfig<string>('LLM_BOT_SYSTEM_PROMPT', { default: '' });
     const maxMemoryMessages = server.getConfig<number>('LLM_BOT_MEMORY_MAX_MESSAGES', { default: 8, parser: (v: any) => Number(v) });
     const maxMemoryChars = server.getConfig<number>('LLM_BOT_MEMORY_MAX_CHARS', { default: 8000, parser: (v: any) => Number(v) });
+    const behavioralConstraints = behavioralFlags.guidanceEnabled
+      ? buildBehavioralGuidance(behaviorProfile).map((text) => ({ text, priority: 2 as const, source: 'runtime' as const, tags: ['behavior'] }))
+      : [];
+    const behavioralTaskInstruction = behavioralFlags.guidanceEnabled
+      ? buildBehavioralTaskInstruction(behaviorProfile)
+      : undefined;
+    const taskAnnotations = [
+      ...(behavioralTaskInstruction ? [{ instruction: behavioralTaskInstruction, priority: 2 as const, required: true }] : []),
+      { instruction: combinedPrompt, priority: 3 as const, required: true },
+    ];
+    const mergedConstraints = [...(resolvedConstraints || []), ...behavioralConstraints];
 
     const spec: PromptSpec = {
       systemPrompt: sysPrompt ? { summary: 'Rules', rules: [sysPrompt], sources: ['config'] } : undefined,
       identity: resolvedIdentity ? { summary: resolvedIdentity } : undefined,
-      constraints: resolvedConstraints?.length ? resolvedConstraints : undefined,
-      task: [{ instruction: combinedPrompt, priority: 3, required: true }],
+      constraints: mergedConstraints.length ? mergedConstraints : undefined,
+      task: taskAnnotations,
       input: { userQuery: evt.message?.text || combinedPrompt },
       conversationState: messages.length > 0 ? {
         transcript: messages.map(m => ({ role: m.role as any, content: m.content })),
@@ -309,6 +453,7 @@ export async function processEvent(
       };
 
       const filteredTools: Record<string, any> = {};
+      const behavioralToolSuppressions: Array<{ tool: string; reason: string }> = [];
       for (const [name, tool] of Object.entries(allTools)) {
         let allowed = false;
         if (!tool.requiredRoles || tool.requiredRoles.length === 0) {
@@ -317,7 +462,11 @@ export async function processEvent(
           allowed = true;
         }
 
-        if (allowed) {
+        const behavioralDecision = behavioralFlags.toolFilterEnabled
+          ? evaluateBehavioralToolEligibility(tool, behaviorProfile)
+          : { allowed: true, reason: 'behavioral tool filtering disabled' };
+
+        if (allowed && behavioralDecision.allowed) {
           // Wrap tool to capture errors in InternalEventV2
           filteredTools[name] = {
             description: tool.description,
@@ -340,10 +489,27 @@ export async function processEvent(
               }
             } : undefined
           };
-        } else {
+        } else if (!allowed) {
           logger.debug('llm_bot.tool_filtered_rbac', { tool: tool.id, userRoles });
+        } else {
+          behavioralToolSuppressions.push({ tool: tool.id, reason: behavioralDecision.reason });
+          logger.debug('llm_bot.tool_filtered_behavioral', {
+            correlationId: corr,
+            tool: tool.id,
+            reason: behavioralDecision.reason,
+            intent: behaviorProfile.intent,
+            risk: behaviorProfile.risk,
+          });
         }
       }
+      appendRuntimeAnnotation(evt, 'response-strategy', behaviorProfile.responseMode, {
+        ...behaviorProfileSummary,
+        toolUse: {
+          enabled: behavioralFlags.toolFilterEnabled,
+          allowedCount: Object.keys(filteredTools).length,
+          suppressed: behavioralToolSuppressions,
+        },
+      });
 
       logger.debug('llm_bot.generate_text.start', { 
         model: modelName, 
@@ -434,6 +600,7 @@ export async function processEvent(
         platform: platformName,
         model: modelName,
         processingTimeMs,
+        behaviorProfile: behaviorProfileSummary,
         personalityNames: resolvedPersonalityNames,
         toolCalls: toolLogs,
         usage: usage ? {
@@ -469,6 +636,9 @@ export async function processEvent(
         priority: 10,
         text: finalResponse,
         reason: `model:${modelName}`,
+        metadata: {
+          behaviorProfile: behaviorProfileSummary,
+        },
       });
     }
 
