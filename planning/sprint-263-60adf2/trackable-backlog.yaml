@@ -6,7 +6,7 @@ meta:
 sprint:
   id: sprint-263-60adf2
   start: 2026-04-01
-  end: null
+  end: 2026-04-01
   wip_limit: 3
   goal: "Implement the Behavioral Control Layer so query-analyzer intent/tone/risk signals meaningfully affect llm-bot behavior and routing without breaking the existing event contract."
 
