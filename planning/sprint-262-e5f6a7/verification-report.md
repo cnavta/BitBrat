@@ -11,8 +11,9 @@
 - None
 
 ## Deferred
-- None
+- GitHub PR creation remained blocked by the host Xcode license issue at force-close time and was explicitly waived by user instruction on 2026-04-01.
 
 ## Alignment Notes
 - All services now follow the same secure and optimized Docker build pattern.
 - Fixed `state-engine` and `tool-gateway` specifically as they were the primary blockers.
+- Force-close exception applied only to publication closure; implementation and verification artifacts were already present.

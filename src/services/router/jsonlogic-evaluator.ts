@@ -224,10 +224,11 @@ export function registerOperatorsOnce(): void {
     const v = val !== undefined ? toText(val) : undefined;
     if (!anns || anns.length === 0) return false;
     return anns.some((a) => {
+      const kind = toText(a?.kind);
       const label = toText(a?.label);
       const value = a?.value !== undefined ? toText(a?.value) : undefined;
-      if (v === undefined) return label === k;
-      return label === k && value === v;
+      if (v === undefined) return label === k || kind === k;
+      return (label === k && value === v) || (kind === k && (value === v || label === v));
     });
   });
 

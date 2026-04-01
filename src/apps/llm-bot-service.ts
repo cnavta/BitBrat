@@ -96,6 +96,12 @@ class LlmBotServer extends BaseServer {
     // Short-term, in-run memory bounds
     LLM_BOT_MEMORY_MAX_MESSAGES: 8,
     LLM_BOT_MEMORY_MAX_CHARS: 8000,
+    // Behavioral control rollout defaults
+    LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED: true,
+    LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED: true,
+    LLM_BOT_BEHAVIORAL_GATING_ENABLED: true,
+    LLM_BOT_RISK_RESPONSE_MODE: 'refuse',
+    LLM_BOT_TONE_STYLE_ENABLED: true,
     // Personalities system defaults
     PERSONALITY_ENABLED: true,
     PERSONALITY_MAX_ANNOTATIONS: 3,

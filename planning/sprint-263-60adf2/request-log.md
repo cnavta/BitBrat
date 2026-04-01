@@ -1,0 +1,67 @@
+# Request Log – sprint-263-60adf2
+
+- 2026-04-01T17:05:15Z: Prompt summary — start a new sprint and produce an execution plan plus a prioritized trackable YAML backlog for implementing the Technical Architecture recommendation around `intent`, `tone`, and `risk` annotations.
+- 2026-04-01T17:05:15Z: Interpretation — this is a planning-only task; implementation is gated on explicit user approval of the sprint plan.
+- 2026-04-01T17:05:15Z: Reviewed active sprint manifests, found `sprint-259-d1sc0v` and `sprint-262-e5f6a7` still open, and paused new sprint creation per AGENTS rule S3.
+- 2026-04-01T17:05:15Z: User explicitly instructed me to force-close all open sprints; closure artifacts were updated for both legacy sprints before proceeding.
+- 2026-04-01T17:05:15Z: Git command executed — `git checkout -b feature/sprint-263-60adf2-behavioral-control-planning`.
+- 2026-04-01T17:05:15Z: Planning inputs reviewed — attached TA document, `architecture.yaml`, `src/apps/query-analyzer.ts`, `src/services/llm-bot/processor.ts`, `src/types/events.ts`, and router annotation support.
+- 2026-04-01T17:05:15Z: Files created — `planning/sprint-263-60adf2/sprint-manifest.yaml`, `planning/sprint-263-60adf2/request-log.md`, `planning/sprint-263-60adf2/implementation-plan.md`, and `planning/sprint-263-60adf2/trackable-backlog.yaml`.
+- 2026-04-01T17:14:00Z: Prompt summary — planning documentation is approved; begin implementation and keep backlog item statuses current.
+- 2026-04-01T17:14:00Z: Interpretation — implementation is now authorized for sprint-263-60adf2, starting with sprint artifact status updates and the behavioral contract/config baseline.
+- 2026-04-01T17:22:39Z: Shell command executed — `npm test -- --runInBand src/services/llm-bot/behavior-profile.spec.ts src/services/llm-bot/processor.test.ts src/services/llm-bot/__tests__/processor.logging.spec.ts`.
+- 2026-04-01T17:22:44Z: Command result — targeted llm-bot behavior-profile, processor smoke, and prompt-logging tests passed (3 suites, 10 tests).
+- 2026-04-01T17:26:14Z: Shell command executed — `npm test -- --runInBand src/services/llm-bot/behavior-profile.spec.ts src/services/llm-bot/processor.test.ts src/services/llm-bot/__tests__/processor.logging.spec.ts` after wiring behavioral guidance into prompt assembly and metadata.
+- 2026-04-01T17:26:18Z: Command result — updated llm-bot behavior-profile, processor, and prompt-logging tests passed again (3 suites, 11 tests).
+- 2026-04-01T17:30:29Z: Shell command executed — `npm test -- --runInBand src/services/llm-bot/behavior-profile.spec.ts src/services/llm-bot/processor.test.ts src/services/llm-bot/processor.behavioral-tools.spec.ts src/services/llm-bot/__tests__/processor.logging.spec.ts` after adding gating and behavioral tool filtering.
+- 2026-04-01T17:30:34Z: Command result — targeted llm-bot behavior-profile, gating/tool-filter, processor, and prompt-logging suites passed (4 suites, 14 tests).
+- 2026-04-01T17:31:31Z: Shell command executed — `npm test -- --runInBand src/apps/query-analyzer.test.ts` after expanding annotation-contract and short-circuit coverage.
+- 2026-04-01T17:31:34Z: Command result — query-analyzer tests passed with stable annotation-shape assertions and high-risk short-circuit coverage (1 suite, 8 tests).
+- 2026-04-01T17:36:30Z: Shell command executed — `npm test -- --runInBand src/services/router/__tests__/jsonlogic-extra-ops.spec.ts src/services/router/__tests__/rule-loader.behavioral-routing.spec.ts src/services/router/__tests__/rule-loader.test.ts src/services/router/__tests__/rule-loader-annotations.spec.ts` after adding annotation-aware routing fixtures/examples.
+- 2026-04-01T17:36:34Z: Command result — router JSON-logic/operator and rule-loader suites passed, confirming `spam`, `high-risk`, and `meta` annotation branches (4 suites, 8 tests).
+- 2026-04-01T17:37:54Z: Shell command executed — `./validate_deliverable.sh --scope behavioral-control`.
+- 2026-04-01T17:38:07Z: Command result — install/build/lint completed and the behavioral-control validation scope passed end-to-end (9 suites, 30 tests); infra and deployment steps were skipped because `PROJECT_ID` was not set.
+- 2026-04-01T17:39:02Z: Git command executed — `git status --short`.
+- 2026-04-01T17:39:02Z: Command result — behavioral-control implementation changes are present in llm-bot, query-analyzer, router, validation/docs, and current sprint artifacts; older force-closed sprint artifact edits remain in the working tree as pre-existing session context.
+- 2026-04-01T17:57:24Z: Prompt summary — investigate and remediate the local Docker Compose warning `a network with name bitbrat-network exists but was not created by compose`.
+- 2026-04-01T17:57:24Z: Interpretation — treat this as a sprint follow-up: align `docker-compose.local.yaml` with the `deploy-local.sh` pre-created shared network contract, check for any related local-network issues, and keep sprint traceability up to date.
+- 2026-04-01T17:57:24Z: Shell command executed — `(docker network inspect bitbrat-network --format '{{json .Labels}}' 2>/dev/null || printf 'bitbrat-network:missing\n') && GOOGLE_APPLICATION_CREDENTIALS=dummy-creds.json docker compose -f infrastructure/docker-compose/docker-compose.local.yaml config`.
+- 2026-04-01T17:57:24Z: Command result — `bitbrat-network` already existed with a Compose-network label, but the config command failed because a relative credential path was interpreted as a volume name; this still confirmed the warning investigation needed an absolute path for compose validation.
+- 2026-04-01T17:57:24Z: Shell command executed — `GOOGLE_APPLICATION_CREDENTIALS="$PWD/dummy-creds.json" docker compose -f infrastructure/docker-compose/docker-compose.local.yaml config >/tmp/bitbrat-compose-config.out && tail -n 40 /tmp/bitbrat-compose-config.out`.
+- 2026-04-01T17:57:24Z: Command result — rendered compose config showed `bitbrat-network` as a Compose-managed named network while `nats-box` was isolated on the implicit default network, confirming both the warning source and a related local connectivity issue.
+- 2026-04-01T17:57:24Z: Shell command executed — `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- 2026-04-01T17:57:24Z: Command result — captured the current UTC timestamp for sprint backlog/request-log updates.
+- 2026-04-01T17:57:24Z: Files updated — `infrastructure/docker-compose/docker-compose.local.yaml`, `tests/infrastructure/docker-compose.local.spec.ts`, `planning/sprint-263-60adf2/implementation-plan.md`, `planning/sprint-263-60adf2/sprint-manifest.yaml`, `planning/sprint-263-60adf2/trackable-backlog.yaml`, and `planning/sprint-263-60adf2/request-log.md`.
+- 2026-04-01T17:57:24Z: Shell command executed — `npm test -- --runInBand tests/infrastructure/docker-compose.local.spec.ts && GOOGLE_APPLICATION_CREDENTIALS="$PWD/dummy-creds.json" docker compose -f infrastructure/docker-compose/docker-compose.local.yaml config | tail -n 20`.
+- 2026-04-01T17:57:24Z: Command result — the new Docker Compose regression test passed (1 suite, 2 tests), and rendered compose output confirmed that `bitbrat-network` is now `external: true` with `nats-box` attached to the shared network.
+- 2026-04-01T17:57:24Z: Git command executed — `git status --short --branch`.
+- 2026-04-01T17:57:24Z: Command result — confirmed the current branch plus the expected working-tree changes for the earlier behavioral-control implementation and this new local Docker Compose follow-up (`docker-compose.local.yaml`, `tests/infrastructure/docker-compose.local.spec.ts`, and updated sprint artifacts).
+- 2026-04-01T23:30:04Z: Prompt summary — `Sprint complete.`
+- 2026-04-01T23:30:04Z: Interpretation — perform sprint-263 validation/publication/retro/learn closeout, finalize the sprint artifacts, and publish the feature branch/PR per AGENTS.md.
+- 2026-04-01T23:30:04Z: Git command executed — `git status --short --branch`.
+- 2026-04-01T23:30:04Z: Command result — the sprint branch still contains the behavioral-control implementation, the Docker Compose follow-up, and the expected legacy force-close artifact updates from earlier in the session.
+- 2026-04-01T23:30:04Z: Reviewed sprint closure inputs — `planning/sprint-263-60adf2/sprint-manifest.yaml`, `trackable-backlog.yaml`, `verification-report.md`, and `implementation-plan.md`.
+- 2026-04-01T23:30:04Z: Git/shell command executed — `git remote -v && gh auth status`.
+- 2026-04-01T23:30:04Z: Command result — `origin` points to `git@github.com:cnavta/BitBrat.git` and GitHub CLI authentication is available for account `cnavta`, so publication can proceed.
+- 2026-04-01T23:30:04Z: Shell command executed — `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- 2026-04-01T23:30:04Z: Command result — captured the sprint closeout timestamp for publication and artifact updates.
+- 2026-04-01T23:30:04Z: Files updated — `planning/sprint-263-60adf2/request-log.md`, `retro.md`, and `key-learnings.md` were updated/created as part of sprint closeout preparation.
+- 2026-04-01T23:30:04Z: Git command attempted — `git add ... && git commit -m "Sprint sprint-263-60adf2 deliverables" --trailer "Co-authored-by: Junie <junie@jetbrains.com>"`.
+- 2026-04-01T23:30:04Z: Command result — the publication attempt was interrupted before completion and left the terminal outside the repository root, so staging/commit must be retried with smaller, safer steps.
+- 2026-04-01T23:30:04Z: Git command executed — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && git status --short --branch`.
+- 2026-04-01T23:30:04Z: Command result — confirmed the repository state was recovered on branch `feature/sprint-263-60adf2-behavioral-control-planning`; no files were staged by the interrupted attempt.
+- 2026-04-01T23:30:04Z: Git command executed — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && git add -A && git commit -m "Sprint sprint-263-60adf2 deliverables" --trailer "Co-authored-by: Junie <junie@jetbrains.com>"`.
+- 2026-04-01T23:30:04Z: Command result — committed the sprint deliverables successfully as `7ffd277` on branch `feature/sprint-263-60adf2-behavioral-control-planning`.
+- 2026-04-01T23:30:04Z: Git command executed — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && git push -u origin feature/sprint-263-60adf2-behavioral-control-planning`.
+- 2026-04-01T23:30:04Z: Command result — pushed the sprint branch to GitHub and set upstream tracking successfully.
+- 2026-04-01T23:30:04Z: Git command attempted — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && gh pr create --base main --head feature/sprint-263-60adf2-behavioral-control-planning --title "Sprint sprint-263-60adf2 Deliverables – Behavioral control integration and local compose fix" --body "..."`.
+- 2026-04-01T23:30:04Z: Command result — the first PR command was rejected because the body string included embedded newlines, so the request was retried with a single-line command.
+- 2026-04-01T23:30:04Z: Git command executed — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && gh pr create --base main --head feature/sprint-263-60adf2-behavioral-control-planning --title "Sprint sprint-263-60adf2 Deliverables – Behavioral control integration and local compose fix" --body "Generated by LLM agent according to Sprint Protocol v2.4. This sprint implements the behavioral control integration for query-analyzer intent/tone/risk signals across llm-bot, routing, and downstream metadata, and also fixes the local Docker Compose shared-network warning for bitbrat-network."`.
+- 2026-04-01T23:30:04Z: Command result — PR created successfully at `https://github.com/cnavta/BitBrat/pull/177`.
+- 2026-04-01T23:30:04Z: Files updated — `planning/sprint-263-60adf2/sprint-manifest.yaml`, `trackable-backlog.yaml`, `verification-report.md`, `publication.yaml`, and `request-log.md` finalized the sprint closeout state.
+- 2026-04-01T23:30:04Z: Git command executed — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && git add planning/sprint-263-60adf2 && git commit -m "Finalize sprint-263 closeout artifacts" --trailer "Co-authored-by: Junie <junie@jetbrains.com>" && git push`.
+- 2026-04-01T23:30:04Z: Command result — committed the final sprint closeout artifact updates as `0ea4831` and pushed them to the sprint branch.
+- 2026-04-01T23:30:04Z: Git command executed — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && git add planning/sprint-263-60adf2/publication.yaml planning/sprint-263-60adf2/request-log.md && git commit -m "Log sprint-263 publication traceability" --trailer "Co-authored-by: Junie <junie@jetbrains.com>" && git push && git status --short --branch`.
+- 2026-04-01T23:30:04Z: Command result — publication traceability was committed as `7a2d06e`, pushed successfully, and the branch reported clean against `origin/feature/sprint-263-60adf2-behavioral-control-planning`.
+- 2026-04-01T23:30:04Z: Git command executed — `cd /Users/christophernavta/IdeaProjects/BitBratPlatform && git add planning/sprint-263-60adf2/request-log.md && git commit --amend --no-edit && git push --force-with-lease && git status --short --branch`.
+- 2026-04-01T23:30:04Z: Command result — amended the latest publication-traceability commit to capture the final request-log entries, force-pushed the sprint branch, and confirmed a clean branch state afterward.
