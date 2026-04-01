@@ -77,5 +77,10 @@ describe('llm-bot processor logging', () => {
     expect(logData.correlationId).toBe('corr-log-test');
     expect(logData.platform).toBe('openai');
     expect(logData.model).toBe('gpt-4o');
+    expect(logData.behaviorProfile).toMatchObject({
+      intent: 'question',
+      responseMode: 'answer',
+      risk: { level: 'none', type: 'none' },
+    });
   });
 });

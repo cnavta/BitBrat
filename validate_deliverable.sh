@@ -10,7 +10,7 @@ fi
 # Parse arguments
 ENV_ARG=""
 PROJECT_ID_ARG=""
-SCOPE_ARG="all" # all | llm-bot | tool-gateway | persistence | api-gateway
+SCOPE_ARG="all" # all | llm-bot | behavioral-control | tool-gateway | persistence | api-gateway
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
@@ -33,7 +33,7 @@ done
 
 if $SHOW_HELP; then
   cat <<EOF
-Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>] [--scope all|llm-bot|persistence|api-gateway]
+Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>] [--scope all|llm-bot|behavioral-control|persistence|api-gateway]
 
 Description:
   Runs the full Development Verification Flow plus infra dry-run validation steps (Sprints 14 & 24 updates).
@@ -41,7 +41,7 @@ Description:
 Options:
   -e, --env           Environment overlay to use (default: dev)
   -p, --project-id    GCP Project ID to target (default: value of $PROJECT_ID)
-  -s, --scope         Validation scope: all | llm-bot | persistence | api-gateway (default: all)
+  -s, --scope         Validation scope: all | llm-bot | behavioral-control | persistence | api-gateway (default: all)
   -h, --help          Show this help message
 EOF
   exit 0
@@ -82,6 +82,17 @@ export PUBSUB_ENSURE_DISABLE=1
 case "$SCOPE_ARG" in
   llm-bot)
     npm test -- src/services/llm-bot tests/services/llm-bot ;;
+  behavioral-control)
+    npm test -- \
+      src/services/llm-bot/behavior-profile.spec.ts \
+      src/services/llm-bot/processor.test.ts \
+      src/services/llm-bot/processor.behavioral-tools.spec.ts \
+      src/services/llm-bot/__tests__/processor.logging.spec.ts \
+      src/apps/query-analyzer.test.ts \
+      src/services/router/__tests__/jsonlogic-extra-ops.spec.ts \
+      src/services/router/__tests__/rule-loader.behavioral-routing.spec.ts \
+      src/services/router/__tests__/rule-loader.test.ts \
+      src/services/router/__tests__/rule-loader-annotations.spec.ts ;;
   tool-gateway)
     npm test -- src/apps/tool-gateway.ts tests/apps/tool-gateway-rest.spec.ts tests/apps/tool-gateway-mcp-rbac.spec.ts tests/common/mcp tests/services/llm-bot/mcp ;;
   llm-factory)

@@ -1,6 +1,7 @@
 pr_url: null
 branch: feature/sprint-262-e5f6a7-fix-docker-build-errors
-status: blocked-by-license
+status: user-accepted-force-close
 notes: |
   PR and Branch creation blocked by unaccepted Xcode license agreement on host agent.
   All changes applied directly to target files in the workspace.
+  User explicitly accepted force-closing the sprint on 2026-04-01.
