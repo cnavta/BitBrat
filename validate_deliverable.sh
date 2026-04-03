@@ -10,7 +10,7 @@ fi
 # Parse arguments
 ENV_ARG=""
 PROJECT_ID_ARG=""
-SCOPE_ARG="all" # all | llm-bot | tool-gateway | persistence | api-gateway
+SCOPE_ARG="all" # all | disposition | llm-bot | tool-gateway | persistence | api-gateway
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
@@ -33,7 +33,7 @@ done
 
 if $SHOW_HELP; then
   cat <<EOF
-Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>] [--scope all|llm-bot|persistence|api-gateway]
+Usage: ./validate_deliverable.sh [--env <env>] [--project-id <PROJECT_ID>] [--scope all|disposition|llm-bot|persistence|api-gateway]
 
 Description:
   Runs the full Development Verification Flow plus infra dry-run validation steps (Sprints 14 & 24 updates).
@@ -41,7 +41,7 @@ Description:
 Options:
   -e, --env           Environment overlay to use (default: dev)
   -p, --project-id    GCP Project ID to target (default: value of $PROJECT_ID)
-  -s, --scope         Validation scope: all | llm-bot | persistence | api-gateway (default: all)
+  -s, --scope         Validation scope: all | disposition | llm-bot | persistence | api-gateway (default: all)
   -h, --help          Show this help message
 EOF
   exit 0
@@ -80,6 +80,14 @@ export MESSAGE_BUS_DISABLE_IO=1
 # Disable Pub/Sub topic/subscription ensure logic if any pubsub path is accidentally hit
 export PUBSUB_ENSURE_DISABLE=1
 case "$SCOPE_ARG" in
+  disposition)
+    npm test -- --runInBand \
+      src/services/disposition/observation.test.ts \
+      src/services/disposition/scoring.test.ts \
+      src/apps/query-analyzer.test.ts \
+      src/apps/isposition-service.test.ts \
+      src/apps/state-engine.test.ts \
+      src/services/llm-bot/processor.test.ts ;;
   llm-bot)
     npm test -- src/services/llm-bot tests/services/llm-bot ;;
   tool-gateway)
