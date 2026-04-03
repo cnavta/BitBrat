@@ -22,6 +22,9 @@ import { metrics,
   METRIC_PERSONALITY_CACHE_MISS,
   METRIC_PERSONALITY_CLAMPED,
 } from '../../common/metrics';
+import { dispositionStateKey, type DispositionSnapshotV1 } from '../../types/disposition';
+import { deriveDispositionUserKey } from '../disposition/observation';
+import { buildDispositionAnnotations, isDispositionSnapshotActive } from './disposition-context';
 
 // ChatMessage is used for short-term memory within a single run
 export type ChatMessage = { role: 'system' | 'user' | 'assistant' | 'tool'; content: string; createdAt: string };
@@ -205,6 +208,7 @@ export async function processEvent(
     registry?: IToolRegistry;
     callLLM?: (model: string, input: string) => Promise<string>;
     fetchByName?: (name: string) => Promise<PersonalityDoc | undefined>;
+    fetchDisposition?: (userKey: string) => Promise<DispositionSnapshotV1 | undefined>;
   }
 ): Promise<'SKIP'|'OK'|'ERROR'> {
   const logger = (server as any).getLogger?.();
@@ -242,6 +246,31 @@ export async function processEvent(
         }
       } catch (e: any) {
         logger?.warn?.('llm_bot.user_ctx.error', { correlationId: corr, error: e?.message });
+      }
+    }
+
+    const dispositionEnabled = server.getConfig<boolean>('DISPOSITION_PROMPT_INJECTION_ENABLED', {
+      default: true,
+      parser: (v: any) => v === true || v === 'true'
+    });
+    if (dispositionEnabled) {
+      try {
+        const userKey = deriveDispositionUserKey(evt);
+        if (userKey) {
+          const fetchDisposition = async (key: string): Promise<DispositionSnapshotV1 | undefined> => {
+            if (deps?.fetchDisposition) return deps.fetchDisposition(key);
+            const db = getFirestore();
+            const doc = await db.collection('state').doc(dispositionStateKey(key)).get();
+            return doc.data()?.value as DispositionSnapshotV1 | undefined;
+          };
+          const snapshot = await fetchDisposition(userKey);
+          if (isDispositionSnapshotActive(snapshot)) {
+            if (!Array.isArray(evt.annotations)) evt.annotations = [];
+            evt.annotations.push(...buildDispositionAnnotations(snapshot));
+          }
+        }
+      } catch (e: any) {
+        logger?.warn?.('llm_bot.disposition.error', { correlationId: corr, error: e?.message });
       }
     }
 

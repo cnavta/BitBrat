@@ -231,6 +231,28 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
 
+  disposition-service:
+    active: true
+    description: Determines the short term disposition of users
+    entry: src/apps/disposition-service.ts
+    topics:
+      consumes:
+        - internal.user.disposition.observation.v1
+      publishes:
+        - internal.state.mutation.v1
+        - internal.user.disposition.updated.v1
+    secrets:
+      - MCP_AUTH_TOKEN
+    env:
+      - DISPOSITION_ENABLED
+      - DISPOSITION_WINDOW_MS
+      - DISPOSITION_MAX_EVENTS
+      - DISPOSITION_MIN_EVENTS
+      - DISPOSITION_SNAPSHOT_TTL_MS
+      - DISPOSITION_PUBLISH_UPDATES
+      - DISPOSITION_PROMPT_INJECTION_ENABLED
+      - DISPOSITION_MODERATION_ASSIST_ENABLED
+
   tool-gateway:
     active: true
     description: MCP Proxy for centralized MCP tool management and security
