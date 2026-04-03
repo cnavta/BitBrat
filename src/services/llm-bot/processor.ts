@@ -9,7 +9,7 @@ import { getFirestore } from '../../common/firebase';
 import { isFeatureEnabled } from '../../common/feature-flags';
 import { assemble } from '../../common/prompt-assembly/assemble';
 import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
-import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser, AssemblerConfig } from '../../common/prompt-assembly/types';
+import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser } from '../../common/prompt-assembly/types';
 import { redactText } from '../../common/prompt-assembly/redaction';
 import { IToolRegistry } from '../../types/tools';
 import { getLlmProvider } from '../../common/llm/provider-factory';
@@ -110,6 +110,109 @@ function totalChars(msgs: ChatMessage[] = []): number {
   return msgs.reduce((acc, m) => acc + (m.content?.length || 0), 0);
 }
 
+function normalizeOptionalText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function normalizeStringList(values: unknown): string[] | undefined {
+  if (!Array.isArray(values)) return undefined;
+  const normalized = values
+    .map((value) => normalizeOptionalText(typeof value === 'string' ? value : String(value ?? '')))
+    .filter((value): value is string => !!value);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function isUserContextAnnotation(annotation?: AnnotationV1): boolean {
+  if (!annotation) return false;
+  return annotation.source === 'llm-bot.user-context' || annotation.label === 'user-context-v1';
+}
+
+function isDispositionPromptAnnotation(annotation?: AnnotationV1): boolean {
+  if (!annotation) return false;
+  return annotation.kind === 'prompt' && annotation.source === 'llm-bot.disposition';
+}
+
+function extractPromptInstruction(annotation: AnnotationV1): string | undefined {
+  if (isUserContextAnnotation(annotation)) {
+    const rolePrompts = normalizeStringList(annotation.payload?.rolePrompts);
+    if (rolePrompts?.length) return rolePrompts.join('\n\n');
+    return undefined;
+  }
+  if (isDispositionPromptAnnotation(annotation)) {
+    return undefined;
+  }
+  return normalizeOptionalText(annotation.value) ?? normalizeOptionalText(annotation.payload?.text);
+}
+
+function extractDispositionGuidance(annotation?: AnnotationV1): string | undefined {
+  if (!annotation || !isDispositionPromptAnnotation(annotation)) return undefined;
+  return normalizeOptionalText(annotation.value) ?? normalizeOptionalText(annotation.payload?.text);
+}
+
+function extractUserContextStructuredLines(annotation?: AnnotationV1): string[] {
+  if (!isUserContextAnnotation(annotation)) return [];
+  const text = normalizeOptionalText(annotation?.payload?.text);
+  if (!text) return [];
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^(Username|Roles|Description):/i.test(line));
+}
+
+function extractUserContextRoleDisplay(annotation?: AnnotationV1): string[] | undefined {
+  const roleLine = extractUserContextStructuredLines(annotation)
+    .find((line) => line.toLowerCase().startsWith('roles:'));
+  if (!roleLine) return undefined;
+  return normalizeStringList(roleLine.slice('Roles:'.length).split(',').map((part) => part.trim()));
+}
+
+function buildRequestingUser(evt: InternalEventV2, annotations?: AnnotationV1[]): PARequestingUser | undefined {
+  const userContextAnnotation = Array.isArray(annotations)
+    ? annotations.find((annotation) => isUserContextAnnotation(annotation))
+    : undefined;
+  const dispositionPromptAnnotation = Array.isArray(annotations)
+    ? annotations.find((annotation) => isDispositionPromptAnnotation(annotation))
+    : undefined;
+  const payload = userContextAnnotation?.payload ?? {};
+  const structuredLines = extractUserContextStructuredLines(userContextAnnotation);
+  const dispositionGuidance = extractDispositionGuidance(dispositionPromptAnnotation);
+
+  const userId = normalizeOptionalText(evt.identity?.user?.id)
+    ?? normalizeOptionalText(evt.identity?.external?.id);
+  const handle = normalizeOptionalText(payload.username)
+    ?? normalizeOptionalText(evt.message?.rawPlatformPayload?.username)
+    ?? normalizeOptionalText(evt.message?.rawPlatformPayload?.user)
+    ?? normalizeOptionalText(evt.identity?.external?.displayName)
+    ?? normalizeOptionalText(evt.identity?.user?.displayName);
+  const displayName = normalizeOptionalText(evt.identity?.user?.displayName)
+    ?? normalizeOptionalText(evt.identity?.external?.displayName);
+  const roles = extractUserContextRoleDisplay(userContextAnnotation)
+    ?? normalizeStringList(payload.roles)
+    ?? normalizeStringList(evt.identity?.user?.roles)
+    ?? normalizeStringList(evt.identity?.external?.roles);
+
+  const noteParts = [
+    ...(structuredLines.length > 0 ? structuredLines : []),
+    ...(structuredLines.length === 0 ? [normalizeOptionalText(payload.description)] : []),
+    dispositionGuidance,
+    normalizeOptionalText(evt.identity?.user?.notes),
+  ].filter((value): value is string => !!value);
+
+  if (!userId && !handle && !displayName && !(roles?.length) && noteParts.length === 0) {
+    return undefined;
+  }
+
+  return {
+    userId,
+    handle,
+    displayName,
+    roles,
+    notes: noteParts.length > 0 ? noteParts.join('\n') : undefined,
+  };
+}
+
 export function applyMemoryReducer(
   existing: ChatMessage[] = [],
   incoming: ChatMessage[] = [],
@@ -150,7 +253,7 @@ export function applyMemoryReducer(
 
 function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
   if (!Array.isArray(annotations)) return undefined;
-  const prompts = annotations.filter((a) => a?.kind === 'prompt' && (a.value || a.payload?.text));
+  const prompts = annotations.filter((a) => a?.kind === 'prompt' && !!extractPromptInstruction(a));
   if (prompts.length === 0) return undefined;
   prompts.sort((a, b) => {
     const at = Date.parse(a.createdAt || '') || 0;
@@ -158,7 +261,7 @@ function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
     if (at !== bt) return at - bt;
     return (a.id || '').localeCompare(b.id || '');
   });
-  const parts = prompts.map((p) => p.value || p.payload?.text || '').filter(Boolean);
+  const parts = prompts.map((p) => extractPromptInstruction(p)).filter((value): value is string => !!value);
   const combined = parts.join('\n\n');
   return combined.trim() || undefined;
 }
@@ -431,6 +534,7 @@ export async function processEvent(
     const spec: PromptSpec = {
       systemPrompt: sysPrompt ? { summary: 'Rules', rules: [sysPrompt], sources: ['config'] } : undefined,
       identity: resolvedIdentity ? { summary: resolvedIdentity } : undefined,
+      requestingUser: buildRequestingUser(evt, anns as any),
       constraints: mergedConstraints.length ? mergedConstraints : undefined,
       task: taskAnnotations,
       input: { userQuery: evt.message?.text || combinedPrompt },
