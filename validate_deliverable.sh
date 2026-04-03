@@ -90,6 +90,17 @@ case "$SCOPE_ARG" in
       src/services/llm-bot/processor.test.ts ;;
   llm-bot)
     npm test -- src/services/llm-bot tests/services/llm-bot ;;
+  behavioral-control)
+    npm test -- \
+      src/services/llm-bot/behavior-profile.spec.ts \
+      src/services/llm-bot/processor.test.ts \
+      src/services/llm-bot/processor.behavioral-tools.spec.ts \
+      src/services/llm-bot/__tests__/processor.logging.spec.ts \
+      src/apps/query-analyzer.test.ts \
+      src/services/router/__tests__/jsonlogic-extra-ops.spec.ts \
+      src/services/router/__tests__/rule-loader.behavioral-routing.spec.ts \
+      src/services/router/__tests__/rule-loader.test.ts \
+      src/services/router/__tests__/rule-loader-annotations.spec.ts ;;
   tool-gateway)
     npm test -- src/apps/tool-gateway.ts tests/apps/tool-gateway-rest.spec.ts tests/apps/tool-gateway-mcp-rbac.spec.ts tests/common/mcp tests/services/llm-bot/mcp ;;
   llm-factory)

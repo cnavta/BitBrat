@@ -25,6 +25,8 @@ services:
     environment:
       - NATS_URL=nats://nats:4222
     entrypoint: ["/bin/sh", "-c", "tail -f /dev/null"]
+    networks:
+      bitbrat-network: {}
 
   firebase-emulator:
     build:
@@ -65,6 +67,7 @@ services:
 
 networks:
   bitbrat-network:
+    external: true
     name: bitbrat-network
 
 

@@ -49,3 +49,55 @@ Usage tips:
 
 Migration note:
 - Earlier drafts referenced the path "configs/routingRules" which is a document path (even number of segments) and will cause Firestore to error when used with collection(). The correct collection path is "configs/routingRules/rules" (odd number of segments). The runtime now normalizes even-segment paths by appending "/rules", but you should create your collection at the corrected path.
+
+## Behavioral annotation routing examples
+
+These examples use the router's existing `has_annotation(...)` JSON-Logic operator to branch on `query-analyzer` output without changing `InternalEventV2`.
+
+### Spam → bypass normal generation
+
+```json
+{
+  "enabled": true,
+  "priority": 1,
+  "description": "Finalize spam traffic without sending it to llm-bot",
+  "logic": {
+    "has_annotation": [{ "var": "annotations" }, "intent", "spam"]
+  },
+  "routingSlip": [
+    { "id": "router", "nextTopic": "internal.persistence.finalize.v1" }
+  ]
+}
+```
+
+### High risk → bypass normal generation
+
+```json
+{
+  "enabled": true,
+  "priority": 2,
+  "description": "Finalize high-risk traffic before normal llm-bot generation",
+  "logic": {
+    "has_annotation": [{ "var": "annotations" }, "risk", "high"]
+  },
+  "routingSlip": [
+    { "id": "router", "nextTopic": "internal.persistence.finalize.v1" }
+  ]
+}
+```
+
+### Meta intent → prefer llm-bot
+
+```json
+{
+  "enabled": true,
+  "priority": 3,
+  "description": "Route safe meta requests to llm-bot for transparent system explanations",
+  "logic": {
+    "has_annotation": [{ "var": "annotations" }, "intent", "meta"]
+  },
+  "routingSlip": [
+    { "id": "router", "nextTopic": "internal.llmbot.v1" }
+  ]
+}
+```
