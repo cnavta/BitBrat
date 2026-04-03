@@ -10,7 +10,8 @@
 - None.
 
 ## Deferred
-- None.
+- GitHub PR creation was not completed before the sprint was force-closed on 2026-04-01 by explicit user instruction.
 
 ## Alignment Notes
 - The fix addresses the root cause of `llm-bot` only seeing a subset of tools by allowing it (as an allowlisted agent) to discover tools that require specific user roles.
+- Force-close exception applied only to publication closure; implementation and verification artifacts were already present.
