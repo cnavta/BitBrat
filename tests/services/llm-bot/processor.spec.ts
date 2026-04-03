@@ -96,6 +96,53 @@ describe('Processor', () => {
     expect(generateText).not.toHaveBeenCalled();
   });
 
+  it('should place requesting user info in the Requesting User section instead of the Task section', async () => {
+    const evt: InternalEventV2 = {
+      correlationId: 'corr-user-context',
+      type: 'internal.llmbot.v1',
+      v: '2',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+        channel: 'test',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch', displayName: 'Gonj_The_Unjust' },
+        user: { id: 'u1', displayName: 'Gonj_The_Unjust' } as any,
+      },
+      message: {
+        id: 'm-user-context',
+        role: 'user',
+        text: '@bitbrat_the_ai The void, it calls.',
+        rawPlatformPayload: { username: 'Gonj_The_Unjust' },
+      } as any,
+      annotations: [
+        {
+          id: 'a1',
+          kind: 'prompt',
+          value: 'Respond to the user input constructively.',
+          createdAt: new Date().toISOString(),
+          source: 'test',
+        } as any,
+      ],
+      routingSlip: [],
+      egress: { destination: 'test' },
+    };
+
+    const callLLM = jest.fn().mockResolvedValue('Mocked response');
+
+    const result = await processEvent(mockServer as BaseServer, evt, { callLLM });
+
+    expect(result).toBe('OK');
+    expect(callLLM).toHaveBeenCalledTimes(1);
+
+    const prompt = callLLM.mock.calls[0][1] as string;
+    expect(prompt).toContain('## [Requesting User]');
+    expect(prompt).toContain('- Handle: Gonj_The_Unjust');
+    expect(prompt).not.toContain('## [Requesting User]\n- None provided.');
+    expect(prompt).not.toContain('## [Task]\n- (3) Respond to the user input constructively.\n\nUsername: Gonj_The_Unjust');
+  });
+
   it('should handle errors gracefully', async () => {
     (generateText as jest.Mock).mockRejectedValue(new Error('AI error'));
 

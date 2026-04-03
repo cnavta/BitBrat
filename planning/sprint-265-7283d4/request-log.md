@@ -1,0 +1,146 @@
+# Request Log – sprint-265-7283d4
+
+## Request R1
+- Timestamp: 2026-04-03T19:10:00Z
+- Prompt Summary: Start a new sprint as Lead Implementor to investigate and remediate llm-bot prompt assembly so requesting-user information appears in the `Requesting User` section instead of leaking into other sections.
+- Interpretation: Open a new sprint, verify no sprint is already active, inspect the current llm-bot prompt assembly flow, prepare a plan for approval, and defer production code changes until the plan is approved.
+- Shell/Git Commands Executed:
+  - `git branch --show-current`
+  - `git status --short --branch`
+  - `git rev-parse --verify main && git rev-list --left-right --count main...HEAD`
+  - `git checkout -b feature/sprint-265-7283d4-llm-bot-prompt-assembly`
+  - `date -u +%Y-%m-%dT%H:%M:%SZ`
+  - `for f in planning/*/sprint-manifest.yaml; do awk '/^status:/{print FILENAME ":" $0}' "$f"; done`
+  - `NEXT_NUM=$(( $(printf '%s\\n' planning/sprint-* | sed -E 's#planning/sprint-([0-9]+)-.*#\\1#' | sort -n | tail -1) + 1 )); SHORT_HASH=$(openssl rand -hex 3); SPRINT_ID=sprint-${NEXT_NUM}-${SHORT_HASH}; BRANCH_NAME=feature/${SPRINT_ID}-llm-bot-prompt-assembly; printf '%s %s' "$SPRINT_ID" "$BRANCH_NAME"`
+  - `search_project("prompt-assembly", "tests")`
+  - `search_project("\"test\"", "package.json")`
+- Files Reviewed:
+  - `architecture.yaml`
+  - `planning/sprint-264-08104f/sprint-manifest.yaml`
+  - `planning/sprint-264-08104f/implementation-plan.md`
+  - `package.json`
+  - `src/common/prompt-assembly/assemble.ts`
+  - `src/common/prompt-assembly/types.ts`
+  - `src/services/llm-bot/processor.ts`
+  - `src/services/llm-bot/user-context.ts`
+  - `tests/prompt-assembly/assemble.spec.ts`
+- Findings:
+  - Existing prompt-assembly regression coverage already lives under `tests/prompt-assembly`, and llm-bot-specific tests live under `tests/services/llm-bot`; the sprint validation script should target those suites rather than a non-existent placeholder file.
+  - No active sprint was found; all existing sprint manifests currently show `complete`.
+  - The repo was initially on `feature/sprint-264-08104f-disposition-service-planning`, and local `HEAD` is ahead of local `main`, so the new sprint branch was cut from the current clean head to preserve the latest completed sprint state.
+  - `buildUserContextAnnotation()` creates user-context prompt annotations and `buildCombinedPrompt()` folds prompt annotations into the text later used for `task` / `input`.
+  - `PromptSpec.requestingUser` is currently not populated in `src/services/llm-bot/processor.ts`, which matches the reported symptom that the `Requesting User` section renders `None provided` while user info appears elsewhere.
+- Files Created/Modified:
+  - `planning/sprint-265-7283d4/sprint-manifest.yaml`
+  - `planning/sprint-265-7283d4/implementation-plan.md`
+  - `planning/sprint-265-7283d4/request-log.md`
+  - `planning/sprint-265-7283d4/validate_deliverable.sh`
+  - `planning/sprint-265-7283d4/verification-report.md`
+  - `planning/sprint-265-7283d4/publication.yaml`
+  - `planning/sprint-265-7283d4/retro.md`
+  - `planning/sprint-265-7283d4/key-learnings.md`
+
+## Request R2
+- Timestamp: 2026-04-03T19:40:00Z
+- Prompt Summary: Execute the approved sprint plan by reproducing the llm-bot prompt assembly defect, fixing it, and validating the result.
+- Interpretation: Add a failing regression test, map requesting-user data into the first-class prompt section, prevent structured user-context text from leaking into task instructions, and run the relevant validation commands.
+- Shell/Git Commands Executed:
+  - `npm test -- --runInBand tests/services/llm-bot/processor.spec.ts`
+  - `npm test -- --runInBand tests/prompt-assembly tests/services/llm-bot`
+  - `npm test -- --runInBand --detectOpenHandles tests/prompt-assembly tests/services/llm-bot`
+  - `npm run build`
+  - `chmod +x planning/sprint-265-7283d4/validate_deliverable.sh`
+- Files Reviewed:
+  - `src/services/llm-bot/processor.ts`
+  - `src/common/prompt-assembly/assemble.ts`
+  - `src/types/events.ts`
+  - `tests/services/llm-bot/processor.spec.ts`
+  - `tests/prompt-assembly/assemble.spec.ts`
+  - `tests/services/llm-bot/mcp/client-manager.spec.ts`
+- Findings:
+  - The new reproducer failed before the fix with the expected symptom: `Requesting User` rendered `None provided` while `Username: Gonj_The_Unjust` appeared in `Task`.
+  - `src/services/llm-bot/processor.ts` now derives a `requestingUser` object from event identity and user-context annotation payloads.
+  - Prompt combination now strips structured user-context identity text from task assembly while preserving role-prompt instruction text when present.
+  - `src/common/prompt-assembly/assemble.ts` now renders `displayName` when provided.
+  - Relevant Jest suites passed (21 suites / 63 tests), and `npm run build` succeeded.
+  - The lingering Jest process hang is attributable to pre-existing reconnect timers in `tests/services/llm-bot/mcp/client-manager.spec.ts` / `src/common/mcp/client-manager.ts`, not this prompt-assembly change.
+- Files Created/Modified:
+  - `src/services/llm-bot/processor.ts`
+  - `src/common/prompt-assembly/assemble.ts`
+  - `tests/services/llm-bot/processor.spec.ts`
+  - `tests/prompt-assembly/assemble.spec.ts`
+  - `planning/sprint-265-7283d4/sprint-manifest.yaml`
+  - `planning/sprint-265-7283d4/request-log.md`
+  - `planning/sprint-265-7283d4/validate_deliverable.sh`
+
+## Request R3
+- Timestamp: 2026-04-03T20:56:00Z
+- Prompt Summary: Investigate and remediate the downstream append-mode regression surfaced by the full test suite.
+- Interpretation: Preserve existing append-mode user-context contribution to the final prompt, but keep the structured identity data in the `Requesting User` section rather than the `Task` section.
+- Shell/Git Commands Executed:
+  - `npm test -- --runInBand src/services/llm-bot/__tests__/user-context.append.spec.ts tests/services/llm-bot/processor.spec.ts tests/prompt-assembly/assemble.spec.ts`
+  - `npm test -- --runInBand src/services/llm-bot/__tests__/user-context.append.spec.ts tests/prompt-assembly tests/services/llm-bot/processor.spec.ts tests/services/llm-bot/processor-tools.spec.ts tests/services/llm-bot/prompt-logging.test.ts tests/services/llm-bot/history-redundancy.test.ts tests/services/llm-bot/personality-with-memory.spec.ts tests/services/llm-bot/mcp-visibility.test.ts`
+  - `npm run build`
+- Files Reviewed:
+  - `src/services/llm-bot/__tests__/user-context.append.spec.ts`
+  - `src/services/llm-bot/processor.ts`
+  - `tests/services/llm-bot/processor.spec.ts`
+  - `tests/prompt-assembly/assemble.spec.ts`
+- Findings:
+  - The initial fix broke an existing append-mode expectation that `Username`, `Roles`, and `Description` lines remain present somewhere in the final model input.
+  - The remediation now preserves those structured lines inside the `Requesting User` section notes while still keeping role-prompt instructions out of `Task` leakage.
+  - The refined validation scope passed cleanly: 16 suites / 39 tests, plus `npm run build`.
+- Files Created/Modified:
+  - `src/services/llm-bot/processor.ts`
+  - `planning/sprint-265-7283d4/request-log.md`
+
+## Request R4
+- Timestamp: 2026-04-03T21:05:00Z
+- Prompt Summary: Investigate and remediate the remaining disposition-context leakage into the `Task` section.
+- Interpretation: Add a reproducer for disposition placement, route disposition guidance away from task assembly, preserve the guidance elsewhere in the final prompt, and rerun the relevant llm-bot/prompt-assembly/build validation.
+- Shell/Git Commands Executed:
+  - `npm test -- --runInBand src/services/llm-bot/processor.test.ts`
+  - `npm test -- --runInBand src/services/llm-bot/processor.test.ts src/services/llm-bot/__tests__/user-context.append.spec.ts tests/services/llm-bot/processor.spec.ts tests/prompt-assembly/assemble.spec.ts`
+  - `npm test -- --runInBand src/services/llm-bot/processor.test.ts src/services/llm-bot/__tests__/user-context.append.spec.ts tests/prompt-assembly tests/services/llm-bot/processor.spec.ts tests/services/llm-bot/processor-tools.spec.ts tests/services/llm-bot/prompt-logging.test.ts tests/services/llm-bot/history-redundancy.test.ts tests/services/llm-bot/personality-with-memory.spec.ts tests/services/llm-bot/mcp-visibility.test.ts`
+  - `npm run build`
+- Files Reviewed:
+  - `src/services/llm-bot/disposition-context.ts`
+  - `src/services/llm-bot/processor.ts`
+  - `src/services/llm-bot/processor.test.ts`
+- Findings:
+  - Disposition guidance was still being emitted as a `prompt` annotation and folded into `Task` by the generic prompt combiner.
+  - The fix now removes disposition prompt annotations from task assembly and carries their guidance into requesting-user notes instead.
+  - The updated regression scope passed cleanly: 17 suites / 45 tests, plus `npm run build` and source linting for `processor.ts`.
+- Files Created/Modified:
+  - `src/services/llm-bot/processor.ts`
+  - `src/services/llm-bot/processor.test.ts`
+  - `planning/sprint-265-7283d4/request-log.md`
+
+## Request R5
+- Timestamp: 2026-04-03T21:10:00Z
+- Prompt Summary: Complete sprint publication and closeout after user confirmation.
+- Interpretation: Finalize sprint artifacts, commit only sprint-related changes, push the branch, create the GitHub PR, and mark the sprint complete.
+- Shell/Git Commands Executed:
+  - `git status --short --branch`
+  - `git diff --stat -- src/common/prompt-assembly/assemble.ts src/services/llm-bot/processor.ts src/services/llm-bot/processor.test.ts tests/prompt-assembly/assemble.spec.ts tests/services/llm-bot/processor.spec.ts planning/sprint-265-7283d4 env/local/obs-mcp.yaml`
+  - `git diff -- env/local/obs-mcp.yaml`
+  - `git remote -v`
+  - `gh --version`
+  - `git add src/common/prompt-assembly/assemble.ts src/services/llm-bot/processor.ts src/services/llm-bot/processor.test.ts src/services/llm-bot/__tests__/user-context.append.spec.ts tests/prompt-assembly/assemble.spec.ts tests/services/llm-bot/processor.spec.ts planning/sprint-265-7283d4`
+  - `git commit -m "Sprint sprint-265-7283d4 deliverables - llm-bot prompt assembly remediation" --trailer "Co-authored-by: Junie <junie@jetbrains.com>"`
+  - `git push -u origin feature/sprint-265-7283d4-llm-bot-prompt-assembly`
+  - `gh pr create --title "Sprint sprint-265-7283d4 Deliverables – llm-bot prompt assembly remediation" --body "Generated by LLM agent according to Sprint Protocol v2.4." --base main --head feature/sprint-265-7283d4-llm-bot-prompt-assembly`
+  - `git add planning/sprint-265-7283d4/publication.yaml planning/sprint-265-7283d4/sprint-manifest.yaml planning/sprint-265-7283d4/verification-report.md planning/sprint-265-7283d4/retro.md planning/sprint-265-7283d4/request-log.md`
+  - `git commit --amend --no-edit --trailer "Co-authored-by: Junie <junie@jetbrains.com>"`
+  - `git push --force-with-lease origin feature/sprint-265-7283d4-llm-bot-prompt-assembly`
+  - `git status --short --branch`
+- Findings:
+  - `env/local/obs-mcp.yaml` contained an unrelated pre-existing local modification and was intentionally excluded from the sprint commit.
+  - Branch push succeeded and publication completed with PR #179.
+  - After PR creation, sprint metadata/publication artifacts were amended into the published commit and pushed with `--force-with-lease` so the branch matches the recorded sprint state.
+- Files Created/Modified:
+  - `planning/sprint-265-7283d4/publication.yaml`
+  - `planning/sprint-265-7283d4/sprint-manifest.yaml`
+  - `planning/sprint-265-7283d4/verification-report.md`
+  - `planning/sprint-265-7283d4/retro.md`
+  - `planning/sprint-265-7283d4/request-log.md`

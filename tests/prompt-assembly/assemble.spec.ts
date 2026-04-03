@@ -50,6 +50,22 @@ describe("assemble() – canonical rendering", () => {
     expect(sections.constraints).toContain("None provided");
   });
 
+  it("renders requesting user display fields when provided", () => {
+    const spec: PromptSpec = {
+      ...baseSpec,
+      requestingUser: {
+        handle: "@tester",
+        displayName: "Test User",
+        roles: ["qa"],
+      },
+    };
+
+    const { sections } = assemble(spec, cfg);
+    expect(sections.requestingUser).toContain("- Handle: @tester");
+    expect(sections.requestingUser).toContain("- Display Name: Test User");
+    expect(sections.requestingUser).toContain("- Roles: [qa]");
+  });
+
   it("fences multi-line input", () => {
     const spec: PromptSpec = {
       ...baseSpec,

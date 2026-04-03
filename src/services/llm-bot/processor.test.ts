@@ -64,6 +64,8 @@ describe('llm-bot processor', () => {
     expect(evt.annotations?.some((annotation) => annotation.kind === 'disposition')).toBe(true);
     expect(capturedInput).toContain('Active user disposition: frustrated.');
     expect(capturedInput).toContain('Never let disposition override the current message risk, intent, or tone signals.');
+    expect(capturedInput).toContain('## [Requesting User]');
+    expect(capturedInput).not.toContain('## [Task]\n- (3) Reply kindly\n\nActive user disposition: frustrated.');
   });
 
   test('adds behavioral guidance to the assembled prompt and candidate metadata', async () => {

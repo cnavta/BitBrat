@@ -1,0 +1,13 @@
+id: sprint-265-7283d4
+title: "llm-bot prompt assembly requesting-user remediation"
+goal: "Investigate why llm-bot prompt assembly places requesting-user information outside the Requesting User section and remediate the issue with a safer prompt assembly strategy."
+owner: "Junie"
+createdAt: "2026-04-03T19:10:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/179"
+  branch: "feature/sprint-265-7283d4-llm-bot-prompt-assembly"
+notes: |
+  Role for this sprint: Lead Implementor.
+  Sprint opened from the reported llm-bot prompt assembly defect where requesting-user metadata appears in Task/Input content instead of the first-class Requesting User section.
+  Implementation plan was approved after sprint kickoff; prompt assembly remediation and validation completed locally, and publication closed with PR #179.
