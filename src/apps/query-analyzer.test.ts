@@ -52,6 +52,7 @@ describe('query-analyzer service', () => {
         correlationId: 'test-123',
         type: 'chat.message.v1',
         message: { text: 'Hello, how are you?' },
+        identity: { external: { platform: 'twitch', id: 'user-123' } },
         routingSlip: [
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' },
           { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.egress.v1' }
@@ -68,9 +69,14 @@ describe('query-analyzer service', () => {
       await capturedHandler(payload, {}, ctx);
 
       expect(analyzeWithLlm).toHaveBeenCalled();
-      expect(publishJsonMock).toHaveBeenCalled();
+      expect(publishJsonMock).toHaveBeenCalledTimes(2);
       
-      const published = publishJsonMock.mock.calls[0][0] as any;
+      const observation = publishJsonMock.mock.calls[0][0] as any;
+      expect(observation.userKey).toBe('twitch:user-123');
+      expect(observation.analysis.intent).toBe('question');
+      expect(observation.message.text).toBeUndefined();
+
+      const published = publishJsonMock.mock.calls[1][0] as any;
       expect(published.annotations).toBeDefined();
       expect(published.annotations.length).toBe(3);
       expect(published.annotations.find((a: any) => a.kind === 'intent').label).toBe('question');
@@ -95,6 +101,7 @@ describe('query-analyzer service', () => {
         correlationId: 'test-spam',
         type: 'chat.message.v1',
         message: { text: 'BUY CRYPTO NOW!!!' },
+        identity: { external: { platform: 'twitch', id: 'spammer-1' } },
         routingSlip: [
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' },
           { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.egress.v1' }
@@ -107,8 +114,11 @@ describe('query-analyzer service', () => {
 
       await capturedHandler(payload, {}, ctx);
 
-      expect(publishJsonMock).toHaveBeenCalled();
-      const published = publishJsonMock.mock.calls[0][0] as any;
+      expect(publishJsonMock).toHaveBeenCalledTimes(2);
+      const observation = publishJsonMock.mock.calls[0][0] as any;
+      expect(observation.userKey).toBe('twitch:spammer-1');
+
+      const published = publishJsonMock.mock.calls[1][0] as any;
       
       // BaseServer.complete() changes type to egress.deliver.v1
       expect(published.type).toBe('egress.deliver.v1');
@@ -159,6 +169,38 @@ describe('query-analyzer service', () => {
       await capturedHandler(payload, {}, ctx);
 
       expect(publishJsonMock).toHaveBeenCalled();
+      expect(ctx.ack).toHaveBeenCalled();
+    });
+
+    it('skips disposition observation emission when no identity can be resolved', async () => {
+      const mockAnalysis = {
+        intent: 'question',
+        tone: { valence: 0.2, arousal: 0.2 },
+        risk: { level: 'none', type: 'none' }
+      };
+
+      (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+
+      const event = {
+        v: '2',
+        correlationId: 'test-no-identity',
+        type: 'chat.message.v1',
+        message: { text: 'Need help with chat routing?' },
+        routingSlip: [
+          { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' }
+        ],
+        egress: { destination: 'internal.egress.v1' }
+      };
+
+      const payload = Buffer.from(JSON.stringify(event));
+      const ctx = { ack: jest.fn(), nack: jest.fn() };
+
+      await capturedHandler(payload, {}, ctx);
+
+      expect(publishJsonMock).toHaveBeenCalledTimes(1);
+      const published = publishJsonMock.mock.calls[0][0] as any;
+      expect(published.annotations).toHaveLength(3);
+      expect(published.userKey).toBeUndefined();
       expect(ctx.ack).toHaveBeenCalled();
     });
   });

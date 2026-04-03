@@ -1,0 +1,59 @@
+# Request Log – sprint-264-08104f
+
+- 2026-04-02T23:22:31Z: Prompt summary — start a new sprint as Lead Implementor and create an execution plan plus a trackable prioritized YAML backlog for implementing the disposition-service and associated TA changes.
+- 2026-04-02T23:22:31Z: Interpretation — this is a planning-only task; implementation is gated on explicit user approval of the sprint plan/backlog.
+- 2026-04-02T23:22:31Z: Planning inputs reviewed — attached TA document, `planning/backlog-example.yaml`, `architecture.yaml`, `src/apps/query-analyzer.ts`, `src/services/llm-bot/behavior-profile.ts`, `src/apps/state-engine.ts`, `src/types/state.ts`, `src/services/auth/enrichment.ts`, and the latest sprint planning artifacts under `planning/sprint-263-60adf2/`.
+- 2026-04-02T23:22:31Z: Shell command attempted — `rg -n "^status:" planning/sprint-*/sprint-manifest.yaml`.
+- 2026-04-02T23:22:31Z: Command result — failed because `rg` is not installed in the local shell; switched to a shell fallback to inspect sprint statuses.
+- 2026-04-02T23:22:31Z: Shell command executed — `for f in planning/sprint-*/sprint-manifest.yaml; do printf '%s: ' "$f"; sed -n 's/^status: //p' "$f"; done`.
+- 2026-04-02T23:22:31Z: Command result — visible sprint manifests reported `complete`, so no active sprint blocked creation of the new sprint workspace.
+- 2026-04-02T23:22:31Z: Git command executed — `git status --short --branch`.
+- 2026-04-02T23:22:31Z: Command result — working tree was clean, but the repository was still on the prior sprint branch `feature/sprint-263-60adf2-behavioral-control-planning`.
+- 2026-04-02T23:22:31Z: Shell command executed — `git branch --list main master`.
+- 2026-04-02T23:22:31Z: Command result — confirmed `main` is available as the base branch for the new sprint branch.
+- 2026-04-02T23:22:31Z: Git command executed — `git checkout main && git checkout -b feature/sprint-264-08104f-disposition-service-planning`.
+- 2026-04-02T23:22:31Z: Command result — switched to `main`, then created and checked out `feature/sprint-264-08104f-disposition-service-planning`.
+- 2026-04-02T23:22:31Z: Shell command executed — `mkdir -p planning/sprint-264-08104f`.
+- 2026-04-02T23:22:31Z: Command result — created the sprint workspace directory.
+- 2026-04-02T23:22:31Z: Shell command executed — `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- 2026-04-02T23:22:31Z: Command result — captured the UTC timestamp used for sprint artifact metadata and request-log traceability.
+- 2026-04-02T23:22:31Z: Files created — `planning/sprint-264-08104f/sprint-manifest.yaml`, `planning/sprint-264-08104f/request-log.md`, `planning/sprint-264-08104f/implementation-plan.md`, and `planning/sprint-264-08104f/trackable-backlog.yaml`.
+- 2026-04-02T23:22:31Z: Planning status — execution plan and prioritized backlog drafted; waiting for explicit user approval before any implementation begins.
+- 2026-04-03T02:51:00Z: Prompt summary — planning documentation approved; begin implementing the backlog and keep item statuses up to date.
+- 2026-04-03T02:51:00Z: Interpretation — implementation is now authorized; align to the manually updated `architecture.yaml`, which canonically defines `disposition-service` rather than the originally planned `disposition-engine` name.
+- 2026-04-03T02:51:00Z: Architecture alignment note — `architecture.yaml` now includes `disposition-service`, but the generated entry path is typoed as `src/apps/isposition-service.ts`; fixing that mismatch is required before the new service can be delivered cleanly.
+- 2026-04-03T02:51:00Z: Git command executed — `git diff -- architecture.yaml`.
+- 2026-04-03T02:51:00Z: Command result — confirmed the canonical delta adds `disposition-service` with topic bindings for `internal.user.disposition.observation.v1`, `internal.state.mutation.v1`, and `internal.user.disposition.updated.v1`, plus the typoed bootstrap entry path.
+- 2026-04-03T03:05:00Z: Git command executed — `git checkout -- architecture.yaml`.
+- 2026-04-03T03:05:00Z: Command result — restored `architecture.yaml` after a bad patch truncated the file, then safely re-applied the intended disposition-service architecture delta.
+- 2026-04-03T03:05:00Z: Files created/updated — added shared disposition contracts/helpers (`src/types/disposition.ts`, `src/services/disposition/*`), added the real `src/apps/disposition-service.ts` entrypoint, updated `src/apps/isposition-service.ts`, `src/apps/query-analyzer.ts`, `src/apps/state-engine.ts`, `src/services/llm-bot/processor.ts`, `Dockerfile.disposition-service`, `architecture.yaml`, `validate_deliverable.sh`, and the related test files.
+- 2026-04-03T03:05:00Z: Shell command executed — `npm test -- --runInBand src/services/disposition/observation.test.ts src/services/disposition/scoring.test.ts src/apps/query-analyzer.test.ts src/apps/isposition-service.test.ts src/services/llm-bot/processor.test.ts`.
+- 2026-04-03T03:05:00Z: Command result — first targeted Jest run surfaced two implementation issues (generic parser typing in `disposition-service.ts` and a test-only risk-level mismatch), which were fixed immediately.
+- 2026-04-03T03:05:00Z: Shell command executed — `npm test -- --runInBand src/services/disposition/observation.test.ts src/services/disposition/scoring.test.ts src/apps/query-analyzer.test.ts src/apps/isposition-service.test.ts src/apps/state-engine.test.ts src/services/llm-bot/processor.test.ts`.
+- 2026-04-03T03:05:00Z: Command result — targeted Jest coverage passed for disposition helpers, disposition-service, query-analyzer, state-engine, and llm-bot integration.
+- 2026-04-03T03:05:00Z: Shell command executed — `npm run build`.
+- 2026-04-03T03:05:00Z: Command result — TypeScript project build completed successfully.
+- 2026-04-03T03:05:00Z: Shell command executed — `./validate_deliverable.sh --scope disposition`.
+- 2026-04-03T03:05:00Z: Command result — first scoped validation run exposed a disposition-service test timestamp issue; the test was updated to use in-window timestamps.
+- 2026-04-03T03:05:00Z: Shell command executed — `npm test -- --runInBand src/apps/isposition-service.test.ts`.
+- 2026-04-03T03:05:00Z: Command result — disposition-service test passed after the timestamp fix.
+- 2026-04-03T03:05:00Z: Shell command executed — `./validate_deliverable.sh --scope disposition`.
+- 2026-04-03T03:05:00Z: Command result — scoped validation completed successfully (install/build/lint/disposition-focused tests plus prompt-assembly smoke); infra/deployment steps were skipped because `PROJECT_ID` was not provided.
+- 2026-04-03T00:41:58Z: Prompt summary — investigate and remediate the failing `src/apps/disposition-service.test.ts` health-check assertion where `GET /health` returns 404 instead of 200.
+- 2026-04-03T00:41:58Z: Interpretation — disposition-service inherited BaseServer's default `/healthz` endpoint but did not expose the `/health` alias expected by the new test and by nearby service patterns.
+- 2026-04-03T00:41:58Z: Shell command executed — `npm test -- --runInBand src/apps/disposition-service.test.ts`.
+- 2026-04-03T00:41:58Z: Command result — reproduced the reported failure: `GET /health` returned 404 in `src/apps/disposition-service.test.ts`.
+- 2026-04-03T00:41:58Z: Files updated — added an explicit `/health` route alias to `src/apps/disposition-service.ts` so the service supports both the BaseServer default health endpoints and the conventional `/health` probe.
+- 2026-04-03T00:41:58Z: Shell command executed — `npm test -- --runInBand src/apps/disposition-service.test.ts`.
+- 2026-04-03T00:41:58Z: Command result — the disposition-service health test passed after the route alias fix.
+- 2026-04-03T00:41:58Z: Static analysis executed — `lint src/apps/disposition-service.ts`.
+- 2026-04-03T00:41:58Z: Command result — no syntax errors, semantic errors, or warnings were reported for the modified service file.
+- 2026-04-03T01:18:08Z: Prompt summary — `Sprint complete.`
+- 2026-04-03T01:18:08Z: Interpretation — the user authorized sprint closeout, so verification/publication artifacts must be finalized, the feature branch must be published, and a real PR must be created before the sprint can be marked complete.
+- 2026-04-03T01:18:08Z: Git command executed — `git status --short --branch && git branch --show-current && git remote -v`.
+- 2026-04-03T01:18:08Z: Command result — confirmed the active branch is `feature/sprint-264-08104f-disposition-service-planning`, the sprint implementation changes are present in the working tree, and `origin` points to `git@github.com:cnavta/BitBrat.git`.
+- 2026-04-03T01:18:08Z: GitHub command executed — `gh auth status`.
+- 2026-04-03T01:18:08Z: Command result — GitHub CLI is authenticated as `cnavta`, so push and PR publication can proceed.
+- 2026-04-03T01:18:08Z: Git command executed — `git diff --stat`.
+- 2026-04-03T01:18:08Z: Command result — reviewed the modified source/test/validation files to confirm the sprint deliverable scope before closeout.
+- 2026-04-03T01:18:08Z: Files created/updated — advanced `planning/sprint-264-08104f/sprint-manifest.yaml` to verification, marked backlog item `BL-264-009` done, and added `verification-report.md`, `retro.md`, and `key-learnings.md` for sprint closeout.

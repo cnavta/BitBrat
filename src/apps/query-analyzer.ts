@@ -2,7 +2,10 @@ import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import type { InternalEventV2, AnnotationV1 } from '../types/events';
 import crypto from 'crypto';
+import type { PublisherResource } from '../common/resources/publisher-manager';
 import { analyzeWithLlm, QueryAnalysis } from '../services/query-analyzer/llm-provider';
+import { buildDispositionObservationEvent } from '../services/disposition/observation';
+import { INTERNAL_USER_DISPOSITION_OBSERVATION_V1 } from '../types/disposition';
 import { encodingForModel } from 'js-tiktoken';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'query-analyzer';
@@ -20,11 +23,58 @@ class QueryAnalyzerServer extends BaseServer {
     this.setupApp(this.getApp() as any, this.getConfig() as any);
   }
 
+  private isDispositionEnabled(): boolean {
+    return this.getConfig<boolean>('DISPOSITION_ENABLED', {
+      default: true,
+      parser: (value: any) => value === true || value === 'true'
+    });
+  }
+
   private async analyzeQuery(text: string, correlationId?: string): Promise<QueryAnalysis | null> {
     return analyzeWithLlm(text, {
       logger: this.getLogger() as any,
       correlationId
     });
+  }
+
+  private async emitDispositionObservation(msg: InternalEventV2, analysis: QueryAnalysis, observedAt: string): Promise<void> {
+    if (!this.isDispositionEnabled()) return;
+
+    const observation = buildDispositionObservationEvent(msg, analysis, SERVICE_NAME, observedAt);
+    if (!observation) {
+      this.getLogger().warn('disposition.identity.missing', {
+        correlationId: msg.correlationId,
+        externalPlatform: msg.identity?.external?.platform,
+      });
+      return;
+    }
+
+    const publisher = this.getResource<PublisherResource>('publisher');
+    if (!publisher) {
+      this.getLogger().warn('query-analyzer.disposition.publisher_missing', {
+        correlationId: msg.correlationId,
+      });
+      return;
+    }
+
+    const cfg: any = this.getConfig?.() || {};
+    const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
+    const subject = prefix && !INTERNAL_USER_DISPOSITION_OBSERVATION_V1.startsWith(prefix)
+      ? `${prefix}${INTERNAL_USER_DISPOSITION_OBSERVATION_V1}`
+      : INTERNAL_USER_DISPOSITION_OBSERVATION_V1;
+
+    try {
+      await publisher.create(subject).publishJson(observation, {
+        correlationId: msg.correlationId,
+        type: INTERNAL_USER_DISPOSITION_OBSERVATION_V1,
+      });
+    } catch (error: any) {
+      this.getLogger().error('query-analyzer.disposition.emit_failed', {
+        correlationId: msg.correlationId,
+        userKey: observation.userKey,
+        error: error?.message || String(error),
+      });
+    }
   }
 
   private async setupApp(app: Express, _cfg: any) {
@@ -105,6 +155,8 @@ class QueryAnalyzerServer extends BaseServer {
 
                   if (!msg.annotations) msg.annotations = [];
                   msg.annotations.push(...annotations);
+
+                  await this.emitDispositionObservation(msg, analysis, now);
 
                   // Short-circuit logic (QA-004)
                   if (analysis.intent === 'spam' || analysis.risk.level === 'high') {

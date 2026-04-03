@@ -24,7 +24,7 @@ interface StateEngineConfig {
 }
 
 const DEFAULT_CONFIG: StateEngineConfig = {
-  allowedKeys: ['stream.state', 'stream.title', 'stream.category', 'obs.scene'],
+  allowedKeys: ['stream.state', 'stream.title', 'stream.category', 'obs.scene', 'user.disposition.*'],
   rules: [
     {
       id: 'on_stream_start',
@@ -155,6 +155,15 @@ export class StateEngineServer extends McpServer {
     );
   }
 
+  private isAllowedKey(key: string): boolean {
+    return this.stateConfig.allowedKeys.some((allowed) => {
+      if (allowed.endsWith('*')) {
+        return key.startsWith(allowed.slice(0, -1));
+      }
+      return allowed === key;
+    });
+  }
+
   private async setupApp(app: Express, _cfg: any) {
     // Architecture-specified explicit stub handlers (GET)
     app.get('/health', (_req: Request, res: Response) => {
@@ -210,7 +219,7 @@ export class StateEngineServer extends McpServer {
     if (!firestore) throw new Error('Firestore not available');
 
     // 1. Validate
-    if (!this.stateConfig.allowedKeys.includes(mutation.key)) {
+    if (!this.isAllowedKey(mutation.key)) {
       await this.logMutation(mutation, 'rejected', 'Key not allowed');
       return;
     }
