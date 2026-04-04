@@ -180,3 +180,20 @@
   - The first closeout commit accidentally captured a pre-existing `AGENTS.md` deletion; I restored the file from `HEAD~1` and amended the commit before pushing the branch.
   - The sprint branch pushed successfully to `origin/feature/sprint-266-db047e-routing-wrapper`.
   - GitHub PR creation succeeded with PR `#180`: `https://github.com/cnavta/BitBrat/pull/180`.
+
+## [2026-04-04T23:37:30Z] - Publication Metadata Sync
+- **Prompt**: Continue closing the sprint after PR creation.
+- **Interpretation**: Commit and push the final sprint-artifact metadata updates so the branch contents match the published sprint state.
+- **Shell/Git Commands Executed**:
+  - `git add planning/sprint-266-db047e && git commit -m "docs: close sprint-266 publication artifacts" --trailer "Co-authored-by: Junie <junie@jetbrains.com>" && git push`
+  - `git status --short && printf '\n---\n' && git log --oneline -2`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+- **Files Modified**:
+  - `planning/sprint-266-db047e/backlog.yaml`
+  - `planning/sprint-266-db047e/publication.yaml`
+  - `planning/sprint-266-db047e/request-log.md`
+  - `planning/sprint-266-db047e/sprint-manifest.yaml`
+  - `planning/sprint-266-db047e/verification-report.md`
+- **Key Findings**:
+  - The final publication metadata commit pushed successfully, so the branch now records the completed sprint state, verification, and PR linkage.
+  - The only remaining working-tree changes are unrelated pre-existing modifications in `env/local/obs-mcp.yaml` and `test.json`, which were intentionally left out of the sprint commits.
