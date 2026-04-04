@@ -5,7 +5,7 @@ import { InternalEventV2, RoutingStep, RoutingStatus } from '../../types/events'
  *
  * Purpose:
  * - Provide small, focused helpers to create, inspect, and mutate RoutingStep[] entries
- *   that travel inside the InternalEventV2.routingSlip.
+ *   that travel inside InternalEventV2.routing.slip.
  *
  * Notes for LLM agents:
  * - Keep step transitions explicit and side-effect free except for timestamping fields.
@@ -14,25 +14,35 @@ import { InternalEventV2, RoutingStep, RoutingStatus } from '../../types/events'
  */
 
 /**
- * Ensure that the event has a routingSlip. If missing or empty, initialize it
+ * Ensure that the event has a routing slip. If missing or empty, initialize it
  * from the provided planned steps (shallow copy to avoid aliasing).
  *
- * @param event   - The internal event to host the routingSlip.
+ * @param event   - The internal event to host the routing slip.
  * @param planned - Planned steps returned by the router's planRoutingSlip.
- * @returns The (possibly newly created) routingSlip array on the event.
+ * @returns The (possibly newly created) routing slip array on the event.
  */
 export function ensureSlip(event: InternalEventV2, planned: RoutingStep[]): RoutingStep[] {
-  if (!Array.isArray(event.routingSlip) || event.routingSlip.length === 0) {
-    event.routingSlip = planned.map((s) => ({ ...s }));
+  if (!event.routing) {
+    event.routing = {
+      stage: 'initial',
+      slip: [],
+      history: [],
+    };
   }
-  return event.routingSlip;
+  if (!Array.isArray(event.routing.history)) {
+    event.routing.history = [];
+  }
+  if (!Array.isArray(event.routing.slip) || event.routing.slip.length === 0) {
+    event.routing.slip = planned.map((s) => ({ ...s }));
+  }
+  return event.routing.slip;
 }
 
 /**
  * Find the next actionable step: the first step whose status is neither OK nor SKIP.
  * Returns null when all steps are completed or the slip is invalid.
  *
- * @param slip - The current routingSlip.
+ * @param slip - The current routing slip.
  * @returns The index and step reference, or null if none.
  */
 export function findNextActionable(slip: RoutingStep[] | undefined): { index: number; step: RoutingStep } | null {

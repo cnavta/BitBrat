@@ -7,7 +7,7 @@
  * - Subscribes via onSnapshot to keep cache up to date
  */
 import { logger } from '../../common/logging';
-import {AnnotationV1, CandidateV1, Egress} from '../../types/events';
+import {AnnotationV1, CandidateV1, Egress, RoutingStage} from '../../types/events';
 
 export interface RoutingStepRef {
   id: string;
@@ -17,6 +17,11 @@ export interface RoutingStepRef {
   attributes?: Record<string, string>;
 }
 
+export interface RuleRouting {
+  stage: RoutingStage;
+  slip: RoutingStepRef[];
+}
+
 export interface RuleDoc {
   id: string; // Firestore document id
   enabled: boolean;
@@ -24,7 +29,7 @@ export interface RuleDoc {
   description?: string;
   // Firestore stores JsonLogic as a JSON string (see sprint-127 change)
   logic: string;
-  routingSlip: RoutingStepRef[];
+  routing: RuleRouting;
   enrichments: { // Enrichments to perform on the event when matched.
     message?: string; // Message text to add to the event when matched.
     annotations?: AnnotationV1[];// Annotations to add to the event when matched.
@@ -147,8 +152,9 @@ function validateRule(raw: any, id: string): RuleDoc | null {
   } else {
     return null;
   }
-  if (!Array.isArray(raw.routingSlip)) return null;
-  const routingSlip = raw.routingSlip.filter((s: any) => isObject(s) && typeof s.nextTopic === 'string');
+  const rawRouting = isObject(raw.routing) ? raw.routing : null;
+  if (!rawRouting || typeof rawRouting.stage !== 'string' || !Array.isArray(rawRouting.slip)) return null;
+  const routingSlip = rawRouting.slip.filter((s: any) => isObject(s) && typeof s.id === 'string' && typeof s.nextTopic === 'string');
 
   // Handle enrichments
   const rawEnrich = isObject(raw.enrichments) ? raw.enrichments : {};
@@ -166,7 +172,10 @@ function validateRule(raw: any, id: string): RuleDoc | null {
     priority,
     description: typeof raw.description === 'string' ? raw.description : undefined,
     logic: logicStr as string,
-    routingSlip: routingSlip as RoutingStepRef[],
+    routing: {
+      stage: rawRouting.stage as RoutingStage,
+      slip: routingSlip as RoutingStepRef[],
+    },
     enrichments,
     metadata: isObject(raw.metadata) ? (raw.metadata as Record<string, unknown>) : undefined,
   };

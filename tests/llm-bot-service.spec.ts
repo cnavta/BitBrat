@@ -37,7 +37,7 @@ function makeEvent(overrides: Partial<InternalEventV2> = {}): InternalEventV2 {
     source: 'test',
     correlationId: 'corr-1',
     type: 'llm.request.v1',
-    routingSlip: slip,
+    routing: { stage: 'analysis', slip, history: [] },
     message: { id: 'm1', role: 'user' },
     ...overrides,
   } as any;
@@ -64,7 +64,7 @@ describe('llm-bot-service helpers', () => {
   test('markCurrentStepError sets ERROR on first pending step', () => {
     const evt = makeEvent({});
     const out = markCurrentStepError(evt, 'NO_PROMPT', 'x');
-    const step = out.routingSlip?.[1]!;
+    const step = out.routing?.slip?.[1]!;
     expect(step.status).toBe('ERROR');
     expect(step.error?.code).toBe('NO_PROMPT');
   });
@@ -77,7 +77,7 @@ describe('llm-bot-service helpers', () => {
     const firstLen = (evt.candidates || []).length;
     expect(firstLen).toBe(1);
     // mimic idempotency flag set in step attributes
-    const step = (evt.routingSlip as RoutingStep[])[1];
+    const step = (evt.routing?.slip as RoutingStep[])[1];
     step.attributes = { ...(step.attributes || {}), llm_hash: key };
     appendAssistantCandidate(evt, 'hi', 'gpt-5-mini');
     expect((evt.candidates || []).length).toBe(firstLen + 1); // function itself does not enforce idempotency flag
@@ -88,7 +88,7 @@ describe('handleLlmEvent flow', () => {
   class StubServer {
     public next = jest.fn(async (evt: InternalEventV2, status?: any) => {
       // Mimic BaseServer.next behavior of updating step status
-      const slip = (evt.routingSlip as any[]) || [];
+      const slip = evt.routing?.slip || [];
       const step = slip.find((s) => s.status === 'PENDING' || s.status === 'ERROR' || s.status === 'OK' || s.status === 'SKIP');
       // In a real server, it finds the FIRST step that is NOT terminal.
       // For this test, let's just find the llm-bot step.
@@ -124,7 +124,7 @@ describe('handleLlmEvent flow', () => {
     await handleLlmEvent(server, evt);
     expect(server.next).toHaveBeenCalledTimes(1);
     expect(server.next.mock.calls[0][1]).toBe('SKIP');
-    const step = evt.routingSlip?.[1]!;
+    const step = evt.routing?.slip?.[1]!;
     expect(step.status).toBe('SKIP');
   });
 
@@ -152,7 +152,7 @@ describe('handleLlmEvent flow', () => {
     await handleLlmEvent(server, evt, deps);
     expect(server.next).toHaveBeenCalledTimes(1);
     expect(server.next.mock.calls[0][1]).toBe('ERROR');
-    const step = (evt.routingSlip as RoutingStep[])[1];
+    const step = (evt.routing?.slip as RoutingStep[])[1];
     expect(step.status).toBe('ERROR');
     // No candidate should be appended on failure
     expect(Array.isArray((evt as any).candidates) ? (evt as any).candidates.length : 0).toBe(0);

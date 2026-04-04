@@ -33,7 +33,7 @@ describe('RuleLoader behavioral routing fixtures', () => {
         logic: {
           has_annotation: [{ var: 'annotations' }, 'intent', 'spam']
         },
-        routingSlip: [{ id: 'router', nextTopic: 'internal.persistence.finalize.v1' }],
+        routing: { stage: 'response', slip: [{ id: 'router', nextTopic: 'internal.persistence.finalize.v1' }] },
       }),
       makeDoc('high-risk-finalize', {
         enabled: true,
@@ -42,7 +42,7 @@ describe('RuleLoader behavioral routing fixtures', () => {
         logic: {
           has_annotation: [{ var: 'annotations' }, 'risk', 'high']
         },
-        routingSlip: [{ id: 'router', nextTopic: 'internal.persistence.finalize.v1' }],
+        routing: { stage: 'response', slip: [{ id: 'router', nextTopic: 'internal.persistence.finalize.v1' }] },
       }),
       makeDoc('meta-to-llm-bot', {
         enabled: true,
@@ -51,7 +51,7 @@ describe('RuleLoader behavioral routing fixtures', () => {
         logic: {
           has_annotation: [{ var: 'annotations' }, 'intent', 'meta']
         },
-        routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }] },
       }),
     ]));
 

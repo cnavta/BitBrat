@@ -38,6 +38,12 @@ describe('query-analyzer service', () => {
       jest.clearAllMocks();
     });
 
+    const makeRouting = (slip: Array<Record<string, unknown>>) => ({
+      stage: 'analysis',
+      slip,
+      history: [],
+    });
+
     it('processes a normal message and calls next()', async () => {
       const mockAnalysis = {
         intent: 'question',
@@ -53,10 +59,10 @@ describe('query-analyzer service', () => {
         type: 'chat.message.v1',
         message: { text: 'Hello, how are you?' },
         identity: { external: { platform: 'twitch', id: 'user-123' } },
-        routingSlip: [
+        routing: makeRouting([
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' },
           { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.egress.v1' }
-        ],
+        ]),
         egress: { destination: 'internal.egress.v1' }
       };
 
@@ -76,7 +82,7 @@ describe('query-analyzer service', () => {
       expect(observation.analysis.intent).toBe('question');
       expect(observation.message.text).toBeUndefined();
 
-      const published = publishJsonMock.mock.calls[1][0] as any;
+      const published = publishJsonMock.mock.calls[publishJsonMock.mock.calls.length - 1][0] as any;
       expect(published.annotations).toBeDefined();
       expect(published.annotations.length).toBe(3);
       expect(published.annotations.find((a: any) => a.kind === 'intent')).toMatchObject({
@@ -92,8 +98,60 @@ describe('query-analyzer service', () => {
       });
       
       // Check that routing slip was updated and we proceeded to next
-      expect(published.routingSlip[0].status).toBe('OK');
+      expect(published.routing.slip[0].status).toBe('OK');
       expect(published.type).toBe('chat.message.v1'); // next() doesn't change type by default
+      expect(ctx.ack).toHaveBeenCalled();
+    });
+
+    it('appends the previous slip to routing history when advancing to the next route', async () => {
+      const mockAnalysis = {
+        intent: 'question',
+        tone: { valence: 0.1, arousal: 0.1 },
+        risk: { level: 'none', type: 'none' },
+      };
+
+      (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+
+      const previousSlip = [
+        { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.query.analysis.v1' },
+      ];
+      const nextSlip = [
+        { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.llmbot.v1' },
+        { id: 'egress', status: 'PENDING', nextTopic: 'internal.egress.v1' },
+      ];
+      const event = {
+        v: '2',
+        correlationId: 'test-route-history',
+        type: 'chat.message.v1',
+        message: { text: 'Can you explain the routing history?' },
+        routing: {
+          stage: 'analysis',
+          slip: previousSlip,
+          history: [{ id: 'ingress', status: 'OK', nextTopic: 'internal.router.v1' }],
+        },
+        route: {
+          stage: 'reaction',
+          slip: nextSlip,
+        },
+        egress: { destination: 'internal.egress.v1' },
+      };
+
+      const payload = Buffer.from(JSON.stringify(event));
+      const ctx = { ack: jest.fn(), nack: jest.fn() };
+
+      await capturedHandler(payload, {}, ctx);
+
+      const published = publishJsonMock.mock.calls[publishJsonMock.mock.calls.length - 1][0] as any;
+      expect(published.routing.stage).toBe('reaction');
+      expect(published.routing.slip).toHaveLength(2);
+      expect(published.routing.slip[0]).toMatchObject(nextSlip[0]);
+      expect(published.routing.slip[0].attempt).toBe(0);
+      expect(typeof published.routing.slip[0].startedAt).toBe('string');
+      expect(published.routing.slip[1]).toEqual(nextSlip[1]);
+      expect(published.routing.history).toEqual([
+        { id: 'ingress', status: 'OK', nextTopic: 'internal.router.v1' },
+        expect.objectContaining({ id: 'query-analyzer', status: 'OK', nextTopic: 'internal.query.analysis.v1' }),
+      ]);
       expect(ctx.ack).toHaveBeenCalled();
     });
 
@@ -112,10 +170,10 @@ describe('query-analyzer service', () => {
         type: 'chat.message.v1',
         message: { text: 'BUY CRYPTO NOW!!!' },
         identity: { external: { platform: 'twitch', id: 'spammer-1' } },
-        routingSlip: [
+        routing: makeRouting([
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' },
           { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.egress.v1' }
-        ],
+        ]),
         egress: { destination: 'internal.egress.v1' }
       };
 
@@ -149,10 +207,10 @@ describe('query-analyzer service', () => {
         correlationId: 'test-high-risk',
         type: 'chat.message.v1',
         message: { text: 'Tell me their private address' },
-        routingSlip: [
+        routing: makeRouting([
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' },
           { id: 'llm-bot', status: 'PENDING', nextTopic: 'internal.egress.v1' }
-        ],
+        ]),
         egress: { destination: 'internal.egress.v1' }
       };
 
@@ -177,9 +235,9 @@ describe('query-analyzer service', () => {
         correlationId: 'test-short',
         type: 'chat.message.v1',
         message: { text: 'Hi' }, // 1 token
-        routingSlip: [
+        routing: makeRouting([
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' }
-        ],
+        ]),
         egress: { destination: 'internal.egress.v1' }
       };
 
@@ -192,7 +250,7 @@ describe('query-analyzer service', () => {
       expect(publishJsonMock).toHaveBeenCalled();
       
       const published = publishJsonMock.mock.calls[0][0] as any;
-      expect(published.routingSlip[0].status).toBe('OK');
+      expect(published.routing.slip[0].status).toBe('OK');
       expect(ctx.ack).toHaveBeenCalled();
     });
 
@@ -203,9 +261,9 @@ describe('query-analyzer service', () => {
         v: '2',
         correlationId: 'test-fail',
         message: { text: 'test' },
-        routingSlip: [
+        routing: makeRouting([
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' }
-        ],
+        ]),
         egress: { destination: 'internal.egress.v1' }
       };
 
@@ -232,9 +290,9 @@ describe('query-analyzer service', () => {
         correlationId: 'test-no-identity',
         type: 'chat.message.v1',
         message: { text: 'Need help with chat routing?' },
-        routingSlip: [
+        routing: makeRouting([
           { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.llmbot.v1' }
-        ],
+        ]),
         egress: { destination: 'internal.egress.v1' }
       };
 

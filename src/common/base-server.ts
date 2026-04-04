@@ -534,7 +534,7 @@ export class BaseServer {
     }
     (event as any)[NEXT_MARK] = true;
 
-    const slip: RoutingStep[] = Array.isArray(event.routingSlip) ? (event.routingSlip as RoutingStep[]) : [];
+    const slip: RoutingStep[] = Array.isArray(event.routing?.slip) ? (event.routing.slip as RoutingStep[]) : [];
     // Only consider explicitly PENDING steps as dispatch targets. Steps marked ERROR should not be retried here.
     const idxPending = slip.findIndex((s) => s && s.status === 'PENDING');
     // If no pending step, fallback to egress
@@ -663,7 +663,7 @@ export class BaseServer {
       appendNote?: string;
     }
   ): { index: number; step: RoutingStep } | null {
-    const slip: RoutingStep[] = Array.isArray((event as any).routingSlip) ? ((event as any).routingSlip as RoutingStep[]) : [];
+    const slip: RoutingStep[] = Array.isArray(event.routing?.slip) ? (event.routing.slip as RoutingStep[]) : [];
     if (!Array.isArray(slip) || slip.length === 0) {
       this.logger.debug('routing.step_update.no_slip', { correlationId: (event as any)?.correlationId });
       return null;

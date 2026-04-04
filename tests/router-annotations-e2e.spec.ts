@@ -35,7 +35,7 @@ describe('E2E (mocked evaluator) — RouterEngine annotations propagation', () =
       {
         id: 'r-match', enabled: true, priority: 1,
         logic: JSON.stringify({ always: true }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }] },
         enrichments: {
           annotations: ruleAnns,
         },

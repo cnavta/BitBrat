@@ -4,13 +4,20 @@ import type { InternalEventV2, RoutingStep } from '../../../types/events';
 
 describe('RouterEngine + JsonLogic custom operators integration', () => {
   const evt: InternalEventV2 = {
-    v: '2', source: 'test', correlationId: 'c-ops',
-    type: 'chat.command.v1', channel: '#ch', userId: 'u1',
-    user: { id: 'u1', roles: ['Mod'] },
-    routingSlip: [
-      { id: 'router', v: '2', status: 'OK', attempt: 1, nextTopic: 'internal.llmbot.v1' },
-      { id: 'llm-bot', v: '2', status: 'OK', attempt: 1 }, // terminal OK (no nextTopic)
-    ] as RoutingStep[],
+    v: '2',
+    correlationId: 'c-ops',
+    type: 'chat.command.v1',
+    ingress: { ingressAt: '2026-01-29T22:00:00Z', source: 'test', channel: '#ch' },
+    identity: { external: { id: 'u1', platform: 'test' }, user: { id: 'u1', roles: ['Mod'] } },
+    egress: { destination: 'internal.egress.v1' },
+    routing: {
+      stage: 'analysis',
+      slip: [
+        { id: 'router', v: '2', status: 'OK', attempt: 1, nextTopic: 'internal.llmbot.v1' },
+        { id: 'llm-bot', v: '2', status: 'OK', attempt: 1 }, // terminal OK (no nextTopic)
+      ] as RoutingStep[],
+      history: [],
+    },
     message: { id: 'm1', role: 'user', text: '!PiNg', rawPlatformPayload: { text: '!PiNg' } },
   } as any;
 
@@ -19,7 +26,7 @@ describe('RouterEngine + JsonLogic custom operators integration', () => {
       {
         id: 'r-no', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.message.v1' ] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.never.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.never.v1' }] },
         enrichments: {},
       } as any,
       {
@@ -28,10 +35,10 @@ describe('RouterEngine + JsonLogic custom operators integration', () => {
           and: [
             { ci_eq: [ { var: 'message.text' }, '!ping' ] },
             { re_test: [ { var: 'message.text' }, ['^!p', 'i'] ] },
-            { slip_complete: [ { var: 'routingSlip' } ] },
+            { slip_complete: [ { var: 'routing.slip' } ] },
           ],
         }),
-        routingSlip: [{ id: 'router', v: '2', nextTopic: 'internal.llmbot.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', v: '2', nextTopic: 'internal.llmbot.v1' }] },
         enrichments: {},
       } as any,
     ];

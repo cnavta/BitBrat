@@ -21,8 +21,8 @@ describe('BaseServer.updateCurrentStep()', () => {
   let server: TestServer;
   beforeEach(() => { server = new TestServer(); });
 
-  test('returns null when no routingSlip', () => {
-    const evt = makeEvent({ routingSlip: undefined });
+  test('returns null when no routing slip is present', () => {
+    const evt = makeEvent({ routing: undefined });
     const res = server.update(evt, { status: 'OK' });
     expect(res).toBeNull();
   });
@@ -33,7 +33,7 @@ describe('BaseServer.updateCurrentStep()', () => {
       { id: 'b', status: 'PENDING' },
       { id: 'c', status: 'PENDING' },
     ] as any;
-    const evt = makeEvent({ routingSlip: slip });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip, history: [] } });
     const res = server.update(evt, { status: 'OK' });
     expect(res).not.toBeNull();
     const { index, step } = res!;
@@ -47,7 +47,7 @@ describe('BaseServer.updateCurrentStep()', () => {
 
   test('appendNote appends to notes when provided', () => {
     const slip: RoutingStep[] = [{ id: 'a', status: 'PENDING', notes: 'n1' }] as any;
-    const evt = makeEvent({ routingSlip: slip });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip, history: [] } });
     const res = server.update(evt, { appendNote: 'n2' });
     expect(res).not.toBeNull();
     expect(slip[0].notes).toBe('n1\nn2');
@@ -55,14 +55,14 @@ describe('BaseServer.updateCurrentStep()', () => {
 
   test('notes replaces existing notes when provided', () => {
     const slip: RoutingStep[] = [{ id: 'a', status: 'PENDING', notes: 'old' }] as any;
-    const evt = makeEvent({ routingSlip: slip });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip, history: [] } });
     server.update(evt, { notes: 'new' });
     expect(slip[0].notes).toBe('new');
   });
 
   test('error can be set and cleared', () => {
     const slip: RoutingStep[] = [{ id: 'a', status: 'PENDING' }] as any;
-    const evt = makeEvent({ routingSlip: slip });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip, history: [] } });
     server.update(evt, { error: { code: 'X', message: 'boom', retryable: false } });
     expect((slip[0] as any).error?.code).toBe('X');
     server.update(evt, { error: null });
