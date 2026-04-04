@@ -6,7 +6,7 @@ meta:
 sprint:
   id: sprint-266-db047e
   start: 2026-04-04
-  end: null
+  end: 2026-04-04
   wip_limit: 3
   goal: "Implement the wrapped routing contract across rule ingestion, routing execution, shared helpers, and downstream services/tests."
 
@@ -135,3 +135,22 @@ items:
         note: "Recorded validation outcomes and created a verification report summarizing completed routing-wrapper migration work and follow-on publication readiness."
       - at: 2026-04-04T19:36:59Z
         note: "Recorded follow-up validation proving the previously reported root-level routing regressions were resolved without reopening production implementation scope."
+      - at: 2026-04-04T23:33:00Z
+        note: "Added and executed a sprint-specific validate_deliverable.sh that installs dependencies, builds, lints touched production files, and runs the relevant wrapped-routing and query-analyzer regression suites successfully."
+
+  - id: RTG-PUB-001
+    title: "Publish sprint branch and record PR metadata"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [RTG-VAL-001]
+    blocked_reason: null
+    acceptance:
+      - "Feature branch is committed and pushed"
+      - "A real GitHub pull request exists for the sprint branch"
+      - "Publication details are captured in sprint artifacts"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T23:36:22Z
+        note: "Pushed `feature/sprint-266-db047e-routing-wrapper` and created PR #180, then updated sprint artifacts with publication metadata and completion status."
