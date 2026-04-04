@@ -79,7 +79,7 @@ describe('Processor Tools', () => {
       annotations: [
         { id: 'a1', kind: 'prompt', value: 'Use the tool', createdAt: new Date().toISOString(), source: 'test' }
       ],
-      routingSlip: [],
+      routing: { stage: 'analysis', slip: [], history: [] },
       egress: { destination: 'test' },
     };
 

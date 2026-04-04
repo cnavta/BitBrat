@@ -32,7 +32,7 @@ describe('RuleLoader Enrichments', () => {
       enabled: true,
       priority: 10,
       logic: "{}",
-      routingSlip: [{ id: 'r', nextTopic: 't1' }],
+      routing: { stage: 'analysis', slip: [{ id: 'r', nextTopic: 't1' }] },
       enrichments: {
         message: "Hello world",
         randomCandidate: true,
@@ -62,7 +62,7 @@ describe('RuleLoader Enrichments', () => {
       enabled: true,
       priority: 10,
       logic: "{}",
-      routingSlip: [{ id: 'r', nextTopic: 't1' }],
+      routing: { stage: 'analysis', slip: [{ id: 'r', nextTopic: 't1' }] },
       annotations: [
         {
           id: 'a1',
@@ -84,7 +84,7 @@ describe('RuleLoader Enrichments', () => {
       enabled: true,
       priority: 10,
       logic: "{}",
-      routingSlip: [{ id: 'r', nextTopic: 't1' }],
+      routing: { stage: 'analysis', slip: [{ id: 'r', nextTopic: 't1' }] },
       annotations: [
         {
           id: 'old',

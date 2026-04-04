@@ -23,7 +23,7 @@ export function extractPrompt(evt: InternalEventV2 | any): string | null {
 
 /** Mark the first PENDING routing step as ERROR with provided code/message; returns mutated event */
 export function markCurrentStepError(evt: InternalEventV2, code: string, message?: string): InternalEventV2 {
-  const slip = Array.isArray(evt.routingSlip) ? (evt.routingSlip as RoutingStep[]) : [];
+  const slip = Array.isArray(evt.routing?.slip) ? (evt.routing.slip as RoutingStep[]) : [];
   const idx = slip.findIndex((s) => s && s.status === 'PENDING');
   if (idx >= 0) {
     const step = slip[idx];

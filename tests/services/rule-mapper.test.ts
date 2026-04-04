@@ -8,10 +8,11 @@ describe('RuleMapper', () => {
     };
     const rule = RuleMapper.mapToRuleDoc(params);
 
-    expect(rule.routingSlip).toHaveLength(3);
-    expect(rule.routingSlip?.[0]).toEqual({ id: 'llmbot', nextTopic: 'internal.llmbot.v1' });
-    expect(rule.routingSlip?.[1]).toEqual({ id: 'auth', nextTopic: 'internal.auth.v1' });
-    expect(rule.routingSlip?.[2]).toEqual({ id: 'unknownsvc', nextTopic: 'internal.unknownsvc.v1' });
+    expect(rule.routing?.stage).toBe('initial');
+    expect(rule.routing?.slip).toHaveLength(3);
+    expect(rule.routing?.slip?.[0]).toEqual({ id: 'llmbot', nextTopic: 'internal.llmbot.v1' });
+    expect(rule.routing?.slip?.[1]).toEqual({ id: 'auth', nextTopic: 'internal.auth.v1' });
+    expect(rule.routing?.slip?.[2]).toEqual({ id: 'unknownsvc', nextTopic: 'internal.unknownsvc.v1' });
   });
 
   it('should throw if logic is invalid JSON', () => {

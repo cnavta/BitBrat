@@ -2,7 +2,7 @@ import { ensureSlip, findNextActionable, isComplete } from './slip';
 import { InternalEventV2, RoutingStep } from '../../types/events';
 
 describe('slip utils', () => {
-  it('ensures slip and finds next actionable', () => {
+  it('ensures routing.slip and finds next actionable', () => {
     const evt: InternalEventV2 = {
       v: '2',
       correlationId: 'c1',
@@ -19,6 +19,9 @@ describe('slip utils', () => {
     ];
     const slip = ensureSlip(evt, planned);
     const next = findNextActionable(slip);
+    expect(evt.routing?.stage).toBe('initial');
+    expect(evt.routing?.history).toEqual([]);
+    expect(evt.routing?.slip).toBe(slip);
     expect(next).not.toBeNull();
     expect(next!.step.id).toBe('llm-bot');
   });

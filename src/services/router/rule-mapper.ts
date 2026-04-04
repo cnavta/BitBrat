@@ -1,4 +1,4 @@
-import { AnnotationV1, CandidateV1 } from '../../types/events';
+import { AnnotationV1, CandidateV1, RoutingStage } from '../../types/events';
 import { RuleDoc, RoutingStepRef } from './rule-loader';
 import { logger } from '../../common/logging';
 
@@ -25,6 +25,7 @@ export class RuleMapper {
     services: string[];
     description?: string;
     priority?: number;
+    stage?: RoutingStage;
     promptTemplate?: string;
     responseTemplate?: string;
     personalityId?: string;
@@ -35,6 +36,7 @@ export class RuleMapper {
       services,
       description,
       priority = 100,
+      stage = 'initial',
       promptTemplate,
       responseTemplate,
       personalityId,
@@ -112,7 +114,10 @@ export class RuleMapper {
       priority,
       description,
       logic,
-      routingSlip,
+      routing: {
+        stage,
+        slip: routingSlip,
+      },
       enrichments: {
         annotations: annotations.length ? annotations : undefined,
         candidates: candidates.length ? candidates : undefined,

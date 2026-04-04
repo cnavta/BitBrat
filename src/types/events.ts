@@ -20,6 +20,8 @@ export type InternalEventType =
   | 'token.created.v1'
   | string;
 
+export type RoutingStage = 'initial' | 'analysis' | 'reaction' | 'response' | 'error' | 'meta';
+
 export type RoutingStatus = 'PENDING' | 'OK' | 'ERROR' | 'SKIP';
 
 export interface RoutingStep {
@@ -34,6 +36,12 @@ export interface RoutingStep {
   endedAt?: string; // ISO8601
   error?: { code: string; message?: string; retryable?: boolean } | null;
   notes?: string;
+}
+
+export interface Routing {
+  stage: RoutingStage;
+  slip: RoutingStep[];
+  history: RoutingStep[];
 }
 
 export interface Egress {
@@ -173,7 +181,7 @@ export interface InternalEventV2 {
   candidates?: CandidateV1[];
   qos?: QOSV1;
 
-  routingSlip?: RoutingStep[]; // at least one step after routing
+  routing?: Routing;
   errors?: ErrorEntryV1[];
   metadata?: Record<string, any>;
 }

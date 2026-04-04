@@ -29,6 +29,7 @@ describe('RouterEngine', () => {
         platform: 'test',
       }
     },
+    egress: { destination: 'internal.egress.v1' },
     message: { id: 'm1', role: 'user', text: '!ping', rawPlatformPayload: { text: '!ping' } },
   } as any;
 
@@ -37,19 +38,19 @@ describe('RouterEngine', () => {
       {
         id: 'r0', enabled: true, priority: 5, description: 'non-match',
         logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.message.v1'] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.never.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.never.v1' }] },
         enrichments: {},
       },
       {
         id: 'r1', enabled: true, priority: 10, description: 'match',
         logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.command.v1'] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
+        routing: { stage: 'reaction', slip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }] },
         enrichments: {},
       },
       {
         id: 'r2', enabled: true, priority: 20, description: 'would also match but should be skipped',
         logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.command.v1'] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.other.v1' }],
+        routing: { stage: 'response', slip: [{ id: 'router', nextTopic: 'internal.other.v1' }] },
         enrichments: {},
       },
     ];
@@ -68,6 +69,9 @@ describe('RouterEngine', () => {
     expect(decision.ruleId).toBe('r1');
     expect(decision.priority).toBe(10);
     expect(decision.selectedTopic).toBe('internal.llmbot.v1');
+    const { evtOut } = await engine.route(baseEvt, rules);
+    expect(evtOut.routing?.stage).toBe('reaction');
+    expect(evtOut.routing?.slip[0].nextTopic).toBe('internal.llmbot.v1');
   });
 
   it('falls back to default DLQ when no rule matches', async () => {
@@ -75,7 +79,7 @@ describe('RouterEngine', () => {
       {
         id: 'r0', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.message.v1'] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.never.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.never.v1' }] },
         enrichments: {},
       },
     ];
@@ -88,6 +92,9 @@ describe('RouterEngine', () => {
     expect(slip[0].nextTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
     expect(decision.matched).toBe(false);
     expect(decision.selectedTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
+    const { evtOut } = await engine.route(baseEvt, rules);
+    expect(evtOut.routing?.stage).toBe('initial');
+    expect(evtOut.routing?.slip[0].nextTopic).toBe(INTERNAL_ROUTER_DLQ_V1);
   });
 
   it('applies message and candidates enrichments', async () => {
@@ -95,7 +102,7 @@ describe('RouterEngine', () => {
       {
         id: 'r1', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.command.v1'] }),
-        routingSlip: [{ id: 'router', nextTopic: 't1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 't1' }] },
         enrichments: {
           message: 'enriched message',
           candidates: [
@@ -120,7 +127,7 @@ describe('RouterEngine', () => {
       {
         id: 'r1', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [{ var: 'type' }, 'chat.command.v1'] }),
-        routingSlip: [{ id: 'router', nextTopic: 't1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 't1' }] },
         enrichments: {
           randomCandidate: true,
           candidates
