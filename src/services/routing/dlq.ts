@@ -23,7 +23,7 @@ export function buildDlqEvent(params: {
 
   const correlationId = original.correlationId;
   const traceId = original.traceId;
-  const routingSlip = original.routingSlip;
+  const routing = original.routing;
   const egress = original.egress || { destination: 'deadletter' };
 
   return {
@@ -34,13 +34,13 @@ export function buildDlqEvent(params: {
     ingress: original.ingress || { ingressAt: new Date().toISOString(), source: params.source || 'router' },
     identity: original.identity || { external: { id: 'unknown', platform: 'system' } },
     egress,
-    routingSlip,
+    routing,
     payload: {
       reason,
       error: err,
       lastStepId: lastStepId || inferLastStepId(original),
       originalType: original.type,
-      slipSummary: summarizeSlip(routingSlip),
+      slipSummary: summarizeSlip(routing?.slip),
       originalPayloadPreview: safePreview(original.payload || original.message?.rawPlatformPayload),
       // Egress context enrichment
       egressSource: original.ingress?.source,
@@ -63,7 +63,7 @@ function normalizeError(e: unknown): { code: string; message?: string } | null {
 
 /** Infer the last relevant step id to aid debugging. */
 function inferLastStepId(original: any): string | undefined {
-  const slip = original.routingSlip || [];
+  const slip = original.routing?.slip || [];
   // last step with a status not OK/SKIP (or the last overall)
   const idx = slip.findIndex((s: any) => s.status !== 'OK' && s.status !== 'SKIP');
   if (idx >= 0) return slip[idx].id;

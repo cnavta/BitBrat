@@ -1,0 +1,199 @@
+# Request Log – sprint-266-db047e
+
+## [2026-04-04T13:57:00Z] - Sprint Start and Planning
+- **Prompt**: User started a new sprint, asked me to act as Lead Implementor, and requested analysis of the new wrapped routing contracts plus creation of an execution plan and trackable prioritized YAML backlog.
+- **Interpretation**: Initialize sprint `sprint-266-db047e`, inspect the current routing-contract migration state, and produce planning artifacts for approval before any production-code implementation.
+- **Shell/Git Commands Executed**:
+  - `for f in planning/*/sprint-manifest.yaml; do s=$(sed -n 's/^status: *"\{0,1\}\([^\"]*\)"\{0,1\}$/\1/p' "$f"); if [ -n "$s" ] && [ "$s" != "complete" ]; then printf '%s:%s\n' "$f" "$s"; fi; done`
+  - `awk '/^status:/ {s=$2; gsub(/"|\047/, "", s); if (s != "complete") print FILENAME ":" s}' planning/*/sprint-manifest.yaml`
+  - `git status --short`
+  - `git diff -- src/types/events.ts src/services/router/rule-loader.ts env/local/obs-mcp.yaml`
+  - `git branch --show-current && git rev-parse --short=6 HEAD`
+  - `git checkout -b feature/sprint-266-db047e-routing-wrapper && mkdir -p planning/sprint-266-db047e`
+- **Files Reviewed**:
+  - `architecture.yaml`
+  - `src/types/events.ts`
+  - `src/services/router/rule-loader.ts`
+  - `src/services/router/rule-mapper.ts`
+  - `src/services/routing/router-engine.ts`
+  - `src/services/routing/slip.ts`
+  - `src/services/routing/dlq.ts`
+  - `src/services/routing/routing.slip.test.ts`
+  - `src/apps/event-router-service.ts`
+  - `src/apps/llm-bot-service.ts`
+  - `src/common/base-server.ts`
+  - `planning/backlog-example.yaml`
+  - `planning/sprint-265-7283d4/implementation-plan.md`
+- **Key Findings**:
+  - `InternalEventV2` already exposes `routing?: Routing`, but shared helpers and services still read/write top-level `routingSlip`.
+  - `rule-loader.ts` is partially migrated: `RuleDoc.routing` exists, but validation still reads/writes legacy `stage` and `routingSlip` fields.
+  - `RouterEngine`, `BaseServer`, `DLQ`, `slip.ts`, and affected service entrypoints need coordinated migration to the wrapped routing shape.
+  - Existing routing tests will need updates because many fixtures still build legacy `routingSlip` payloads.
+- **Files Created**:
+  - `planning/sprint-266-db047e/sprint-manifest.yaml`
+  - `planning/sprint-266-db047e/implementation-plan.md`
+  - `planning/sprint-266-db047e/backlog.yaml`
+  - `planning/sprint-266-db047e/request-log.md`
+
+## [2026-04-04T19:17:31Z] - Implementation Started
+- **Prompt**: User approved the planning documentation and asked me to begin implementing the backlog while keeping item statuses up to date.
+- **Interpretation**: Move sprint `sprint-266-db047e` into implementation, start with the planned regression reproducer work, and keep sprint tracking artifacts synchronized as execution proceeds.
+- **Shell/Git Commands Executed**:
+  - `git branch --show-current && git status --short planning/sprint-266-db047e`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+- **Files Reviewed**:
+  - `planning/sprint-266-db047e/request-log.md`
+  - `planning/sprint-266-db047e/sprint-manifest.yaml`
+  - `src/services/router/__tests__/rule-loader.test.ts`
+  - `src/services/routing/__tests__/router-engine-interpolation.spec.ts`
+- **Key Findings**:
+  - Regression coverage still encodes legacy `routingSlip` rule fixtures throughout router/routing tests.
+  - The sprint is now ready to start with `RTG-TEST-001`, which should fail against the current code before production fixes are applied.
+
+## [2026-04-04T19:28:28Z] - Wrapped Routing Migration Implemented and Validated
+- **Prompt**: Continue implementing the approved backlog and keep task statuses current.
+- **Interpretation**: Complete the wrapped routing migration across production code, migrate affected regression fixtures, and validate both routing internals and downstream consumers.
+- **Shell/Git Commands Executed**:
+  - `npm test -- --runInBand src/services/router/__tests__/rule-loader.test.ts src/services/routing/routing.slip.test.ts src/services/routing/__tests__/router-engine-interpolation.spec.ts`
+  - `npm test -- --runInBand src/services/router/__tests__/rule-loader.test.ts src/services/routing/routing.slip.test.ts src/services/routing/__tests__/router-engine-interpolation.spec.ts src/services/routing/__tests__/sprint-225-empty-slip.spec.ts src/apps/__tests__/event-router-ingress.integration.test.ts src/types/events.types.test.ts`
+  - `npm test -- --runInBand src/services/routing/__tests__/router-engine.test.ts src/services/router/__tests__/jsonlogic-slip-complete.spec.ts`
+  - `npm test -- --runInBand src/apps/query-analyzer.test.ts`
+  - `npm test -- --runInBand src/services/router src/services/routing`
+  - `npm test -- --runInBand src/services/router/__tests__/rule-loader-annotations.spec.ts src/services/router/__tests__/rule-loader-enrichments.spec.ts src/services/router/__tests__/rule-loader.hardening.test.ts src/services/routing/__tests__/enrichment-repro.spec.ts`
+  - `npm test -- --runInBand src/services/routing/__tests__/router-engine-annotations.spec.ts src/services/router/__tests__/rule-loader.behavioral-routing.spec.ts src/services/routing/__tests__/router-engine-ops-integration.spec.ts`
+  - `npm test -- --runInBand src/services/router src/services/routing`
+  - `npm test -- --runInBand src/apps/__tests__/event-router-ingress.integration.test.ts src/apps/query-analyzer.test.ts src/types/events.types.test.ts src/services/llm-bot`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+- **Files Modified**:
+  - `src/services/router/rule-loader.ts`
+  - `src/services/router/rule-mapper.ts`
+  - `src/services/routing/router-engine.ts`
+  - `src/services/routing/slip.ts`
+  - `src/services/routing/dlq.ts`
+  - `src/common/base-server.ts`
+  - `src/apps/event-router-service.ts`
+  - `src/apps/llm-bot-service.ts`
+  - Routing/router/downstream test suites and type fixtures covering wrapped routing behavior
+- **Key Findings**:
+  - The primary breakage was concentrated in shared code still reading/writing top-level `routingSlip` or top-level rule stage/slip fields.
+  - Broader validation surfaced additional legacy test fixtures; migrating those fixtures to `routing.stage` and `routing.slip` resolved the remaining failures without additional production-code changes.
+  - Relevant validation is green across router/routing internals, event-router integration, query-analyzer behavior, shared event type fixtures, and the llm-bot suite.
+
+## [2026-04-04T19:36:59Z] - Follow-up Regression Cleanup for Root Test Suites
+- **Prompt**: User reported newly failing tests after the wrapped-routing migration and asked me to fix them.
+- **Interpretation**: Treat the failures as post-migration regressions inside remaining root-level Jest specs, migrate those fixtures/assertions to wrapped `routing`, and revalidate the affected routing and llm-bot coverage.
+- **Shell/Git Commands Executed**:
+  - `npm test -- --runInBand tests/llm-bot-service.spec.ts tests/base-server-step-update.spec.ts tests/base-server-routing.spec.ts tests/router-annotations-e2e.spec.ts tests/services/llm-bot/processor.spec.ts tests/sprint-225-egress-dest.spec.ts tests/services/rule-mapper.test.ts tests/services/llm-bot/processor-tools.spec.ts`
+  - `npm test -- --runInBand src/services/router src/services/routing src/services/llm-bot`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+  - `git status --short`
+- **Files Reviewed**:
+  - `tests/llm-bot-service.spec.ts`
+  - `tests/base-server-step-update.spec.ts`
+  - `tests/base-server-routing.spec.ts`
+  - `tests/router-annotations-e2e.spec.ts`
+  - `tests/sprint-225-egress-dest.spec.ts`
+  - `tests/services/llm-bot/processor.spec.ts`
+  - `tests/services/llm-bot/processor-tools.spec.ts`
+  - `tests/services/rule-mapper.test.ts`
+  - `src/services/routing/router-engine.ts`
+  - `src/services/router/rule-mapper.ts`
+- **Files Modified**:
+  - `tests/llm-bot-service.spec.ts`
+  - `tests/base-server-step-update.spec.ts`
+  - `tests/base-server-routing.spec.ts`
+  - `tests/router-annotations-e2e.spec.ts`
+  - `tests/sprint-225-egress-dest.spec.ts`
+  - `tests/services/llm-bot/processor.spec.ts`
+  - `tests/services/llm-bot/processor-tools.spec.ts`
+  - `tests/services/rule-mapper.test.ts`
+- **Key Findings**:
+  - The newly failing suites were still using legacy top-level `routingSlip` and `RuleDoc.routingSlip` fixtures outside the previously validated `src/` test tree.
+  - The annotations and Sprint 225 egress assertions were failing because their rule fixtures never populated `rule.routing`, so routing defaulted to DLQ/unchanged egress behavior.
+  - Updating only the affected tests restored green validation without requiring additional production-code changes.
+
+## [2026-04-04T21:59:53Z] - Query Analyzer Staged Route History Follow-up
+- **Prompt**: User asked me to update query analyzer so that whenever it updates the event's route, it appends the previous slip into `route.history` so the history remains a complete ordered list of all added steps.
+- **Interpretation**: Add a regression around staged follow-up routing in query-analyzer, preserve the current slip in `routing.history` before promoting a pending follow-up route, and revalidate the affected query-analyzer coverage.
+- **Shell/Git Commands Executed**:
+  - `npm test -- --runInBand src/apps/query-analyzer.test.ts`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+  - `npm test -- --runInBand src/apps/query-analyzer.test.ts tests/services/query-analyzer/llm-provider.test.ts`
+- **Files Reviewed**:
+  - `src/apps/query-analyzer.ts`
+  - `src/apps/query-analyzer.test.ts`
+  - `src/common/base-server.ts`
+  - `src/services/routing/router-engine.ts`
+  - `src/types/events.ts`
+  - `planning/sprint-266-db047e/request-log.md`
+- **Files Modified**:
+  - `src/apps/query-analyzer.ts`
+  - `src/apps/query-analyzer.test.ts`
+  - `planning/sprint-266-db047e/request-log.md`
+- **Key Findings**:
+- Query-analyzer previously ignored a pending follow-up `route` payload and therefore neither promoted the staged route nor preserved the prior slip in `routing.history`.
+- The fix needs to finalize the current slip before swapping in the pending route; otherwise `next(..., 'OK')` incorrectly marks the first step of the new route as completed.
+- After promoting the pending route and appending the finalized prior slip to history, query-analyzer correctly publishes to the new route's first step and the focused query-analyzer suites pass.
+
+## [2026-04-04T23:33:00Z] - Sprint Closeout Validation Preparation
+- **Prompt**: User indicated the sprint should now be completed.
+- **Interpretation**: Finalize the sprint-closeout artifacts, verify the deliverable with a runnable sprint-specific validation script, and prepare for publication/PR creation per the sprint protocol.
+- **Shell/Git Commands Executed**:
+  - `git status --short && printf '\n---\n' && ls planning/sprint-266-db047e && printf '\n---\n' && sed -n '1,220p' planning/sprint-266-db047e/sprint-manifest.yaml && printf '\n---\n' && sed -n '1,260p' planning/sprint-266-db047e/request-log.md`
+  - `git remote -v && printf '\n---\n' && gh --version && printf '\n---\n' && gh auth status`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+  - `chmod +x planning/sprint-266-db047e/validate_deliverable.sh && planning/sprint-266-db047e/validate_deliverable.sh`
+  - `gh repo view --json defaultBranchRef,nameWithOwner,url`
+- **Files Reviewed**:
+  - `planning/sprint-266-db047e/sprint-manifest.yaml`
+  - `planning/sprint-266-db047e/backlog.yaml`
+  - `planning/sprint-266-db047e/implementation-plan.md`
+  - `planning/sprint-266-db047e/verification-report.md`
+  - `planning/sprint-266-db047e/validate_deliverable.sh`
+  - `package.json`
+- **Files Created**:
+  - `planning/sprint-266-db047e/validate_deliverable.sh`
+- **Key Findings**:
+  - GitHub CLI is installed and authenticated for `cnavta/BitBrat`, and the repository default branch is `main`, so publication can proceed once the branch is pushed.
+  - The sprint-specific validation workflow now succeeds end-to-end: install, build, lint, and the targeted wrapped-routing/query-analyzer regression suites all pass.
+  - Local runtime and cloud dry-run deployment remain intentionally conditional in the sprint validation script because this sprint changed routing contracts and staged-route logic only, with no infrastructure changes and no `PROJECT_ID` configured in the current environment.
+
+## [2026-04-04T23:36:22Z] - Sprint Publication and Completion
+- **Prompt**: User explicitly requested sprint completion.
+- **Interpretation**: Commit and publish the sprint deliverables, create the required PR, record publication metadata, and mark the sprint complete.
+- **Shell/Git Commands Executed**:
+  - `git add planning/sprint-266-db047e src/apps/__tests__/event-router-ingress.integration.test.ts src/apps/event-router-service.ts src/apps/llm-bot-service.ts src/apps/query-analyzer.test.ts src/apps/query-analyzer.ts src/common/base-server.ts src/services/router src/services/routing src/types/events.ts src/types/events.types.test.ts tests && git commit -m "feat: finalize sprint-266 routing wrapper migration" --trailer "Co-authored-by: Junie <junie@jetbrains.com>"`
+  - `git status --short && printf '\n---\n' && git show --stat --oneline --summary HEAD`
+  - `git restore --source=HEAD~1 -- AGENTS.md`
+  - `git add AGENTS.md && git commit --amend --no-edit --trailer "Co-authored-by: Junie <junie@jetbrains.com>"`
+  - `git status --short && printf '\n---\n' && git log -1 --format=%B`
+  - `git push -u origin feature/sprint-266-db047e-routing-wrapper`
+  - `gh pr create --base main --head feature/sprint-266-db047e-routing-wrapper --title "Sprint sprint-266-db047e Deliverables – wrapped routing migration" --body "Generated by LLM agent according to Sprint Protocol v2.4."`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+- **Files Modified**:
+  - `planning/sprint-266-db047e/backlog.yaml`
+  - `planning/sprint-266-db047e/request-log.md`
+  - `planning/sprint-266-db047e/sprint-manifest.yaml`
+  - `planning/sprint-266-db047e/verification-report.md`
+  - `planning/sprint-266-db047e/publication.yaml`
+- **Key Findings**:
+  - The first closeout commit accidentally captured a pre-existing `AGENTS.md` deletion; I restored the file from `HEAD~1` and amended the commit before pushing the branch.
+  - The sprint branch pushed successfully to `origin/feature/sprint-266-db047e-routing-wrapper`.
+  - GitHub PR creation succeeded with PR `#180`: `https://github.com/cnavta/BitBrat/pull/180`.
+
+## [2026-04-04T23:37:30Z] - Publication Metadata Sync
+- **Prompt**: Continue closing the sprint after PR creation.
+- **Interpretation**: Commit and push the final sprint-artifact metadata updates so the branch contents match the published sprint state.
+- **Shell/Git Commands Executed**:
+  - `git add planning/sprint-266-db047e && git commit -m "docs: close sprint-266 publication artifacts" --trailer "Co-authored-by: Junie <junie@jetbrains.com>" && git push`
+  - `git status --short && printf '\n---\n' && git log --oneline -2`
+  - `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+- **Files Modified**:
+  - `planning/sprint-266-db047e/backlog.yaml`
+  - `planning/sprint-266-db047e/publication.yaml`
+  - `planning/sprint-266-db047e/request-log.md`
+  - `planning/sprint-266-db047e/sprint-manifest.yaml`
+  - `planning/sprint-266-db047e/verification-report.md`
+- **Key Findings**:
+  - The final publication metadata commit pushed successfully, so the branch now records the completed sprint state, verification, and PR linkage.
+  - The only remaining working-tree changes are unrelated pre-existing modifications in `env/local/obs-mcp.yaml` and `test.json`, which were intentionally left out of the sprint commits.

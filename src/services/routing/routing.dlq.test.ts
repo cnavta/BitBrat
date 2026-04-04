@@ -19,10 +19,14 @@ describe('dlq builder', () => {
         }
       },
       egress: { destination: 'test' },
-      routingSlip: [
-        { id: 'router', status: 'OK' },
-        { id: 'llm-bot', status: 'PENDING' },
-      ],
+      routing: {
+        stage: 'analysis',
+        slip: [
+          { id: 'router', status: 'OK' },
+          { id: 'llm-bot', status: 'PENDING' },
+        ],
+        history: [],
+      },
       payload: { text: 'hi' },
     } as any;
 

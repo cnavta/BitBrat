@@ -1,0 +1,156 @@
+meta:
+  backlog_id: sprint-266-db047e-backlog
+  updated_at: 2026-04-04
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-266-db047e
+  start: 2026-04-04
+  end: 2026-04-04
+  wip_limit: 3
+  goal: "Implement the wrapped routing contract across rule ingestion, routing execution, shared helpers, and downstream services/tests."
+
+items:
+  - id: RTG-PLAN-001
+    title: "Analyze current routing-wrapper impact and produce execution artifacts"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Execution plan documents scope, acceptance criteria, testing strategy, and dependencies"
+      - "Trackable prioritized YAML backlog exists for the sprint"
+      - "Compile-error hotspots and adjacent routing impacts are identified"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T13:57:00Z
+        note: "Audited current diffs and impacted routing modules; drafted sprint manifest, execution plan, and backlog for approval."
+
+  - id: RTG-TEST-001
+    title: "Create failing regression coverage for wrapped routing semantics"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [RTG-PLAN-001]
+    blocked_reason: null
+    acceptance:
+      - "Tests demonstrate current failures around wrapped `routing` usage before the fix"
+      - "Coverage includes rule-level routing replacement semantics and event-level routing access"
+      - "Relevant downstream routing tests are identified for later validation"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T19:17:31Z
+        note: "Implementation approved; began reproducer work by inventorying remaining legacy routing usages in routing code and tests."
+      - at: 2026-04-04T19:28:28Z
+        note: "Added and updated regression coverage across rule-loader, router-engine, slip helpers, DLQ, and downstream consumer tests to exercise wrapped routing semantics."
+
+  - id: RTG-RULES-001
+    title: "Migrate rule loading and rule mapping to `RuleDoc.routing`"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [RTG-TEST-001]
+    blocked_reason: null
+    acceptance:
+      - "`rule-loader` validates and returns the wrapped `routing` object"
+      - "`rule-mapper` emits `routing.stage` and `routing.slip` instead of legacy top-level fields"
+      - "No legacy `stage`/`routingSlip` fallback remains in production code"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T19:28:28Z
+        note: "Updated rule-loader validation and rule-mapper output to require and emit wrapped routing stage/slip data; added stage support to create_rule tooling."
+
+  - id: RTG-CORE-001
+    title: "Migrate shared routing execution and helper code to `event.routing`"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [RTG-RULES-001]
+    blocked_reason: null
+    acceptance:
+      - "`RouterEngine` applies matched `routing.stage` and `routing.slip` to the outgoing event"
+      - "`slip`, `dlq`, and `BaseServer` operate on `event.routing.slip` consistently"
+      - "Routing history/stage handling is preserved or intentionally initialized where needed"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T19:28:28Z
+        note: "Migrated RouterEngine, slip helpers, DLQ builder, and BaseServer routing dispatch/update helpers to use event.routing with preserved stage/history initialization."
+
+  - id: RTG-SVC-001
+    title: "Update affected services and downstream consumers to the wrapped routing contract"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [RTG-CORE-001]
+    blocked_reason: null
+    acceptance:
+      - "Affected app/service files compile against `InternalEventV2.routing`"
+      - "Logging and error-handling paths reference the wrapped routing structure"
+      - "No touched service code relies on top-level `routingSlip`"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T19:28:28Z
+        note: "Updated event-router, llm-bot helper logic, query-analyzer tests, type fixtures, and integration coverage to use wrapped routing consistently."
+
+  - id: RTG-TEST-002
+    title: "Update and run relevant routing regression suites"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [RTG-SVC-001]
+    blocked_reason: null
+    acceptance:
+      - "Router/routing Jest suites covering modified modules pass"
+      - "Downstream tests for touched shared code are executed and pass"
+      - "Any newly added regression tests pass after the fix"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T19:28:28Z
+        note: "Validated router/routing suites (19 passing), plus downstream event-router, query-analyzer, events type, and llm-bot suites covering shared routing behavior."
+      - at: 2026-04-04T19:36:59Z
+        note: "Cleaned up remaining root-level Jest regressions that still referenced legacy routingSlip fixtures; the eight previously failing suites now pass alongside a fresh router/routing/llm-bot validation run."
+
+  - id: RTG-VAL-001
+    title: "Complete validation and sprint verification artifacts"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [RTG-TEST-002]
+    blocked_reason: null
+    acceptance:
+      - "Validation commands and outcomes are recorded in sprint artifacts"
+      - "Verification report documents completed, partial, deferred, and deviated work"
+      - "Sprint is ready for later publication/closure once implementation is approved and finished"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T19:28:28Z
+        note: "Recorded validation outcomes and created a verification report summarizing completed routing-wrapper migration work and follow-on publication readiness."
+      - at: 2026-04-04T19:36:59Z
+        note: "Recorded follow-up validation proving the previously reported root-level routing regressions were resolved without reopening production implementation scope."
+      - at: 2026-04-04T23:33:00Z
+        note: "Added and executed a sprint-specific validate_deliverable.sh that installs dependencies, builds, lints touched production files, and runs the relevant wrapped-routing and query-analyzer regression suites successfully."
+
+  - id: RTG-PUB-001
+    title: "Publish sprint branch and record PR metadata"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [RTG-VAL-001]
+    blocked_reason: null
+    acceptance:
+      - "Feature branch is committed and pushed"
+      - "A real GitHub pull request exists for the sprint branch"
+      - "Publication details are captured in sprint artifacts"
+    updated_at: 2026-04-04
+    log:
+      - at: 2026-04-04T23:36:22Z
+        note: "Pushed `feature/sprint-266-db047e-routing-wrapper` and created PR #180, then updated sprint artifacts with publication metadata and completion status."

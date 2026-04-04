@@ -16,6 +16,7 @@ describe('Enrichment Robustness', () => {
       user: { displayName: 'Alice' },
       external: { id: 'u1', platform: 'test' }
     },
+    egress: { destination: 'internal.egress.v1' },
     message: { id: 'm1', role: 'user', text: 'Hello' },
   } as any;
 
@@ -26,7 +27,7 @@ describe('Enrichment Robustness', () => {
         enabled: true,
         priority: 1,
         logic: 'true',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {
           annotations: [
             { label: 'enriched-label', value: 'enriched-value' } // Missing required fields
@@ -67,7 +68,7 @@ describe('Enrichment Robustness', () => {
         enabled: true,
         priority: 1,
         logic: 'true',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'response', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {
           egress: {
             type: 'dm'
@@ -80,7 +81,8 @@ describe('Enrichment Robustness', () => {
     const engine = new RouterEngine();
     
     // Case 1: Original event has no egress
-    const res1 = await engine.route(baseEvt, rules as any);
+    const { egress: _ignored, ...evtWithoutEgress } = baseEvt as any;
+    const res1 = await engine.route(evtWithoutEgress, rules as any);
     expect(res1.evtOut.egress).toEqual({ type: 'dm', destination: '' });
 
     // Case 2: Original event has egress
@@ -95,7 +97,7 @@ describe('Enrichment Robustness', () => {
       enabled: true,
       priority: 10,
       logic: 'true',
-      routingSlip: [{ id: 'router', nextTopic: 'out' }],
+      routing: { stage: 'response', slip: [{ id: 'router', nextTopic: 'out' }] },
       enrichments: {
         egress: {
           destination: 'target-{{channel}}',

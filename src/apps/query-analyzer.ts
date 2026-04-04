@@ -1,6 +1,6 @@
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
-import type { InternalEventV2, AnnotationV1 } from '../types/events';
+import type { InternalEventV2, AnnotationV1, Routing, RoutingStep } from '../types/events';
 import crypto from 'crypto';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import { analyzeWithLlm, QueryAnalysis } from '../services/query-analyzer/llm-provider';
@@ -35,6 +35,33 @@ class QueryAnalyzerServer extends BaseServer {
       logger: this.getLogger() as any,
       correlationId
     });
+  }
+
+  private applyPendingRoute(msg: InternalEventV2, completedStepStatus: 'OK' | 'ERROR' | 'SKIP' = 'OK'): boolean {
+    const pendingRoute = (msg as InternalEventV2 & { route?: Partial<Routing> }).route;
+    if (!pendingRoute || !Array.isArray(pendingRoute.slip)) {
+      return false;
+    }
+
+    try {
+      (this as any).updateCurrentStep?.(msg, { status: completedStepStatus });
+    } catch {}
+
+    const previousHistory = Array.isArray(msg.routing?.history)
+      ? msg.routing.history.map((step) => ({ ...step }))
+      : [];
+    const previousSlip = Array.isArray(msg.routing?.slip)
+      ? msg.routing.slip.map((step) => ({ ...step }))
+      : [];
+
+    msg.routing = {
+      stage: pendingRoute.stage ?? msg.routing?.stage ?? 'analysis',
+      slip: pendingRoute.slip.map((step: RoutingStep) => ({ ...step })),
+      history: [...previousHistory, ...previousSlip],
+    };
+
+    delete (msg as InternalEventV2 & { route?: Partial<Routing> }).route;
+    return true;
   }
 
   private async emitDispositionObservation(msg: InternalEventV2, analysis: QueryAnalysis, observedAt: string): Promise<void> {
@@ -107,7 +134,11 @@ class QueryAnalyzerServer extends BaseServer {
                 const text = msg.message?.text;
                 if (!text) {
                   this.getLogger().warn('query-analyzer.no_text', { correlationId: msg.correlationId });
-                  await this.next(msg, 'OK');
+                  if (this.applyPendingRoute(msg)) {
+                    await this.next(msg);
+                  } else {
+                    await this.next(msg, 'OK');
+                  }
                   await ctx.ack();
                   return;
                 }
@@ -119,7 +150,11 @@ class QueryAnalyzerServer extends BaseServer {
                     correlationId: msg.correlationId,
                     tokenCount: tokens.length
                   });
-                  await this.next(msg, 'OK');
+                  if (this.applyPendingRoute(msg)) {
+                    await this.next(msg);
+                  } else {
+                    await this.next(msg, 'OK');
+                  }
                   await ctx.ack();
                   return;
                 }
@@ -167,11 +202,19 @@ class QueryAnalyzerServer extends BaseServer {
                     });
                     await this.complete(msg, 'OK');
                   } else {
-                    await this.next(msg, 'OK');
+                    if (this.applyPendingRoute(msg)) {
+                      await this.next(msg);
+                    } else {
+                      await this.next(msg, 'OK');
+                    }
                   }
                 } else {
                   // Fallback if Ollama fails
-                  await this.next(msg, 'OK');
+                  if (this.applyPendingRoute(msg)) {
+                    await this.next(msg);
+                  } else {
+                    await this.next(msg, 'OK');
+                  }
                 }
 
                 await ctx.ack();

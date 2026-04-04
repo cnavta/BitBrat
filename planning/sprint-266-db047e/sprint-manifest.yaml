@@ -1,0 +1,14 @@
+id: sprint-266-db047e
+title: 'Migrate event routing to wrapped Routing contracts'
+goal: 'Complete the InternalEventV2 and RuleDoc routing-wrapper migration so matched rules replace both stage and slip on events without backward-compatibility fallbacks.'
+owner: 'Junie'
+createdAt: '2026-04-04T13:57:00Z'
+status: 'complete'
+links:
+  pr: 'https://github.com/cnavta/BitBrat/pull/180'
+  branch: 'feature/sprint-266-db047e-routing-wrapper'
+notes: |
+  Lead Implementor sprint focused on the new Routing wrapper introduced around InternalEventV2.routing and RuleDoc.routing.
+  Existing Firestore routing documents will be manually updated outside this sprint, so implementation should target the new schema directly without backward-compatibility shims.
+  Current impact includes compile failures in routing helpers, router rule ingestion/mapping, BaseServer dispatch flow, and service entrypoints/tests still referencing top-level routingSlip/stage fields.
+  Sprint completed on 2026-04-04 after successful targeted validation and publication via PR #180.

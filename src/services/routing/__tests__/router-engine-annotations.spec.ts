@@ -5,9 +5,11 @@ import type { InternalEventV2, AnnotationV1 } from '../../../types/events';
 describe('RouterEngine – annotations propagation', () => {
   const baseEvt: InternalEventV2 = {
     v: '2',
-    source: 'test',
     correlationId: 'c-ann-1',
     type: 'chat.command.v1',
+    ingress: { ingressAt: '2025-01-01T00:00:00Z', source: 'test' },
+    identity: { external: { id: 'u1', platform: 'test' } },
+    egress: { destination: 'internal.egress.v1' },
     message: { id: 'm1', role: 'user', text: '!go' },
     annotations: [
       { id: 'a1', kind: 'custom', source: 'pre', createdAt: '2025-01-01T00:00:00Z', label: 'pre' },
@@ -23,7 +25,7 @@ describe('RouterEngine – annotations propagation', () => {
       {
         id: 'r-yes', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.command.v1' ] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }] },
         enrichments: {
           annotations: ruleAnns,
         },
@@ -46,7 +48,7 @@ describe('RouterEngine – annotations propagation', () => {
       {
         id: 'r-yes', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.command.v1' ] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }] },
         enrichments: {},
       } as any,
     ];

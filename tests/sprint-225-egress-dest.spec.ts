@@ -7,7 +7,7 @@ describe('Sprint 225: Egress destination enrichment', () => {
   const baseEvt: InternalEventV2 = {
     v: '2',
     correlationId: 'c-egress-dest',
-    routingSlip: [],
+    routing: { stage: 'analysis', slip: [], history: [] },
     type: 'chat.command.v1',
     ingress: {
       ingressAt: '2026-01-29T22:00:00Z',
@@ -29,7 +29,7 @@ describe('Sprint 225: Egress destination enrichment', () => {
       {
         id: 'r-lurk', enabled: true, priority: 1,
         logic: JSON.stringify({ 'text_contains': [{ var: 'message.text' }, '!lurk'] }),
-        routingSlip: [], // EMPTY SLIP
+        routing: { stage: 'analysis', slip: [] }, // EMPTY SLIP
         enrichments: {
           egress: {
             destination: '#new-destination',
@@ -56,7 +56,7 @@ describe('Sprint 225: Egress destination enrichment', () => {
       {
         id: 'r-lurk', enabled: true, priority: 1,
         logic: JSON.stringify({ 'text_contains': [{ var: 'message.text' }, '!lurk'] }),
-        routingSlip: [], 
+        routing: { stage: 'analysis', slip: [] },
         enrichments: {
           egress: {
             destination: 'user:{{userId}}',
