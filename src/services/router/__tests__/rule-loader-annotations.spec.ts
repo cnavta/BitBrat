@@ -11,7 +11,7 @@ describe('RuleLoader – annotations passthrough and validation', () => {
             enabled: true,
             priority: 1,
             logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.command.v1' ] }),
-            routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
+            routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }] },
             annotations: [
               { id: 'a1', kind: 'intent', source: 'rule', createdAt: '2025-01-01T00:00:00Z', label: 'ok' },
               { /* malformed */ id: 'missing-fields' },

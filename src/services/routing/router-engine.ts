@@ -76,6 +76,13 @@ export class RouterEngine {
       ...evt,
       annotations: evt.annotations ? [...evt.annotations] : undefined,
       candidates: evt.candidates ? [...evt.candidates] : undefined,
+      routing: evt.routing
+        ? {
+            ...evt.routing,
+            slip: Array.isArray(evt.routing.slip) ? evt.routing.slip.map((step) => ({ ...step })) : [],
+            history: Array.isArray(evt.routing.history) ? evt.routing.history.map((step) => ({ ...step })) : [],
+          }
+        : undefined,
     };
 
     let chosen: RoutingStep[] | null = null;
@@ -89,7 +96,7 @@ export class RouterEngine {
           matchedRuleIds.push(rule.id);
 
           if (!chosen) {
-            let slip = normalizeSlip(rule.routingSlip);
+            let slip = normalizeSlip(rule.routing.slip);
             let selectedTopic: string;
 
             if (slip.length > 0) {
@@ -102,6 +109,11 @@ export class RouterEngine {
 
             meta = { matched: true, ruleId: rule.id, priority: rule.priority, selectedTopic, matchedRuleIds };
             chosen = slip;
+            evtOut.routing = {
+              stage: rule.routing.stage,
+              slip: chosen,
+              history: evtOut.routing?.history ? [...evtOut.routing.history] : [],
+            };
 
 
             const enrich = rule.enrichments;
@@ -185,6 +197,11 @@ export class RouterEngine {
     if (!chosen) {
       chosen = defaultSlip();
       meta = { matched: false, selectedTopic: chosen[0].nextTopic!, matchedRuleIds };
+      evtOut.routing = {
+        stage: evtOut.routing?.stage ?? 'initial',
+        slip: chosen,
+        history: evtOut.routing?.history ? [...evtOut.routing.history] : [],
+      };
     }
 
     // Add routing metadata to event

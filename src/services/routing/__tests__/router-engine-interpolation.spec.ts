@@ -12,6 +12,7 @@ describe('RouterEngine – interpolation', () => {
       source: 'test',
       channel: '#general',
     },
+    egress: { destination: 'internal.egress.v1' },
     identity: {
       user: { displayName: 'Alice' },
       external: { id: 'u1', platform: 'test' }
@@ -24,7 +25,7 @@ describe('RouterEngine – interpolation', () => {
       {
         id: 'r-interp', enabled: true, priority: 1,
         logic: JSON.stringify({ '==': [ { var: 'type' }, 'chat.message.v1' ] }),
-        routingSlip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'internal.llmbot.v1' }] },
         metadata: {
           version: '2.0',
           channel: 'wrong-channel' // Should be overridden by event.channel
@@ -44,6 +45,11 @@ describe('RouterEngine – interpolation', () => {
     const engine = new RouterEngine();
     const { evtOut } = await engine.route(baseEvt, rules);
 
+    expect(evtOut.routing).toEqual({
+      stage: 'analysis',
+      slip: [expect.objectContaining({ id: 'router', nextTopic: 'internal.llmbot.v1', status: 'PENDING' })],
+      history: [],
+    });
     expect(evtOut.message?.text).toBe('Hello Alice from #general (v2.0)');
     
     expect(evtOut.annotations?.[0].label).toBe('label-2');
@@ -58,7 +64,7 @@ describe('RouterEngine – interpolation', () => {
       {
         id: 'r-time', enabled: true, priority: 1,
         logic: 'true',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'reaction', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {
           message: 'Time is {{now}}, epoch is {{ts}}',
         },
@@ -77,7 +83,7 @@ describe('RouterEngine – interpolation', () => {
       {
         id: 'r-missing', enabled: true, priority: 1,
         logic: 'true',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'reaction', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {
           message: 'Missing: {{missing_var}}',
         },
@@ -96,7 +102,7 @@ describe('RouterEngine – interpolation', () => {
         id: 'r-config', enabled: true, priority: 1,
         // Match only if botUsername in config is 'TestBot'
         logic: JSON.stringify({ '==': [{ var: 'config.botUsername' }, 'TestBot'] }),
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {
           message: 'Matched with {{config.botUsername}}',
         },
@@ -121,7 +127,7 @@ describe('RouterEngine – interpolation', () => {
       {
         id: 'r-egress', enabled: true, priority: 1,
         logic: 'true',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'response', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {
           egress: {
             destination: 'dynamic-{{channel}}',
@@ -145,19 +151,19 @@ describe('RouterEngine – interpolation', () => {
       {
         id: 'rule-1', enabled: true, priority: 10,
         logic: 'true',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {},
       } as any,
       {
         id: 'rule-2', enabled: true, priority: 20,
         logic: 'true',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'reaction', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {},
       } as any,
       {
         id: 'rule-3', enabled: true, priority: 30,
         logic: 'false',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'response', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {},
       } as any,
     ];
@@ -179,7 +185,7 @@ describe('RouterEngine – interpolation', () => {
       {
         id: 'rule-fail', enabled: true, priority: 1,
         logic: 'false',
-        routingSlip: [{ id: 'router', nextTopic: 'out' }],
+        routing: { stage: 'analysis', slip: [{ id: 'router', nextTopic: 'out' }] },
         enrichments: {},
       } as any,
     ];
@@ -189,6 +195,8 @@ describe('RouterEngine – interpolation', () => {
 
     expect(decision.matched).toBe(false);
     expect(decision.matchedRuleIds).toEqual([]);
+    expect(evtOut.routing?.stage).toBe('initial');
+    expect(evtOut.routing?.slip[0].nextTopic).toBe('internal.router.dlq.v1');
     expect(evtOut.metadata?.matchedRuleIds).toEqual([]);
     expect(evtOut.metadata?.chosenRuleId).toBeNull();
   });

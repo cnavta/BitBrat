@@ -3,7 +3,7 @@ import { McpServer } from '../common/mcp-server';
 import { BaseServer } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
-import { InternalEventV2, INTERNAL_INGRESS_V1, INTERNAL_ENRICHED_V1 } from '../types/events';
+import { InternalEventV2, INTERNAL_INGRESS_V1, INTERNAL_ENRICHED_V1, RoutingStage } from '../types/events';
 import { AttributeMap } from '../services/message-bus';
 import { RuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
@@ -114,8 +114,11 @@ class EventRouterServer extends McpServer {
               const run = async () => {
                 // Route using rules (first-match-wins, default path). RouterEngine now returns an immutable evtOut.
                 const { slip, decision, evtOut } = await engine.route(v2In, ruleLoader.getRules(), this.getConfig());
-                // Attach routing slip to the cloned event to preserve input immutability
-                evtOut.routingSlip = slip;
+                evtOut.routing = {
+                  stage: evtOut.routing?.stage ?? v2In.routing?.stage ?? 'initial',
+                  slip,
+                  history: evtOut.routing?.history ? [...evtOut.routing.history] : [],
+                };
                 const v2: InternalEventV2 = evtOut;
 
               // Update observability counters
@@ -135,7 +138,7 @@ class EventRouterServer extends McpServer {
                 selectedTopic: decision.selectedTopic,
                 type: v2?.type,
                 correlationId: (v2 as any)?.correlationId,
-                routingSlip: v2.routingSlip
+                routing: v2.routing,
               });
 
                 // Publish to the next topic using advance routing slip pattern
@@ -239,6 +242,7 @@ class EventRouterServer extends McpServer {
         services: z.array(z.string()).describe('A list of service names (e.g., llm-bot, auth) to form the routing slip.'),
         description: z.string().optional().describe('A description for the rule.'),
         priority: z.number().optional().default(100).describe('Rule priority.'),
+        stage: z.enum(['initial', 'analysis', 'reaction', 'response', 'error', 'meta']).optional().default('initial').describe('The routing stage to apply when the rule matches.'),
         promptTemplate: z.string().optional().describe('A template for a prompt annotation.'),
         responseTemplate: z.string().optional().describe('A template for a text candidate.'),
         personalityId: z.string().optional().describe('The ID of a personality to attach to matched events.'),

@@ -43,10 +43,14 @@ describe('events.ts (InternalEventV2 refactor)', () => {
       egress: { 
         destination: 'egress.twitch' 
       },
-      routingSlip: [
-        { id: 'router', status: 'OK' },
-        { id: 'llm-bot', status: 'PENDING', nextTopic: INTERNAL_BOT_REQUESTS_V1 }
-      ],
+      routing: {
+        stage: 'analysis',
+        slip: [
+          { id: 'router', status: 'OK' },
+          { id: 'llm-bot', status: 'PENDING', nextTopic: INTERNAL_BOT_REQUESTS_V1 }
+        ],
+        history: [],
+      },
       message: {
         id: 'msg-1',
         role: 'user',

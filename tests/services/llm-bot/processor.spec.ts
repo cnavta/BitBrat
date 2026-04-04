@@ -61,7 +61,7 @@ describe('Processor', () => {
       annotations: [
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],
-      routingSlip: [],
+      routing: { stage: 'analysis', slip: [], history: [] },
       egress: { destination: 'test' },
     };
 
@@ -86,7 +86,7 @@ describe('Processor', () => {
         external: { id: 'u1', platform: 'test' }
       },
       annotations: [],
-      routingSlip: [],
+      routing: { stage: 'analysis', slip: [], history: [] },
       egress: { destination: 'test' },
     };
 
@@ -125,7 +125,7 @@ describe('Processor', () => {
           source: 'test',
         } as any,
       ],
-      routingSlip: [],
+      routing: { stage: 'analysis', slip: [], history: [] },
       egress: { destination: 'test' },
     };
 
@@ -160,7 +160,7 @@ describe('Processor', () => {
       annotations: [
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],
-      routingSlip: [],
+      routing: { stage: 'analysis', slip: [], history: [] },
       egress: { destination: 'test' },
     };
 

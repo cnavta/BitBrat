@@ -54,7 +54,7 @@ describe('BaseServer routing helpers', () => {
       { id: 'router', status: 'OK', nextTopic: 'internal.router.done.v1' },
       { id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' },
     ] as any;
-    const evt = makeEvent({ routingSlip: steps });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] } });
 
     await server.nextPublic(evt);
 
@@ -68,15 +68,15 @@ describe('BaseServer routing helpers', () => {
       { id: 'step1', status: 'PENDING', nextTopic: 'internal.step1.v1' },
       { id: 'step2', status: 'PENDING', nextTopic: 'internal.step2.v1' },
     ] as any;
-    const evt = makeEvent({ routingSlip: steps });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] } });
 
     await server.nextPublic(evt, 'OK');
 
     // After marking step1 OK, next() should publish to step2 (first pending)
     const pub = getPublisher('internal.step2.v1');
     expect(pub.publishJson).toHaveBeenCalledTimes(1);
-    expect((evt.routingSlip as RoutingStep[])[0].status).toBe('OK');
-    expect(typeof (evt.routingSlip as RoutingStep[])[0].endedAt).toBe('string');
+    expect((evt.routing?.slip as RoutingStep[])[0].status).toBe('OK');
+    expect(typeof (evt.routing?.slip as RoutingStep[])[0].endedAt).toBe('string');
   });
 
   test('next() falls back to egressDestination when no pending steps', async () => {
@@ -84,7 +84,7 @@ describe('BaseServer routing helpers', () => {
       { id: 'router', status: 'OK', nextTopic: 'internal.router.done.v1' },
       { id: 'bot', status: 'SKIP', nextTopic: 'internal.bot.requests.v1' },
     ] as any;
-    const evt = makeEvent({ routingSlip: steps, egress: { destination: 'internal.egress.v1' } });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] }, egress: { destination: 'internal.egress.v1' } });
 
     await server.nextPublic(evt);
 
@@ -102,16 +102,16 @@ describe('BaseServer routing helpers', () => {
     const steps: RoutingStep[] = [
       { id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' },
     ] as any;
-    const evt = makeEvent({ routingSlip: steps, egress: { destination: 'internal.egress.v1' } });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] }, egress: { destination: 'internal.egress.v1' } });
     await server.completePublic(evt, 'SKIP');
     expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
-    expect((evt.routingSlip as RoutingStep[])[0].status).toBe('SKIP');
-    expect(typeof (evt.routingSlip as RoutingStep[])[0].endedAt).toBe('string');
+    expect((evt.routing?.slip as RoutingStep[])[0].status).toBe('SKIP');
+    expect(typeof (evt.routing?.slip as RoutingStep[])[0].endedAt).toBe('string');
   });
 
   test('idempotency: next() second call is no-op for same event instance', async () => {
     const steps: RoutingStep[] = [{ id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' }] as any;
-    const evt = makeEvent({ routingSlip: steps });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] } });
     await server.nextPublic(evt);
     await server.nextPublic(evt);
     expect(getPublisher('internal.bot.requests.v1').publishJson).toHaveBeenCalledTimes(1);
@@ -119,7 +119,7 @@ describe('BaseServer routing helpers', () => {
 
   test('idempotency marker cleared on publish failure allowing retry', async () => {
     const steps: RoutingStep[] = [{ id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' }] as any;
-    const evt = makeEvent({ routingSlip: steps });
+    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] } });
     const pub = getPublisher('internal.bot.requests.v1');
     pub.publishJson.mockImplementationOnce(async () => { throw new Error('boom'); });
     await expect(server.nextPublic(evt)).rejects.toThrow('boom');
