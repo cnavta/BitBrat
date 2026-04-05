@@ -181,7 +181,7 @@ export interface InternalEventV2 {
   candidates?: CandidateV1[];
   qos?: QOSV1;
 
-  routing?: Routing;
+  routing: Routing;
   errors?: ErrorEntryV1[];
   metadata?: Record<string, any>;
 }

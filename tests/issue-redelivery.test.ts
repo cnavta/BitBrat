@@ -26,7 +26,12 @@ describe('Egress Selection - Redelivery Reproduction', () => {
       payload: {
         text: 'Hello Platform!'
       },
-      candidates: [] // Empty candidates
+      candidates: [], // Empty candidates
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
 
     const egressText = extractEgressTextFromEvent(event);
@@ -67,7 +72,12 @@ describe('Egress Selection - Redelivery Reproduction', () => {
           priority: 10,
           text: 'Hello User!'
         }
-      ]
+      ],
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
 
     const egressText = extractEgressTextFromEvent(event);
