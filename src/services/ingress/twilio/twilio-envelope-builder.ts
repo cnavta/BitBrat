@@ -82,6 +82,11 @@ export class TwilioEnvelopeBuilder {
           } : undefined
         },
       },
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
   }
 }

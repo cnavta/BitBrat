@@ -303,6 +303,11 @@ class SchedulerServer extends McpServer {
         text: schedule.event.message.text,
       } : undefined,
       annotations: schedule.event.annotations,
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
 
     this.getLogger().info('scheduler.executing_event', { 
