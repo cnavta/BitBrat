@@ -111,6 +111,11 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
           timestamp: nowIso(),
         },
       },
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
     return evt;
   }

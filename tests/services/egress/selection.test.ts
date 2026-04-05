@@ -41,6 +41,11 @@ describe('egress selection', () => {
       candidates: [
         { id: 'x', kind: 'text', source: 'svc', createdAt: '2025-01-01T00:00:00Z', status: 'proposed', priority: 1, text: 'hello world' },
       ],
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
     expect(extractEgressTextFromEvent(evt)).toBe('hello world');
 

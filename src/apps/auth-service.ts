@@ -287,7 +287,12 @@ export class AuthServer extends McpServer {
             reason: args.reason,
             actor: 'llm-bot',
           },
-          egress: { destination: 'system' }
+          egress: { destination: 'system' },
+          routing: {
+            stage: 'initial',
+            slip: [],
+            history: [],
+          }
         };
 
         const cfg: any = this.getConfig();
@@ -409,7 +414,12 @@ export class AuthServer extends McpServer {
             token_hash: hash,
             raw_token: rawToken,
           },
-          egress: { destination: 'system' }
+          egress: { destination: 'system' },
+          routing: {
+            stage: 'initial',
+            slip: [],
+            history: [],
+          }
         };
 
         const cfg: any = this.getConfig();

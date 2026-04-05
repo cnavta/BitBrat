@@ -70,6 +70,11 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
           },
         },
       ],
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
     return evt;
   }
