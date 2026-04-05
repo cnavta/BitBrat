@@ -67,6 +67,11 @@ export class EventSubEnvelopeBuilder {
       },
       egress: { destination: opts?.finalizationDestination || '' },
       externalEvent,
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
   }
 
@@ -131,6 +136,11 @@ export class EventSubEnvelopeBuilder {
       },
       egress: { destination: opts?.finalizationDestination || '' },
       externalEvent,
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
   }
 
@@ -196,6 +206,11 @@ export class EventSubEnvelopeBuilder {
       },
       egress: { destination: opts?.finalizationDestination || '' },
       externalEvent,
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
   }
 
@@ -251,6 +266,11 @@ export class EventSubEnvelopeBuilder {
       },
       egress: { destination: opts?.finalizationDestination || '' },
       externalEvent,
+      routing: {
+        stage: 'initial',
+        slip: [],
+        history: [],
+      }
     };
   }
 }

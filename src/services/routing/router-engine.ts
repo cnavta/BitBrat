@@ -82,7 +82,11 @@ export class RouterEngine {
             slip: Array.isArray(evt.routing.slip) ? evt.routing.slip.map((step) => ({ ...step })) : [],
             history: Array.isArray(evt.routing.history) ? evt.routing.history.map((step) => ({ ...step })) : [],
           }
-        : undefined,
+        : {
+          stage: 'initial',
+          slip: [],
+          history: [],
+        },
     };
 
     let chosen: RoutingStep[] | null = null;

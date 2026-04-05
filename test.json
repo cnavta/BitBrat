@@ -1,17 +1,17 @@
 {
-  "ts": "2026-03-28T02:24:13.831Z",
+  "ts": "2026-04-04T23:45:58.121Z",
   "service": "event-router",
   "level": "debug",
   "severity": "DEBUG",
   "msg": "router_engine.enrichment.start",
-  "ruleId": "bitbrat-mention",
+  "ruleId": "5CWVP8JZiPYtxvqq3QXK",
   "interpCtx": {
     "v": "2",
     "type": "chat.message.v1",
-    "correlationId": "081a35c5-5525-4e3f-b025-ad6294a35c79",
-    "traceId": "f8e23b0f-0390-4d29-b943-bb2557c764ff",
+    "correlationId": "5bc9643c-e0bb-4f86-97b9-c531b977d1f6",
+    "traceId": "1f63b317-373d-48a3-acfe-a5df994428b7",
     "ingress": {
-      "ingressAt": "2026-03-28T02:24:11.801Z",
+      "ingressAt": "2026-04-04T23:45:58.105Z",
       "source": "ingress.twitch",
       "channel": "#gonj_the_unjust"
     },
@@ -26,47 +26,19 @@
           "isMod": false,
           "isSubscriber": true
         }
-      },
-      "user": {
-        "id": "twitch:91960688",
-        "displayName": "Gonj_The_Unjust",
-        "roles": [
-          "subscriber"
-        ],
-        "profile": {
-          "username": "gonj_the_unjust",
-          "updatedAt": "2026-03-28T02:24:11.811Z"
-        },
-        "rolesMeta": {
-          "twitch": [
-            "subscriber"
-          ]
-        },
-        "tags": [
-          "PROVIDER_TWITCH",
-          "RETURNING_USER"
-        ]
-      },
-      "auth": {
-        "v": "2",
-        "method": "enrichment",
-        "matched": true,
-        "at": "2026-03-28T02:24:11.811Z",
-        "provider": "twitch",
-        "userRef": "users/twitch:91960688"
       }
     },
     "egress": {
-      "destination": "internal.egress.v1.1b17c0f3754c",
+      "destination": "internal.egress.v1.15d7b2100f76",
       "type": "chat"
     },
     "message": {
-      "id": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+      "id": "5518c04a-df58-4a48-b599-4b91abe84fe5",
       "role": "user",
-      "text": "@bitbrat_the_ai Are you seen, in and through, the blackness smeared that is the sky?",
+      "text": "@bitbrat_the_ai Lamet! For the time has come! Never again will the days of the past come nigh again!",
       "rawPlatformPayload": {
-        "text": "@bitbrat_the_ai Are you seen, in and through, the blackness smeared that is the sky?",
-        "messageId": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+        "text": "@bitbrat_the_ai Lamet! For the time has come! Never again will the days of the past come nigh again!",
+        "messageId": "5518c04a-df58-4a48-b599-4b91abe84fe5",
         "user": {
           "login": "gonj_the_unjust",
           "displayName": "Gonj_The_Unjust"
@@ -78,140 +50,35 @@
         "emotes": [],
         "raw": {
           "tags": {
-            "badge-info": "subscriber/7",
+            "badge-info": "subscriber/8",
             "badges": "broadcaster/1,subscriber/0",
-            "client-nonce": "97***c3d2",
+            "client-nonce": "26***f7a0",
             "color": "#8A2BE2",
             "display-name": "Gonj_The_Unjust",
             "emotes": "",
             "first-msg": "0",
             "flags": "",
-            "id": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+            "id": "5518c04a-df58-4a48-b599-4b91abe84fe5",
             "mod": "0",
             "returning-chatter": "0",
             "room-id": "91960688",
             "subscriber": "1",
-            "tmi-sent-ts": "1774664651671",
+            "tmi-sent-ts": "1775346357957",
             "turbo": "0",
             "user-id": "91960688",
             "user-type": ""
           }
         },
-        "timestamp": "2026-03-28T02:24:11.801Z"
+        "timestamp": "2026-04-04T23:45:58.105Z"
       }
     },
-    "metadata": {
-      "matchedRuleIds": [
-        "query-analysis",
-        "bitbrat-mention"
-      ],
-      "chosenRuleId": "query-analysis"
-    },
-    "routingSlip": [
-      {
-        "id": "auth",
-        "v": "1",
-        "status": "OK",
-        "attempt": 1,
-        "maxAttempts": 3,
-        "nextTopic": "internal.auth.v1",
-        "attributes": {
-          "origin": "event-router"
-        },
-        "startedAt": "2026-03-28T02:24:11.810Z",
-        "endedAt": "2026-03-28T02:24:11.823Z"
-      },
-      {
-        "id": "query-analyzer",
-        "v": "1",
-        "status": "OK",
-        "attempt": 1,
-        "maxAttempts": 3,
-        "nextTopic": "internal.query.analysis.v1",
-        "attributes": {
-          "origin": "event-router"
-        },
-        "startedAt": "2026-03-28T02:24:11.823Z",
-        "endedAt": "2026-03-28T02:24:13.825Z"
-      },
-      {
-        "id": "event-router",
-        "v": "1",
-        "status": "PENDING",
-        "attempt": 1,
-        "maxAttempts": 3,
-        "nextTopic": "internal.enriched.v1",
-        "attributes": {
-          "origin": "event-router"
-        },
-        "startedAt": "2026-03-28T02:24:13.825Z"
-      }
-    ],
-    "annotations": [
-      {
-        "id": "5644b36a-2162-46d4-9f5c-785ced241cee",
-        "kind": "intent",
-        "source": "query-analyzer",
-        "createdAt": "2026-03-28T02:24:13.825Z",
-        "label": "question",
-        "value": "question"
-      },
-      {
-        "id": "4c127acd-09a0-4279-b246-0f4251e840c5",
-        "kind": "tone",
-        "source": "query-analyzer",
-        "createdAt": "2026-03-28T02:24:13.825Z",
-        "payload": {
-          "valence": 0.8,
-          "arousal": 0.2
-        }
-      },
-      {
-        "id": "326d9d23-8415-447b-a3b7-59596020e3b9",
-        "kind": "risk",
-        "source": "query-analyzer",
-        "createdAt": "2026-03-28T02:24:13.825Z",
-        "label": "none",
-        "payload": {
-          "level": "none",
-          "type": "none"
-        }
-      }
-    ],
     "source": "ingress.twitch",
     "channel": "#gonj_the_unjust",
     "userId": "91960688",
-    "user": {
-      "id": "twitch:91960688",
-      "displayName": "Gonj_The_Unjust",
-      "roles": [
-        "subscriber"
-      ],
-      "profile": {
-        "username": "gonj_the_unjust",
-        "updatedAt": "2026-03-28T02:24:11.811Z"
-      },
-      "rolesMeta": {
-        "twitch": [
-          "subscriber"
-        ]
-      },
-      "tags": [
-        "PROVIDER_TWITCH",
-        "RETURNING_USER"
-      ]
-    },
-    "auth": {
-      "v": "2",
-      "method": "enrichment",
-      "matched": true,
-      "at": "2026-03-28T02:24:11.811Z",
-      "provider": "twitch",
-      "userRef": "users/twitch:91960688"
-    },
+    "auth": "***",
     "payload": {
-      "text": "@bitbrat_the_ai Are you seen, in and through, the blackness smeared that is the sky?",
-      "messageId": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+      "text": "@bitbrat_the_ai Lamet! For the time has come! Never again will the days of the past come nigh again!",
+      "messageId": "5518c04a-df58-4a48-b599-4b91abe84fe5",
       "user": {
         "login": "gonj_the_unjust",
         "displayName": "Gonj_The_Unjust"
@@ -223,26 +90,26 @@
       "emotes": [],
       "raw": {
         "tags": {
-          "badge-info": "subscriber/7",
+          "badge-info": "subscriber/8",
           "badges": "broadcaster/1,subscriber/0",
-          "client-nonce": "97***c3d2",
+          "client-nonce": "26***f7a0",
           "color": "#8A2BE2",
           "display-name": "Gonj_The_Unjust",
           "emotes": "",
           "first-msg": "0",
           "flags": "",
-          "id": "4e23707a-c8a0-4071-bd74-ac0ec24fa914",
+          "id": "5518c04a-df58-4a48-b599-4b91abe84fe5",
           "mod": "0",
           "returning-chatter": "0",
           "room-id": "91960688",
           "subscriber": "1",
-          "tmi-sent-ts": "1774664651671",
+          "tmi-sent-ts": "1775346357957",
           "turbo": "0",
           "user-id": "91960688",
           "user-type": ""
         }
       },
-      "timestamp": "2026-03-28T02:24:11.801Z"
+      "timestamp": "2026-04-04T23:45:58.105Z"
     },
     "config": {
       "port": 3000,
@@ -301,8 +168,8 @@
       "twilioChatServiceSid": "fdsafdsa",
       "twilioIdentity": "local-twilio-identity"
     },
-    "now": "2026-03-28T02:24:13.831Z",
-    "ts": 1774664653831
+    "now": "2026-04-04T23:45:58.120Z",
+    "ts": 1775346358120
   }
 }
 

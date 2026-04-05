@@ -68,6 +68,11 @@ export class IngressManager {
           rawPlatformPayload: frame.payload
         } : undefined,
         payload: frame.payload,
+        routing: {
+          stage: 'initial',
+          slip: [],
+          history: [],
+        }
       };
 
       const publisher = this.publishers.create(INTERNAL_INGRESS_V1);
