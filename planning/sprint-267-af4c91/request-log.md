@@ -1,0 +1,161 @@
+# Request Log – sprint-267-af4c91
+
+## Request RQ-001
+- Timestamp: 2026-04-05 23:01 local / 2026-04-06T03:01:57Z
+- Prompt Summary: Start a new sprint as Lead Implementor and, as the first task, analyze the TA document and produce an execution plan plus a trackable prioritized YAML backlog for the new persistence approach.
+- Interpretation: Initialize a new sprint under `planning/`, create the required sprint metadata and traceability artifacts, align the plan to `architecture.yaml`, and stop after planning deliverables are ready for approval.
+- Files Created or Modified:
+  - `planning/sprint-267-af4c91/sprint-manifest.yaml`
+  - `planning/sprint-267-af4c91/implementation-plan.md`
+  - `planning/sprint-267-af4c91/prioritized-backlog.yaml`
+  - `planning/sprint-267-af4c91/request-log.md`
+- Shell and Git Operations Executed:
+  - `pwd`
+  - `git branch --show-current`
+  - `find planning -name sprint-manifest.yaml -print`
+  - `ruby -e 'require "yaml"; ... ACTIVE_COUNT=0 ...'`
+  - `git checkout -b feature/sprint-267-af4c91-persistence-snapshot-planning`
+  - `date -u +%Y-%m-%dT%H:%M:%SZ`
+  - `ruby -e 'require "psych"; ... YAML_PARSE_OK ...'`
+- Notes:
+  - Verified there was no active sprint before initialization.
+  - Planning is based on the attached TA document recommending the aggregate-plus-snapshots persistence model and on `architecture.yaml` as the canonical architecture source.
+  - No implementation code has started; explicit user approval is required before execution work begins.
+
+## Request RQ-002
+- Timestamp: 2026-04-05 23:14 local / 2026-04-06T03:19:00Z
+- Prompt Summary: Documentation approved; move forward with implementation and keep backlog item statuses updated as they change.
+- Interpretation: Begin implementing the snapshot persistence rollout in prioritized backlog order, maintain sprint traceability, and update backlog status/log entries as implementation progresses.
+- Files Created or Modified:
+  - `planning/sprint-267-af4c91/prioritized-backlog.yaml`
+  - `planning/sprint-267-af4c91/request-log.md`
+- Shell and Git Operations Executed:
+  - `search_project "persistence" src`
+  - `get_file_structure src/services/persistence/store.ts`
+  - `get_file_structure src/services/persistence/model.ts`
+  - `open src/services/persistence/model.ts:1`
+  - `get_file_structure src/apps/persistence-service.ts`
+  - `get_file_structure src/apps/ingress-egress-service.ts`
+  - `open src/apps/ingress-egress-service.ts:339`
+  - `get_file_structure src/apps/api-gateway.ts`
+  - `open src/apps/api-gateway.ts:39`
+  - `search_project "EventDocV1" src`
+  - `get_file_structure src/services/persistence/store.spec.ts`
+  - `open src/services/persistence/store.spec.ts:1`
+  - `open src/services/persistence/model.ts:105`
+  - `get_file_structure src/services/persistence/integration.spec.ts`
+- Notes:
+  - Confirmed the current implementation still uses a mutable root event document plus partial finalize/deadletter patches.
+  - Confirmed `ingress-egress` and `api-gateway` currently publish compact finalize messages to `internal.persistence.finalize.v1`, which must be evolved to full snapshot publication.
+
+## Request RQ-003
+- Timestamp: 2026-04-05 23:36 local / 2026-04-06T03:36:00Z
+- Prompt Summary: Continue implementation of the approved persistence-snapshot rollout.
+- Interpretation: Advance the first implementation slices by introducing new contracts, helper logic, and transactional store behavior while keeping sprint backlog/request logging current.
+- Files Created or Modified:
+  - `src/types/events.ts`
+  - `src/services/persistence/model.ts`
+  - `src/services/persistence/store.ts`
+  - `planning/sprint-267-af4c91/prioritized-backlog.yaml`
+  - `planning/sprint-267-af4c91/request-log.md`
+- Shell and Git Operations Executed:
+  - `lint src/services/persistence/model.ts`
+  - `lint src/types/events.ts`
+  - `search_project "runTransaction" src`
+  - `open src/apps/state-engine.ts:229`
+  - `lint src/services/persistence/store.ts`
+  - `lint src/apps/persistence-service.ts`
+  - `get_file_structure src/apps/ingress-egress-service.finalize.spec.ts`
+- Notes:
+  - Added canonical aggregate/snapshot event contracts and new persistence topic constant.
+  - Added model helpers for initial snapshot creation, TTL computation, snapshot IDs, and aggregate updates from snapshot documents.
+  - Began replacing mutable persistence writes with transactional aggregate + snapshot flows in the store; service and test wiring still need to be aligned.
+
+## Request RQ-004
+- Timestamp: 2026-04-05 23:46 local / 2026-04-06T03:46:00Z
+- Prompt Summary: Continue implementation, align runtime/config references, and validate the new snapshot persistence slice.
+- Interpretation: Finish the first vertical slice of aggregate + snapshot persistence by wiring snapshot publishers/consumers, updating architecture and routing references, migrating affected tests, and running targeted Jest validation.
+- Files Created or Modified:
+  - `src/apps/persistence-service.ts`
+  - `src/apps/ingress-egress-service.ts`
+  - `src/apps/api-gateway.ts`
+  - `src/apps/ingress-egress-service.finalize.spec.ts`
+  - `src/services/persistence/model.spec.ts`
+  - `src/services/persistence/store.spec.ts`
+  - `src/services/persistence/integration.spec.ts`
+  - `src/services/router/rule-mapper.ts`
+  - `architecture.yaml`
+  - `planning/sprint-267-af4c91/prioritized-backlog.yaml`
+  - `planning/sprint-267-af4c91/request-log.md`
+- Shell and Git Operations Executed:
+  - `npm test -- --runTestsByPath src/services/persistence/model.spec.ts src/services/persistence/store.spec.ts src/services/persistence/integration.spec.ts src/apps/ingress-egress-service.finalize.spec.ts`
+  - `search_project "internal.persistence.snapshot.v1" .`
+  - `open src/services/router/rule-mapper.ts:1`
+  - `lint src/services/router/rule-mapper.ts`
+- Notes:
+  - Fixed a runtime bug discovered by targeted tests (`FirebaseFirestore is not defined`) by switching TTL creation to the concrete Firestore `Timestamp` import.
+  - Targeted Jest validation now passes for the updated persistence model/store/service flow and ingress-egress snapshot publication.
+  - Snapshot policy configuration is only partially implemented: architecture env knobs are documented, but shared helper/policy enforcement work remains.
+
+## Request RQ-005
+- Timestamp: 2026-04-05 23:49 local / 2026-04-06T03:49:00Z
+- Prompt Summary: Continue validating and stabilizing the new persistence snapshot implementation.
+- Interpretation: Expand from targeted tests to the broader persistence test scope, fix any regressions introduced by the new model, and keep sprint tracking accurate.
+- Files Created or Modified:
+  - `src/services/persistence/__tests__/metadata-persistence.spec.ts`
+  - `planning/sprint-267-af4c91/request-log.md`
+- Shell and Git Operations Executed:
+  - `get_file_structure validate_deliverable.sh`
+  - `npm test -- src/services/persistence`
+  - `get_file_structure src/services/persistence/__tests__/metadata-persistence.spec.ts`
+  - `lint src/services/persistence/__tests__/metadata-persistence.spec.ts`
+  - `npm test -- src/services/persistence`
+- Notes:
+  - Broader persistence validation exposed metadata-persistence spec assumptions that no longer matched the aggregate + snapshot store design.
+  - Updated that suite to use snapshot-aware Firestore mocks and to assert metadata on `currentProjection.metadata` and compatibility-path `delivery.metadata`.
+  - The persistence-scoped Jest suite now passes fully (`npm test -- src/services/persistence`).
+
+## Request RQ-006
+- Timestamp: 2026-04-06 00:30 local / 2026-04-06T04:41:36Z
+- Prompt Summary: Continue the sprint implementation, including the optional tasks.
+- Interpretation: Finish the optional shared snapshot-helper and snapshot-policy configuration work, validate the new helper/policy behavior, and advance the sprint verification artifacts without closing the sprint yet.
+- Files Created or Modified:
+  - `src/common/events/persistence-snapshots.ts`
+  - `src/common/events/persistence-snapshots.spec.ts`
+  - `src/common/base-server.ts`
+  - `src/apps/ingress-egress-service.ts`
+  - `src/apps/api-gateway.ts`
+  - `architecture.yaml`
+  - `planning/sprint-267-af4c91/prioritized-backlog.yaml`
+  - `planning/sprint-267-af4c91/request-log.md`
+  - `planning/sprint-267-af4c91/verification-report.md`
+- Shell and Git Operations Executed:
+  - `search_project "snapshot" src`
+  - `get_file_structure src/common/base-server.ts`
+  - `open src/common/base-server.ts:518`
+  - `get_file_structure planning/sprint-267-af4c91/request-log.md`
+  - `open src/apps/ingress-egress-service.ts:350`
+  - `open src/apps/api-gateway.ts:35`
+  - `search_project "PERSISTENCE_INCLUDE_RAW_PAYLOADS" src`
+  - `search_project "PERSISTENCE_TTL_DAYS" src`
+  - `open src/common/config.ts:84`
+  - `open src/services/persistence/store.ts:1`
+  - `open src/services/persistence/store.ts:102`
+  - `open architecture.yaml:60`
+  - `open src/apps/persistence-service.ts:1`
+  - `search_project "INTERNAL_PERSISTENCE_SNAPSHOT_V1" src/apps`
+  - `search_project "publishFinalize" src`
+  - `open src/common/base-server.ts:610`
+  - `open src/apps/ingress-egress-service.finalize.spec.ts:1`
+  - `search_project "export type PublisherResource" src/common/resources/publisher-manager.ts`
+  - `lint src/common/events/persistence-snapshots.ts`
+  - `lint src/common/base-server.ts`
+  - `lint src/apps/api-gateway.ts`
+  - `lint src/apps/ingress-egress-service.ts`
+  - `lint src/common/events/persistence-snapshots.spec.ts`
+  - `npm test -- --runTestsByPath src/common/events/persistence-snapshots.spec.ts src/apps/ingress-egress-service.finalize.spec.ts src/services/persistence/model.spec.ts src/services/persistence/store.spec.ts src/services/persistence/integration.spec.ts`
+  - `date -u +%Y-%m-%dT%H:%M:%SZ`
+- Notes:
+  - Added a reusable snapshot helper that centralizes snapshot mode, raw-payload inclusion, and max-size enforcement while preserving the existing persistence event contract.
+  - BaseServer now emits policy-driven update snapshots at routing boundaries, and ingress-egress/api-gateway final snapshot publishing now uses the shared helper.
+  - Targeted validation passed after correcting a helper type mismatch and adjusting the new helper test threshold.
