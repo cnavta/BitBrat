@@ -1,0 +1,13 @@
+id: sprint-267-af4c91
+title: "Persistence snapshot architecture rollout"
+goal: "Plan and implement the new aggregate plus immutable snapshots persistence approach for event lifecycle storage."
+owner: "Lead Implementor"
+createdAt: "2026-04-06T03:01:57Z"
+status: "verifying"
+links:
+  pr: ""
+  branch: "feature/sprint-267-af4c91-persistence-snapshot-planning"
+notes: |
+  Sprint initiated from the TA recommendation to replace the mutable EventDocV1-centered model
+  with a compact EventAggregateV2 root document and immutable event snapshot subcollection docs.
+  Backward compatibility of types is explicitly out of scope for this sprint; clean changes are preferred.
