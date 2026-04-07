@@ -3,7 +3,7 @@ import type { IConfig } from '../../types';
 import { logger } from '../../common/logging';
 import { ProviderRegistry } from './provider-registry';
 import type { OAuthProvider } from './types';
-import { verifyState } from '../twitch-oauth';
+import { verifyState, generateState } from '../twitch-oauth';
 import type { IAuthTokenStoreV2 } from './auth-token-store';
 
 function wantsJson(req: Request): boolean {
@@ -31,7 +31,7 @@ export function mountOAuthRoutes(app: Express, cfg: IConfig, registry: ProviderR
       const providerKey = String(req.params.provider || '').toLowerCase();
       const identity = String(req.params.identity || '');
       const provider: OAuthProvider = registry.resolve(providerKey);
-      const state = require('crypto').randomBytes(8).toString('hex');
+      const state = generateState(cfg);
       const url = await provider.getAuthorizeUrl({ identity, state, mode: wantsJson(req) ? 'json' : 'redirect' });
       try { logger.info('oauth.routes.start', { provider: providerKey, identity, mode: wantsJson(req) ? 'json' : 'redirect' }); } catch {}
       incCounter(keyFor(providerKey, identity), 'start_requests');
