@@ -16,7 +16,7 @@ function makeDb(stubs: Record<string, any>) {
 
 describe('FirestoreAuthTokenStore (V2)', () => {
   it('returns null when v2 doc missing and no legacy configured', async () => {
-    const v2Path = 'authTokens/twitch/bot';
+    const v2Path = 'authTokens/twitch_bot';
     const stubs: Record<string, any> = {
       [v2Path]: { async get() { return { exists: false, data: () => ({}) }; }, async set() {} },
     };
@@ -26,7 +26,7 @@ describe('FirestoreAuthTokenStore (V2)', () => {
   });
 
   it('reads v2 doc and maps to AuthTokenDoc', async () => {
-    const v2Path = 'authTokens/twitch/bot';
+    const v2Path = 'authTokens/twitch_bot';
     const payload = {
       tokenType: 'oauth',
       accessToken: 'AT',
@@ -52,7 +52,7 @@ describe('FirestoreAuthTokenStore (V2)', () => {
   });
 
   it('putAuthToken writes v2 doc with updatedAt ISO', async () => {
-    const v2Path = 'authTokens/discord/bot';
+    const v2Path = 'authTokens/discord_bot';
     const setCalls: any[] = [];
     const stubs: Record<string, any> = {
       [v2Path]: {
@@ -73,7 +73,7 @@ describe('FirestoreAuthTokenStore (V2)', () => {
   });
 
   it('legacy read-compat maps Twitch legacy schema when v2 missing', async () => {
-    const v2Path = 'authTokens/twitch/broadcaster/token';
+    const v2Path = 'authTokens/twitch_broadcaster';
     const legacyPath = 'oauth/twitch/broadcaster/token';
     const legacy = {
       accessToken: 'AT',
