@@ -1,0 +1,12 @@
+id: sprint-274-f1a2b3
+title: "Fix test failures after merge from main"
+goal: "Remediate failing tests in routes.test.ts and discord-adapter.test.ts"
+owner: "Junie"
+createdAt: "2026-04-09T16:45:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-274-f1a2b3-fix-merged-test-errors"
+notes: |
+  Regressions found after merging from main.
+  1. src/services/oauth/routes.test.ts: state/s parameter mismatch.
+  2. src/services/oauth/providers/discord-adapter.test.ts: Discord API version and error message mismatch.

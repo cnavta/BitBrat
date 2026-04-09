@@ -77,7 +77,7 @@ export class DiscordAdapter implements OAuthProvider {
       redirect_uri: redirectUri,
     });
 
-    const resp = await fetch('https://discord.com/api/oauth2/token', {
+    const resp = await fetch('https://discord.com/api/v10/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
@@ -85,7 +85,7 @@ export class DiscordAdapter implements OAuthProvider {
 
     if (!resp.ok) {
       const text = await resp.text();
-      throw new Error(`Token exchange failed: ${resp.status} ${text}`);
+      throw new Error(`discord_token_exchange_failed:${resp.status}:${text}`);
     }
 
     const json = (await resp.json()) as any;
@@ -103,7 +103,7 @@ export class DiscordAdapter implements OAuthProvider {
       tokenType: 'oauth',
       metadata: {
         guildId: json.guild?.id,
-        permissions: json.guild?.permissions,
+        permissions: json.guild?.permissions || json.permissions,
       },
     };
   }
