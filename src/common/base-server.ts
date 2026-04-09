@@ -18,9 +18,10 @@ import { FirestoreManager } from './resources/firestore-manager';
 import { createMessageSubscriber, createMessagePublisher, type AttributeMap } from '../services/message-bus';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
-import type { InternalEventV2, RoutingStep } from '../types/events';
-import type { RoutingStatus } from '../types/events';
+import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1 } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
+import { publishPersistenceSnapshot } from './events/persistence-snapshots';
+import type { PublisherResource } from './resources/publisher-manager';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
 
@@ -601,6 +602,19 @@ export class BaseServer {
       attempt: step.attempt,
       correlationId: event?.correlationId,
     });
+    await this.publishPersistenceSnapshot({
+      kind: 'update',
+      sourceTopic: subject,
+      event,
+      stepId: step.id,
+      attempt: step.attempt,
+      changeSummary: `routing advanced to ${subject}`,
+      delivery: {
+        destination: subject,
+        status: 'ROUTED',
+        deliveredAt: new Date().toISOString(),
+      },
+    });
   }
 
   /**
@@ -645,6 +659,56 @@ export class BaseServer {
       throw e;
     }
     this.logger.info('routing.complete.published', { dest, correlationId: event?.correlationId });
+    await this.publishPersistenceSnapshot({
+      kind: 'update',
+      sourceTopic: dest,
+      event: egressEvent,
+      changeSummary: `routing completed to ${dest}`,
+      delivery: {
+        destination: dest,
+        status: 'ROUTED',
+        deliveredAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  protected async publishPersistenceSnapshot(params: {
+    kind: 'update' | 'final' | 'deadletter';
+    sourceTopic: string;
+    event: InternalEventV2;
+    changeSummary?: string;
+    delivery?: SnapshotDeliveryV1;
+    deadletter?: SnapshotDeadletterV1;
+    idempotencyKey?: string;
+    capturedAt?: string;
+    stepId?: string;
+    attempt?: number;
+  }): Promise<void> {
+    try {
+      const publisher = this.getResource<PublisherResource>('publisher');
+      await publishPersistenceSnapshot({
+        config: this.getConfig() as any,
+        createPublisher: (subject: string) => publisher?.create(subject) || createMessagePublisher(subject),
+        logger: this.logger as any,
+        kind: params.kind,
+        sourceService: this.serviceName,
+        sourceTopic: params.sourceTopic,
+        event: params.event,
+        changeSummary: params.changeSummary,
+        delivery: params.delivery,
+        deadletter: params.deadletter,
+        idempotencyKey: params.idempotencyKey,
+        capturedAt: params.capturedAt,
+        stepId: params.stepId,
+        attempt: params.attempt,
+      });
+    } catch (error: any) {
+      this.logger.warn('persistence.snapshot.publish_error', {
+        correlationId: params.event?.correlationId,
+        kind: params.kind,
+        error: error?.message || String(error),
+      });
+    }
   }
 
   /**

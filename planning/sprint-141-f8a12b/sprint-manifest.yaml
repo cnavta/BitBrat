@@ -1,0 +1,10 @@
+id: sprint-141-f8a12b
+title: "Fix Discord OAuth state validation"
+goal: "Ensure all providers using generic OAuth routes have correctly signed and verified state"
+owner: "Junie"
+createdAt: "2026-04-07T14:05:42Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-141-f8a12b-fix-discord-oauth-state-validation"
+notes: |
+  The oauth-flow service was using a simple hex nonce for state, but verifying it with a HMAC-SHA256 signature check.

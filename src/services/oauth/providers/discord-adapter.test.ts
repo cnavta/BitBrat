@@ -101,4 +101,60 @@ describe('DiscordAdapter', () => {
     expect(u.searchParams.get('redirect_uri')).toBe('https://api.test.ai/oauth/discord/bot/callback');
     spy.mockRestore();
   });
+
+  describe('exchangeCodeForToken', () => {
+    const mockTokenResp = {
+      access_token: 'at123',
+      expires_in: 3600,
+      refresh_token: 'rt123',
+      scope: 'bot identify',
+      token_type: 'Bearer',
+      guild: { id: 'g123' },
+      permissions: '12345',
+    };
+
+    it('exchanges code for token using fetch', async () => {
+      const a = new DiscordAdapter(baseCfg);
+      
+      // Mock global fetch
+      const fetchSpy = jest.spyOn(global, 'fetch' as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockTokenResp,
+      } as any);
+
+      const result = await a.exchangeCodeForToken({ code: 'c123', identity: 'bot', redirectUri: '' });
+
+      expect(fetchSpy).toHaveBeenCalledWith('https://discord.com/api/v10/oauth2/token', expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }));
+
+      const lastCallBody = new URLSearchParams((fetchSpy.mock.calls[0][1] as any).body);
+      expect(lastCallBody.get('grant_type')).toBe('authorization_code');
+      expect(lastCallBody.get('code')).toBe('c123');
+      expect(lastCallBody.get('client_id')).toBe('dcid');
+      expect(lastCallBody.get('client_secret')).toBe('dcsecret');
+
+      expect(result.accessToken).toBe('at123');
+      expect(result.refreshToken).toBe('rt123');
+      expect(result.metadata.guildId).toBe('g123');
+      expect(result.metadata.permissions).toBe('12345');
+      
+      fetchSpy.mockRestore();
+    });
+
+    it('throws error when fetch fails', async () => {
+      const a = new DiscordAdapter(baseCfg);
+      const fetchSpy = jest.spyOn(global, 'fetch' as any).mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => 'Bad Request',
+      } as any);
+
+      await expect(a.exchangeCodeForToken({ code: 'c123', identity: 'bot', redirectUri: '' }))
+        .rejects.toThrow('discord_token_exchange_failed:400:Bad Request');
+
+      fetchSpy.mockRestore();
+    });
+  });
 });
