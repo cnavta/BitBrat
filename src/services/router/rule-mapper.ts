@@ -10,7 +10,7 @@ export const SERVICE_TOPIC_MAP: Record<string, string> = {
   'auth': 'internal.auth.v1',
   'state-engine': 'internal.state.mutation.v1',
   'query-analyzer': 'internal.query.analysis.v1',
-  'persistence': 'internal.persistence.finalize.v1',
+  'persistence': 'internal.persistence.snapshot.v1',
 };
 
 /**
