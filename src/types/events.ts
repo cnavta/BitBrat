@@ -186,6 +186,96 @@ export interface InternalEventV2 {
   metadata?: Record<string, any>;
 }
 
+export type AggregateStatus = 'INGESTED' | 'IN_PROGRESS' | 'FINALIZED' | 'ERROR';
+
+export type SnapshotKind = 'initial' | 'update' | 'final' | 'deadletter';
+
+export interface SnapshotDeliveryV1 {
+  destination?: string;
+  status?: string;
+  deliveredAt?: string;
+  providerMessageId?: string;
+  error?: { code: string; message?: string } | null;
+  metadata?: Record<string, any>;
+}
+
+export interface SnapshotDeadletterV1 {
+  reason: string;
+  error?: { code: string; message?: string } | null;
+  at: string;
+  lastStepId?: string;
+  originalType?: string;
+  slipSummary?: string;
+}
+
+export interface EventAggregateV2 {
+  correlationId: string;
+  eventType: InternalEventType;
+  source: string;
+  channel?: string;
+  status: AggregateStatus;
+  ingressAt: string;
+  finalizedAt?: string;
+  latestStage?: RoutingStage;
+  latestStepId?: string;
+  initialSnapshotId: string;
+  latestSnapshotId: string;
+  finalSnapshotId?: string;
+  snapshotCount: number;
+  identitySummary?: {
+    externalId?: string;
+    platform?: string;
+    displayName?: string;
+    userId?: string;
+  };
+  delivery?: SnapshotDeliveryV1;
+  deadletter?: SnapshotDeadletterV1;
+  currentProjection?: {
+    annotations?: AnnotationV1[];
+    candidates?: CandidateV1[];
+    routing?: Routing;
+    metadata?: Record<string, any>;
+  };
+  expireAt?: FirebaseFirestore.Timestamp;
+}
+
+export interface EventSnapshotDocV1 {
+  v: '1';
+  snapshotId: string;
+  correlationId: string;
+  sequence: number;
+  kind: SnapshotKind;
+  capturedAt: string;
+  sourceService: string;
+  sourceTopic: string;
+  idempotencyKey: string;
+  stage?: RoutingStage;
+  stepId?: string;
+  attempt?: number;
+  changeSummary?: string;
+  delivery?: SnapshotDeliveryV1;
+  deadletter?: SnapshotDeadletterV1;
+  event: InternalEventV2;
+  expireAt?: FirebaseFirestore.Timestamp;
+}
+
+export interface PersistenceSnapshotEventV1 {
+  v: '1';
+  correlationId: string;
+  kind: Exclude<SnapshotKind, 'initial'>;
+  capturedAt: string;
+  sourceService: string;
+  sourceTopic: string;
+  idempotencyKey: string;
+  stage?: RoutingStage;
+  stepId?: string;
+  attempt?: number;
+  changeSummary?: string;
+  delivery?: SnapshotDeliveryV1;
+  deadletter?: SnapshotDeadletterV1;
+  event: InternalEventV2;
+}
+
 // Topic/Subject constants (keep identical across drivers)
 export const INTERNAL_INGRESS_V1 = 'internal.ingress.v1';
 export const INTERNAL_ROUTES_V1 = 'internal.routes.v1';
@@ -193,6 +283,7 @@ export const INTERNAL_BOT_REQUESTS_V1 = 'internal.bot.requests.v1';
 export const INTERNAL_BOT_RESPONSES_V1 = 'internal.bot.responses.v1';
 export const INTERNAL_EGRESS_V1 = 'internal.egress.v1';
 export const INTERNAL_DEADLETTER_V1 = 'internal.deadletter.v1';
+export const INTERNAL_PERSISTENCE_SNAPSHOT_V1 = 'internal.persistence.snapshot.v1';
 // Router DLQ default target when no rules match (per sprint-100 technical architecture)
 export const INTERNAL_ROUTER_DLQ_V1 = 'internal.router.dlq.v1';
 // User-enriched stream default (Auth service output; Router default input per sprint-104)

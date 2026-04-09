@@ -10,6 +10,7 @@ import { PublisherResource } from '../common/resources/publisher-manager';
 import { InternalEventV2, INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1 } from '../types/events';
 import { EgressResult } from '../services/api-gateway/egress';
 import { buildDlqEvent } from '../services/routing/dlq';
+import { publishPersistenceSnapshot } from '../common/events/persistence-snapshots';
 
 /**
  * ApiGatewayServer
@@ -41,27 +42,27 @@ export class ApiGatewayServer extends McpServer {
       const publisher = this.getResource<PublisherResource>('publisher');
       if (!publisher) return;
 
-      const cfg: any = this.getConfig?.() || {};
-      const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
-      const finalizeSubject = `${prefix}internal.persistence.finalize.v1`;
-
-      const payload = {
-        correlationId: event.correlationId,
-        destination,
-        deliveredAt: new Date().toISOString(),
-        status,
-        error: error ? { code: error.code, message: error.message } : undefined,
-        candidates: Array.isArray(event.candidates) ? event.candidates : undefined,
-        annotations: Array.isArray(event.annotations) ? event.annotations : undefined,
-      };
-
-      await publisher.create(finalizeSubject).publishJson(payload, { 
-        correlationId: String(event.correlationId || ''), 
-        type: 'egress.deliver.v1' 
+      const deliveredAt = new Date().toISOString();
+      await publishPersistenceSnapshot({
+        config: this.getConfig?.() as any,
+        createPublisher: (subject: string) => publisher.create(subject),
+        logger: this.getLogger() as any,
+        kind: 'final',
+        sourceService: 'api-gateway',
+        sourceTopic: destination,
+        event,
+        capturedAt: deliveredAt,
+        idempotencyKey: `${event.correlationId}:final:api-gateway:${destination}:${status}`,
+        changeSummary: status === 'SENT' ? 'api gateway delivery success' : 'api gateway delivery failure',
+        delivery: {
+          destination,
+          deliveredAt,
+          status,
+          error: error ? { code: error.code, message: error.message } : undefined,
+        },
       });
-      this.getLogger().info('api_gateway.finalize.published', { correlationId: event.correlationId, status });
     } catch (err: any) {
-      this.getLogger().warn('api_gateway.finalize.publish_error', { error: err.message, correlationId: event.correlationId });
+      this.getLogger().warn('api_gateway.snapshot.publish_error', { error: err.message, correlationId: event.correlationId });
     }
   }
 

@@ -54,7 +54,6 @@ export class DiscordAdapter implements OAuthProvider {
       response_type: 'code',
       scope: scopes,
       state,
-      permissions: String(permissions),
     });
     // Add permissions only if 'bot' scope is present
     if (scopes.includes('bot')) {

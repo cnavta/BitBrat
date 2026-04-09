@@ -1,6 +1,7 @@
 import { BaseServer } from '../common/base-server';
 import { Express, Request, Response } from 'express';
-import type { InternalEventV2 } from '../types/events';
+import type { InternalEventV2, PersistenceSnapshotEventV1 } from '../types/events';
+import { INTERNAL_PERSISTENCE_SNAPSHOT_V1 } from '../types/events';
 import { PersistenceStore } from '../services/persistence/store';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'persistence';
@@ -8,6 +9,7 @@ const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10
 
 const RAW_CONSUMED_TOPICS: string[] = [
   "internal.ingress.v1",
+  INTERNAL_PERSISTENCE_SNAPSHOT_V1,
   "internal.persistence.finalize.v1",
   "internal.deadletter.v1",
   "internal.router.dlq.v1"
@@ -58,6 +60,40 @@ class PersistenceServer extends BaseServer {
                   } else {
                     await store.upsertIngressEvent(msg);
                   }
+                }
+                await ctx.ack();
+              } catch (e: any) {
+                this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
+                await ctx.ack();
+              }
+            }
+          );
+          this.getLogger().info('persistence.subscribe.ok', { destination, queue });
+        } catch (e: any) {
+          this.getLogger().error('persistence.subscribe.error', { destination, queue, error: e?.message || String(e) });
+        }
+      }
+
+      { // subscription for internal.persistence.snapshot.v1
+        const raw = INTERNAL_PERSISTENCE_SNAPSHOT_V1;
+        const destination = raw && raw.includes('{instanceId}') ? raw.replace('{instanceId}', String(instanceId)) : raw;
+        const queue = raw && raw.includes('{instanceId}') ? SERVICE_NAME + '.' + String(instanceId) : SERVICE_NAME;
+        try {
+          await this.onMessage<PersistenceSnapshotEventV1>(
+            { destination, queue, ack: 'explicit' },
+            async (msg: PersistenceSnapshotEventV1, _attributes, ctx) => {
+              try {
+                this.getLogger().info('persistence.message.received', {
+                  destination,
+                  type: (msg as any)?.kind,
+                  correlationId: (msg as any)?.correlationId,
+                });
+                const firestore = this.getResource<any>('firestore');
+                if (!firestore) {
+                  this.getLogger().warn('persistence.firestore.unavailable');
+                } else {
+                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
+                  await store.applySnapshotEvent(msg as any);
                 }
                 await ctx.ack();
               } catch (e: any) {

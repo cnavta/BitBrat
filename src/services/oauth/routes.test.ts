@@ -22,7 +22,7 @@ function makeMockProvider(key = 'mockprov'): OAuthProvider {
     async getAuthorizeUrl(params) {
       const id = params.identity;
       const state = params.state;
-      return `https://auth.example/${id}?s=${state}`;
+      return `https://auth.example/${id}?state=${state}`;
     },
     async exchangeCodeForToken(_params: { code: string; redirectUri: string; identity: string }): Promise<TokenPayload> {
       return { accessToken: 'AT', tokenType: 'oauth', scope: ['a'] };
@@ -47,6 +47,22 @@ describe('mountOAuthRoutes (generic)', () => {
     const res = await request(app).get('/oauth/mockprov/bot/start?mode=json').set('Accept', 'application/json');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('url');
+    expect(String(res.body.url)).toMatch(/^https:\/\/auth\.example\/bot\?state=/);
+  });
+
+  test('GET /oauth/:provider/:identity/start uses valid signed state', async () => {
+    const reg = new ProviderRegistry();
+    reg.register(makeMockProvider());
+    const app = makeApp(reg, baseCfg);
+
+    const res = await request(app).get('/oauth/mockprov/bot/start?mode=json').set('Accept', 'application/json');
+    expect(res.status).toBe(200);
+    const url = new URL(res.body.url);
+    const state = url.searchParams.get('state');
+    expect(state).toBeDefined();
+    
+    const { verifyState, generateState: gs } = require('../twitch-oauth');
+    expect(verifyState(baseCfg, state)).toBe(true);
     const u = new URL(res.body.url);
     const s = u.searchParams.get('s');
     expect(s).toMatch(/^[a-f0-9]+\.[0-9]+\.[a-f0-9]+$/);
@@ -59,6 +75,7 @@ describe('mountOAuthRoutes (generic)', () => {
 
     const res = await request(app).get('/oauth/mockprov/bot/start');
     expect(res.status).toBe(302);
+    expect(res.header.location).toMatch(/^https:\/\/auth\.example\/bot\?state=/);
     const u = new URL(res.header.location);
     const s = u.searchParams.get('s');
     expect(s).toMatch(/^[a-f0-9]+\.[0-9]+\.[a-f0-9]+$/);

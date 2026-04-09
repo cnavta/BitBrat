@@ -28,6 +28,7 @@ import { AttributeMap } from '../services/message-bus';
 import {INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1, InternalEventV2} from '../types/events';
 import { buildDlqEvent } from '../services/routing/dlq';
 import { extractEgressTextFromEvent, markSelectedCandidate, selectBestCandidate } from '../common/events/selection';
+import { publishPersistenceSnapshot } from '../common/events/persistence-snapshots';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { Firestore } from 'firebase-admin/firestore';
 
@@ -368,28 +369,32 @@ export class IngressEgressServer extends BaseServer {
       const correlationId = evt?.correlationId;
       const publishFinalize = async (status: 'SENT' | 'FAILED', error?: { code: string; message?: string }) => {
         try {
-          const cfg: any = this.getConfig?.() || {};
-          const prefix: string = String(cfg.busPrefix || process.env.BUS_PREFIX || '');
-          const finalizeSubject = `${prefix}internal.persistence.finalize.v1`;
           const pubRes = this.getResource<PublisherResource>('publisher');
-          const pub = pubRes?.create(finalizeSubject);
-          if (pub) {
-            const payload = {
-              correlationId,
-              destination: destinationTopic,
-              deliveredAt: new Date().toISOString(),
-              status,
-              error: error ? { code: error.code, message: error.message } : undefined,
-              candidates: Array.isArray((evtForDelivery as any)?.candidates) ? (evtForDelivery as any).candidates : undefined,
-              annotations: Array.isArray((evt as any)?.annotations) ? (evt as any).annotations : undefined,
-            };
-            await pub.publishJson(payload, { correlationId: String(correlationId || ''), type: 'egress.deliver.v1' });
-            logger.info('ingress-egress.finalize.published', { correlationId, status });
+          if (pubRes) {
+            const deliveredAt = new Date().toISOString();
+            await publishPersistenceSnapshot({
+              config: this.getConfig?.() as any,
+              createPublisher: (subject: string) => pubRes.create(subject),
+              logger: logger as any,
+              kind: 'final',
+              sourceService: SERVICE_NAME,
+              sourceTopic: destinationTopic,
+              event: evtForDelivery,
+              capturedAt: deliveredAt,
+              idempotencyKey: `${correlationId}:final:${SERVICE_NAME}:${destinationTopic}:${status}`,
+              changeSummary: status === 'SENT' ? 'egress delivery success' : 'egress delivery failure',
+              delivery: {
+                destination: destinationTopic,
+                deliveredAt,
+                status,
+                error: error ? { code: error.code, message: error.message } : undefined,
+              },
+            });
           } else {
-            logger.warn('ingress-egress.finalize.publisher_unavailable');
+            logger.warn('ingress-egress.snapshot.publisher_unavailable');
           }
         } catch (e: any) {
-          logger.warn('ingress-egress.finalize.publish_error', { error: e?.message || String(e) });
+          logger.warn('ingress-egress.snapshot.publish_error', { error: e?.message || String(e) });
         }
       };
 

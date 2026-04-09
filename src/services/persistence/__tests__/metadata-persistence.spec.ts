@@ -2,10 +2,56 @@ import type { InternalEventV2 } from '../../../types/events';
 import { PersistenceStore } from '../store';
 
 function makeFirestoreMock() {
-  const set = jest.fn(async (_data, _opts) => {});
-  const doc = jest.fn((_id: string) => ({ set }));
-  const collection = jest.fn((_name: string) => ({ doc }));
-  return { collection, __fns: { set, doc, collection } } as any;
+  const rootSets: Record<string, any> = {};
+  const snapshotSets: Record<string, any> = {};
+  const collection = jest.fn((name: string) => ({
+    doc: jest.fn((id: string) => ({
+      id,
+      path: `${name}/${id}`,
+      set: jest.fn(async (data: any) => {
+        if (name === 'events') {
+          rootSets[id] = data;
+        }
+      }),
+      collection: jest.fn((sub: string) => ({
+        doc: jest.fn((snapshotId: string) => ({ path: `${name}/${id}/${sub}/${snapshotId}` })),
+        where: jest.fn((_field: string, _op: string, value: string) => ({
+          __kind: 'query',
+          correlationId: id,
+          idempotencyKey: value,
+          limit: jest.fn(() => ({ __kind: 'query', correlationId: id, idempotencyKey: value })),
+        })),
+      })),
+    })),
+  }));
+  const runTransaction = jest.fn(async (handler: any) => {
+    const transaction = {
+      get: jest.fn(async (ref: any) => {
+        if (ref?.__kind === 'query') {
+          const docs = Object.entries(snapshotSets)
+            .filter(([key, data]) => key.startsWith(`${ref.correlationId}/`) && (data as any).idempotencyKey === ref.idempotencyKey)
+            .map(([, data]) => ({ data: () => data }));
+          return { empty: docs.length === 0, docs };
+        }
+        if (ref?.path?.startsWith('events/')) {
+          const correlationId = String(ref.path).split('/')[1];
+          return { exists: !!rootSets[correlationId], data: () => rootSets[correlationId] };
+        }
+        return { exists: false, data: () => undefined };
+      }),
+      set: jest.fn((ref: any, data: any) => {
+        if (ref?.path?.startsWith('events/') && ref.path.includes('/snapshots/')) {
+          const [, correlationId, , snapshotId] = String(ref.path).split('/');
+          snapshotSets[`${correlationId}/${snapshotId}`] = data;
+        } else if (ref?.path?.startsWith('events/')) {
+          const correlationId = String(ref.path).split('/')[1];
+          rootSets[correlationId] = data;
+        }
+      }),
+    };
+    return handler(transaction);
+  });
+  return { collection, runTransaction, __state: { rootSets, snapshotSets } } as any;
 }
 
 describe('PersistenceStore – Metadata Persistence', () => {
@@ -16,9 +62,12 @@ describe('PersistenceStore – Metadata Persistence', () => {
     
     const evt: InternalEventV2 = {
       v: '2',
-      source: 'test',
       correlationId: 'c-meta-1',
       type: 'chat.message.v1',
+      ingress: { ingressAt: new Date().toISOString(), source: 'test' },
+      identity: { external: { id: 'u1', platform: 'test' } },
+      egress: { destination: 'internal.egress.v1' },
+      routing: { stage: 'initial', slip: [{ id: 'router', status: 'PENDING' }], history: [] },
       metadata: {
         matchedRuleIds: ['rule-1', 'rule-2'],
         chosenRuleId: 'rule-1'
@@ -27,15 +76,13 @@ describe('PersistenceStore – Metadata Persistence', () => {
 
     await store.upsertIngressEvent(evt);
 
-    const setCall = db.__fns.set.mock.calls[0];
-    expect(setCall[0].metadata).toEqual({
+    expect(db.__state.rootSets['c-meta-1'].currentProjection.metadata).toEqual({
       matchedRuleIds: ['rule-1', 'rule-2'],
       chosenRuleId: 'rule-1'
     });
   });
 
   it('persists top-level event metadata during applyFinalization if present', async () => {
-    // This tests if finalize payload also carries forward top-level metadata
     const db = makeFirestoreMock();
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
     const store = new PersistenceStore({ firestore: db, logger });
@@ -49,9 +96,7 @@ describe('PersistenceStore – Metadata Persistence', () => {
       }
     });
 
-    const setCall = db.__fns.set.mock.calls[0];
-    // Finalization payload currently maps 'metadata' to 'egressResult.metadata'
-    expect(setCall[0].egressResult.metadata).toEqual({
+    expect(db.__state.rootSets['c-meta-finalize'].delivery.metadata).toEqual({
       matchedRuleIds: ['rule-1'],
       chosenRuleId: 'rule-1'
     });
