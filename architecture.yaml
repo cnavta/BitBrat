@@ -75,6 +75,7 @@ services:
     topics:
       publishes:
         - internal.ingress.v1
+        - internal.persistence.snapshot.v1
       consumes:
         # Per-instance egress topic subscription. The service resolves {instanceId} at runtime
         # using K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id
@@ -97,6 +98,10 @@ services:
     env:
       - TWITCH_BOT_USERNAME
       - TWITCH_CHANNELS
+      - PERSISTENCE_SNAPSHOT_MODE
+      - PERSISTENCE_INCLUDE_RAW_PAYLOADS
+      - PERSISTENCE_MAX_SNAPSHOT_BYTES
+      - PERSISTENCE_TTL_DAYS
       # Discord configuration and rollout flags
       - DISCORD_ENABLED
       # Twilio configuration
@@ -181,9 +186,15 @@ services:
     topics:
       consumes:
         - internal.ingress.v1
+        - internal.persistence.snapshot.v1
         - internal.persistence.finalize.v1
         - internal.deadletter.v1
         - internal.router.dlq.v1
+    env:
+      - PERSISTENCE_SNAPSHOT_MODE
+      - PERSISTENCE_INCLUDE_RAW_PAYLOADS
+      - PERSISTENCE_MAX_SNAPSHOT_BYTES
+      - PERSISTENCE_TTL_DAYS
 
   obs-mcp:
     active: true
@@ -215,11 +226,17 @@ services:
     topics:
       publishes:
         - internal.ingress.v1
+        - internal.persistence.snapshot.v1
       consumes:
         # Per-instance egress topic subscription. The service resolves {instanceId} at runtime
         # using K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id
         - internal.api.egress.v1.{instanceId}
         - internal.egress.v1
+    env:
+      - PERSISTENCE_SNAPSHOT_MODE
+      - PERSISTENCE_INCLUDE_RAW_PAYLOADS
+      - PERSISTENCE_MAX_SNAPSHOT_BYTES
+      - PERSISTENCE_TTL_DAYS
 
   state-engine:
     active: true

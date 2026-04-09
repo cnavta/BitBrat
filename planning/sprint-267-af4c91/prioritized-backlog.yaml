@@ -1,0 +1,195 @@
+meta:
+  backlog_id: sprint-267-af4c91-persistence-snapshot-rollout
+  updated_at: 2026-04-06
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-267-af4c91
+  start: 2026-04-05
+  end: null
+  wip_limit: 3
+  goal: "Implement the aggregate plus immutable snapshot persistence architecture described in the TA document."
+
+items:
+  - id: BL-267-001
+    title: "Finalize sprint plan and planning artifacts for persistence snapshot rollout"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Sprint manifest, execution plan, and prioritized backlog exist under planning/sprint-267-af4c91/"
+      - "Execution plan reflects the TA document and architecture.yaml constraints"
+      - "Request log captures sprint initialization and planning actions"
+    updated_at: 2026-04-05
+    log:
+      - at: 2026-04-06T03:01:57Z
+        note: "Sprint started; creating the planning artifacts for user approval before implementation."
+      - at: 2026-04-06T03:02:00Z
+        note: "Planning artifacts completed and YAML structure verified for handoff."
+
+  - id: BL-267-002
+    title: "Add canonical snapshot contracts and compact aggregate types"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-267-001]
+    blocked_reason: null
+    acceptance:
+      - "Type definitions exist for EventAggregateV2, EventSnapshotDocV1, SnapshotKind, and PersistenceSnapshotEventV1"
+      - "Topic constants include internal.persistence.snapshot.v1"
+      - "Legacy mutable EventDocV1 inheritance model is no longer the primary persistence shape"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T03:19:00Z
+        note: "Implementation approved; started the core type-contract refactor for aggregate and snapshot persistence."
+      - at: 2026-04-06T03:46:00Z
+        note: "Added canonical aggregate/snapshot contracts and the internal.persistence.snapshot.v1 topic constant to the shared event model."
+
+  - id: BL-267-003
+    title: "Refactor persistence model helpers for aggregate projection and immutable snapshot creation"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-267-002]
+    blocked_reason: null
+    acceptance:
+      - "Ingress normalization creates the initial aggregate projection and immutable initial snapshot from the full InternalEventV2"
+      - "Snapshot application logic derives aggregate status, current projection, delivery summary, deadletter summary, and snapshot pointers"
+      - "TTL helpers support both aggregate and snapshot documents"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T03:31:00Z
+        note: "Started model-layer helper refactor for initial snapshots, TTL calculation, and aggregate projection updates."
+      - at: 2026-04-06T03:46:00Z
+        note: "Model helpers now create initial snapshots, compute TTL for aggregate and snapshot docs, and apply immutable snapshots back into aggregate summaries."
+
+  - id: BL-267-004
+    title: "Implement transactional snapshot persistence with sequence assignment and idempotency"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-267-003]
+    blocked_reason: null
+    acceptance:
+      - "Persistence store writes aggregate and snapshots under events/{correlationId}/snapshots/{snapshotId}"
+      - "Sequence numbers are assigned transactionally by persistence, not by publishers"
+      - "Duplicate idempotency keys no-op without incrementing snapshotCount"
+      - "Aggregate maintains initialSnapshotId, latestSnapshotId, finalSnapshotId when applicable, and snapshotCount"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T03:36:00Z
+        note: "Started persistence store transaction refactor for aggregate plus snapshot writes and duplicate detection."
+      - at: 2026-04-06T03:46:00Z
+        note: "Persistence store now uses transactions for initial aggregate writes and snapshot appends, with sequence assignment and duplicate idempotency-key no-op behavior."
+
+  - id: BL-267-005
+    title: "Add internal.persistence.snapshot.v1 consumption to persistence service"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-267-004]
+    blocked_reason: null
+    acceptance:
+      - "Persistence service subscribes to the new snapshot topic in code and architecture.yaml"
+      - "Snapshot events with kinds update, final, and deadletter are validated and persisted"
+      - "Legacy finalize handling is either preserved as compatibility-only or cleanly reduced according to the approved implementation path"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T03:46:00Z
+        note: "Persistence service now subscribes to internal.persistence.snapshot.v1 and routes canonical snapshot events into the transactional snapshot store path."
+
+  - id: BL-267-006
+    title: "Publish full final snapshots from delivery boundary services"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-267-002]
+    blocked_reason: null
+    acceptance:
+      - "ingress-egress publishes a full final snapshot event after delivery success/failure with delivery metadata"
+      - "api-gateway publishes a full final snapshot event after delivery success/failure with delivery metadata"
+      - "Published snapshot payload includes the authoritative full InternalEventV2 and idempotency key"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T03:46:00Z
+        note: "ingress-egress and api-gateway now publish canonical final snapshot events with full InternalEventV2 payloads and delivery metadata."
+
+  - id: BL-267-007
+    title: "Introduce optional shared helper for significant intermediate snapshots"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-267-002]
+    blocked_reason: null
+    acceptance:
+      - "A shared helper exists for emitting standardized snapshot events without leaking Firestore schema details"
+      - "BaseServer or selected services can emit policy-driven update snapshots at significant transformation boundaries"
+      - "Snapshot mode policy is configurable rather than hard-coded"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T04:41:36Z
+        note: "Added a shared snapshot publisher/policy helper and wired BaseServer routing plus delivery-boundary services to emit standardized update/final snapshots without exposing persistence storage schema."
+
+  - id: BL-267-008
+    title: "Add persistence snapshot policy configuration and architecture updates"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-267-005, BL-267-006]
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml documents the new snapshot topic and relevant publishers/consumers"
+      - "Configuration supports snapshot mode, raw payload inclusion policy, max snapshot size, and TTL"
+      - "Docs and code-level config handling stay aligned"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T03:46:00Z
+        note: "architecture.yaml now documents the new snapshot topic and persistence snapshot environment knobs; code-side policy enforcement is still incomplete."
+      - at: 2026-04-06T04:41:36Z
+        note: "Implemented snapshot mode/raw payload/max size policy handling in shared publisher code and documented the same env knobs for ingress-egress and api-gateway publishers."
+
+  - id: BL-267-009
+    title: "Build automated tests for the new aggregate plus snapshot persistence flow"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-267-005, BL-267-006]
+    blocked_reason: null
+    acceptance:
+      - "Tests cover initial snapshot creation, final snapshot ingestion, deadletter snapshot ingestion, and aggregate projection updates"
+      - "Tests cover idempotent duplicate snapshot handling and sequence assignment behavior"
+      - "Affected Jest suites pass"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T03:46:00Z
+        note: "Updated persistence model/store/service and ingress-egress publisher Jest suites now cover initial snapshots, final snapshots, deadletter snapshots, aggregate projection, duplicate handling, and sequence assignment."
+
+  - id: BL-267-010
+    title: "Prepare sprint validation, verification, and publication artifacts"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-267-008, BL-267-009]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh is updated or confirmed logically passable for this sprint's deliverables"
+      - "verification-report.md captures completed, partial, deferred, and deviated work"
+      - "publication.yaml, retro.md, and key-learnings.md are ready at sprint closure"
+    updated_at: 2026-04-06
+    log:
+      - at: 2026-04-06T04:41:36Z
+        note: "Confirmed validate_deliverable.sh remains logically passable for this sprint via the persistence scope and began drafting verification artifacts."
+      - at: 2026-04-06T10:05:00Z
+        note: "Final validation run complete. Verification, retro, and key-learnings artifacts generated for sprint closure."

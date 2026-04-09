@@ -59,7 +59,7 @@ describe('ingress-egress finalize publish', () => {
     jest.restoreAllMocks();
   });
 
-  test('publishes internal.persistence.finalize.v1 with status SENT after successful send', async () => {
+  test('publishes internal.persistence.snapshot.v1 final snapshot after successful send', async () => {
     const h = handlers.find((x) => String(x.destination || '').startsWith('internal.egress.v1.'));
     expect(h).toBeTruthy();
     // Patch twitchClient.sendText to no-op success
@@ -88,13 +88,16 @@ describe('ingress-egress finalize publish', () => {
     expect(ack).toHaveBeenCalled();
     const last = finalizePublishes[finalizePublishes.length - 1]?.payload;
     expect(last).toBeTruthy();
+    expect(last.v).toBe('1');
     expect(last.correlationId).toBe('fx-1');
-    expect(last.status).toBe('SENT');
-    // Finalize payload should include candidates with one marked selected and annotations
-    expect(Array.isArray(last.candidates)).toBe(true);
-    const selected = last.candidates.find((c: any) => c.status === 'selected');
+    expect(last.kind).toBe('final');
+    expect(last.delivery?.status).toBe('SENT');
+    expect(last.sourceService).toBe('ingress-egress');
+    expect(last.event?.correlationId).toBe('fx-1');
+    expect(Array.isArray(last.event?.candidates)).toBe(true);
+    const selected = last.event.candidates.find((c: any) => c.status === 'selected');
     expect(selected).toBeTruthy();
-    expect(Array.isArray(last.annotations)).toBe(true);
-    expect(last.annotations[0]?.id).toBe('a1');
+    expect(Array.isArray(last.event?.annotations)).toBe(true);
+    expect(last.event.annotations[0]?.id).toBe('a1');
   });
 });

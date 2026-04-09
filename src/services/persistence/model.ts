@@ -1,7 +1,19 @@
-import type { InternalEventV2 } from '../../types/events';
+import type {
+  AggregateStatus,
+  EventAggregateV2,
+  EventSnapshotDocV1,
+  InternalEventV2,
+  PersistenceSnapshotEventV1,
+  SnapshotDeadletterV1,
+  SnapshotDeliveryV1,
+  SnapshotKind,
+} from '../../types/events';
+import { Timestamp } from 'firebase-admin/firestore';
+import { INTERNAL_INGRESS_V1 } from '../../types/events';
 
 export const COLLECTION_EVENTS = 'events';
 export const COLLECTION_SOURCES = 'sources';
+export const SUBCOLLECTION_SNAPSHOTS = 'snapshots';
 
 export interface SourceDocV1 {
   id: string; // e.g., "123456"
@@ -26,54 +38,9 @@ export interface SourceDocV1 {
   latencyMs?: number;
 }
 
-export interface EventDocV1 extends InternalEventV2 {
-  /** Overall processing status of the recorded event */
-  status?: 'INGESTED' | 'FINALIZED' | 'ERROR' | string;
-  /** When the ingress was recorded */
-  ingestedAt: string; // ISO8601
-  /** When the event was finalized (egress/response) */
-  finalizedAt?: string; // ISO8601
-  /** Timestamp used by Firestore TTL to auto-expire documents */
-  ttl?: FirebaseFirestore.Timestamp;
-  /** Ingress metadata: where, when and how the event entered the system */
-  ingressDoc?: {
-    receivedAt: string; // ISO8601
-    destination?: string; // e.g., internal.ingress.v1
-    transport?: string; // e.g., pubsub|nats
-    attributes?: Record<string, string>;
-    metadata?: Record<string, any>;
-  };
-  /** Finalization/Egress metadata: where, when and how the response was delivered */
-  egressResult?: {
-    destination?: string;
-    deliveredAt?: string; // ISO8601
-    providerMessageId?: string;
-    status?: string;
-    error?: { code: string; message?: string } | null;
-    metadata?: Record<string, any>;
-  };
-  /** Dead-letter metadata: failure context for terminal errors */
-  deadletter?: {
-    reason: string;
-    error: { code: string; message?: string } | null;
-    lastStepId?: string;
-    originalType?: string;
-    slipSummary?: string;
-    at: string; // ISO8601
-  };
-}
-
-export interface FinalizationUpdateV1 {
-  correlationId: string;
-  destination?: string;
-  deliveredAt?: string; // ISO8601
-  providerMessageId?: string;
-  status?: string; // e.g., SENT, FAILED
-  error?: { code: string; message?: string } | null;
-  metadata?: Record<string, any>;
-  /** Optional: carry forward annotations/candidates from egress path */
-  annotations?: any[];
-  candidates?: any[];
+export interface InitialPersistenceWriteV1 {
+  aggregate: EventAggregateV2;
+  snapshot: EventSnapshotDocV1;
 }
 
 /**
@@ -102,19 +69,135 @@ export function stripUndefinedDeep<T>(value: T): T {
   return value as any;
 }
 
-export function normalizeIngressEvent(evt: InternalEventV2): EventDocV1 {
-  const now = new Date().toISOString();
-  // Build and sanitize to avoid undefined values in Firestore writes
-  const doc: EventDocV1 = {
-    ...evt,
+function buildIdentitySummary(evt: InternalEventV2): EventAggregateV2['identitySummary'] {
+  return stripUndefinedDeep({
+    externalId: evt.identity?.external?.id,
+    platform: evt.identity?.external?.platform,
+    displayName: evt.identity?.user?.displayName || evt.identity?.external?.displayName,
+    userId: evt.identity?.user?.id,
+  });
+}
+
+function buildCurrentProjection(evt: InternalEventV2): EventAggregateV2['currentProjection'] {
+  return stripUndefinedDeep({
+    annotations: evt.annotations,
+    candidates: evt.candidates,
+    routing: evt.routing,
+    metadata: evt.metadata,
+  });
+}
+
+export function buildInitialSnapshotId(evt: InternalEventV2): string {
+  return `${evt.correlationId}-000001-initial`;
+}
+
+export function buildSnapshotId(correlationId: string, sequence: number, kind: SnapshotKind): string {
+  return `${correlationId}-${String(sequence).padStart(6, '0')}-${kind}`;
+}
+
+export function resolveSnapshotBaseDate(base: string | number | Date | undefined): Date {
+  const candidate = base ? new Date(base) : new Date();
+  return Number.isNaN(candidate.getTime()) ? new Date() : candidate;
+}
+
+export function computeExpireAt(params: {
+  baseDate?: string | number | Date;
+  qosTtlSeconds?: number;
+  ttlDays?: number;
+}): FirebaseFirestore.Timestamp {
+  const baseDate = resolveSnapshotBaseDate(params.baseDate);
+  const ttlSeconds = typeof params.qosTtlSeconds === 'number' && isFinite(params.qosTtlSeconds) && params.qosTtlSeconds > 0
+    ? params.qosTtlSeconds
+    : null;
+  let expireAt: Date;
+  if (ttlSeconds != null) {
+    expireAt = new Date(baseDate.getTime() + ttlSeconds * 1000);
+  } else {
+    let ttlDays = params.ttlDays ?? parseInt(String(process.env.PERSISTENCE_TTL_DAYS ?? '7'), 10);
+    if (!isFinite(ttlDays) || ttlDays <= 0) ttlDays = 7;
+    expireAt = new Date(baseDate.getTime() + ttlDays * 24 * 60 * 60 * 1000);
+  }
+  return Timestamp.fromDate(expireAt);
+}
+
+function deriveAggregateStatus(kind: SnapshotKind, currentStatus?: AggregateStatus): AggregateStatus {
+  if (kind === 'deadletter') return 'ERROR';
+  if (kind === 'final') return 'FINALIZED';
+  if (kind === 'update') return currentStatus === 'FINALIZED' || currentStatus === 'ERROR' ? currentStatus : 'IN_PROGRESS';
+  return 'INGESTED';
+}
+
+export function buildSnapshotDoc(params: {
+  snapshotId: string;
+  sequence: number;
+  kind: SnapshotKind;
+  capturedAt: string;
+  sourceService: string;
+  sourceTopic: string;
+  idempotencyKey: string;
+  event: InternalEventV2;
+  stage?: string;
+  stepId?: string;
+  attempt?: number;
+  changeSummary?: string;
+  delivery?: SnapshotDeliveryV1;
+  deadletter?: SnapshotDeadletterV1;
+  expireAt?: FirebaseFirestore.Timestamp;
+}): EventSnapshotDocV1 {
+  return stripUndefinedDeep({
+    v: '1',
+    snapshotId: params.snapshotId,
+    correlationId: params.event.correlationId,
+    sequence: params.sequence,
+    kind: params.kind,
+    capturedAt: params.capturedAt,
+    sourceService: params.sourceService,
+    sourceTopic: params.sourceTopic,
+    idempotencyKey: params.idempotencyKey,
+    stage: params.stage,
+    stepId: params.stepId,
+    attempt: params.attempt,
+    changeSummary: params.changeSummary,
+    delivery: params.delivery,
+    deadletter: params.deadletter,
+    event: params.event,
+    expireAt: params.expireAt,
+  }) as EventSnapshotDocV1;
+}
+
+export function normalizeIngressEvent(evt: InternalEventV2, expireAt?: FirebaseFirestore.Timestamp): InitialPersistenceWriteV1 {
+  const capturedAt = evt.ingress?.ingressAt || new Date().toISOString();
+  const snapshotId = buildInitialSnapshotId(evt);
+  const aggregate: EventAggregateV2 = stripUndefinedDeep({
+    correlationId: evt.correlationId,
+    eventType: evt.type,
+    source: evt.ingress?.source || 'unknown',
+    channel: evt.ingress?.channel,
     status: 'INGESTED',
-    ingestedAt: now,
-    ingressDoc: {
-      receivedAt: now,
-      destination: 'internal.ingress.v1',
-    },
-  } as any;
-  return stripUndefinedDeep(doc) as EventDocV1;
+    ingressAt: evt.ingress?.ingressAt || capturedAt,
+    latestStage: evt.routing?.stage,
+    latestStepId: evt.routing?.slip?.[0]?.id,
+    initialSnapshotId: snapshotId,
+    latestSnapshotId: snapshotId,
+    snapshotCount: 1,
+    identitySummary: buildIdentitySummary(evt),
+    currentProjection: buildCurrentProjection(evt),
+    expireAt,
+  }) as EventAggregateV2;
+  const snapshot = buildSnapshotDoc({
+    snapshotId,
+    sequence: 1,
+    kind: 'initial',
+    capturedAt,
+    sourceService: 'persistence',
+    sourceTopic: INTERNAL_INGRESS_V1,
+    idempotencyKey: `${evt.correlationId}:initial:persistence:${capturedAt}`,
+    event: evt,
+    stage: evt.routing?.stage,
+    stepId: evt.routing?.slip?.[0]?.id,
+    expireAt,
+  });
+  return { aggregate, snapshot };
 }
 
 /**
@@ -169,38 +252,71 @@ export function normalizeStreamEvent(evt: InternalEventV2): Partial<SourceDocV1>
   return stripUndefinedDeep(patch);
 }
 
-export function normalizeFinalizePayload(msg: any): FinalizationUpdateV1 {
-  const deliveredAt = msg?.deliveredAt || msg?.finalizedAt || new Date().toISOString();
-  const destination = msg?.destination || msg?.egressDestination || msg?.egress?.destination;
-  const providerMessageId = msg?.providerMessageId || msg?.egress?.providerMessageId;
-  const status = msg?.status || msg?.egress?.status || 'FINALIZED';
-  const error = msg?.error || msg?.egress?.error || null;
-  const metadata = msg?.metadata || msg?.egress?.metadata || undefined;
-  const annotations = Array.isArray(msg?.annotations) ? msg.annotations : Array.isArray(msg?.egress?.annotations) ? msg.egress.annotations : undefined;
-  const candidates = Array.isArray(msg?.candidates) ? msg.candidates : Array.isArray(msg?.egress?.candidates) ? msg.egress.candidates : undefined;
-  return {
-    correlationId: String(msg?.correlationId || ''),
-    destination,
-    deliveredAt,
-    providerMessageId,
-    status,
-    error,
-    metadata,
-    annotations,
-    candidates,
+export function normalizeSnapshotEvent(msg: any): PersistenceSnapshotEventV1 {
+  const event = msg?.event as InternalEventV2;
+  return stripUndefinedDeep({
+    v: '1',
+    correlationId: String(msg?.correlationId || event?.correlationId || ''),
+    kind: msg?.kind,
+    capturedAt: msg?.capturedAt || new Date().toISOString(),
+    sourceService: String(msg?.sourceService || ''),
+    sourceTopic: String(msg?.sourceTopic || ''),
+    idempotencyKey: String(msg?.idempotencyKey || ''),
+    stage: msg?.stage || event?.routing?.stage,
+    stepId: msg?.stepId,
+    attempt: typeof msg?.attempt === 'number' ? msg.attempt : undefined,
+    changeSummary: msg?.changeSummary,
+    delivery: msg?.delivery,
+    deadletter: msg?.deadletter,
+    event,
+  }) as PersistenceSnapshotEventV1;
+}
+
+export function applySnapshotToAggregate(
+  aggregate: EventAggregateV2,
+  snapshot: EventSnapshotDocV1,
+  nextSnapshotCount = aggregate.snapshotCount + 1,
+): EventAggregateV2 {
+  const delivery = snapshot.delivery || aggregate.delivery;
+  const deadletter = snapshot.deadletter || aggregate.deadletter;
+  const next: EventAggregateV2 = {
+    ...aggregate,
+    status: deriveAggregateStatus(snapshot.kind, aggregate.status),
+    finalizedAt: snapshot.kind === 'final' || snapshot.kind === 'deadletter'
+      ? delivery?.deliveredAt || deadletter?.at || snapshot.capturedAt
+      : aggregate.finalizedAt,
+    latestStage: snapshot.stage || snapshot.event?.routing?.stage || aggregate.latestStage,
+    latestStepId: snapshot.stepId || aggregate.latestStepId,
+    latestSnapshotId: snapshot.snapshotId,
+    finalSnapshotId: snapshot.kind === 'final' ? snapshot.snapshotId : aggregate.finalSnapshotId,
+    snapshotCount: nextSnapshotCount,
+    identitySummary: buildIdentitySummary(snapshot.event),
+    delivery,
+    deadletter,
+    currentProjection: buildCurrentProjection(snapshot.event),
+    expireAt: snapshot.expireAt || aggregate.expireAt,
   };
+  return stripUndefinedDeep(next) as EventAggregateV2;
 }
 
 /**
- * Normalizes a DLQ event payload into a patch for EventDocV1.
+ * Normalizes a DLQ event payload into a persistence snapshot event.
  */
-export function normalizeDeadLetterPayload(msg: any): Partial<EventDocV1> {
+export function normalizeDeadLetterPayload(msg: any): PersistenceSnapshotEventV1 {
   const now = new Date().toISOString();
   const payload = msg?.payload || {};
 
   return stripUndefinedDeep({
-    status: 'ERROR',
-    finalizedAt: now,
+    v: '1',
+    correlationId: String(msg?.correlationId || msg?.envelope?.correlationId || payload?.correlationId || ''),
+    kind: 'deadletter',
+    capturedAt: now,
+    sourceService: String(msg?.source || msg?.service || 'persistence'),
+    sourceTopic: String(msg?.sourceTopic || msg?.topic || msg?.type || 'internal.deadletter.v1'),
+    idempotencyKey: String(msg?.idempotencyKey || `${msg?.correlationId || msg?.envelope?.correlationId || 'missing'}:deadletter:${payload.reason || 'unknown'}:${now}`),
+    stage: msg?.routing?.stage,
+    stepId: payload.lastStepId,
+    changeSummary: payload.reason || 'deadletter',
     deadletter: {
       reason: payload.reason || 'unknown',
       error: payload.error || null,
@@ -209,5 +325,6 @@ export function normalizeDeadLetterPayload(msg: any): Partial<EventDocV1> {
       slipSummary: payload.slipSummary,
       at: now,
     },
+    event: msg?.event || msg?.original || msg,
   });
 }
