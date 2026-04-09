@@ -1,0 +1,3 @@
+- Consistent state generation and verification is critical for security and interoperability in OAuth flows.
+- Generic routes should depend on generic utilities when possible, or at least standardized ones.
+- Test mocks should strictly follow the actual implementation to avoid false negatives/positives.
