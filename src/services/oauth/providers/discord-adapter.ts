@@ -18,7 +18,9 @@ function resolveLbBaseUrl(): string | null {
     const domainRaw: string | undefined = arch?.infrastructure?.resources?.['main-load-balancer']?.routing?.default_domain;
     if (domainRaw && typeof domainRaw === 'string') {
       const domain = interpolateEnv(domainRaw);
-      if (domain) return `https://${domain}`;
+      if (domain && domain.includes('localhost')) {
+        return `http://${domain}`;
+      } else if (domain) return `https://${domain}`;
     }
   } catch {}
   return null;
@@ -41,9 +43,11 @@ export class DiscordAdapter implements OAuthProvider {
     const { identity, state } = params;
     if (!this.cfg.discordClientId) throw new Error('Missing DISCORD_CLIENT_ID');
     const redirectUri = params.redirectUri || this.computeRedirectUri(identity);
-    // Use the provided scopes or the default bot/application command scopes
-    const scopes = (params.scopes && params.scopes.length ? params.scopes : (this.cfg.discordOauthScopes && this.cfg.discordOauthScopes.length ? this.cfg.discordOauthScopes : ['bot', 'applications.commands', 'identify'])).join(' ');
-    const permissions = this.cfg.discordOauthPermissions || 379968; 
+    // Include 'identify' scope if not present
+    const rawScopes = params.scopes && params.scopes.length ? params.scopes : (this.cfg.discordOauthScopes && this.cfg.discordOauthScopes.length ? this.cfg.discordOauthScopes : ['bot', 'applications.commands']);
+    if (!rawScopes.includes('identify')) rawScopes.push('identify');
+    const scopes = rawScopes.join(' ');
+    const permissions = this.cfg.discordOauthPermissions || 379968; // Default: view channels, send messages, read history, embed links, attach files, add reactions, use external emojis
     const qs = new URLSearchParams({
       client_id: this.cfg.discordClientId,
       redirect_uri: redirectUri,
@@ -51,7 +55,7 @@ export class DiscordAdapter implements OAuthProvider {
       scope: scopes,
       state,
     });
-    // Add permissions if the scope includes 'bot'
+    // Add permissions only if 'bot' scope is present
     if (scopes.includes('bot')) {
       qs.set('permissions', String(permissions));
     }
@@ -59,19 +63,21 @@ export class DiscordAdapter implements OAuthProvider {
   }
 
   async exchangeCodeForToken(params: { code: string; redirectUri: string; identity: string }): Promise<any> {
+    const { code, identity } = params;
     if (!this.cfg.discordClientId || !this.cfg.discordClientSecret) {
       throw new Error('Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET');
     }
-    const redirectUri = params.redirectUri || this.computeRedirectUri(params.identity);
+    const redirectUri = params.redirectUri || this.computeRedirectUri(identity);
+
     const body = new URLSearchParams({
       client_id: this.cfg.discordClientId,
       client_secret: this.cfg.discordClientSecret,
       grant_type: 'authorization_code',
-      code: params.code,
+      code,
       redirect_uri: redirectUri,
     });
 
-    const resp = await fetch('https://discord.com/api/v10/oauth2/token', {
+    const resp = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
@@ -79,26 +85,21 @@ export class DiscordAdapter implements OAuthProvider {
 
     if (!resp.ok) {
       const text = await resp.text();
-      throw new Error(`discord_token_exchange_failed:${resp.status}:${text}`);
+      throw new Error(`Token exchange failed: ${resp.status} ${text}`);
     }
 
-    const data = (await resp.json()) as any;
-    // Discord returns access_token, expires_in, refresh_token, scope, token_type
-    // If it's a bot flow, it also returns 'guild' object and 'permissions'
-
-    const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : undefined;
+    const json = (await resp.json()) as any;
+    const expiresAt = json.expires_in ? new Date(Date.now() + json.expires_in * 1000).toISOString() : undefined;
 
     return {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
+      accessToken: json.access_token,
+      refreshToken: json.refresh_token,
       expiresAt,
-      scope: data.scope ? data.scope.split(' ') : [],
+      scope: json.scope ? json.scope.split(' ') : [],
       tokenType: 'oauth',
-      providerUserId: data.user?.id, // Discord doesn't always return 'user' in the token response unless 'identify' scope is used
       metadata: {
-        guildId: data.guild?.id,
-        permissions: data.permissions,
-        webhook: data.webhook,
+        guildId: json.guild?.id,
+        permissions: json.guild?.permissions,
       },
     };
   }

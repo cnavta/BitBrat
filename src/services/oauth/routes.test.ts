@@ -63,6 +63,9 @@ describe('mountOAuthRoutes (generic)', () => {
     
     const { verifyState, generateState: gs } = require('../twitch-oauth');
     expect(verifyState(baseCfg, state)).toBe(true);
+    const u = new URL(res.body.url);
+    const s = u.searchParams.get('s');
+    expect(s).toMatch(/^[a-f0-9]+\.[0-9]+\.[a-f0-9]+$/);
   });
 
   test('GET /oauth/:provider/:identity/start redirects by default', async () => {
@@ -73,6 +76,9 @@ describe('mountOAuthRoutes (generic)', () => {
     const res = await request(app).get('/oauth/mockprov/bot/start');
     expect(res.status).toBe(302);
     expect(res.header.location).toMatch(/^https:\/\/auth\.example\/bot\?state=/);
+    const u = new URL(res.header.location);
+    const s = u.searchParams.get('s');
+    expect(s).toMatch(/^[a-f0-9]+\.[0-9]+\.[a-f0-9]+$/);
   });
 
   test('GET /oauth/:provider/:identity/start for unknown provider returns 404', async () => {
