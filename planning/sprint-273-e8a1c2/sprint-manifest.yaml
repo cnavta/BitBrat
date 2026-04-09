@@ -3,7 +3,7 @@ title: "Fix Discord Bot Token capture in OAuth flow"
 goal: "Capture and prioritize Discord Bot Token (token field) during OAuth exchange to fix ingress-egress connection errors."
 owner: "Junie"
 createdAt: "2026-04-09T18:11:31Z"
-status: "in-progress"
+status: "complete"
 links:
   branch: "feature/sprint-273-e8a1c2-fix-discord-bot-token"
 notes: |
