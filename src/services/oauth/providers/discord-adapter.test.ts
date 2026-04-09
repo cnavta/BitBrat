@@ -45,10 +45,11 @@ describe('DiscordAdapter', () => {
     expect(p.get('permissions')).toBe('379968');
   });
 
-  it('exchanges code for token', async () => {
+  it('exchanges code for token and prioritizes "token" (bot token) over "access_token"', async () => {
     const a = new DiscordAdapter(baseCfg);
     const mockToken = {
       access_token: 'at1',
+      token: 'bot-token-123',
       refresh_token: 'rt1',
       expires_in: 3600,
       scope: 'bot identify',
@@ -61,12 +62,31 @@ describe('DiscordAdapter', () => {
     });
 
     const res = await a.exchangeCodeForToken({ code: 'c1', identity: 'bot', redirectUri: '' });
-    expect(res.accessToken).toBe('at1');
+    expect(res.accessToken).toBe('bot-token-123'); // Should be the bot token
     expect(res.refreshToken).toBe('rt1');
     expect(res.scope).toEqual(['bot', 'identify']);
     expect(res.metadata.guildId).toBe('g1');
     expect(res.metadata.permissions).toBe('8');
     expect(global.fetch).toHaveBeenCalledWith('https://discord.com/api/oauth2/token', expect.any(Object));
+  });
+
+  it('exchanges code for token and falls back to "access_token" if "token" is missing', async () => {
+    const a = new DiscordAdapter(baseCfg);
+    const mockToken = {
+      access_token: 'at1',
+      refresh_token: 'rt1',
+      expires_in: 3600,
+      scope: 'identify',
+    };
+
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockToken,
+    });
+
+    const res = await a.exchangeCodeForToken({ code: 'c1', identity: 'bot', redirectUri: '' });
+    expect(res.accessToken).toBe('at1');
+    expect(res.refreshToken).toBe('rt1');
   });
 
   it('throws on failed token exchange', async () => {
