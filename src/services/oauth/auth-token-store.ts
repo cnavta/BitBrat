@@ -33,7 +33,7 @@ export class FirestoreAuthTokenStore implements IAuthTokenStoreV2 {
   }
 
   private v2DocRef(provider: string, identity: string) {
-    const p = `authTokens/${provider}/${identity}`;
+    const p = `authTokens/${provider}_${identity}`;
     return this.db.doc(p);
   }
 
