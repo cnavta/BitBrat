@@ -18,7 +18,9 @@ function resolveLbBaseUrl(): string | null {
     const domainRaw: string | undefined = arch?.infrastructure?.resources?.['main-load-balancer']?.routing?.default_domain;
     if (domainRaw && typeof domainRaw === 'string') {
       const domain = interpolateEnv(domainRaw);
-      if (domain) return `https://${domain}`;
+      if (domain && domain.includes('localhost')) {
+        return `http://${domain}`;
+      } else if (domain) return `https://${domain}`;
     }
   } catch {}
   return null;
