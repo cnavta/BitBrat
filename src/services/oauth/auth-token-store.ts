@@ -32,58 +32,33 @@ export class FirestoreAuthTokenStore implements IAuthTokenStoreV2 {
     this.db = options?.db || getFirestore();
   }
 
-  private v2DocRef(provider: string, identity: string) {
-    const p = `authTokens/${provider}/${identity}`;
-    return this.db.doc(p);
-  }
-
-  private legacyDocRef(provider: string, identity: string) {
-    const legacyPath = this.options?.legacyFallback?.[provider]?.[identity];
-    if (!legacyPath) return null;
-    return this.db.doc(legacyPath + '/token');
+  private tokenDocRef(provider: string, identity: string) {
+    return this.db.doc(`oauth/${provider}/${identity}/token`);
   }
 
   async getAuthToken(provider: string, identity: string): Promise<AuthTokenDoc | null> {
     try {
-      const v2 = await this.v2DocRef(provider, identity).get();
-      if (v2.exists) {
-        const d = (v2.data() || {}) as any;
+      const snap = await this.tokenDocRef(provider, identity).get();
+      if (snap.exists) {
+        const d = (snap.data() || {}) as any;
         if (!d.accessToken) return null;
+
+        // Try to handle both old Twitch and new V2 schema fields
+        const obtainment = d.obtainmentTimestamp || (d.updatedAt ? Date.parse(d.updatedAt) : Date.now());
+        const expiresAt = d.expiresAt || (d.expiresIn ? new Date(obtainment + d.expiresIn * 1000).toISOString() : undefined);
+
         return {
           provider,
           identity,
           tokenType: d.tokenType || 'oauth',
           accessToken: d.accessToken,
-          refreshToken: d.refreshToken,
-          expiresAt: d.expiresAt,
+          refreshToken: d.refreshToken || undefined,
+          expiresAt,
           scope: Array.isArray(d.scope) ? d.scope : undefined,
-          providerUserId: d.providerUserId,
+          providerUserId: d.providerUserId || d.userId || undefined,
           metadata: d.metadata,
-          updatedAt: d.updatedAt || new Date().toISOString(),
+          updatedAt: d.updatedAt || new Date(obtainment).toISOString(),
         };
-      }
-      // Read-compat fallback for legacy Twitch paths if configured
-      const legacyRef = this.legacyDocRef(provider, identity);
-      if (legacyRef) {
-        const snap = await legacyRef.get();
-        if (snap.exists) {
-          const d = (snap.data() || {}) as any;
-          if (!d.accessToken) return null;
-          // Map legacy Twitch schema to v2 doc shape
-          const expiresAt = d.expiresIn && d.obtainmentTimestamp ? new Date(d.obtainmentTimestamp + d.expiresIn * 1000).toISOString() : undefined;
-          return {
-            provider,
-            identity,
-            tokenType: 'oauth',
-            accessToken: d.accessToken,
-            refreshToken: d.refreshToken || undefined,
-            expiresAt,
-            scope: Array.isArray(d.scope) ? d.scope : undefined,
-            providerUserId: d.userId || undefined,
-            metadata: undefined,
-            updatedAt: new Date().toISOString(),
-          };
-        }
       }
       return null;
     } catch (e: any) {
@@ -95,7 +70,7 @@ export class FirestoreAuthTokenStore implements IAuthTokenStoreV2 {
   async putAuthToken(provider: string, identity: string, token: Omit<AuthTokenDoc, 'provider' | 'identity' | 'updatedAt'>): Promise<void> {
     try {
       const nowIso = new Date().toISOString();
-      await this.v2DocRef(provider, identity).set(
+      await this.tokenDocRef(provider, identity).set(
         {
           provider,
           identity,

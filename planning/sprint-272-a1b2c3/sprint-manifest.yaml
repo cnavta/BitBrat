@@ -1,0 +1,10 @@
+id: sprint-272-a1b2c3
+title: "Revert Token Storage Path"
+goal: "Revert Firestore token storage from authTokens/ to legacy oauth/provider/identity/token structure."
+owner: "@Junie"
+createdAt: "2026-04-09T12:45:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-272-a1b2c3-revert-token-path"
+notes: |
+  Alignment with legacy Twitch storage requirements.
