@@ -1,0 +1,11 @@
+id: sprint-273-e8a1c2
+title: "Fix Discord Bot Token capture in OAuth flow"
+goal: "Capture and prioritize Discord Bot Token (token field) during OAuth exchange to fix ingress-egress connection errors."
+owner: "Junie"
+createdAt: "2026-04-09T18:11:31Z"
+status: "complete"
+links:
+  branch: "feature/sprint-273-e8a1c2-fix-discord-bot-token"
+notes: |
+  Discord Bot Token is returned in the "token" field of the OAuth exchange response when "bot" scope is requested.
+  Currently, only "access_token" is captured, which is an OAuth token and cannot be used for bot login via discord.js.
