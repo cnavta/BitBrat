@@ -1,0 +1,10 @@
+id: sprint-271-e9a1c3
+title: "Fix Discord OAuth state validation"
+goal: "Ensure OAuth state is correctly signed using generateState to pass verifyState in the callback."
+owner: "@Junie"
+createdAt: "2026-04-09T09:28:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-271-e9a1c3-fix-oauth-state-discord"
+notes: |
+  Discord OAuth callback fails with Invalid state due to unsigned state parameter in generic oauth routes.
