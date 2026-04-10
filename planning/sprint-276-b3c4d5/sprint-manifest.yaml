@@ -1,0 +1,12 @@
+id: sprint-276-b3c4d5
+title: "Ensure DISCORD_BOT_TOKEN is appropriately used when store is disabled"
+goal: "Ensure that DISCORD_BOT_TOKEN is mandatory and correctly validated when DISCORD_USE_TOKEN_STORE is false, and it is used correctly in all contexts."
+owner: "Junie"
+createdAt: "2026-04-10T11:25:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-276-b3c4d5-discord-token-validation"
+notes: |
+  1. Add validation in assertRequiredSecrets for DISCORD_BOT_TOKEN when store is disabled.
+  2. Verify that discordUseTokenStore correctly controls the behavior in both ingress-egress and oauth-flow.
+  3. Ensure that DISCORD_BOT_TOKEN is correctly redact in safeConfig.
