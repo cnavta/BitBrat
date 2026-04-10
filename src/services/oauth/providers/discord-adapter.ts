@@ -91,9 +91,9 @@ export class DiscordAdapter implements OAuthProvider {
     const json = (await resp.json()) as any;
     const expiresAt = json.expires_in ? new Date(Date.now() + json.expires_in * 1000).toISOString() : undefined;
 
-    // Discord returns a Bot Token in the "token" field if the "bot" scope is requested.
+    // Discord returns a Bot Token in the "token" field or "bot.token" if the "bot" scope is requested.
     // This token is what's needed for discord.js login, while "access_token" is the OAuth bearer token.
-    const accessToken = json.token || json.access_token;
+    const accessToken = json.bot?.token || json.token || json.access_token;
 
     return {
       accessToken,
