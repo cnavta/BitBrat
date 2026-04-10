@@ -196,6 +196,13 @@ export function assertRequiredSecrets(cfg: IConfig = getConfig()): void {
     if (!cfg.twilioChatServiceSid) missing.push('TWILIO_CHAT_SERVICE_SID');
   }
 
+  if (cfg.discordEnabled) {
+    // If store is disabled, bot token is mandatory for ingress
+    if (!cfg.discordUseTokenStore && !cfg.discordBotToken) {
+      missing.push('DISCORD_BOT_TOKEN (required when DISCORD_USE_TOKEN_STORE is false)');
+    }
+  }
+
   if (missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
