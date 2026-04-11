@@ -4,6 +4,7 @@
 - Component-based architecture for `VariableResolver` and `Formatters` made unit testing straightforward and highly reliable.
 - Integrating `WebhookManager` into the existing `EgressManager` provided a clean, centralized point for all platform egress.
 - Sprint protocol artifacts (manifest, implementation plan, backlog) helped maintain focus and clear status tracking.
+- Effectively handled mid-sprint requirement refinement for candidate selection in formatters.
 
 ## What Didn't
 - The initial `Egress` interface in `src/types/events.ts` lacked the `metadata` field, which required a small refactor of the core types to support webhook configuration.

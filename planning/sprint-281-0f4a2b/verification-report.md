@@ -6,6 +6,7 @@
 - [x] WebhookManager core logic implemented and tested.
 - [x] Integration with api-gateway's EgressManager and server entry point.
 - [x] Failure handling with `egress.failed.v1` event publishing.
+- [x] Best candidate selection in formatters (via `extractEgressTextFromEvent`).
 - [x] Unit tests for all new components (100% coverage).
 - [x] `validate_deliverable.sh` created and passed.
 

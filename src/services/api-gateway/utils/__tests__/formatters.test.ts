@@ -24,6 +24,19 @@ describe('Formatters', () => {
         }
       });
     });
+
+    test('selects best candidate text', () => {
+      const formatter = new JsonFormatter();
+      const eventWithCandidates: InternalEventV2 = {
+        ...mockEvent,
+        candidates: [
+          { id: '1', text: 'Candidate 1', priority: 10, createdAt: '2021-01-01T00:00:00Z', status: 'proposed', kind: 'text', source: 'test' },
+          { id: '2', text: 'Best Candidate', priority: 1, createdAt: '2021-01-01T00:00:00Z', status: 'proposed', kind: 'text', source: 'test' }
+        ]
+      } as any;
+      const result = formatter.format(eventWithCandidates);
+      expect(result.payload.text).toBe('Best Candidate');
+    });
   });
 
   describe('DiscordFormatter', () => {
@@ -35,6 +48,19 @@ describe('Formatters', () => {
         username: 'BitBrat (via Gateway)',
         avatar_url: 'https://bitbrat.com/avatar.png'
       });
+    });
+
+    test('selects best candidate text', () => {
+      const formatter = new DiscordFormatter();
+      const eventWithCandidates: InternalEventV2 = {
+        ...mockEvent,
+        candidates: [
+          { id: '1', text: 'Candidate 1', priority: 10, createdAt: '2021-01-01T00:00:00Z', status: 'proposed', kind: 'text', source: 'test' },
+          { id: '2', text: 'Best Candidate', priority: 1, createdAt: '2021-01-01T00:00:00Z', status: 'proposed', kind: 'text', source: 'test' }
+        ]
+      } as any;
+      const result = formatter.format(eventWithCandidates);
+      expect(result.content).toBe('Best Candidate');
     });
 
     test('uses fallback content if text is missing', () => {
