@@ -3,8 +3,9 @@ title: "Fix Twitch Stream Online Event Type and Persistence"
 goal: "Ensure Twitch stream.online events are correctly typed as 'system.stream.online' and persisted in the 'events' collection for downstream processing."
 owner: "Junie"
 createdAt: "2026-04-10T21:05:00Z"
-status: "in-progress"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/193"
   branch: "feature/sprint-277-a12b3c-twitch-stream-online-type-fix"
 notes: |
   Investigation into Twitch ingress and persistence service revealed that 'system.' events were being routed to 'sources' collection only, skipping the 'events' collection, which broke downstream routing and enrichment.

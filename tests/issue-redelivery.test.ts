@@ -7,6 +7,7 @@ describe('Egress Selection - Redelivery Reproduction', () => {
       v: '2',
       type: 'chat.message.v1',
       ingress: {
+        connector: 'api',
         ingressAt: new Date().toISOString(),
         source: 'api-gateway',
       },
@@ -14,7 +15,7 @@ describe('Egress Selection - Redelivery Reproduction', () => {
         external: { id: 'test-user', platform: 'test' }
       },
       correlationId: 'test-corr',
-      egress: { destination: 'api-gateway', type: 'chat' },
+      egress: { connector: 'api', destination: 'api-gateway', type: 'chat' },
       message: {
         id: 'msg-1',
         role: 'user',
@@ -46,6 +47,7 @@ describe('Egress Selection - Redelivery Reproduction', () => {
       v: '2',
       type: 'chat.message.v1',
       ingress: {
+        connector: 'api',
         ingressAt: new Date().toISOString(),
         source: 'api-gateway',
       },
@@ -53,7 +55,7 @@ describe('Egress Selection - Redelivery Reproduction', () => {
         external: { id: 'test-user', platform: 'test' }
       },
       correlationId: 'test-corr',
-      egress: { destination: 'api-gateway', type: 'chat' },
+      egress: { connector: 'api', destination: 'api-gateway', type: 'chat' },
       message: {
         id: 'msg-1',
         role: 'user',

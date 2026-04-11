@@ -73,6 +73,7 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
       ingress: {
         ingressAt: nowIso(),
         source: 'ingress.twitch',
+        connector: 'twitch',
         channel,
       },
       identity: {
@@ -89,7 +90,7 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: '' }, // populated by client
+      egress: { destination: '', connector: 'twitch', channel }, // populated by client
       message: {
         id: msg.messageId || `msg-${correlationId}`,
         role: 'user',

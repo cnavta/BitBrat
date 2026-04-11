@@ -23,12 +23,15 @@ export class EgressManager {
    * 3. Forwards to all active WebSocket connections for that user.
    */
   public async handleEgressEvent(event: InternalEventV2): Promise<EgressResult> {
-    const isWebSocketTarget = event.egress?.destination === 'api-gateway' || 
-                             event.ingress?.source === 'api-gateway' ||
-                             event.type?.startsWith('api.');
+    const isWebSocketTarget = event.egress?.connector === 'api' ||
+                             (event.egress?.connector === undefined && (
+                               event.egress?.destination === 'api-gateway' || 
+                               event.ingress?.source === 'api-gateway' ||
+                               event.type?.startsWith('api.')
+                             ));
     this.logger.debug('egress.handle_event', { event });
 
-    if (!isWebSocketTarget && event.egress?.destination !== undefined) {
+    if (!isWebSocketTarget && (event.egress?.destination !== undefined || event.egress?.connector !== undefined)) {
       return EgressResult.IGNORED;
     }
 
@@ -56,7 +59,7 @@ export class EgressManager {
         : event.type,
       // If we have extracted text from a candidate, prioritize it over event.payload
       // to avoid echoing the original user message from event.payload.
-      payload: text ? { text } : (event.payload || { text }),
+      payload: text ? { text, channel: event.egress?.channel } : (event.payload ? { ...event.payload, channel: event.egress?.channel } : { text, channel: event.egress?.channel }),
       metadata: {
         id: event.correlationId,
         timestamp: new Date().toISOString(),

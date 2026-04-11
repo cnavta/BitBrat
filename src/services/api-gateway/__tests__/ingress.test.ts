@@ -37,7 +37,8 @@ describe('IngressManager', () => {
       expect.objectContaining({
         egress: {
           destination: egressTopic,
-          type: 'chat'
+          type: 'chat',
+          connector: 'api'
         }
       }),
       expect.anything()
@@ -58,7 +59,8 @@ describe('IngressManager', () => {
       expect.objectContaining({
         egress: {
           destination: 'api-gateway',
-          type: 'chat'
+          type: 'chat',
+          connector: 'api'
         }
       }),
       expect.anything()
