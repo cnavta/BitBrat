@@ -256,15 +256,16 @@ export class IngressEgressServer extends BaseServer {
             logger.debug('ingress-egress.egress.generic.received', { correlationId: evt?.correlationId });
             try {
               // Determine if this service supports the platform for this event
+              const connector = (evt?.egress?.connector || '').toLowerCase();
+              
               const source = (evt?.ingress?.source || '').toLowerCase();
               const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
               const egressDest = (evt?.egress?.destination || '').toLowerCase();
               const authProvider = (evt?.identity?.auth?.provider || '').toLowerCase();
 
-              const isDiscord = egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
-              const isTwilio = egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
-              const isTwitch = egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || 
-                              (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''));
+              const isDiscord = connector === 'discord' || (connector === '' && (egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord')));
+              const isTwilio = connector === 'twilio' || (connector === '' && (egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio')));
+              const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
 
               logger.debug('ingress-egress.egress.generic.platforms', { isDiscord, isTwilio, isTwitch })
               if (isDiscord || isTwilio || isTwitch) {
@@ -399,13 +400,21 @@ export class IngressEgressServer extends BaseServer {
       };
 
       try {
+        const connector = (evt?.egress?.connector || '').toLowerCase();
+        
+        // Legacy heuristics (as fallbacks)
         const source = (evt?.ingress?.source || '').toLowerCase();
         const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
         const egressDest = (evt?.egress?.destination || '').toLowerCase();
         const authProvider = (evt?.identity?.auth?.provider || '').toLowerCase();
 
-        const isDiscord = egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord');
-        const isTwilio = egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio');
+        const isDiscord = connector === 'discord' || (connector === '' && (egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord')));
+        const isTwilio = connector === 'twilio' || (connector === '' && (egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio')));
+        const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
+
+        const targetChannel = (egressDest && !['twitch', 'discord', 'twilio', 'api', 'system', 'chat', 'dm'].includes(egressDest))
+          ? egressDest
+          : (evt.ingress?.channel || evt.channel);
 
         if (isDiscord) {
           if (this.discordClient) {
@@ -415,18 +424,18 @@ export class IngressEgressServer extends BaseServer {
               logger.debug('ingress-egress.egress.discord.ignored_disconnected', { correlationId });
               return 'IGNORED';
             }
-            await this.discordClient.sendText(text, evt.ingress?.channel || evt.channel);
+            await this.discordClient.sendText(text, targetChannel);
           } else {
             return 'IGNORED';
           }
         } else if (isTwilio) {
           if (this.twilioClient) {
-            await this.twilioClient.sendText(text, evt.ingress?.channel || evt.channel);
+            await this.twilioClient.sendText(text, targetChannel);
           } else {
             return 'IGNORED';
           }
-        } else {
-          // Default to Twitch
+        } else if (isTwitch) {
+          // Twitch branch
           if (!this.twitchClient) return 'IGNORED';
           
           const egressType = evt?.egress?.type || 'chat';
@@ -444,8 +453,13 @@ export class IngressEgressServer extends BaseServer {
             if (egressType === 'dm' && !targetUserId) {
               logger.warn('ingress-egress.egress.twitch.dm_requested_but_no_userId', { correlationId });
             }
-            await this.twitchClient.sendText(text, evt.ingress?.channel || evt.channel);
+            await this.twitchClient.sendText(text, targetChannel);
           }
+        } else {
+          // Explicitly unsupported connector or system event that shouldn't be here
+          logger.error('ingress-egress.egress.unsupported_connector', { correlationId, connector });
+          await publishFinalize('FAILED', { code: 'unsupported_connector', message: `Connector ${connector} not supported` });
+          return 'FAILED';
         }
         logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio });
         await publishFinalize('SENT');
@@ -559,6 +573,7 @@ export class IngressEgressServer extends BaseServer {
         ingress: {
           ingressAt: new Date().toISOString(),
           source: `ingress.${name}`,
+          connector: 'system',
         },
         identity: {
           external: {
@@ -566,6 +581,7 @@ export class IngressEgressServer extends BaseServer {
             platform: platform,
           }
         },
+        egress: { destination: '', connector: 'system' },
         correlationId: `status-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: 'system.source.status',
         payload: {
