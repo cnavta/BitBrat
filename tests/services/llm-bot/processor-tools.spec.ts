@@ -69,6 +69,7 @@ describe('Processor Tools', () => {
       type: 'internal.llmbot.v1' as any,
       v: '2',
       ingress: {
+        connector: 'system',
         ingressAt: new Date().toISOString(),
         source: 'test',
       },
@@ -80,7 +81,7 @@ describe('Processor Tools', () => {
         { id: 'a1', kind: 'prompt', value: 'Use the tool', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routing: { stage: 'analysis', slip: [], history: [] },
-      egress: { destination: 'test' },
+      egress: { connector: 'system', destination: 'test' },
     };
 
     await processEvent(mockServer as BaseServer, evt, { registry: mockRegistry });

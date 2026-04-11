@@ -1,0 +1,11 @@
+id: sprint-278-b4d5e6
+title: "Implement Flexible Event Egress with Connector Support"
+goal: "Address the gap in flexible event egress by utilizing 'connector' properties in Ingress and Egress types, enabling cross-connector eventing (e.g., Twitch to Discord)."
+owner: "Junie"
+createdAt: "2026-04-10T22:36:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-278-b4d5e6-flexible-event-egress-connector"
+notes: |
+  We've added `connector` properties to Ingress and Egress types in InternalEventV2.
+  This sprint will update all ingress points to set the appropriate connector and update egress flows to route events based on the new `egress.connector` field.

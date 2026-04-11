@@ -29,6 +29,7 @@ describe('events.ts (InternalEventV2 refactor)', () => {
       correlationId: 'c-123',
       traceId: 't-123',
       ingress: {
+        connector: 'twitch',
         ingressAt: '2026-01-29T22:00:00Z',
         source: 'ingress.twitch',
         channel: '#bitbrat',
@@ -41,6 +42,7 @@ describe('events.ts (InternalEventV2 refactor)', () => {
         }
       },
       egress: { 
+        connector: 'twitch',
         destination: 'egress.twitch' 
       },
       routing: {

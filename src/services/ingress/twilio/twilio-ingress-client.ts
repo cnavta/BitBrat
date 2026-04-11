@@ -319,7 +319,8 @@ export class TwilioIngressClient {
         if (this.options.egressDestinationTopic) {
           evt.egress = {
             destination: this.options.egressDestinationTopic,
-            type: 'chat'
+            type: 'chat',
+            connector: 'twilio'
           };
         }
 

@@ -1,0 +1,101 @@
+meta:
+  backlog_id: sprint-278-b4d5e6
+  updated_at: 2026-04-10
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-278-b4d5e6
+  start: 2026-04-10
+  end: 2026-04-24
+  wip_limit: 3
+  goal: "Enable flexible event egress by selecting specific connectors in InternalEventV2."
+
+items:
+  - id: BL-001
+    title: "Update ConnectorType in types/events.ts"
+    priority: P0
+    status: done
+    effort: XS
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "ConnectorType includes 'system'"
+    updated_at: 2026-04-10
+    log: []
+
+  - id: BL-002
+    title: "Update all Ingress points with connector property"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Twitch IRC/EventSub events have connector: 'twitch'"
+      - "Discord ingress has connector: 'discord'"
+      - "Twilio ingress has connector: 'twilio'"
+      - "API Gateway ingress has connector: 'api'"
+      - "Scheduler ingress has connector: 'system'"
+      - "Auth Service events have connector: 'system'"
+    updated_at: 2026-04-10
+    log: []
+
+  - id: BL-003
+    title: "Update ingress-egress-service routing logic"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "Egress routing logic prioritizes egress.connector"
+      - "Fallback heuristics are retained for legacy support"
+      - "Routing failure results in FAILED finalization"
+    updated_at: 2026-04-10
+    log: []
+
+  - id: BL-004
+    title: "Update API Gateway EgressManager routing logic"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "EgressManager recognizes connector: 'api'"
+    updated_at: 2026-04-10
+    log: []
+
+  - id: BL-005
+    title: "Update tests to reflect connector requirements"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-003, BL-004]
+    blocked_reason: null
+    acceptance:
+      - "Existing tests updated with connector properties"
+      - "New cross-connector routing tests pass"
+    updated_at: 2026-04-10
+    log: ["Fixed additional test failures reported by user due to missing mandatory connector field.", "Fixed regression where internal Pub/Sub topics were being used as egress destinations."]
+
+  - id: BL-007
+    title: "Add channel to Egress type and update paths"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001, BL-002, BL-003]
+    blocked_reason: null
+    acceptance:
+      - "Egress type in types/events.ts includes channel property"
+      - "Ingress envelope builders populate egress.channel"
+      - "ingress-egress-service prioritizes egress.channel in targetChannel calculation"
+      - "API Gateway EgressManager includes channel in outbound frame"
+    updated_at: 2026-04-10
+    log: ["Added channel to Egress type and updated all paths to prioritize it."]

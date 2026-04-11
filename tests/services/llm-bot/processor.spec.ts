@@ -51,6 +51,7 @@ describe('Processor', () => {
       type: 'internal.llmbot.v1',
       v: '2',
       ingress: {
+        connector: 'system',
         ingressAt: new Date().toISOString(),
         source: 'test',
         channel: 'test',
@@ -62,7 +63,7 @@ describe('Processor', () => {
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routing: { stage: 'analysis', slip: [], history: [] },
-      egress: { destination: 'test' },
+      egress: { connector: 'system', destination: 'test' },
     };
 
     const result = await processEvent(mockServer as BaseServer, evt);
@@ -79,6 +80,7 @@ describe('Processor', () => {
       type: 'internal.llmbot.v1',
       v: '2',
       ingress: {
+        connector: 'system',
         ingressAt: new Date().toISOString(),
         source: 'test',
       },
@@ -87,7 +89,7 @@ describe('Processor', () => {
       },
       annotations: [],
       routing: { stage: 'analysis', slip: [], history: [] },
-      egress: { destination: 'test' },
+      egress: { connector: 'system', destination: 'test' },
     };
 
     const result = await processEvent(mockServer as BaseServer, evt);
@@ -102,6 +104,7 @@ describe('Processor', () => {
       type: 'internal.llmbot.v1',
       v: '2',
       ingress: {
+        connector: 'system',
         ingressAt: new Date().toISOString(),
         source: 'test',
         channel: 'test',
@@ -126,7 +129,7 @@ describe('Processor', () => {
         } as any,
       ],
       routing: { stage: 'analysis', slip: [], history: [] },
-      egress: { destination: 'test' },
+      egress: { connector: 'system', destination: 'test' },
     };
 
     const callLLM = jest.fn().mockResolvedValue('Mocked response');
@@ -151,6 +154,7 @@ describe('Processor', () => {
       type: 'internal.llmbot.v1',
       v: '2',
       ingress: {
+        connector: 'system',
         ingressAt: new Date().toISOString(),
         source: 'test',
       },
@@ -161,7 +165,7 @@ describe('Processor', () => {
         { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
       ],
       routing: { stage: 'analysis', slip: [], history: [] },
-      egress: { destination: 'test' },
+      egress: { connector: 'system', destination: 'test' },
     };
 
     const result = await processEvent(mockServer as BaseServer, evt);

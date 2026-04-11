@@ -477,7 +477,8 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
         if ((!evtV2.egress || !evtV2.egress.destination) && this.egressDestinationTopic) {
           evtV2.egress = {
             destination: this.egressDestinationTopic,
-            type: 'chat'
+            type: 'chat',
+            connector: 'twitch'
           };
         }
         await this.publisher.publish(evtV2);

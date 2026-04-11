@@ -22,6 +22,7 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
       ingress: {
         ingressAt: nowIso(),
         source: 'ingress.discord',
+        connector: 'discord',
         channel: meta.channelId,
       },
       identity: {
@@ -38,7 +39,9 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
       },
       egress: { 
         destination: opts?.egressDestination || '',
-        type: 'chat'
+        type: 'chat',
+        connector: 'discord',
+        channel: meta.channelId
       },
       message: {
         id: meta.messageId || `msg-${correlationId}`,

@@ -74,6 +74,7 @@ describe('event-router ingress integration', () => {
       ingress: {
         ingressAt: '2026-01-29T22:00:00Z',
         source: 'ingress.test',
+        connector: 'twitch',
         channel: '#ch',
       },
       identity: {
@@ -82,7 +83,7 @@ describe('event-router ingress integration', () => {
           platform: 'test',
         }
       },
-      egress: { destination: 'test' },
+      egress: { destination: 'test', connector: 'twitch' },
       payload: { text: 'hi' },
     } as any;
 

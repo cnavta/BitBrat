@@ -122,6 +122,7 @@ describe('IngressEgressServer routing', () => {
       ingress: {
         ingressAt: new Date().toISOString(),
         source: 'ingress.discord',
+        connector: 'discord',
         channel: 'discord-channel-1',
       },
       identity: {
@@ -143,7 +144,7 @@ describe('IngressEgressServer routing', () => {
           text: 'Hello Discord',
         }
       ],
-      egress: { destination: 'discord' }
+      egress: { destination: 'discord', connector: 'discord' }
     } as any;
 
     const ctx = {
@@ -156,6 +157,56 @@ describe('IngressEgressServer routing', () => {
 
     expect(mockTwitchClient.sendText).not.toHaveBeenCalled();
     expect(mockDiscordClient.sendText).toHaveBeenCalledWith('Hello Discord', 'discord-channel-1');
+  });
+
+  it('should ignore internal topic in egress.destination and use ingress.channel', async () => {
+    // Manually trigger the egress handler
+    const egressHandler = (server as any).onMessage.mock.calls.find(
+      (call: any) => call[0].destination?.startsWith('internal.egress.v1')
+    )?.[1];
+
+    const internalTopicEvent: InternalEventV2 = {
+      v: '2',
+      correlationId: 'corr-internal',
+      type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+        connector: 'twitch',
+        channel: 'bitbrat-channel',
+      },
+      message: {
+        id: 'msg-internal',
+        role: 'assistant',
+        text: 'Internal Routing Test',
+      },
+      egress: { 
+        destination: 'internal.egress.v1.f0acbd803898', // THE REGRESSION CASE
+        connector: 'twitch' 
+      },
+      candidates: [
+        {
+          id: 'cand-internal',
+          kind: 'text',
+          source: 'llm-bot',
+          createdAt: new Date().toISOString(),
+          status: 'proposed',
+          priority: 1,
+          text: 'Internal Routing Test',
+        }
+      ]
+    } as any;
+
+    const ctx = {
+      ack: jest.fn().mockResolvedValue(undefined),
+      nack: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Execute the handler
+    await egressHandler(internalTopicEvent, {}, ctx);
+
+    // Should use 'bitbrat-channel', NOT the internal topic
+    expect(mockTwitchClient.sendText).toHaveBeenCalledWith('Internal Routing Test', 'bitbrat-channel');
   });
 
   it('should route to Discord if source is missing but Discord annotation is present', async () => {
@@ -265,6 +316,7 @@ describe('IngressEgressServer routing', () => {
       ingress: {
         ingressAt: new Date().toISOString(),
         source: 'ingress.twitch',
+        connector: 'twitch',
         channel: '#twitch-channel',
       },
       identity: {
@@ -286,7 +338,7 @@ describe('IngressEgressServer routing', () => {
           text: 'Hello Twitch',
         }
       ],
-      egress: { destination: 'twitch' }
+      egress: { destination: 'twitch', connector: 'twitch' }
     } as any;
 
     const ctx = {
@@ -314,6 +366,7 @@ describe('IngressEgressServer routing', () => {
       ingress: {
         ingressAt: new Date().toISOString(),
         source: 'ingress.twilio',
+        connector: 'twilio',
         channel: 'CH123',
       },
       identity: {
@@ -335,7 +388,7 @@ describe('IngressEgressServer routing', () => {
           text: 'Hello Twilio',
         }
       ],
-      egress: { destination: 'twilio' }
+      egress: { destination: 'twilio', connector: 'twilio' }
     } as any;
 
     const ctx = {
@@ -349,5 +402,113 @@ describe('IngressEgressServer routing', () => {
     expect(mockTwitchClient.sendText).not.toHaveBeenCalled();
     expect(mockDiscordClient.sendText).not.toHaveBeenCalled();
     expect(mockTwilioClient.sendText).toHaveBeenCalledWith('Hello Twilio', 'CH123');
+  });
+
+  it('should support cross-connector routing (Twitch to Discord)', async () => {
+    // Manually trigger the egress handler
+    const egressHandler = (server as any).onMessage.mock.calls.find(
+      (call: any) => call[0].destination?.startsWith('internal.egress.v1')
+    )?.[1];
+
+    const crossEvent: InternalEventV2 = {
+      v: '2',
+      correlationId: 'corr-cross',
+      type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+        connector: 'twitch',
+        channel: '#twitch-chan',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch' }
+      },
+      message: {
+        id: 'msg-cross',
+        role: 'assistant',
+        text: 'Cross Response',
+      },
+      candidates: [
+        {
+          id: 'cand-cross',
+          kind: 'text',
+          source: 'llm-bot',
+          createdAt: new Date().toISOString(),
+          status: 'proposed',
+          priority: 1,
+          text: 'Cross Response',
+        }
+      ],
+      egress: { 
+        destination: 'discord-target-channel', 
+        connector: 'discord' // Explicitly route to Discord
+      }
+    } as any;
+
+    const ctx = {
+      ack: jest.fn().mockResolvedValue(undefined),
+      nack: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Execute the handler
+    await egressHandler(crossEvent, {}, ctx);
+
+    // Should route to Discord because egress.connector says so
+    expect(mockTwitchClient.sendText).not.toHaveBeenCalled();
+    expect(mockDiscordClient.sendText).toHaveBeenCalledWith('Cross Response', 'discord-target-channel');
+  });
+
+  it('should prioritize egress.channel over egress.destination and ingress.channel', async () => {
+    // Manually trigger the egress handler
+    const egressHandler = (server as any).onMessage.mock.calls.find(
+      (call: any) => call[0].destination?.startsWith('internal.egress.v1')
+    )?.[1];
+
+    const channelPriorityEvent: InternalEventV2 = {
+      v: '2',
+      correlationId: 'corr-priority',
+      type: 'chat.message.v1',
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: 'ingress.twitch',
+        connector: 'twitch',
+        channel: '#wrong-ingress-channel',
+      },
+      identity: {
+        external: { id: 'u1', platform: 'twitch' }
+      },
+      message: {
+        id: 'msg-priority',
+        role: 'assistant',
+        text: 'Priority Response',
+      },
+      candidates: [
+        {
+          id: 'cand-priority',
+          kind: 'text',
+          source: 'llm-bot',
+          createdAt: new Date().toISOString(),
+          status: 'proposed',
+          priority: 1,
+          text: 'Priority Response',
+        }
+      ],
+      egress: { 
+        destination: 'wrong-destination-channel',
+        channel: '#correct-egress-channel',
+        connector: 'twitch'
+      }
+    } as any;
+
+    const ctx = {
+      ack: jest.fn().mockResolvedValue(undefined),
+      nack: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Execute the handler
+    await egressHandler(channelPriorityEvent, {}, ctx);
+
+    // Should use #correct-egress-channel
+    expect(mockTwitchClient.sendText).toHaveBeenCalledWith('Priority Response', '#correct-egress-channel');
   });
 });

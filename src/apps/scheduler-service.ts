@@ -288,6 +288,7 @@ class SchedulerServer extends McpServer {
       ingress: {
         ingressAt: now,
         source: 'scheduler',
+        connector: 'system',
       },
       identity: {
         external: {
@@ -295,7 +296,7 @@ class SchedulerServer extends McpServer {
           platform: 'system',
         }
       },
-      egress: { destination: 'system' },
+      egress: { destination: 'system', connector: 'system' },
       payload: schedule.event.payload || {},
       message: schedule.event.message ? {
         id: uuidv4(),

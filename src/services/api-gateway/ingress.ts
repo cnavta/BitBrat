@@ -49,6 +49,7 @@ export class IngressManager {
         ingress: {
           ingressAt: new Date().toISOString(),
           source: 'api-gateway',
+          connector: 'api',
           channel: frame.payload.channel || frame.payload.room,
         },
         identity: {
@@ -59,7 +60,9 @@ export class IngressManager {
         },
         egress: { 
           destination: this.egressDestinationTopic || 'api-gateway',
-          type: 'chat'
+          type: 'chat',
+          connector: 'api',
+          channel: frame.payload.channel || frame.payload.room
         },
         message: (type === 'chat.message.v1' || type === 'chat.message.send') ? {
           id: frame.metadata?.id || uuidv4(),
