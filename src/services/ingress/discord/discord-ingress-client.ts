@@ -227,9 +227,18 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
       }
     });
 
-    await this.client.login(token);
     this.currentToken = token;
     this.startTokenPoll();
+
+    try {
+      logger.debug('ingress-egress.discord.login', { token: token.substring(0, 4) + '...' });
+      await this.client.login(token);
+    } catch (err: any) {
+      this.snapshot.state = 'ERROR';
+      this.snapshot.lastError = { message: err?.message || String(err) };
+      logger.error('ingress-egress.discord.login.error', { error: err?.message || String(err) });
+      throw err;
+    }
   }
 
   async stop(): Promise<void> {
@@ -286,9 +295,10 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
 
   private async reconnect(newToken: string) {
     try {
-      if (!this.client) return;
       this.disconnecting = true;
-      try { await this.client.destroy(); } catch {}
+      if (this.client) {
+        try { await this.client.destroy(); } catch {}
+      }
       this.disconnecting = false;
       // Recreate client and re-login with new token
       const Client = require('discord.js').Client;

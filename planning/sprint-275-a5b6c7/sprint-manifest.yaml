@@ -1,0 +1,13 @@
+id: sprint-275-a5b6c7
+title: "Fix Discord Ingress Connection and Reconnection Issues"
+goal: "Resolve issues with Discord ingress failing to connect using OAuth access tokens and failing to reconnect when tokens are updated in Firestore."
+owner: "Junie"
+createdAt: "2026-04-10T10:45:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/191"
+  branch: "feature/sprint-275-a5b6c7-discord-ingress-fix"
+notes: |
+  1. Discord ingress fails to connect when using accessToken from Firestore.
+  2. Reconnection logic fails if initial connection was never established.
+  3. OAuth token polling should start even if initial login fails.
