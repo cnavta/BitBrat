@@ -51,6 +51,7 @@ export interface Egress {
   destination: string; // Destination that was the entry point for the message.
   type?: 'chat' | 'dm' | 'event'; // Requested type of response to send.
   connector: ConnectorType;
+  channel?: string;  // #channel or room ID
 }
 
 export interface Ingress {

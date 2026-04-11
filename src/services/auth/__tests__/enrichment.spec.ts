@@ -8,6 +8,7 @@ function makeEvent(partial?: Partial<InternalEventV2>): InternalEventV2 {
     correlationId: 'c-1',
     type: 'chat.message.v1',
     ingress: {
+      connector: 'twitch',
       ingressAt: '2026-01-29T22:00:00Z',
       source: 'ingress.twitch',
     },
@@ -17,7 +18,7 @@ function makeEvent(partial?: Partial<InternalEventV2>): InternalEventV2 {
         platform: 'twitch',
       }
     },
-    egress: { destination: 'test' },
+    egress: { connector: 'twitch', destination: 'test' },
     message: { id: 'm1', role: 'user', text: 'hi', rawPlatformPayload: {} },
     ...(partial || {}),
   } as InternalEventV2;
@@ -154,6 +155,7 @@ describe('enrichEvent()', () => {
     };
     const evt = makeEvent({
       ingress: {
+        connector: 'twilio',
         ingressAt: '2026-01-29T22:00:00Z',
         source: 'ingress.twilio',
       },
@@ -300,6 +302,7 @@ describe('enrichEvent()', () => {
     const evt = makeEvent({
       v: '2',
       ingress: {
+        connector: 'twilio',
         ingressAt: '2026-01-29T22:00:00Z',
         source: 'ingress.twilio',
       },

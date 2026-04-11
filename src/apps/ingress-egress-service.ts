@@ -412,9 +412,12 @@ export class IngressEgressServer extends BaseServer {
         const isTwilio = connector === 'twilio' || (connector === '' && (egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio')));
         const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
 
-        const targetChannel = (egressDest && !['twitch', 'discord', 'twilio', 'api', 'system', 'chat', 'dm'].includes(egressDest))
-          ? egressDest
-          : (evt.ingress?.channel || evt.channel);
+        const isInternalTopic = egressDest.startsWith('internal.') || egressDest.includes('.egress.');
+        const targetChannel = (evt.egress?.channel)
+          ? evt.egress.channel
+          : (egressDest && !isInternalTopic && !['twitch', 'discord', 'twilio', 'api', 'system', 'chat', 'dm'].includes(egressDest))
+            ? egressDest
+            : (evt.ingress?.channel || evt.channel);
 
         if (isDiscord) {
           if (this.discordClient) {
