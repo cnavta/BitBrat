@@ -66,7 +66,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch', channel: `#${event.broadcasterName}` },
       externalEvent,
       routing: {
         stage: 'initial',
@@ -136,7 +136,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch', channel: `#${event.broadcasterName}` },
       externalEvent,
       routing: {
         stage: 'initial',
@@ -207,7 +207,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch', channel: `#${event.broadcasterName}` },
       externalEvent,
       routing: {
         stage: 'initial',
@@ -268,7 +268,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch', channel: `#${event.broadcasterName}` },
       externalEvent,
       routing: {
         stage: 'initial',

@@ -90,7 +90,7 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: '', connector: 'twitch' }, // populated by client
+      egress: { destination: '', connector: 'twitch', channel }, // populated by client
       message: {
         id: msg.messageId || `msg-${correlationId}`,
         role: 'user',

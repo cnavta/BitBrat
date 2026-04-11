@@ -64,7 +64,7 @@ export class TwilioEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: '', connector: 'twilio' }, // populated by client
+      egress: { destination: '', connector: 'twilio', channel: conversationSid }, // populated by client
       message: {
         id: message.sid || `msg-${correlationId}`,
         role: 'user',

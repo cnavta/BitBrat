@@ -40,7 +40,8 @@ export class DiscordEnvelopeBuilder implements EnvelopeBuilder<DiscordMessageMet
       egress: { 
         destination: opts?.egressDestination || '',
         type: 'chat',
-        connector: 'discord'
+        connector: 'discord',
+        channel: meta.channelId
       },
       message: {
         id: meta.messageId || `msg-${correlationId}`,

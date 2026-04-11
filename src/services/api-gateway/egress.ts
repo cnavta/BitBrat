@@ -59,7 +59,7 @@ export class EgressManager {
         : event.type,
       // If we have extracted text from a candidate, prioritize it over event.payload
       // to avoid echoing the original user message from event.payload.
-      payload: text ? { text } : (event.payload || { text }),
+      payload: text ? { text, channel: event.egress?.channel } : (event.payload ? { ...event.payload, channel: event.egress?.channel } : { text, channel: event.egress?.channel }),
       metadata: {
         id: event.correlationId,
         timestamp: new Date().toISOString(),

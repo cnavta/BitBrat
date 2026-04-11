@@ -82,18 +82,20 @@ items:
       - "Existing tests updated with connector properties"
       - "New cross-connector routing tests pass"
     updated_at: 2026-04-10
-    log: []
+    log: ["Fixed additional test failures reported by user due to missing mandatory connector field.", "Fixed regression where internal Pub/Sub topics were being used as egress destinations."]
 
-  - id: BL-006
-    title: "Validation and Publication"
+  - id: BL-007
+    title: "Add channel to Egress type and update paths"
     priority: P0
     status: done
     effort: S
     owner: agent
-    deps: [BL-005]
+    deps: [BL-001, BL-002, BL-003]
     blocked_reason: null
     acceptance:
-      - "validate_deliverable.sh passes"
-      - "PR created with all changes"
+      - "Egress type in types/events.ts includes channel property"
+      - "Ingress envelope builders populate egress.channel"
+      - "ingress-egress-service prioritizes egress.channel in targetChannel calculation"
+      - "API Gateway EgressManager includes channel in outbound frame"
     updated_at: 2026-04-10
-    log: []
+    log: ["Added channel to Egress type and updated all paths to prioritize it."]

@@ -21,6 +21,9 @@ function makeEvent(partial: Partial<InternalEventV2>): InternalEventV2 {
     correlationId: 'c-1',
     type: 'chat.command.v1',
     message: { id: 'm1', role: 'user', text: '!ping' },
+    ingress: { connector: 'system', ingressAt: new Date().toISOString(), source: 'test' },
+    egress: { connector: 'system', destination: 'test' },
+    routing: { stage: 'initial', slip: [], history: [] }
   } as any;
   return { ...base, ...partial } as InternalEventV2;
 }
@@ -84,7 +87,10 @@ describe('BaseServer routing helpers', () => {
       { id: 'router', status: 'OK', nextTopic: 'internal.router.done.v1' },
       { id: 'bot', status: 'SKIP', nextTopic: 'internal.bot.requests.v1' },
     ] as any;
-    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] }, egress: { destination: 'internal.egress.v1' } });
+    const evt = makeEvent({ 
+      routing: { stage: 'analysis', slip: steps, history: [] }, 
+      egress: { connector: 'system', destination: 'internal.egress.v1' } 
+    });
 
     await server.nextPublic(evt);
 
@@ -93,7 +99,7 @@ describe('BaseServer routing helpers', () => {
   });
 
   test('complete() publishes to egressDestination', async () => {
-    const evt = makeEvent({ egress: { destination: 'internal.egress.v1' } });
+    const evt = makeEvent({ egress: { connector: 'system', destination: 'internal.egress.v1' } });
     await server.completePublic(evt);
     expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
   });
@@ -102,7 +108,10 @@ describe('BaseServer routing helpers', () => {
     const steps: RoutingStep[] = [
       { id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' },
     ] as any;
-    const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] }, egress: { destination: 'internal.egress.v1' } });
+    const evt = makeEvent({ 
+      routing: { stage: 'analysis', slip: steps, history: [] }, 
+      egress: { connector: 'system', destination: 'internal.egress.v1' } 
+    });
     await server.completePublic(evt, 'SKIP');
     expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
     expect((evt.routing?.slip as RoutingStep[])[0].status).toBe('SKIP');
