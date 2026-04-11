@@ -52,6 +52,12 @@ export interface Egress {
   type?: 'chat' | 'dm' | 'event'; // Requested type of response to send.
   connector: ConnectorType;
   channel?: string;  // #channel or room ID
+  metadata?: {
+    webhookUrl?: string;
+    headers?: Record<string, string>;
+    format?: string;
+    [key: string]: any;
+  };
 }
 
 export interface Ingress {

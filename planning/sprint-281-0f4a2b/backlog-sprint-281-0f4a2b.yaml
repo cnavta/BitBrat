@@ -1,0 +1,140 @@
+meta:
+  backlog_id: sprint-281-0f4a2b-webhook-egress
+  updated_at: 2026-04-11
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-281-0f4a2b
+  start: 2026-04-11
+  end: 2026-04-25
+  wip_limit: 3
+  goal: "Implement a generalized Webhook Egress solution within the api-gateway service to support platform-wide HTTP callbacks."
+
+items:
+  - id: BL-WEB-001
+    title: "Implement VariableResolver for Webhook Egress"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Successfully resolves ${event.path} tokens using InternalEventV2 properties."
+      - "Successfully resolves ${ENV.VAR_NAME} tokens from environment variables."
+      - "Successfully resolves ${secret.SECRET_NAME} tokens from protected environment or store."
+      - "Correctly handles multiple tokens within a single string."
+    updated_at: 2026-04-11
+    log:
+      - at: 2026-04-11T17:10:00Z
+        note: "Starting implementation of VariableResolver."
+      - at: 2026-04-11T17:20:00Z
+        note: "VariableResolver implemented and verified with unit tests."
+
+  - id: BL-WEB-002
+    title: "Implement FormatterRegistry and Core Formatters"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "FormatterRegistry successfully registers and retrieves formatters by name."
+      - "JsonFormatter produces standard {correlationId, type, payload} structure."
+      - "DiscordFormatter correctly maps fields to Discord's content, username, and avatar_url."
+    updated_at: 2026-04-11
+    log:
+      - at: 2026-04-11T17:21:00Z
+        note: "Starting implementation of FormatterRegistry and Formatters."
+      - at: 2026-04-11T17:30:00Z
+        note: "FormatterRegistry and Formatters implemented and verified with unit tests."
+
+  - id: BL-WEB-003
+    title: "Implement WebhookManager Core Logic"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-WEB-001, BL-WEB-002]
+    blocked_reason: null
+    acceptance:
+      - "Executes HTTP POST requests to resolved URLs with resolved headers."
+      - "Uses the specified formatter to shape the request body."
+      - "Logs result as DELIVERED on 2xx response."
+    updated_at: 2026-04-11
+    log:
+      - at: 2026-04-11T17:31:00Z
+        note: "Starting implementation of WebhookManager."
+      - at: 2026-04-11T17:40:00Z
+        note: "WebhookManager core logic implemented and verified with unit tests. Updated Egress type in events.ts."
+
+  - id: BL-WEB-004
+    title: "Integrate WebhookManager with Message Bus"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-WEB-003]
+    blocked_reason: null
+    acceptance:
+      - "api-gateway correctly subscribes to platform egress events."
+      - "Events with egress.connector == 'webhook' are correctly routed to WebhookManager."
+      - "Non-webhook events are ignored or handled by other connectors."
+    updated_at: 2026-04-11
+    log:
+      - at: 2026-04-11T17:41:00Z
+        note: "Starting integration of WebhookManager with EgressManager."
+      - at: 2026-04-11T17:50:00Z
+        note: "WebhookManager integrated with EgressManager and ApiGatewayServer entry point."
+
+  - id: BL-WEB-005
+    title: "Implement Webhook Failure Handling and egress.failed Event"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-WEB-003, BL-WEB-004]
+    blocked_reason: null
+    acceptance:
+      - "HTTP 4xx/5xx and network errors are caught and logged as FAILED."
+      - "Failure results in publishing an egress.failed event to the message bus."
+      - "Failed events include original correlationId and metadata."
+    updated_at: 2026-04-11
+    log:
+      - at: 2026-04-11T17:51:00Z
+        note: "Starting implementation of failure handling and publishing egress.failed event."
+      - at: 2026-04-11T18:00:00Z
+        note: "Webhook failure handling implemented. egress.failed.v1 events published on bus. Verified with tests."
+
+  - id: BL-WEB-006
+    title: "Validation Script and Integration Tests"
+    priority: P2
+    status: in_progress
+    effort: L
+    owner: agent
+    deps: [BL-WEB-004, BL-WEB-005]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes with end-to-end webhook delivery verification."
+      - "Integration tests cover success, 4xx, 5xx, and resolution edge cases."
+      - "All unit tests pass."
+    updated_at: 2026-04-11
+    log:
+      - at: 2026-04-11T18:01:00Z
+        note: "Starting final validation and integration testing."
+
+  - id: BL-WEB-007
+    title: "Documentation and Final Review"
+    priority: P2
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-WEB-006]
+    blocked_reason: null
+    acceptance:
+      - "API documentation updated for webhook connector."
+      - "Verification report generated."
+      - "Pull Request created and linked."
+    updated_at: 2026-04-11
+    log: []

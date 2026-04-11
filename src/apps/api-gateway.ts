@@ -5,10 +5,12 @@ import http from 'http';
 import { Firestore } from 'firebase-admin/firestore';
 import { AuthService } from '../services/api-gateway/auth';
 import { IngressManager } from '../services/api-gateway/ingress';
-import { EgressManager } from '../services/api-gateway/egress';
+import { EgressManager, EgressResult } from '../services/api-gateway/egress';
+import { VariableResolver } from '../services/api-gateway/utils/variable-resolver';
+import { FormatterRegistry } from '../services/api-gateway/utils/formatters';
+import { WebhookManager } from '../services/api-gateway/webhook-manager';
 import { PublisherResource } from '../common/resources/publisher-manager';
 import { InternalEventV2, INTERNAL_EGRESS_V1, INTERNAL_DEADLETTER_V1 } from '../types/events';
-import { EgressResult } from '../services/api-gateway/egress';
 import { buildDlqEvent } from '../services/routing/dlq';
 import { publishPersistenceSnapshot } from '../common/events/persistence-snapshots';
 
@@ -92,12 +94,16 @@ export class ApiGatewayServer extends McpServer {
 
     this.authService = new AuthService(firestore, this.getLogger());
 
+    const resolver = new VariableResolver();
+    const formatterRegistry = new FormatterRegistry();
+    const webhookManager = new WebhookManager(resolver, formatterRegistry, this.getLogger(), publisher);
+
     // Subscribe to instance-specific egress topic
     const instanceId = process.env.K_REVISION || process.env.EGRESS_INSTANCE_ID || process.env.HOSTNAME || 'local';
     const egressTopic = `internal.api.egress.v1.${instanceId}`;
 
     this.ingressManager = new IngressManager(publisher, this.getLogger(), egressTopic);
-    this.egressManager = new EgressManager(this.userConnections, this.getLogger());
+    this.egressManager = new EgressManager(this.userConnections, this.getLogger(), webhookManager);
 
     this.httpServer = http.createServer(this.getApp());
     
