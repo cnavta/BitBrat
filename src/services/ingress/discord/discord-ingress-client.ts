@@ -32,13 +32,16 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
   private tokenPollTimer: NodeJS.Timeout | null = null;
   private currentToken: string | null = null;
 
+  private readonly identity: string;
+
   constructor(
     private readonly builder: EnvelopeBuilder<DiscordMessageMeta>,
     private readonly publisher: IngressPublisher,
     private readonly cfg: IConfig,
-    private readonly options: { egressDestinationTopic?: string } = {},
+    private readonly options: { egressDestinationTopic?: string; identity?: string } = {},
     private readonly tokenStore?: IAuthTokenStoreV2
   ) {
+    this.identity = options.identity || 'bot';
     this.snapshot.guildId = cfg.discordGuildId;
     this.snapshot.channelIds = (cfg.discordChannels || []).slice();
   }
@@ -261,17 +264,20 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
     const useStore = !!this.cfg.discordUseTokenStore;
     if (useStore && this.tokenStore) {
       try {
-        const doc = await this.tokenStore.getAuthToken('discord', 'bot');
+        const doc = await this.tokenStore.getAuthToken('discord', this.identity);
         const tok = (doc?.accessToken || '').trim();
         if (tok) return tok;
       } catch (e: any) {
-        logger.error('ingress-egress.discord.token.resolve.error', { error: e?.message || String(e) });
+        logger.error('ingress-egress.discord.token.resolve.error', { error: e?.message || String(e), identity: this.identity });
       }
-      if (!this.cfg.discordAllowEnvFallback) {
+      if (!this.cfg.discordAllowEnvFallback || this.identity !== 'bot') {
         this.snapshot.state = 'ERROR';
-        this.snapshot.lastError = { message: 'discord_token_missing_in_store' } as any;
-        throw new Error('discord_token_missing_in_store');
+        this.snapshot.lastError = { message: `discord_token_missing_in_store_for_${this.identity}` } as any;
+        throw new Error(`discord_token_missing_in_store_for_${this.identity}`);
       }
+    }
+    if (this.identity !== 'bot') {
+      throw new Error(`discord_token_unavailable_for_${this.identity}`);
     }
     return (this.cfg.discordBotToken || '').trim();
   }
@@ -281,7 +287,7 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
     const intervalMs = Math.max(10_000, Number(this.cfg.discordTokenPollMs || 60_000));
     this.tokenPollTimer = setInterval(async () => {
       try {
-        const doc = await this.tokenStore!.getAuthToken('discord', 'bot');
+        const doc = await this.tokenStore!.getAuthToken('discord', this.identity);
         const next = (doc?.accessToken || '').trim();
         if (next && this.currentToken && next !== this.currentToken) {
           logger.info('ingress-egress.discord.token.rotated');

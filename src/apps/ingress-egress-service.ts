@@ -43,8 +43,10 @@ export class IngressEgressServer extends BaseServer {
     PERSISTENCE_TTL_DAYS: 7,
   };
   private twitchClient: TwitchIrcClient | null = null;
+  private twitchBroadcasterClient: TwitchIrcClient | null = null;
   private twitchEventSubClient: TwitchEventSubClient | null = null;
   private discordClient: DiscordIngressClient | null = null;
+  private discordBroadcasterClient: DiscordIngressClient | null = null;
   private twilioClient: TwilioIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
@@ -113,10 +115,23 @@ export class IngressEgressServer extends BaseServer {
       egressDestinationTopic: egressTopic,
     });
 
+    // Twitch Broadcaster
+    if (cfg.firestoreEnabled && cfg.broadcasterTokenDocPath) {
+      const broadcasterCredsProvider = new FirestoreTwitchCredentialsProvider(cfg, new FirestoreTokenStore(cfg.broadcasterTokenDocPath, db));
+      this.twitchBroadcasterClient = new TwitchIrcClient(envelopeBuilder, publisher, cfg.twitchChannels, {
+        cfg,
+        credentialsProvider: broadcasterCredsProvider,
+        egressDestinationTopic: egressTopic,
+      });
+    }
+
     // Connector Manager wiring (register Twitch + Discord; preserve existing Twitch egress path)
     const manager = new ConnectorManager({ logger });
     if (this.twitchClient) {
       manager.register('twitch', new TwitchConnectorAdapter(this.twitchClient));
+    }
+    if (this.twitchBroadcasterClient) {
+      manager.register('twitch-broadcaster', new TwitchConnectorAdapter(this.twitchBroadcasterClient));
     }
     if (this.twitchEventSubClient) {
       manager.register('twitch-eventsub', new TwitchConnectorAdapter(this.twitchEventSubClient as any));
@@ -128,6 +143,13 @@ export class IngressEgressServer extends BaseServer {
       const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic }, dTokenStore);
       this.discordClient = dClient;
       manager.register('discord', dClient);
+
+      // Discord Broadcaster
+      if (cfg.discordEnabled && cfg.discordUseTokenStore && cfg.discordBroadcasterTokenDocPath) {
+        const dBroadcasterClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic, identity: 'broadcaster' } as any, dTokenStore);
+        this.discordBroadcasterClient = dBroadcasterClient;
+        manager.register('discord-broadcaster', dBroadcasterClient);
+      }
     } catch (e: any) {
       // Defensive: if Discord modules fail to construct, keep Twitch operational
       logger.warn('ingress-egress.discord.register_failed', { error: e?.message || String(e) });
@@ -420,15 +442,28 @@ export class IngressEgressServer extends BaseServer {
             : (evt.ingress?.channel || evt.channel);
 
         if (isDiscord) {
-          if (this.discordClient) {
+          const accountType = (evt?.egress?.metadata?.accountType || 'bot').toLowerCase();
+          if (accountType !== 'bot' && accountType !== 'broadcaster') {
+            logger.error('ingress-egress.egress.discord.invalid_account_type', { correlationId, accountType });
+            await publishFinalize('FAILED', { code: 'invalid_account_type', message: `Invalid accountType: ${accountType}` });
+            return 'FAILED';
+          }
+          const client = accountType === 'broadcaster' ? this.discordBroadcasterClient : this.discordClient;
+
+          if (client) {
             // Check if Discord client is connected; if not, return IGNORED to avoid false FAILED in broadcast
-            const snap = this.discordClient.getSnapshot();
+            const snap = client.getSnapshot();
             if (snap.state !== 'CONNECTED') {
-              logger.debug('ingress-egress.egress.discord.ignored_disconnected', { correlationId });
+              logger.debug('ingress-egress.egress.discord.ignored_disconnected', { correlationId, accountType });
               return 'IGNORED';
             }
-            await this.discordClient.sendText(text, targetChannel);
+            await client.sendText(text, targetChannel);
           } else {
+            if (evt?.egress?.metadata?.accountType) {
+              logger.error('ingress-egress.egress.discord.account_not_found', { correlationId, accountType });
+              await publishFinalize('FAILED', { code: 'account_not_found', message: `Discord account for ${accountType} not found/configured` });
+              return 'FAILED';
+            }
             return 'IGNORED';
           }
         } else if (isTwilio) {
@@ -439,7 +474,22 @@ export class IngressEgressServer extends BaseServer {
           }
         } else if (isTwitch) {
           // Twitch branch
-          if (!this.twitchClient) return 'IGNORED';
+          const accountType = (evt?.egress?.metadata?.accountType || 'bot').toLowerCase();
+          if (accountType !== 'bot' && accountType !== 'broadcaster') {
+            logger.error('ingress-egress.egress.twitch.invalid_account_type', { correlationId, accountType });
+            await publishFinalize('FAILED', { code: 'invalid_account_type', message: `Invalid accountType: ${accountType}` });
+            return 'FAILED';
+          }
+          const client = accountType === 'broadcaster' ? this.twitchBroadcasterClient : this.twitchClient;
+
+          if (!client) {
+            if (evt?.egress?.metadata?.accountType) {
+              logger.error('ingress-egress.egress.twitch.account_not_found', { correlationId, accountType });
+              await publishFinalize('FAILED', { code: 'account_not_found', message: `Twitch account for ${accountType} not found/configured` });
+              return 'FAILED';
+            }
+            return 'IGNORED';
+          }
           
           const egressType = evt?.egress?.type || 'chat';
           let targetUserId = evt?.identity?.user?.id || evt?.identity?.external?.id;
@@ -447,16 +497,16 @@ export class IngressEgressServer extends BaseServer {
             targetUserId = targetUserId.split(':')[1];
           }
 
-          logger.debug('ingress-egress.egress.twitch.start', {evt});
+          logger.debug('ingress-egress.egress.twitch.start', {evt, accountType});
 
           if (egressType === 'dm' && targetUserId) {
-            logger.info('ingress-egress.egress.twitch.routing_to_whisper', { correlationId, targetUserId });
-            await this.twitchClient.sendWhisper(text, targetUserId);
+            logger.info('ingress-egress.egress.twitch.routing_to_whisper', { correlationId, targetUserId, accountType });
+            await client.sendWhisper(text, targetUserId);
           } else {
             if (egressType === 'dm' && !targetUserId) {
-              logger.warn('ingress-egress.egress.twitch.dm_requested_but_no_userId', { correlationId });
+              logger.warn('ingress-egress.egress.twitch.dm_requested_but_no_userId', { correlationId, accountType });
             }
-            await this.twitchClient.sendText(text, targetChannel);
+            await client.sendText(text, targetChannel);
           }
         } else {
           // Explicitly unsupported connector or system event that shouldn't be here
@@ -616,7 +666,9 @@ export class IngressEgressServer extends BaseServer {
       clearInterval(this.statusTimer);
       this.statusTimer = null;
     }
-    // ... rest of stop logic if any, but BaseServer handles mostly
+    if (this.connectorManager) {
+      await this.connectorManager.stop();
+    }
     await super.close();
   }
 }

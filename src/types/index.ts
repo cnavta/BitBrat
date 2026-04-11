@@ -49,6 +49,8 @@ export interface IConfig {
   tokenDocPath?: string;
   /** Firestore logical document path for the broadcaster token (without trailing '/token') */
   broadcasterTokenDocPath?: string;
+  /** Firestore logical document path for the Discord broadcaster token (without trailing '/token') */
+  discordBroadcasterTokenDocPath?: string;
 
   /** Message bus prefix, e.g., "dev." */
   busPrefix?: string;
