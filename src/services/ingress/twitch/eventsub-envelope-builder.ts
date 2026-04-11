@@ -44,7 +44,7 @@ export class EventSubEnvelopeBuilder {
 
     return {
       v: '2',
-      type: 'twitch.eventsub.v1',
+      type: 'system.twitch.follow',
       correlationId,
       traceId: uuid(),
       ingress: {
@@ -116,7 +116,7 @@ export class EventSubEnvelopeBuilder {
 
     return {
       v: '2',
-      type: 'twitch.eventsub.v1',
+      type: 'system.twitch.update',
       correlationId,
       traceId: uuid(),
       ingress: {
