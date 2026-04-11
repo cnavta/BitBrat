@@ -70,6 +70,28 @@ describe('DiscordAdapter', () => {
     expect(global.fetch).toHaveBeenCalledWith('https://discord.com/api/v10/oauth2/token', expect.any(Object));
   });
 
+  it('exchanges code for token and prioritizes "bot.token" over "token" or "access_token"', async () => {
+    const a = new DiscordAdapter(baseCfg);
+    const mockToken = {
+      access_token: 'at1',
+      token: 'token-level-token',
+      bot: {
+        token: 'nested-bot-token'
+      },
+      refresh_token: 'rt1',
+      expires_in: 3600,
+      scope: 'bot',
+    };
+
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockToken,
+    });
+
+    const res = await a.exchangeCodeForToken({ code: 'c1', identity: 'bot', redirectUri: '' });
+    expect(res.accessToken).toBe('nested-bot-token');
+  });
+
   it('exchanges code for token and falls back to "access_token" if "token" is missing', async () => {
     const a = new DiscordAdapter(baseCfg);
     const mockToken = {
