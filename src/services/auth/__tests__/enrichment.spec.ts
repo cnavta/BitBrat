@@ -243,7 +243,7 @@ describe('enrichEvent()', () => {
         external: { id: 'u1', platform: 'twitch' }
       },
       correlationId: 'c-follow',
-      type: 'twitch.eventsub.v1',
+      type: 'system.twitch.follow',
       externalEvent: {
         kind: 'channel.follow',
         metadata: { userId: 'follow-123', userLogin: 'follower', userDisplayName: 'Follower' }
@@ -272,7 +272,7 @@ describe('enrichEvent()', () => {
         external: { id: 'u1', platform: 'twitch' }
       },
       correlationId: 'c-update',
-      type: 'twitch.eventsub.v1',
+      type: 'system.twitch.update',
       externalEvent: {
         kind: 'channel.update',
         metadata: { broadcasterId: 'host-999', broadcasterLogin: 'thehost', broadcasterDisplayName: 'TheHost' }

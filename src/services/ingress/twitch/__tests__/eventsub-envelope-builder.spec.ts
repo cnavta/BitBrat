@@ -21,7 +21,7 @@ describe('EventSubEnvelopeBuilder', () => {
 
     const result = builder.buildFollow(followEvent as any, opts);
 
-    expect(result.type).toBe('twitch.eventsub.v1');
+    expect(result.type).toBe('system.twitch.follow');
     expect(result.ingress.channel).toBe('#bitbrat');
     expect(result.identity.external.id).toBe('123');
     expect(result.externalEvent).toBeDefined();
@@ -44,7 +44,7 @@ describe('EventSubEnvelopeBuilder', () => {
 
     const result = builder.buildUpdate(updateEvent as any, opts);
 
-    expect(result.type).toBe('twitch.eventsub.v1');
+    expect(result.type).toBe('system.twitch.update');
     expect(result.ingress.channel).toBe('#bitbrat');
     expect(result.identity.external.id).toBe('999');
     expect(result.externalEvent).toBeDefined();
