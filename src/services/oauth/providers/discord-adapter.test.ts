@@ -67,7 +67,7 @@ describe('DiscordAdapter', () => {
     expect(res.scope).toEqual(['bot', 'identify']);
     expect(res.metadata.guildId).toBe('g1');
     expect(res.metadata.permissions).toBe('8');
-    expect(global.fetch).toHaveBeenCalledWith('https://discord.com/api/oauth2/token', expect.any(Object));
+    expect(global.fetch).toHaveBeenCalledWith('https://discord.com/api/v10/oauth2/token', expect.any(Object));
   });
 
   it('exchanges code for token and falls back to "access_token" if "token" is missing', async () => {
@@ -87,6 +87,7 @@ describe('DiscordAdapter', () => {
     const res = await a.exchangeCodeForToken({ code: 'c1', identity: 'bot', redirectUri: '' });
     expect(res.accessToken).toBe('at1');
     expect(res.refreshToken).toBe('rt1');
+    expect(global.fetch).toHaveBeenCalledWith('https://discord.com/api/v10/oauth2/token', expect.any(Object));
   });
 
   it('throws on failed token exchange', async () => {
@@ -98,7 +99,7 @@ describe('DiscordAdapter', () => {
     });
 
     await expect(a.exchangeCodeForToken({ code: 'c1', identity: 'bot', redirectUri: '' }))
-      .rejects.toThrow('Token exchange failed: 400 bad request');
+      .rejects.toThrow('discord_token_exchange_failed:400:bad request');
   });
 
   it('resolves redirect URI from architecture if not in config', async () => {
@@ -149,7 +150,9 @@ describe('DiscordAdapter', () => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       }));
 
-      const lastCallBody = new URLSearchParams((fetchSpy.mock.calls[0][1] as any).body);
+      const calls = fetchSpy.mock.calls;
+      const lastCall = calls[calls.length - 1];
+      const lastCallBody = new URLSearchParams((lastCall[1] as any).body);
       expect(lastCallBody.get('grant_type')).toBe('authorization_code');
       expect(lastCallBody.get('code')).toBe('c123');
       expect(lastCallBody.get('client_id')).toBe('dcid');
