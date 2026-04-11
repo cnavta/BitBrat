@@ -110,7 +110,7 @@ items:
   - id: BL-WEB-006
     title: "Validation Script and Integration Tests"
     priority: P2
-    status: in_progress
+    status: done
     effort: L
     owner: agent
     deps: [BL-WEB-004, BL-WEB-005]
@@ -123,11 +123,13 @@ items:
     log:
       - at: 2026-04-11T18:01:00Z
         note: "Starting final validation and integration testing."
+      - at: 2026-04-11T18:10:00Z
+        note: "validate_deliverable.sh created and passed all tests."
 
   - id: BL-WEB-007
     title: "Documentation and Final Review"
     priority: P2
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: [BL-WEB-006]
@@ -137,4 +139,25 @@ items:
       - "Verification report generated."
       - "Pull Request created and linked."
     updated_at: 2026-04-11
-    log: []
+    log:
+      - at: 2026-04-11T18:11:00Z
+        note: "Final documentation and review complete. PR created."
+
+  - id: BL-WEB-008
+    title: "Update Formatters to use extractEgressTextFromEvent"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-WEB-002]
+    blocked_reason: null
+    acceptance:
+      - "JsonFormatter uses extractEgressTextFromEvent to populate the payload text when candidates are present."
+      - "DiscordFormatter uses extractEgressTextFromEvent to populate the 'content' field."
+      - "The best candidate is selected based on priority and confidence."
+    updated_at: 2026-04-11
+    log:
+      - at: 2026-04-11T17:28:00Z
+        note: "Adding candidate selection logic to formatters."
+      - at: 2026-04-11T17:35:00Z
+        note: "Formatters updated and verified with unit tests."

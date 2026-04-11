@@ -1,4 +1,5 @@
 import { InternalEventV2 } from '../../../types/events';
+import { extractEgressTextFromEvent } from '../../../common/events/selection';
 
 export interface WebhookFormatter {
   format(event: InternalEventV2): any;
@@ -6,10 +7,11 @@ export interface WebhookFormatter {
 
 export class JsonFormatter implements WebhookFormatter {
   public format(event: InternalEventV2): any {
+    const text = extractEgressTextFromEvent(event);
     return {
       correlationId: event.correlationId,
       type: event.type,
-      payload: event.payload
+      payload: text ? { ...event.payload, text } : event.payload
     };
   }
 }
@@ -17,9 +19,10 @@ export class JsonFormatter implements WebhookFormatter {
 export class DiscordFormatter implements WebhookFormatter {
   public format(event: InternalEventV2): any {
     // Requirements: Map platform event fields to Discord's content, username, and avatar_url.
-    // Assuming event.payload.text is the main content.
+    // Use the best candidate response message text as the main content.
+    const text = extractEgressTextFromEvent(event);
     return {
-      content: event.payload?.text || 'Notification from BitBrat Platform',
+      content: text || event.payload?.text || 'Notification from BitBrat Platform',
       username: 'BitBrat (via Gateway)',
       avatar_url: 'https://bitbrat.com/avatar.png' // Default placeholder as per requirement notes elsewhere
     };

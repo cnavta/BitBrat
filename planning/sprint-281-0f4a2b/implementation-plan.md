@@ -18,12 +18,14 @@
 - Formatter registry.
 - Integration with message bus to subscribe to egress events.
 - Unit and integration tests.
+- Candidate selection in formatters (via `extractEgressTextFromEvent`).
 - Documentation for usage.
 
 ## Acceptance Criteria
 - `api-gateway` successfully processes events with `egress.connector: "webhook"`.
 - Correct interpolation of event properties, environment variables, and secrets.
 - Payloads are correctly formatted for `json` and `discord`.
+- Webhook formatters correctly select the "best" candidate message from `InternalEventV2.candidates`.
 - Webhook delivery status is logged (DELIVERED, FAILED).
 - Failed deliveries publish `egress.failed` events.
 
