@@ -51,6 +51,7 @@ const ConfigSchema = z.object({
   firestoreEnabled: z.boolean().optional(),
   tokenDocPath: z.string().optional(),
   broadcasterTokenDocPath: z.string().optional(),
+  discordBroadcasterTokenDocPath: z.string().optional(),
 
   busPrefix: z.string().optional(),
   publishMaxRetries: z.coerce.number().int().min(1).optional(),
@@ -104,6 +105,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     firestoreEnabled: parseBool(env.FIRESTORE_ENABLED, true),
     tokenDocPath: env.TOKEN_DOC_PATH || 'oauth/twitch/bot',
     broadcasterTokenDocPath: env.BROADCASTER_TOKEN_DOC_PATH || 'oauth/twitch/broadcaster',
+    discordBroadcasterTokenDocPath: env.DISCORD_BROADCASTER_TOKEN_DOC_PATH || 'oauth/discord/broadcaster',
 
     busPrefix: env.BUS_PREFIX,
     publishMaxRetries: env.PUBLISH_MAX_RETRIES ? Number(env.PUBLISH_MAX_RETRIES) : undefined,
