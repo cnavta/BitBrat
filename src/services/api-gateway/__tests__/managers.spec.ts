@@ -45,6 +45,7 @@ describe('Ingress and Egress Managers', () => {
           }),
           ingress: expect.objectContaining({
             source: 'api-gateway',
+            connector: 'api',
             channel: '#general'
           }),
           payload
@@ -72,7 +73,8 @@ describe('Ingress and Egress Managers', () => {
         type: 'chat.message.v1',
         identity: { external: { id: 'user-123', platform: 'test' } },
         correlationId: 'c-1',
-        ingress: { source: 'api-gateway', ingressAt: new Date().toISOString() },
+        ingress: { source: 'api-gateway', connector: 'api', ingressAt: new Date().toISOString() },
+        egress: { destination: 'api-gateway', connector: 'api' },
         payload: { text: 'reply' }
       } as any;
 
@@ -94,7 +96,8 @@ describe('Ingress and Egress Managers', () => {
         type: 'dm.message.v1',
         identity: { external: { id: 'user-123', platform: 'test' } },
         correlationId: 'c-dm',
-        ingress: { source: 'llm-bot', ingressAt: new Date().toISOString() },
+        ingress: { source: 'llm-bot', connector: 'system', ingressAt: new Date().toISOString() },
+        egress: { destination: 'api-gateway', connector: 'api' },
         payload: { text: 'private reply' }
       } as any;
 
@@ -120,7 +123,7 @@ describe('Ingress and Egress Managers', () => {
       const egress = new EgressManager(userConnections, mockLogger);
       const event = { 
         identity: { external: { id: 'user-123', platform: 'twitch' } }, 
-        egress: { destination: 'twitch' },
+        egress: { destination: 'twitch', connector: 'twitch' },
         ingress: { source: 'ingress.twitch', ingressAt: new Date().toISOString() }
       } as any;
       const result = await egress.handleEgressEvent(event);

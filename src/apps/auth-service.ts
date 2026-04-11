@@ -269,6 +269,7 @@ export class AuthServer extends McpServer {
           ingress: {
             ingressAt: new Date().toISOString(),
             source: 'auth',
+            connector: 'system',
           },
           identity: {
             external: {
@@ -287,7 +288,7 @@ export class AuthServer extends McpServer {
             reason: args.reason,
             actor: 'llm-bot',
           },
-          egress: { destination: 'system' },
+          egress: { destination: 'system', connector: 'system' },
           routing: {
             stage: 'initial',
             slip: [],
@@ -398,6 +399,7 @@ export class AuthServer extends McpServer {
           ingress: {
             ingressAt: now.toISOString(),
             source: SERVICE_NAME,
+            connector: 'system',
           },
           identity: {
             external: {
@@ -414,7 +416,7 @@ export class AuthServer extends McpServer {
             token_hash: hash,
             raw_token: rawToken,
           },
-          egress: { destination: 'system' },
+          egress: { destination: 'system', connector: 'system' },
           routing: {
             stage: 'initial',
             slip: [],

@@ -50,6 +50,7 @@ export class EventSubEnvelopeBuilder {
       ingress: {
         ingressAt: nowIso(),
         source: 'ingress.twitch.eventsub',
+        connector: 'twitch',
         channel: `#${event.broadcasterName}`,
       },
       identity: {
@@ -65,7 +66,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
       externalEvent,
       routing: {
         stage: 'initial',
@@ -122,6 +123,7 @@ export class EventSubEnvelopeBuilder {
       ingress: {
         ingressAt: nowIso(),
         source: 'ingress.twitch.eventsub',
+        connector: 'twitch',
         channel: `#${event.broadcasterName}`,
       },
       identity: {
@@ -134,7 +136,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
       externalEvent,
       routing: {
         stage: 'initial',
@@ -192,6 +194,7 @@ export class EventSubEnvelopeBuilder {
       ingress: {
         ingressAt: nowIso(),
         source: 'ingress.twitch.eventsub',
+        connector: 'twitch',
         channel: `#${event.broadcasterName}`,
       },
       identity: {
@@ -204,7 +207,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
       externalEvent,
       routing: {
         stage: 'initial',
@@ -252,6 +255,7 @@ export class EventSubEnvelopeBuilder {
       ingress: {
         ingressAt: nowIso(),
         source: 'ingress.twitch.eventsub',
+        connector: 'twitch',
         channel: `#${event.broadcasterName}`,
       },
       identity: {
@@ -264,7 +268,7 @@ export class EventSubEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: opts?.finalizationDestination || '' },
+      egress: { destination: opts?.finalizationDestination || '', connector: 'twitch' },
       externalEvent,
       routing: {
         stage: 'initial',

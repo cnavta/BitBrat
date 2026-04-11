@@ -45,14 +45,18 @@ export interface Routing {
   history: RoutingStep[];
 }
 
+export type ConnectorType = 'twitch' | 'discord' | 'twilio' | 'webhook' | 'api' | 'system';
+
 export interface Egress {
   destination: string; // Destination that was the entry point for the message.
   type?: 'chat' | 'dm' | 'event'; // Requested type of response to send.
+  connector: ConnectorType;
 }
 
 export interface Ingress {
   ingressAt: string; // ISO8601
   source: string;    // e.g., "ingress.twitch", "api-gateway"
+  connector: ConnectorType;
   channel?: string;  // #channel or room ID
 }
 
