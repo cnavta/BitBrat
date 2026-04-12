@@ -3,7 +3,7 @@ title: "Webhook Egress via API Gateway"
 goal: "Implement a generalized Webhook Egress solution within the api-gateway service to support platform-wide HTTP callbacks."
 owner: "@junie"
 createdAt: "2026-04-11T17:00:00Z"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/197"
   branch: "feature/sprint-281-0f4a2b-webhook-egress"
