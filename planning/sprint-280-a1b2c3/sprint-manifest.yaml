@@ -1,0 +1,13 @@
+id: sprint-280-a1b2c3
+title: "Fix Egress Account Type Test Suite"
+goal: "Fix the module resolution error in `src/apps/__tests__/account-type-egress.test.ts` where it cannot find `base-server`."
+owner: "Junie"
+createdAt: "2026-04-11T00:35:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/196"
+  branch: "feature/sprint-280-a1b2c3-fix-egress-test"
+notes: |
+  The test suite fails because of incorrect relative paths in `jest.mock()` calls.
+  It was using `../src/common/base-server` from `src/apps/__tests__`, which is incorrect.
+  It should be `../../common/base-server` or similar depending on the module resolution setup.
