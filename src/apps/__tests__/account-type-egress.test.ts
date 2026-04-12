@@ -1,6 +1,4 @@
-import { IngressEgressServer } from '../src/apps/ingress-egress-service';
-import { BaseServer } from '../src/common/base-server';
-import { logger } from '../src/common/logging';
+import { IngressEgressServer } from '../../apps/ingress-egress-service';
 
 // Mock connectors
 const mockTwitchBotClient = {
@@ -32,7 +30,7 @@ const mockDiscordBroadcasterClient = {
 };
 
 // Mock BaseServer
-jest.mock('../src/common/base-server', () => {
+jest.mock('../../common/base-server', () => {
   return {
     BaseServer: class {
       constructor() {}
@@ -46,23 +44,23 @@ jest.mock('../src/common/base-server', () => {
 });
 
 // Mock everything else needed to instantiate IngressEgressServer
-jest.mock('../src/services/ingress/twitch', () => ({
+jest.mock('../../services/ingress/twitch', () => ({
   TwitchEnvelopeBuilder: jest.fn(),
   createTwitchIngressPublisherFromConfig: jest.fn(),
   FirestoreTwitchCredentialsProvider: jest.fn(),
   FirestoreTwitchCredentialsProviderV2: jest.fn(),
   TwitchIrcClient: jest.fn().mockImplementation(() => mockTwitchBotClient),
   TwitchEventSubClient: jest.fn(),
-  TwitchConnectorAdapter: jest.requireActual('../src/services/ingress/twitch/connector-adapter').TwitchConnectorAdapter,
+  TwitchConnectorAdapter: jest.requireActual('../../services/ingress/twitch/connector-adapter').TwitchConnectorAdapter,
 }));
 
-jest.mock('../src/services/ingress/discord', () => ({
+jest.mock('../../services/ingress/discord', () => ({
   DiscordEnvelopeBuilder: jest.fn(),
   createDiscordIngressPublisherFromConfig: jest.fn(),
   DiscordIngressClient: jest.fn().mockImplementation(() => mockDiscordBotClient),
 }));
 
-jest.mock('../src/services/ingress/twilio', () => ({
+jest.mock('../../services/ingress/twilio', () => ({
   TwilioEnvelopeBuilder: jest.fn(),
   TwilioIngressClient: jest.fn(),
   TwilioTokenProvider: jest.fn(),
