@@ -2,6 +2,7 @@ import { Logger } from '../../common/logging';
 import { WebSocket } from 'ws';
 import { InternalEventV2 } from '../../types/events';
 import { extractEgressTextFromEvent } from '../../common/events/selection';
+import { WebhookManager, WebhookResult } from './webhook-manager';
 
 export enum EgressResult {
   DELIVERED = 'DELIVERED',
@@ -13,7 +14,8 @@ export enum EgressResult {
 export class EgressManager {
   constructor(
     private readonly userConnections: Map<string, Set<WebSocket>>,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly webhookManager?: WebhookManager
   ) {}
 
   /**
@@ -23,6 +25,12 @@ export class EgressManager {
    * 3. Forwards to all active WebSocket connections for that user.
    */
   public async handleEgressEvent(event: InternalEventV2): Promise<EgressResult> {
+    const isWebhookTarget = event.egress?.connector === 'webhook';
+    if (isWebhookTarget && this.webhookManager) {
+      const result = await this.webhookManager.handleWebhookEgress(event);
+      return result === WebhookResult.DELIVERED ? EgressResult.DELIVERED : EgressResult.FAILED;
+    }
+
     const isWebSocketTarget = event.egress?.connector === 'api' ||
                              (event.egress?.connector === undefined && (
                                event.egress?.destination === 'api-gateway' || 

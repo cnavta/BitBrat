@@ -1,0 +1,4 @@
+pr_url: null
+branch: feature/sprint-278-b4d5e6-flexible-event-egress-connector
+status: failed_to_publish
+error: "GitHub CLI or API credentials not available in agent environment."
