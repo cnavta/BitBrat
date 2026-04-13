@@ -1,0 +1,83 @@
+# Request Log - sprint-282-qos-v1
+
+- Timestamp: 2026-04-13T09:47:00Z
+- Prompt summary: Start new sprint to implement QOS changes from attached document.
+- Interpretation: Assume Lead Architect role. Implement QOSV1 limits (TTL, Tracer, Timeout) and specific tracer event handling requirements.
+- Shell/git commands executed:
+  - `git checkout -b feature/sprint-282-qos-v1-qos-enforcement`
+  - `mkdir -p planning/sprint-282-qos-v1`
+- Files modified or created:
+  - `planning/sprint-282-qos-v1/sprint-manifest.yaml`
+  - `planning/sprint-282-qos-v1/request-log.md`
+
+- Timestamp: 2026-04-13T10:07:00Z
+- Prompt summary: Implementation of QOSV1 types and persistence TTL.
+- Interpretation: Update `QOSV1` interface and `PersistenceStore`.
+- Shell/git commands executed:
+  - `npm test src/services/persistence/model.spec.ts`
+  - `npm test src/services/persistence/store.spec.ts`
+- Files modified:
+  - `src/types/events.ts`
+  - `src/services/persistence/store.ts`
+  - `src/services/persistence/store.spec.ts`
+  - `planning/sprint-282-qos-v1/backlog-sprint-282-qos-v1.yaml`
+
+- Timestamp: 2026-04-13T15:00:00Z
+- Prompt summary: Fix test failures in DiscordFormatter.
+- Interpretation: Revert username branding change that caused regressions in existing tests.
+- Shell/git commands executed:
+  - `npm test src/services/api-gateway/utils/__tests__/formatters.test.ts src/services/api-gateway/__tests__/webhook-manager.test.ts`
+  - `./planning/sprint-282-qos-v1/validate_deliverable.sh`
+- Files modified:
+  - `src/services/api-gateway/utils/formatters.ts`
+  - `planning/sprint-282-qos-v1/backlog-sprint-282-qos-v1.yaml`
+  - `planning/sprint-282-qos-v1/request-log.md`
+
+- Timestamp: 2026-04-13T16:25:00Z
+- Prompt summary: Implement Debug User Support (/debug prefix).
+- Interpretation: Allow configured `connector:username` pairs to trigger tracer mode via `/debug` prefix.
+- Shell/git commands executed:
+  - `npm test src/services/ingress/twitch/__tests__/twitch-tracer.spec.ts`
+  - `./planning/sprint-282-qos-v1/validate_deliverable.sh`
+- Files modified:
+  - `planning/sprint-282-qos-v1/TechnicalArchitecture.md`
+  - `planning/sprint-282-qos-v1/implementation-plan.md`
+  - `planning/sprint-282-qos-v1/execution-plan.md`
+  - `planning/sprint-282-qos-v1/backlog-sprint-282-qos-v1.yaml`
+  - `src/types/index.ts`
+  - `src/common/config.ts`
+  - `src/apps/ingress-egress-service.ts`
+  - `src/services/ingress/twitch/twitch-irc-client.ts`
+  - `src/services/ingress/twitch/__tests__/twitch-tracer.spec.ts`
+
+- Timestamp: 2026-04-13T17:28:00Z
+- Prompt summary: Correct debug command from /debug to !debug.
+- Interpretation: Update Twitch ingress logic and tests to use !debug prefix for authorized tracer trigger.
+- Shell/git commands executed:
+  - `npm test src/services/ingress/twitch/__tests__/twitch-tracer.spec.ts`
+  - `./planning/sprint-282-qos-v1/validate_deliverable.sh`
+- Files modified:
+  - `src/services/ingress/twitch/twitch-irc-client.ts`
+  - `src/services/ingress/twitch/__tests__/twitch-tracer.spec.ts`
+  - `planning/sprint-282-qos-v1/TechnicalArchitecture.md`
+  - `planning/sprint-282-qos-v1/implementation-plan.md`
+  - `planning/sprint-282-qos-v1/backlog-sprint-282-qos-v1.yaml`
+  - `planning/sprint-282-qos-v1/request-log.md`
+
+- Timestamp: 2026-04-13T17:58:00Z
+- Prompt summary: Make debug user detection case-insensitive.
+- Interpretation: Ensure both the authorized user list and the !debug command are handled case-insensitively in the Twitch ingress.
+- Shell/git commands executed:
+  - `npm test src/services/ingress/twitch/__tests__/twitch-tracer.spec.ts`
+  - `./planning/sprint-282-qos-v1/validate_deliverable.sh`
+- Files modified:
+  - `src/services/ingress/twitch/twitch-irc-client.ts`
+  - `src/services/ingress/twitch/__tests__/twitch-tracer.spec.ts`
+  - `planning/sprint-282-qos-v1/backlog-sprint-282-qos-v1.yaml`
+  - `planning/sprint-282-qos-v1/request-log.md`
+
+- [Request 2026-04-13 12:41] Investigated and fixed `twitch:gonj_the_unjust` detection issues.
+  - Interpretation: `!debug` messages not detected due to potential whitespace in config or mismatch between username and numerical ID.
+  - Changes: Added `.trim()` to `debugUsers` config parsing and updated `handleMessage` to match against both `userLogin` and `userId`.
+  - Commands: `npm test src/services/ingress/twitch/__tests__/twitch-tracer.spec.ts`
+  - Result: Fixed detection logic, verified with 3 new test cases covering whitespace, userLogin, and userId matches.

@@ -1,0 +1,173 @@
+meta:
+  backlog_id: sprint-282-qos-v1-backlog
+  updated_at: 2026-04-13
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-282-qos-v1
+  start: 2026-04-13
+  end: 2026-04-20
+  wip_limit: 3
+  goal: "Implement QOSV1 enforcement (TTL, Tracer, Timeout) and tracer event handling logic."
+
+items:
+  - id: QOS-001
+    title: "Update Core Types and Persistence TTL"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "QOSV1 includes persistenceTtlSec and maxResponseMs"
+      - "computeExpireAt uses persistenceTtlSec if provided"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T09:55:00Z
+        note: "Started implementation of QOSV1 type changes and persistence TTL logic."
+      - at: 2026-04-13T10:05:00Z
+        note: "Completed QOSV1 type updates and persistence TTL logic. Verified with unit tests."
+
+  - id: QOS-002
+    title: "Implement Tracer Logging in BaseServer"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "BaseServer debug logs full event on receive and before publish if tracer is true"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T10:06:00Z
+        note: "Started implementation of tracer logging in BaseServer."
+      - at: 2026-04-13T14:13:00Z
+        note: "Completed tracer logging in BaseServer receive and publish paths."
+
+  - id: QOS-003
+    title: "Implement Processing Timeout in BaseServer"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [QOS-001]
+    acceptance:
+      - "onMessage handler times out if maxResponseMs is exceeded"
+      - "Violation is logged at warn level"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T14:14:00Z
+        note: "Implemented timeout race in BaseServer. Verified with unit tests."
+
+  - id: QOS-004
+    title: "Configure Tracer Span Sampling"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "Tracer events result in sampled spans regardless of global ratio"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T14:12:00Z
+        note: "Updated tracing.ts and BaseServer to force sampling for tracer events."
+
+  - id: QOS-005
+    title: "Implement Tracer Debug Responses in Ingress-Egress"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [QOS-002]
+    acceptance:
+      - "Ingress sends immediate debug msg with ID/TraceID for tracer chat events"
+      - "Egress sends error details back to requester for failed tracer events"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T14:05:00Z
+        note: "Completed tracer feedback logic in TwitchIrcClient and IngressEgressServer. Verified with unit tests."
+
+  - id: QOS-008
+    title: "Implement Debug User Support (!debug)"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [QOS-005]
+    acceptance:
+      - "Authorized connector:username pairs can use !debug prefix"
+      - "!debug prefix is removed from the message"
+      - "qos.tracer is set to true for debug users"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T16:00:00Z
+        note: "Starting implementation of debug user support."
+      - at: 2026-04-13T16:20:00Z
+        note: "Completed /debug command handling for authorized users. Verified with unit tests."
+      - at: 2026-04-13T17:25:00Z
+        note: "Corrected command prefix from /debug to !debug as per user request."
+      - at: 2026-04-13T17:55:00Z
+        note: "Ensured debug user and command detection is case-insensitive."
+
+  - id: QOS-009
+    title: "Case-insensitive Debug User Detection"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [QOS-008]
+    acceptance:
+      - "debugUsers list is case-insensitive"
+      - "!debug command detection is case-insensitive"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T17:55:00Z
+        note: "Implemented case-insensitive checks and verified with tests."
+
+  - id: QOS-010
+    title: "Remediate gonj_the_unjust detection"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QOS-008]
+    acceptance:
+      - "debugUsers list is trimmed of whitespace"
+      - "Detection works against both userLogin and userId"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T16:45:00Z
+        note: "Fixed whitespace and numerical ID matching issues in debug user detection."
+
+  - id: QOS-006
+    title: "Sprint Finalization and PR"
+    priority: P2
+    status: in_progress
+    effort: S
+    owner: agent
+    deps: [QOS-003, QOS-004, QOS-005, QOS-007, QOS-008, QOS-009, QOS-010]
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "PR created"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T14:10:00Z
+        note: "Started finalization and validation."
+      - at: 2026-04-13T14:20:00Z
+        note: "Completed validation and created sprint artifacts. Sprint ready for PR."
+
+  - id: QOS-007
+    title: "Test Remediation: DiscordFormatter Username"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "DiscordFormatter username reverted to 'BitBrat (via Gateway)'"
+      - "formatters.test.ts and webhook-manager.test.ts pass"
+    updated_at: 2026-04-13
+    log:
+      - at: 2026-04-13T15:00:00Z
+        note: "Reverted DiscordFormatter username to fix test regressions."

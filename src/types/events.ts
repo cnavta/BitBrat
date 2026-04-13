@@ -155,8 +155,15 @@ export interface ErrorEntryV1 {
   at: string; // ISO8601
 }
 
+/**
+ * Purpose: Define quality of service boundaries for events that platform services and utilities must obey.
+ * Non-goals: QoS definitions beyond a single event.
+ * Violations: Log at warn, finalize persistence as an error, and if possible, send a response to the requestor.
+ */
 export interface QOSV1 {
-  ttl?: number; // seconds
+  persistenceTtlSec?: number; // Duration (in seconds) to keep the event in persistence.
+  tracer?: boolean; // When set to true, enables high-verbosity tracing and logging.
+  maxResponseMs?: number; // Maximum time allowed for complete processing (in ms) before timeout.
 }
 
 /**

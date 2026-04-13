@@ -46,7 +46,7 @@ export class PersistenceStore {
 
   /** Upsert the aggregate + initial snapshot by correlationId. Idempotent. */
   async upsertIngressEvent(evt: InternalEventV2): Promise<{ aggregate: EventAggregateV2; snapshot: EventSnapshotDocV1; created: boolean }> {
-    const expireAt = computeExpireAt({ baseDate: evt.ingress?.ingressAt, qosTtlSeconds: evt.qos?.ttl });
+    const expireAt = computeExpireAt({ baseDate: evt.ingress?.ingressAt, qosTtlSeconds: evt.qos?.persistenceTtlSec });
     const normalized = normalizeIngressEvent(evt, expireAt);
     if (!normalized.aggregate.correlationId) throw new Error('missing_correlationId');
 
@@ -89,7 +89,7 @@ export class PersistenceStore {
       status: 'FINALIZED',
       finalizedAt: delivery.deliveredAt,
       delivery,
-      expireAt: computeExpireAt({ baseDate: delivery.deliveredAt, qosTtlSeconds: rawMsg?.qos?.ttl }),
+      expireAt: computeExpireAt({ baseDate: delivery.deliveredAt, qosTtlSeconds: rawMsg?.qos?.persistenceTtlSec }),
       currentProjection: {
         annotations: Array.isArray(rawMsg?.annotations) ? rawMsg.annotations : undefined,
         candidates: Array.isArray(rawMsg?.candidates) ? rawMsg.candidates : undefined,
@@ -109,7 +109,7 @@ export class PersistenceStore {
     const snapshotsRef = this.snapshotsRef(snapshotEvent.correlationId);
     const expireAt = computeExpireAt({
       baseDate: snapshotEvent.delivery?.deliveredAt || snapshotEvent.deadletter?.at || snapshotEvent.capturedAt,
-      qosTtlSeconds: snapshotEvent.event?.qos?.ttl,
+      qosTtlSeconds: snapshotEvent.event?.qos?.persistenceTtlSec,
     });
 
     let nextAggregate: EventAggregateV2 | undefined;

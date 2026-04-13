@@ -95,6 +95,8 @@ export interface IConfig {
   twilioChatServiceSid?: string;
   /** Twilio identity for the bot */
   twilioIdentity?: string;
+  /** Authorized debug users (connector:username list) */
+  debugUsers?: string[];
 }
 
 export interface TwitchTokenData {

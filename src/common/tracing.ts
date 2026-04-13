@@ -96,12 +96,15 @@ export function getLogCorrelationFields(): Record<string, string | boolean> | un
   }
 }
 
-export function startActiveSpan<T>(name: string, fn: (span: api.Span) => Promise<T> | T): Promise<T> | T {
+export function startActiveSpan<T>(name: string, options: api.SpanOptions | ((span: api.Span) => Promise<T> | T), fn?: (span: api.Span) => Promise<T> | T): Promise<T> | T {
   const tracer = getTracer();
-  if (!tracer) return fn({ end() {} } as any);
-  return tracer.startActiveSpan(name, async (span) => {
+  const actualOptions = typeof options === 'function' ? {} : options;
+  const actualFn = typeof options === 'function' ? options : fn!;
+
+  if (!tracer) return actualFn({ end() {} } as any);
+  return tracer.startActiveSpan(name, actualOptions, async (span) => {
     try {
-      return await fn(span);
+      return await actualFn(span);
     } finally {
       span.end();
     }
