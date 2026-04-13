@@ -5,7 +5,7 @@ owner: "@junie"
 createdAt: "2026-04-13T09:47:00Z"
 status: "complete"
 links:
-  pr: "https://github.com/BitBratPlatform/pull/sprint-282-qos-v1"
+  pr: "https://github.com/cnavta/BitBrat/pull/198"
   branch: "feature/sprint-282-qos-v1-qos-enforcement"
 notes: |
   Focus on BaseServer integration for tracers, persistence TTL updates, and processing timeouts.
