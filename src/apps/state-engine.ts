@@ -322,8 +322,12 @@ export class StateEngineServer extends McpServer {
   }
 }
 
+export function createServer() {
+  return new StateEngineServer();
+}
+
 export function createApp() {
-  const server = new StateEngineServer();
+  const server = createServer();
   return server.getApp();
 }
 

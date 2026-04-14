@@ -1,0 +1,10 @@
+id: sprint-285-b2c3d4
+title: "Fix Disposition Service Test Failure"
+goal: "Fix the type mismatch error and potentially handle open handles in disposition service tests."
+owner: "@junie"
+createdAt: "2026-04-14T14:40:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-285-b2c3d4-fix-disposition-test-failure"
+notes: |
+  A test failure occurred in `src/services/disposition/observation.test.ts` due to recent changes in `QueryAnalysis` schema. This sprint aims to fix the test and ensure that all related data structures are properly updated.

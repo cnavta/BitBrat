@@ -52,6 +52,8 @@ export function buildDispositionObservationEvent(
         level: normalizeRiskLevel(analysis.risk?.level),
         type: analysis.risk?.type,
       },
+      entities: analysis.entities,
+      topic: analysis.topic,
     },
     source,
   };
