@@ -17,6 +17,7 @@ export interface ConversationState {
     maxChars?: number; // e.g., 4000
   };
   renderMode?: "summary" | "transcript" | "both"; // default: "summary"
+  subheader?: string; // Optional descriptive text (v2.5)
 }
 
 export interface SystemPrompt {
@@ -43,6 +44,7 @@ export interface RequestingUser {
   timezone?: string; // IANA TZ
   tier?: string; // e.g., "pro", "free"
   notes?: string; // Ad hoc notes about user
+  subheader?: string; // Optional descriptive text (v2.5)
 }
 
 export interface Constraint {
@@ -87,7 +89,9 @@ export interface PromptSpec {
   // v2: New first-class section for short-term memory/state
   conversationState?: ConversationState;
   constraints?: Constraint[];
+  constraintsSubheader?: string; // Optional descriptive text (v2.5)
   task: TaskAnnotation[]; // at least one
+  taskSubheader?: string; // Optional descriptive text (v2.5)
   input: InputPayload; // required
 }
 
@@ -98,6 +102,14 @@ export interface AssemblerConfig {
   // P-04: Token budgeting caps (character-based)
   maxTotalChars?: number; // hard cap across all sections (optional)
   sectionCaps?: Partial<Record<keyof AssembledPromptSections, number>>; // per-section caps
+
+  // v2.5: Optional default subheaders
+  defaultSubheaders?: {
+    requestingUser?: string;
+    constraints?: string;
+    task?: string;
+    conversationState?: string;
+  };
 }
 
 export interface AssembledPromptSections {

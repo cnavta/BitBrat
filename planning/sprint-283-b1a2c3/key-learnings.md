@@ -1,0 +1,3 @@
+- `assemble.ts` uses `process.env` to provide fallback values for subheaders, enabling global configuration without spec changes.
+- Rendering subheaders as the first item after the heading ensures consistency with standard Markdown patterns.
+- Unit tests for subheaders should always cover the inheritance chain (Spec > Config > Env).
