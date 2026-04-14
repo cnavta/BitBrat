@@ -72,6 +72,11 @@ function renderRequestingUser(spec: PromptSpec, cfg: AssemblerConfig): string {
   if (u.locale || u.timezone) lines.push(`- Locale: ${u.locale ?? "n/a"}; TZ: ${u.timezone ?? "n/a"}`);
   if (u.tier) lines.push(`- Tier: ${u.tier}`);
   if (u.notes) lines.push(`- Notes: ${u.notes}`);
+
+  if (u.subheader) {
+    lines.splice(1, 0, u.subheader, "");
+  }
+
   return lines.join("\n");
 }
 
@@ -113,6 +118,9 @@ function renderConversationState(spec: PromptSpec, cfg: AssemblerConfig): string
 
 function renderConstraints(spec: PromptSpec, cfg: AssemblerConfig): string {
   const lines: string[] = [heading("Constraints", cfg.headingLevel ?? 2)];
+  if (spec.constraintsSubheader) {
+    lines.push(spec.constraintsSubheader, "");
+  }
   const constraints = sortByPriority(normalizePriority<Constraint>(spec.constraints));
   if (!constraints.length) {
     if (cfg.showEmptySections ?? true) lines.push("- None provided.");
@@ -126,6 +134,9 @@ function renderConstraints(spec: PromptSpec, cfg: AssemblerConfig): string {
 
 function renderTask(spec: PromptSpec, cfg: AssemblerConfig): string {
   const lines: string[] = [heading("Task", cfg.headingLevel ?? 2)];
+  if (spec.taskSubheader) {
+    lines.push(spec.taskSubheader, "");
+  }
   const tasks = sortByPriority(normalizePriority<TaskAnnotation>(spec.task));
   for (const t of tasks) {
     lines.push(`- (${t.priority}) ${t.instruction}`);
@@ -158,12 +169,23 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     headingLevel: 2,
     showEmptySections: true,
     ...config,
+    defaultSubheaders: {
+      requestingUser: config.defaultSubheaders?.requestingUser ?? process.env.PROMPT_SUBHEADER_REQUESTING_USER,
+      constraints: config.defaultSubheaders?.constraints ?? process.env.PROMPT_SUBHEADER_CONSTRAINTS,
+      task: config.defaultSubheaders?.task ?? process.env.PROMPT_SUBHEADER_TASK,
+    },
   };
 
   // Prepare working copies for truncation logic (P-04)
   const truncationNotes: string[] = [];
   const workingSpec: PromptSpec = {
     ...spec,
+    requestingUser: spec.requestingUser ? {
+      ...spec.requestingUser,
+      subheader: spec.requestingUser.subheader ?? cfg.defaultSubheaders?.requestingUser,
+    } : undefined,
+    constraintsSubheader: spec.constraintsSubheader ?? cfg.defaultSubheaders?.constraints,
+    taskSubheader: spec.taskSubheader ?? cfg.defaultSubheaders?.task,
     constraints: sortByPriority(normalizePriority<Constraint>(spec.constraints)),
     task: sortByPriority(normalizePriority<TaskAnnotation>(spec.task)),
     input: { ...spec.input },

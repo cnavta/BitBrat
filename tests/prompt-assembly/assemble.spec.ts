@@ -74,4 +74,106 @@ describe("assemble() – canonical rendering", () => {
     const { sections } = assemble(spec, cfg);
     expect(sections.input).toContain("~~~text\nline1\nline2\n~~~");
   });
+
+  describe("Subheader Support (v2.5)", () => {
+    it("renders subheaders in Requesting User, Constraints, and Task when provided in spec", () => {
+      const spec: PromptSpec = {
+        ...baseSpec,
+        requestingUser: {
+          handle: "@tester",
+          subheader: "User details follow:",
+        },
+        constraintsSubheader: "Rules of engagement:",
+        constraints: [{ priority: 1, text: "Be polite" }],
+        taskSubheader: "Current objective:",
+      };
+
+      const { sections } = assemble(spec, cfg);
+
+      expect(sections.requestingUser).toContain("## [Requesting User]\nUser details follow:\n\n- Handle: @tester");
+      expect(sections.constraints).toContain("## [Constraints]\nRules of engagement:\n\n- (1) Be polite");
+      expect(sections.task).toContain("## [Task]\nCurrent objective:\n\n- (1) First\n- (2) Second");
+    });
+
+    it("renders default subheaders from AssemblerConfig when spec lacks them", () => {
+      const spec: PromptSpec = {
+        ...baseSpec,
+        requestingUser: { handle: "@tester" },
+      };
+      const customCfg: AssemblerConfig = {
+        ...cfg,
+        defaultSubheaders: {
+          requestingUser: "Default User Subheader",
+          constraints: "Default Constraints Subheader",
+          task: "Default Task Subheader",
+        },
+      };
+
+      const { sections } = assemble(spec, customCfg);
+
+      expect(sections.requestingUser).toContain("Default User Subheader");
+      expect(sections.constraints).toContain("Default Constraints Subheader");
+      expect(sections.task).toContain("Default Task Subheader");
+    });
+
+    it("prioritizes spec subheaders over default subheaders", () => {
+      const spec: PromptSpec = {
+        ...baseSpec,
+        requestingUser: {
+          handle: "@tester",
+          subheader: "Spec User Subheader",
+        },
+        constraintsSubheader: "Spec Constraints Subheader",
+        taskSubheader: "Spec Task Subheader",
+      };
+      const customCfg: AssemblerConfig = {
+        ...cfg,
+        defaultSubheaders: {
+          requestingUser: "Default User Subheader",
+          constraints: "Default Constraints Subheader",
+          task: "Default Task Subheader",
+        },
+      };
+
+      const { sections } = assemble(spec, customCfg);
+
+      expect(sections.requestingUser).toContain("Spec User Subheader");
+      expect(sections.requestingUser).not.toContain("Default User Subheader");
+      expect(sections.constraints).toContain("Spec Constraints Subheader");
+      expect(sections.constraints).not.toContain("Default Constraints Subheader");
+      expect(sections.task).toContain("Spec Task Subheader");
+      expect(sections.task).not.toContain("Default Task Subheader");
+    });
+
+    it("renders subheaders from environment variables as last resort", () => {
+      const originalEnv = process.env;
+      process.env = {
+        ...originalEnv,
+        PROMPT_SUBHEADER_REQUESTING_USER: "Env User Subheader",
+        PROMPT_SUBHEADER_CONSTRAINTS: "Env Constraints Subheader",
+        PROMPT_SUBHEADER_TASK: "Env Task Subheader",
+      };
+
+      try {
+        const spec: PromptSpec = {
+          ...baseSpec,
+          requestingUser: { handle: "@tester" },
+        };
+        const { sections } = assemble(spec, cfg);
+
+        expect(sections.requestingUser).toContain("Env User Subheader");
+        expect(sections.constraints).toContain("Env Constraints Subheader");
+        expect(sections.task).toContain("Env Task Subheader");
+      } finally {
+        process.env = originalEnv;
+      }
+    });
+
+    it("does not render subheader if neither spec nor default/env provides it", () => {
+      const { sections } = assemble(baseSpec, cfg);
+      expect(sections.requestingUser).not.toContain("\n\n-"); // No extra newline + bullet
+      expect(sections.constraints).not.toContain("\n\n-");
+      expect(sections.task).not.toContain("\n\n-");
+    });
+  });
 });
