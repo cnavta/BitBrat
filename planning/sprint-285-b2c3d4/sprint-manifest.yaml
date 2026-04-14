@@ -3,7 +3,7 @@ title: "Fix Disposition Service Test Failure"
 goal: "Fix the type mismatch error and potentially handle open handles in disposition service tests."
 owner: "@junie"
 createdAt: "2026-04-14T14:40:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-285-b2c3d4-fix-disposition-test-failure"
 notes: |
