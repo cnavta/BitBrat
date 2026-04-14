@@ -89,12 +89,13 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     private readonly builder: IEnvelopeBuilder,
     private readonly publisher: ITwitchIngressPublisher,
     private readonly channels: string[] = [],
-    options?: { cfg?: IConfig; credentialsProvider?: ITwitchCredentialsProvider; disableConnect?: boolean; egressDestinationTopic?: string }
+    options?: { cfg?: IConfig; credentialsProvider?: ITwitchCredentialsProvider; disableConnect?: boolean; egressDestinationTopic?: string; debugUsers?: string[] }
   ) {
     super();
     this.cfg = options?.cfg;
     this.credentialsProvider = options?.credentialsProvider;
     this.egressDestinationTopic = options?.egressDestinationTopic;
+    (this as any).debugUsers = (options?.debugUsers || []).map((u: string) => u.trim().toLowerCase());
     // Normalize channels: prefer explicit parameter, otherwise from config, otherwise env (for backward-compatible tests)
     const fromCfg = this.cfg?.twitchChannels || [];
     const fromEnv = parseChannels(process.env.TWITCH_CHANNELS);
@@ -472,7 +473,44 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
 
     try {
       await startActiveSpan('ingress-receive', async () => {
-        const evtV2: InternalEventV2 = this.builder.build(msg);
+        const debugUsers: string[] = (this as any).debugUsers || [];
+        const userLoginKey = `twitch:${userLogin.toLowerCase()}`;
+        const userIdKey = meta?.userId ? `twitch:${meta.userId}` : null;
+        const isDebugUser = debugUsers.includes(userLoginKey) || (userIdKey !== null && debugUsers.includes(userIdKey));
+        
+        // Handle !debug prefix for authorized users
+        let processedText = text;
+        let forceTracer = false;
+        if (isDebugUser && text?.toLowerCase().startsWith('!debug')) {
+          processedText = text.substring(6).trim();
+          forceTracer = true;
+          logger.info('twitch.irc.debug_command.detected', { correlationId: '(pending)', userLogin, originalText: text });
+        }
+
+        const msgForBuilder = processedText !== text ? { ...msg, text: processedText } : msg;
+        const evtV2: InternalEventV2 = this.builder.build(msgForBuilder);
+        
+        if (forceTracer) {
+          evtV2.qos = { ...evtV2.qos, tracer: true };
+          logger.info('twitch.irc.debug_command.applied', { correlationId: evtV2.correlationId, userLogin });
+        }
+
+        // Tracer logic: Check for !trace command (legacy/other tracer trigger)
+        if (processedText?.toLowerCase().startsWith('!trace')) {
+          evtV2.qos = { ...evtV2.qos, tracer: true };
+          logger.info('twitch.irc.tracer.detected', { correlationId: evtV2.correlationId, userLogin });
+        }
+
+        // Immediate feedback to chat if tracer is enabled (either via !debug or !trace)
+        if (evtV2.qos?.tracer) {
+          try {
+            const feedback = `[DEBUG] Tracer event started. ID: ${evtV2.correlationId}${evtV2.traceId ? ` Trace: ${evtV2.traceId}` : ''}`;
+            await this.sendText(feedback, channel);
+          } catch (err: any) {
+            logger.warn('twitch.irc.tracer.feedback_failed', { correlationId: evtV2.correlationId, error: err.message });
+          }
+        }
+
         // Ensure egress metadata is set for downstream responses to route back to this instance
         if ((!evtV2.egress || !evtV2.egress.destination) && this.egressDestinationTopic) {
           evtV2.egress = {

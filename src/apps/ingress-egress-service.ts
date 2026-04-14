@@ -106,6 +106,7 @@ export class IngressEgressServer extends BaseServer {
       cfg,
       credentialsProvider: credsProvider,
       egressDestinationTopic: egressTopic, // ensure envelope.egressDestination is set on publish
+      debugUsers: cfg.debugUsers,
     });
 
     // Create the EventSub client
@@ -528,6 +529,23 @@ export class IngressEgressServer extends BaseServer {
         logger.error('ingress-egress.egress.delivery_error', { correlationId, error: e.message });
         await publishFinalize('FAILED', { code: 'send_error', message: e?.message || String(e) });
         
+        // Tracer feedback: send error back to requester if tracer is true
+        if (evt?.qos?.tracer) {
+          try {
+            const errorFeedback = `[DEBUG] Tracer event failed. ID: ${correlationId}. Error: ${e.message || String(e)}`;
+            const connector = (evt?.egress?.connector || '').toLowerCase();
+            const source = (evt?.ingress?.source || '').toLowerCase();
+            const isTwitch = connector === 'twitch' || (connector === '' && (source.includes('twitch')));
+            
+            if (isTwitch && this.twitchClient) {
+              const targetChannel = (evt.egress?.channel) ? evt.egress.channel : (evt.ingress?.channel || evt.channel);
+              await this.twitchClient.sendText(errorFeedback, targetChannel);
+            }
+          } catch (err: any) {
+            logger.warn('ingress-egress.egress.tracer.error_feedback_failed', { correlationId, error: err.message });
+          }
+        }
+
         // Return FAILED to caller so they can DLQ if appropriate
         return 'FAILED';
       }
