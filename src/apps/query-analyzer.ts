@@ -279,8 +279,12 @@ class QueryAnalyzerServer extends BaseServer {
   }
 }
 
+export function createServer() {
+  return new QueryAnalyzerServer();
+}
+
 export function createApp() {
-  const server = new QueryAnalyzerServer();
+  const server = createServer();
   return server.getApp();
 }
 

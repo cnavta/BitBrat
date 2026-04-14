@@ -36,6 +36,8 @@ describe('disposition observation helpers', () => {
         intent: 'critique',
         tone: { valence: -0.4, arousal: 0.7 },
         risk: { level: 'med', type: 'harassment' },
+        entities: [{ text: 'some-entity', type: 'person' }],
+        topic: 'support',
       },
       'query-analyzer',
       '2026-04-03T00:00:00Z'
@@ -59,6 +61,8 @@ describe('disposition observation helpers', () => {
         intent: 'critique',
         tone: { valence: -0.4, arousal: 0.7 },
         risk: { level: 'med', type: 'harassment' },
+        entities: [{ text: 'some-entity', type: 'person' }],
+        topic: 'support',
       },
       source: 'query-analyzer',
     });
