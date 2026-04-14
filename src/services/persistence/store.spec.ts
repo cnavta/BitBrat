@@ -133,6 +133,26 @@ describe('PersistenceStore', () => {
     expect(db.__state.rootSets['c-1'].initialSnapshotId).toBe(result.snapshot.snapshotId);
     expect(db.__state.snapshotSets[`c-1/${result.snapshot.snapshotId}`].idempotencyKey).toContain('c-1:initial');
   });
+  
+  test('upsertIngressEvent respects qos.persistenceTtlSec', async () => {
+    const db = makeFirestoreMock();
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const store = new PersistenceStore({ firestore: db, logger });
+
+    const ingressAt = '2024-01-01T00:00:00Z';
+    const evt = makeEvent({
+      ingress: { ingressAt, source: 'ingress.twitch', connector: 'twitch' },
+      qos: { persistenceTtlSec: 3600 }
+    });
+
+    const result = await store.upsertIngressEvent(evt);
+
+    const expectedExpireAt = new Date('2024-01-01T01:00:00Z');
+    // Mock Firestore Timestamp might not be identical to real one, but computeExpireAt uses it.
+    // In our mock, we just store what's passed.
+    expect(result.aggregate.expireAt!.toDate().toISOString()).toBe(expectedExpireAt.toISOString());
+    expect(db.__state.rootSets['c-1'].expireAt.toDate().toISOString()).toBe(expectedExpireAt.toISOString());
+  });
 
   test('upsertIngressEvent is idempotent when aggregate already exists', async () => {
     const db = makeFirestoreMock();

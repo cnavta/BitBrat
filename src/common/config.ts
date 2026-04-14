@@ -78,6 +78,7 @@ const ConfigSchema = z.object({
   twilioApiSecret: z.string().optional(),
   twilioChatServiceSid: z.string().optional(),
   twilioIdentity: z.string().optional(),
+  debugUsers: z.array(z.string()).default([]),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -132,6 +133,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     twilioApiSecret: env.TWILIO_API_SECRET,
     twilioChatServiceSid: env.TWILIO_CHAT_SERVICE_SID,
     twilioIdentity: env.TWILIO_IDENTITY,
+    debugUsers: parseList(env.DEBUG_USERS),
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last

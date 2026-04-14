@@ -17,7 +17,7 @@ import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
 import { createMessageSubscriber, createMessagePublisher, type AttributeMap } from '../services/message-bus';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
-import { initializeTracing, shutdownTracing, getTracer, startActiveSpan } from './tracing';
+import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
 import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1 } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
@@ -302,14 +302,109 @@ export class BaseServer {
           try {
             const tracer = this.getTracer();
             if (tracer) {
-              await startActiveSpan(`msg ${subject}`, async () => {
+              const spanOptions: any = {};
+              // Tracer logic: Force sampling if qos.tracer is true
+              if ((data as any)?.qos?.tracer) {
+                spanOptions.attributes = { 'bb.qos.tracer': true };
+                // OpenTelemetry hint for sampling
+                spanOptions.kind = api.SpanKind.CONSUMER;
+              }
+
+              await startActiveSpan(`msg ${subject}`, spanOptions, async () => {
                 // Assume JSON payloads: parse Buffer/string into object for typed handler
                 const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
-                await Promise.resolve(handler(parsed, attributes, ctx));
+                
+                // Tracer logging: Log full event on reception if qos.tracer is true
+                if ((parsed as any)?.qos?.tracer) {
+                  this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
+                }
+
+                const handlerPromise = Promise.resolve(handler(parsed, attributes, ctx));
+                const maxResponseMs = (parsed as any)?.qos?.maxResponseMs;
+
+                if (typeof maxResponseMs === 'number' && maxResponseMs > 0) {
+                  const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => {
+                      reject(new Error(`BB_QOS_TIMEOUT: Processing exceeded ${maxResponseMs}ms`));
+                    }, maxResponseMs);
+                  });
+
+                  try {
+                    await Promise.race([handlerPromise, timeoutPromise]);
+                  } catch (e: any) {
+                    if (e.message?.startsWith('BB_QOS_TIMEOUT')) {
+                      this.logger.warn('base_server.message.qos.timeout', {
+                        subject,
+                        correlationId: (parsed as any)?.correlationId,
+                        maxResponseMs
+                      });
+                      // Finalize as error if possible
+                      const errEntry = {
+                        source: this.serviceName,
+                        message: e.message,
+                        fatal: true,
+                        at: new Date().toISOString()
+                      };
+                      if ((parsed as any).errors) {
+                        (parsed as any).errors.push(errEntry);
+                      } else {
+                        (parsed as any).errors = [errEntry];
+                      }
+                      // Note: We don't throw here to allow catch block below to handle it as a normal (but logged) error
+                      // or we could throw to trigger the error logging.
+                      throw e;
+                    }
+                    throw e;
+                  }
+                } else {
+                  await handlerPromise;
+                }
               });
             } else {
               const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
-              await Promise.resolve(handler(parsed, attributes, ctx));
+              
+              // Tracer logging: Log full event on reception if qos.tracer is true
+              if ((parsed as any)?.qos?.tracer) {
+                this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
+              }
+
+              const handlerPromise = Promise.resolve(handler(parsed, attributes, ctx));
+              const maxResponseMs = (parsed as any)?.qos?.maxResponseMs;
+
+              if (typeof maxResponseMs === 'number' && maxResponseMs > 0) {
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => {
+                    reject(new Error(`BB_QOS_TIMEOUT: Processing exceeded ${maxResponseMs}ms`));
+                  }, maxResponseMs);
+                });
+
+                try {
+                  await Promise.race([handlerPromise, timeoutPromise]);
+                } catch (e: any) {
+                  if (e.message?.startsWith('BB_QOS_TIMEOUT')) {
+                    this.logger.warn('base_server.message.qos.timeout', {
+                      subject,
+                      correlationId: (parsed as any)?.correlationId,
+                      maxResponseMs
+                    });
+                    const errEntry = {
+                      source: this.serviceName,
+                      message: e.message,
+                      fatal: true,
+                      at: new Date().toISOString()
+                    };
+                    if ((parsed as any).errors) {
+                      (parsed as any).errors.push(errEntry);
+                    } else {
+                      (parsed as any).errors = [errEntry];
+                    }
+                    throw e;
+                  }
+                  throw e;
+                }
+              } else {
+                await handlerPromise;
+              }
             }
           } catch (e: any) {
             // Conservative default: ack to prevent redelivery storms; handlers may call nack themselves
@@ -558,7 +653,16 @@ export class BaseServer {
 
       const pub = createMessagePublisher(dest);
       try {
-        await startActiveSpan('routing.complete', async () => {
+        const spanOptions: any = {};
+        if (egressEvent.qos?.tracer) {
+          spanOptions.attributes = { 'bb.qos.tracer': true };
+        }
+
+        await startActiveSpan('routing.complete', spanOptions, async () => {
+          // Tracer logging: Log full event before publication if qos.tracer is true
+          if (egressEvent.qos?.tracer) {
+            this.logger.debug('routing.complete.tracer.publish', { dest, event: egressEvent });
+          }
           await pub.publishJson(egressEvent, this.buildRoutingAttributes(egressEvent));
         });
       } catch (e) {
@@ -588,7 +692,18 @@ export class BaseServer {
 
     try {
       await startActiveSpan('routing.next', async () => {
-        await pub.publishJson(event, this.buildRoutingAttributes(event, step));
+        const spanOptions: any = {};
+        if (event.qos?.tracer) {
+          spanOptions.attributes = { 'bb.qos.tracer': true };
+        }
+
+        await startActiveSpan('routing.next', spanOptions, async () => {
+          // Tracer logging: Log full event before publication if qos.tracer is true
+          if (event.qos?.tracer) {
+            this.logger.debug('routing.next.tracer.publish', { subject, event });
+          }
+          await pub.publishJson(event, this.buildRoutingAttributes(event, step));
+        });
       });
     } catch (e) {
       // Clear idempotency mark to allow safe retry by caller
