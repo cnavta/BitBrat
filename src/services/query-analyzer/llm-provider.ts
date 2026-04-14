@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateObject, embed } from 'ai';
 import { z } from 'zod';
 import { getFirestore } from '../../common/firebase';
 import { isFeatureEnabled } from '../../common/feature-flags';
@@ -18,13 +18,18 @@ export const queryAnalysisSchema = z.object({
     level: z.enum(['none', 'low', 'med', 'high']),
     type: z.enum(['none', 'harassment', 'spam', 'privacy', 'self_harm', 'sexual', 'illegal']),
   }),
+  entities: z.array(z.object({
+    text: z.string(),
+    type: z.string(),
+  })),
+  topic: z.string(),
 });
 
 export type QueryAnalysis = z.infer<typeof queryAnalysisSchema>;
 
 
 export const SYSTEM_PROMPT = `You are an expert linguistic analyzer for the BitBrat Platform. 
-Your task is to analyze user messages and categorize them based on intent, emotional tone, and safety risk.
+Your task is to analyze user messages and categorize them based on intent, emotional tone, safety risk, entities, and topic.
 
 ### Intent Classification:
 - 'question': The user is asking for information or clarification.
@@ -50,6 +55,13 @@ Your task is to analyze user messages and categorize them based on intent, emoti
   - 'illegal': Requests for or mentions of illegal activities.
   - 'none': No identifiable risk.
 
+### Entity Extraction:
+- Identify key entities in the message: people, places, organizations, products, dates, etc.
+- Return an array of objects with 'text' and 'type'.
+
+### Topic Classification:
+- Provide a concise one-to-three word label for the primary topic of the message (e.g., 'technical support', 'billing', 'greeting', 'weather').
+
 Return only a JSON object matching the requested schema.`;
 
 /**
@@ -62,6 +74,7 @@ export async function analyzeWithLlm(
     modelName?: string;
     logger?: { error: (msg: string, meta?: any) => void; info: (msg: string, meta?: any) => void };
     correlationId?: string;
+    tokenCount?: number;
   } = {}
 ): Promise<QueryAnalysis | null> {
   const providerName = options.providerName || process.env.LLM_PROVIDER || 'ollama';
@@ -95,13 +108,15 @@ export async function analyzeWithLlm(
         correlationId: corr,
         prompt: redactText(fullPrompt),
         response: redactText(JSON.stringify(object)),
+        entities: object.entities,
+        topic: object.topic,
         platform: providerName,
         model: modelName,
         processingTimeMs,
         usage: usage ? {
-          promptTokens: usage.promptTokens,
+          promptTokens: options.tokenCount ?? usage.promptTokens,
           completionTokens: usage.completionTokens,
-          totalTokens: usage.totalTokens,
+          totalTokens: (options.tokenCount ?? usage.promptTokens) + (usage.completionTokens ?? 0),
         } : undefined,
         createdAt: new Date(),
       }).catch((e: any) => {
@@ -121,6 +136,49 @@ export async function analyzeWithLlm(
       });
     } else {
       console.error('LLM Analysis Error:', error);
+    }
+    return null;
+  }
+}
+
+/**
+ * Generate semantic embedding for the given text.
+ */
+export async function generateEmbedding(
+  text: string,
+  options: {
+    providerName?: string;
+    modelName?: string;
+    logger?: { error: (msg: string, meta?: any) => void; info: (msg: string, meta?: any) => void };
+    correlationId?: string;
+  } = {}
+): Promise<number[] | null> {
+  const providerName = options.providerName || process.env.LLM_PROVIDER || 'ollama';
+  const modelName = options.modelName || process.env.EMBEDDING_MODEL || (providerName === 'openai' ? 'text-embedding-3-small' : 'llama3');
+  const corr = options.correlationId;
+
+  try {
+    const provider = getLlmProvider({
+      provider: providerName,
+      model: modelName,
+      baseURL: process.env.LLM_BASE_URL,
+      apiKey: process.env.LLM_API_KEY,
+    });
+
+    const result = await embed({
+      model: provider as any,
+      value: text,
+    });
+
+    return result.embedding;
+  } catch (error: any) {
+    if (options.logger) {
+      options.logger.error('query-analyzer.embedding_error', {
+        error: error.message,
+        providerName,
+        modelName,
+        correlationId: corr
+      });
     }
     return null;
   }
