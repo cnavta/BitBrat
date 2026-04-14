@@ -1,10 +1,11 @@
 id: sprint-283-b1a2c3
 title: "Prompt Subheader Support"
-goal: "Add optional subheader descriptive text to PromptSpec for Requesting User, Constraints, and Task sections."
+goal: "Add optional subheader descriptive text to PromptSpec for Requesting User, Constraints, Task, and Conversation History sections."
 owner: "@junie"
 createdAt: "2026-04-14T10:05:00Z"
 status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/199"
   branch: "feature/sprint-283-b1a2c3-prompt-subheaders"
 notes: |
   Subheaders will be static/env-var derived for now, but should be supported in PromptSpec and the assembler.
