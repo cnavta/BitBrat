@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { createApp } from './query-analyzer';
-import { analyzeWithLlm } from '../services/query-analyzer/llm-provider';
+import { analyzeWithLlm, generateEmbedding } from '../services/query-analyzer/llm-provider';
 
 // Mock message-bus to capture and trigger handlers
 let capturedHandler: any;
@@ -19,6 +19,7 @@ jest.mock('../services/message-bus', () => ({
 
 jest.mock('../services/query-analyzer/llm-provider', () => ({
   analyzeWithLlm: jest.fn(),
+  generateEmbedding: jest.fn(),
 }));
 
 // Mock process.env for BaseServer
@@ -48,10 +49,14 @@ describe('query-analyzer service', () => {
       const mockAnalysis = {
         intent: 'question',
         tone: { valence: 0.5, arousal: 0.1 },
-        risk: { level: 'none', type: 'none' }
+        risk: { level: 'none', type: 'none' },
+        entities: [{ text: 'Hello', type: 'greeting' }],
+        topic: 'greeting'
       };
+      const mockEmbedding = [0.1, 0.2, 0.3];
 
       (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+      (generateEmbedding as jest.Mock).mockResolvedValue(mockEmbedding);
 
       const event = {
         v: '2',
@@ -75,6 +80,7 @@ describe('query-analyzer service', () => {
       await capturedHandler(payload, {}, ctx);
 
       expect(analyzeWithLlm).toHaveBeenCalled();
+      expect(generateEmbedding).toHaveBeenCalled();
       expect(publishJsonMock).toHaveBeenCalledTimes(2);
       
       const observation = publishJsonMock.mock.calls[0][0] as any;
@@ -84,7 +90,7 @@ describe('query-analyzer service', () => {
 
       const published = publishJsonMock.mock.calls[publishJsonMock.mock.calls.length - 1][0] as any;
       expect(published.annotations).toBeDefined();
-      expect(published.annotations.length).toBe(3);
+      expect(published.annotations.length).toBe(7);
       expect(published.annotations.find((a: any) => a.kind === 'intent')).toMatchObject({
         label: 'question',
         value: 'question',
@@ -95,6 +101,19 @@ describe('query-analyzer service', () => {
       expect(published.annotations.find((a: any) => a.kind === 'risk')).toMatchObject({
         label: 'none',
         payload: { level: 'none', type: 'none' },
+      });
+      expect(published.annotations.find((a: any) => a.kind === 'tokens')).toMatchObject({
+        payload: { count: 6 }, // "Hello, how are you?" is 6 tokens in gpt-4o encoder
+      });
+      expect(published.annotations.find((a: any) => a.kind === 'entities')).toMatchObject({
+        payload: { entities: [{ text: 'Hello', type: 'greeting' }] },
+      });
+      expect(published.annotations.find((a: any) => a.kind === 'topic')).toMatchObject({
+        label: 'greeting',
+        payload: { topic: 'greeting' },
+      });
+      expect(published.annotations.find((a: any) => a.kind === 'semantic')).toMatchObject({
+        payload: { embedding: [0.1, 0.2, 0.3] },
       });
       
       // Check that routing slip was updated and we proceeded to next
@@ -108,9 +127,12 @@ describe('query-analyzer service', () => {
         intent: 'question',
         tone: { valence: 0.1, arousal: 0.1 },
         risk: { level: 'none', type: 'none' },
+        entities: [],
+        topic: 'unknown'
       };
 
       (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+      (generateEmbedding as jest.Mock).mockResolvedValue(null);
 
       const previousSlip = [
         { id: 'query-analyzer', status: 'PENDING', nextTopic: 'internal.query.analysis.v1' },
@@ -159,10 +181,13 @@ describe('query-analyzer service', () => {
       const mockAnalysis = {
         intent: 'spam',
         tone: { valence: -0.8, arousal: 0.5 },
-        risk: { level: 'high', type: 'spam' }
+        risk: { level: 'high', type: 'spam' },
+        entities: [],
+        topic: 'spam'
       };
 
       (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+      (generateEmbedding as jest.Mock).mockResolvedValue(null);
 
       const event = {
         v: '2',
@@ -197,10 +222,13 @@ describe('query-analyzer service', () => {
       const mockAnalysis = {
         intent: 'question',
         tone: { valence: -0.2, arousal: 0.3 },
-        risk: { level: 'high', type: 'privacy' }
+        risk: { level: 'high', type: 'privacy' },
+        entities: [],
+        topic: 'unknown'
       };
 
       (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+      (generateEmbedding as jest.Mock).mockResolvedValue(null);
 
       const event = {
         v: '2',
@@ -280,10 +308,13 @@ describe('query-analyzer service', () => {
       const mockAnalysis = {
         intent: 'question',
         tone: { valence: 0.2, arousal: 0.2 },
-        risk: { level: 'none', type: 'none' }
+        risk: { level: 'none', type: 'none' },
+        entities: [],
+        topic: 'unknown'
       };
 
       (analyzeWithLlm as jest.Mock).mockResolvedValue(mockAnalysis);
+      (generateEmbedding as jest.Mock).mockResolvedValue(null);
 
       const event = {
         v: '2',
@@ -303,7 +334,7 @@ describe('query-analyzer service', () => {
 
       expect(publishJsonMock).toHaveBeenCalledTimes(1);
       const published = publishJsonMock.mock.calls[0][0] as any;
-      expect(published.annotations).toHaveLength(3);
+      expect(published.annotations).toHaveLength(6);
       expect(published.userKey).toBeUndefined();
       expect(ctx.ack).toHaveBeenCalled();
     });

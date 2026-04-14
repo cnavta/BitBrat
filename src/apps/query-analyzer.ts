@@ -3,7 +3,7 @@ import { Express } from 'express';
 import type { InternalEventV2, AnnotationV1, Routing, RoutingStep } from '../types/events';
 import crypto from 'crypto';
 import type { PublisherResource } from '../common/resources/publisher-manager';
-import { analyzeWithLlm, QueryAnalysis } from '../services/query-analyzer/llm-provider';
+import { analyzeWithLlm, QueryAnalysis, generateEmbedding } from '../services/query-analyzer/llm-provider';
 import { buildDispositionObservationEvent } from '../services/disposition/observation';
 import { INTERNAL_USER_DISPOSITION_OBSERVATION_V1 } from '../types/disposition';
 import { encodingForModel } from 'js-tiktoken';
@@ -30,10 +30,11 @@ class QueryAnalyzerServer extends BaseServer {
     });
   }
 
-  private async analyzeQuery(text: string, correlationId?: string): Promise<QueryAnalysis | null> {
+  private async analyzeQuery(text: string, correlationId?: string, tokenCount?: number): Promise<QueryAnalysis | null> {
     return analyzeWithLlm(text, {
       logger: this.getLogger() as any,
-      correlationId
+      correlationId,
+      tokenCount
     });
   }
 
@@ -159,7 +160,12 @@ class QueryAnalyzerServer extends BaseServer {
                   return;
                 }
 
-                const analysis = await this.analyzeQuery(text, msg.correlationId);
+                const analysis = await this.analyzeQuery(text, msg.correlationId, tokens.length);
+                const embedding = await generateEmbedding(text, {
+                  logger: this.getLogger() as any,
+                  correlationId: msg.correlationId
+                });
+
                 if (analysis) {
                   const now = new Date().toISOString();
                   const annotations: AnnotationV1[] = [
@@ -185,8 +191,40 @@ class QueryAnalyzerServer extends BaseServer {
                       createdAt: now,
                       label: analysis.risk.level,
                       payload: analysis.risk,
+                    },
+                    {
+                      id: crypto.randomUUID(),
+                      kind: 'tokens',
+                      source: SERVICE_NAME,
+                      createdAt: now,
+                      payload: { count: tokens.length },
+                    },
+                    {
+                      id: crypto.randomUUID(),
+                      kind: 'entities',
+                      source: SERVICE_NAME,
+                      createdAt: now,
+                      payload: { entities: analysis.entities },
+                    },
+                    {
+                      id: crypto.randomUUID(),
+                      kind: 'topic',
+                      source: SERVICE_NAME,
+                      createdAt: now,
+                      label: analysis.topic,
+                      payload: { topic: analysis.topic },
                     }
                   ];
+
+                  if (embedding) {
+                    annotations.push({
+                      id: crypto.randomUUID(),
+                      kind: 'semantic',
+                      source: SERVICE_NAME,
+                      createdAt: now,
+                      payload: { embedding },
+                    });
+                  }
 
                   if (!msg.annotations) msg.annotations = [];
                   msg.annotations.push(...annotations);

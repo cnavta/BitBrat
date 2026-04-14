@@ -23,3 +23,5 @@ LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED: true
 LLM_BOT_BEHAVIORAL_GATING_ENABLED: true
 LLM_BOT_RISK_RESPONSE_MODE: refuse
 LLM_BOT_TONE_STYLE_ENABLED: true
+
+PROMPT_SUBHEADER_CONVERSATION_STATE: "Do not imitate prior assistant tone if it conflicts with current constraints."

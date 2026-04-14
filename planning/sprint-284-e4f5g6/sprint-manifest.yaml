@@ -1,0 +1,14 @@
+id: sprint-284-e4f5g6
+title: "Query Analyzer Extensions"
+goal: "Extend the functionality of the query analyzer to include tokens, entities, topics, and semantic embeddings."
+owner: "@junie"
+createdAt: "2026-04-14T13:20:00Z"
+status: "verifying"
+links:
+  branch: "feature/sprint-284-e4f5g6-query-analyzer-extensions"
+notes: |
+  Extending the query-analyzer service to include:
+  - Tokens
+  - Entities
+  - Topic
+  - Semantic embedding
