@@ -76,12 +76,16 @@ describe("assemble() – canonical rendering", () => {
   });
 
   describe("Subheader Support (v2.5)", () => {
-    it("renders subheaders in Requesting User, Constraints, and Task when provided in spec", () => {
+    it("renders subheaders in Requesting User, Constraints, Task, and Conversation State when provided in spec", () => {
       const spec: PromptSpec = {
         ...baseSpec,
         requestingUser: {
           handle: "@tester",
           subheader: "User details follow:",
+        },
+        conversationState: {
+          summary: "Previous talk",
+          subheader: "History context:",
         },
         constraintsSubheader: "Rules of engagement:",
         constraints: [{ priority: 1, text: "Be polite" }],
@@ -91,6 +95,7 @@ describe("assemble() – canonical rendering", () => {
       const { sections } = assemble(spec, cfg);
 
       expect(sections.requestingUser).toContain("## [Requesting User]\nUser details follow:\n\n- Handle: @tester");
+      expect(sections.conversationState).toContain("## [Conversation State / History]\nHistory context:\n\n- Previous talk");
       expect(sections.constraints).toContain("## [Constraints]\nRules of engagement:\n\n- (1) Be polite");
       expect(sections.task).toContain("## [Task]\nCurrent objective:\n\n- (1) First\n- (2) Second");
     });
@@ -99,6 +104,7 @@ describe("assemble() – canonical rendering", () => {
       const spec: PromptSpec = {
         ...baseSpec,
         requestingUser: { handle: "@tester" },
+        conversationState: { summary: "Previous talk" },
       };
       const customCfg: AssemblerConfig = {
         ...cfg,
@@ -106,6 +112,7 @@ describe("assemble() – canonical rendering", () => {
           requestingUser: "Default User Subheader",
           constraints: "Default Constraints Subheader",
           task: "Default Task Subheader",
+          conversationState: "Default History Subheader",
         },
       };
 
@@ -114,6 +121,20 @@ describe("assemble() – canonical rendering", () => {
       expect(sections.requestingUser).toContain("Default User Subheader");
       expect(sections.constraints).toContain("Default Constraints Subheader");
       expect(sections.task).toContain("Default Task Subheader");
+      expect(sections.conversationState).toContain("Default History Subheader");
+    });
+
+    it("renders conversationState subheader even if conversationState was undefined in spec but provided in default", () => {
+      const customCfg: AssemblerConfig = {
+        ...cfg,
+        defaultSubheaders: {
+          conversationState: "Default History Subheader",
+        },
+      };
+
+      const { sections } = assemble(baseSpec, customCfg);
+
+      expect(sections.conversationState).toContain("## [Conversation State / History]\nDefault History Subheader\n\n- None provided.");
     });
 
     it("prioritizes spec subheaders over default subheaders", () => {

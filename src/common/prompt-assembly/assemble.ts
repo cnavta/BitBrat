@@ -84,6 +84,11 @@ function renderRequestingUser(spec: PromptSpec, cfg: AssemblerConfig): string {
 function renderConversationState(spec: PromptSpec, cfg: AssemblerConfig): string {
   const lines: string[] = [heading("Conversation State / History", cfg.headingLevel ?? 2)];
   const cs = spec.conversationState;
+
+  if (cs?.subheader) {
+    lines.push(cs.subheader, "");
+  }
+
   if (!cs) {
     if (cfg.showEmptySections ?? true) lines.push("- None provided.");
     return lines.join("\n");
@@ -173,6 +178,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       requestingUser: config.defaultSubheaders?.requestingUser ?? process.env.PROMPT_SUBHEADER_REQUESTING_USER,
       constraints: config.defaultSubheaders?.constraints ?? process.env.PROMPT_SUBHEADER_CONSTRAINTS,
       task: config.defaultSubheaders?.task ?? process.env.PROMPT_SUBHEADER_TASK,
+      conversationState: config.defaultSubheaders?.conversationState ?? process.env.PROMPT_SUBHEADER_CONVERSATION_STATE,
     },
   };
 
@@ -184,6 +190,10 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       ...spec.requestingUser,
       subheader: spec.requestingUser.subheader ?? cfg.defaultSubheaders?.requestingUser,
     } : undefined,
+    conversationState: spec.conversationState ? {
+      ...spec.conversationState,
+      subheader: spec.conversationState.subheader ?? cfg.defaultSubheaders?.conversationState,
+    } : (cfg.defaultSubheaders?.conversationState ? { subheader: cfg.defaultSubheaders.conversationState } : undefined),
     constraintsSubheader: spec.constraintsSubheader ?? cfg.defaultSubheaders?.constraints,
     taskSubheader: spec.taskSubheader ?? cfg.defaultSubheaders?.task,
     constraints: sortByPriority(normalizePriority<Constraint>(spec.constraints)),
