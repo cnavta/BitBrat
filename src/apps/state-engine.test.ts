@@ -1,8 +1,13 @@
 import request from 'supertest';
-import { createApp, StateEngineServer } from './state-engine';
+import { createServer, StateEngineServer } from './state-engine';
 
 describe('generated service', () => {
-  const app = createApp();
+  const server = createServer();
+  const app = server.getApp();
+
+  afterAll(async () => {
+    await server.close('test');
+  });
   describe('health endpoints', () => {
     it('/healthz 200', async () => { await request(app).get('/healthz').expect(200); });
     it('/readyz 200', async () => { await request(app).get('/readyz').expect(200); });

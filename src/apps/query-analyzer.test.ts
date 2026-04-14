@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { createApp } from './query-analyzer';
+import { createServer } from './query-analyzer';
 import { analyzeWithLlm, generateEmbedding } from '../services/query-analyzer/llm-provider';
 
 // Mock message-bus to capture and trigger handlers
@@ -26,7 +26,12 @@ jest.mock('../services/query-analyzer/llm-provider', () => ({
 process.env.BUS_PREFIX = '';
 
 describe('query-analyzer service', () => {
-  const app = createApp();
+  const server = createServer();
+  const app = server.getApp();
+
+  afterAll(async () => {
+    await server.close('test-teardown');
+  });
 
   describe('health endpoints', () => {
     it('/healthz 200', async () => { await request(app).get('/healthz').expect(200); });

@@ -284,8 +284,12 @@ class EventRouterServer extends McpServer {
   }
 }
 
+export function createServer() {
+  return new EventRouterServer();
+}
+
 export function createApp() {
-  const server = new EventRouterServer();
+  const server = createServer();
   return server.getApp();
 }
 
