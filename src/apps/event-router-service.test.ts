@@ -1,4 +1,4 @@
-import { createApp } from './event-router-service';
+import { createServer } from './event-router-service';
 import { INTERNAL_INGRESS_V1, INTERNAL_ENRICHED_V1 } from '../types/events';
 
 jest.mock('../services/message-bus', () => {
@@ -21,10 +21,10 @@ describe('event-router-service', () => {
     const subFn = mb.createMessageSubscriber().subscribe as jest.Mock;
     subFn.mockClear();
 
-    createApp();
-
+    const server = createServer();
     // setup() is async; wait a tick
     await new Promise((r) => setTimeout(r, 0));
+    await server.close('test');
 
     expect(subFn).toHaveBeenCalledTimes(2);
     const topics = subFn.mock.calls.map(c => c[0]);
@@ -45,9 +45,10 @@ describe('event-router-service', () => {
     const subFn = mb.createMessageSubscriber().subscribe as jest.Mock;
     subFn.mockClear();
 
-    createApp();
+    const server = createServer();
 
     await new Promise((r) => setTimeout(r, 0));
+    await server.close('test');
 
     expect(subFn).toHaveBeenCalledTimes(2);
     const topics = subFn.mock.calls.map(c => c[0]);

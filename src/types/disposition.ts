@@ -46,6 +46,11 @@ export interface DispositionObservationAnalysis {
     level: DispositionRiskLevel;
     type?: string;
   };
+  entities?: {
+    text: string;
+    type: string;
+  }[];
+  topic?: string;
 }
 
 export interface DispositionObservationEventV1 {

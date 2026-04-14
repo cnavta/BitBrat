@@ -410,8 +410,12 @@ export class ToolGatewayServer extends McpServer {
   }
 }
 
+export function createServer() {
+  return new ToolGatewayServer();
+}
+
 export function createApp() {
-  const server = new ToolGatewayServer();
+  const server = createServer();
   return server.getApp();
 }
 
