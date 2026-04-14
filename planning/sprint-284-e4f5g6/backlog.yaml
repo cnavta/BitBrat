@@ -1,0 +1,102 @@
+meta:
+  backlog_id: sprint-284-e4f5g6-backlog
+  updated_at: 2026-04-14
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-284-e4f5g6
+  start: 2026-04-14
+  end: 2026-04-21
+  wip_limit: 3
+  goal: "Extend query-analyzer with tokens, entities, topics, and semantic embeddings."
+
+items:
+  - id: QA-EXT-001
+    title: "Extend QueryAnalysis Zod Schema and System Prompt"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "queryAnalysisSchema includes entities (text, type) and topic (string)"
+      - "SYSTEM_PROMPT is updated with instructions for extraction and classification"
+    updated_at: 2026-04-14
+    log:
+      - at: 2026-04-14T14:35:00Z
+        note: "Starting implementation: extending schema and prompt."
+      - at: 2026-04-14T14:40:00Z
+        note: "Completed: Updated queryAnalysisSchema and SYSTEM_PROMPT in llm-provider.ts."
+
+  - id: QA-EXT-002
+    title: "Implement Semantic Embedding Generation"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "A new utility for generating embeddings using Vercel AI SDK 'embed' is implemented"
+      - "Supports both OpenAI and Ollama based on configuration"
+    updated_at: 2026-04-14
+    log:
+      - at: 2026-04-14T14:40:00Z
+        note: "Starting implementation of semantic embedding utility."
+      - at: 2026-04-14T14:45:00Z
+        note: "Completed: Implemented generateEmbedding in llm-provider.ts."
+
+  - id: QA-EXT-003
+    title: "Update QueryAnalyzerServer for New Annotations"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [QA-EXT-001, QA-EXT-002]
+    blocked_reason: null
+    acceptance:
+      - "Server message handler calls new analysis and embedding logic"
+      - "Correctly constructs and attaches 'tokens', 'entities', 'topic', and 'semantic' annotations"
+      - "Gracefully handles provider failures"
+    updated_at: 2026-04-14
+    log:
+      - at: 2026-04-14T14:45:00Z
+        note: "Starting server update to integrate new annotations."
+      - at: 2026-04-14T14:50:00Z
+        note: "Completed: Updated QueryAnalyzerServer to include new annotations (tokens, entities, topic, semantic)."
+
+  - id: QA-EXT-004
+    title: "Enhance Firestore Prompt Logging"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-EXT-003]
+    blocked_reason: null
+    acceptance:
+      - "Firestore logs include entities, topic, and accurate tokenCount"
+    updated_at: 2026-04-14
+    log:
+      - at: 2026-04-14T14:50:00Z
+        note: "Starting enhancement of Firestore logging in llm-provider.ts."
+      - at: 2026-04-14T14:55:00Z
+        note: "Completed: Updated analyzeWithLlm to include entities, topic, and precise tokenCount in Firestore logs."
+
+  - id: QA-EXT-005
+    title: "Verification and Validation"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [QA-EXT-003, QA-EXT-004]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "New unit tests cover extended analysis"
+    updated_at: 2026-04-14
+    log:
+      - at: 2026-04-14T14:55:00Z
+        note: "Starting verification and validation phase."
+      - at: 2026-04-14T15:05:00Z
+        note: "Completed: All unit tests passed, validate_deliverable.sh confirmed success."
