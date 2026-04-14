@@ -79,19 +79,22 @@ items:
       - at: 2026-04-14T10:25:00Z
         note: "Added comprehensive tests for subheaders in assemble.spec.ts"
 
-  - id: BL-005
-    title: "Validation and PR Creation"
-    priority: P2
+  - id: BL-006
+    title: "Add subheader support for Conversation History section"
+    priority: P1
     status: done
     effort: S
     owner: agent
-    deps: [BL-001, BL-002, BL-003, BL-004]
+    deps: [BL-001, BL-002, BL-003]
     blocked_reason: null
     acceptance:
-      - "validate_deliverable.sh passes"
-      - "Verification report generated"
-      - "GitHub PR created"
+      - "ConversationState interface includes optional subheader: string"
+      - "AssemblerConfig supports default subheader for Conversation History"
+      - "renderConversationState handles subheader correctly"
+      - "Optional: Default from environment variable PROMPT_SUBHEADER_CONVERSATION_STATE"
     updated_at: 2026-04-14
     log:
-      - at: 2026-04-14T10:30:00Z
-        note: "Verified deliverables, generated reports, and preparing PR."
+      - at: 2026-04-14T12:35:00Z
+        note: "Added Conversation History subheader task as per scope change."
+      - at: 2026-04-14T12:45:00Z
+        note: "Implemented and verified with tests."

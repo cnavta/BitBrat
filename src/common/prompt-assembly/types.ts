@@ -17,6 +17,7 @@ export interface ConversationState {
     maxChars?: number; // e.g., 4000
   };
   renderMode?: "summary" | "transcript" | "both"; // default: "summary"
+  subheader?: string; // Optional descriptive text (v2.5)
 }
 
 export interface SystemPrompt {
@@ -107,6 +108,7 @@ export interface AssemblerConfig {
     requestingUser?: string;
     constraints?: string;
     task?: string;
+    conversationState?: string;
   };
 }
 

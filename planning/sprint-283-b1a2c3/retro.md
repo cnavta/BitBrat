@@ -5,6 +5,7 @@
 - **Backlog Tracking:** Updating the backlog at each stage helped maintain visibility.
 - **Incremental Implementation:** Separating type updates from rendering and defaults made the process manageable.
 - **Comprehensive Testing:** Covering all edge cases (spec vs. default vs. env) in unit tests ensured robust behavior.
+- **Scope Flexibility:** Successfully added Conversation History subheader as a follow-up request, following the established pattern.
 
 ## What Didn't Work
 - **Validation Script:** `validate_deliverable.sh` produced excessive output (likely due to global integration tests), making it hard to find the relevant results. Targeted test execution was used as a workaround.

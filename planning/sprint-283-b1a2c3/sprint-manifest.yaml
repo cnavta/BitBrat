@@ -3,7 +3,7 @@ title: "Prompt Subheader Support"
 goal: "Add optional subheader descriptive text to PromptSpec for Requesting User, Constraints, and Task sections."
 owner: "@junie"
 createdAt: "2026-04-14T10:05:00Z"
-status: "in-progress"
+status: "complete"
 links:
   branch: "feature/sprint-283-b1a2c3-prompt-subheaders"
 notes: |

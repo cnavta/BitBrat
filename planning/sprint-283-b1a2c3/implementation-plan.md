@@ -1,7 +1,7 @@
 # Implementation Plan – sprint-283-b1a2c3
 
 ## Objective
-- Add optional subheader descriptive text support for **Requesting User**, **Constraints**, and **Task** sections within the `PromptSpec` assembler.
+- Add optional subheader descriptive text support for **Requesting User**, **Constraints**, **Task**, and **Conversation History** sections within the `PromptSpec` assembler.
 
 ## Scope
 - Update `src/common/prompt-assembly/types.ts` to include subheader fields in `PromptSpec` or related sub-interfaces.
@@ -19,7 +19,7 @@
 - Updated `validate_deliverable.sh` (if necessary, though standard tests should suffice).
 
 ## Acceptance Criteria
-- [ ] `PromptSpec` includes optional fields for subheaders in Requesting User, Constraints, and Task sections.
+- [x] `PromptSpec` includes optional fields for subheaders in Requesting User, Constraints, Task, and Conversation History sections.
 - [ ] If a subheader is provided in the spec, it is rendered immediately below the section heading.
 - [ ] If a subheader is NOT provided in the spec, but exists as a global/env-var default, it is rendered.
 - [ ] Section headings and subheaders follow the specified format (e.g., `## [Section Name]` followed by subheader text).

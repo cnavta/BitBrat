@@ -1,8 +1,8 @@
 # Deliverable Verification – sprint-283-b1a2c3
 
 ## Completed
-- [x] Update `PromptSpec` and `RequestingUser` with optional subheader fields in `types.ts`
-- [x] Implement subheader rendering in `assemble.ts` for Requesting User, Constraints, and Task
+- [x] Update `PromptSpec`, `RequestingUser`, and `ConversationState` with optional subheader fields in `types.ts`
+- [x] Implement subheader rendering in `assemble.ts` for Requesting User, Constraints, Task, and Conversation History
 - [x] Support default subheaders via `AssemblerConfig` and Environment Variables (`PROMPT_SUBHEADER_*`)
 - [x] Comprehensive unit tests in `assemble.spec.ts` covering spec-provided, default, and env-var subheaders
 - [x] Verified all `prompt-assembly` tests pass
