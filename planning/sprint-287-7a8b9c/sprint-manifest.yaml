@@ -1,0 +1,12 @@
+id: sprint-287-7a8b9c
+title: "LLM Basic Tooling: getCurrentTime"
+goal: "Enable basic tool support for llm-bot starting with getCurrentTime."
+owner: "Architect"
+createdAt: "2026-04-15T08:20:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-287-7a8b9c-llm-basic-tooling"
+notes: |
+  We want to give llm-bot access to basic tooling.
+  The first tool is getCurrentTime.
+  We need a Technical Architecture document for handling basic tools.
