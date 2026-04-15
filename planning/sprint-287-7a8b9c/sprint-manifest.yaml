@@ -3,8 +3,9 @@ title: "LLM Basic Tooling: getCurrentTime"
 goal: "Enable basic tool support for llm-bot starting with getCurrentTime."
 owner: "Architect"
 createdAt: "2026-04-15T08:20:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/203"
   branch: "feature/sprint-287-7a8b9c-llm-basic-tooling"
 notes: |
   We want to give llm-bot access to basic tooling.
