@@ -6,6 +6,7 @@ import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { createGetBotStatusTool, createListAvailableToolsTool } from '../services/llm-bot/tools/internal-tools';
+import { createGetCurrentTimeTool } from '../services/llm-bot/tools/basic-tools';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
 
@@ -127,6 +128,7 @@ class LlmBotServer extends BaseServer {
     // Register internal tools
     this.registry.registerTool(createGetBotStatusTool(this.mcpManager));
     this.registry.registerTool(createListAvailableToolsTool(this.registry));
+    this.registry.registerTool(createGetCurrentTimeTool());
 
     // Initialize MCP Registry Watcher
     const gatewayUrl = this.getConfig<string>('MCP_GATEWAY_URL', { required: false });
