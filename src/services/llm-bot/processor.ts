@@ -749,7 +749,8 @@ export async function processEvent(
 
     // 7. Update Memory
     if (finalResponse) {
-      const incoming = [toHuman(combinedPrompt), toAssistant(finalResponse)];
+      const userText = evt.message?.text || combinedPrompt;
+      const incoming = [toHuman(userText), toAssistant(finalResponse)];
       try {
         await store.append(memKey, incoming as StoreMessage[]);
       } catch (e: any) {
