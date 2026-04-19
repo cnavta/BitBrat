@@ -1,0 +1,11 @@
+id: sprint-288-c4d5e6
+title: "Fix Prompt Repetition in Conversation History"
+goal: "Prevent the entire assembled prompt from being included in subsequent conversation turns to avoid massive repetition."
+owner: "Architect"
+createdAt: "2026-04-19T10:58:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-288-c4d5e6-fix-prompt-repetition"
+notes: |
+  User reported that the entire prompt is being included in the conversation history each time.
+  This likely indicates that we're adding the previously assembled prompt (including section headers like [System Prompt], etc.) to the history instead of just the user's message and the assistant's response.
