@@ -3,7 +3,7 @@ title: "Fix Prompt Repetition and Double Responses"
 goal: "Prevent massive repetition in prompts and fix the issue where every message results in two responses."
 owner: "Architect"
 createdAt: "2026-04-19T10:58:00Z"
-status: "in-progress"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/204"
   branch: "feature/sprint-288-c4d5e6-fix-prompt-repetition"
