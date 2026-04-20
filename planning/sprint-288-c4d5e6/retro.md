@@ -1,12 +1,14 @@
 # Retro – sprint-288-c4d5e6
 
 ## What Worked
-- Reproduction script quickly identified the root cause: `combinedPrompt` (instructions) was being saved as the human message in history.
-- Existing tests provided a good safety net.
-- Sprint protocol ensured clear documentation of the issue and fix.
+- Reproduction scripts quickly identified both root causes:
+    1. `combinedPrompt` (instructions) was being saved as the human message in history.
+    2. Multiple ingress clients were independently publishing the same message with unique correlation IDs.
+- Sprint protocol ensured clear documentation of the issues and fixes.
+- Amending the active sprint allowed for a cohesive fix for related issues reported in quick succession.
 
 ## What Didn't
-- Initial attempt to run the reproduction script failed due to complex types in `BaseServer`, resolved by using a simpler mock.
+- Relying on random UUIDs for correlation IDs makes deduplication difficult if multiple clients receive the same event; it is better to ensure only one client handles ingress.
 
 ## Improvements
-- Consider adding more granular tests for automated events where `evt.message.text` is missing.
+- Consider using a deterministic correlation ID based on the platform's message ID if possible, though disabling redundant ingress is the cleaner architectural fix.

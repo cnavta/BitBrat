@@ -1,11 +1,13 @@
 id: sprint-288-c4d5e6
-title: "Fix Prompt Repetition in Conversation History"
-goal: "Prevent the entire assembled prompt from being included in subsequent conversation turns to avoid massive repetition."
+title: "Fix Prompt Repetition and Double Responses"
+goal: "Prevent massive repetition in prompts and fix the issue where every message results in two responses."
 owner: "Architect"
 createdAt: "2026-04-19T10:58:00Z"
-status: "planning"
+status: "in-progress"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/204"
   branch: "feature/sprint-288-c4d5e6-fix-prompt-repetition"
 notes: |
   User reported that the entire prompt is being included in the conversation history each time.
-  This likely indicates that we're adding the previously assembled prompt (including section headers like [System Prompt], etc.) to the history instead of just the user's message and the assistant's response.
+  User also reported that every request returns two responses.
+  Root cause for double responses identified: ingress-egress service creates two clients (bot and broadcaster) that both handle ingress for the same channels.

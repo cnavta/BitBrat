@@ -10,3 +10,13 @@
   - Created reproduction script `repro_repetition.ts`
   - Confirmed bug: instructions are being saved to history instead of actual user message.
   - Created `implementation-plan.md`
+
+## [2026-04-20T10:15:00Z] - Follow-up: Double Responses
+- Prompt summary: Fix issue where two responses are returned for every request.
+- Interpretation: The ingress-egress service is publishing duplicate events to the internal bus because multiple clients (bot and broadcaster) are listening to the same channels. Since they generate unique correlationIds, they are not deduped.
+- Actions:
+  - Updated sprint manifest and implementation plan.
+  - Investigated TwitchIrcClient and DiscordIngressClient.
+  - Created reproduction script `repro_double_response.ts`.
+  - Added `disableIngress` option to clients.
+  - Updated `ingress-egress-service.ts` to use `disableIngress` for broadcaster clients.
