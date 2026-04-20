@@ -123,6 +123,7 @@ export class IngressEgressServer extends BaseServer {
         cfg,
         credentialsProvider: broadcasterCredsProvider,
         egressDestinationTopic: egressTopic,
+        disableIngress: true,
       });
     }
 
@@ -147,7 +148,7 @@ export class IngressEgressServer extends BaseServer {
 
       // Discord Broadcaster
       if (cfg.discordEnabled && cfg.discordUseTokenStore && cfg.discordBroadcasterTokenDocPath) {
-        const dBroadcasterClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic, identity: 'broadcaster' } as any, dTokenStore);
+        const dBroadcasterClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic, identity: 'broadcaster', disableIngress: true } as any, dTokenStore);
         this.discordBroadcasterClient = dBroadcasterClient;
         manager.register('discord-broadcaster', dBroadcasterClient);
       }

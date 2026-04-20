@@ -89,13 +89,14 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     private readonly builder: IEnvelopeBuilder,
     private readonly publisher: ITwitchIngressPublisher,
     private readonly channels: string[] = [],
-    options?: { cfg?: IConfig; credentialsProvider?: ITwitchCredentialsProvider; disableConnect?: boolean; egressDestinationTopic?: string; debugUsers?: string[] }
+    options?: { cfg?: IConfig; credentialsProvider?: ITwitchCredentialsProvider; disableConnect?: boolean; disableIngress?: boolean; egressDestinationTopic?: string; debugUsers?: string[] }
   ) {
     super();
     this.cfg = options?.cfg;
     this.credentialsProvider = options?.credentialsProvider;
     this.egressDestinationTopic = options?.egressDestinationTopic;
     (this as any).debugUsers = (options?.debugUsers || []).map((u: string) => u.trim().toLowerCase());
+    (this as any)._disableIngress = !!options?.disableIngress;
     // Normalize channels: prefer explicit parameter, otherwise from config, otherwise env (for backward-compatible tests)
     const fromCfg = this.cfg?.twitchChannels || [];
     const fromEnv = parseChannels(process.env.TWITCH_CHANNELS);
@@ -447,6 +448,10 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     text: string,
     meta?: Partial<Omit<IrcMessageMeta, 'channel' | 'userLogin' | 'text'>>
   ): Promise<void> {
+    if ((this as any)._disableIngress) {
+      logger.debug('Twitch IRC message ignored (ingress disabled)', { channel, userLogin });
+      return;
+    }
     this.snapshot.counters = this.snapshot.counters || {};
     // Capture a stable reference so TS understands defined-ness across async boundaries
     const counters = (this.snapshot.counters = this.snapshot.counters || {});

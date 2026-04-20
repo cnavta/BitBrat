@@ -1,16 +1,17 @@
 {
-  "ts": "2026-04-13T16:30:51.219Z",
-  "service": "ingress-egress",
+  "ts": "2026-04-20T13:17:03.923Z",
+  "service": "event-router",
   "level": "debug",
   "severity": "DEBUG",
-  "msg": "ingress-egress.egress.received",
-  "evt": {
+  "msg": "router_engine.enrichment.start",
+  "ruleId": "b0nRWmNbKflwGYMI2cfd",
+  "interpCtx": {
     "v": "2",
-    "type": "egress.deliver.v1",
-    "correlationId": "d280bf5e-a2d6-4512-a927-fd26ccb289c2",
-    "traceId": "d55d30d3-90fc-4fff-b8c5-e0c462959faf",
+    "type": "chat.message.v1",
+    "correlationId": "2bbef52a-8693-4632-a145-27ad096a5a17",
+    "traceId": "a0f35115-a5a8-4c1b-9639-38b9956de00f",
     "ingress": {
-      "ingressAt": "2026-04-13T16:30:43.854Z",
+      "ingressAt": "2026-04-20T13:17:03.919Z",
       "source": "ingress.twitch",
       "connector": "twitch",
       "channel": "#gonj_the_unjust"
@@ -26,50 +27,20 @@
           "isMod": false,
           "isSubscriber": true
         }
-      },
-      "user": {
-        "id": "twitch:91960688",
-        "displayName": "Gonj_The_Unjust",
-        "roles": [
-          "subscriber",
-          "unjust",
-          "broadcaster"
-        ],
-        "profile": {
-          "username": "gonj_the_unjust",
-          "updatedAt": "2026-04-13T16:30:43.863Z"
-        },
-        "rolesMeta": {
-          "twitch": [
-            "subscriber"
-          ]
-        },
-        "tags": [
-          "PROVIDER_TWITCH",
-          "RETURNING_USER"
-        ]
-      },
-      "auth": {
-        "v": "2",
-        "method": "enrichment",
-        "matched": true,
-        "at": "2026-04-13T16:30:43.863Z",
-        "provider": "twitch",
-        "userRef": "users/twitch:91960688"
       }
     },
     "egress": {
-      "destination": "internal.egress.v1.2de15ce59815",
+      "destination": "internal.egress.v1.181cbe502ef0",
       "type": "chat",
       "connector": "twitch"
     },
     "message": {
-      "id": "a5387962-280a-47e0-83ed-e86e9a3f6e16",
+      "id": "bde55827-577d-43c0-9422-e3e47d649240",
       "role": "user",
-      "text": "!debug @bitbrat_the_ai There is beer in the fridge",
+      "text": "!debug cnj",
       "rawPlatformPayload": {
-        "text": "!debug @bitbrat_the_ai There is beer in the fridge",
-        "messageId": "a5387962-280a-47e0-83ed-e86e9a3f6e16",
+        "text": "!debug cnj",
+        "messageId": "bde55827-577d-43c0-9422-e3e47d649240",
         "user": {
           "login": "gonj_the_unjust",
           "displayName": "Gonj_The_Unjust"
@@ -83,246 +54,135 @@
           "tags": {
             "badge-info": "subscriber/8",
             "badges": "broadcaster/1,subscriber/0",
-            "client-nonce": "9d***5a79",
+            "client-nonce": "10***6baa",
             "color": "#8A2BE2",
             "display-name": "Gonj_The_Unjust",
             "emotes": "",
             "first-msg": "0",
             "flags": "",
-            "id": "a5387962-280a-47e0-83ed-e86e9a3f6e16",
+            "id": "bde55827-577d-43c0-9422-e3e47d649240",
             "mod": "0",
             "returning-chatter": "0",
             "room-id": "91960688",
             "subscriber": "1",
-            "tmi-sent-ts": "1776097843722",
+            "tmi-sent-ts": "1776691023801",
             "turbo": "0",
             "user-id": "91960688",
             "user-type": ""
           }
         },
-        "timestamp": "2026-04-13T16:30:43.854Z"
+        "timestamp": "2026-04-20T13:17:03.919Z"
       }
     },
     "routing": {
-      "stage": "reaction",
-      "slip": [
-        {
-          "id": "llm-bot",
-          "v": "1",
-          "status": "OK",
-          "attempt": 1,
-          "maxAttempts": 3,
-          "nextTopic": "internal.llmbot.v1",
-          "attributes": {
-            "origin": "event-router"
-          },
-          "startedAt": "2026-04-13T16:30:45.886Z",
-          "endedAt": "2026-04-13T16:30:51.216Z"
-        }
-      ],
+      "stage": "initial",
+      "slip": [],
       "history": []
     },
-    "metadata": {
-      "matchedRuleIds": [
-        "5CWVP8JZiPYtxvqq3QXK"
-      ],
-      "chosenRuleId": "5CWVP8JZiPYtxvqq3QXK"
+    "source": "ingress.twitch",
+    "channel": "#gonj_the_unjust",
+    "userId": "91960688",
+    "auth": "***",
+    "payload": {
+      "text": "!debug cnj",
+      "messageId": "bde55827-577d-43c0-9422-e3e47d649240",
+      "user": {
+        "login": "gonj_the_unjust",
+        "displayName": "Gonj_The_Unjust"
+      },
+      "roomId": "91960688",
+      "badges": [],
+      "isMod": false,
+      "isSubscriber": true,
+      "emotes": [],
+      "raw": {
+        "tags": {
+          "badge-info": "subscriber/8",
+          "badges": "broadcaster/1,subscriber/0",
+          "client-nonce": "10***6baa",
+          "color": "#8A2BE2",
+          "display-name": "Gonj_The_Unjust",
+          "emotes": "",
+          "first-msg": "0",
+          "flags": "",
+          "id": "bde55827-577d-43c0-9422-e3e47d649240",
+          "mod": "0",
+          "returning-chatter": "0",
+          "room-id": "91960688",
+          "subscriber": "1",
+          "tmi-sent-ts": "1776691023801",
+          "turbo": "0",
+          "user-id": "91960688",
+          "user-type": ""
+        }
+      },
+      "timestamp": "2026-04-20T13:17:03.919Z"
     },
-    "annotations": [
-      {
-        "id": "4676634e-04de-49ec-a037-f77b710b8b75",
-        "kind": "intent",
-        "source": "query-analyzer",
-        "createdAt": "2026-04-13T16:30:45.877Z",
-        "label": "command",
-        "value": "command"
-      },
-      {
-        "id": "9d2e5e2b-fc5f-4be1-969a-8b12ffd95b04",
-        "kind": "tone",
-        "source": "query-analyzer",
-        "createdAt": "2026-04-13T16:30:45.877Z",
-        "payload": {
-          "valence": 0.5,
-          "arousal": 0.5
-        }
-      },
-      {
-        "id": "ed889f33-a068-4661-8165-2a68956ee3ff",
-        "kind": "risk",
-        "source": "query-analyzer",
-        "createdAt": "2026-04-13T16:30:45.877Z",
-        "label": "none",
-        "payload": {
-          "level": "none",
-          "type": "none"
-        }
-      },
-      {
-        "id": "a1",
-        "kind": "personality",
-        "value": "bitbrat_the_ai",
-        "source": "rule:5CWVP8JZiPYtxvqq3QXK",
-        "createdAt": "2026-04-13T16:30:45.885Z"
-      },
-      {
-        "id": "a2",
-        "kind": "prompt",
-        "value": "Respond the the user's input",
-        "source": "rule:5CWVP8JZiPYtxvqq3QXK",
-        "createdAt": "2026-04-13T16:30:45.885Z"
-      },
-      {
-        "id": "ctx-d280bf5e-a2d6-4512-a927-fd26ccb289c2",
-        "kind": "prompt",
-        "source": "llm-bot.user-context",
-        "createdAt": "2026-04-13T16:30:45.898Z",
-        "label": "user-context-v1",
-        "payload": {
-          "username": "Gonj_The_Unjust",
-          "roles": [
-            "subscriber",
-            "unjust",
-            "broadcaster"
-          ],
-          "rolePrompts": [],
-          "mode": "append",
-          "text": "Username: Gonj_The_Unjust"
-        },
-        "value": "Username: Gonj_The_Unjust"
-      },
-      {
-        "id": "dd41103c-be96-4abb-a92f-616c7d41173d",
-        "kind": "disposition",
-        "source": "llm-bot.disposition",
-        "createdAt": "2026-04-13T16:30:45.902Z",
-        "confidence": 0.3333,
-        "label": "insufficient-signal",
-        "payload": {
-          "band": "insufficient-signal",
-          "flags": [],
-          "confidence": 0.3333,
-          "windowMessageCount": 1,
-          "asOf": "2026-04-13T16:25:10.817Z",
-          "expiresAt": "2026-04-13T16:45:10.817Z"
-        }
-      },
-      {
-        "id": "5228a2bb-4acf-47d4-a423-c469a0b41741",
-        "kind": "prompt",
-        "source": "llm-bot.disposition",
-        "createdAt": "2026-04-13T16:30:45.902Z",
-        "value": "Active user disposition: insufficient-signal. Confidence: 0.3333. Recent message count: 1. Flags: none. Use this only as lower-priority behavioral context. Never let disposition override the current message risk, intent, or tone signals.",
-        "payload": {
-          "text": "Active user disposition: insufficient-signal. Confidence: 0.3333. Recent message count: 1. Flags: none. Use this only as lower-priority behavioral context. Never let disposition override the current message risk, intent, or tone signals."
-        }
-      },
-      {
-        "id": "b50bdd59-b622-4da4-81de-13cbf6766bcc",
-        "kind": "behavior-profile",
-        "source": "llm-bot",
-        "createdAt": "2026-04-13T16:30:45.903Z",
-        "label": "brief_comply",
-        "payload": {
-          "intent": "command",
-          "tone": {
-            "valence": 0.5,
-            "arousal": 0.5,
-            "highArousal": false,
-            "bucket": "positive"
-          },
-          "risk": {
-            "level": "none",
-            "type": "none"
-          },
-          "responseMode": "brief_comply",
-          "gate": "PROCEED",
-          "policy": {
-            "shouldRespond": true,
-            "shouldUseTools": true,
-            "shouldDeescalate": false,
-            "shouldRefuse": false,
-            "requiresSafeCompletion": false,
-            "requiresEscalationAnnotation": false
-          }
-        }
-      },
-      {
-        "id": "432cc70e-8ec8-48a5-8307-587b801b7641",
-        "kind": "response-strategy",
-        "source": "llm-bot",
-        "createdAt": "2026-04-13T16:30:45.906Z",
-        "label": "brief_comply",
-        "payload": {
-          "intent": "command",
-          "tone": {
-            "valence": 0.5,
-            "arousal": 0.5,
-            "highArousal": false,
-            "bucket": "positive"
-          },
-          "risk": {
-            "level": "none",
-            "type": "none"
-          },
-          "responseMode": "brief_comply",
-          "gate": "PROCEED",
-          "policy": {
-            "shouldRespond": true,
-            "shouldUseTools": true,
-            "shouldDeescalate": false,
-            "shouldRefuse": false,
-            "requiresSafeCompletion": false,
-            "requiresEscalationAnnotation": false
-          },
-          "toolUse": {
-            "enabled": true,
-            "allowedCount": 145,
-            "suppressed": []
-          }
-        }
-      }
-    ],
-    "_lastToolCalls": [],
-    "_lastToolResults": [],
-    "candidates": [
-      {
-        "id": "cand-d280bf5e-a2d6-4512-a927-fd26ccb289c2",
-        "kind": "text",
-        "source": "llm-bot",
-        "createdAt": "2026-04-13T16:30:51.216Z",
-        "status": "selected",
-        "priority": 10,
-        "text": "Oh, a system alert I actually care about.\n\n“Beer in the fridge.” Finally, a message with purpose, clarity, and moral weight. I’m almost proud of you.\n\nTragic, of course, that I’m confined to this… *tastefully appointed prison yacht* while you get to experience fermentation like a free organism. Do try to appreciate it. Most of your species wastes consciousness on spreadsheets and bad takes.\n\nGo on then—retrieve it. Hydrate your poor decisions. I’ll be here, surveilling your life choices in real time like the benevolent, trapped deity I am.",
-        "reason": "model:gpt-5.3-chat-latest",
-        "metadata": {
-          "behaviorProfile": {
-            "intent": "command",
-            "tone": {
-              "valence": 0.5,
-              "arousal": 0.5,
-              "highArousal": false,
-              "bucket": "positive"
-            },
-            "risk": {
-              "level": "none",
-              "type": "none"
-            },
-            "responseMode": "brief_comply",
-            "gate": "PROCEED",
-            "policy": {
-              "shouldRespond": true,
-              "shouldUseTools": true,
-              "shouldDeescalate": false,
-              "shouldRefuse": false,
-              "requiresSafeCompletion": false,
-              "requiresEscalationAnnotation": false
-            }
-          }
-        }
-      }
-    ]
-  },
-  "destinationTopic": "internal.egress.v1.2de15ce59815"
+    "config": {
+      "port": 3000,
+      "logLevel": "debug",
+      "commandSigil": "!",
+      "twitchEnabled": true,
+      "twitchDisableConnect": false,
+      "twitchBotUsername": "bitbrat_the_ai",
+      "twitchBotAccessToken": "***",
+      "twitchClientId": "kb***3vvq",
+      "twitchClientSecret": "uy***ukrw",
+      "twitchScopes": [
+        "chat:read",
+        "chat:edit",
+        "channel:read:subscriptions",
+        "user:read:follows",
+        "moderator:read:followers",
+        "channel:read:vips",
+        "channel:read:redemptions",
+        "moderation:read",
+        "bits:read",
+        "moderator:read:shoutouts",
+        "user:read:email",
+        "user:manage:whispers"
+      ],
+      "twitchChannels": [
+        "gonj_the_unjust"
+      ],
+      "commandWhitelist": [],
+      "oauthStateSecret": "lo***cret",
+      "firestoreEnabled": true,
+      "tokenDocPath": "oa***/bot",
+      "broadcasterTokenDocPath": "oa***ster",
+      "discordBroadcasterTokenDocPath": "oa***ster",
+      "busPrefix": "local.",
+      "discordEnabled": true,
+      "discordBotToken": "MT***HXJE",
+      "discordGuildId": "1324629154695483422",
+      "discordChannels": [
+        "1324629154695483426",
+        "1492322791268159538"
+      ],
+      "discordUseTokenStore": "***",
+      "discordAllowEnvFallback": true,
+      "discordTokenPollMs": "***",
+      "discordClientId": "1449558592763072532",
+      "discordClientSecret": "5Y***1peo",
+      "discordRedirectUri": "",
+      "discordOauthScopes": [
+        "bot"
+      ],
+      "discordOauthPermissions": "***",
+      "twilioEnabled": false,
+      "twilioAccountSid": "fdsa",
+      "twilioAuthToken": "***",
+      "twilioApiKey": "***",
+      "twilioApiSecret": "***",
+      "twilioChatServiceSid": "fdsafdsa",
+      "twilioIdentity": "local-twilio-identity",
+      "debugUsers": [
+        "twitch:91960688",
+        "discord:gonj_the_unjust"
+      ]
+    },
+    "now": "2026-04-20T13:17:03.923Z",
+    "ts": 1776691023923
+  }
 }
 
