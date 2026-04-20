@@ -38,7 +38,7 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
     private readonly builder: EnvelopeBuilder<DiscordMessageMeta>,
     private readonly publisher: IngressPublisher,
     private readonly cfg: IConfig,
-    private readonly options: { egressDestinationTopic?: string; identity?: string } = {},
+    private readonly options: { egressDestinationTopic?: string; identity?: string; disableIngress?: boolean } = {},
     private readonly tokenStore?: IAuthTokenStoreV2
   ) {
     this.identity = options.identity || 'bot';
@@ -168,6 +168,9 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
 
     this.client.on('messageCreate', async (msg: any) => {
       try {
+        if (this.options.disableIngress) {
+          return;
+        }
         // Filters: guild, channels, bot ignore, require text content
         const chId = String(msg?.channel?.id || '');
         const auId = String(msg?.author?.id || '');
