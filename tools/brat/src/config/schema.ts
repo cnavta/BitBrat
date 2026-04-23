@@ -113,7 +113,7 @@ export const ArchitectureSchema = z.object({
                 type: z.literal('object-store'),
                 implementation: z.literal('cloud-storage'),
                 description: z.string().optional(),
-                access_policy: z.enum(['private', 'public']).default('private'),
+                access_policy: z.enum(['private', 'public', 'public-preview']).default('private'),
                 location: z.string().optional(),
                 versioning: z.boolean().optional(),
                 lifecycle: z.any().optional(),
