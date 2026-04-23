@@ -2,14 +2,15 @@ import { BitBratTool, BitBratResource, BitBratPrompt } from '../../types/tools';
 import { jsonSchema } from 'ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { McpStatsCollector } from './stats-collector';
-import { ProxyInvoker } from './proxy-invoker';
+import { ProxyInvoker, ProxyInvokerOptions } from './proxy-invoker';
 
 export class McpBridge {
   constructor(
     private client: Client,
     private serverName: string,
     private stats?: McpStatsCollector,
-    private invoker?: ProxyInvoker
+    private invoker?: ProxyInvoker,
+    private invokerOptions?: ProxyInvokerOptions
   ) {}
 
   translateTool(mcpTool: { name: string; description?: string; inputSchema: any }, requiredRoles?: string[]): BitBratTool {
@@ -40,7 +41,7 @@ export class McpBridge {
         let responseSize = 0;
         try {
           const result = this.invoker
-            ? await this.invoker.invoke(this.serverName, mcpTool.name, args, this.client, context)
+            ? await this.invoker.invoke(this.serverName, mcpTool.name, args, this.client, context, this.invokerOptions)
             : await this.client.callTool({
                 name: mcpTool.name,
                 arguments: args,
@@ -97,7 +98,7 @@ export class McpBridge {
       originServer: this.serverName,
       read: async (context?: any) => {
         if (this.invoker) {
-          return await this.invoker.invokeResource(this.serverName, mcpResource.uri, this.client, context);
+          return await this.invoker.invokeResource(this.serverName, mcpResource.uri, this.client, context, this.invokerOptions);
         }
         return await this.client.readResource({ 
           uri: mcpResource.uri,
@@ -121,7 +122,7 @@ export class McpBridge {
       originServer: this.serverName,
       get: async (args: Record<string, string>, context?: any) => {
         if (this.invoker) {
-          return await this.invoker.invokePrompt(this.serverName, mcpPrompt.name, args, this.client, context);
+          return await this.invoker.invokePrompt(this.serverName, mcpPrompt.name, args, this.client, context, this.invokerOptions);
         }
         return await this.client.getPrompt({ 
           name: mcpPrompt.name, 
