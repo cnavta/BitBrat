@@ -141,7 +141,6 @@ function policyFor(
   const shouldUseTools = !highRisk
     && !mediumRisk
     && intent !== 'spam'
-    && intent !== 'joke'
     && !(intent === 'critique' && tone.highArousal)
     && risk.type !== 'privacy'
     && risk.type !== 'illegal'

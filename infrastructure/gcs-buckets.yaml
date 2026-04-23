@@ -1,0 +1,12 @@
+buckets:
+  - name: bitbrat-media-gen
+    description: "Ephemeral storage for images generated via DALL-E 3."
+    location: us-central1
+    storage_class: STANDARD
+    versioning: false
+    lifecycle_rules:
+      - action: Delete
+        condition:
+          age: 2 # days
+    access:
+      public_read: true
