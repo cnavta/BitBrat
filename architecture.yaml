@@ -277,6 +277,18 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
 
+  image-gen-mcp:
+    active: true
+    description: "MCP server for on-demand image generation using OpenAI DALL-E 3."
+    entry: src/services/image-gen-mcp/index.ts
+    secrets:
+      - OPENAI_API_KEY
+      - MCP_AUTH_TOKEN
+    env:
+      - MCP_TRANSPORT
+      - GCS_BUCKET_NAME
+      - IMAGE_GEN_RATE_LIMIT_MS
+
 infrastructure:
   target: gcp
   resources:
@@ -285,6 +297,16 @@ infrastructure:
       implementation: cloud-storage
       description: Static assets for the default website.
       access_policy: private
+
+    bitbrat-media-gen:
+      type: object-store
+      implementation: cloud-storage
+      description: Ephemeral storage for generated images.
+      access_policy: public-preview
+      lifecycle:
+        rules:
+          - action: Delete
+            age: 2
 
     main-load-balancer:
       type: load-balancer

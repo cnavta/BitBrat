@@ -1,0 +1,12 @@
+id: sprint-289-7d8f9e
+title: "Image Generation Capabilities"
+goal: "Add image generation capabilities to the BitBrat Platform via an Image Generation MCP Server."
+owner: "Lead Architect"
+createdAt: "2026-04-22T22:33:00Z"
+status: "complete"
+links:
+  pr: null
+  branch: "feature/sprint-289-7d8f9e-image-generation"
+notes: |
+  Following the "Image MCP" pattern recommended in the architect recommendation.
+  Integration with OpenAI DALL-E 3 and Google Cloud Storage.

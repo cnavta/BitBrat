@@ -20,8 +20,13 @@ export function getLlmProvider(config: LlmProviderConfig) {
   const baseURL = config.baseURL === 'n/a' || config.baseURL === '' ? undefined : config.baseURL;
 
   switch (provider.toLowerCase()) {
-    case 'openai':
-      return createOpenAI({ baseURL, apiKey })(model);
+    case 'openai': {
+      const providerInstance = createOpenAI({ baseURL, apiKey });
+      if (model.startsWith('dall-e')) {
+        return providerInstance.image(model) as any;
+      }
+      return providerInstance(model);
+    }
     case 'vllm':
       // vLLM is OpenAI-compatible. Default baseURL if not provided.
       return createOpenAI({

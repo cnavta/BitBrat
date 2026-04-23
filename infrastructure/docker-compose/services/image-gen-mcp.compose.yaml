@@ -1,0 +1,30 @@
+services:
+  image-gen-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.image-gen-mcp
+    ports:
+      - "${IMAGE_GEN_MCP_HOST_PORT:-8080}:${SERVICE_PORT:-8080}"
+    environment:
+      - NODE_ENV=local
+      - BITBRAT_ENV=local
+      - PORT=${SERVICE_PORT:-8080}
+      - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
+    env_file:
+      - .env.local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_PORT:-8080}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
+    depends_on:
+      nats:
+        condition: service_healthy
+      firebase-emulator:
+        condition: service_healthy
+    networks:
+      bitbrat-network:
+        aliases:
+          - image-gen-mcp.bitbrat.local
