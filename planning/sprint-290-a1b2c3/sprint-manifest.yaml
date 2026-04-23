@@ -1,0 +1,11 @@
+id: sprint-290-a1b2c3
+title: "MCP Server Config Overrides"
+goal: "Allow timeoutMs, failureThreshold and resetTimeoutMs to be specified in the MCP server's Firestore document."
+owner: "Lead Implementor"
+createdAt: "2026-04-23T15:45:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/BitBratPlatform/BitBratPlatform/pull/290"
+  branch: "feature/sprint-290-a1b2c3-mcp-config-overrides"
+notes: |
+  Enables per-MCP server resilience settings via Firestore documents.
