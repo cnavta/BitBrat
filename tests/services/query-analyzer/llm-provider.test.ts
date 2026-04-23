@@ -1,4 +1,4 @@
-import { analyzeWithLlm, SYSTEM_PROMPT } from '../../../src/services/query-analyzer/llm-provider';
+import { analyzeWithLlm, generateEmbedding, SYSTEM_PROMPT } from '../../../src/services/query-analyzer/llm-provider';
 import { getLlmProvider } from '../../../src/common/llm/provider-factory';
 import * as ai from 'ai';
 import { getFirestore } from '../../../src/common/firebase';
@@ -6,15 +6,24 @@ import { features } from '../../../src/common/feature-flags';
 
 jest.mock('ai', () => ({
   generateObject: jest.fn(),
+  embed: jest.fn(),
 }));
 
-jest.mock('ai-sdk-ollama', () => ({
-  createOllama: jest.fn(() => jest.fn(() => ({}))),
-}));
+jest.mock('ai-sdk-ollama', () => {
+  const mockProvider = jest.fn().mockReturnValue({});
+  (mockProvider as any).embedding = jest.fn().mockReturnValue({});
+  return {
+    createOllama: jest.fn(() => mockProvider),
+  };
+});
 
-jest.mock('@ai-sdk/openai', () => ({
-  createOpenAI: jest.fn(() => jest.fn(() => ({}))),
-}));
+jest.mock('@ai-sdk/openai', () => {
+  const mockProvider = jest.fn().mockReturnValue({});
+  (mockProvider as any).embedding = jest.fn().mockReturnValue({});
+  return {
+    createOpenAI: jest.fn(() => mockProvider),
+  };
+});
 
 jest.mock('../../../src/common/firebase', () => ({
   getFirestore: jest.fn(),
@@ -113,6 +122,32 @@ describe('llm-provider', () => {
     expect(result).toBeNull();
     expect(mockLogger.error).toHaveBeenCalledWith('query-analyzer.llm_provider_error', expect.objectContaining({
       error: 'AI error'
+    }));
+  });
+
+  it('should call embed with correct parameters', async () => {
+    const mockEmbedding = [0.1, 0.2, 0.3];
+    (ai.embed as jest.Mock).mockResolvedValue({ embedding: mockEmbedding });
+
+    const result = await generateEmbedding('hello', { providerName: 'openai', modelName: 'text-embedding-3-small' });
+
+    expect(ai.embed).toHaveBeenCalledWith(expect.objectContaining({
+      model: expect.anything(),
+      value: 'hello',
+    }));
+    expect(result).toEqual(mockEmbedding);
+  });
+
+  it('should return null and log error when embed fails', async () => {
+    const mockLogger = { error: jest.fn(), info: jest.fn() };
+    (ai.embed as jest.Mock).mockRejectedValue(new Error('Embedding error'));
+
+    const result = await generateEmbedding('error', { logger: mockLogger, correlationId: 'err-corr' });
+
+    expect(result).toBeNull();
+    expect(mockLogger.error).toHaveBeenCalledWith('query-analyzer.embedding_error', expect.objectContaining({
+      error: 'Embedding error',
+      correlationId: 'err-corr'
     }));
   });
 

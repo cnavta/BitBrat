@@ -163,6 +163,7 @@ export async function generateEmbedding(
       model: modelName,
       baseURL: process.env.LLM_BASE_URL,
       apiKey: process.env.LLM_API_KEY,
+      kind: 'embedding',
     });
 
     const result = await embed({
