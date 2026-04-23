@@ -1,0 +1,79 @@
+meta:
+  backlog_id: sprint-290-a1b2c3-backlog
+  updated_at: 2026-04-23
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-290-a1b2c3
+  start: 2026-04-23
+  end: 2026-04-30
+  wip_limit: 2
+  goal: "Enable per-MCP server resilience overrides via Firestore"
+
+items:
+  - id: BL-290-001
+    title: "Update McpServerConfig and types"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "McpServerConfig includes timeoutMs, failureThreshold, resetTimeoutMs"
+    updated_at: 2026-04-23
+    log:
+      - at: 2026-04-23T15:50:00Z
+        note: "Starting implementation: updating types."
+      - at: 2026-04-23T15:52:00Z
+        note: "Completed: updated McpServerConfig in types.ts."
+
+  - id: BL-290-002
+    title: "Update ProxyInvoker for per-call overrides"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "ProxyInvoker.invoke accepts optional options override"
+      - "Circuit breaker uses overrides for threshold and reset timeout"
+      - "Timeouts use overrides"
+    updated_at: 2026-04-23
+    log:
+      - at: 2026-04-23T15:52:00Z
+        note: "Starting implementation: updating ProxyInvoker."
+      - at: 2026-04-23T15:55:00Z
+        note: "Completed: ProxyInvoker methods now accept optionsOverride and use them in wrapCall."
+
+  - id: BL-290-003
+    title: "Update McpBridge to propagate config"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-290-001, BL-290-002]
+    acceptance:
+      - "McpBridge passes server-specific options to invoker"
+    updated_at: 2026-04-23
+    log:
+      - at: 2026-04-23T15:55:00Z
+        note: "Starting implementation: updating McpBridge."
+      - at: 2026-04-23T15:58:00Z
+        note: "Completed: McpBridge and McpClientManager updated to propagate config."
+
+  - id: BL-290-004
+    title: "Validation and Testing"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-290-003]
+    acceptance:
+      - "Unit tests cover override logic"
+      - "validate_deliverable.sh passes"
+    updated_at: 2026-04-23
+    log:
+      - at: 2026-04-23T15:58:00Z
+        note: "Starting validation and testing phase."
+      - at: 2026-04-23T16:05:00Z
+        note: "Completed: All tests passed, validation script passed."
