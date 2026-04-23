@@ -1,0 +1,13 @@
+id: sprint-291-b4f2a7
+title: "Twitch Egress Bugfixes and Cleanup"
+goal: "Fix Twitch newline rendering and ignore egress events with no candidates."
+owner: "Lead Implementor"
+createdAt: "2026-04-23T17:40:00Z"
+status: "planning"
+links:
+  pr: null
+  branch: "feature/sprint-291-b4f2a7-twitch-egress-bugfixes-cleanup"
+notes: |
+  Bug fix and cleanup sprint addressing:
+  - Twitch newline pre-processing
+  - Egress handling for events with no candidates

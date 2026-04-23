@@ -388,6 +388,12 @@ export class IngressEgressServer extends BaseServer {
 
       const text = extractEgressTextFromEvent(evtForDelivery);
       if (!text) {
+        // If candidates are present but none selected, or it's an egress event with no candidates,
+        // we should IGNORE rather than FAIL to avoid unwanted retries/DLQ for intentional "no response".
+        if (evt?.egress || (Array.isArray(evt?.candidates) && evt.candidates.length === 0)) {
+          logger.info('ingress-egress.egress.no_candidates_ignored', { correlationId: evt?.correlationId });
+          return 'IGNORED';
+        }
         logger.warn('ingress-egress.egress.invalid_payload', { correlationId: evt?.correlationId });
         return 'FAILED';
       }
