@@ -9,6 +9,9 @@ export interface McpServerConfig {
   toolPrefix?: string;
   agentAllowlist?: string[];
   status?: 'active' | 'inactive';
+  timeoutMs?: number;
+  failureThreshold?: number;
+  resetTimeoutMs?: number;
 }
 
 export interface SessionContext {
