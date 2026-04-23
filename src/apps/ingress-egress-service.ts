@@ -390,7 +390,8 @@ export class IngressEgressServer extends BaseServer {
       if (!text) {
         // If candidates are present but none selected, or it's an egress event with no candidates,
         // we should IGNORE rather than FAIL to avoid unwanted retries/DLQ for intentional "no response".
-        if (evt?.egress || (Array.isArray(evt?.candidates) && evt.candidates.length === 0)) {
+        // We use evt.message as a guard to only apply this to V2 events that should have candidates.
+        if ((evt?.egress && evt.message) || (Array.isArray(evt?.candidates) && evt.candidates.length === 0)) {
           logger.info('ingress-egress.egress.no_candidates_ignored', { correlationId: evt?.correlationId });
           return 'IGNORED';
         }
