@@ -820,7 +820,7 @@ variable "environment" {
     const bucketName = `${key}-${environment}`;
     bucketNames.push(bucketName);
 
-    const iamConfig = access === 'public'
+    const iamConfig = (access === 'public' || access === 'public-preview')
       ? `\n  iam_configuration {\n    uniform_bucket_level_access = true\n  }`
       : '';
 
@@ -833,7 +833,7 @@ variable "environment" {
       `resource "google_storage_bucket" "${resName}" {\n  name     = "${bucketName}"\n  location = "${location}"${versioningBlock}${iamConfig}${lifecycleBlock}${labelsBlock}\n}`
     );
 
-    if (access === 'public') {
+    if (access === 'public' || access === 'public-preview') {
       publicIamBindings.push(
         `resource "google_storage_bucket_iam_member" "public_${key}" {\n  bucket = google_storage_bucket.${resName}.name\n  role   = "roles/storage.objectViewer"\n  member = "allUsers"\n}`
       );

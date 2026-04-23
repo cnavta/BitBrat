@@ -492,9 +492,15 @@ export class BaseServer {
   }
 
   private registerHealth(healthPaths?: string[], readinessCheck?: () => boolean | Promise<boolean>) {
-    const [health, ready, live] = healthPaths && healthPaths.length >= 3
-      ? healthPaths
-      : ['/healthz', '/readyz', '/livez'];
+    let health = '/healthz';
+    let ready = '/readyz';
+    let live = '/livez';
+
+    if (healthPaths && healthPaths.length > 0) {
+      health = healthPaths[0];
+      ready = healthPaths[1] || health;
+      live = healthPaths[2] || health;
+    }
 
     this.app.get(health, (_req: Request, res: Response) => {
       res.status(200).json(this.buildHealthBody());
