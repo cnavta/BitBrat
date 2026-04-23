@@ -20,7 +20,7 @@ describe('extractEgressTextFromEvent', () => {
     expect(extractEgressTextFromEvent(evt)).toBe('original message');
   });
 
-  it('returns null if candidates is missing and it is an egress event', () => {
+  it('returns null if candidates is missing and it is an egress event with a V2 message block', () => {
     const evt = {
       egress: { connector: 'twitch' },
       message: {
@@ -30,5 +30,22 @@ describe('extractEgressTextFromEvent', () => {
       }
     };
     expect(extractEgressTextFromEvent(evt)).toBeNull();
+  });
+
+  it('falls back to payload.text if message is missing even if egress is present (hybrid/legacy test cases)', () => {
+    const evt = {
+      v: '2',
+      egress: { destination: 'discord' },
+      payload: { text: 'hybrid message' }
+    };
+    expect(extractEgressTextFromEvent(evt)).toBe('hybrid message');
+  });
+
+  it('falls back to payload.text for pure V1 legacy events', () => {
+    const evt = {
+      egress: { destination: 'discord' },
+      payload: { text: 'legacy message' }
+    };
+    expect(extractEgressTextFromEvent(evt)).toBe('legacy message');
   });
 });

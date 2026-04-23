@@ -69,9 +69,10 @@ export function extractEgressTextFromEvent(evt: InternalEventV2 | any): string |
        return null;
     }
 
-    // If it's an egress event (has egress block), we should NOT fall back to legacy message
-    // as it likely contains the original input message, not a generated response.
-    if (evt && evt.egress) {
+    // If it's a V2 egress event (has egress block and standard V2 message or candidates),
+    // we should NOT fall back to legacy message if we don't have a valid candidate.
+    // We check for evt.message as it is the anchor of the V2 structure.
+    if (evt && evt.egress && (evt.message || Array.isArray(evt.candidates))) {
       return null;
     }
 
