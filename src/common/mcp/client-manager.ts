@@ -153,7 +153,11 @@ export class McpClientManager {
       if (t) { clearTimeout(t); this.reconnectTimers.delete(config.name); }
       this.reconnectAttempts.delete(config.name);
 
-      const bridge = new McpBridge(client, config.name, this.stats, this.invoker);
+      const bridge = new McpBridge(client, config.name, this.stats, this.invoker, {
+        timeoutMs: config.timeoutMs,
+        failureThreshold: config.failureThreshold,
+        resetTimeoutMs: config.resetTimeoutMs
+      });
       this.bridges.set(config.name, bridge);
 
       // Initial discovery
