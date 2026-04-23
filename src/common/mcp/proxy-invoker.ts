@@ -36,15 +36,15 @@ export class ProxyInvoker {
   private circuitBreakers: Map<string, CircuitState> = new Map();
 
   constructor(private options: ProxyInvokerOptions = {}) {
-    this.options.timeoutMs = this.options.timeoutMs || 15000;
-    this.options.failureThreshold = this.options.failureThreshold || 5;
-    this.options.resetTimeoutMs = this.options.resetTimeoutMs || 30000;
+    this.options.timeoutMs = this.options.timeoutMs || 60000;
+    this.options.failureThreshold = this.options.failureThreshold || 2;
+    this.options.resetTimeoutMs = this.options.resetTimeoutMs || 120000;
   }
 
   /**
    * Invokes a tool on an upstream MCP server with resilience patterns.
    */
-  async invoke(serverName: string, toolName: string, args: any, client: Client, context?: ToolExecutionContext): Promise<CallToolResult> {
+  async invoke(serverName: string, toolName: string, args: any, client: Client, context?: ToolExecutionContext, optionsOverride?: ProxyInvokerOptions): Promise<CallToolResult> {
     const start = Date.now();
     try {
       const result = await this.wrapCall(serverName, `tool:${toolName}`, () => 
@@ -52,7 +52,8 @@ export class ProxyInvoker {
           name: toolName, 
           arguments: args,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any, CallToolResultSchema)
+        } as any, CallToolResultSchema),
+        optionsOverride
       );
       void McpObservability.recordCall(serverName, toolName, Date.now() - start, false, context);
       return result as CallToolResult;
@@ -65,14 +66,15 @@ export class ProxyInvoker {
   /**
    * Reads a resource from an upstream MCP server with resilience patterns.
    */
-  async invokeResource(serverName: string, uri: string, client: Client, context?: ToolExecutionContext): Promise<ReadResourceResult> {
+  async invokeResource(serverName: string, uri: string, client: Client, context?: ToolExecutionContext, optionsOverride?: ProxyInvokerOptions): Promise<ReadResourceResult> {
     const start = Date.now();
     try {
       const result = await this.wrapCall(serverName, `resource:${uri}`, () =>
         client.readResource({ 
           uri,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any)
+        } as any),
+        optionsOverride
       );
       void McpObservability.recordCall(serverName, `resource:${uri}`, Date.now() - start, false, context);
       return result as ReadResourceResult;
@@ -85,7 +87,7 @@ export class ProxyInvoker {
   /**
    * Gets a prompt from an upstream MCP server with resilience patterns.
    */
-  async invokePrompt(serverName: string, promptName: string, args: Record<string, string>, client: Client, context?: ToolExecutionContext): Promise<GetPromptResult> {
+  async invokePrompt(serverName: string, promptName: string, args: Record<string, string>, client: Client, context?: ToolExecutionContext, optionsOverride?: ProxyInvokerOptions): Promise<GetPromptResult> {
     const start = Date.now();
     try {
       const result = await this.wrapCall(serverName, `prompt:${promptName}`, () =>
@@ -93,7 +95,8 @@ export class ProxyInvoker {
           name: promptName, 
           arguments: args,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
-        } as any)
+        } as any),
+        optionsOverride
       );
       void McpObservability.recordCall(serverName, `prompt:${promptName}`, Date.now() - start, false, context);
       return result as GetPromptResult;
@@ -106,14 +109,18 @@ export class ProxyInvoker {
   private async wrapCall<T>(
     serverName: string, 
     operationId: string, 
-    callFn: () => Promise<T>
+    callFn: () => Promise<T>,
+    optionsOverride?: ProxyInvokerOptions
   ): Promise<T> {
     const cb = this.getCircuitBreaker(serverName);
+    const timeoutMs = optionsOverride?.timeoutMs || this.options.timeoutMs!;
+    const failureThreshold = optionsOverride?.failureThreshold || this.options.failureThreshold!;
+    const resetTimeoutMs = optionsOverride?.resetTimeoutMs || this.options.resetTimeoutMs!;
 
     // Check circuit status
     if (cb.state === 'OPEN') {
       const now = Date.now();
-      if (now - (cb.lastFailureAt || 0) > this.options.resetTimeoutMs!) {
+      if (now - (cb.lastFailureAt || 0) > resetTimeoutMs) {
         cb.state = 'HALF_OPEN';
       } else {
         throw new Error(`Circuit breaker is OPEN for server: ${serverName}`);
@@ -125,8 +132,8 @@ export class ProxyInvoker {
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(
-        () => reject(new Error(`Timeout invoking ${operationId} on server ${serverName} after ${this.options.timeoutMs}ms`)),
-        this.options.timeoutMs
+        () => reject(new Error(`Timeout invoking ${operationId} on server ${serverName} after ${timeoutMs}ms`)),
+        timeoutMs
       );
     });
 
@@ -136,7 +143,7 @@ export class ProxyInvoker {
 
       // Reset on success or handle tool-reported error
       if (result && typeof result === 'object' && (result as any).isError) {
-        this.recordFailure(serverName);
+        this.recordFailure(serverName, failureThreshold);
       } else {
         this.recordSuccess(serverName);
       }
@@ -144,7 +151,7 @@ export class ProxyInvoker {
       return result as T;
     } catch (error: any) {
       // Transport failure, timeout, or server crash
-      this.recordFailure(serverName);
+      this.recordFailure(serverName, failureThreshold);
       throw error;
     }
   }
@@ -165,12 +172,12 @@ export class ProxyInvoker {
     return cb;
   }
 
-  private recordFailure(serverName: string) {
+  private recordFailure(serverName: string, failureThreshold: number) {
     const cb = this.getCircuitBreaker(serverName);
     cb.consecutiveFailures++;
     cb.lastFailureAt = Date.now();
 
-    if (cb.consecutiveFailures >= this.options.failureThreshold!) {
+    if (cb.consecutiveFailures >= failureThreshold) {
       cb.state = 'OPEN';
     }
   }
