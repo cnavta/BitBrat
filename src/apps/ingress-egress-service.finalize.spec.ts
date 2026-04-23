@@ -100,4 +100,35 @@ describe('ingress-egress finalize publish', () => {
     expect(Array.isArray(last.event?.annotations)).toBe(true);
     expect(last.event.annotations[0]?.id).toBe('a1');
   });
+
+  test('ignores egress event with empty candidates', async () => {
+    const h = handlers.find((x) => String(x.destination || '').startsWith('internal.egress.v1.'));
+    expect(h).toBeTruthy();
+    
+    const ack = jest.fn(async () => {});
+    const ctx = { ack };
+    const evt = {
+      correlationId: 'fx-empty',
+      egress: { connector: 'twitch' },
+      candidates: [],
+    };
+    
+    const twitch = require('../services/ingress/twitch');
+    const originalSend = twitch.TwitchIrcClient.prototype.sendText;
+    twitch.TwitchIrcClient.prototype.sendText = jest.fn(async () => {});
+    
+    try {
+      await h!.handler(evt, {}, ctx);
+    } finally {
+      twitch.TwitchIrcClient.prototype.sendText = originalSend;
+    }
+    
+    expect(ack).toHaveBeenCalled();
+    
+    // Check logs for the IGNORED message
+    // Since we don't easily have access to logger mocks here without more setup,
+    // we can check that no new finalize publishes happened with our correlationId
+    const ourFinalize = finalizePublishes.find(p => p.payload.correlationId === 'fx-empty');
+    expect(ourFinalize).toBeUndefined();
+  });
 });

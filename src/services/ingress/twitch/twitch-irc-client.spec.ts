@@ -86,6 +86,25 @@ describe('TwitchIrcClient integration scaffolding', () => {
     expect(publishedEvt.egress.type).toBe('chat');
   });
 
+  describe('sendText', () => {
+    it('splits multiline text into multiple say calls', async () => {
+      const client = new TwitchIrcClient(builder, publisher, ['chan']);
+      await client.start();
+      
+      const mockChat = {
+        say: jest.fn().mockResolvedValue(undefined),
+      };
+      (client as any).chat = mockChat;
+
+      await client.sendText("Line 1\nLine 2\r\nLine 3", "chan");
+
+      expect(mockChat.say).toHaveBeenCalledTimes(3);
+      expect(mockChat.say).toHaveBeenNthCalledWith(1, "#chan", "Line 1");
+      expect(mockChat.say).toHaveBeenNthCalledWith(2, "#chan", "Line 2");
+      expect(mockChat.say).toHaveBeenNthCalledWith(3, "#chan", "Line 3");
+    });
+  });
+
   describe('sendWhisper', () => {
     it('sends whisper via helix client when connected', async () => {
       const client = new TwitchIrcClient(builder, publisher, ['chan']);
