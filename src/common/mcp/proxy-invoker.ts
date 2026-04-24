@@ -6,19 +6,23 @@ import { McpObservability } from './observability';
 export interface ProxyInvokerOptions {
   /**
    * Maximum time (in ms) to wait for a tool invocation to complete.
-   * Default: 15000 (15 seconds)
+   * Default: 60000 (60 seconds)
    */
   timeoutMs?: number;
   /**
    * Number of consecutive failures before opening the circuit for a server.
-   * Default: 5
+   * Default: 2
    */
   failureThreshold?: number;
   /**
    * Time (in ms) to wait after opening a circuit before attempting to half-open.
-   * Default: 30000 (30 seconds)
+   * Default: 120000 (120 seconds)
    */
   resetTimeoutMs?: number;
+  /**
+   * Optional logger for recording timeout and circuit breaker events.
+   */
+  logger?: any;
 }
 
 export interface CircuitState {
@@ -53,7 +57,8 @@ export class ProxyInvoker {
           arguments: args,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
         } as any, CallToolResultSchema),
-        optionsOverride
+        optionsOverride,
+        context
       );
       void McpObservability.recordCall(serverName, toolName, Date.now() - start, false, context);
       return result as CallToolResult;
@@ -74,7 +79,8 @@ export class ProxyInvoker {
           uri,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
         } as any),
-        optionsOverride
+        optionsOverride,
+        context
       );
       void McpObservability.recordCall(serverName, `resource:${uri}`, Date.now() - start, false, context);
       return result as ReadResourceResult;
@@ -96,7 +102,8 @@ export class ProxyInvoker {
           arguments: args,
           _meta: context ? { userRoles: context.userRoles, userId: context.userId } : undefined
         } as any),
-        optionsOverride
+        optionsOverride,
+        context
       );
       void McpObservability.recordCall(serverName, `prompt:${promptName}`, Date.now() - start, false, context);
       return result as GetPromptResult;
@@ -110,12 +117,14 @@ export class ProxyInvoker {
     serverName: string, 
     operationId: string, 
     callFn: () => Promise<T>,
-    optionsOverride?: ProxyInvokerOptions
+    optionsOverride?: ProxyInvokerOptions,
+    context?: ToolExecutionContext
   ): Promise<T> {
     const cb = this.getCircuitBreaker(serverName);
     const timeoutMs = optionsOverride?.timeoutMs || this.options.timeoutMs!;
     const failureThreshold = optionsOverride?.failureThreshold || this.options.failureThreshold!;
     const resetTimeoutMs = optionsOverride?.resetTimeoutMs || this.options.resetTimeoutMs!;
+    const logger = optionsOverride?.logger || this.options.logger;
 
     // Check circuit status
     if (cb.state === 'OPEN') {
@@ -123,7 +132,9 @@ export class ProxyInvoker {
       if (now - (cb.lastFailureAt || 0) > resetTimeoutMs) {
         cb.state = 'HALF_OPEN';
       } else {
-        throw new Error(`Circuit breaker is OPEN for server: ${serverName}`);
+        const error = new Error(`Circuit breaker is OPEN for server: ${serverName}`);
+        logger?.warn?.('mcp.proxy_invoker.circuit_open', { serverName, operationId });
+        throw error;
       }
     }
 
@@ -131,10 +142,25 @@ export class ProxyInvoker {
     const invokePromise = callFn();
 
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
-        () => reject(new Error(`Timeout invoking ${operationId} on server ${serverName} after ${timeoutMs}ms`)),
-        timeoutMs
-      );
+      const timer = setTimeout(() => {
+        const error = new Error(`Upstream Timeout: Invoking ${operationId} on server ${serverName} exceeded ${timeoutMs}ms`);
+        logger?.error?.('mcp.proxy_invoker.upstream_timeout', { serverName, operationId, timeoutMs });
+        reject(error);
+      }, timeoutMs);
+
+      if (context?.signal) {
+        if (context.signal.aborted) {
+          clearTimeout(timer);
+          reject(new Error(`Caller Abort: Invocation of ${operationId} on server ${serverName} was already aborted`));
+        } else {
+          context.signal.addEventListener('abort', () => {
+            clearTimeout(timer);
+            const error = new Error(`Caller Abort: Invocation of ${operationId} on server ${serverName} aborted by caller`);
+            logger?.warn?.('mcp.proxy_invoker.caller_abort', { serverName, operationId });
+            reject(error);
+          }, { once: true });
+        }
+      }
     });
 
     try {
