@@ -155,11 +155,6 @@ export class ImageGenMcpServer extends McpServer {
                 type: 'text',
                 text: `Image generated and persisted! URL: ${publicUrl}\n\nNote: This link is ephemeral and will expire in 48 hours.`,
               },
-              {
-                type: 'image',
-                data: genResult.image.base64 || '',
-                mimeType: 'image/png',
-              }
             ],
           };
         } catch (error: any) {
