@@ -1,0 +1,13 @@
+id: sprint-292-a1b2c3
+title: "Fix Egress Regressions and Test Failures"
+goal: "Fix regressions in egress candidate selection and message extraction causing test failures."
+owner: "Lead Implementor"
+createdAt: "2026-04-23T18:00:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/209"
+  branch: "feature/sprint-292-a1b2c3-fix-egress-regressions"
+notes: |
+  Regression fix for sprint-291-b4f2a7. 
+  - Restoring legacy fallback for events without candidates.
+  - Ensuring FAILED status for configuration/metadata errors in egress.
