@@ -3,8 +3,9 @@ title: "MCP Timeout Coordination Implementation"
 goal: "Synchronize timeout layers across the MCP tool invocation path to resolve zombie executions and failed interactions."
 owner: "Lead Implementer"
 createdAt: "2026-04-24T12:55:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/212"
   branch: "feature/sprint-295-b6c8d1-mcp-timeout-coordination"
 notes: |
   Implementation of the hierarchical timeout strategy defined in the TA document.
