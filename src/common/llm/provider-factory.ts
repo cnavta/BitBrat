@@ -9,6 +9,7 @@ export interface LlmProviderConfig {
   model: string;
   baseURL?: string;
   apiKey?: string;
+  kind?: 'language' | 'embedding';
 }
 
 /**
@@ -16,7 +17,7 @@ export interface LlmProviderConfig {
  * Centralizes the instantiation logic for OpenAI, Ollama, and vLLM (OpenAI-compatible).
  */
 export function getLlmProvider(config: LlmProviderConfig) {
-  const { provider, model, apiKey } = config;
+  const { provider, model, apiKey, kind = 'language' } = config;
   const baseURL = config.baseURL === 'n/a' || config.baseURL === '' ? undefined : config.baseURL;
 
   switch (provider.toLowerCase()) {
@@ -25,18 +26,31 @@ export function getLlmProvider(config: LlmProviderConfig) {
       if (model.startsWith('dall-e')) {
         return providerInstance.image(model) as any;
       }
+      if (kind === 'embedding') {
+        return providerInstance.embedding(model);
+      }
       return providerInstance(model);
     }
-    case 'vllm':
+    case 'vllm': {
       // vLLM is OpenAI-compatible. Default baseURL if not provided.
-      return createOpenAI({
+      const providerInstance = createOpenAI({
         baseURL: baseURL || 'http://localhost:8000/v1',
         apiKey: apiKey || 'vllm-not-required',
-      })(model);
-    case 'ollama':
-      return createOllama({
+      });
+      if (kind === 'embedding') {
+        return providerInstance.embedding(model);
+      }
+      return providerInstance(model);
+    }
+    case 'ollama': {
+      const providerInstance = createOllama({
         baseURL: baseURL ? `${baseURL}/api` : undefined,
-      })(model);
+      });
+      if (kind === 'embedding') {
+        return providerInstance.embedding(model);
+      }
+      return providerInstance(model);
+    }
     default:
       throw new Error(`Unsupported LLM provider: ${provider}`);
   }
