@@ -116,14 +116,9 @@ describe('llm-bot processor — Prompt Logging', () => {
 
   test('fail-soft: continues execution even if Firestore write fails', async () => {
     features.setOverride('llm.promptLogging.enabled', 'true');
-    const logger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
-    const server = {
-        getConfig: (key: string, opts?: any) => {
-            if (key === 'OPENAI_MODEL') return 'gpt-5-mini';
-            return undefined;
-        },
-        getLogger: () => logger
-    } as any;
+    const server = new StubServer() as any;
+    const logger = server.getLogger();
+    server.getLogger = () => logger;
     
     mockAdd.mockRejectedValue(new Error('Firestore Down'));
     
