@@ -1,0 +1,12 @@
+id: sprint-294-d2e3f4
+title: "MCP Timeout Coordination Analysis & Architecture"
+goal: "Analyze uncoordinated timeouts in MCP tool calls and design a hierarchical timeout strategy."
+owner: "Lead Implementor"
+createdAt: "2026-04-24T12:50:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/211"
+  branch: "feature/sprint-294-d2e3f4-mcp-timeout-architecture"
+notes: |
+  This is a Planning/Discovery sprint focused on documentation and architectural design.
+  The implementation phase will be handled in a subsequent sprint.
