@@ -1,0 +1,46 @@
+items:
+  - id: BL-IMAGE-001
+    title: "Investigate image-gen-mcp timeout"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Root cause of timeout identified"
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:43:00Z
+        note: "Checking for large payload issues or response hangs."
+      - at: 2026-04-24T13:55:00Z
+        note: "Identified large base64 payload as root cause. It is currently unused by llm-bot but sent over the wire."
+
+  - id: BL-IMAGE-002
+    title: "Implement fix for image-gen-mcp timeout"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-IMAGE-001]
+    blocked_reason: null
+    acceptance:
+      - "Image generation returns successfully to llm-bot"
+      - "Large images handled without timeout"
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:56:00Z
+        note: "Removed base64 image data from generate_image tool response."
+
+  - id: BL-IMAGE-003
+    title: "Verify fix with large payloads"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-IMAGE-002]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+    updated_at: 2026-04-24
+    log: []

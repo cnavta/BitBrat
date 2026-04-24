@@ -1,0 +1,12 @@
+id: sprint-296-a2b3c4
+title: "Fix Image Generation MCP Timeout"
+goal: "Investigate and resolve the timeout issue in image-gen-mcp where large image payloads may be causing hangs in the return path."
+owner: "Junie"
+createdAt: "2026-04-24T13:40:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/213"
+  branch: "feature/sprint-296-a2b3c4-fix-image-gen-timeout"
+notes: |
+  User reports that image generation succeeds and persists to GCS, but the request times out in llm-bot.
+  Initial analysis suggests the large base64 image in the tool response might be the culprit.
