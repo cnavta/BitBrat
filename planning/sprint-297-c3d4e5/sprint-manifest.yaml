@@ -3,8 +3,9 @@ title: "Fix Image Generation MCP Test Regression"
 goal: "Resolve the TypeError in image-gen-mcp unit tests caused by incorrect tool registry access."
 owner: "Junie"
 createdAt: "2026-04-24T17:38:19Z"
-status: "in-progress"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/214"
   branch: "feature/sprint-297-c3d4e5-fix-image-gen-test-regression"
 notes: |
   Regression introduced in Sprint 296 where the test accessed a non-existent ".tools" property on ImageGenMcpServer.
