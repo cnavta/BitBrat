@@ -16,6 +16,8 @@ export interface ToolExecutionContext {
   agentName?: string;
   /** Optional correlation ID for the request */
   correlationId?: string;
+  /** Optional abort signal to cancel execution */
+  signal?: AbortSignal;
 }
 
 /**
