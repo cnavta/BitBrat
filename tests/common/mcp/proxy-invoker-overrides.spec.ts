@@ -27,7 +27,7 @@ describe('ProxyInvoker Overrides', () => {
 
     // Call with 100ms override timeout - should fail
     await expect(invoker.invoke('test-server', 'test-tool', {}, mockClient, undefined, { timeoutMs: 100 }))
-      .rejects.toThrow(/after 100ms/);
+      .rejects.toThrow(/exceeded 100ms/);
     
     // Call with 500ms override timeout - should succeed
     mockClient.callTool.mockClear();
@@ -75,12 +75,12 @@ describe('ProxyInvoker Overrides', () => {
       setTimeout(() => resolve({ contents: [] } as any), 200)
     ));
     await expect(invoker.invokeResource('s-res', 'uri', mockClient, undefined, { timeoutMs: 100 }))
-      .rejects.toThrow(/after 100ms/);
+      .rejects.toThrow(/exceeded 100ms/);
 
     mockClient.getPrompt.mockImplementation(() => new Promise((resolve) => 
       setTimeout(() => resolve({ messages: [] } as any), 200)
     ));
     await expect(invoker.invokePrompt('s-prompt', 'p', {}, mockClient, undefined, { timeoutMs: 100 }))
-      .rejects.toThrow(/after 100ms/);
+      .rejects.toThrow(/exceeded 100ms/);
   });
 });

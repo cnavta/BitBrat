@@ -103,6 +103,10 @@ case "$SCOPE_ARG" in
       src/services/router/__tests__/rule-loader-annotations.spec.ts ;;
   tool-gateway)
     npm test -- src/apps/tool-gateway.ts tests/apps/tool-gateway-rest.spec.ts tests/apps/tool-gateway-mcp-rbac.spec.ts tests/common/mcp tests/services/llm-bot/mcp ;;
+  timeout-coordination)
+    npm test -- tests/common/mcp/proxy-invoker-timeout-coordination.spec.ts \
+               tests/common/mcp/proxy-invoker-overrides.spec.ts \
+               tests/common/mcp/proxy-invoker.spec.ts ;;
   llm-factory)
     npm test -- src/common/llm ;;
   persistence)

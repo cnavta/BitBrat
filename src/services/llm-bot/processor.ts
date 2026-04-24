@@ -551,7 +551,8 @@ export async function processEvent(
     // 5. Call LLM
     let modelName = server.getConfig<string>('LLM_MODEL', { default: server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-4o' }) });
     let platformName = server.getConfig<string>('LLM_PROVIDER', { default: server.getConfig<string>('LLM_PLATFORM', { default: 'openai' }) });
-    const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 30000, parser: (v: any) => Number(v) });
+    const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 75000, parser: (v: any) => Number(v) });
+    const signal = AbortSignal.timeout(timeoutMs);
 
     // Check for personality overrides (highest priority first)
     const override = resolvedParts.find(p => p.model || p.platform);
@@ -582,7 +583,8 @@ export async function processEvent(
       const toolContext = {
         userRoles,
         userId,
-        correlationId: evt.correlationId
+        correlationId: evt.correlationId,
+        signal
       };
 
       const filteredTools: Record<string, any> = {};
@@ -663,7 +665,7 @@ export async function processEvent(
         messages: coreMessages,
         tools: filteredTools,
         stopWhen: stepCountIs(5),
-        abortSignal: AbortSignal.timeout(timeoutMs),
+        abortSignal: signal,
       });
 
       // Aggregate tool calls and results from all steps for complete logging

@@ -1,0 +1,97 @@
+meta:
+  backlog_id: sprint-295-b6c8d1-backlog
+  updated_at: 2026-04-24
+  status: in_progress
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-295-b6c8d1
+  start: 2026-04-24
+  end: 2026-05-01
+  wip_limit: 3
+  goal: "Align MCP timeout coordination across Application, Infrastructure, and Event layers."
+
+items:
+  - id: TIMEOUT-001
+    title: "Update ProxyInvoker JSDoc and Documentation"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "JSDoc in ProxyInvokerOptions matches actual code defaults (60s timeout, 120s reset)."
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:00:00Z
+        note: "Started updating ProxyInvoker JSDoc."
+      - at: 2026-04-24T13:05:00Z
+        note: "Completed TIMEOUT-001."
+
+  - id: TIMEOUT-002
+    title: "Align LlmBotServer and Processor defaults"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "LlmBotServer.CONFIG_DEFAULTS.OPENAI_TIMEOUT_MS is 75000."
+      - "Processor.ts fallback timeoutMs is 75000."
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:07:00Z
+        note: "Updated CONFIG_DEFAULTS in LlmBotServer and fallback in processor.ts."
+
+  - id: TIMEOUT-003
+    title: "Enhance ProxyInvoker resilience and logging"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [TIMEOUT-001]
+    acceptance:
+      - "optionsOverride is correctly respected in wrapCall."
+      - "Logs distinguish between 'Upstream Timeout' and 'Caller Abort'."
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:10:00Z
+        note: "Updated ToolExecutionContext to include AbortSignal."
+      - at: 2026-04-24T13:15:00Z
+        note: "Updated ProxyInvoker with enhanced logging and signal support."
+      - at: 2026-04-24T13:20:00Z
+        note: "Updated McpClientManager to pass logger and processor.ts to pass signal."
+
+  - id: TIMEOUT-004
+    title: "Update BaseServer/EventRouter documentation for QoS"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "BaseServer or event-router documentation recommends 90s QoS for complex bot requests."
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:25:00Z
+        note: "Started updating BaseServer documentation."
+      - at: 2026-04-24T13:30:00Z
+        note: "Added hierarchy notes to BaseServer.onMessage JSDoc."
+
+  - id: TIMEOUT-005
+    title: "Implement Validation and Verification"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [TIMEOUT-002, TIMEOUT-003]
+    acceptance:
+      - "validate_deliverable.sh passes."
+      - "Unit tests for ProxyInvoker pass."
+      - "Integration tests for hierarchical timeout pass."
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:35:00Z
+        note: "Created new unit tests and updated existing ones."
+      - at: 2026-04-24T13:40:00Z
+        note: "Updated validate_deliverable.sh and verified all tests pass."

@@ -15,7 +15,7 @@ export class McpClientManager {
   private serverResources: Map<string, string[]> = new Map();
   private serverPrompts: Map<string, string[]> = new Map();
   private stats = new McpStatsCollector();
-  private invoker = new ProxyInvoker();
+  private invoker: ProxyInvoker;
   private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
   private serverConfigs: Map<string, McpServerConfig> = new Map();
@@ -24,6 +24,7 @@ export class McpClientManager {
     private server: BaseServer,
     private registry: IToolRegistry
   ) {
+    this.invoker = new ProxyInvoker({ logger: (this.server as any).getLogger() });
     // Lightweight monitor to re-attempt connections if not connected
     // In Jest/test environments, disable the monitor by default unless explicitly enabled via env
     const isJest = Boolean((global as any)?.jest || process.env.JEST_WORKER_ID);
