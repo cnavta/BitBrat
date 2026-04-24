@@ -347,7 +347,14 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
    */
   async sendText(text: string, channel?: string): Promise<void> {
     const channels: string[] = ((this as any).channels || []).slice();
-    const target = channel || (channels[0] ? (channels[0].startsWith('#') ? channels[0] : `#${channels[0]}`) : undefined);
+    let target = channel;
+    if (target && !target.startsWith('#')) {
+      target = `#${target}`;
+    }
+    if (!target) {
+      target = channels[0];
+    }
+    
     if (!text || !text.trim()) return;
     if (!target) {
       logger.warn('twitch.egress.no_channel', { text });
@@ -356,8 +363,13 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
     if (this.chat && typeof this.chat.say === 'function') {
       try {
         const nick = (this.chat as any)?.currentNick || '(unknown)';
-        await this.chat.say(target, text);
-        logger.info('twitch.egress.sent', { channel: target, nick });
+        // Twitch IRC doesn't handle newlines well in a single PRIVMSG.
+        // Split and send as multiple messages to ensure proper spacing/rendering.
+        const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+        for (const line of lines) {
+          await this.chat.say(target, line);
+        }
+        logger.info('twitch.egress.sent', { channel: target, nick, lineCount: lines.length });
       } catch (e: any) {
         logger.error('twitch.egress.send_error', { channel: target, error: e?.message || String(e) });
         throw e;
