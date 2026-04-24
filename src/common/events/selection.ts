@@ -69,6 +69,12 @@ export function extractEgressTextFromEvent(evt: InternalEventV2 | any): string |
        return null;
     }
 
+    // If it's an egress event (has egress block), we should NOT fall back to legacy message
+    // as it likely contains the original input message, not a generated response.
+    if (evt && evt.egress) {
+      return null;
+    }
+
     const legacy1 = unwrapQuoted(evt?.message?.rawPlatformPayload?.chat?.text ?? evt?.message?.rawPlatformPayload?.text);
     if (typeof legacy1 === 'string' && legacy1.trim()) return legacy1.trim();
     // Fallback to pre-V2 legacy event shapes that carried payload at root
