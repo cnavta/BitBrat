@@ -2,17 +2,31 @@ import { getLlmProvider } from '../provider-factory';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOllama } from 'ai-sdk-ollama';
 
-jest.mock('@ai-sdk/openai', () => ({
-  createOpenAI: jest.fn().mockReturnValue(jest.fn().mockReturnValue({ modelId: 'openai-model' })),
-}));
+jest.mock('@ai-sdk/openai', () => {
+  const mockProvider = jest.fn().mockReturnValue({ modelId: 'openai-model' });
+  (mockProvider as any).embedding = jest.fn().mockReturnValue({ modelId: 'openai-embedding-model' });
+  (mockProvider as any).image = jest.fn().mockReturnValue({ modelId: 'openai-image-model' });
+  return {
+    createOpenAI: jest.fn().mockReturnValue(mockProvider),
+  };
+});
 
-jest.mock('ai-sdk-ollama', () => ({
-  createOllama: jest.fn().mockReturnValue(jest.fn().mockReturnValue({ modelId: 'ollama-model' })),
-}));
+jest.mock('ai-sdk-ollama', () => {
+  const mockProvider = jest.fn().mockReturnValue({ modelId: 'ollama-model' });
+  (mockProvider as any).embedding = jest.fn().mockReturnValue({ modelId: 'ollama-embedding-model' });
+  return {
+    createOllama: jest.fn().mockReturnValue(mockProvider),
+  };
+});
 
 describe('provider-factory', () => {
+  let mockOpenAIProviderInstance: any;
+  let mockOllamaProviderInstance: any;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockOpenAIProviderInstance = (createOpenAI as jest.Mock)();
+    mockOllamaProviderInstance = (createOllama as jest.Mock)();
   });
 
   it('should instantiate OpenAI provider', () => {
@@ -76,6 +90,39 @@ describe('provider-factory', () => {
       baseURL: 'http://ollama:11434/api',
     }));
     expect(provider).toBeDefined();
+  });
+
+  it('should instantiate embedding model for OpenAI', () => {
+    const config = {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      kind: 'embedding' as const,
+    };
+    const provider = getLlmProvider(config);
+    expect((mockOpenAIProviderInstance as any).embedding).toHaveBeenCalledWith('text-embedding-3-small');
+    expect(provider).toEqual({ modelId: 'openai-embedding-model' });
+  });
+
+  it('should instantiate embedding model for vLLM', () => {
+    const config = {
+      provider: 'vllm',
+      model: 'llama3',
+      kind: 'embedding' as const,
+    };
+    const provider = getLlmProvider(config);
+    expect((mockOpenAIProviderInstance as any).embedding).toHaveBeenCalledWith('llama3');
+    expect(provider).toEqual({ modelId: 'openai-embedding-model' });
+  });
+
+  it('should instantiate embedding model for Ollama', () => {
+    const config = {
+      provider: 'ollama',
+      model: 'llama3',
+      kind: 'embedding' as const,
+    };
+    const provider = getLlmProvider(config);
+    expect((mockOllamaProviderInstance as any).embedding).toHaveBeenCalledWith('llama3');
+    expect(provider).toEqual({ modelId: 'ollama-embedding-model' });
   });
 
   it('should throw error for unsupported provider', () => {

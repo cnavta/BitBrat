@@ -1,0 +1,12 @@
+id: sprint-293-b5c1d2
+title: "Fix Query Analyzer Embedding Error"
+goal: "Fix 'model.doEmbed is not a function' error by ensuring the correct model type is returned from the provider factory."
+owner: "Lead Implementor"
+createdAt: "2026-04-23T18:55:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/210"
+  branch: "feature/sprint-293-b5c1d2-fix-query-analyzer-embeddings"
+notes: |
+  The query-analyzer service is failing when attempting to generate embeddings because it uses a LanguageModel instead of an EmbeddingModel.
+  This sprint will update the common provider factory to support both types.
