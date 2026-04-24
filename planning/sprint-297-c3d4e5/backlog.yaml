@@ -14,7 +14,7 @@ items:
   - id: BL-001
     title: "Fix tool registry access in unit test"
     priority: P0
-    status: in_progress
+    status: done
     effort: S
     owner: agent
     deps: []
