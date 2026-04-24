@@ -23,8 +23,8 @@ describe('image-gen-mcp', () => {
   it('generate_image tool returns URL and no base64', async () => {
     // We can't easily mock the internal state/resources without more complex setup,
     // but we can check if the tool is registered correctly.
-    const tools = (server as any).tools;
-    expect(tools.has('generate_image')).toBe(true);
+    const registeredTools = (server as any).registeredTools;
+    expect(registeredTools.has('generate_image')).toBe(true);
     
     // If we wanted to test the handler, we would need to mock openai, gcs, etc.
     // Given the environment, we'll rely on the manual code verification that removed the base64 part.
