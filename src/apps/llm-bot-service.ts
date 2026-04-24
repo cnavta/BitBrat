@@ -93,7 +93,7 @@ class LlmBotServer extends BaseServer {
     SERVICE_NAME: 'llm-bot',
     PORT: 3000,
     OPENAI_MODEL: 'gpt-4.1-mini',
-    OPENAI_TIMEOUT_MS: 15000,
+    OPENAI_TIMEOUT_MS: 75000,
     // Short-term, in-run memory bounds
     LLM_BOT_MEMORY_MAX_MESSAGES: 8,
     LLM_BOT_MEMORY_MAX_CHARS: 8000,

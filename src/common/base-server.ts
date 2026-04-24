@@ -264,6 +264,13 @@ export class BaseServer {
 
   /**
    * Subscribe to a message destination (topic/subject) using the message-bus abstraction.
+   *
+   * Hierarchical Timeout Strategy:
+   * To prevent zombie executions, timeouts are coordinated across layers:
+   * 1. Event/Bus (QoS): recommended 90,000ms (90s) - controlled by qos.maxResponseMs
+   * 2. Application (LLM Bot): recommended 75,000ms (75s)
+   * 3. Infrastructure (MCP Proxy): recommended 60,000ms (60s)
+   *
    * Overloads:
    * - onMessage(destination, handler, options?)
    * - onMessage({ destination, queue, ack }, handler)
