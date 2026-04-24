@@ -551,7 +551,8 @@ export async function processEvent(
     // 5. Call LLM
     let modelName = server.getConfig<string>('LLM_MODEL', { default: server.getConfig<string>('OPENAI_MODEL', { default: 'gpt-4o' }) });
     let platformName = server.getConfig<string>('LLM_PROVIDER', { default: server.getConfig<string>('LLM_PLATFORM', { default: 'openai' }) });
-    const timeoutMs = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 75000, parser: (v: any) => Number(v) });
+    const timeoutMsValue = server.getConfig<number>('OPENAI_TIMEOUT_MS', { default: 75000, parser: (v: any) => Number(v) });
+    const timeoutMs = (typeof timeoutMsValue === 'number' && !isNaN(timeoutMsValue)) ? timeoutMsValue : 75000;
     const signal = AbortSignal.timeout(timeoutMs);
 
     // Check for personality overrides (highest priority first)

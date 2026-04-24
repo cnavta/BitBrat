@@ -15,6 +15,7 @@ Synchronize timeout layers across the MCP tool invocation path to resolve zombie
 
 ## Deliverables
 - Code modifications to align timeouts.
+- Fix regression in `prompt-logging.test.ts`.
 - Improved logging in `ProxyInvoker`.
 - Unit and Integration tests.
 - `validate_deliverable.sh` script.

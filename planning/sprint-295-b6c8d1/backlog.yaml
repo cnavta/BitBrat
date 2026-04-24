@@ -95,3 +95,21 @@ items:
         note: "Created new unit tests and updated existing ones."
       - at: 2026-04-24T13:40:00Z
         note: "Updated validate_deliverable.sh and verified all tests pass."
+
+  - id: BL-295-006
+    title: "Fix prompt-logging test regression"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-295-001]
+    blocked_reason: null
+    acceptance:
+      - "prompt-logging.test.ts passes"
+      - "processor.ts handles missing timeout config gracefully"
+    updated_at: 2026-04-24
+    log:
+      - at: 2026-04-24T13:40:00Z
+        note: "Identified regression caused by AbortSignal.timeout(undefined)."
+      - at: 2026-04-24T13:50:00Z
+        note: "Fixed processor.ts and updated test mock. Verified with validate_deliverable.sh."
