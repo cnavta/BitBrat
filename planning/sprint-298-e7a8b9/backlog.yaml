@@ -1,0 +1,95 @@
+meta:
+  backlog_id: sessi-mcp-backlog
+  updated_at: 2026-04-25
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-298-e7a8b9
+  start: 2026-04-25
+  end: 2026-05-02
+  wip_limit: 3
+  goal: "Implement SESSI (Stream Observer) with MCP summarization support."
+
+items:
+  - id: SESSI-001
+    title: "Project Setup & Schema Definition"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "Firestore index for stream_observers collection defined"
+      - "TypeScript types for StreamObserver and AnnotationV1 created"
+    updated_at: 2026-04-25
+    log: []
+
+  - id: SESSI-002
+    title: "StreamBuffer & Normalization Utility"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [SESSI-001]
+    acceptance:
+      - "PII redaction (emails, tokens) implemented"
+      - "Token-aware truncation logic verified by tests"
+      - "Event normalization ([Timestamp] [User] [Message]) verified"
+    updated_at: 2026-04-25
+    log: []
+
+  - id: SESSI-003
+    title: "Stream Analyst Service: Core Engine"
+    priority: P0
+    status: todo
+    effort: L
+    owner: agent
+    deps: [SESSI-002]
+    acceptance:
+      - "Service can query Firestore for windowed events"
+      - "Integration with Prompt Assembly Framework (v1/v2)"
+      - "Successful LLM call for summarization"
+      - "Publication of internal.summarization.report.v1"
+    updated_at: 2026-04-25
+    log: []
+
+  - id: SESSI-004
+    title: "MCP Tool: summarize_stream"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [SESSI-003]
+    acceptance:
+      - "summarize_stream tool registered in tool-gateway"
+      - "Tool accepts stream_type and window_minutes"
+      - "Synchronous return of summary to MCP client"
+    updated_at: 2026-04-25
+    log: []
+
+  - id: SESSI-005
+    title: "Inspection & Annotation Engine"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [SESSI-003]
+    acceptance:
+      - "JSON parsing of structured LLM responses"
+      - "Generation of AnnotationV1 objects"
+    updated_at: 2026-04-25
+    log: []
+
+  - id: SESSI-006
+    title: "Validation & Sprint Closure"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [SESSI-004]
+    acceptance:
+      - "validate_deliverable.sh passes all tests"
+      - "Verification report and retro generated"
+      - "GitHub Pull Request created"
+    updated_at: 2026-04-25
+    log: []
