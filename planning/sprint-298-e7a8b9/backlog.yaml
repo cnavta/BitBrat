@@ -41,7 +41,7 @@ items:
   - id: SESSI-003
     title: "Stream Analyst Service: Core Engine"
     priority: P0
-    status: todo
+    status: done
     effort: L
     owner: agent
     deps: [SESSI-002]
