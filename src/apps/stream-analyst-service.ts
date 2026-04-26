@@ -17,6 +17,8 @@ import parser from 'cron-parser';
  */
 export class StreamAnalystServer extends McpServer {
   private engineInstance?: StreamAnalystEngine;
+  private observersCache: Map<string, StreamObserver> = new Map();
+  private observerUnsubscribe?: () => void;
 
   constructor(opts: BaseServerOptions = {}) {
     super({ 
@@ -51,7 +53,40 @@ export class StreamAnalystServer extends McpServer {
   async start(port: number) {
     // Wait for internal resource initialization (BaseServer.start calls this too, but we need it for subscriptions)
     await this.setupSubscriptions();
+    await this.startObserverListener();
     return super.start(port);
+  }
+
+  async close(reason?: string) {
+    if (this.observerUnsubscribe) {
+      this.observerUnsubscribe();
+    }
+    await super.close(reason);
+  }
+
+  private async startObserverListener() {
+    this.getLogger().info('stream-analyst.observers.listener.start');
+    const firestore = this.getResource<any>('firestore');
+    
+    this.observerUnsubscribe = firestore.collection('stream_observers')
+      .onSnapshot((snapshot: any) => {
+        const activeObservers = snapshot.docs
+          .map((doc: any) => ({ id: doc.id, ...doc.data() } as StreamObserver))
+          .filter((obs: StreamObserver) => obs.active);
+        
+        const newCache = new Map<string, StreamObserver>();
+        activeObservers.forEach((obs: StreamObserver) => newCache.set(obs.id, obs));
+        
+        this.observersCache = newCache;
+        this.getLogger().info('stream-analyst.observers.reloaded', { 
+          count: this.observersCache.size 
+        });
+        this.getLogger().debug('stream-analyst.observers.cache_updated', {
+          ids: Array.from(this.observersCache.keys())
+        });
+      }, (err: Error) => {
+        this.getLogger().error('stream-analyst.observers.listener.error', { error: err.message });
+      });
   }
 
   private async setupSubscriptions() {
@@ -136,15 +171,8 @@ export class StreamAnalystServer extends McpServer {
 
   private async pollObservers() {
     this.getLogger().debug('stream-analyst.poll_observers.start');
-    const firestore = this.getResource<any>('firestore');
-    const snapshot = await firestore.collection('stream_observers')
-      .where('active', '==', true)
-      .get();
-
-    const observers = snapshot.docs.map((doc: any) => ({ 
-      id: doc.id, 
-      ...doc.data() 
-    })) as StreamObserver[];
+    
+    const observers = Array.from(this.observersCache.values());
 
     this.getLogger().debug('stream-analyst.poll_observers.active_count', { count: observers.length });
 
@@ -199,14 +227,12 @@ export class StreamAnalystServer extends McpServer {
   private async handleEgress(observerId: string, requestId: string, summary: string) {
     this.getLogger().debug('stream-analyst.egress.start', { observerId, requestId });
     try {
-      const firestore = this.getResource<any>('firestore');
-      const doc = await firestore.collection('stream_observers').doc(observerId).get();
-      if (!doc.exists) {
+      const observer = this.observersCache.get(observerId);
+      if (!observer) {
         this.getLogger().debug('stream-analyst.egress.no_observer', { observerId });
         return;
       }
 
-      const observer = doc.data() as StreamObserver;
       if (!observer.delivery || !observer.delivery.egressTopic) {
         this.getLogger().debug('stream-analyst.egress.no_delivery_config', { observerId });
         return;
@@ -284,7 +310,6 @@ export class StreamAnalystServer extends McpServer {
         filters: z.record(z.any()).optional().describe('Optional filters for the stream (e.g. channel: "#bitbrat")')
       }),
       async (args) => {
-        const firestore = this.getResource<any>('firestore');
         let request: SummarizationRequest = {
           requestId: `mcp-${Date.now()}`,
           streamType: args.stream_type as string || 'chat',
@@ -293,11 +318,10 @@ export class StreamAnalystServer extends McpServer {
         };
 
         if (args.observer_id) {
-          const doc = await firestore.collection('stream_observers').doc(args.observer_id).get();
-          if (!doc.exists) {
-            throw new Error(`Observer ${args.observer_id} not found.`);
+          const observer = this.observersCache.get(args.observer_id);
+          if (!observer) {
+            throw new Error(`Observer ${args.observer_id} not found or inactive.`);
           }
-          const observer = doc.data() as StreamObserver;
           if (!observer.mcpEnabled) {
             throw new Error(`Observer ${args.observer_id} is not enabled for MCP access.`);
           }
