@@ -114,6 +114,8 @@ case "$SCOPE_ARG" in
     npm test -- src/services/persistence ;;
   api-gateway)
     npm test -- src/services/api-gateway ;;
+  sessi)
+    npm test -- src/services/stream-analyst ;;
   *)
     npm test ;;
 esac

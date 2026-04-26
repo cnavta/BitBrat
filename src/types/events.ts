@@ -18,6 +18,8 @@ export type InternalEventType =
   | 'system.source.status'
   | 'system.stream.online'
   | 'system.stream.offline'
+  | 'internal.summarization.request.v1'
+  | 'internal.summarization.report.v1'
   | 'token.created.v1'
   | string;
 
