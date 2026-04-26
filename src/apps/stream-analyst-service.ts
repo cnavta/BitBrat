@@ -1,10 +1,12 @@
 import { McpServer } from '../common/mcp-server';
 import { Express, Request, Response } from 'express';
 import { StreamAnalystEngine } from '../services/stream-analyst/engine';
-import type { SummarizationRequest } from '../types/sessi';
+import type { SummarizationRequest, StreamObserver } from '../types/sessi';
+import type { Egress } from '../types/events';
 import { createMessagePublisher } from '../services/message-bus';
 import { z } from 'zod';
 import { BaseServerOptions } from '../common/base-server';
+import parser from 'cron-parser';
 
 /**
  * Stream Analyst Service
@@ -13,7 +15,7 @@ import { BaseServerOptions } from '../common/base-server';
  * - Pub/Sub: internal.summarization.request.v1
  * - HTTP: POST /summarize (used by tool-gateway)
  */
-class StreamAnalystServer extends McpServer {
+export class StreamAnalystServer extends McpServer {
   private engineInstance?: StreamAnalystEngine;
 
   constructor(opts: BaseServerOptions = {}) {
@@ -55,6 +57,25 @@ class StreamAnalystServer extends McpServer {
   private async setupSubscriptions() {
     this.getLogger().info('stream-analyst.subscriptions.setup');
 
+    // Listen for system.timer.v1 to trigger observer polling
+    await this.onMessage(
+      {
+        destination: 'system.timer.v1',
+        queue: 'stream-analyst-poller',
+        ack: 'explicit'
+      },
+      async (_data, _attributes, ctx) => {
+        try {
+          this.getLogger().info('stream-analyst.poller.triggered');
+          await this.pollObservers();
+          await ctx.ack();
+        } catch (e: any) {
+          this.getLogger().error('stream-analyst.poller.failed', { error: e.message });
+          await ctx.ack(); // Avoid loops
+        }
+      }
+    );
+
     // Listen for summarization requests via Pub/Sub
     await this.onMessage<SummarizationRequest>(
       { 
@@ -84,6 +105,11 @@ class StreamAnalystServer extends McpServer {
             correlationId: req.requestId,
             type: 'internal.summarization.report.v1'
           });
+
+          // BL-003: Complete Egress Path Integration
+          if (req.observerId) {
+            await this.handleEgress(req.observerId, req.requestId, summary);
+          }
           
           await ctx.ack();
         } catch (e: any) {
@@ -97,6 +123,110 @@ class StreamAnalystServer extends McpServer {
         }
       }
     );
+  }
+
+  private async pollObservers() {
+    const firestore = this.getResource<any>('firestore');
+    const snapshot = await firestore.collection('stream_observers')
+      .where('active', '==', true)
+      .get();
+
+    const observers = snapshot.docs.map((doc: any) => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    })) as StreamObserver[];
+
+    const now = new Date();
+    const pub = createMessagePublisher('internal.summarization.request.v1');
+
+    for (const observer of observers) {
+      if (observer.trigger.type === 'cron' && observer.trigger.expression) {
+        try {
+          const interval = parser.parseExpression(observer.trigger.expression, {
+            currentDate: new Date(now.getTime() - 60000) // Look back 1 minute
+          });
+          const next = interval.next().toDate();
+          
+          // If the next execution time is between (now - 1m) and now, it's time to run.
+          if (next <= now) {
+            this.getLogger().info('stream-analyst.observer.triggered', { 
+              observerId: observer.id, 
+              cron: observer.trigger.expression 
+            });
+
+            await pub.publishJson({
+              requestId: `auto-${observer.id}-${Date.now()}`,
+              observerId: observer.id,
+              streamType: observer.source.filters.streamType || 'chat',
+              windowMinutes: observer.trigger.windowMs ? Math.floor(observer.trigger.windowMs / 60000) : 10,
+              filters: observer.source.filters,
+              inspectionEnabled: observer.analysis.inspectionEnabled,
+            } as SummarizationRequest, {
+              type: 'internal.summarization.request.v1',
+              observerId: observer.id,
+              correlationId: `auto-${observer.id}-${Date.now()}`
+            });
+          }
+        } catch (e: any) {
+          this.getLogger().error('stream-analyst.cron.parse.error', { 
+            observerId: observer.id, 
+            error: e.message 
+          });
+        }
+      }
+    }
+  }
+
+  private async handleEgress(observerId: string, requestId: string, summary: string) {
+    try {
+      const firestore = this.getResource<any>('firestore');
+      const doc = await firestore.collection('stream_observers').doc(observerId).get();
+      if (!doc.exists) return;
+
+      const observer = doc.data() as StreamObserver;
+      if (!observer.delivery || !observer.delivery.egressTopic) return;
+
+      const pub = createMessagePublisher(observer.delivery.egressTopic);
+      
+      const egress: Egress = {
+        destination: observer.delivery.destination?.target || 'unknown',
+        connector: (observer.delivery.destination?.type as any) || 'system',
+        type: 'chat'
+      };
+
+      // If summary is JSON (from inspection), parse it to get only the summary text for egress
+      let textToDeliver = summary;
+      try {
+        const parsed = JSON.parse(summary);
+        if (parsed.summary) textToDeliver = parsed.summary;
+      } catch {
+        // Not JSON, use as is
+      }
+
+      await pub.publishJson({
+        requestId,
+        egress,
+        message: {
+          id: `report-${Date.now()}`,
+          role: 'assistant',
+          text: textToDeliver,
+          at: new Date().toISOString()
+        }
+      }, {
+        correlationId: requestId,
+        type: 'internal.egress.v1'
+      });
+
+      this.getLogger().info('stream-analyst.egress.published', { 
+        observerId, 
+        topic: observer.delivery.egressTopic 
+      });
+    } catch (e: any) {
+      this.getLogger().error('stream-analyst.egress.failed', { 
+        observerId, 
+        error: e.message 
+      });
+    }
   }
 
   private setupRoutes(app: Express) {
@@ -116,17 +246,56 @@ class StreamAnalystServer extends McpServer {
       'summarize_stream',
       'Summarize a specific event stream window (e.g. chat, logs, errors).',
       z.object({
-        stream_type: z.string().describe('The type of stream to summarize (e.g., "chat", "logs", "errors")'),
+        observer_id: z.string().optional().describe('ID of a StreamObserver to use for configuration'),
+        stream_type: z.string().optional().describe('The type of stream to summarize (e.g., "chat", "logs", "errors")'),
         window_minutes: z.number().optional().default(10).describe('Window size in minutes'),
         filters: z.record(z.any()).optional().describe('Optional filters for the stream (e.g. channel: "#bitbrat")')
       }),
       async (args) => {
-        const summary = await this.engine.summarize({
-          streamType: args.stream_type as string,
+        const firestore = this.getResource<any>('firestore');
+        let request: SummarizationRequest = {
+          requestId: `mcp-${Date.now()}`,
+          streamType: args.stream_type as string || 'chat',
           windowMinutes: args.window_minutes as number,
           filters: args.filters as Record<string, any>,
-          requestId: `mcp-${Date.now()}`
+        };
+
+        if (args.observer_id) {
+          const doc = await firestore.collection('stream_observers').doc(args.observer_id).get();
+          if (!doc.exists) {
+            throw new Error(`Observer ${args.observer_id} not found.`);
+          }
+          const observer = doc.data() as StreamObserver;
+          if (!observer.mcpEnabled) {
+            throw new Error(`Observer ${args.observer_id} is not enabled for MCP access.`);
+          }
+          request = {
+            ...request,
+            observerId: args.observer_id,
+            streamType: observer.source.filters.streamType || request.streamType,
+            inspectionEnabled: observer.analysis.inspectionEnabled,
+          };
+        }
+
+        const summary = await this.engine.summarize(request);
+        
+        // Publish report
+        const pub = createMessagePublisher('internal.summarization.report.v1');
+        await pub.publishJson({
+          requestId: request.requestId,
+          observerId: request.observerId,
+          summary,
+          at: new Date().toISOString()
+        }, { 
+          correlationId: request.requestId,
+          type: 'internal.summarization.report.v1'
         });
+
+        // Handle egress if observer used
+        if (request.observerId) {
+          await this.handleEgress(request.observerId, request.requestId, summary);
+        }
+
         return {
           content: [{ type: 'text', text: summary }]
         };
