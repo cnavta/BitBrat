@@ -1,0 +1,117 @@
+meta:
+  backlog_id: sessi-gap-closure
+  updated_at: 2026-04-25
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-299-d5e6f7
+  start: 2026-04-25
+  end: 2026-05-09
+  wip_limit: 3
+  goal: "Close the gaps in SESSI implementation for automated and integrated stream analysis."
+
+items:
+  - id: BL-001
+    title: "Implement Observer Poller"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "Server handles system.timer.v1 events"
+      - "Active StreamObservers are queried and triggered"
+      - "Cron expressions are respected for triggering"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T21:40:00Z
+        note: "Implemented system.timer.v1 handler and pollObservers logic in StreamAnalystServer."
+
+  - id: BL-002
+    title: "Add Idempotency Control"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "summarization_runs collection tracks successful executions"
+      - "Duplicate runs for the same window/observer are skipped"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T21:45:00Z
+        note: "Implemented idempotency check using summarization_runs collection in StreamAnalystEngine."
+
+  - id: BL-003
+    title: "Complete Egress Path Integration"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    acceptance:
+      - "Reports are published to internal.egress.v1"
+      - "Egress metadata matches observer delivery configuration"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T21:52:00Z
+        note: "Implemented egress publishing in StreamAnalystServer. Now dispatches to observer-defined egress topic."
+
+  - id: BL-004
+    title: "Expand Data Extraction (prompt_logs)"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "queryEvents supports prompt_logs collection"
+      - "Source collection field in request/observer is respected"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T21:58:00Z
+        note: "Updated StreamAnalystEngine to respect source collection and normalize prompt_logs for analysis."
+
+  - id: BL-005
+    title: "Enable Annotation Persistence"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "Generated annotations are saved back to source event documents"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T22:05:00Z
+        note: "Implemented persistAnnotations in StreamAnalystEngine. Annotations are now saved back to the most recent event document in the analysis window."
+
+  - id: BL-006
+    title: "Align MCP Tools with Observers"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "summarize_stream tool accepts observerId"
+      - "mcpEnabled flag is checked before execution"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T22:12:00Z
+        note: "Updated summarize_stream tool to accept observer_id, validate mcpEnabled flag, and trigger egress path if applicable."
+
+  - id: BL-007
+    title: "Fail-Soft / Retry Logic"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "Transient LLM failures are retried"
+      - "Hardcoded event mappings are removed or made configurable"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T22:15:00Z
+        note: "Implemented LLM retry logic and made event type mappings configurable via environment variables."

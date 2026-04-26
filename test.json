@@ -1,188 +1,33 @@
 {
-  "ts": "2026-04-20T13:17:03.923Z",
-  "service": "event-router",
-  "level": "debug",
-  "severity": "DEBUG",
-  "msg": "router_engine.enrichment.start",
-  "ruleId": "b0nRWmNbKflwGYMI2cfd",
-  "interpCtx": {
-    "v": "2",
-    "type": "chat.message.v1",
-    "correlationId": "2bbef52a-8693-4632-a145-27ad096a5a17",
-    "traceId": "a0f35115-a5a8-4c1b-9639-38b9956de00f",
-    "ingress": {
-      "ingressAt": "2026-04-20T13:17:03.919Z",
-      "source": "ingress.twitch",
-      "connector": "twitch",
-      "channel": "#gonj_the_unjust"
-    },
-    "identity": {
-      "external": {
-        "id": "91960688",
-        "platform": "twitch",
-        "displayName": "Gonj_The_Unjust",
-        "metadata": {
-          "login": "gonj_the_unjust",
-          "badges": [],
-          "isMod": false,
-          "isSubscriber": true
-        }
-      }
-    },
-    "egress": {
-      "destination": "internal.egress.v1.181cbe502ef0",
-      "type": "chat",
-      "connector": "twitch"
-    },
-    "message": {
-      "id": "bde55827-577d-43c0-9422-e3e47d649240",
-      "role": "user",
-      "text": "!debug cnj",
-      "rawPlatformPayload": {
-        "text": "!debug cnj",
-        "messageId": "bde55827-577d-43c0-9422-e3e47d649240",
-        "user": {
-          "login": "gonj_the_unjust",
-          "displayName": "Gonj_The_Unjust"
+  "and": [
+    {
+      "or": [
+        {
+          "text_contains": [
+            {
+              "var": "message.text"
+            },
+            "@bitbrat_the_ai",
+            true
+          ]
         },
-        "roomId": "91960688",
-        "badges": [],
-        "isMod": false,
-        "isSubscriber": true,
-        "emotes": [],
-        "raw": {
-          "tags": {
-            "badge-info": "subscriber/8",
-            "badges": "broadcaster/1,subscriber/0",
-            "client-nonce": "10***6baa",
-            "color": "#8A2BE2",
-            "display-name": "Gonj_The_Unjust",
-            "emotes": "",
-            "first-msg": "0",
-            "flags": "",
-            "id": "bde55827-577d-43c0-9422-e3e47d649240",
-            "mod": "0",
-            "returning-chatter": "0",
-            "room-id": "91960688",
-            "subscriber": "1",
-            "tmi-sent-ts": "1776691023801",
-            "turbo": "0",
-            "user-id": "91960688",
-            "user-type": ""
-          }
-        },
-        "timestamp": "2026-04-20T13:17:03.919Z"
-      }
-    },
-    "routing": {
-      "stage": "initial",
-      "slip": [],
-      "history": []
-    },
-    "source": "ingress.twitch",
-    "channel": "#gonj_the_unjust",
-    "userId": "91960688",
-    "auth": "***",
-    "payload": {
-      "text": "!debug cnj",
-      "messageId": "bde55827-577d-43c0-9422-e3e47d649240",
-      "user": {
-        "login": "gonj_the_unjust",
-        "displayName": "Gonj_The_Unjust"
-      },
-      "roomId": "91960688",
-      "badges": [],
-      "isMod": false,
-      "isSubscriber": true,
-      "emotes": [],
-      "raw": {
-        "tags": {
-          "badge-info": "subscriber/8",
-          "badges": "broadcaster/1,subscriber/0",
-          "client-nonce": "10***6baa",
-          "color": "#8A2BE2",
-          "display-name": "Gonj_The_Unjust",
-          "emotes": "",
-          "first-msg": "0",
-          "flags": "",
-          "id": "bde55827-577d-43c0-9422-e3e47d649240",
-          "mod": "0",
-          "returning-chatter": "0",
-          "room-id": "91960688",
-          "subscriber": "1",
-          "tmi-sent-ts": "1776691023801",
-          "turbo": "0",
-          "user-id": "91960688",
-          "user-type": ""
+        {
+          "in": [
+            "1449558592763072532",
+            {
+              "var": "message.rawPlatformPayload.mentions"
+            }
+          ]
         }
-      },
-      "timestamp": "2026-04-20T13:17:03.919Z"
-    },
-    "config": {
-      "port": 3000,
-      "logLevel": "debug",
-      "commandSigil": "!",
-      "twitchEnabled": true,
-      "twitchDisableConnect": false,
-      "twitchBotUsername": "bitbrat_the_ai",
-      "twitchBotAccessToken": "***",
-      "twitchClientId": "kb***3vvq",
-      "twitchClientSecret": "uy***ukrw",
-      "twitchScopes": [
-        "chat:read",
-        "chat:edit",
-        "channel:read:subscriptions",
-        "user:read:follows",
-        "moderator:read:followers",
-        "channel:read:vips",
-        "channel:read:redemptions",
-        "moderation:read",
-        "bits:read",
-        "moderator:read:shoutouts",
-        "user:read:email",
-        "user:manage:whispers"
-      ],
-      "twitchChannels": [
-        "gonj_the_unjust"
-      ],
-      "commandWhitelist": [],
-      "oauthStateSecret": "lo***cret",
-      "firestoreEnabled": true,
-      "tokenDocPath": "oa***/bot",
-      "broadcasterTokenDocPath": "oa***ster",
-      "discordBroadcasterTokenDocPath": "oa***ster",
-      "busPrefix": "local.",
-      "discordEnabled": true,
-      "discordBotToken": "MT***HXJE",
-      "discordGuildId": "1324629154695483422",
-      "discordChannels": [
-        "1324629154695483426",
-        "1492322791268159538"
-      ],
-      "discordUseTokenStore": "***",
-      "discordAllowEnvFallback": true,
-      "discordTokenPollMs": "***",
-      "discordClientId": "1449558592763072532",
-      "discordClientSecret": "5Y***1peo",
-      "discordRedirectUri": "",
-      "discordOauthScopes": [
-        "bot"
-      ],
-      "discordOauthPermissions": "***",
-      "twilioEnabled": false,
-      "twilioAccountSid": "fdsa",
-      "twilioAuthToken": "***",
-      "twilioApiKey": "***",
-      "twilioApiSecret": "***",
-      "twilioChatServiceSid": "fdsafdsa",
-      "twilioIdentity": "local-twilio-identity",
-      "debugUsers": [
-        "twitch:91960688",
-        "discord:gonj_the_unjust"
       ]
     },
-    "now": "2026-04-20T13:17:03.923Z",
-    "ts": 1776691023923
-  }
+    {
+      "==": [
+        {
+          "var": "routing.stage"
+        },
+        "analysis"
+      ]
+    }
+  ]
 }
-
