@@ -9,3 +9,5 @@
 - **Files Created**:
   - `planning/sprint-299-d5e6f7/sprint-manifest.yaml`
   - `planning/sprint-299-d5e6f7/request-log.md`
+
+- 2026-04-25T22:20:00Z: User requested descriptive debug logging for the SESSI flow. Identified as scope amendment to sprint-299-d5e6f7. Updating implementation plan and backlog.

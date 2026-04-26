@@ -8,12 +8,14 @@ Close the gaps in the SESSI (Stream Content Summarization & Inspection) implemen
 - `StreamAnalystEngine` robustness (idempotency, retries).
 - Integration with egress pipelines and data enrichment (annotations).
 - Alignment of MCP tools with Observer configurations.
+- **Improved observability and debug logging across the SESSI flow.**
 
 ## Deliverables
 - Updated `StreamAnalystServer` with scheduled poller.
 - Enhanced `StreamAnalystEngine` with idempotency and retry logic.
 - Firestore enrichment logic for annotations.
 - Updated MCP tool in `StreamAnalystServer`.
+- **Descriptive debug logging implemented across the service and engine.**
 - Updated tests and validation scripts.
 
 ## Acceptance Criteria

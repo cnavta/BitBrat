@@ -115,3 +115,20 @@ items:
     log:
       - at: 2026-04-25T22:15:00Z
         note: "Implemented LLM retry logic and made event type mappings configurable via environment variables."
+
+  - id: BL-008
+    title: "Descriptive Debug Logging"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "Detailed logs for extraction, normalization, and analysis phases"
+      - "Logs for egress and annotation persistence steps"
+    updated_at: 2026-04-25
+    log:
+      - at: 2026-04-25T22:20:00Z
+        note: "Added task to backlog for descriptive debug logging."
+      - at: 2026-04-25T22:45:00Z
+        note: "Implemented descriptive debug logging and updated tests."

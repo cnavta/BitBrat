@@ -66,7 +66,10 @@ export class StreamAnalystServer extends McpServer {
       },
       async (_data, _attributes, ctx) => {
         try {
-          this.getLogger().info('stream-analyst.poller.triggered');
+          this.getLogger().debug('stream-analyst.poller.triggered', { 
+            subject: 'system.timer.v1',
+            at: new Date().toISOString()
+          });
           await this.pollObservers();
           await ctx.ack();
         } catch (e: any) {
@@ -86,14 +89,20 @@ export class StreamAnalystServer extends McpServer {
       async (data, _attributes, ctx) => {
         const req = data as SummarizationRequest;
         try {
-          this.getLogger().info('stream-analyst.request.received', { 
+          this.getLogger().debug('stream-analyst.request.received', { 
             requestId: req.requestId,
             observerId: req.observerId,
-            streamType: req.streamType
+            streamType: req.streamType,
+            filters: req.filters
           });
 
           const summary = await this.engine.summarize(req);
           
+          this.getLogger().debug('stream-analyst.summary.generated', { 
+            requestId: req.requestId,
+            summaryLength: summary.length
+          });
+
           // Publish report
           const pub = createMessagePublisher('internal.summarization.report.v1');
           await pub.publishJson({
@@ -126,6 +135,7 @@ export class StreamAnalystServer extends McpServer {
   }
 
   private async pollObservers() {
+    this.getLogger().debug('stream-analyst.poll_observers.start');
     const firestore = this.getResource<any>('firestore');
     const snapshot = await firestore.collection('stream_observers')
       .where('active', '==', true)
@@ -135,6 +145,8 @@ export class StreamAnalystServer extends McpServer {
       id: doc.id, 
       ...doc.data() 
     })) as StreamObserver[];
+
+    this.getLogger().debug('stream-analyst.poll_observers.active_count', { count: observers.length });
 
     const now = new Date();
     const pub = createMessagePublisher('internal.summarization.request.v1');
@@ -147,6 +159,13 @@ export class StreamAnalystServer extends McpServer {
           });
           const next = interval.next().toDate();
           
+          this.getLogger().debug('stream-analyst.observer.check_trigger', { 
+            observerId: observer.id, 
+            cron: observer.trigger.expression,
+            nextRun: next.toISOString(),
+            now: now.toISOString()
+          });
+
           // If the next execution time is between (now - 1m) and now, it's time to run.
           if (next <= now) {
             this.getLogger().info('stream-analyst.observer.triggered', { 
@@ -178,13 +197,20 @@ export class StreamAnalystServer extends McpServer {
   }
 
   private async handleEgress(observerId: string, requestId: string, summary: string) {
+    this.getLogger().debug('stream-analyst.egress.start', { observerId, requestId });
     try {
       const firestore = this.getResource<any>('firestore');
       const doc = await firestore.collection('stream_observers').doc(observerId).get();
-      if (!doc.exists) return;
+      if (!doc.exists) {
+        this.getLogger().debug('stream-analyst.egress.no_observer', { observerId });
+        return;
+      }
 
       const observer = doc.data() as StreamObserver;
-      if (!observer.delivery || !observer.delivery.egressTopic) return;
+      if (!observer.delivery || !observer.delivery.egressTopic) {
+        this.getLogger().debug('stream-analyst.egress.no_delivery_config', { observerId });
+        return;
+      }
 
       const pub = createMessagePublisher(observer.delivery.egressTopic);
       
@@ -202,6 +228,12 @@ export class StreamAnalystServer extends McpServer {
       } catch {
         // Not JSON, use as is
       }
+
+      this.getLogger().debug('stream-analyst.egress.publishing', { 
+        topic: observer.delivery.egressTopic, 
+        destination: egress.destination,
+        connector: egress.connector
+      });
 
       await pub.publishJson({
         requestId,

@@ -18,6 +18,11 @@ export class StreamAnalystEngine {
    * Main entry point for summarization requests.
    */
   async summarize(request: SummarizationRequest): Promise<string> {
+    this.logger.debug('engine.summarize.start', { 
+      requestId: request.requestId, 
+      observerId: request.observerId 
+    });
+
     // BL-004: Load observer if ID provided to get source configuration
     let observer: StreamObserver | undefined;
     if (request.observerId) {
@@ -36,6 +41,12 @@ export class StreamAnalystEngine {
     const windowStart = new Date(Math.floor(now / (windowMinutes * 60000)) * (windowMinutes * 60000)).toISOString();
     const idempotencyKey = `${observerId}:${windowStart}`;
 
+    this.logger.debug('engine.summarize.idempotency_check', { 
+      observerId, 
+      windowStart, 
+      idempotencyKey 
+    });
+
     if (request.observerId) {
       const runDoc = await this.firestore.collection('summarization_runs').doc(idempotencyKey).get();
       if (runDoc.exists) {
@@ -48,14 +59,21 @@ export class StreamAnalystEngine {
 
     try {
       // 1. Extraction Phase
+      this.logger.debug('engine.summarize.extraction_start', { observerId });
       const events = await this.queryEvents(request, observer);
       
       if (events.length === 0) {
-        this.logger.info('stream.summarize.no_events', { streamType, windowMinutes });
+        this.logger.info('stream.summarize.no_events', { streamType, windowMinutes, observerId });
         return `No events found for ${streamType} in the last ${windowMinutes} minutes.`;
       }
 
+      this.logger.debug('engine.summarize.extraction_complete', { 
+        eventCount: events.length,
+        observerId
+      });
+
       // 2. Normalization Phase
+      this.logger.debug('engine.summarize.normalization_start', { observerId });
       const buffer = new StreamBuffer();
       // Events from Firestore are DESC (newest first). 
       // addEvent adds them to an internal list.
@@ -71,8 +89,16 @@ export class StreamAnalystEngine {
       }
       
       const context = buffer.getContent();
+      this.logger.debug('engine.summarize.normalization_complete', { 
+        tokenCount: buffer.getTokens(),
+        contextLength: context.length
+      });
       
       // 3. Analysis Phase
+      this.logger.debug('engine.summarize.analysis_start', { 
+        inspectionEnabled: request.inspectionEnabled,
+        observerId
+      });
       const taskInstruction = `Summarize the following ${streamType} stream from the last ${windowMinutes} minutes.`;
       const inspectionInstruction = request.inspectionEnabled 
         ? "\n\nProvide the output in JSON format with the following structure:\n" +
@@ -113,6 +139,11 @@ export class StreamAnalystEngine {
         apiKey: process.env.OPENAI_API_KEY
       });
 
+      this.logger.debug('engine.summarize.llm_call_start', { 
+        model: process.env.LLM_MODEL || 'gpt-4o',
+        promptLength: assembled.text.length
+      });
+
       // BL-007: Simple retry logic for transient LLM failures
       let responseText = '';
       let retries = 3;
@@ -136,6 +167,7 @@ export class StreamAnalystEngine {
       let annotations: AnnotationV1[] = [];
 
       if (request.inspectionEnabled) {
+        this.logger.debug('engine.summarize.parsing_annotations', { responseLength: responseText.length });
         try {
           // Extract JSON from potential Markdown code blocks
           const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/{[\s\S]*}/);
@@ -199,6 +231,10 @@ export class StreamAnalystEngine {
   }
 
   private async persistAnnotations(events: InternalEventV2[], annotations: AnnotationV1[], collectionName: string) {
+    this.logger.debug('engine.persist_annotations.start', { 
+      annotationCount: annotations.length, 
+      collectionName 
+    });
     try {
       // For simplicity, we enrich the most recent event in the window with the annotations
       // In a more complex scenario, we might map annotations to specific events
@@ -244,6 +280,12 @@ export class StreamAnalystEngine {
     // BL-004: Respect source collection from observer or request
     const collectionName = observer?.source?.collection || 'events';
     const timeField = collectionName === 'prompt_logs' ? 'createdAt' : 'ingressAt';
+
+    this.logger.debug('engine.query_events.start', { 
+      collectionName, 
+      startTime, 
+      streamType: request.streamType 
+    });
 
     let query: any = this.firestore.collection(collectionName)
       .where(timeField, '>=', startTime)
