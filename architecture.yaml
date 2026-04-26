@@ -289,6 +289,15 @@ services:
       - GCS_BUCKET_NAME
       - IMAGE_GEN_RATE_LIMIT_MS
 
+  stream-analyst-service:
+    active: true
+    description: ""
+    entry: src/services/stream-analyst/index.ts
+    secrets:
+      - MCP_AUTH_TOKEN
+
+
+
 infrastructure:
   target: gcp
   resources:

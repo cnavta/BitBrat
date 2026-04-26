@@ -1,0 +1,10 @@
+id: sprint-298-e7a8b9
+title: "Stream Observer Summarization & MCP Integration"
+goal: "Implement the SESSI architecture for event stream summarization and add MCP tool support for on-demand summaries."
+owner: "Junie"
+createdAt: "2026-04-25T13:23:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-298-e7a8b9-sessi-mcp"
+notes: |
+  Integrating previous SESSI Technical Architecture with new MCP requestable summarization requirements.
