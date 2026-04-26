@@ -1,0 +1,10 @@
+id: sprint-299-d5e6f7
+title: "SESSI Implementation Gap Closure"
+goal: "Implement missing functionality in SESSI as identified in the gap analysis, including scheduled triggering, idempotency, egress integration, and data enrichment."
+owner: "Junie"
+createdAt: "2026-04-25T21:25:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-299-d5e6f7-sessi-gap-fix"
+notes: |
+  Focus on robustness (idempotency, retries) and full lifecycle management (Observer poller).

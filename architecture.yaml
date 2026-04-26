@@ -291,8 +291,8 @@ services:
 
   stream-analyst-service:
     active: true
-    description: ""
-    entry: src/services/stream-analyst/index.ts
+    description: "Analyzes incoming events and provides summary capabilities"
+    entry: src/apps/stream-analyst-service.ts
     secrets:
       - MCP_AUTH_TOKEN
 
