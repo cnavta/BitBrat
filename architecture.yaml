@@ -296,7 +296,12 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
 
-
+  story-engine-mcp:
+    active: true
+    description: "Provides tools that enable on-demand collaborative storytelling"
+    entry: src/apps/story-engine-mcp.ts
+    secrets:
+      - MCP_AUTH_TOKEN
 
 infrastructure:
   target: gcp

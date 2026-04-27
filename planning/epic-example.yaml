@@ -1,0 +1,120 @@
+id: EPIC-2026-001
+title: Agent-Aware Sprint Execution System
+status: active # proposed | active | paused | completed | deprecated
+
+owner: Chris
+created: 2026-04-27
+last_updated: 2026-04-27
+
+intent:
+  summary: >
+    Build a sprint-based coding-agent workflow that preserves epic-level
+    architectural context while allowing each sprint to execute against a
+    focused, reviewable deliverable.
+  why: >
+    Coding agents lose larger product intent when operating sprint-by-sprint.
+    This epic creates structured context so agents can reason locally without
+    drifting globally.
+
+success_criteria:
+  - Agents can start a sprint with enough context to understand the larger epic.
+  - Sprint deliverables remain aligned with architecture.yaml.
+  - Learnings from each sprint can amend future sprint planning.
+  - The epic can be resumed after long gaps without reconstructing intent from chat history.
+
+scope:
+  in:
+    - Epic-level YAML schema
+    - Sprint-level YAML schema
+    - Append-only sprint learning records
+    - Agent-readable context summary generation
+    - Validation gates for sprint completion
+  out:
+    - Full project management UI
+    - Human resource planning
+    - Calendar scheduling
+    - Automatic production deployment without review
+
+constraints:
+  architectural:
+    - architecture.yaml is canonical and overrides this epic if conflicts appear.
+    - All implementation plans must preserve service boundaries.
+    - Deprecated ideas go under /deprecated, not silent deletion.
+  agent_behavior:
+    - Agent must propose before implementing.
+    - Agent must summarize decisions after each sprint.
+    - Agent must not expand epic scope without recording an amendment.
+  delivery:
+    - Each sprint must produce testable artifacts.
+    - Each sprint must update the epic learning log.
+
+context_refs:
+  architecture: ./architecture.yaml
+  planning_dir: ./planning/
+  deprecated_dir: ./deprecated/
+  preview_dir: ./preview/
+  sprint_protocol: ./AGENTS.md
+
+requirements:
+  - id: REQ-001
+    title: Epic scope must be machine-readable
+    priority: must
+    status: accepted
+    description: >
+      The epic definition must be structured enough for a coding agent to
+      load, summarize, and reason over.
+    acceptance:
+      - Epic has stable identifiers.
+      - Epic separates intent, scope, constraints, and success criteria.
+      - Epic can be referenced by sprint plans.
+
+  - id: REQ-002
+    title: Sprint learnings must be preserved
+    priority: must
+    status: accepted
+    description: >
+      Each sprint must append findings, decisions, risks, and suggested scope
+      amendments without overwriting earlier history.
+    acceptance:
+      - Sprint log entries are append-only.
+      - Each learning has a source sprint.
+      - Amendments can be promoted into the canonical epic scope.
+
+  - id: REQ-003
+    title: Epic context must be compact enough for agent prompts
+    priority: should
+    status: proposed
+    description: >
+      The epic should expose a concise agent_context block suitable for
+      inclusion in sprint prompts.
+    acceptance:
+      - Agent context is less than 1000 words.
+      - It includes current goals, risks, constraints, and next likely work.
+
+agent_context:
+  current_summary: >
+    This epic defines a durable, YAML-based system for keeping multi-sprint
+    requirements visible to coding agents. The key design is separating stable
+    epic intent from append-only sprint learnings.
+  current_focus:
+    - Define epic and sprint schemas.
+    - Ensure learnings can become amendments.
+    - Keep architecture.yaml as the highest authority.
+  known_risks:
+    - Scope creep through unreviewed sprint discoveries.
+    - Agent overfitting to recent sprint context.
+    - Loss of original intent after many amendments.
+  next_sprint_candidates:
+    - Define sprint.yaml schema.
+    - Implement validate_epic_yaml script.
+    - Generate compact agent prompt context from epic.yaml and epic-log.yaml.
+
+open_questions:
+  - Should amendments require human approval before becoming canonical?
+  - Should completed requirements remain in the main epic file or move to history?
+
+amendment_policy:
+  proposed_by_agent: allowed
+  auto_apply: false
+  requires_human_review: true
+  record_in_log: true
