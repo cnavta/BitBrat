@@ -14,6 +14,7 @@ import { redactText } from '../../common/prompt-assembly/redaction';
 import { IToolRegistry } from '../../types/tools';
 import { getLlmProvider } from '../../common/llm/provider-factory';
 import { buildBehavioralGuidance, buildBehavioralTaskInstruction, deriveBehaviorProfile, type BehaviorProfile } from './behavior-profile';
+import { NARRATOR_SYSTEM_PROMPT } from './tools/adventure-tools';
 import { metrics,
   METRIC_PERSONALITIES_RESOLVED,
   METRIC_PERSONALITIES_FAILED,
@@ -388,6 +389,23 @@ export async function processEvent(
         parser: (v: any) => String(v || 'refuse').trim() === 'safe-complete' ? 'safe-complete' : 'refuse',
       }),
     };
+
+    // Story Engine Mode Detection
+    const isAdventure = evt.routing?.slip?.some(s => s.id === 'adventure');
+    if (isAdventure) {
+      logger.info('llm_bot.adventure_mode.detected', { correlationId: corr });
+      // Inject Narrator prompt as an annotation if not already present
+      if (!evt.annotations) evt.annotations = [];
+      evt.annotations.push({
+        id: crypto.randomUUID(),
+        kind: 'instruction',
+        source: 'llm-bot',
+        createdAt: new Date().toISOString(),
+        label: 'narrator-guidance',
+        payload: { text: NARRATOR_SYSTEM_PROMPT }
+      });
+    }
+
     const behaviorProfile = deriveBehaviorProfile(anns as any, {
       riskResponseMode: behavioralFlags.riskResponseMode,
     });
