@@ -15,7 +15,7 @@ import { createAdventureNarratorTool } from '../services/llm-bot/tools/adventure
 export function extractPrompt(evt: InternalEventV2 | any): string | null {
   const anns = (evt && (evt.annotations as any)) || undefined;
   if (Array.isArray(anns)) {
-    const hit = anns.find((a) => a && a.kind === 'prompt' && (a.value || a.payload?.text));
+    const hit = anns.find((a) => a && (a.kind === 'prompt' || a.kind === 'instruction') && (a.value || a.payload?.text));
     if (hit) return String(hit.value || hit.payload?.text || '').trim() || null;
   } else if (anns && typeof anns === 'object') {
     if (anns.prompt) return String(anns.prompt).trim() || null;
