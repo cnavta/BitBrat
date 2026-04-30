@@ -16,4 +16,9 @@ if [ ! -f "planning/sprint-302-a1b2c3/gap-analysis.md" ]; then
   exit 1
 fi
 
+if [ ! -f "planning/sprint-302-a1b2c3/technical-architecture-story-enrichment.md" ]; then
+  echo "❌ technical-architecture-story-enrichment.md is missing!"
+  exit 1
+fi
+
 echo "✅ Validation complete."
