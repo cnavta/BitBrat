@@ -1,0 +1,10 @@
+id: sprint-301-c7d8e9
+title: "CYOA Capability - Phase 1 (MVP)"
+goal: "Deploy story-engine-mcp with basic state tracking and a single Narrator prompt for llm-bot."
+owner: "Junie"
+createdAt: "2026-04-27T19:05:00Z"
+status: "verifying"
+links:
+  branch: "feature/sprint-301-c7d8e9-cyoa-mvp"
+notes: |
+  Phase 1 focused on single-player MVP. Collaborative features deferred to Phase 2.
