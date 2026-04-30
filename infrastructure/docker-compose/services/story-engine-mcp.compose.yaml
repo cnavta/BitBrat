@@ -22,8 +22,6 @@ services:
       firebase-emulator:
         condition: service_healthy
     networks:
-      - bitbrat-network
-
-networks:
-  bitbrat-network:
-    external: true
+      bitbrat-network:
+        aliases:
+          - story-engine-mcp.bitbrat.local
