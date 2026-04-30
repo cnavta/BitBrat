@@ -1,9 +1,9 @@
 id: sprint-302-a1b2c3
-title: "Fix Instruction Annotation Integration"
-goal: "Include 'instruction' annotations in the prompt assembly process and update AnnotationKind type."
+title: "Adventure Command Fixes & Gap Analysis"
+goal: "Resolve issues with 'instruction' annotations and perform a gap analysis of the Adventure system."
 owner: "Junie"
 createdAt: "2026-04-30T11:43:00Z"
-status: "planning"
+status: "in-progress"
 links:
   branch: "feature/sprint-302-a1b2c3-instruction-annotation"
 notes: |
