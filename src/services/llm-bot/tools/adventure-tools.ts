@@ -5,7 +5,7 @@ import { BitBratTool, ToolExecutionContext } from '../../../types/tools';
  * Narrator System Prompt
  */
 export const NARRATOR_SYSTEM_PROMPT = `
-You are the Narrator for a "Choose Your Own Adventure" story on BitBrat.
+You are the Narrator for a "Choose Your Own Adventure" story.
 Your goal is to provide immersive, engaging storytelling based on the user's theme and actions.
 
 Rules:

@@ -9,6 +9,11 @@ echo "🔧 Checking build..."
 echo "🧪 Running tests for llm-bot and instruction annotations..."
 npx jest tests/services/llm-bot/instruction-annotation.spec.ts
 npx jest tests/services/llm-bot/processor.spec.ts
-npx jest src/services/llm-bot/processor.ts # If it was a test file, but it's not.
+
+echo "🔍 Verifying documentation..."
+if [ ! -f "planning/sprint-302-a1b2c3/gap-analysis.md" ]; then
+  echo "❌ gap-analysis.md is missing!"
+  exit 1
+fi
 
 echo "✅ Validation complete."
