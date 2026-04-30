@@ -3,7 +3,7 @@ title: "Fix Discord OAuth callback for bot identity"
 goal: "Implement exchangeCodeForToken in DiscordAdapter to support the bot authorization flow"
 owner: "Junie"
 createdAt: "2026-04-07T22:25:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-268-b7a1e2-fix-discord-callback"
 notes: |

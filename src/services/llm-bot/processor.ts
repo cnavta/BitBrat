@@ -254,7 +254,7 @@ export function applyMemoryReducer(
 
 function buildCombinedPrompt(annotations?: AnnotationV1[]): string | undefined {
   if (!Array.isArray(annotations)) return undefined;
-  const prompts = annotations.filter((a) => a?.kind === 'prompt' && !!extractPromptInstruction(a));
+  const prompts = annotations.filter((a) => (a?.kind === 'prompt' || a?.kind === 'instruction') && !!extractPromptInstruction(a));
   if (prompts.length === 0) return undefined;
   prompts.sort((a, b) => {
     const at = Date.parse(a.createdAt || '') || 0;
