@@ -11,10 +11,12 @@
 ## Deliverables
 - Code changes in `src/types/events.ts` and `src/services/llm-bot/processor.ts`.
 - Tests verifying that 'instruction' annotations are correctly assembled into the prompt.
+- `gap-analysis.md` documenting Phase 1 implementation vs architecture requirements.
 
 ## Acceptance Criteria
 - 'instruction' annotations added to an event are present in the final prompt sent to the LLM.
 - The `AnnotationKind` type includes 'instruction'.
+- `gap-analysis.md` is created in the sprint folder with specific findings on persistence, stability, and resumption.
 - `validate_deliverable.sh` passes.
 
 ## Testing Strategy

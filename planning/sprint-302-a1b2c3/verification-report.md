@@ -6,6 +6,7 @@
 - [x] Updated `extractPrompt` in `src/apps/llm-bot-service.ts` for consistency.
 - [x] Created reproduction test `tests/services/llm-bot/instruction-annotation.spec.ts` and verified the fix.
 - [x] Verified that existing processor tests still pass.
+- [x] Performed Gap Analysis and documented findings in `gap-analysis.md`.
 
 ## Partial
 - None
