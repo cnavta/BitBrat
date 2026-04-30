@@ -3,7 +3,7 @@ title: "Fix Firestore path in OAuth token store"
 goal: "Fix Firestore documentPath error for Discord bot tokens by ensuring an even number of path segments."
 owner: "@junie"
 createdAt: "2026-04-08T09:12:00Z"
-status: "planning"
+status: "complete"
 links:
   branch: "feature/sprint-269-c8a12b-fix-firestore-path"
 notes: |
