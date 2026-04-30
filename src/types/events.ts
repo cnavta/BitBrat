@@ -122,7 +122,7 @@ export interface MessageV1 {
   rawPlatformPayload?: Record<string, any>;
 }
 
-export type AnnotationKindV1 = 'intent' | 'entities' | 'sentiment' | 'topic' | 'custom' | 'prompt' | 'personality' | string;
+export type AnnotationKindV1 = 'intent' | 'entities' | 'sentiment' | 'topic' | 'custom' | 'prompt' | 'personality' | 'instruction' | string;
 
 export interface AnnotationV1 {
   id: string;
