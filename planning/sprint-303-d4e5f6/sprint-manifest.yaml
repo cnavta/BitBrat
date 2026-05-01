@@ -1,0 +1,10 @@
+id: sprint-303-d4e5f6
+title: "Adventure Enrichment & Persistence Implementation"
+goal: "Implement the enrichment-based flow and persistence tools for the Adventure system as defined in the technical architecture."
+owner: "Junie"
+createdAt: "2026-04-30T22:20:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-303-d4e5f6-adventure-enrichment"
+notes: |
+  Moving from standalone MCP toolset to integrated enrichment step within BitBrat event flow.
