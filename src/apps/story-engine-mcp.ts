@@ -25,7 +25,7 @@ export class StoryEngineMcpServer extends McpServer {
   }
 
   private setupEnrichmentConsumer() {
-    this.onMessage(INTERNAL_STORY_ENRICH_V1, async (data: InternalEventV2) => {
+    this.onMessage(INTERNAL_STORY_ENRICH_V1, async (data: InternalEventV2, _attributes, ctx) => {
       this.getLogger().info('Processing adventure enrichment', { 
         correlationId: data.correlationId,
         userId: data.identity.user?.id 
@@ -36,6 +36,7 @@ export class StoryEngineMcpServer extends McpServer {
         if (!userId) {
           this.getLogger().warn('Enrichment skipped: No userId in identity', { correlationId: data.correlationId });
           await this.next(data, 'SKIP');
+          await ctx.ack();
           return;
         }
 
@@ -46,6 +47,7 @@ export class StoryEngineMcpServer extends McpServer {
         if (!storyId) {
           this.getLogger().warn('Enrichment skipped: No active story for user', { userId, correlationId: data.correlationId });
           await this.next(data, 'SKIP');
+          await ctx.ack();
           return;
         }
 
@@ -55,6 +57,7 @@ export class StoryEngineMcpServer extends McpServer {
         if (!storyData) {
           this.getLogger().warn('Enrichment skipped: Story data missing', { storyId, correlationId: data.correlationId });
           await this.next(data, 'SKIP');
+          await ctx.ack();
           return;
         }
 
@@ -84,12 +87,14 @@ export class StoryEngineMcpServer extends McpServer {
         data.annotations.push(annotation);
 
         await this.next(data, 'OK');
+        await ctx.ack();
       } catch (error: any) {
         this.getLogger().error('Enrichment failed', { 
           correlationId: data.correlationId, 
           error: error.message 
         });
         await this.next(data, 'ERROR');
+        await ctx.ack();
       }
     });
   }

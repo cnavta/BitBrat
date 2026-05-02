@@ -85,9 +85,15 @@ class SchedulerServer extends McpServer {
     });
 
     // Pub/Sub Trigger (internal.scheduler.tick)
-    void this.onMessage('internal.scheduler.tick', async () => {
+    void this.onMessage('internal.scheduler.tick', async (_data, _attributes, ctx) => {
       this.getLogger().info('scheduler.tick.pubsub_received');
-      await this.handleTick();
+      try {
+        await this.handleTick();
+        await ctx.ack();
+      } catch (e: any) {
+        this.getLogger().error('scheduler.tick.pubsub_failed', { error: e.message });
+        await ctx.ack(); // Avoid loops
+      }
     });
   }
 

@@ -7,6 +7,8 @@
 - [x] Updated `get_current_scene` to filter for narrative scenes.
 - [x] Optimized `start_story` trigger.
 - [x] Integrated persistence snapshotting in all state-changing tools.
+- [x] Remedied Adventure Loop (Twitch self-ignore).
+- [x] Remedied Pub/Sub Redelivery Loop (Added missing ACKs).
 - [x] Created and passed `validate_deliverable.sh`.
 
 ## Partial

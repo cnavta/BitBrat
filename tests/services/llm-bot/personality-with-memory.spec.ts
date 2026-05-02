@@ -26,6 +26,8 @@ describe('llm-bot processor — personality applied even with prior memory', () 
       this.cfg.PERSONALITY_MAX_CHARS = 4000;
       this.cfg.PERSONALITY_CACHE_TTL_MS = 60_000;
       this.cfg.PERSONALITY_COMPOSE_MODE = 'append';
+      this.cfg.USER_CONTEXT_ENABLED = 'false';
+      this.cfg.DISPOSITION_PROMPT_INJECTION_ENABLED = 'false';
     }
     getConfig<T>(key: string, opts?: { default?: any; required?: boolean; parser?: (v: any) => T }): T {
       const v = this.cfg[key];
