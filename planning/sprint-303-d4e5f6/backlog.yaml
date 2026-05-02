@@ -135,3 +135,36 @@ items:
     log:
       - at: 2026-05-01T13:40:00Z
         note: "Created and successfully ran validate_deliverable.sh."
+
+  - id: ADV-009
+    title: "Remediate Adventure Loop"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Ingress connectors ignore bot's own messages"
+      - "Infinite loop on !adventure is resolved"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T20:25:00Z
+        note: "Implemented ignore_self logic in TwitchIrcClient and verified across all connectors."
+
+  - id: ADV-010
+    title: "Remediate Pub/Sub Redelivery Loop"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "StoryEngineMcpServer acknowledges enrichment messages"
+      - "SchedulerServer acknowledges tick messages"
+      - "Messages are NOT redelivered repeatedly every 10s"
+    updated_at: 2026-05-02
+    log:
+      - at: 2026-05-02T00:25:00Z
+        note: "Added missing ctx.ack() calls in StoryEngineMcpServer and SchedulerServer."
