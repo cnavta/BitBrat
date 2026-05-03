@@ -16,7 +16,22 @@ function baseEvt(): InternalEventV2 {
 }
 
 describe('llm-bot short-term memory', () => {
-  const OLD = { MSGS: process.env.LLM_BOT_MEMORY_MAX_MESSAGES, CHARS: process.env.LLM_BOT_MEMORY_MAX_CHARS };
+  const OLD = {
+    MSGS: process.env.LLM_BOT_MEMORY_MAX_MESSAGES,
+    CHARS: process.env.LLM_BOT_MEMORY_MAX_CHARS,
+    USER_CTX: process.env.USER_CONTEXT_ENABLED,
+    DISP: process.env.DISPOSITION_PROMPT_INJECTION_ENABLED,
+  };
+
+  beforeAll(() => {
+    process.env.USER_CONTEXT_ENABLED = 'false';
+    process.env.DISPOSITION_PROMPT_INJECTION_ENABLED = 'false';
+  });
+
+  afterAll(() => {
+    if (OLD.USER_CTX === undefined) delete process.env.USER_CONTEXT_ENABLED; else process.env.USER_CONTEXT_ENABLED = OLD.USER_CTX;
+    if (OLD.DISP === undefined) delete process.env.DISPOSITION_PROMPT_INJECTION_ENABLED; else process.env.DISPOSITION_PROMPT_INJECTION_ENABLED = OLD.DISP;
+  });
 
   afterEach(() => {
     if (OLD.MSGS === undefined) delete process.env.LLM_BOT_MEMORY_MAX_MESSAGES; else process.env.LLM_BOT_MEMORY_MAX_MESSAGES = OLD.MSGS;

@@ -1,0 +1,186 @@
+meta:
+  backlog_id: sprint-303-adventure-enrichment
+  updated_at: 2026-04-30
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-303-d4e5f6
+  start: 2026-04-30
+  end: 2026-05-14
+  wip_limit: 3
+  goal: "Implement Adventure Context Enrichment & Persistence Flow"
+
+items:
+  - id: ADV-001
+    title: "Define INTERNAL_STORY_ENRICH_V1 constant"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Constant exists in src/types/events.ts"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T09:36:00Z
+        note: "Defined InternalEventType and INTERNAL_STORY_ENRICH_V1 constant."
+
+  - id: ADV-002
+    title: "Implement StoryEngineMcpServer enrichment consumer"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [ADV-001]
+    blocked_reason: null
+    acceptance:
+      - "Consumes internal.story.enrich.v1"
+      - "Injects adventure_context annotation"
+      - "Calls next() to advance to llm-bot"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T09:40:00Z
+        note: "Implemented setupEnrichmentConsumer with Firestore lookups and context injection."
+
+  - id: ADV-003
+    title: "Add commit_scene MCP tool"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Tool exists in StoryEngineMcpServer"
+      - "Appends narrative_scene to history"
+      - "Updates worldState"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T09:42:00Z
+        note: "Added commit_scene tool with support for worldStateMutation."
+
+  - id: ADV-004
+    title: "Update get_current_scene logic"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Filters for most recent narrative_scene"
+      - "Ignores user_action entries"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T09:44:00Z
+        note: "Updated get_current_scene to filter for type narrative_scene."
+
+  - id: ADV-005
+    title: "Optimize start_story narration trigger"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Returns response instructing llm-bot to begin narration"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T09:45:00Z
+        note: "Updated start_story return text to include system instruction for llm-bot."
+
+  - id: ADV-006
+    title: "Add adventure-command-v1 routing rule"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [ADV-002]
+    blocked_reason: "Moved out of scope by user"
+    acceptance:
+      - "Rule exists in Firestore configs/routingRules/rules"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T09:35:00Z
+        note: "User requested to remove this from the sprint."
+
+  - id: ADV-007
+    title: "Implement Persistence Snapshotting"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [ADV-003]
+    blocked_reason: null
+    acceptance:
+      - "Publishes full story state to internal.persistence.snapshot.v1 on change"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T09:47:00Z
+        note: "Integrated publishPersistenceSnapshot into all state-changing tools."
+
+  - id: ADV-008
+    title: "Create validate_deliverable.sh"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Script exists and covers all acceptance criteria"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T13:40:00Z
+        note: "Created and successfully ran validate_deliverable.sh."
+
+  - id: ADV-009
+    title: "Remediate Adventure Loop"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Ingress connectors ignore bot's own messages"
+      - "Infinite loop on !adventure is resolved"
+    updated_at: 2026-05-01
+    log:
+      - at: 2026-05-01T20:25:00Z
+        note: "Implemented ignore_self logic in TwitchIrcClient and verified across all connectors."
+
+  - id: ADV-010
+    title: "Remediate Pub/Sub Redelivery Loop"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "StoryEngineMcpServer acknowledges enrichment messages"
+      - "SchedulerServer acknowledges tick messages"
+      - "Messages are NOT redelivered repeatedly every 10s"
+    updated_at: 2026-05-02
+    log:
+      - at: 2026-05-02T00:25:00Z
+        note: "Added missing ctx.ack() calls in StoryEngineMcpServer and SchedulerServer."
+
+  - id: ADV-011
+    title: "Tool Selection Architecture Brief"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Brief covers metadata-driven and vector-based options"
+      - "Identifies path for 'Story Engine' filtering"
+    updated_at: 2026-05-02
+    log:
+      - at: 2026-05-02T21:10:00Z
+        note: "Produced architecture brief for advanced tool selection."

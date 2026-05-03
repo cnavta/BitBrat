@@ -16,10 +16,28 @@ function baseEvt(): InternalEventV2 {
 }
 
 describe('llm-bot processor with personality', () => {
+  const OLD = {
+    USER_CTX: process.env.USER_CONTEXT_ENABLED,
+    DISP: process.env.DISPOSITION_PROMPT_INJECTION_ENABLED,
+  };
+
+  beforeAll(() => {
+    process.env.USER_CONTEXT_ENABLED = 'false';
+    process.env.DISPOSITION_PROMPT_INJECTION_ENABLED = 'false';
+  });
+
+  afterAll(() => {
+    if (OLD.USER_CTX === undefined) delete process.env.USER_CONTEXT_ENABLED; else process.env.USER_CONTEXT_ENABLED = OLD.USER_CTX;
+    if (OLD.DISP === undefined) delete process.env.DISPOSITION_PROMPT_INJECTION_ENABLED; else process.env.DISPOSITION_PROMPT_INJECTION_ENABLED = OLD.DISP;
+  });
+
   const OLD_ENV = process.env;
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...OLD_ENV };
+    // Re-apply disables because beforeEach resets process.env
+    process.env.USER_CONTEXT_ENABLED = 'false';
+    process.env.DISPOSITION_PROMPT_INJECTION_ENABLED = 'false';
   });
   afterAll(() => {
     process.env = OLD_ENV;

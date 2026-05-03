@@ -1,0 +1,11 @@
+id: sprint-304-f7b8c9
+title: "Streamer.bot Integration - Phase 1"
+goal: "Allow api-gateway WebSocket connections without API token via debug environment variable."
+owner: "Junie"
+createdAt: "2026-05-03T11:59:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/221"
+  branch: "feature/sprint-304-f7b8c9-streamer-bot-integration"
+notes: |
+  Initial task for Streamer.bot integration to aid in debugging connection issues.
