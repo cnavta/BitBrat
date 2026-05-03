@@ -9,6 +9,7 @@
 - [x] Integrated persistence snapshotting in all state-changing tools.
 - [x] Remedied Adventure Loop (Twitch self-ignore).
 - [x] Remedied Pub/Sub Redelivery Loop (Added missing ACKs).
+- [x] Produced "Architecture Brief: Advanced Tool Selection and Filtering".
 - [x] Created and passed `validate_deliverable.sh`.
 
 ## Partial
