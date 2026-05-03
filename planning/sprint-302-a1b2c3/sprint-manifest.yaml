@@ -1,6 +1,6 @@
 id: sprint-302-a1b2c3
-title: "Adventure Command Fixes & Gap Analysis"
-goal: "Resolve issues with 'instruction' annotations and perform a gap analysis of the Adventure system."
+title: "Adventure Command Fixes, Gap Analysis & Technical Architecture"
+goal: "Resolve issues with 'instruction' annotations, perform a gap analysis, and design the enrichment-based architecture for the Adventure system."
 owner: "Junie"
 createdAt: "2026-04-30T11:43:00Z"
 status: "complete"
