@@ -168,3 +168,19 @@ items:
     log:
       - at: 2026-05-02T00:25:00Z
         note: "Added missing ctx.ack() calls in StoryEngineMcpServer and SchedulerServer."
+
+  - id: ADV-011
+    title: "Tool Selection Architecture Brief"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Brief covers metadata-driven and vector-based options"
+      - "Identifies path for 'Story Engine' filtering"
+    updated_at: 2026-05-02
+    log:
+      - at: 2026-05-02T21:10:00Z
+        note: "Produced architecture brief for advanced tool selection."
