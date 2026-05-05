@@ -237,6 +237,7 @@ services:
       - PERSISTENCE_INCLUDE_RAW_PAYLOADS
       - PERSISTENCE_MAX_SNAPSHOT_BYTES
       - PERSISTENCE_TTL_DAYS
+      - API_GATEWAY_ALLOW_ANONYMOUS_WS
 
   state-engine:
     active: true
