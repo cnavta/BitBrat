@@ -300,6 +300,9 @@ services:
     active: true
     description: "Provides tools that enable on-demand collaborative storytelling"
     entry: src/apps/story-engine-mcp.ts
+    topics:
+      consumes:
+        - internal.story.enrich.v1
     secrets:
       - MCP_AUTH_TOKEN
 
