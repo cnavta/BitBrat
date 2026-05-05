@@ -20,6 +20,7 @@ export type InternalEventType =
   | 'system.stream.offline'
   | 'internal.summarization.request.v1'
   | 'internal.summarization.report.v1'
+  | 'internal.story.enrich.v1'
   | 'token.created.v1'
   | string;
 
@@ -304,6 +305,7 @@ export const INTERNAL_BOT_REQUESTS_V1 = 'internal.bot.requests.v1';
 export const INTERNAL_BOT_RESPONSES_V1 = 'internal.bot.responses.v1';
 export const INTERNAL_EGRESS_V1 = 'internal.egress.v1';
 export const INTERNAL_DEADLETTER_V1 = 'internal.deadletter.v1';
+export const INTERNAL_STORY_ENRICH_V1 = 'internal.story.enrich.v1';
 export const INTERNAL_PERSISTENCE_SNAPSHOT_V1 = 'internal.persistence.snapshot.v1';
 // Router DLQ default target when no rules match (per sprint-100 technical architecture)
 export const INTERNAL_ROUTER_DLQ_V1 = 'internal.router.dlq.v1';

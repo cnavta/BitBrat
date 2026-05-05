@@ -464,6 +464,17 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
       logger.debug('Twitch IRC message ignored (ingress disabled)', { channel, userLogin });
       return;
     }
+
+    // Avoid processing our own messages (loops)
+    const botLogin = (this.snapshot.displayName || '').toLowerCase();
+    const botUserId = this.snapshot.userId;
+    if (
+      (botLogin && userLogin.toLowerCase() === botLogin) ||
+      (botUserId && meta?.userId === botUserId)
+    ) {
+      logger.debug('twitch.irc.ignore_self', { userLogin, userId: meta?.userId });
+      return;
+    }
     this.snapshot.counters = this.snapshot.counters || {};
     // Capture a stable reference so TS understands defined-ness across async boundaries
     const counters = (this.snapshot.counters = this.snapshot.counters || {});
