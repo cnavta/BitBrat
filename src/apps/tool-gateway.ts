@@ -203,6 +203,7 @@ export class ToolGatewayServer extends McpServer {
             name: t.id,
             description: t.description,
             inputSchema,
+            scopes: t.scopes,
           });
         });
       logger.debug(`Returning ${tools.length} tools (trustedDiscovery=${trustedDiscovery})`);

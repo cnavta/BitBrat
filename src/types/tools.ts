@@ -42,6 +42,8 @@ export interface BitBratTool<PARAMETERS extends z.ZodTypeAny = any, RESULT = any
   agentAllowlist?: string[];
   /** Optional origin server name for this tool */
   originServer?: string;
+  /** Optional scopes for contextual filtering (e.g. ['story']) */
+  scopes?: string[];
 }
 
 /**
