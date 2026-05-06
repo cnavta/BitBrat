@@ -1,0 +1,21 @@
+backlog:
+  - id: BL-306-001
+    title: "Reproduce missing UserID in prompt"
+    status: "complete"
+    priority: "high"
+    description: "Create a unit test in tests/prompt-assembly/ that confirms userId is NOT rendered in the Requesting User section."
+  - id: BL-306-002
+    title: "Update prompt assembler to render UserID"
+    status: "complete"
+    priority: "high"
+    description: "Modify src/common/prompt-assembly/assemble.ts to include userId in renderRequestingUser."
+  - id: BL-306-003
+    title: "Verify Tool Call logic"
+    status: "complete"
+    priority: "med"
+    description: "Ensure that with userId present in the prompt, tools that require userId receive the correct value."
+  - id: BL-306-004
+    title: "Final Validation and PR"
+    status: "complete"
+    priority: "high"
+    description: "Run validate_deliverable.sh and create the PR."

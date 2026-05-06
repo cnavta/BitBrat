@@ -66,6 +66,19 @@ describe("assemble() – canonical rendering", () => {
     expect(sections.requestingUser).toContain("- Roles: [qa]");
   });
 
+  it("should render userId (Fix for BL-306)", () => {
+    const spec: PromptSpec = {
+      ...baseSpec,
+      requestingUser: {
+        userId: "user-123",
+        handle: "@tester",
+      },
+    };
+
+    const { sections } = assemble(spec, cfg);
+    expect(sections.requestingUser).toContain("- User ID: user-123");
+  });
+
   it("fences multi-line input", () => {
     const spec: PromptSpec = {
       ...baseSpec,
