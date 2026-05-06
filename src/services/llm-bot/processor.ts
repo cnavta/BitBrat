@@ -606,8 +606,11 @@ export async function processEvent(
         signal
       };
 
+      const requestedScope = evt.metadata?.scope;
       const filteredTools: Record<string, any> = {};
       const behavioralToolSuppressions: Array<{ tool: string; reason: string }> = [];
+      const scopeSuppressions: Array<{ tool: string; reason: string }> = [];
+
       for (const [name, tool] of Object.entries(allTools)) {
         let allowed = false;
         if (!tool.requiredRoles || tool.requiredRoles.length === 0) {
@@ -616,11 +619,22 @@ export async function processEvent(
           allowed = true;
         }
 
+        // Tier 2: Scope Filtering
+        let scopeAllowed = true;
+        if (requestedScope) {
+          if (tool.scopes && tool.scopes.length > 0) {
+            scopeAllowed = tool.scopes.includes(requestedScope);
+          } else {
+            // Global tools (no scopes) are always allowed
+            scopeAllowed = true;
+          }
+        }
+
         const behavioralDecision = behavioralFlags.toolFilterEnabled
           ? evaluateBehavioralToolEligibility(tool, behaviorProfile)
           : { allowed: true, reason: 'behavioral tool filtering disabled' };
 
-        if (allowed && behavioralDecision.allowed) {
+        if (allowed && scopeAllowed && behavioralDecision.allowed) {
           // Wrap tool to capture errors in InternalEventV2
           filteredTools[name] = {
             description: tool.description,
@@ -645,6 +659,9 @@ export async function processEvent(
           };
         } else if (!allowed) {
           logger.debug('llm_bot.tool_filtered_rbac', { tool: tool.id, userRoles });
+        } else if (!scopeAllowed) {
+          scopeSuppressions.push({ tool: tool.id, reason: `mismatched scope (requested: ${requestedScope}, tool: ${tool.scopes?.join(',')})` });
+          logger.debug('llm_bot.tool_filtered_scope', { tool: tool.id, requestedScope, toolScopes: tool.scopes });
         } else {
           behavioralToolSuppressions.push({ tool: tool.id, reason: behavioralDecision.reason });
           logger.debug('llm_bot.tool_filtered_behavioral', {
@@ -662,6 +679,7 @@ export async function processEvent(
           enabled: behavioralFlags.toolFilterEnabled,
           allowedCount: Object.keys(filteredTools).length,
           suppressed: behavioralToolSuppressions,
+          scopeSuppressed: scopeSuppressions,
         },
       });
 

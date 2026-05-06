@@ -86,6 +86,10 @@ export class StoryEngineMcpServer extends McpServer {
         if (!data.annotations) data.annotations = [];
         data.annotations.push(annotation);
 
+        // Inject scope into metadata for tool filtering
+        if (!data.metadata) data.metadata = {};
+        data.metadata.scope = 'story';
+
         await this.next(data, 'OK');
         await ctx.ack();
       } catch (error: any) {
@@ -163,7 +167,8 @@ export class StoryEngineMcpServer extends McpServer {
             text: `Story started! ID: ${storyId}. Theme: ${theme}.\n\n[SYSTEM]: Please begin the narration for this ${theme} adventure.` 
           }],
         };
-      }
+      },
+      { scopes: ['story'] }
     );
 
     this.registerTool(
@@ -208,7 +213,8 @@ export class StoryEngineMcpServer extends McpServer {
             text: lastScene ? `Scene: ${lastScene.scene}\n\nChoices:\n${lastScene.choices.join('\n')}` : 'Story started. Waiting for first narration.'
           }],
         };
-      }
+      },
+      { scopes: ['story'] }
     );
 
     this.registerTool(
@@ -266,7 +272,8 @@ export class StoryEngineMcpServer extends McpServer {
         return {
           content: [{ type: 'text', text: `Action "${action}" recorded. Narrating consequence...` }],
         };
-      }
+      },
+      { scopes: ['story'] }
     );
 
     this.registerTool(
@@ -333,7 +340,8 @@ export class StoryEngineMcpServer extends McpServer {
         return {
           content: [{ type: 'text', text: 'Scene committed successfully.' }],
         };
-      }
+      },
+      { scopes: ['story'] }
     );
 
     this.registerTool(
@@ -386,7 +394,8 @@ export class StoryEngineMcpServer extends McpServer {
         return {
           content: [{ type: 'text', text: `World state updated for ${userId}.` }],
         };
-      }
+      },
+      { scopes: ['story'] }
     );
   }
 

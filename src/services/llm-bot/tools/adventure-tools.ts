@@ -23,6 +23,7 @@ export function createAdventureNarratorTool(): BitBratTool {
   return {
     id: 'adventure:narrate',
     source: 'internal',
+    scopes: ['story'],
     displayName: 'Adventure Narrator',
     description: 'Generates the next chapter of the adventure and lists choices.',
     inputSchema: z.object({
