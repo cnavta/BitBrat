@@ -27,7 +27,7 @@ export class McpServer extends BaseServer {
   protected readonly transports: Map<string, SSEServerTransport> = new Map();
 
   // Internal registries for discovery
-  private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult> }> = new Map();
+  private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult>; scopes?: string[] }> = new Map();
   private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string, extra?: any) => Promise<ReadResourceResult> }> = new Map();
   private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>, extra?: any) => Promise<GetPromptResult> }> = new Map();
 
@@ -78,9 +78,10 @@ export class McpServer extends BaseServer {
     name: string,
     description: string,
     schema: T,
-    handler: (args: z.infer<T>, extra?: any) => Promise<CallToolResult>
+    handler: (args: z.infer<T>, extra?: any) => Promise<CallToolResult>,
+    options?: { scopes?: string[] }
   ) {
-    this.registeredTools.set(name, { description, schema, handler });
+    this.registeredTools.set(name, { description, schema, handler, scopes: options?.scopes });
     this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const tool = this.registeredTools.get(request.params.name);
       if (!tool) throw new Error(`Tool not found: ${request.params.name}`);
@@ -159,12 +160,13 @@ export class McpServer extends BaseServer {
   private setupDiscoveryHandlers() {
     // tools/list
     this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
-      const tools = Array.from(this.registeredTools.entries()).map(([name, { description, schema }]) => {
+      const tools = Array.from(this.registeredTools.entries()).map(([name, { description, schema, scopes }]) => {
         const jsonSchema = zodToJsonSchema(schema);
         return {
           name,
           description,
           inputSchema: jsonSchema as any,
+          scopes,
         };
       });
       return { tools };
