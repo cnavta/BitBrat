@@ -82,16 +82,30 @@ export interface InputPayload {
   context?: string; // optional short context snippet
 }
 
+export interface NamedContext {
+  name: string; // e.g., "World State", "Character Lore"
+  content: string | object; // String or object (to be rendered as JSON)
+  priority?: Priority; // default 3
+  subheader?: string; // Optional descriptive text
+}
+
 export interface PromptSpec {
   systemPrompt?: SystemPrompt;
   identity?: Identity;
   requestingUser?: RequestingUser;
+
   // v2: New first-class section for short-term memory/state
   conversationState?: ConversationState;
+
+  // v3: Named contexts for enriched data (e.g., from Story Engine)
+  contexts?: NamedContext[];
+
   constraints?: Constraint[];
   constraintsSubheader?: string; // Optional descriptive text (v2.5)
+
   task: TaskAnnotation[]; // at least one
   taskSubheader?: string; // Optional descriptive text (v2.5)
+
   input: InputPayload; // required
 }
 
@@ -117,6 +131,7 @@ export interface AssembledPromptSections {
   identity: string;
   requestingUser: string;
   conversationState: string; // v2
+  contexts: string; // v3
   constraints: string;
   task: string;
   input: string;

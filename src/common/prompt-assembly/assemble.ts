@@ -5,6 +5,7 @@ import {
   Constraint,
   PromptSpec,
   TaskAnnotation,
+  NamedContext,
 } from "./types";
 
 function heading(label: string, level: 1 | 2 | 3 = 2): string {
@@ -13,7 +14,8 @@ function heading(label: string, level: 1 | 2 | 3 = 2): string {
 }
 
 function normalizePriority<T extends { priority?: 1 | 2 | 3 | 4 | 5 }>(items: T[] | undefined): (T & { priority: 1 | 2 | 3 | 4 | 5 })[] {
-  return (items ?? []).map((i) => ({ ...i, priority: (i.priority ?? 3) as 1 | 2 | 3 | 4 | 5 }));
+  if (!items) return [];
+  return items.map((i) => ({ ...i, priority: (i.priority ?? 3) as 1 | 2 | 3 | 4 | 5 }));
 }
 
 function sortByPriority<T extends { priority: 1 | 2 | 3 | 4 | 5 }>(items: T[]): T[] {
@@ -150,6 +152,30 @@ function renderTask(spec: PromptSpec, cfg: AssemblerConfig): string {
   return lines.join("\n");
 }
 
+function renderContexts(spec: PromptSpec, cfg: AssemblerConfig): string {
+  const lines: string[] = [heading("Contexts", cfg.headingLevel ?? 2)];
+  const contexts = spec.contexts ?? [];
+
+  if (!contexts.length) {
+    if (cfg.showEmptySections ?? true) lines.push("- None provided.");
+    return lines.join("\n");
+  }
+
+  for (const ctx of contexts) {
+    if (ctx.subheader) {
+      lines.push(ctx.subheader);
+    }
+    lines.push(`## ${ctx.name}`);
+    const content = typeof ctx.content === "object"
+      ? JSON.stringify(ctx.content, null, 2)
+      : ctx.content;
+    lines.push(fenceIfMultiline(content));
+    lines.push(""); // spacer between contexts
+  }
+
+  return lines.join("\n").trim();
+}
+
 function fenceIfMultiline(text: string): string {
   if (!text.includes("\n")) return text;
   return ["~~~text", text, "~~~"].join("\n");
@@ -199,8 +225,11 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     taskSubheader: spec.taskSubheader ?? cfg.defaultSubheaders?.task,
     constraints: sortByPriority(normalizePriority<Constraint>(spec.constraints)),
     task: sortByPriority(normalizePriority<TaskAnnotation>(spec.task)),
+    contexts: spec.contexts ? sortByPriority(normalizePriority<NamedContext>(spec.contexts)) : undefined,
     input: { ...spec.input },
   };
+
+  const workingContexts = workingSpec.contexts ? [...workingSpec.contexts] : undefined;
 
   // Placeholder for post-render section overrides (compression without mutating spec deeply)
   const sectionsPlaceholder: Partial<AssembledPromptSections> = {};
@@ -269,12 +298,23 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
   // Constraints section cap: DO NOT drop constraints in v2. Compress wording instead.
   // We'll apply compression after initial render based on measured length.
 
+  // Contexts section cap: drop lowest-priority contexts until under cap
+  if (caps.contexts) {
+    let contextsText = renderContexts(workingSpec, cfg);
+    while (contextsText.length > (caps.contexts as number) && (workingSpec.contexts?.length ?? 0) > 0) {
+      const removed = workingSpec.contexts?.pop();
+      if (removed) truncationNotes.push(`Dropped context(name:${removed.name}, p:${removed.priority ?? 3}) to meet section cap.`);
+      contextsText = renderContexts(workingSpec, cfg);
+    }
+  }
+
   // Render sections after section-level adjustments
   let sections: AssembledPromptSections = {
     systemPrompt: renderSystemPrompt(workingSpec, cfg),
     identity: renderIdentity(workingSpec, cfg),
     requestingUser: renderRequestingUser(workingSpec, cfg),
     conversationState: renderConversationState(workingSpec, cfg),
+    contexts: renderContexts(workingSpec, cfg),
     constraints: renderConstraints(workingSpec, cfg),
     task: renderTask(workingSpec, cfg),
     input: renderInput(workingSpec, cfg),
@@ -298,6 +338,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     identity: sections.identity.length,
     requestingUser: sections.requestingUser.length,
     conversationState: sections.conversationState.length,
+    contexts: sections.contexts.length,
     constraints: sections.constraints.length,
     task: sections.task.length,
     input: sections.input.length,
@@ -307,6 +348,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     sections.identity,
     sections.requestingUser,
     sections.conversationState,
+    sections.contexts,
     sections.constraints,
     sections.task,
     sections.input,
@@ -315,9 +357,10 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
   // Apply maxTotalChars by trimming in the defined order (v2):
   // 1) Remove Input.context
   // 2) Trim ConversationState.transcript
-  // 3) Drop lower-priority tasks
-  // 4) (Never drop Constraints or System Prompt/Identity)
-  // 5) Trim Input.userQuery tail as last resort
+  // 3) Drop lower-priority contexts (New v3)
+  // 4) Drop lower-priority tasks
+  // 5) (Never drop Constraints or System Prompt/Identity)
+  // 6) Trim Input.userQuery tail as last resort
   if (cfg.maxTotalChars && totalChars > cfg.maxTotalChars) {
     // 1) Trim Input.context entirely before touching anything else
     if (workingSpec.input.context) {
@@ -330,6 +373,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
         sections.identity,
         sections.requestingUser,
         sections.conversationState,
+        sections.contexts,
         sections.constraints,
         sections.task,
         sections.input,
@@ -356,6 +400,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
           sections.identity,
           sections.requestingUser,
           sections.conversationState,
+          sections.contexts,
           sections.constraints,
           sections.task,
           sections.input,
@@ -364,7 +409,25 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
       truncationNotes.push("ConversationState.transcript truncated to satisfy total cap.");
     }
 
-    // 3) Drop lowest-priority tasks
+    // 3) Drop lower-priority contexts
+    while (cfg.maxTotalChars && totalChars > cfg.maxTotalChars && (workingSpec.contexts?.length ?? 0) > 0) {
+      const removed = workingSpec.contexts?.pop();
+      if (removed) truncationNotes.push(`Dropped context(name:${removed.name}, p:${removed.priority ?? 3}) to satisfy total cap.`);
+      sections.contexts = renderContexts(workingSpec, cfg);
+      sectionLengths.contexts = sections.contexts.length;
+      totalChars = [
+        sections.systemPrompt,
+        sections.identity,
+        sections.requestingUser,
+        sections.conversationState,
+        sections.contexts,
+        sections.constraints,
+        sections.task,
+        sections.input,
+      ].join("\n\n").length;
+    }
+
+    // 4) Drop lowest-priority tasks
     while (cfg.maxTotalChars && totalChars > cfg.maxTotalChars && workingSpec.task.length > 1) {
       const removed = workingSpec.task.pop();
       if (removed) truncationNotes.push(`Dropped task(id:${removed.id ?? "?"}, p:${removed.priority ?? 3}) to satisfy total cap.`);
@@ -375,6 +438,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
         sections.identity,
         sections.requestingUser,
         sections.conversationState,
+        sections.contexts,
         sections.constraints,
         sections.task,
         sections.input,
@@ -396,6 +460,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
             sections.identity,
             sections.requestingUser,
             sections.conversationState,
+            sections.contexts,
             sections.constraints,
             sections.task,
           ].join("\n\n").length + "\n\n".length + header.length
@@ -423,6 +488,7 @@ export function assemble(spec: PromptSpec, config: AssemblerConfig = {}): Assemb
     sections.identity,
     sections.requestingUser,
     sections.conversationState,
+    sections.contexts,
     sections.constraints,
     sections.task,
     sections.input,

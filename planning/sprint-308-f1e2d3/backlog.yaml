@@ -1,0 +1,100 @@
+meta:
+  backlog_id: sprint-308-f1e2d3-backlog
+  updated_at: 2026-05-06
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-308-f1e2d3
+  start: 2026-05-06
+  end: 2026-05-13
+  wip_limit: 2
+  goal: "Improve prompt generation by allowing named contexts to be added to PromptSpec, replacing serialized JSON."
+
+items:
+  - id: BL-308-001
+    title: "Define NamedContext types"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "NamedContext interface added to src/common/prompt-assembly/types.ts"
+      - "PromptSpec updated with optional contexts array"
+      - "AssembledPromptSections updated with contexts field"
+    updated_at: 2026-05-06
+    log: []
+
+  - id: BL-308-002
+    title: "Implement Context Rendering"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-308-001]
+    blocked_reason: null
+    acceptance:
+      - "renderContexts function implemented in assemble.ts"
+      - "Object content rendered as JSON block"
+      - "Named contexts appear in canonical order (after Conversation State)"
+    updated_at: 2026-05-06
+    log: []
+
+  - id: BL-308-003
+    title: "Implement Truncation Logic for Contexts"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-308-002]
+    blocked_reason: null
+    acceptance:
+      - "Contexts are sorted by priority during assembly"
+      - "Contexts can be dropped if maxTotalChars is exceeded (lowest priority first)"
+      - "Truncation notes accurately reflect dropped contexts"
+    updated_at: 2026-05-06
+    log: []
+
+  - id: BL-308-004
+    title: "Integrate Story Engine Data with Named Contexts"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-308-002]
+    blocked_reason: null
+    acceptance:
+      - "Story Engine data in src/services/llm-bot/processor.ts uses NamedContexts"
+      - "Data is no longer serialized into generic JSON in systemPrompt or input.context"
+    updated_at: 2026-05-06
+    log: []
+
+  - id: BL-308-005
+    title: "Add Unit Tests for Named Contexts"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-308-002]
+    blocked_reason: null
+    acceptance:
+      - "Tests cover multi-context rendering"
+      - "Tests cover object-to-JSON rendering"
+      - "Tests cover truncation and priority sorting"
+    updated_at: 2026-05-06
+    log: []
+
+  - id: BL-308-006
+    title: "Finalize Validation and PR"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-308-005]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "GitHub PR created"
+    updated_at: 2026-05-06
+    log: []
