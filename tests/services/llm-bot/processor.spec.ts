@@ -146,6 +146,36 @@ describe('Processor', () => {
     expect(prompt).not.toContain('## [Task]\n- (3) Respond to the user input constructively.\n\nUsername: Gonj_The_Unjust');
   });
 
+  it('should include userId in the prompt when available', async () => {
+    const evt: InternalEventV2 = {
+      correlationId: 'corr-userId',
+      type: 'internal.llmbot.v1',
+      v: '2',
+      ingress: {
+        connector: 'system',
+        ingressAt: new Date().toISOString(),
+        source: 'test',
+        channel: 'test',
+      },
+      identity: {
+        external: { id: 'ext-u1', platform: 'twitch', displayName: 'Tester' },
+        user: { id: 'bitbrat-u1', displayName: 'Tester' } as any,
+      },
+      annotations: [
+        { id: 'a1', kind: 'prompt', value: 'Hello', createdAt: new Date().toISOString(), source: 'test' }
+      ],
+      routing: { stage: 'analysis', slip: [], history: [] },
+      egress: { connector: 'system', destination: 'test' },
+    };
+
+    const callLLM = jest.fn().mockResolvedValue('Mocked response');
+    await processEvent(mockServer as BaseServer, evt, { callLLM });
+
+    const prompt = callLLM.mock.calls[0][1] as string;
+    expect(prompt).toContain('- User ID: bitbrat-u1');
+    expect(prompt).toContain('- Handle: Tester');
+  });
+
   it('should handle errors gracefully', async () => {
     (generateText as jest.Mock).mockRejectedValue(new Error('AI error'));
 
