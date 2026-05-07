@@ -135,6 +135,11 @@ function isDispositionPromptAnnotation(annotation?: AnnotationV1): boolean {
   return annotation.kind === 'prompt' && annotation.source === 'llm-bot.disposition';
 }
 
+function isAdventureContextAnnotation(annotation?: AnnotationV1): boolean {
+  if (!annotation) return false;
+  return annotation.label === 'adventure_context';
+}
+
 function extractPromptInstruction(annotation: AnnotationV1): string | undefined {
   if (isUserContextAnnotation(annotation)) {
     const rolePrompts = normalizeStringList(annotation.payload?.rolePrompts);
@@ -143,6 +148,9 @@ function extractPromptInstruction(annotation: AnnotationV1): string | undefined 
   }
   if (isDispositionPromptAnnotation(annotation)) {
     return undefined;
+  }
+  if (isAdventureContextAnnotation(annotation)) {
+    return undefined; // Handled separately as NamedContext
   }
   return normalizeOptionalText(annotation.value) ?? normalizeOptionalText(annotation.payload?.text);
 }
@@ -304,6 +312,63 @@ function unwrapQuoted(input: string): string {
 }
 
 // callOpenAI removed in BL-160-001 as it used legacy client.
+
+function extractAdventureContexts(annotations?: AnnotationV1[]): any[] {
+  if (!Array.isArray(annotations)) return [];
+  const adventureAnn = annotations.find(isAdventureContextAnnotation);
+  if (!adventureAnn) return [];
+
+  try {
+    const data = typeof adventureAnn.value === 'string' ? JSON.parse(adventureAnn.value) : adventureAnn.value;
+    if (!data) return [];
+
+    const contexts: any[] = [];
+    if (data.storyId) {
+      contexts.push({
+        name: 'Adventure Meta',
+        priority: 3,
+        content: {
+          storyId: data.storyId,
+          theme: data.theme,
+          setting: data.setting
+        }
+      });
+    }
+    if (data.currentScene) {
+      contexts.push({
+        name: 'Current Scene',
+        priority: 2,
+        content: data.currentScene
+      });
+    }
+    if (data.availableChoices && data.availableChoices.length > 0) {
+      contexts.push({
+        name: 'Available Choices',
+        priority: 3,
+        content: data.availableChoices
+      });
+    }
+    if (data.worldStateSummary) {
+      let worldState = data.worldStateSummary;
+      try {
+        if (typeof worldState === 'string' && (worldState.startsWith('{') || worldState.startsWith('['))) {
+          worldState = JSON.parse(worldState);
+        }
+      } catch (e) {
+        // ignore parse error, keep as string
+      }
+      contexts.push({
+        name: 'World State',
+        priority: 3,
+        content: worldState
+      });
+    }
+
+    return contexts;
+  } catch (e) {
+    return [];
+  }
+}
 
 export async function processEvent(
   server: BaseServer,
@@ -548,11 +613,13 @@ export async function processEvent(
       { instruction: combinedPrompt, priority: 3 as const, required: true },
     ];
     const mergedConstraints = [...(resolvedConstraints || []), ...behavioralConstraints];
+    const adventureContexts = extractAdventureContexts(anns as any);
 
     const spec: PromptSpec = {
       systemPrompt: sysPrompt ? { summary: 'Rules', rules: [sysPrompt], sources: ['config'] } : undefined,
       identity: resolvedIdentity ? { summary: resolvedIdentity } : undefined,
       requestingUser: buildRequestingUser(evt, anns as any),
+      contexts: adventureContexts.length ? adventureContexts : undefined,
       constraints: mergedConstraints.length ? mergedConstraints : undefined,
       task: taskAnnotations,
       input: { userQuery: evt.message?.text || combinedPrompt },
