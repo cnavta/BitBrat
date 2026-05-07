@@ -10,29 +10,29 @@
 - `tests/prompt-assembly/`: Add comprehensive tests.
 
 ## Execution Plan
-1. **Phase 1: Type Definition**
-   - Update `src/common/prompt-assembly/types.ts` to include `NamedContext` interface.
-   - Extend `PromptSpec` with `contexts?: NamedContext[]`.
-   - Add `contexts` to `AssembledPromptSections`.
+1. **Phase 1: Type Definition** [x]
+   - [x] Update `src/common/prompt-assembly/types.ts` to include `NamedContext` interface.
+   - [x] Extend `PromptSpec` with `contexts?: NamedContext[]`.
+   - [x] Add `contexts` to `AssembledPromptSections`.
 
-2. **Phase 2: Assembler implementation**
-   - Implement `renderContexts` in `src/common/prompt-assembly/assemble.ts`.
-   - Update `assemble` function to include the `contexts` section in the canonical v3 order.
-   - Implement priority sorting and truncation logic for the new section.
+2. **Phase 2: Assembler implementation** [x]
+   - [x] Implement `renderContexts` in `src/common/prompt-assembly/assemble.ts`.
+   - [x] Update `assemble` function to include the `contexts` section in the canonical v3 order.
+   - [x] Implement priority sorting and truncation logic for the new section.
 
-3. **Phase 3: Story Engine Integration**
-   - Identify where Story Engine enriched data is currently added to the prompt in `src/services/llm-bot/processor.ts`.
-   - Update `PromptSpec` construction to use `NamedContexts` for this data.
-   - Ensure the data is semantically labeled (e.g., "Story Context" or "World State").
+3. **Phase 3: Story Engine Integration** [x]
+   - [x] Identify where Story Engine enriched data is currently added to the prompt in `src/services/llm-bot/processor.ts`.
+   - [x] Update `PromptSpec` construction to use `NamedContexts` for this data.
+   - [x] Ensure the data is semantically labeled (e.g., "Story Context" or "World State").
 
-4. **Phase 4: Testing & Validation**
-   - Create unit tests in `tests/prompt-assembly/assemble.spec.ts` to verify the new rendering and truncation behaviors.
-   - Verify Story Engine data integration in `processor.ts` via integration tests or manual check.
-   - Run `validate_deliverable.sh` to ensure no regressions.
+4. **Phase 4: Testing & Validation** [x]
+   - [x] Create unit tests in `tests/prompt-assembly/assemble.spec.ts` to verify the new rendering and truncation behaviors.
+   - [x] Verify Story Engine data integration in `processor.ts` via integration tests or manual check.
+   - [x] Run `validate_deliverable.sh` to ensure no regressions.
 
-5. **Phase 5: Publication**
-   - Push changes to the feature branch.
-   - Create a Pull Request.
+5. **Phase 5: Publication** [x]
+   - [x] Push changes to the feature branch.
+   - [x] Create a Pull Request.
 
 ## Deliverables
 - Updated `PromptSpec` types.
