@@ -3,8 +3,9 @@ title: "Named Contexts for Prompt Assembly"
 goal: "Improve prompt generation by allowing one or more named contexts to be added to the PromptSpec, replacing serialized JSON from story-engine with appropriately incorporated context."
 owner: "Junie"
 createdAt: "2026-05-06T20:15:00Z"
-status: "planning"
+status: "complete"
 links:
+  pr: "https://github.com/cnavta/BitBrat/pull/224"
   branch: "feature/sprint-308-f1e2d3-named-contexts-prompts"
 notes: |
   Focusing on PromptSpec improvements and Technical Architecture for named contexts.
