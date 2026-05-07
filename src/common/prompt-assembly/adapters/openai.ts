@@ -12,7 +12,7 @@ export interface OpenAIChatPayload {
 /**
  * Maps assembled sections to OpenAI Chat/Responses payload (v2 mapping).
  * system = [System Prompt + Assistant Identity]
- * user   = [Requesting User + Conversation State/History + Constraints + Task + Input]
+ * user   = [Requesting User + Conversation State/History + Contexts + Constraints + Task + Input]
  */
 export function openaiAdapter(assembled: AssembledPrompt): OpenAIChatPayload {
   const system = [
@@ -25,6 +25,7 @@ export function openaiAdapter(assembled: AssembledPrompt): OpenAIChatPayload {
   const user = [
     assembled.sections.requestingUser,
     assembled.sections.conversationState,
+    assembled.sections.contexts,
     assembled.sections.constraints,
     assembled.sections.task,
     assembled.sections.input,
