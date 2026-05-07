@@ -72,6 +72,37 @@ describe("assemble() – truncation and caps", () => {
     expect(meta?.truncationNotes.some((n) => n.includes("Dropped task"))).toBe(true);
   });
 
+  it("drops lowest-priority contexts for total cap before tasks", () => {
+    const spec: PromptSpec = {
+      task: [{ id: "t1", priority: 1, instruction: "Task 1" }],
+      contexts: [
+        { name: "C1", priority: 1, content: "Context 1 " + "x".repeat(500) },
+        { name: "C2", priority: 5, content: "Context 2 " + "x".repeat(500) },
+      ],
+      input: { userQuery: "Hello" },
+    };
+    const { sections, meta } = assemble(spec, { maxTotalChars: 900 });
+    expect(sections.contexts).toContain("C1");
+    expect(sections.contexts).not.toContain("C2");
+    expect(meta?.truncated).toBe(true);
+    expect(meta?.truncationNotes.some((n) => n.includes("Dropped context(name:C2"))).toBe(true);
+  });
+
+  it("drops contexts to meet section cap", () => {
+    const spec: PromptSpec = {
+      task: [{ priority: 1, instruction: "Do it" }],
+      input: { userQuery: "Q" },
+      contexts: [
+        { name: "C1", priority: 1, content: "Short" },
+        { name: "C2", priority: 5, content: "Long ".repeat(50) },
+      ],
+    };
+    const { sections, meta } = assemble(spec, { sectionCaps: { contexts: 50 } });
+    expect(sections.contexts.length).toBeLessThanOrEqual(50);
+    expect(meta?.truncated).toBe(true);
+    expect(meta?.truncationNotes.some((n) => n.includes("Dropped context"))).toBe(true);
+  });
+
   it("applies maxTotalChars and eventually trims Input.userQuery tail as last resort", () => {
     const long = "X".repeat(2000);
     const spec: PromptSpec = {

@@ -19,6 +19,7 @@ describe("assemble() – canonical rendering", () => {
       "## [Assistant Identity]",
       "## [Requesting User]",
       "## [Conversation State / History]",
+      "## [Contexts]",
       "## [Constraints]",
       "## [Task]",
       "## [Input]",
@@ -47,7 +48,66 @@ describe("assemble() – canonical rendering", () => {
     expect(sections.identity).toContain("None provided");
     expect(sections.requestingUser).toContain("None provided");
     expect(sections.conversationState).toContain("None provided");
+    expect(sections.contexts).toContain("None provided");
     expect(sections.constraints).toContain("None provided");
+  });
+
+  describe("Named Contexts (v3)", () => {
+    it("renders multiple named contexts with headings and content", () => {
+      const spec: PromptSpec = {
+        ...baseSpec,
+        contexts: [
+          { name: "World State", content: "The world is on fire." },
+          { name: "Character Lore", content: "Bob is a brave warrior." },
+        ],
+      };
+      const { sections } = assemble(spec, cfg);
+      expect(sections.contexts).toContain("## World State");
+      expect(sections.contexts).toContain("The world is on fire.");
+      expect(sections.contexts).toContain("## Character Lore");
+      expect(sections.contexts).toContain("Bob is a brave warrior.");
+    });
+
+    it("renders object content as JSON block", () => {
+      const spec: PromptSpec = {
+        ...baseSpec,
+        contexts: [
+          { name: "Stats", content: { health: 100, mana: 50 } },
+        ],
+      };
+      const { sections } = assemble(spec, cfg);
+      expect(sections.contexts).toContain("## Stats");
+      expect(sections.contexts).toContain("~~~text");
+      expect(sections.contexts).toContain('"health": 100');
+      expect(sections.contexts).toContain('"mana": 50');
+      expect(sections.contexts).toContain("~~~");
+    });
+
+    it("sorts contexts by priority", () => {
+      const spec: PromptSpec = {
+        ...baseSpec,
+        contexts: [
+          { name: "Low", content: "Low priority", priority: 5 },
+          { name: "High", content: "High priority", priority: 1 },
+        ],
+      };
+      const { sections } = assemble(spec, cfg);
+      const lowIdx = sections.contexts.indexOf("## Low");
+      const highIdx = sections.contexts.indexOf("## High");
+      expect(highIdx).toBeLessThan(lowIdx);
+    });
+
+    it("renders subheaders for contexts if provided", () => {
+      const spec: PromptSpec = {
+        ...baseSpec,
+        contexts: [
+          { name: "Info", content: "Some info", subheader: "Detailed information:" },
+        ],
+      };
+      const { sections } = assemble(spec, cfg);
+      expect(sections.contexts).toContain("Detailed information:");
+      expect(sections.contexts).toContain("## Info");
+    });
   });
 
   it("renders requesting user display fields when provided", () => {
