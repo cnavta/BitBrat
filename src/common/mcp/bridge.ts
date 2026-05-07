@@ -13,7 +13,7 @@ export class McpBridge {
     private invokerOptions?: ProxyInvokerOptions
   ) {}
 
-  translateTool(mcpTool: { name: string; description?: string; inputSchema: any }, requiredRoles?: string[]): BitBratTool {
+  translateTool(mcpTool: { name: string; description?: string; inputSchema: any; scopes?: string[] }, requiredRoles?: string[]): BitBratTool {
     const toolId = `mcp:${mcpTool.name}`;
 
     // Defensive: Ensure inputSchema is an object and has a valid type
@@ -35,6 +35,7 @@ export class McpBridge {
       inputSchema: jsonSchema(schema),
       requiredRoles,
       originServer: this.serverName,
+      scopes: mcpTool.scopes,
       execute: async (args: any, context: any) => {
         const start = Date.now();
         let error = false;
