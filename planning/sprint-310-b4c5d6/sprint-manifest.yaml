@@ -1,0 +1,10 @@
+id: sprint-310-b4c5d6
+title: "Auth Service System Events"
+goal: "Emit system events for user's first session message and first message ever."
+owner: "Junie"
+createdAt: "2026-05-28T11:42:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-310-b4c5d6-auth-event-tracking"
+notes: |
+  Updating the auth service to track and emit events for first-time message occurrences per user.

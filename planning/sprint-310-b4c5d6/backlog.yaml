@@ -1,0 +1,80 @@
+meta:
+  backlog_id: auth-events-backlog
+  updated_at: 2026-05-28
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-310-b4c5d6
+  start: 2026-05-28
+  end: 2026-06-11
+  wip_limit: 3
+  goal: "Update auth service to emit system events for first message and first session message."
+
+items:
+  - id: AUTH-001
+    title: "Define Event Types and Constants"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "system.user.first_message and system.user.first_session_message added to InternalEventType"
+      - "INTERNAL_SYSTEM_EVENTS_V1 constant added to src/types/events.ts"
+    updated_at: 2026-05-28
+    log: []
+
+  - id: AUTH-002
+    title: "Implement Event Emission in Auth Service"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [AUTH-001]
+    blocked_reason: null
+    acceptance:
+      - "AuthServer publishes system events when isFirstMessage or isNewSession flags are set"
+      - "Events include correct userRef and correlationId"
+    updated_at: 2026-05-28
+    log: []
+
+  - id: AUTH-003
+    title: "Verify Enrichment Logic Flags"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "isFirstMessage and isNewSession flags are correctly identified during user enrichment"
+    updated_at: 2026-05-28
+    log: []
+
+  - id: AUTH-004
+    title: "Auth Service Integration Tests"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [AUTH-002]
+    blocked_reason: null
+    acceptance:
+      - "Tests confirm system events are emitted on first message and new session"
+    updated_at: 2026-05-28
+    log: []
+
+  - id: AUTH-005
+    title: "Sprint Validation and Cleanup"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [AUTH-004]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "Documentation updated"
+    updated_at: 2026-05-28
+    log: []
