@@ -1,0 +1,10 @@
+id: sprint-309-a7b2c1
+title: "Update index.html with GitHub link"
+goal: "Add centered GitHub link to index.html footer"
+owner: "Junie"
+createdAt: "2026-05-16T22:07:50Z"
+status: "planning"
+links:
+  branch: "feature/sprint-309-a7b2c1-update-index-footer"
+notes: |
+  Updating the landing page footer with a white GitHub link.

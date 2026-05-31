@@ -1,0 +1,212 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BitBrat</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+        }
+        #glitch {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            transform-origin: center center;
+            display: block;
+        }
+        #footer {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        #footer a {
+            color: #fff;
+            text-decoration: none;
+            font-family: sans-serif;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        #footer a:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+<canvas id="glitch"></canvas>
+<div id="footer">
+    <a href="https://github.com/cnavta/BitBrat" target="_blank">https://github.com/cnavta/BitBrat</a>
+</div>
+<img id="sourceBottom" src="./assets/BitBratText.png" hidden />
+<img id="sourceTop" src="./assets/BitBratHead.png" hidden />
+<script type="application/javascript">
+  const bottomImg = document.getElementById("sourceBottom");
+  const topImg = document.getElementById("sourceTop");
+  const canvas = document.getElementById("glitch");
+  const ctx = canvas.getContext("2d");
+
+  const BOTTOM_OFFSET_X = 0;
+  const BOTTOM_OFFSET_Y = 67;
+  const TOP_OFFSET_X = 0;
+  const TOP_OFFSET_Y = -67;
+
+  const bottomCanvas = document.createElement("canvas");
+  const bottomCtx = bottomCanvas.getContext("2d");
+
+  const topCanvas = document.createElement("canvas");
+  const topCtx = topCanvas.getContext("2d");
+
+  function loadImage(img) {
+    if (img.complete && img.naturalWidth > 0) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+  }
+
+  Promise.all([
+    loadImage(bottomImg),
+    loadImage(topImg),
+  ]).then(() => {
+    const baseWidth = Math.max(bottomImg.naturalWidth, topImg.naturalWidth);
+    const baseHeight = Math.max(bottomImg.naturalHeight, topImg.naturalHeight);
+
+    const bottomBaseX = Math.floor((baseWidth - bottomImg.naturalWidth) / 2);
+    const bottomBaseY = Math.floor((baseHeight - bottomImg.naturalHeight) / 2);
+    const topBaseX = Math.floor((baseWidth - topImg.naturalWidth) / 2);
+    const topBaseY = Math.floor((baseHeight - topImg.naturalHeight) / 2);
+
+    const minX = Math.min(
+      bottomBaseX + BOTTOM_OFFSET_X,
+      topBaseX + TOP_OFFSET_X,
+      0
+    );
+    const minY = Math.min(
+      bottomBaseY + BOTTOM_OFFSET_Y,
+      topBaseY + TOP_OFFSET_Y,
+      0
+    );
+    const maxX = Math.max(
+      bottomBaseX + BOTTOM_OFFSET_X + bottomImg.naturalWidth,
+      topBaseX + TOP_OFFSET_X + topImg.naturalWidth,
+      baseWidth
+    );
+    const maxY = Math.max(
+      bottomBaseY + BOTTOM_OFFSET_Y + bottomImg.naturalHeight,
+      topBaseY + TOP_OFFSET_Y + topImg.naturalHeight,
+      baseHeight
+    );
+
+    canvas.width = maxX - minX;
+    canvas.height = maxY - minY;
+
+    bottomCanvas.width = canvas.width;
+    bottomCanvas.height = canvas.height;
+    topCanvas.width = canvas.width;
+    topCanvas.height = canvas.height;
+
+    bottomCtx.clearRect(0, 0, bottomCanvas.width, bottomCanvas.height);
+    topCtx.clearRect(0, 0, topCanvas.width, topCanvas.height);
+
+    bottomCtx.drawImage(
+      bottomImg,
+      bottomBaseX + BOTTOM_OFFSET_X - minX,
+      bottomBaseY + BOTTOM_OFFSET_Y - minY
+    );
+
+    topCtx.drawImage(
+      topImg,
+      topBaseX + TOP_OFFSET_X - minX,
+      topBaseY + TOP_OFFSET_Y - minY
+    );
+
+    requestAnimationFrame(draw);
+  });
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = "source-over";
+
+    // Bottom layer gets glitch effects but never flips.
+    ctx.drawImage(bottomCanvas, 0, 0);
+
+    for (let i = 0; i < 6; i++) {
+      const y = Math.floor(Math.random() * canvas.height);
+      const h = Math.floor(2 + Math.random() * 12);
+      const xShift = Math.floor((Math.random() - 0.5) * 18);
+
+      ctx.drawImage(
+        bottomCanvas,
+        0, y, canvas.width, h,
+        xShift, y, canvas.width, h
+      );
+    }
+
+    // Top layer gets its own transform so only it flips.
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(flipX, flipY);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+    // Always start from the clean top PNG source so the alpha channel does not degrade frame-over-frame.
+    ctx.drawImage(topCanvas, 0, 0);
+
+    // Horizontal glitch slices copied from the clean top source, not from the already-glitched canvas.
+    for (let i = 0; i < 8; i++) {
+      const y = Math.floor(Math.random() * canvas.height);
+      const h = Math.floor(4 + Math.random() * 20);
+      const xShift = Math.floor((Math.random() - 0.5) * 40);
+
+      ctx.drawImage(
+        topCanvas,
+        0, y, canvas.width, h,
+        xShift, y, canvas.width, h
+      );
+    }
+
+    ctx.restore();
+
+    requestAnimationFrame(draw);
+  }
+
+  const FLIP_INTERVAL_MS = 30000;
+  const FLIP_FUZZ_MS = 2200;
+
+  let flipped = false;
+  let flipX = 1;
+  let flipY = 1;
+
+  function scheduleFlip() {
+
+    const fuzz =
+      (Math.random() * FLIP_FUZZ_MS * 2) - FLIP_FUZZ_MS;
+
+    const delay = FLIP_INTERVAL_MS + fuzz;
+
+    setTimeout(() => {
+
+      flipped = !flipped;
+
+      flipX = flipped ? -1 : 1;
+      flipY = 1;
+
+      scheduleFlip();
+
+    }, delay);
+  }
+
+  scheduleFlip();
+</script>
+</body>
+</html>
