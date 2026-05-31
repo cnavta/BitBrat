@@ -1,0 +1,11 @@
+id: sprint-312-c2e3f4
+title: "Fix RuleDoc schema in brat setup"
+goal: "Ensure routing rules created by brat setup strictly conform to RuleDoc schema, specifically using 'routing' object instead of 'routingSlip'."
+owner: "@junie"
+createdAt: "2026-05-31T14:45:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-312-c2e3f4-fix-ruledoc-schema"
+notes: |
+  The user reports that 'routingSlip' is still being used instead of 'routing'.
+  Need to audit setup.ts and ensure all rules are correctly structured.
