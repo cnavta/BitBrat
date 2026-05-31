@@ -42,14 +42,14 @@ backlog:
   - id: SETUP-6
     title: "Validation and Verification"
     priority: 3
-    status: in-progress
+    status: done
     tasks:
       - "Create validate_deliverable.sh to build and verify setup command"
       - "Perform manual verification of Firestore state after setup"
   - id: SETUP-7
     title: "Documentation and Publication"
     priority: 4
-    status: pending
+    status: done
     tasks:
       - "Generate verification-report.md"
       - "Generate retro.md and key-learnings.md"
