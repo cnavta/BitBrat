@@ -262,43 +262,52 @@ export async function cmdSetup(opts: any, log: Logger) {
         enabled: true,
         priority: 100,
         description: 'Route initial events to auth, query-analysis, and event-router for analysis stage',
-        logic: { "==": [ { "var": "routing.stage" }, "initial" ] },
-        routingSlip: [
-          { "id": "auth", "v": "1", "nextTopic": "internal.auth.v1", "status": "PENDING" },
-          { "id": "query-analysis", "v": "1", "nextTopic": "internal.query.analysis.v1", "status": "PENDING" },
-          { "id": "event-router", "v": "1", "nextTopic": "internal.enriched.v1", "status": "PENDING", "attributes": { "stage": "analysis" } }
-        ]
+        logic: JSON.stringify({ "==": [ { "var": "routing.stage" }, "initial" ] }),
+        routing: {
+          stage: 'initial',
+          slip: [
+            { "id": "auth", "v": "1", "nextTopic": "internal.auth.v1", "status": "PENDING" },
+            { "id": "query-analysis", "v": "1", "nextTopic": "internal.query.analysis.v1", "status": "PENDING" },
+            { "id": "event-router", "v": "1", "nextTopic": "internal.enriched.v1", "status": "PENDING", "attributes": { "stage": "analysis" } }
+          ]
+        }
       },
       {
         id: 'analysis-reaction-bot',
         enabled: true,
         priority: 50,
         description: `Route bot mentions to LLM bot`,
-        logic: {
+        logic: JSON.stringify({
           "and": [
             { "==": [ { "var": "routing.stage" }, "analysis" ] },
             { "text_contains": [ { "var": "message.text" }, botName, true ] }
           ]
-        },
-        routingSlip: [
-          { "id": "llm-bot", "v": "1", "nextTopic": "internal.llmbot.v1", "status": "PENDING", "attributes": { "stage": "reaction" } }
-        ]
+        }),
+        routing: {
+          stage: 'analysis',
+          slip: [
+            { "id": "llm-bot", "v": "1", "nextTopic": "internal.llmbot.v1", "status": "PENDING", "attributes": { "stage": "reaction" } }
+          ]
+        }
       },
       {
         id: 'analysis-reaction-adventure',
         enabled: true,
         priority: 40,
         description: 'Route !adventure commands to story engine and LLM bot',
-        logic: {
+        logic: JSON.stringify({
           "and": [
             { "==": [ { "var": "routing.stage" }, "analysis" ] },
             { "re_test": [ { "var": "message.text" }, "^!adventure", "i" ] }
           ]
-        },
-        routingSlip: [
-          { "id": "story-engine", "v": "1", "nextTopic": "internal.story.enrich.v1", "status": "PENDING" },
-          { "id": "llm-bot", "v": "1", "nextTopic": "internal.llmbot.v1", "status": "PENDING", "attributes": { "stage": "reaction" } }
-        ]
+        }),
+        routing: {
+          stage: 'analysis',
+          slip: [
+            { "id": "story-engine", "v": "1", "nextTopic": "internal.story.enrich.v1", "status": "PENDING" },
+            { "id": "llm-bot", "v": "1", "nextTopic": "internal.llmbot.v1", "status": "PENDING", "attributes": { "stage": "reaction" } }
+          ]
+        }
       }
     ];
 
