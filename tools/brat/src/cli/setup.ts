@@ -80,11 +80,11 @@ export const getInitialRoutingRules = (botName: string) => [
     description: 'Route initial events to auth, query-analysis, and event-router for analysis stage',
     logic: JSON.stringify({ "==": [ { "var": "routing.stage" }, "initial" ] }),
     routing: {
-      stage: 'initial',
+      stage: 'analysis',
       slip: [
         { id: 'auth', v: '1', nextTopic: 'internal.auth.v1' },
         { id: 'query-analysis', v: '1', nextTopic: 'internal.query.analysis.v1' },
-        { id: 'event-router', v: '1', nextTopic: 'internal.enriched.v1', attributes: { stage: 'analysis' } }
+        { id: 'event-router', v: '1', nextTopic: 'internal.enriched.v1' }
       ]
     },
     enrichments: {}
@@ -101,9 +101,9 @@ export const getInitialRoutingRules = (botName: string) => [
       ]
     }),
     routing: {
-      stage: 'analysis',
+      stage: 'reaction',
       slip: [
-        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1', attributes: { stage: 'reaction' } }
+        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1' }
       ]
     },
     enrichments: {}
@@ -120,10 +120,10 @@ export const getInitialRoutingRules = (botName: string) => [
       ]
     }),
     routing: {
-      stage: 'analysis',
+      stage: 'reaction',
       slip: [
         { id: 'story-engine', v: '1', nextTopic: 'internal.story.enrich.v1' },
-        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1', attributes: { stage: 'reaction' } }
+        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1' }
       ]
     },
     enrichments: {}

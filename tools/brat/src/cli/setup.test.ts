@@ -132,6 +132,20 @@ describe('Setup Utilities', () => {
       // Check specific botName in rule 2
       const botRule = rules.find(r => r.id === 'analysis-reaction-bot');
       expect(botRule?.logic).toContain(botName);
+
+      // Rule 1: initial-analysis
+      const rule1 = rules.find(r => r.id === 'initial-analysis');
+      expect(rule1?.routing.stage).toBe('analysis');
+      expect(rule1?.routing.slip.some((s: any) => s.attributes)).toBe(false);
+
+      // Rule 2: analysis-reaction-bot
+      expect(botRule?.routing.stage).toBe('reaction');
+      expect(botRule?.routing.slip.some((s: any) => s.attributes)).toBe(false);
+
+      // Rule 3: analysis-reaction-adventure
+      const rule3 = rules.find(r => r.id === 'analysis-reaction-adventure');
+      expect(rule3?.routing.stage).toBe('reaction');
+      expect(rule3?.routing.slip.some((s: any) => s.attributes)).toBe(false);
     });
   });
 
