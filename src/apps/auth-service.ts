@@ -2,7 +2,7 @@ import '../common/safe-timers';
 import { BaseServer } from '../common/base-server';
 import { McpServer } from '../common/mcp-server';
 import { Express } from 'express';
-import { INTERNAL_AUTH_V1, InternalEventV2 } from '../types/events';
+import { INTERNAL_AUTH_V1, InternalEventV2, INTERNAL_SYSTEM_EVENTS_V1 } from '../types/events';
 import { AttributeMap, createMessagePublisher } from '../services/message-bus';
 import { FirestoreUserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
@@ -83,6 +83,44 @@ export class AuthServer extends McpServer {
                 if (created) counters.increment('auth.enrich.created_user');
                 if (isFirstMessage) counters.increment('auth.enrich.first_message');
                 if (isNewSession) counters.increment('auth.enrich.new_session');
+
+                // Sprint 310: Emit system events for first message/session
+                if (isFirstMessage || isNewSession) {
+                  try {
+                    const publisher = this.getResource<PublisherResource>('publisher');
+                    const sysPub = publisher?.create(INTERNAL_SYSTEM_EVENTS_V1) || createMessagePublisher(INTERNAL_SYSTEM_EVENTS_V1);
+
+                    if (isFirstMessage) {
+                      await sysPub.publishJson({
+                        v: '2',
+                        type: 'system.user.first_message',
+                        correlationId: enrichedV2.correlationId,
+                        ingress: enrichedV2.ingress,
+                        identity: enrichedV2.identity,
+                        egress: enrichedV2.egress,
+                        routing: { stage: 'meta', slip: [], history: [] },
+                        payload: { userRef, platform: provider }
+                      }, { correlationId: enrichedV2.correlationId, type: 'system.user.first_message' });
+                      logger.info('auth.system_event.first_message', { correlationId: enrichedV2.correlationId, userRef });
+                    }
+
+                    if (isNewSession) {
+                      await sysPub.publishJson({
+                        v: '2',
+                        type: 'system.user.first_session_message',
+                        correlationId: enrichedV2.correlationId,
+                        ingress: enrichedV2.ingress,
+                        identity: enrichedV2.identity,
+                        egress: enrichedV2.egress,
+                        routing: { stage: 'meta', slip: [], history: [] },
+                        payload: { userRef, platform: provider }
+                      }, { correlationId: enrichedV2.correlationId, type: 'system.user.first_session_message' });
+                      logger.info('auth.system_event.first_session_message', { correlationId: enrichedV2.correlationId, userRef });
+                    }
+                  } catch (err: any) {
+                    logger.warn('auth.system_event.failed', { correlationId: enrichedV2.correlationId, error: err.message });
+                  }
+                }
               } else {
                 counters.increment('auth.enrich.unmatched');
                 logger.debug('auth.enrich.unmatched', { correlationId: enrichedV2.correlationId });

@@ -22,6 +22,8 @@ export type InternalEventType =
   | 'internal.summarization.report.v1'
   | 'internal.story.enrich.v1'
   | 'token.created.v1'
+  | 'system.user.first_message'
+  | 'system.user.first_session_message'
   | string;
 
 export type RoutingStage = 'initial' | 'analysis' | 'reaction' | 'response' | 'error' | 'meta';
@@ -314,3 +316,4 @@ export const INTERNAL_USER_ENRICHED_V1 = 'internal.user.enriched.v1';
 // Sprint 253: New alignment topics
 export const INTERNAL_AUTH_V1 = 'internal.auth.v1';
 export const INTERNAL_ENRICHED_V1 = 'internal.enriched.v1';
+export const INTERNAL_SYSTEM_EVENTS_V1 = 'internal.system.events.v1';
