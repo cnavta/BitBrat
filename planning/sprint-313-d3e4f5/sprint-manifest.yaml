@@ -1,0 +1,11 @@
+id: sprint-313-d3e4f5
+title: "Fix RuleDoc routing.stage in brat setup"
+goal: "Correctly set routing.stage in RuleDoc to the target stage instead of using slip attributes."
+owner: "@junie"
+createdAt: "2026-05-31T15:20:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-313-d3e4f5-fix-ruledoc-routing-stage"
+notes: |
+  The user reports that routing.stage is not being used correctly.
+  It should represent the target stage for the new slip.
