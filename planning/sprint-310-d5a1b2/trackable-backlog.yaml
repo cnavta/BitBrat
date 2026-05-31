@@ -1,0 +1,56 @@
+sprintId: sprint-310-d5a1b2
+backlog:
+  - id: SETUP-1
+    title: "CLI: Guided Input for Bot and Personalities"
+    priority: 1
+    status: done
+    tasks:
+      - "Implement recursive personality gathering loop in tools/brat/src/cli/setup.ts"
+      - "Add validation for bot name and personality fields"
+      - "Ensure bot name is used for default personality"
+  - id: SETUP-2
+    title: "Firestore: Database State Management"
+    priority: 1
+    status: done
+    tasks:
+      - "Implement check for existing data in personalities, mcp_servers, and configs collections"
+      - "Add interactive prompt to confirm wiping data if detected"
+      - "Implement wipeCollection helper for Firestore emulator"
+  - id: SETUP-3
+    title: "Firestore: MCP Server Population"
+    priority: 2
+    status: done
+    tasks:
+      - "Populate mcp_servers collection with obs-mcp (SSE), image-gen-mcp (stdio), and story-engine-mcp (stdio)"
+      - "Verify transport-specific fields (url for SSE, command/args for stdio)"
+  - id: SETUP-4
+    title: "Firestore: Initial Routing Rules"
+    priority: 2
+    status: done
+    tasks:
+      - "Implement initial-analysis rule (initial -> analysis)"
+      - "Implement analysis-reaction-bot rule (analysis + mention -> llm-bot)"
+      - "Implement analysis-reaction-adventure rule (analysis + !adventure -> story-engine, llm-bot)"
+      - "Verify JSON-Logic for all rules"
+  - id: SETUP-5
+    title: "Firestore: Default Configs and Token"
+    priority: 2
+    status: done
+    tasks:
+      - "Generate and store API Gateway token in gateways/api/tokens"
+      - "Populate essential platform configs in configs collection"
+  - id: SETUP-6
+    title: "Validation and Verification"
+    priority: 3
+    status: in-progress
+    tasks:
+      - "Create validate_deliverable.sh to build and verify setup command"
+      - "Perform manual verification of Firestore state after setup"
+  - id: SETUP-7
+    title: "Documentation and Publication"
+    priority: 4
+    status: pending
+    tasks:
+      - "Generate verification-report.md"
+      - "Generate retro.md and key-learnings.md"
+      - "Create GitHub Pull Request"
