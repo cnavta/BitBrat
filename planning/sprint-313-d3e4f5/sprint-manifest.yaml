@@ -6,7 +6,7 @@ createdAt: "2026-05-31T15:20:00Z"
 status: "complete"
 links:
   branch: "feature/sprint-313-d3e4f5-fix-ruledoc-routing-stage"
+  pr: "https://github.com/cnavta/BitBrat/pull/231"
 notes: |
   The user reports that routing.stage is not being used correctly.
   It should represent the target stage for the new slip.
-  pr: "https://github.com/cnavta/BitBrat/pull/231"
