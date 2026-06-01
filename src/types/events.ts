@@ -24,6 +24,7 @@ export type InternalEventType =
   | 'token.created.v1'
   | 'system.user.first_message'
   | 'system.user.first_session_message'
+  | 'internal.mcp.registration.v1'
   | string;
 
 export type RoutingStage = 'initial' | 'analysis' | 'reaction' | 'response' | 'error' | 'meta';
@@ -313,6 +314,7 @@ export const INTERNAL_PERSISTENCE_SNAPSHOT_V1 = 'internal.persistence.snapshot.v
 export const INTERNAL_ROUTER_DLQ_V1 = 'internal.router.dlq.v1';
 // User-enriched stream default (Auth service output; Router default input per sprint-104)
 export const INTERNAL_USER_ENRICHED_V1 = 'internal.user.enriched.v1';
+export const INTERNAL_MCP_REGISTRATION_V1 = 'internal.mcp.registration.v1';
 // Sprint 253: New alignment topics
 export const INTERNAL_AUTH_V1 = 'internal.auth.v1';
 export const INTERNAL_ENRICHED_V1 = 'internal.enriched.v1';

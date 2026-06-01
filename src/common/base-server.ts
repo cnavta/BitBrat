@@ -187,6 +187,7 @@ export class BaseServer {
 
   /** Starts the HTTP server on the given port and optional host */
   async start(port: number, host = '0.0.0.0'): Promise<void> {
+    this.app.locals.port = port;
     await new Promise<void>((resolve) => {
       this.app.listen(port, host, () => resolve());
     });
