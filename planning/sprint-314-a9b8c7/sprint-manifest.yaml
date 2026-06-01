@@ -3,7 +3,7 @@ title: "MCP Auto-Discovery"
 goal: "Introduce MCP auto-discovery for all services extending McpServer via Pub/Sub registration events."
 owner: "Junie"
 createdAt: "2026-05-31T21:20:00Z"
-status: "published"
+status: "complete"
 links:
   branch: "feature/sprint-314-a9b8c7-mcp-auto-discovery"
   pr: "https://github.com/cnavta/BitBrat/pull/232"
