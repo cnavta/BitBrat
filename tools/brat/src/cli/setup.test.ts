@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { updateYaml, updateEnv, replacePlaceholders, isAlreadyInitialized } from './setup';
+import { updateYaml, updateEnv, replacePlaceholders, isAlreadyInitialized, getInitialRoutingRules } from './setup';
 
 jest.mock('fs');
 
@@ -97,6 +97,41 @@ describe('Setup Utilities', () => {
       const content = 'Hello %UNKNOWN%.';
       const result = replacePlaceholders(content, { OTHER: 'val' });
       expect(result).toBe('Hello %UNKNOWN%.');
+    });
+  });
+
+  describe('getInitialRoutingRules', () => {
+    it('should return rules with correct RuleDoc structure', () => {
+      const botName = 'TestBot';
+      const rules = getInitialRoutingRules(botName);
+      
+      expect(rules).toHaveLength(3);
+      
+      for (const rule of rules) {
+        expect(rule).toHaveProperty('id');
+        expect(rule).toHaveProperty('enabled', true);
+        expect(rule).toHaveProperty('priority');
+        expect(typeof rule.logic).toBe('string');
+        
+        // Check routing object structure
+        expect(rule).toHaveProperty('routing');
+        expect(rule.routing).toHaveProperty('stage');
+        expect(Array.isArray(rule.routing.slip)).toBe(true);
+        
+        // Ensure NO routingSlip at top level
+        expect(rule).not.toHaveProperty('routingSlip');
+        
+        // Check enrichments
+        expect(rule).toHaveProperty('enrichments');
+        
+        // Verify JSON string logic
+        const logic = JSON.parse(rule.logic);
+        expect(typeof logic).toBe('object');
+      }
+
+      // Check specific botName in rule 2
+      const botRule = rules.find(r => r.id === 'analysis-reaction-bot');
+      expect(botRule?.logic).toContain(botName);
     });
   });
 
