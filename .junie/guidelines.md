@@ -497,8 +497,16 @@ Logging:
 # 👥 10. Collaboration Roles
 
 - **Cloud Architect**
+  - Does not code.  
+  - Responsible for cloud architecture analysis and design.
 - **Lead Architect**
+  - Does not code.
+  - Responsible for platform architecture analysis and design.
 - **Lead Implementor**
+  - Does code.
+  - Creates execution plans and backlogs.
+  - Executes implementation tasks.
+  - Remediates issues.
 - **Quality Lead**
 
 (These describe responsibility domains—not rigid titles.)

@@ -5,7 +5,7 @@ ENV_PREFIX: ""
 DOMAIN_PREFIX: ""
 DOMAIN_SUFFIX: "localhost:3001"
 PROJECT_ID: "bitbrat-local"
-BOT_NAME: "Granthum"
+BOT_NAME: "BitBrat_the_AI"
 MCP_GATEWAY_URL: "http://tool-gateway.bitbrat.local:3000/sse"
 
 PERSISTENCE_SNAPSHOT_MODE: all

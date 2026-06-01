@@ -80,14 +80,15 @@ export const getInitialRoutingRules = (botName: string) => [
     description: 'Route initial events to auth, query-analysis, and event-router for analysis stage',
     logic: JSON.stringify({ "==": [ { "var": "routing.stage" }, "initial" ] }),
     routing: {
-      stage: 'initial',
+      stage: 'analysis',
       slip: [
         { id: 'auth', v: '1', nextTopic: 'internal.auth.v1' },
         { id: 'query-analysis', v: '1', nextTopic: 'internal.query.analysis.v1' },
-        { id: 'event-router', v: '1', nextTopic: 'internal.enriched.v1', attributes: { stage: 'analysis' } }
+        { id: 'event-router', v: '1', nextTopic: 'internal.enriched.v1' }
       ]
     },
-    enrichments: {}
+    enrichments: {
+    }
   },
   {
     id: 'analysis-reaction-bot',
@@ -97,16 +98,29 @@ export const getInitialRoutingRules = (botName: string) => [
     logic: JSON.stringify({
       "and": [
         { "==": [ { "var": "routing.stage" }, "analysis" ] },
-        { "text_contains": [ { "var": "message.text" }, botName, true ] }
+        { "text_contains": [ { "var": "message.text" }, botName.toLowerCase(), true ] }
       ]
     }),
     routing: {
-      stage: 'analysis',
+      stage: 'reaction',
       slip: [
-        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1', attributes: { stage: 'reaction' } }
+        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1' }
       ]
     },
-    enrichments: {}
+    enrichments: {
+      annotations:[
+        {
+          id: 'a1',
+          kind: 'personality',
+          value: botName.toLowerCase(),
+        },
+        {
+          id: 'a2',
+          kind: 'prompt',
+          value: 'Create an appropriate answer to user {{username}}\'s latest message.',
+        }
+      ]
+    }
   },
   {
     id: 'analysis-reaction-adventure',
@@ -120,14 +134,54 @@ export const getInitialRoutingRules = (botName: string) => [
       ]
     }),
     routing: {
-      stage: 'analysis',
+      stage: 'reaction',
       slip: [
         { id: 'story-engine', v: '1', nextTopic: 'internal.story.enrich.v1' },
-        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1', attributes: { stage: 'reaction' } }
+        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1' }
       ]
     },
-    enrichments: {}
-  }
+    enrichments: {
+      annotations:[
+        {
+          id: 'a1',
+          kind: 'personality',
+          value: botName.toLowerCase(),
+        },
+        {
+          id: 'a2',
+          kind: 'prompt',
+          value: 'The user is in adventure mode, please react accordingly',
+        }
+      ]
+    }
+  },
+  {
+    id: 'analysis-reaction-cnj',
+    enabled: true,
+    priority: 100,
+    description: `Create a Chuck Norris Joke for the user`,
+    logic: JSON.stringify({
+      "and": [
+        { "==": [ { "var": "routing.stage" }, "analysis" ] },
+        { "re_test": [ { "var": "message.text" }, "^cnj", "i" ] }
+      ]
+    }),
+    routing: {
+      stage: 'reaction',
+      slip: [
+        { id: 'llm-bot', v: '1', nextTopic: 'internal.llmbot.v1' }
+      ]
+    },
+    enrichments: {
+      annotations:[
+        {
+          id: 'a1',
+          kind: 'prompt',
+          value: 'Generate one original Chuck Norris joke. Do not reuse classic structures like roundhouse kicks, counting to infinity, or glaring-atoms tropes. Avoid tech-centric humor unless it’s genuinely unexpected. Explore any domain—nature, mythology, sports, cooking, art, everyday life, or the absurd. Use a fresh comedic structure and keep it under 20 words with a surprising punchline.',
+        }
+      ]
+    }
+  },
 ];
 
 export async function cmdSetup(opts: any, log: Logger) {
@@ -184,9 +238,10 @@ export async function cmdSetup(opts: any, log: Logger) {
     personalities.push({
       id: botName.toLowerCase(),
       name: botName,
-      instructions: defaultInstructions,
+      text : defaultInstructions,
       description: defaultDesc,
-      status: 'active'
+      status: 'active',
+      version: 1
     });
 
     while (true) {
@@ -201,9 +256,10 @@ export async function cmdSetup(opts: any, log: Logger) {
       personalities.push({
         id: pName.toLowerCase(),
         name: pName,
-        instructions: pInstructions,
+        text: pInstructions,
         description: pDesc,
-        status: 'active'
+        status: 'active',
+        version: 1
       });
     }
 
@@ -281,38 +337,6 @@ export async function cmdSetup(opts: any, log: Logger) {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
     }
-
-    // C. MCP Servers
-    const mcpServers = [
-      {
-        id: 'obs-mcp',
-        name: 'obs-mcp',
-        transport: 'sse',
-        url: 'http://obs-mcp:3000/sse',
-        status: 'active'
-      },
-      {
-        id: 'image-gen-mcp',
-        name: 'image-gen-mcp',
-        transport: 'stdio',
-        command: 'node',
-        args: ['dist/src/services/image-gen-mcp/index.js'],
-        status: 'active'
-      },
-      {
-        id: 'story-engine-mcp',
-        name: 'story-engine-mcp',
-        transport: 'stdio',
-        command: 'node',
-        args: ['dist/src/apps/story-engine-mcp.js'],
-        status: 'active'
-      }
-    ];
-    for (const server of mcpServers) {
-      const { id, ...data } = server;
-      await db.collection('mcp_servers').doc(id).set(data);
-    }
-
     // D. Routing Rules
     const routingRules = getInitialRoutingRules(botName);
 
