@@ -1,4 +1,6 @@
 import { McpServer } from '../common/mcp-server';
+import { getFirestore } from '../common/firebase';
+import { INTERNAL_MCP_REGISTRATION_V1, InternalEventV2 } from '../types/events';
 import { Express, Request, Response } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { 
@@ -44,7 +46,59 @@ export class ToolGatewayServer extends McpServer {
     });
     this.registryWatcher.start();
 
+    // Subscribe to auto-registration events (BL-314-03)
+    await this.onMessage({
+      destination: INTERNAL_MCP_REGISTRATION_V1,
+      queue: 'tool-gateway'
+    }, async (event: InternalEventV2) => {
+      await this.handleMcpRegistration(event);
+    });
+
     return super.start(port);
+  }
+
+  /**
+   * Handle incoming MCP registration events by upserting the server configuration
+   * into Firestore. The RegistryWatcher will then automatically pick up the change
+   * and establish/update the connection.
+   */
+  private async handleMcpRegistration(event: InternalEventV2) {
+    const payload = event.payload;
+    if (!payload || !payload.name || !payload.url) {
+      this.getLogger().warn('tool_gateway.registration.invalid_payload', { 
+        payload, 
+        correlationId: event.correlationId 
+      });
+      return;
+    }
+
+    this.getLogger().info('tool_gateway.registration.received', { 
+      name: payload.name, 
+      url: payload.url,
+      correlationId: event.correlationId 
+    });
+
+    try {
+      const db = getFirestore();
+      // Upsert into mcp_servers collection, using name as doc ID
+      await db.collection('mcp_servers').doc(payload.name).set({
+        ...payload,
+        updatedAt: new Date().toISOString(),
+        discoverySource: 'auto-registration',
+        correlationId: event.correlationId
+      }, { merge: true });
+      
+      this.getLogger().info('tool_gateway.registration.upserted', { 
+        name: payload.name,
+        correlationId: event.correlationId 
+      });
+    } catch (error) {
+      this.getLogger().error('tool_gateway.registration.upsert_failed', { 
+        name: payload.name, 
+        error,
+        correlationId: event.correlationId 
+      });
+    }
   }
 
   async close(reason?: string) {
