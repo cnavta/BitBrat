@@ -406,8 +406,8 @@ export class StoryEngineMcpServer extends McpServer {
 
 if (require.main === module) {
   const server = new StoryEngineMcpServer();
-  const port = parseInt(process.env.PORT || '8080', 10);
-  server.start(port).catch((err) => {
+  const cfg = server.getConfig();
+  server.start(cfg.port).catch((err) => {
     console.error('Failed to start story-engine-mcp:', err);
     process.exit(1);
   });

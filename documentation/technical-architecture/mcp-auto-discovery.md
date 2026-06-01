@@ -47,10 +47,10 @@ The `payload` field of the `InternalEventV2` shall contain:
 
 #### McpServer (Common Library)
 - **Startup Logic:** After the HTTP server starts listening (in `BaseServer.start()`), the `McpServer` class shall publish a registration event.
-- **Environment Variables:** Each service will need to be aware of its own external URL. This should be provided via the `MCP_EXTERNAL_URL` environment variable.
+- **Environment Variables:** Each service will need to be aware of its own external URL. This is ideally provided via the `MCP_EXTERNAL_URL` environment variable. If missing, it defaults to `http://{{SERVICE_NAME}}.bitbrat.local:3000/sse`.
 - **Payload Generation:**
   - `name`: Derived from `this.serviceName`.
-  - `url`: Derived from `process.env.MCP_EXTERNAL_URL`.
+  - `url`: Derived from `process.env.MCP_EXTERNAL_URL` or the default fallback.
   - `env`: Includes `MCP_AUTH_TOKEN` if present.
 
 #### Tool-Gateway

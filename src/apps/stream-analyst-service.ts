@@ -310,7 +310,8 @@ export function createApp() {
 
 if (require.main === module) {
   const server = createApp();
-  server.start(Number(process.env.PORT) || 3010).catch((e) => {
+  const cfg = server.getConfig();
+  server.start(cfg.port).catch((e) => {
     console.error('FAILED_TO_START_STREAM_ANALYST_SERVER', e);
     process.exit(1);
   });
