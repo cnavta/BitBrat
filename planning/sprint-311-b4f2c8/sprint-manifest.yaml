@@ -1,0 +1,12 @@
+id: sprint-311-b4f2c8
+title: "Fix setup routing rules logic serialization"
+goal: "Remediate brat setup command to store routing rule logic as serialized JSON and align with RuleDoc schema."
+owner: "@junie"
+createdAt: "2026-05-31T14:30:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/229"
+  branch: "feature/sprint-311-b4f2c8-fix-setup-routing-rules"
+notes: |
+  The event router expects the 'logic' property to be a string in Firestore. 
+  Additionally, the rules should follow the RuleDoc schema (routing.stage, routing.slip).
