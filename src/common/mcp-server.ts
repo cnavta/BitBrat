@@ -173,14 +173,9 @@ export class McpServer extends BaseServer {
    * This allows the tool-gateway to automatically discover this server.
    */
   protected async publishRegistration() {
-    const externalUrl = process.env.MCP_EXTERNAL_URL;
-    if (!externalUrl) {
-      this.getLogger().info("mcp_server.registration.skipped", { 
-        reason: "MCP_EXTERNAL_URL not set",
-        service: this.serviceName 
-      });
-      return;
-    }
+    const port = (this.getApp().locals as any).port ?? 3000;
+    const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/sse`;
+    const externalUrl = process.env.MCP_EXTERNAL_URL || defaultUrl;
 
     const registrationEvent = {
       v: '2',

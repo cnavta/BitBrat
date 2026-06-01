@@ -98,7 +98,7 @@ export const getInitialRoutingRules = (botName: string) => [
     logic: JSON.stringify({
       "and": [
         { "==": [ { "var": "routing.stage" }, "analysis" ] },
-        { "text_contains": [ { "var": "message.text" }, botName.toLowerCase(), true ] }
+        { "text_contains": [ { "var": "message.text" }, botName, true ] }
       ]
     }),
     routing: {
@@ -112,7 +112,7 @@ export const getInitialRoutingRules = (botName: string) => [
         {
           id: 'a1',
           kind: 'personality',
-          value: botName.toLowerCase(),
+          value: botName,
         },
         {
           id: 'a2',
@@ -145,7 +145,7 @@ export const getInitialRoutingRules = (botName: string) => [
         {
           id: 'a1',
           kind: 'personality',
-          value: botName.toLowerCase(),
+          value: botName,
         },
         {
           id: 'a2',

@@ -239,8 +239,10 @@ export class ApiGatewayServer extends McpServer {
     });
 
     return new Promise((resolve) => {
-      this.httpServer?.listen(port, host, () => {
+      this.getApp().locals.port = port;
+      this.httpServer?.listen(port, host, async () => {
         this.getLogger().info('api_gateway.started', { port, host, path: '/ws/v1', egressTopic });
+        await this.publishRegistration();
         resolve();
       });
     });

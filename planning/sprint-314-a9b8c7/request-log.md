@@ -44,9 +44,33 @@
 - **Files Modified/Created:**
   - `tests/integration/mcp-discovery.test.ts` (End-to-end test)
 
-## [2026-06-01T01:35:00Z] Sprint Completion
-- **Prompt Summary:** N/A (Internal completion)
-- **Interpretation:** Finalizing all artifacts and creating PR.
+## [2026-06-01T01:45:00Z] Fix routing rule case mismatch
+- **Prompt Summary:** Investigate and fix failure in `tools/brat/src/cli/setup.test.ts`.
+- **Interpretation:** Test failed because routing rules used lowercased bot names but expected original casing. Personality documents also failed to resolve due to lowercasing.
+- **Files Modified/Created:**
+  - `tools/brat/src/cli/setup.ts` (Removed unnecessary lowercasing)
+
+## [2026-06-01T01:55:00Z] Implement default fallback URL
+- **Prompt Summary:** Add default fallback for `MCP_EXTERNAL_URL`.
+- **Interpretation:** If `MCP_EXTERNAL_URL` is missing, use `http://{{SERVICE_NAME}}.bitbrat.local:3000/sse`.
+- **Files Modified/Created:**
+  - `src/common/mcp-server.ts` (Fallback logic)
+  - `documentation/technical-architecture/mcp-auto-discovery.md` (Docs updated)
+
+## [2026-06-01T02:10:00Z] Docker Compose Connection Fixes
+- **Prompt Summary:** Investigate connection timeouts in local Docker Compose environment.
+- **Interpretation:** Found network alias mismatches and port inconsistencies. Unified port resolution and ensured `McpServer` reports the correct dynamic port in its registration events.
+- **Files Modified/Created:**
+  - `src/common/base-server.ts` (Capture port in locals)
+  - `src/common/mcp-server.ts` (Use dynamic port for default URL)
+  - `infrastructure/docker-compose/services/stream-analyst-service.compose.yaml` (Alias fix)
+  - `src/apps/obs-mcp.ts` (Port resolution fix)
+  - `Dockerfile.obs-mcp` (CMD fix)
+  - `src/apps/api-gateway.ts` (Port resolution fix)
+
+## [2026-06-01T02:30:00Z] Sprint Completion
+- **Prompt Summary:** Sprint complete.
+- **Interpretation:** Finalizing all artifacts and confirming PR.
 - **Shell Commands:**
   - `gh pr create ...`
 - **Files Modified/Created:**
