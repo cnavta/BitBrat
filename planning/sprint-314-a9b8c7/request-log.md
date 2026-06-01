@@ -42,4 +42,16 @@
 - **Prompt Summary:** Implementing BL-314-04.
 - **Interpretation:** Need to create a test that verifies the full loop: `McpServer` start -> Pub/Sub event -> `tool-gateway` consumption -> Firestore upsert.
 - **Files Modified/Created:**
-  - `tests/integration/mcp-discovery.test.ts` (Pending)
+  - `tests/integration/mcp-discovery.test.ts` (End-to-end test)
+
+## [2026-06-01T01:35:00Z] Sprint Completion
+- **Prompt Summary:** N/A (Internal completion)
+- **Interpretation:** Finalizing all artifacts and creating PR.
+- **Shell Commands:**
+  - `gh pr create ...`
+- **Files Modified/Created:**
+  - `planning/sprint-314-a9b8c7/verification-report.md`
+  - `planning/sprint-314-a9b8c7/retro.md`
+  - `planning/sprint-314-a9b8c7/key-learnings.md`
+  - `planning/sprint-314-a9b8c7/publication.yaml`
+  - `planning/sprint-314-a9b8c7/sprint-manifest.yaml` (Complete)
