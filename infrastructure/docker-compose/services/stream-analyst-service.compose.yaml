@@ -24,4 +24,4 @@ services:
     networks:
       bitbrat-network:
         aliases:
-          - stream-analysis-service.bitbrat.local
+          - stream-analyst.bitbrat.local

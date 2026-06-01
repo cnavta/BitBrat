@@ -35,4 +35,4 @@ COPY architecture.yaml ./architecture.yaml
 EXPOSE 3000
 ENV SERVICE_NAME=obs-mcp
 ENV SERVICE_PORT=3000
-CMD ["node", "dist/apps/obs-mcp-service.js"]
+CMD ["node", "dist/apps/obs-mcp.js"]

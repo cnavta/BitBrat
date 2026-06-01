@@ -176,8 +176,8 @@ export class ImageGenMcpServer extends McpServer {
 
 if (require.main === module) {
   const server = new ImageGenMcpServer();
-  const port = parseInt(process.env.PORT || '3000', 10);
-  server.start(port).catch((err) => {
+  const cfg = server.getConfig();
+  server.start(cfg.port).catch((err) => {
     console.error('Failed to start image-gen-mcp:', err);
     process.exit(1);
   });
