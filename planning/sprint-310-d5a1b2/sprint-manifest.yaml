@@ -1,0 +1,12 @@
+id: sprint-310-d5a1b2
+title: "Initial Platform Setup"
+goal: "Add a guided initial platform setup feature to the brat tool to populate Firestore with essential data."
+owner: "@junie"
+createdAt: "2026-05-31T13:45:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/227"
+  branch: "feature/sprint-310-d5a1b2-initial-platform-setup"
+notes: |
+  Focus on guided CLI setup for personalities, MCP servers, and routing rules.
+  Assumes local Docker Compose environment.
