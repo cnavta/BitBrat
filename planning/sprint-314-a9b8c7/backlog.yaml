@@ -1,0 +1,74 @@
+meta:
+  backlog_id: sprint-314-backlog
+  updated_at: 2026-05-31
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-314-a9b8c7
+  start: 2026-05-31
+  end: 2026-06-07
+  wip_limit: 3
+  goal: "Implement MCP auto-discovery via Pub/Sub registration and Firestore upserts."
+
+items:
+  - id: BL-314-01
+    title: "Define registration event type"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "internal.mcp.registration.v1 is added to InternalEventType in src/types/events.ts"
+    updated_at: 2026-05-31
+
+  - id: BL-314-02
+    title: "Implement registration publishing in McpServer"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-314-01]
+    acceptance:
+      - "McpServer publishes registration event on successful start"
+      - "Payload includes name, transport, url, status, and auth token"
+      - "MCP_EXTERNAL_URL env var is used for the URL"
+    updated_at: 2026-05-31
+
+  - id: BL-314-03
+    title: "Implement registration listener in tool-gateway"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-314-01]
+    acceptance:
+      - "tool-gateway listens on internal.mcp.registration.v1"
+      - "tool-gateway upserts valid registration payloads to Firestore mcp_servers collection"
+      - "Queue group 'tool-gateway' is used for the subscription"
+    updated_at: 2026-05-31
+
+  - id: BL-314-04
+    title: "Create auto-discovery integration test"
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-314-02, BL-314-03]
+    acceptance:
+      - "Test simulates McpServer start"
+      - "Test verifies Firestore contains the new server config"
+      - "Test verifies tool-gateway recognizes the new tools"
+    updated_at: 2026-05-31
+
+  - id: BL-314-05
+    title: "Sprint Validation Script"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-314-04]
+    acceptance:
+      - "validate_deliverable.sh exists in sprint directory"
+      - "Script runs build and integration tests"
+    updated_at: 2026-05-31

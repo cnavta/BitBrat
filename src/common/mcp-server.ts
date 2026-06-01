@@ -12,6 +12,8 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { BaseServer, BaseServerOptions } from "./base-server";
+import { createMessagePublisher } from "../services/message-bus";
+import { INTERNAL_MCP_REGISTRATION_V1 } from "../types/events";
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -157,6 +159,76 @@ export class McpServer extends BaseServer {
     this.getLogger().info("mcp_server.prompt_registered", { name });
   }
 
+  /**
+   * Starts the HTTP server on the given port and optional host.
+   * After successful start, it triggers the MCP registration event.
+   */
+  async start(port: number, host = '0.0.0.0'): Promise<void> {
+    await super.start(port, host);
+    await this.publishRegistration();
+  }
+
+  /**
+   * Publish an MCP registration event to the internal message bus.
+   * This allows the tool-gateway to automatically discover this server.
+   */
+  protected async publishRegistration() {
+    const externalUrl = process.env.MCP_EXTERNAL_URL;
+    if (!externalUrl) {
+      this.getLogger().info("mcp_server.registration.skipped", { 
+        reason: "MCP_EXTERNAL_URL not set",
+        service: this.serviceName 
+      });
+      return;
+    }
+
+    const registrationEvent = {
+      v: '2',
+      correlationId: `reg-${this.serviceName}-${Date.now()}`,
+      type: INTERNAL_MCP_REGISTRATION_V1,
+      payload: {
+        name: this.serviceName,
+        transport: 'sse',
+        url: externalUrl,
+        status: 'active',
+        env: process.env.MCP_AUTH_TOKEN ? {
+          Authorization: `Bearer ${process.env.MCP_AUTH_TOKEN}`
+        } : {}
+      },
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: this.serviceName,
+        connector: 'system'
+      },
+      identity: {
+        external: {
+          id: this.serviceName,
+          platform: 'system'
+        }
+      },
+      egress: {
+        destination: 'system',
+        connector: 'system'
+      },
+      routing: {
+        stage: 'meta',
+        slip: [],
+        history: []
+      }
+    };
+
+    try {
+      const pub = createMessagePublisher(INTERNAL_MCP_REGISTRATION_V1);
+      await pub.publishJson(registrationEvent, {
+        source: this.serviceName,
+        type: INTERNAL_MCP_REGISTRATION_V1
+      });
+      this.getLogger().info("mcp_server.registration.published", { url: externalUrl });
+    } catch (error) {
+      this.getLogger().error("mcp_server.registration.publish_failed", { error });
+    }
+  }
+
   private setupDiscoveryHandlers() {
     // tools/list
     this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -239,7 +311,14 @@ export class McpServer extends BaseServer {
     ) => {
       const authToken = process.env.MCP_AUTH_TOKEN;
       if (authToken) {
-        const providedToken = req.headers["x-mcp-token"] || req.query.token;
+        let providedToken = req.headers["x-mcp-token"] || req.query.token;
+        
+        // Also support Authorization: Bearer <token>
+        const authHeader = req.headers["authorization"];
+        if (!providedToken && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          providedToken = authHeader.substring(7);
+        }
+
         if (providedToken !== authToken) {
           this.getLogger().warn("mcp_server.auth_failed", {
             path: req.path,
