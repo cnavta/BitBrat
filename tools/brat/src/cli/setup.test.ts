@@ -105,7 +105,7 @@ describe('Setup Utilities', () => {
       const botName = 'TestBot';
       const rules = getInitialRoutingRules(botName);
       
-      expect(rules).toHaveLength(3);
+      expect(rules).toHaveLength(4);
       
       for (const rule of rules) {
         expect(rule).toHaveProperty('id');
