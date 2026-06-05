@@ -116,3 +116,20 @@ items:
     log:
       - at: 2026-06-05T12:45:00Z
         note: "Completed validation and created verification report. validate_deliverable.sh is logically passable."
+
+  - id: BRAT-REMOTE-008
+    title: "Fix Build and Path Resolution Errors"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-REMOTE-007]
+    acceptance:
+      - "TS2307 Import path errors resolved"
+      - "TS2353 'stdio' property error resolved"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:05:00Z
+        note: "Fixed incorrect relative import paths in orchestrator.ts."
+      - at: 2026-06-05T14:30:00Z
+        note: "Added stdio support to execCmd to fix property-not-found build error."

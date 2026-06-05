@@ -2,6 +2,7 @@
 
 ## Completed
 - [x] Fixed incorrect import paths in `tools/brat/src/orchestration/docker/orchestrator.ts`.
+- [x] Added `stdio` support to `execCmd` and `ExecOptions` in `tools/brat/src/orchestration/exec.ts` to fix TS2353 error.
 - [x] Audited other newly created files for path consistency.
 
 ## Partial
