@@ -1,8 +1,8 @@
-import { execCmd } from '../orchestration/exec';
-import { EnvironmentResolver } from '../orchestration/docker/environment-resolver';
-import { ComposeFactory } from '../orchestration/docker/compose-factory';
-import { PortManager } from '../orchestration/docker/port-manager';
-import { loadArchitecture } from '../config/loader';
+import { execCmd } from '../exec';
+import { EnvironmentResolver } from './environment-resolver';
+import { ComposeFactory } from './compose-factory';
+import { PortManager } from './port-manager';
+import { loadArchitecture } from '../../config/loader';
 import * as fs from 'fs';
 import * as path from 'path';
 

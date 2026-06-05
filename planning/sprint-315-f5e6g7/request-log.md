@@ -9,3 +9,11 @@
 - **Files modified or created**:
     - `planning/sprint-315-f5e6g7/sprint-manifest.yaml` (Created)
     - `planning/sprint-315-f5e6g7/request-log.md` (Created)
+
+- **Timestamp**: 2026-06-05T12:05:00Z
+- **Prompt summary**: Fix build errors (TS2307) in `tools/brat/src/orchestration/docker/orchestrator.ts`.
+- **Interpretation**: The imports in `orchestrator.ts` used incorrect relative paths. Fix them to match the actual file structure.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
