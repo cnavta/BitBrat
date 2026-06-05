@@ -17,3 +17,11 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-05T14:25:00Z
+- **Prompt summary**: Fix build error (TS2353) in `tools/brat/src/orchestration/docker/orchestrator.ts`.
+- **Interpretation**: The `execCmd` function did not support the `stdio` option in its `ExecOptions`. Add support for `stdio` to `ExecOptions` and `execCmd`.
+- **Shell/git commands executed**:
+    - `search_replace` on `tools/brat/src/orchestration/exec.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/exec.ts` (Modified)
