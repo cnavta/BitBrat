@@ -1,0 +1,10 @@
+id: sprint-315-f5e6g7
+title: "Remote Docker Engine Support for brat"
+goal: "Implement the ability to deploy via Docker Compose to a remote location using the brat tool."
+owner: "Junie"
+createdAt: "2026-06-05T11:45:00Z"
+status: "planning"
+links:
+  branch: "feature/sprint-315-f5e6g7-remote-docker-deploy"
+notes: |
+  Migrating orchestration logic from Bash to TypeScript and extending it for remote Docker engines via SSH.
