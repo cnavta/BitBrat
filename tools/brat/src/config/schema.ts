@@ -29,6 +29,15 @@ export const ServiceSchema = z.object({
   secrets: z.array(z.string()).optional(),
 });
 
+export const DeploymentTargetSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('docker-engine'),
+    host: z.string(),
+    env: z.string(),
+    context: z.string().optional(),
+  }),
+]);
+
 export const DefaultsServicesSchema = z.object({
   implementation: z.string().optional(),
   image: z.string().optional(),
@@ -98,6 +107,7 @@ export const ArchitectureSchema = z.object({
   defaults: z.object({ services: DefaultsServicesSchema }).optional(),
   services: z.record(ServiceSchema).default({}),
   deploymentDefaults: DeploymentDefaultsSchema.optional(),
+  deploymentTargets: z.record(DeploymentTargetSchema).optional(),
   network: NetworkSchema.optional(),
   lb: LoadBalancerSchema.optional(),
   // Sprint 20 — infrastructure.resources schema (object-store + load-balancer)
