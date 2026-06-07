@@ -5,6 +5,8 @@
 - [x] Added `stdio` support to `execCmd` and `ExecOptions` in `tools/brat/src/orchestration/exec.ts` to fix TS2353 error.
 - [x] Updated `package.json` scripts to use `brat docker` for local orchestration.
 - [x] Fixed `brat docker` command dispatch in `tools/brat/src/cli/index.ts`.
+- [x] Resolved "env file .env.local not found" error by removing hardcoded `env_file` references from service compose files.
+- [x] Updated bootstrap scripts to prevent re-introduction of hardcoded `env_file` references.
 - [x] Audited other newly created files for path consistency.
 
 ## Partial
