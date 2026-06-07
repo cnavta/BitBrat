@@ -55,3 +55,11 @@
     - `infrastructure/docker-compose/services/*.compose.yaml` (Modified)
     - `infrastructure/scripts/bootstrap-service.js` (Modified)
     - `tools/brat/src/cli/bootstrap.ts` (Modified)
+
+- **Timestamp**: 2026-06-07T13:30:00Z
+- **Prompt summary**: Fix "lstat .../infrastructure/docker-compose/infrastructure: no such file" error during `brat docker up`.
+- **Interpretation**: Docker Compose was resolving relative paths (context, dockerfile) relative to the compose file directory instead of the repo root. Added `--project-directory` to the `docker compose` command.
+- **Shell/git commands executed**:
+    - `search_replace` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)

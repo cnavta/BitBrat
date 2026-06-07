@@ -6,6 +6,7 @@
 - [x] Updated `package.json` scripts to use `brat docker` for local orchestration.
 - [x] Fixed `brat docker` command dispatch in `tools/brat/src/cli/index.ts`.
 - [x] Resolved "env file .env.local not found" error by removing hardcoded `env_file` references from service compose files.
+- [x] Fixed path resolution error during build context setup by adding `--project-directory` to the `docker compose` command.
 - [x] Updated bootstrap scripts to prevent re-introduction of hardcoded `env_file` references.
 - [x] Audited other newly created files for path consistency.
 
