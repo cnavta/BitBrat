@@ -43,3 +43,15 @@
     - `search_replace` on `tools/brat/src/cli/index.ts`
 - **Files modified or created**:
     - `tools/brat/src/cli/index.ts` (Modified)
+
+- **Timestamp**: 2026-06-07T13:15:00Z
+- **Prompt summary**: Fix "env file .env.local not found" error during `brat docker up`.
+- **Interpretation**: Service compose files had hardcoded `env_file: - .env.local` references which caused Docker Compose to look for the file in the wrong relative path. Removed these references as the environment is now managed by `brat`.
+- **Shell/git commands executed**:
+    - `sed -i '' '/env_file:/d; /- .env.local/d' infrastructure/docker-compose/services/*.compose.yaml`
+    - `search_replace` on `infrastructure/scripts/bootstrap-service.js`
+    - `search_replace` on `tools/brat/src/cli/bootstrap.ts`
+- **Files modified or created**:
+    - `infrastructure/docker-compose/services/*.compose.yaml` (Modified)
+    - `infrastructure/scripts/bootstrap-service.js` (Modified)
+    - `tools/brat/src/cli/bootstrap.ts` (Modified)

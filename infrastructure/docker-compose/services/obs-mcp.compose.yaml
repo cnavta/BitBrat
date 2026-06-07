@@ -2,8 +2,6 @@ services:
   obs-mcp:
     image: us-central1-docker.pkg.dev/bitbrat-local/obs-mcp/obs-mcp:latest
     platform: linux/amd64
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - MCP_TRANSPORT=${MCP_TRANSPORT}

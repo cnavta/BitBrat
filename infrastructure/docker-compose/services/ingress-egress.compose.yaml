@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ingress-egress
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - TWITCH_BOT_USERNAME=${TWITCH_BOT_USERNAME}

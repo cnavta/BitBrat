@@ -137,3 +137,5 @@ items:
         note: "Updated package.json scripts to use brat docker for local orchestration."
       - at: 2026-06-07T13:05:00Z
         note: "Fixed missing command dispatch for 'docker' in tools/brat/src/cli/index.ts."
+      - at: 2026-06-07T13:20:00Z
+        note: "Resolved .env.local path resolution error by removing hardcoded env_file references."

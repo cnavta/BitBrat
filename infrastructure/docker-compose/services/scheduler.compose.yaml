@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.scheduler
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}

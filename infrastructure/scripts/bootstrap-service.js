@@ -264,8 +264,6 @@ function generateComposeSource(serviceName, image = null, env = [], secrets = []
   return `services:
   ${serviceName}:
     ${buildOrImage}
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
 ${environmentEntries}
