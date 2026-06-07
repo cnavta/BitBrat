@@ -25,3 +25,12 @@
     - `search_replace` on `tools/brat/src/orchestration/exec.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/exec.ts` (Modified)
+    - `package.json` (Modified)
+
+- **Timestamp**: 2026-06-07T12:45:00Z
+- **Prompt summary**: Update `package.json` scripts to use the new `brat docker` approach.
+- **Interpretation**: Replaced legacy Bash-based local deployment scripts with `brat docker` commands in `package.json`.
+- **Shell/git commands executed**:
+    - `search_replace` on `package.json`
+- **Files modified or created**:
+    - `package.json` (Modified)
