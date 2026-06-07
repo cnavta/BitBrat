@@ -135,3 +135,5 @@ items:
         note: "Added stdio support to execCmd to fix property-not-found build error."
       - at: 2026-06-07T12:50:00Z
         note: "Updated package.json scripts to use brat docker for local orchestration."
+      - at: 2026-06-07T13:05:00Z
+        note: "Fixed missing command dispatch for 'docker' in tools/brat/src/cli/index.ts."

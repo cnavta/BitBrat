@@ -850,6 +850,22 @@ Options:
     await cmdTrigger(c2 as any, flags, rest);
     return;
   }
+  if (c1 === 'docker') {
+    const action = c2;
+    if (!action) {
+      console.error('Usage: brat docker <up|down|logs|ps> [--target <name>] [--env <name>] [--service <name>] [--dry-run]');
+      process.exit(2);
+    }
+    const m = parseKeyValueFlags(rest);
+    const dockerFlags = {
+      ...flags,
+      target: m['target'],
+      service: m['service'],
+      follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true'
+    };
+    await cmdDocker(action, dockerFlags);
+    return;
+  }
   printHelp();
 }
 
