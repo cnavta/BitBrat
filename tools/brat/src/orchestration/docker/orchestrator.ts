@@ -109,7 +109,7 @@ export class DockerOrchestrator {
     }
 
     const cmd = 'docker';
-    const finalArgs = ['compose', ...args];
+    const finalArgs = ['compose', '--project-directory', this.options.repoRoot, ...args];
 
     if (this.options.dryRun) {
       console.log(`[dry-run] Executing: DOCKER_HOST=${env['DOCKER_HOST'] || ''} ${cmd} ${finalArgs.join(' ')}`);
