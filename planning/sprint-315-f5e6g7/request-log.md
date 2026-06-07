@@ -34,3 +34,12 @@
     - `search_replace` on `package.json`
 - **Files modified or created**:
     - `package.json` (Modified)
+    - `planning/sprint-315-f5e6g7/request-log.md` (Modified)
+
+- **Timestamp**: 2026-06-07T13:00:00Z
+- **Prompt summary**: Fix `brat docker` command not executing (printing help instead).
+- **Interpretation**: The `docker` command was imported but not dispatched in `tools/brat/src/cli/index.ts`. Added the dispatch logic to the `main` function.
+- **Shell/git commands executed**:
+    - `search_replace` on `tools/brat/src/cli/index.ts`
+- **Files modified or created**:
+    - `tools/brat/src/cli/index.ts` (Modified)

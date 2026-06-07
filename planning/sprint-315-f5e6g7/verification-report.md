@@ -4,6 +4,7 @@
 - [x] Fixed incorrect import paths in `tools/brat/src/orchestration/docker/orchestrator.ts`.
 - [x] Added `stdio` support to `execCmd` and `ExecOptions` in `tools/brat/src/orchestration/exec.ts` to fix TS2353 error.
 - [x] Updated `package.json` scripts to use `brat docker` for local orchestration.
+- [x] Fixed `brat docker` command dispatch in `tools/brat/src/cli/index.ts`.
 - [x] Audited other newly created files for path consistency.
 
 ## Partial
