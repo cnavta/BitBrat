@@ -133,3 +133,5 @@ items:
         note: "Fixed incorrect relative import paths in orchestrator.ts."
       - at: 2026-06-05T14:30:00Z
         note: "Added stdio support to execCmd to fix property-not-found build error."
+      - at: 2026-06-07T12:50:00Z
+        note: "Updated package.json scripts to use brat docker for local orchestration."
