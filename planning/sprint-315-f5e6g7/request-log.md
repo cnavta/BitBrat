@@ -64,10 +64,14 @@
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
 
-- **Timestamp**: 2026-06-08T13:00:00Z
-- **Prompt summary**: Fix persistent remote Docker deploy failure (SSH connection resets).
-- **Interpretation**: Even with build batching, the final 'up -d --build' was re-triggering parallel checks/builds for 16 services, exhausting SSH connections. Updated the orchestrator to batch both 'build' and 'up' operations and removed '--build' from the final pass.
+- **Timestamp**: 2026-06-08T13:10:00Z
+- **Prompt summary**: Fix "only one connection allowed" error during remote deploy.
+- **Interpretation**: The remote Docker engine/SSH setup is strictly limiting connections. Added support for `maxConcurrent` override per deployment target and defaulted SSH targets to concurrency of 1. This ensures all Docker Compose operations (batching and internal parallelism) respect the connection limit.
 - **Shell/git commands executed**:
-    - `search_replace` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+    - `search_replace` on `tools/brat/src/config/schema.ts`
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+    - `search_replace` on `architecture.yaml`
 - **Files modified or created**:
+    - `tools/brat/src/config/schema.ts` (Modified)
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+    - `architecture.yaml` (Modified)

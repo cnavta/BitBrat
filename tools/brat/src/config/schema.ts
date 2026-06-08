@@ -35,6 +35,7 @@ export const DeploymentTargetSchema = z.discriminatedUnion('type', [
     host: z.string(),
     env: z.string(),
     context: z.string().optional(),
+    maxConcurrent: z.number().int().positive().optional(),
   }),
 ]);
 
