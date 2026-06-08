@@ -1,5 +1,7 @@
 services:
   state-engine:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.state-engine

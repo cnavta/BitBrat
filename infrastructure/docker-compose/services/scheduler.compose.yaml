@@ -1,5 +1,7 @@
 services:
   scheduler:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.scheduler

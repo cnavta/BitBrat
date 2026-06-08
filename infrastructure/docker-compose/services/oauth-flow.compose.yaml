@@ -1,5 +1,7 @@
 services:
   oauth-flow:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.oauth-flow

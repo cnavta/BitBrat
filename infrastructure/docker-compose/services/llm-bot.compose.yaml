@@ -1,5 +1,7 @@
 services:
   llm-bot:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.llm-bot

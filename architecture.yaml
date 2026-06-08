@@ -419,11 +419,10 @@ deploymentTargets:
     type: docker-engine
     host: "unix:///var/run/docker.sock"
     env: local
-  staging-vps:
+  staging:
     type: docker-engine
-    host: "ssh://deploy-user@staging.bitbrat.ai"
+    host: "ssh://root@bitbrat.lan"
     env: staging
-    context: bitbrat-staging # Optional Docker Context name
 
 # Networking posture (Sprint 113):
 # - No Cloud NAT: outbound public traffic should use Cloud Run default egress path for best latency.
