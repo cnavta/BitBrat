@@ -1,6 +1,8 @@
 
 services:
   nats:
+    env_file:
+      - .env.brat
     image: nats:2-alpine
     command: ["-js", "-sd", "/data", "-m", "8222"]
     networks:
@@ -19,6 +21,8 @@ services:
       - nats-data:/data
 
   nats-box:
+    env_file:
+      - .env.brat
     image: natsio/nats-box:latest
     depends_on:
       - nats
@@ -29,6 +33,8 @@ services:
       bitbrat-network: {}
 
   firebase-emulator:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: infrastructure/docker-compose/Dockerfile.emulator

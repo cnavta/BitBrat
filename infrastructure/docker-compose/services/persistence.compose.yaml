@@ -1,5 +1,7 @@
 services:
   persistence:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.persistence

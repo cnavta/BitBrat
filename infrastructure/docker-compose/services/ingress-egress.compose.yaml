@@ -1,5 +1,7 @@
 services:
   ingress-egress:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.ingress-egress

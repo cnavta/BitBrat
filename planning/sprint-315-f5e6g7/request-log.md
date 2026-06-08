@@ -63,3 +63,13 @@
     - `search_replace` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-08T12:50:00Z
+- **Prompt summary**: Fix remote Docker deploy failure due to SSH connection resets and huge build contexts.
+- **Interpretation**: The 500MB+ build context and parallel build of 16 services over SSH caused the remote engine to reset connections. Updated `.dockerignore` to exclude heavy directories and implemented build batching in `brat` to respect `maxConcurrentDeployments`.
+- **Shell/git commands executed**:
+    - `search_replace` on `.dockerignore`
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `.dockerignore` (Modified)
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)

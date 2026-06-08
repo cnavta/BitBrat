@@ -141,3 +141,7 @@ items:
         note: "Resolved .env.local path resolution error by removing hardcoded env_file references."
       - at: 2026-06-07T13:35:00Z
         note: "Fixed Docker Compose build context resolution by adding --project-directory."
+      - at: 2026-06-07T13:50:00Z
+        note: "Restored container environment variable injection by re-adding env_file references pointing to .env.brat."
+      - at: 2026-06-08T12:55:00Z
+        note: "Fixed remote deploy failure by implementing build batching and optimizing .dockerignore."

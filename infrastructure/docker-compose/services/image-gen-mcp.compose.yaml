@@ -1,5 +1,7 @@
 services:
   image-gen-mcp:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.image-gen-mcp

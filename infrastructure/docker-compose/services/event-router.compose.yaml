@@ -1,5 +1,7 @@
 services:
   event-router:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.event-router

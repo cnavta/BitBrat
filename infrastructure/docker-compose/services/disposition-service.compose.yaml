@@ -1,5 +1,7 @@
 services:
   disposition-service:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.disposition-service

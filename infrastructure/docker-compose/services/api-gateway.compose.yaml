@@ -1,5 +1,7 @@
 services:
   api-gateway:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.api-gateway

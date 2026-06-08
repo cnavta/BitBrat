@@ -1,5 +1,7 @@
 services:
   tool-gateway:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.tool-gateway

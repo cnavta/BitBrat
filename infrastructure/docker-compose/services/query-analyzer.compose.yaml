@@ -1,5 +1,7 @@
 services:
   query-analyzer:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.query-analyzer

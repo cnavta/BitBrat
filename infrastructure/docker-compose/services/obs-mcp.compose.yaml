@@ -1,5 +1,7 @@
 services:
   obs-mcp:
+    env_file:
+      - .env.brat
     image: us-central1-docker.pkg.dev/bitbrat-local/obs-mcp/obs-mcp:latest
     platform: linux/amd64
     environment:

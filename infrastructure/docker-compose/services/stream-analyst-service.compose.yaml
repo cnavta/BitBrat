@@ -1,5 +1,7 @@
 services:
   stream-analyst-service:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.stream-analyst-service

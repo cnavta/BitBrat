@@ -1,5 +1,7 @@
 services:
   auth:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.auth

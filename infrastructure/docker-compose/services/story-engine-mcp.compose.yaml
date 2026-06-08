@@ -1,5 +1,7 @@
 services:
   story-engine-mcp:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.story-engine-mcp

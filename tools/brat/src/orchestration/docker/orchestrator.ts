@@ -27,60 +27,95 @@ export class DockerOrchestrator {
 
   public async up(): Promise<void> {
     const { arch, targetConfig, envName } = this.prepare();
-    const env = this.envResolver.resolve(envName);
+    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
-    const assignments = this.portManager.resolvePorts(serviceFiles, env);
-    const portOverrides = this.portManager.getEnvOverrides(assignments);
-
-    const mergedEnv = { ...env, ...portOverrides };
-    
-    // Create temporary .env file for Docker Compose
-    const envContent = EnvironmentResolver.flattenToDotEnv(mergedEnv);
-    const tempEnvPath = path.join(this.options.repoRoot, `.env.${targetConfig.name || 'docker'}.tmp`);
-    
-    if (this.options.dryRun) {
-      console.log(`[dry-run] Would write temp env file to ${tempEnvPath}`);
-      console.log(`[dry-run] Env content:\n${envContent}`);
-    } else {
-      fs.writeFileSync(tempEnvPath, envContent);
-    }
 
     try {
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
-      // Use remote build if it's a remote target and no explicit image is provided in the service compose file
-      // Actually, 'docker compose up --build' handles this naturally if DOCKER_HOST is set to an SSH target.
-      // It will transfer the context and build on the remote.
+      
+      // If it's a remote target, build in batches to avoid hitting SSH connection limits (e.g. MaxStartups)
+      if (targetConfig.host?.startsWith('ssh://')) {
+        const maxConcurrent = arch.deploymentDefaults?.maxConcurrentDeployments || 3;
+        const services = serviceFiles.map(f => path.basename(f, '.compose.yaml'));
+        
+        if (services.length > maxConcurrent) {
+          console.log(`[brat] Remote target detected. Building ${services.length} services in batches of ${maxConcurrent}...`);
+          for (let i = 0; i < services.length; i += maxConcurrent) {
+            const batch = services.slice(i, i + maxConcurrent);
+            console.log(`[brat] Building batch: ${batch.join(', ')}`);
+            await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
+          }
+        }
+      }
+
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--build']);
     } finally {
-      if (!this.options.dryRun && fs.existsSync(tempEnvPath)) {
-        fs.unlinkSync(tempEnvPath);
-      }
+      this.cleanupEnvFile(tempEnvPath);
     }
   }
 
   public async down(): Promise<void> {
-    const { targetConfig } = this.prepare();
+    const { targetConfig, envName } = this.prepare();
+    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
-    const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, []);
-    await this.executeDockerCompose(targetConfig, [...composeArgs, 'down']);
+    try {
+      const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      await this.executeDockerCompose(targetConfig, [...composeArgs, 'down']);
+    } finally {
+      this.cleanupEnvFile(tempEnvPath);
+    }
   }
 
   public async logs(follow: boolean = false): Promise<void> {
-    const { targetConfig } = this.prepare();
+    const { targetConfig, envName } = this.prepare();
+    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
-    const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, []);
-    const args = [...composeArgs, 'logs'];
-    if (follow) args.push('-f');
-    if (this.options.service) args.push(this.options.service.replace(/_/g, '-'));
-    await this.executeDockerCompose(targetConfig, args);
+    try {
+      const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      const args = [...composeArgs, 'logs'];
+      if (follow) args.push('-f');
+      if (this.options.service) args.push(this.options.service.replace(/_/g, '-'));
+      await this.executeDockerCompose(targetConfig, args);
+    } finally {
+      this.cleanupEnvFile(tempEnvPath);
+    }
   }
 
   public async ps(): Promise<void> {
-    const { targetConfig } = this.prepare();
+    const { targetConfig, envName } = this.prepare();
+    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
-    const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, []);
-    await this.executeDockerCompose(targetConfig, [...composeArgs, 'ps']);
+    try {
+      const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      await this.executeDockerCompose(targetConfig, [...composeArgs, 'ps']);
+    } finally {
+      this.cleanupEnvFile(tempEnvPath);
+    }
+  }
+
+  private writeEnvFile(envName: string, targetConfig: any): string {
+    const env = this.envResolver.resolve(envName);
+    const { serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
+    const assignments = this.portManager.resolvePorts(serviceFiles, env);
+    const portOverrides = this.portManager.getEnvOverrides(assignments);
+    const mergedEnv = { ...env, ...portOverrides };
+
+    const envContent = EnvironmentResolver.flattenToDotEnv(mergedEnv);
+    const tempEnvPath = path.join(this.options.repoRoot, '.env.brat');
+
+    if (this.options.dryRun) {
+      console.log(`[dry-run] Would write env file to ${tempEnvPath}`);
+    } else {
+      fs.writeFileSync(tempEnvPath, envContent);
+    }
+    return tempEnvPath;
+  }
+
+  private cleanupEnvFile(tempEnvPath: string): void {
+    if (!this.options.dryRun && fs.existsSync(tempEnvPath)) {
+      fs.unlinkSync(tempEnvPath);
+    }
   }
 
   private prepare() {
@@ -98,7 +133,13 @@ export class DockerOrchestrator {
   }
 
   private async executeDockerCompose(target: any, args: string[]): Promise<void> {
-    const env: Record<string, string> = { ...process.env as Record<string, string> };
+    const arch = loadArchitecture(this.options.repoRoot);
+    const maxConcurrent = arch.deploymentDefaults?.maxConcurrentDeployments || 3;
+
+    const env: Record<string, string> = { 
+      ...process.env as Record<string, string>,
+      COMPOSE_PARALLEL_LIMIT: maxConcurrent.toString()
+    };
     
     if (target.host) {
       env['DOCKER_HOST'] = target.host;
