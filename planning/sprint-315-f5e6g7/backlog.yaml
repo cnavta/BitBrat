@@ -143,5 +143,5 @@ items:
         note: "Fixed Docker Compose build context resolution by adding --project-directory."
       - at: 2026-06-07T13:50:00Z
         note: "Restored container environment variable injection by re-adding env_file references pointing to .env.brat."
-      - at: 2026-06-08T12:55:00Z
-        note: "Fixed remote deploy failure by implementing build batching and optimizing .dockerignore."
+      - at: 2026-06-08T13:05:00Z
+        note: "Implemented full build and up batching for remote targets to resolve SSH connection resets."

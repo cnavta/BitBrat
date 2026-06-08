@@ -34,22 +34,32 @@ export class DockerOrchestrator {
     try {
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
       
-      // If it's a remote target, build in batches to avoid hitting SSH connection limits (e.g. MaxStartups)
-      if (targetConfig.host?.startsWith('ssh://')) {
-        const maxConcurrent = arch.deploymentDefaults?.maxConcurrentDeployments || 3;
-        const services = serviceFiles.map(f => path.basename(f, '.compose.yaml'));
-        
-        if (services.length > maxConcurrent) {
-          console.log(`[brat] Remote target detected. Building ${services.length} services in batches of ${maxConcurrent}...`);
-          for (let i = 0; i < services.length; i += maxConcurrent) {
-            const batch = services.slice(i, i + maxConcurrent);
-            console.log(`[brat] Building batch: ${batch.join(', ')}`);
-            await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
-          }
-        }
-      }
+      const isRemote = targetConfig.host?.startsWith('ssh://');
+      const maxConcurrent = arch.deploymentDefaults?.maxConcurrentDeployments || 3;
+      const services = serviceFiles.map(f => path.basename(f, '.compose.yaml'));
 
-      await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--build']);
+      if (isRemote) {
+        console.log(`[brat] Remote target detected. Deploying ${services.length} services in batches of ${maxConcurrent}...`);
+        
+        // Build in batches to avoid hitting SSH connection limits
+        for (let i = 0; i < services.length; i += maxConcurrent) {
+          const batch = services.slice(i, i + maxConcurrent);
+          console.log(`[brat] Building batch: ${batch.join(', ')}`);
+          await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
+        }
+        
+        // Up in batches to prevent overwhelming the remote engine with simultaneous checks/starts
+        for (let i = 0; i < services.length; i += maxConcurrent) {
+          const batch = services.slice(i, i + maxConcurrent);
+          console.log(`[brat] Starting batch: ${batch.join(', ')}`);
+          await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--no-build', ...batch]);
+        }
+
+        // Final pass to ensure everything is up and correctly linked
+        await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--no-build']);
+      } else {
+        await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--build']);
+      }
     } finally {
       this.cleanupEnvFile(tempEnvPath);
     }

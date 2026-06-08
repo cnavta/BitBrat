@@ -8,7 +8,7 @@
 - [x] Resolved "env file .env.local not found" error by removing hardcoded `env_file` references from service compose files.
 - [x] Fixed path resolution error during build context setup by adding `--project-directory` to the `docker compose` command.
 - [x] Restored environment variable injection into containers by re-adding `env_file` references pointing to `.env.brat`.
-- [x] Fixed remote deployment SSH connection resets by implementing build batching for remote targets.
+- [x] Fixed remote deployment SSH connection resets by implementing full batching for both 'build' and 'up' operations.
 - [x] Optimized build context transfer by updating `.dockerignore` to exclude heavy directories.
 - [x] Updated bootstrap scripts to maintain environment variable injection for new services.
 - [x] Updated bootstrap scripts to prevent re-introduction of hardcoded `env_file` references.
