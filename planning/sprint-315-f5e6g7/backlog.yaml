@@ -145,3 +145,5 @@ items:
         note: "Restored container environment variable injection by re-adding env_file references pointing to .env.brat."
       - at: 2026-06-08T13:05:00Z
         note: "Implemented full build and up batching for remote targets to resolve SSH connection resets."
+      - at: 2026-06-08T13:15:00Z
+        note: "Resolved 'only one connection allowed' error by defaulting SSH targets to serial execution and adding per-target concurrency control."

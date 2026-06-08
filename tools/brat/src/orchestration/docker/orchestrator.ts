@@ -35,11 +35,15 @@ export class DockerOrchestrator {
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
       
       const isRemote = targetConfig.host?.startsWith('ssh://');
-      const maxConcurrent = arch.deploymentDefaults?.maxConcurrentDeployments || 3;
+      let maxConcurrent = targetConfig.maxConcurrent || arch.deploymentDefaults?.maxConcurrentDeployments || 3;
+      if (isRemote && !targetConfig.maxConcurrent) {
+        maxConcurrent = 1; // Default to 1 for SSH if not specified, to avoid "only one connection allowed"
+      }
+      
       const services = serviceFiles.map(f => path.basename(f, '.compose.yaml'));
 
       if (isRemote) {
-        console.log(`[brat] Remote target detected. Deploying ${services.length} services in batches of ${maxConcurrent}...`);
+        console.log(`[brat] Remote target detected (concurrency: ${maxConcurrent}). Deploying ${services.length} services in batches...`);
         
         // Build in batches to avoid hitting SSH connection limits
         for (let i = 0; i < services.length; i += maxConcurrent) {
@@ -144,7 +148,11 @@ export class DockerOrchestrator {
 
   private async executeDockerCompose(target: any, args: string[]): Promise<void> {
     const arch = loadArchitecture(this.options.repoRoot);
-    const maxConcurrent = arch.deploymentDefaults?.maxConcurrentDeployments || 3;
+    let maxConcurrent = target.maxConcurrent || arch.deploymentDefaults?.maxConcurrentDeployments || 3;
+    
+    if (target.host?.startsWith('ssh://') && !target.maxConcurrent) {
+      maxConcurrent = 1;
+    }
 
     const env: Record<string, string> = { 
       ...process.env as Record<string, string>,
