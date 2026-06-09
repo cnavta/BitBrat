@@ -32,10 +32,11 @@ export class DockerOrchestrator {
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
 
     try {
-      await this.ensureRemoteSynced(targetConfig);
-
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
       const isRemote = targetConfig.host?.startsWith('ssh://');
+
+      await this.ensureRemoteSynced(targetConfig);
+
       let maxConcurrent = targetConfig.maxConcurrent || arch.deploymentDefaults?.maxConcurrentDeployments || 3;
       if (isRemote && !targetConfig.maxConcurrent) {
         maxConcurrent = 1; // Default to 1 for SSH if not specified, to avoid "only one connection allowed"
@@ -75,8 +76,8 @@ export class DockerOrchestrator {
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     try {
-      await this.ensureRemoteSynced(targetConfig);
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      await this.ensureRemoteSynced(targetConfig);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'down']);
     } finally {
       this.cleanupEnvFile(tempEnvPath);
@@ -88,8 +89,8 @@ export class DockerOrchestrator {
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     try {
-      await this.ensureRemoteSynced(targetConfig);
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      await this.ensureRemoteSynced(targetConfig);
       const args = [...composeArgs, 'logs'];
       if (follow) args.push('-f');
       if (this.options.service) args.push(this.options.service.replace(/_/g, '-'));
@@ -104,8 +105,8 @@ export class DockerOrchestrator {
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     try {
-      await this.ensureRemoteSynced(targetConfig);
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      await this.ensureRemoteSynced(targetConfig);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'ps']);
     } finally {
       this.cleanupEnvFile(tempEnvPath);

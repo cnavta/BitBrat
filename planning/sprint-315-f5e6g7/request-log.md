@@ -90,9 +90,9 @@
     - `tools/brat/src/orchestration/docker/compose-factory.ts` (Modified)
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
 
-- **Timestamp**: 2026-06-09T08:35:00Z
-- **Prompt summary**: Correct `--context` flag position (global flag).
-- **Interpretation**: Fixed "unknown flag: --context" error by moving the flag before the `compose` subcommand in `DockerOrchestrator`. Added `DOCKER_CONTEXT` environment variable and ensured `DOCKER_HOST` is unset when using a context to avoid conflicts.
+- **Timestamp**: 2026-06-09T08:40:00Z
+- **Prompt summary**: Fix missing `.env.brat` error on remote targets.
+- **Interpretation**: Identified a race condition where `ensureRemoteSynced` was called before `.env.brat` was guaranteed to be written or after paths were calculated but before they were used. Reordered operations in `up()`, `down()`, `logs()`, and `ps()` to ensure `.env.brat` is generated and then synced to the remote target before any Docker command is executed.
 - **Shell/git commands executed**:
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
