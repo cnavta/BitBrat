@@ -424,7 +424,6 @@ deploymentTargets:
     host: "ssh://root@bitbrat.lan"
     env: staging
     maxConcurrent: 1
-    context: bitbrat-staging
     remoteDir: /opt/BitBratPlatform
 
 # Networking posture (Sprint 113):

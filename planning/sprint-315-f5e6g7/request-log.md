@@ -113,3 +113,11 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T09:00:00Z
+- **Prompt summary**: Fix "context not found" error.
+- **Interpretation**: Removed `context: bitbrat-staging` from `architecture.yaml` as it required the user to manually create a Docker context locally. The tool already supports `host` (SSH URL) and correctly injects it as `DOCKER_HOST` for builds, which is more robust.
+- **Shell/git commands executed**:
+    - `search_replace` on `architecture.yaml`
+- **Files modified or created**:
+    - `architecture.yaml` (Modified)
