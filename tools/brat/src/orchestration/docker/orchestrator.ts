@@ -222,8 +222,8 @@ export class DockerOrchestrator {
       const sshTarget = target.host.replace('ssh://', '');
       const quotedArgs = args.map(arg => arg.includes(' ') ? `"${arg}"` : arg).join(' ');
       
-      // Try 'docker compose' first, then 'docker-compose'. Use login shell to ensure PATH is set.
-      const remoteCmd = `bash -l -c 'cd ${target.remoteDir} && (docker compose version >/dev/null 2>&1 && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose ${quotedArgs} || COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose ${quotedArgs})'`;
+      // Try 'docker compose' first, then 'docker-compose'. Use /bin/sh -c for Alpine compatibility.
+      const remoteCmd = `sh -c 'cd ${target.remoteDir} && (docker compose version >/dev/null 2>&1 && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose ${quotedArgs} || COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose ${quotedArgs})'`;
       
       if (this.options.dryRun || process.env.DEBUG === 'brat:*') {
         console.log(`[brat:docker] Executing remotely: ssh ${sshTarget} "${remoteCmd}"`);

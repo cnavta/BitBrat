@@ -159,3 +159,5 @@ items:
         note: "Fixed 'Dockerfile not found' by restoring --project-directory . and optimized remote build by combining service build commands."
       - at: 2026-06-09T09:20:00Z
         note: "Fixed 'sh: docker-compose: not found' by using a login shell and fallback to 'docker compose'. Restored batching for remote builds to prevent connection resets."
+      - at: 2026-06-09T11:45:00Z
+        note: "Resolved Alpine Linux compatibility issue by replacing 'bash -l -c' with 'sh -c' for remote command execution."

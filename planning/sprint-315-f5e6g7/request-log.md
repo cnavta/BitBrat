@@ -137,3 +137,11 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T11:45:00Z
+- **Prompt summary**: Fix "sh: bash: not found" error on Alpine Linux.
+- **Interpretation**: The remote host is running Alpine Linux, which does not have `bash` by default. Replaced `bash -l -c` with `sh -c` in the remote command execution logic to ensure compatibility with Alpine while keeping the robust command fallback for Docker Compose.
+- **Shell/git commands executed**:
+    - `search_replace` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
