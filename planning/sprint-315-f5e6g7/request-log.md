@@ -105,3 +105,11 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T08:55:00Z
+- **Prompt summary**: Fix "unknown shorthand flag: 'f' in -f" error.
+- **Interpretation**: The error occurs when `-f` is interpreted as a global Docker flag, which usually means the `compose` subcommand was not recognized or argument ordering failed. Switched to using `docker-compose` (hyphenated) for remote execution to improve robustness and simplified local command construction.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
