@@ -147,3 +147,5 @@ items:
         note: "Implemented full build and up batching for remote targets to resolve SSH connection resets."
       - at: 2026-06-08T13:15:00Z
         note: "Resolved 'only one connection allowed' error by defaulting SSH targets to serial execution and adding per-target concurrency control."
+      - at: 2026-06-09T08:10:00Z
+        note: "Fixed 'unknown flag: --context' by moving it to the correct position as a global docker flag."

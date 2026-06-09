@@ -75,3 +75,11 @@
     - `tools/brat/src/config/schema.ts` (Modified)
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
     - `architecture.yaml` (Modified)
+
+- **Timestamp**: 2026-06-09T08:05:00Z
+- **Prompt summary**: Fix "unknown flag: --context" error.
+- **Interpretation**: The `--context` flag was being passed incorrectly as an argument to `docker compose` instead of a global flag to `docker`. Moved it before the `compose` subcommand in the command-line construction.
+- **Shell/git commands executed**:
+    - `search_replace` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
