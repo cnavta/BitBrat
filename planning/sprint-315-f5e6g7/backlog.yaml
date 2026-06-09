@@ -157,3 +157,5 @@ items:
         note: "Resolved 'context not found' error by removing the mandatory context requirement from architecture.yaml and relying on DOCKER_HOST for builds."
       - at: 2026-06-09T09:10:00Z
         note: "Fixed 'Dockerfile not found' by restoring --project-directory . and optimized remote build by combining service build commands."
+      - at: 2026-06-09T09:20:00Z
+        note: "Fixed 'sh: docker-compose: not found' by using a login shell and fallback to 'docker compose'. Restored batching for remote builds to prevent connection resets."

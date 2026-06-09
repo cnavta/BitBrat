@@ -34,3 +34,7 @@
 ## Alignment Notes
 - Discovered and fixed path resolution errors that were blocking the build.
 - Verification relied on manual code audit due to toolchain absence in the current environment.
+
+- [x] Fixed "sh: docker-compose: not found" on remote host by using a login shell (`bash -l`) and providing a fallback to `docker compose`.
+- [x] Restored batched builds for SSH targets to prevent "failed to dial gRPC" and SSH connection reset errors.
+- [x] Added strict error checking for all local and remote Docker commands.
