@@ -155,3 +155,5 @@ items:
         note: "Fixed 'unknown shorthand flag: 'f' in -f' error by switching to hyphenated docker-compose for remote execution and simplifying local command construction."
       - at: 2026-06-09T09:00:00Z
         note: "Resolved 'context not found' error by removing the mandatory context requirement from architecture.yaml and relying on DOCKER_HOST for builds."
+      - at: 2026-06-09T09:10:00Z
+        note: "Fixed 'Dockerfile not found' by restoring --project-directory . and optimized remote build by combining service build commands."
