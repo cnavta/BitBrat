@@ -123,6 +123,15 @@ export class DockerOrchestrator {
       console.log(`[dry-run] Would write env file to ${fullEnvPath}`);
     } else {
       fs.writeFileSync(fullEnvPath, envContent);
+      // Ensure subdirectories also have the env file for Docker Compose injection
+      // This is because compose files at different depths expect .env.brat to be local to them.
+      const subDirs = ['infrastructure/docker-compose', 'infrastructure/docker-compose/services'];
+      for (const dir of subDirs) {
+        const subDirPath = path.join(this.options.repoRoot, dir);
+        if (fs.existsSync(subDirPath)) {
+          fs.writeFileSync(path.join(subDirPath, tempEnvPath), envContent);
+        }
+      }
     }
     return tempEnvPath;
   }
@@ -131,6 +140,13 @@ export class DockerOrchestrator {
     const fullEnvPath = path.join(this.options.repoRoot, tempEnvPath);
     if (!this.options.dryRun && fs.existsSync(fullEnvPath)) {
       fs.unlinkSync(fullEnvPath);
+      const subDirs = ['infrastructure/docker-compose', 'infrastructure/docker-compose/services'];
+      for (const dir of subDirs) {
+        const subEnvPath = path.join(this.options.repoRoot, dir, tempEnvPath);
+        if (fs.existsSync(subEnvPath)) {
+          fs.unlinkSync(subEnvPath);
+        }
+      }
     }
   }
 
@@ -194,10 +210,22 @@ export class DockerOrchestrator {
       }
     }
 
-    // Verification check for critical file
-    const verifyResult = await execCmd('ssh', [sshTarget, `[ -f ${remoteDir}/.env.brat ]`], { cwd: this.options.repoRoot });
-    if (verifyResult.code !== 0) {
-      throw new Error(`Sync verification failed: .env.brat not found at ${remoteDir}/.env.brat on remote host ${sshTarget}`);
+    // Verification check for critical files
+    const criticalFiles = [
+      path.join(remoteDir, '.env.brat'),
+      path.join(remoteDir, 'infrastructure/docker-compose/.env.brat'),
+      path.join(remoteDir, 'infrastructure/docker-compose/services/.env.brat')
+    ];
+    for (const file of criticalFiles) {
+      const verifyResult = await execCmd('ssh', [sshTarget, `[ -f ${file} ]`], { cwd: this.options.repoRoot });
+      if (verifyResult.code !== 0) {
+        // Only throw if it's the root .env.brat or if the corresponding directory exists
+        if (file.endsWith('services/.env.brat')) {
+           const dirExists = await execCmd('ssh', [sshTarget, `[ -d ${path.dirname(file)} ]`], { cwd: this.options.repoRoot });
+           if (dirExists.code !== 0) continue;
+        }
+        throw new Error(`Sync verification failed: ${file} not found on remote host ${sshTarget}`);
+      }
     }
   }
 
