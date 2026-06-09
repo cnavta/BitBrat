@@ -47,9 +47,13 @@ export class DockerOrchestrator {
       if (isRemote) {
         console.log(`[brat] Remote target detected. Building and deploying ${services.length} services...`);
         
-        // Build all services in one go to minimize context transfers and connection establishment.
-        // We still respect maxConcurrent via COMPOSE_PARALLEL_LIMIT inside executeDockerCompose.
-        await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...services]);
+        // Build services sequentially or in small batches for SSH targets to avoid connection resets.
+        // We use the target's maxConcurrent for batching.
+        for (let i = 0; i < services.length; i += maxConcurrent) {
+          const batch = services.slice(i, i + maxConcurrent);
+          console.log(`[brat] Building batch: ${batch.join(', ')}`);
+          await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
+        }
         
         // Up all services in one go. Since this runs remotely via SSH (in executeDockerCompose),
         // it doesn't hit local SSH connection limits, and respects COMPOSE_PARALLEL_LIMIT on the remote host.
@@ -216,17 +220,24 @@ export class DockerOrchestrator {
     // 2. Bind mounts refer to paths on the remote host.
     if (isSsh && target.remoteDir && !isBuild) {
       const sshTarget = target.host.replace('ssh://', '');
-      const remoteCmd = `cd ${target.remoteDir} && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose ${args.join(' ')}`;
+      const quotedArgs = args.map(arg => arg.includes(' ') ? `"${arg}"` : arg).join(' ');
       
-      if (this.options.dryRun) {
-        console.log(`[dry-run] Executing remotely: ssh ${sshTarget} "${remoteCmd}"`);
-        return;
+      // Try 'docker compose' first, then 'docker-compose'. Use login shell to ensure PATH is set.
+      const remoteCmd = `bash -l -c 'cd ${target.remoteDir} && (docker compose version >/dev/null 2>&1 && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose ${quotedArgs} || COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose ${quotedArgs})'`;
+      
+      if (this.options.dryRun || process.env.DEBUG === 'brat:*') {
+        console.log(`[brat:docker] Executing remotely: ssh ${sshTarget} "${remoteCmd}"`);
       }
 
-      await execCmd('ssh', [sshTarget, remoteCmd], { 
+      if (this.options.dryRun) return;
+
+      const result = await execCmd('ssh', [sshTarget, remoteCmd], { 
         cwd: this.options.repoRoot,
         stdio: 'inherit'
       });
+      if (result.code !== 0) {
+        throw new Error(`Remote Docker command failed with exit code ${result.code}`);
+      }
       return;
     }
 
@@ -243,10 +254,14 @@ export class DockerOrchestrator {
       return;
     }
 
-    await execCmd(cmd, finalArgs, { 
+    const result = await execCmd(cmd, finalArgs, { 
       cwd: this.options.repoRoot,
       env,
       stdio: 'inherit'
     });
+
+    if (result.code !== 0) {
+      throw new Error(`Docker command failed with exit code ${result.code}`);
+    }
   }
 }

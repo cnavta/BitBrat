@@ -129,3 +129,11 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T09:20:00Z
+- **Prompt summary**: Fix "sh: docker-compose: not found" and restore remote build stability.
+- **Interpretation**: Identified that non-interactive SSH shells often lack the PATH to `docker-compose`. Switched to `bash -l -c` for remote commands and added a fallback to `docker compose`. Also restored batched/sequential builds for SSH targets to avoid connection resets (gRPC dial errors) caused by excessive simultaneous SSH connections.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
