@@ -163,3 +163,5 @@ items:
         note: "Resolved Alpine Linux compatibility issue by replacing 'bash -l -c' with 'sh -c' for remote command execution."
       - at: 2026-06-09T11:50:00Z
         note: "Improved remote file synchronization by adding scp fallback for rsync and adding post-sync verification to ensure .env.brat exists."
+      - at: 2026-06-09T11:55:00Z
+        note: "Fixed 'env file not found' error by providing .env.brat in all subdirectories containing compose files (root, infrastructure/docker-compose, and services)."
