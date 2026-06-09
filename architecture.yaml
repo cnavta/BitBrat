@@ -425,6 +425,7 @@ deploymentTargets:
     env: staging
     maxConcurrent: 1
     context: bitbrat-staging
+    remoteDir: /opt/BitBratPlatform
 
 # Networking posture (Sprint 113):
 # - No Cloud NAT: outbound public traffic should use Cloud Run default egress path for best latency.
