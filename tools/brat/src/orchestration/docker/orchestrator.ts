@@ -204,7 +204,10 @@ export class DockerOrchestrator {
     const globalArgs: string[] = [];
     if (target.context) {
       globalArgs.push('--context', target.context);
+      // Ensure DOCKER_HOST is not set when using context, as they conflict
       delete env['DOCKER_HOST'];
+      // Also set DOCKER_CONTEXT env var for broader compatibility
+      env['DOCKER_CONTEXT'] = target.context;
     } else if (target.host) {
       env['DOCKER_HOST'] = target.host;
     }

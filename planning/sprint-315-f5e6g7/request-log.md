@@ -89,3 +89,11 @@
     - `architecture.yaml` (Modified)
     - `tools/brat/src/orchestration/docker/compose-factory.ts` (Modified)
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T08:35:00Z
+- **Prompt summary**: Correct `--context` flag position (global flag).
+- **Interpretation**: Fixed "unknown flag: --context" error by moving the flag before the `compose` subcommand in `DockerOrchestrator`. Added `DOCKER_CONTEXT` environment variable and ensured `DOCKER_HOST` is unset when using a context to avoid conflicts.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
