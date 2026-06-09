@@ -225,7 +225,7 @@ export class DockerOrchestrator {
     // 2. Bind mounts refer to paths on the remote host.
     if (isSsh && target.remoteDir && !isBuild) {
       const sshTarget = target.host.replace('ssh://', '');
-      const remoteCmd = `cd ${target.remoteDir} && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose ${args.join(' ')}`;
+      const remoteCmd = `cd ${target.remoteDir} && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose ${args.join(' ')}`;
       
       if (this.options.dryRun) {
         console.log(`[dry-run] Executing remotely: ssh ${sshTarget} "${remoteCmd}"`);
@@ -240,12 +240,13 @@ export class DockerOrchestrator {
     }
 
     // Default to local execution (always for 'build', or for local targets)
-    // Use '.' as project directory locally so Docker finds relative files like .env.brat
-    const projectDir = '.';
-    const finalArgs = [...globalArgs, 'compose', '--project-directory', projectDir, ...args];
+    const finalArgs = [...globalArgs, 'compose', ...args];
+
+    if (this.options.dryRun || process.env.DEBUG === 'brat:*') {
+      console.log(`[brat:docker] Executing: ${env['DOCKER_HOST'] ? `DOCKER_HOST=${env['DOCKER_HOST']} ` : ''}${cmd} ${finalArgs.join(' ')}`);
+    }
 
     if (this.options.dryRun) {
-      console.log(`[dry-run] Executing: ${env['DOCKER_HOST'] ? `DOCKER_HOST=${env['DOCKER_HOST']} ` : ''}${cmd} ${finalArgs.join(' ')}`);
       return;
     }
 

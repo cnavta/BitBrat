@@ -151,3 +151,5 @@ items:
         note: "Fixed missing .env.brat on remote targets by ensuring it is synced before Docker commands."
       - at: 2026-06-09T08:50:00Z
         note: "Resolved 'env file not found' and bind mount issues by implementing SSH-based execution for remote Docker commands and using rsync -R."
+      - at: 2026-06-09T08:55:00Z
+        note: "Fixed 'unknown shorthand flag: 'f' in -f' error by switching to hyphenated docker-compose for remote execution and simplifying local command construction."
