@@ -37,5 +37,6 @@
 
 - [x] Fixed "sh: docker-compose: not found" on remote host by providing a fallback to `docker compose`.
 - [x] Resolved Alpine Linux compatibility issue ("bash: not found") by replacing `bash -l -c` with `sh -c` for remote command execution.
+- [x] Improved remote file synchronization by implementing an `scp` fallback for `rsync` and adding explicit post-sync verification.
 - [x] Restored batched builds for SSH targets to prevent "failed to dial gRPC" and SSH connection reset errors.
 - [x] Added strict error checking for all local and remote Docker commands.

@@ -145,3 +145,11 @@
     - `search_replace` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T11:50:00Z
+- **Prompt summary**: Fix "env file .env.brat not found" on remote host.
+- **Interpretation**: Identified that the environment file might not be correctly synced to the remote host, especially on Alpine Linux targets where `rsync` might be missing. Improved the sync logic to use a single `rsync` call for efficiency, added a fallback to `scp` for robustness, and added a post-sync verification check using `ssh` to ensure `.env.brat` exists before proceeding with the deployment.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
