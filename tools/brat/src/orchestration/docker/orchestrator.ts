@@ -167,7 +167,7 @@ export class DockerOrchestrator {
     console.log(`[brat] Syncing deployment files to remote: ${sshTarget}:${remoteDir}`);
 
     // Create remote directory
-    const mkdirResult = await execCmd('ssh', [sshTarget, `mkdir -p ${remoteDir}`], { cwd: this.options.repoRoot });
+    const mkdirResult = await execCmd('ssh', [sshTarget, `mkdir -p "${remoteDir}"`], { cwd: this.options.repoRoot });
     if (mkdirResult.code !== 0) {
       throw new Error(`Failed to create remote directory ${remoteDir} on ${sshTarget}`);
     }
@@ -217,11 +217,11 @@ export class DockerOrchestrator {
       path.join(remoteDir, 'infrastructure/docker-compose/services/.env.brat')
     ];
     for (const file of criticalFiles) {
-      const verifyResult = await execCmd('ssh', [sshTarget, `[ -f ${file} ]`], { cwd: this.options.repoRoot });
+      const verifyResult = await execCmd('ssh', [sshTarget, `[ -f "${file}" ]`], { cwd: this.options.repoRoot });
       if (verifyResult.code !== 0) {
         // Only throw if it's the root .env.brat or if the corresponding directory exists
         if (file.endsWith('services/.env.brat')) {
-           const dirExists = await execCmd('ssh', [sshTarget, `[ -d ${path.dirname(file)} ]`], { cwd: this.options.repoRoot });
+           const dirExists = await execCmd('ssh', [sshTarget, `[ -d "${path.dirname(file)}" ]`], { cwd: this.options.repoRoot });
            if (dirExists.code !== 0) continue;
         }
         throw new Error(`Sync verification failed: ${file} not found on remote host ${sshTarget}`);
