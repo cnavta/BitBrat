@@ -32,8 +32,9 @@ export class DockerOrchestrator {
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
 
     try {
+      await this.ensureRemoteSynced(targetConfig);
+
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
-      
       const isRemote = targetConfig.host?.startsWith('ssh://');
       let maxConcurrent = targetConfig.maxConcurrent || arch.deploymentDefaults?.maxConcurrentDeployments || 3;
       if (isRemote && !targetConfig.maxConcurrent) {
@@ -74,6 +75,7 @@ export class DockerOrchestrator {
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     try {
+      await this.ensureRemoteSynced(targetConfig);
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'down']);
     } finally {
@@ -86,6 +88,7 @@ export class DockerOrchestrator {
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     try {
+      await this.ensureRemoteSynced(targetConfig);
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
       const args = [...composeArgs, 'logs'];
       if (follow) args.push('-f');
@@ -101,6 +104,7 @@ export class DockerOrchestrator {
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
     const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     try {
+      await this.ensureRemoteSynced(targetConfig);
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'ps']);
     } finally {
@@ -116,19 +120,56 @@ export class DockerOrchestrator {
     const mergedEnv = { ...env, ...portOverrides };
 
     const envContent = EnvironmentResolver.flattenToDotEnv(mergedEnv);
-    const tempEnvPath = path.join(this.options.repoRoot, '.env.brat');
+    const tempEnvPath = '.env.brat';
+    const fullEnvPath = path.join(this.options.repoRoot, tempEnvPath);
 
     if (this.options.dryRun) {
-      console.log(`[dry-run] Would write env file to ${tempEnvPath}`);
+      console.log(`[dry-run] Would write env file to ${fullEnvPath}`);
     } else {
-      fs.writeFileSync(tempEnvPath, envContent);
+      fs.writeFileSync(fullEnvPath, envContent);
     }
     return tempEnvPath;
   }
 
   private cleanupEnvFile(tempEnvPath: string): void {
-    if (!this.options.dryRun && fs.existsSync(tempEnvPath)) {
-      fs.unlinkSync(tempEnvPath);
+    const fullEnvPath = path.join(this.options.repoRoot, tempEnvPath);
+    if (!this.options.dryRun && fs.existsSync(fullEnvPath)) {
+      fs.unlinkSync(fullEnvPath);
+    }
+  }
+
+  private async ensureRemoteSynced(targetConfig: any): Promise<void> {
+    const isRemote = targetConfig.host?.startsWith('ssh://');
+    if (isRemote && targetConfig.remoteDir) {
+      await this.syncRemoteFiles(targetConfig);
+    }
+  }
+
+  private async syncRemoteFiles(target: any): Promise<void> {
+    const remoteDir = target.remoteDir;
+    if (!remoteDir) return;
+
+    // Extract user@host from ssh://user@host
+    const sshTarget = target.host.replace('ssh://', '');
+    
+    console.log(`[brat] Syncing deployment files to remote: ${sshTarget}:${remoteDir}`);
+
+    // Create remote directory
+    await execCmd('ssh', [sshTarget, `mkdir -p ${remoteDir}`], { cwd: this.options.repoRoot });
+
+    // Sync essential files for Docker Compose
+    // We sync infrastructure/docker-compose, .env.brat, and dummy-creds.json (if exists)
+    const filesToSync = [
+      'infrastructure/docker-compose',
+      '.env.brat',
+      'dummy-creds.json'
+    ];
+
+    for (const file of filesToSync) {
+      const localPath = path.join(this.options.repoRoot, file);
+      if (fs.existsSync(localPath)) {
+        await execCmd('rsync', ['-az', '--delete', file, `${sshTarget}:${remoteDir}/`], { cwd: this.options.repoRoot });
+      }
     }
   }
 
@@ -159,20 +200,22 @@ export class DockerOrchestrator {
       COMPOSE_PARALLEL_LIMIT: maxConcurrent.toString()
     };
     
-    if (target.host) {
-      env['DOCKER_HOST'] = target.host;
-    }
-    
     const cmd = 'docker';
     const globalArgs: string[] = [];
     if (target.context) {
       globalArgs.push('--context', target.context);
+      delete env['DOCKER_HOST'];
+    } else if (target.host) {
+      env['DOCKER_HOST'] = target.host;
     }
 
-    const finalArgs = [...globalArgs, 'compose', '--project-directory', this.options.repoRoot, ...args];
+    // Use relative path for --project-directory to be more portable across environments
+    // If it's a remote target with a remoteDir, we use the remoteDir as project directory
+    const projectDir = (target.host?.startsWith('ssh://') && target.remoteDir) ? target.remoteDir : '.';
+    const finalArgs = [...globalArgs, 'compose', '--project-directory', projectDir, ...args];
 
     if (this.options.dryRun) {
-      console.log(`[dry-run] Executing: ${target.host ? `DOCKER_HOST=${target.host} ` : ''}${cmd} ${finalArgs.join(' ')}`);
+      console.log(`[dry-run] Executing: ${env['DOCKER_HOST'] ? `DOCKER_HOST=${env['DOCKER_HOST']} ` : ''}${cmd} ${finalArgs.join(' ')}`);
       return;
     }
 

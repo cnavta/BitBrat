@@ -76,10 +76,16 @@
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
     - `architecture.yaml` (Modified)
 
-- **Timestamp**: 2026-06-09T08:05:00Z
-- **Prompt summary**: Fix "unknown flag: --context" error.
-- **Interpretation**: The `--context` flag was being passed incorrectly as an argument to `docker compose` instead of a global flag to `docker`. Moved it before the `compose` subcommand in the command-line construction.
+- **Timestamp**: 2026-06-09T08:15:00Z
+- **Prompt summary**: Resolve Docker Compose issues for remote deployment (conflicting context, path resolution, missing volumes).
+- **Interpretation**: Addressed Docker AI's recommendations by resolving DOCKER_HOST/context conflict, switching to relative paths for compose arguments, and implementing automated file syncing (rsync) to remoteDir for remote targets. This ensures bind-mounted volumes work correctly on remote engines.
 - **Shell/git commands executed**:
-    - `search_replace` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+    - `search_replace` on `tools/brat/src/config/schema.ts`
+    - `search_replace` on `architecture.yaml`
+    - `search_replace` on `tools/brat/src/orchestration/docker/compose-factory.ts`
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
+    - `tools/brat/src/config/schema.ts` (Modified)
+    - `architecture.yaml` (Modified)
+    - `tools/brat/src/orchestration/docker/compose-factory.ts` (Modified)
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)

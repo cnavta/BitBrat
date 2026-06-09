@@ -13,25 +13,26 @@ export class ComposeFactory {
   constructor(private readonly repoRoot: string) {}
 
   public getComposeFiles(targetService?: string): ComposeFileSet {
-    const baseFile = path.join(this.repoRoot, this.baseComposePath);
+    const baseFile = this.baseComposePath;
     const serviceFiles: string[] = [];
 
     const fullServicesDir = path.join(this.repoRoot, this.servicesDir);
 
     if (targetService) {
       const kebabService = targetService.replace(/_/g, '-');
-      const serviceFile = path.join(fullServicesDir, `${kebabService}.compose.yaml`);
-      if (fs.existsSync(serviceFile)) {
+      const serviceFile = path.join(this.servicesDir, `${kebabService}.compose.yaml`);
+      const fullServiceFile = path.join(this.repoRoot, serviceFile);
+      if (fs.existsSync(fullServiceFile)) {
         serviceFiles.push(serviceFile);
       } else {
-        throw new Error(`Compose file not found for service: ${targetService} at ${serviceFile}`);
+        throw new Error(`Compose file not found for service: ${targetService} at ${fullServiceFile}`);
       }
     } else {
       if (fs.existsSync(fullServicesDir)) {
         const files = fs.readdirSync(fullServicesDir)
           .filter(f => f.endsWith('.compose.yaml'))
           .sort()
-          .map(f => path.join(fullServicesDir, f));
+          .map(f => path.join(this.servicesDir, f));
         serviceFiles.push(...files);
       }
     }
