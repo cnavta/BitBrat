@@ -121,3 +121,11 @@
     - `search_replace` on `architecture.yaml`
 - **Files modified or created**:
     - `architecture.yaml` (Modified)
+
+- **Timestamp**: 2026-06-09T09:10:00Z
+- **Prompt summary**: Fix "Dockerfile not found" and optimize remote build.
+- **Interpretation**: Identified that Docker Compose fails to resolve build contexts outside the default project directory when talking to a remote daemon. Restored `--project-directory .` to correctly anchor all relative paths at the repo root. Optimized the remote build workflow by combining all service builds into a single command, reducing connection overhead and context transfer redundancy.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)

@@ -45,23 +45,14 @@ export class DockerOrchestrator {
       const services = serviceFiles.map(f => path.basename(f, '.compose.yaml'));
 
       if (isRemote) {
-        console.log(`[brat] Remote target detected (concurrency: ${maxConcurrent}). Deploying ${services.length} services in batches...`);
+        console.log(`[brat] Remote target detected. Building and deploying ${services.length} services...`);
         
-        // Build in batches to avoid hitting SSH connection limits
-        for (let i = 0; i < services.length; i += maxConcurrent) {
-          const batch = services.slice(i, i + maxConcurrent);
-          console.log(`[brat] Building batch: ${batch.join(', ')}`);
-          await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
-        }
+        // Build all services in one go to minimize context transfers and connection establishment.
+        // We still respect maxConcurrent via COMPOSE_PARALLEL_LIMIT inside executeDockerCompose.
+        await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...services]);
         
-        // Up in batches to prevent overwhelming the remote engine with simultaneous checks/starts
-        for (let i = 0; i < services.length; i += maxConcurrent) {
-          const batch = services.slice(i, i + maxConcurrent);
-          console.log(`[brat] Starting batch: ${batch.join(', ')}`);
-          await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--no-build', ...batch]);
-        }
-
-        // Final pass to ensure everything is up and correctly linked
+        // Up all services in one go. Since this runs remotely via SSH (in executeDockerCompose),
+        // it doesn't hit local SSH connection limits, and respects COMPOSE_PARALLEL_LIMIT on the remote host.
         await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--no-build']);
       } else {
         await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--build']);
@@ -240,7 +231,9 @@ export class DockerOrchestrator {
     }
 
     // Default to local execution (always for 'build', or for local targets)
-    const finalArgs = [...globalArgs, 'compose', ...args];
+    // Use '.' as project directory to ensure all relative paths (like build contexts)
+    // resolve correctly from the repo root, especially when talking to a remote daemon.
+    const finalArgs = [...globalArgs, 'compose', '--project-directory', '.', ...args];
 
     if (this.options.dryRun || process.env.DEBUG === 'brat:*') {
       console.log(`[brat:docker] Executing: ${env['DOCKER_HOST'] ? `DOCKER_HOST=${env['DOCKER_HOST']} ` : ''}${cmd} ${finalArgs.join(' ')}`);
