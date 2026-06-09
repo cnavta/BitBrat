@@ -147,5 +147,5 @@ items:
         note: "Implemented full build and up batching for remote targets to resolve SSH connection resets."
       - at: 2026-06-08T13:15:00Z
         note: "Resolved 'only one connection allowed' error by defaulting SSH targets to serial execution and adding per-target concurrency control."
-      - at: 2026-06-09T08:20:00Z
-        note: "Implemented automated file syncing and relative path resolution to fix remote deployment volume issues."
+      - at: 2026-06-09T08:30:00Z
+        note: "Fixed 'unknown flag: --context' error by moving the flag to the correct global position and resolving DOCKER_HOST conflicts."

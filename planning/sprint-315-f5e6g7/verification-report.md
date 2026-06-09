@@ -10,7 +10,7 @@
 - [x] Restored environment variable injection into containers by re-adding `env_file` references pointing to `.env.brat`.
 - [x] Fixed remote deployment SSH connection resets by implementing full batching for both 'build' and 'up' operations.
 - [x] Resolved "only one connection allowed" error by forcing serial execution (concurrency 1) for SSH targets by default.
-- [x] Fixed "unknown flag: --context" error and resolved conflict between `DOCKER_HOST` and `--context`.
+- [x] Fixed "unknown flag: --context" error and resolved conflict between `DOCKER_HOST` and `--context` by moving the flag to the correct global position.
 - [x] Implemented automated file syncing (rsync) to remote deployment targets to support bind-mounted volumes.
 - [x] Switched to relative path resolution for all Docker Compose arguments to improve portability.
 - [x] Added support for per-target `maxConcurrent` and `remoteDir` overrides in `architecture.yaml`.
