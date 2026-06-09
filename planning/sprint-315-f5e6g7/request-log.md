@@ -97,3 +97,11 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T08:50:00Z
+- **Prompt summary**: Fix persistent "env file .env.brat not found" and bind mount issues on remote.
+- **Interpretation**: Identified that the local Docker CLI cannot find remote project directories, and bind mounts fail due to path mismatches. Switched to SSH-based execution for non-build commands to run them directly on the remote host within the synced project directory. Updated `rsync` to use `-R` to preserve relative paths.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
