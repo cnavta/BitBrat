@@ -153,3 +153,11 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T11:55:00Z
+- **Prompt summary**: Fix "env file .env.brat not found" deep within infrastructure/docker-compose.
+- **Interpretation**: Docker Compose resolves `env_file` relative to the compose file. Since compose files are at multiple depths (root, infrastructure/docker-compose, and services/), a single .env.brat at the root was insufficient. Updated the orchestrator to provide a local .env.brat in all relevant subdirectories before syncing and executing.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
