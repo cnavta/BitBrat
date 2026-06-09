@@ -163,13 +163,16 @@ export class DockerOrchestrator {
     const filesToSync = [
       'infrastructure/docker-compose',
       '.env.brat',
-      'dummy-creds.json'
+      'dummy-creds.json',
+      'architecture.yaml',
+      'firebase.json'
     ];
 
     for (const file of filesToSync) {
       const localPath = path.join(this.options.repoRoot, file);
       if (fs.existsSync(localPath)) {
-        await execCmd('rsync', ['-az', '--delete', file, `${sshTarget}:${remoteDir}/`], { cwd: this.options.repoRoot });
+        // Use -R to preserve relative paths from repo root
+        await execCmd('rsync', ['-azR', file, `${sshTarget}:${remoteDir}`], { cwd: this.options.repoRoot });
       }
     }
   }
@@ -213,9 +216,32 @@ export class DockerOrchestrator {
       env['DOCKER_HOST'] = target.host;
     }
 
-    // Use relative path for --project-directory to be more portable across environments
-    // If it's a remote target with a remoteDir, we use the remoteDir as project directory
-    const projectDir = (target.host?.startsWith('ssh://') && target.remoteDir) ? target.remoteDir : '.';
+    const isSsh = target.host?.startsWith('ssh://');
+    const isBuild = args.includes('build');
+
+    // If it's a remote target with a remoteDir, and NOT a build command,
+    // we execute via SSH directly on the remote host. This ensures that:
+    // 1. Relative paths in compose files resolve correctly to the remote files.
+    // 2. Bind mounts refer to paths on the remote host.
+    if (isSsh && target.remoteDir && !isBuild) {
+      const sshTarget = target.host.replace('ssh://', '');
+      const remoteCmd = `cd ${target.remoteDir} && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose ${args.join(' ')}`;
+      
+      if (this.options.dryRun) {
+        console.log(`[dry-run] Executing remotely: ssh ${sshTarget} "${remoteCmd}"`);
+        return;
+      }
+
+      await execCmd('ssh', [sshTarget, remoteCmd], { 
+        cwd: this.options.repoRoot,
+        stdio: 'inherit'
+      });
+      return;
+    }
+
+    // Default to local execution (always for 'build', or for local targets)
+    // Use '.' as project directory locally so Docker finds relative files like .env.brat
+    const projectDir = '.';
     const finalArgs = [...globalArgs, 'compose', '--project-directory', projectDir, ...args];
 
     if (this.options.dryRun) {

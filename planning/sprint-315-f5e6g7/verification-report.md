@@ -11,6 +11,7 @@
 - [x] Fixed remote deployment SSH connection resets by implementing full batching for both 'build' and 'up' operations.
 - [x] Resolved "only one connection allowed" error by forcing serial execution (concurrency 1) for SSH targets by default.
 - [x] Fixed "unknown flag: --context" error and resolved conflict between `DOCKER_HOST` and `--context` by moving the flag to the correct global position.
+- [x] Resolved "env file .env.brat not found" and bind mount issues on remote targets by implementing SSH-based execution for run-time commands and using `rsync -R` to preserve file structure.
 - [x] Fixed "env file .env.brat not found" error on remote targets by ensuring synchronization happens after the file is written locally.
 - [x] Implemented automated file syncing (rsync) to remote deployment targets to support bind-mounted volumes.
 - [x] Switched to relative path resolution for all Docker Compose arguments to improve portability.
