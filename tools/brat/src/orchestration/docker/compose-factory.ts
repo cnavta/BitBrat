@@ -42,6 +42,9 @@ export class ComposeFactory {
 
   public buildComposeArgs(fileSet: ComposeFileSet, envFiles: string[]): string[] {
     const args: string[] = [];
+    // Explicitly set project name to ensure consistency between build and up,
+    // and between local and remote environments.
+    args.push('-p', 'bitbratplatform');
     args.push('-f', fileSet.baseFile);
     for (const f of fileSet.serviceFiles) {
       args.push('-f', f);

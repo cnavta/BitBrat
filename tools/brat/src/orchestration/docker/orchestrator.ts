@@ -36,6 +36,7 @@ export class DockerOrchestrator {
       const isRemote = targetConfig.host?.startsWith('ssh://');
 
       await this.ensureRemoteSynced(targetConfig);
+      await this.ensureNetworkExists(targetConfig);
 
       let maxConcurrent = targetConfig.maxConcurrent || arch.deploymentDefaults?.maxConcurrentDeployments || 3;
       if (isRemote && !targetConfig.maxConcurrent) {
@@ -113,7 +114,11 @@ export class DockerOrchestrator {
     const { serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     const assignments = this.portManager.resolvePorts(serviceFiles, env);
     const portOverrides = this.portManager.getEnvOverrides(assignments);
-    const mergedEnv = { ...env, ...portOverrides };
+    const mergedEnv = { 
+      ...env, 
+      ...portOverrides,
+      COMPOSE_PROJECT_NAME: 'bitbratplatform'
+    };
 
     const envContent = EnvironmentResolver.flattenToDotEnv(mergedEnv);
     const tempEnvPath = '.env.brat';
@@ -229,6 +234,38 @@ export class DockerOrchestrator {
     }
   }
 
+  private async ensureNetworkExists(target: any): Promise<void> {
+    if (this.options.dryRun) return;
+
+    const isRemote = target.host?.startsWith('ssh://');
+    const networkName = 'bitbrat-network';
+
+    if (target.host?.startsWith('ssh://') && target.remoteDir) {
+      const sshTarget = target.host.replace('ssh://', '');
+      const checkCmd = `sh -c 'docker network inspect ${networkName} >/dev/null 2>&1 || docker network create ${networkName} --label bitbrat-platform=true'`;
+
+      console.log(`[brat] Ensuring network ${networkName} exists on remote...`);
+      const result = await execCmd('ssh', [sshTarget, checkCmd], { cwd: this.options.repoRoot });
+      if (result.code !== 0) {
+        throw new Error(`Failed to ensure network ${networkName} exists on remote host ${sshTarget}`);
+      }
+    } else {
+      // Local check (even if DOCKER_HOST is set, it will use that)
+      const env: Record<string, string> = { ...process.env as Record<string, string> };
+      if (target.host) env['DOCKER_HOST'] = target.host;
+      if (target.context) env['DOCKER_CONTEXT'] = target.context;
+
+      const result = await execCmd('docker', ['network', 'inspect', networkName], { cwd: this.options.repoRoot, env });
+      if (result.code !== 0) {
+        console.log(`[brat] Creating network ${networkName}...`);
+        await execCmd('docker', ['network', 'create', networkName, '--label', 'bitbrat-platform=true'], { 
+          cwd: this.options.repoRoot,
+          env
+        });
+      }
+    }
+  }
+
   private prepare() {
     const arch = loadArchitecture(this.options.repoRoot);
     const targetName = this.options.target || 'local';
@@ -280,7 +317,7 @@ export class DockerOrchestrator {
       const quotedArgs = args.map(arg => arg.includes(' ') ? `"${arg}"` : arg).join(' ');
       
       // Try 'docker compose' first, then 'docker-compose'. Use /bin/sh -c for Alpine compatibility.
-      const remoteCmd = `sh -c 'cd "${target.remoteDir}" && (docker compose version >/dev/null 2>&1 && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose ${quotedArgs} || COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose ${quotedArgs})'`;
+      const remoteCmd = `sh -c 'cd "${target.remoteDir}" && (docker compose version >/dev/null 2>&1 && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose --project-directory . ${quotedArgs} || COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose --project-directory . ${quotedArgs})'`;
       
       if (this.options.dryRun || process.env.DEBUG === 'brat:*') {
         console.log(`[brat:docker] Executing remotely: ssh ${sshTarget} "${remoteCmd}"`);

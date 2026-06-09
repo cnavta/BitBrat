@@ -161,3 +161,21 @@
     - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
 - **Files modified or created**:
     - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T12:00:00Z
+- **Prompt summary**: Fix "network bitbrat-network declared as external, but could not be found" error.
+- **Interpretation**: The BitBrat platform uses an external Docker network called `bitbrat-network`. This network must be manually created before Docker Compose can use it. Added `ensureNetworkExists` logic to the `brat` tool to automatically create this network (locally or remotely via SSH) if it doesn't already exist.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)
+
+- **Timestamp**: 2026-06-09T12:05:00Z
+- **Prompt summary**: Fix "No such image: docker-compose-firebase-emulator" error.
+- **Interpretation**: Identified a project name mismatch between the local build phase (defaulting to `bitbratplatform`) and the remote `up` phase (defaulting to `docker-compose` due to the subdirectory of the first `-f` flag). Explicitly set the project name to `bitbratplatform` in `ComposeFactory` and added `COMPOSE_PROJECT_NAME` to the environment. Also ensured consistent `--project-directory .` usage for remote commands.
+- **Shell/git commands executed**:
+    - `multi_edit` on `tools/brat/src/orchestration/docker/compose-factory.ts`
+    - `multi_edit` on `tools/brat/src/orchestration/docker/orchestrator.ts`
+- **Files modified or created**:
+    - `tools/brat/src/orchestration/docker/compose-factory.ts` (Modified)
+    - `tools/brat/src/orchestration/docker/orchestrator.ts` (Modified)

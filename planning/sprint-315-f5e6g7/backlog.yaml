@@ -165,3 +165,7 @@ items:
         note: "Improved remote file synchronization by adding scp fallback for rsync and adding post-sync verification to ensure .env.brat exists."
       - at: 2026-06-09T11:55:00Z
         note: "Fixed 'env file not found' error by providing .env.brat in all subdirectories containing compose files (root, infrastructure/docker-compose, and services)."
+      - at: 2026-06-09T12:00:00Z
+        note: "Fixed 'network bitbrat-network declared as external, but could not be found' by adding logic to ensure the network exists on the target before deployment."
+      - at: 2026-06-09T12:05:00Z
+        note: "Fixed 'No such image' error by explicitly setting the project name to 'bitbratplatform' across all build and deploy phases, and ensuring consistent --project-directory usage on remote targets."
