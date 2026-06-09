@@ -151,24 +151,53 @@ export class DockerOrchestrator {
     console.log(`[brat] Syncing deployment files to remote: ${sshTarget}:${remoteDir}`);
 
     // Create remote directory
-    await execCmd('ssh', [sshTarget, `mkdir -p ${remoteDir}`], { cwd: this.options.repoRoot });
+    const mkdirResult = await execCmd('ssh', [sshTarget, `mkdir -p ${remoteDir}`], { cwd: this.options.repoRoot });
+    if (mkdirResult.code !== 0) {
+      throw new Error(`Failed to create remote directory ${remoteDir} on ${sshTarget}`);
+    }
 
     // Sync essential files for Docker Compose
-    // We sync infrastructure/docker-compose, .env.brat, and dummy-creds.json (if exists)
+    // We sync infrastructure/docker-compose, .env.brat, and other config files
     const filesToSync = [
       'infrastructure/docker-compose',
       '.env.brat',
       'dummy-creds.json',
       'architecture.yaml',
       'firebase.json'
-    ];
+    ].filter(file => fs.existsSync(path.join(this.options.repoRoot, file)));
 
-    for (const file of filesToSync) {
-      const localPath = path.join(this.options.repoRoot, file);
-      if (fs.existsSync(localPath)) {
-        // Use -R to preserve relative paths from repo root
-        await execCmd('rsync', ['-azR', file, `${sshTarget}:${remoteDir}`], { cwd: this.options.repoRoot });
+    if (filesToSync.length === 0) return;
+
+    // Try rsync first as it is much more efficient for directories
+    const rsyncResult = await execCmd('rsync', ['-azR', ...filesToSync, `${sshTarget}:${remoteDir}`], { 
+      cwd: this.options.repoRoot 
+    });
+
+    if (rsyncResult.code !== 0) {
+      console.warn(`[brat] rsync failed (code ${rsyncResult.code}), falling back to scp...`);
+      
+      for (const file of filesToSync) {
+        const localPath = path.join(this.options.repoRoot, file);
+        const remotePath = path.join(remoteDir, file);
+        const remoteParent = path.dirname(remotePath);
+
+        // Ensure parent directory exists on remote
+        await execCmd('ssh', [sshTarget, `mkdir -p ${remoteParent}`]);
+
+        if (fs.statSync(localPath).isDirectory()) {
+          // For directories, sync content. scp -r localDir remoteParent/ puts localDir inside remoteParent/
+          await execCmd('scp', ['-r', localPath, `${sshTarget}:${remoteParent}/`]);
+        } else {
+          // For files
+          await execCmd('scp', [localPath, `${sshTarget}:${remotePath}`]);
+        }
       }
+    }
+
+    // Verification check for critical file
+    const verifyResult = await execCmd('ssh', [sshTarget, `[ -f ${remoteDir}/.env.brat ]`], { cwd: this.options.repoRoot });
+    if (verifyResult.code !== 0) {
+      throw new Error(`Sync verification failed: .env.brat not found at ${remoteDir}/.env.brat on remote host ${sshTarget}`);
     }
   }
 

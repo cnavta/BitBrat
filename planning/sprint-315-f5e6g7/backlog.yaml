@@ -161,3 +161,5 @@ items:
         note: "Fixed 'sh: docker-compose: not found' by using a login shell and fallback to 'docker compose'. Restored batching for remote builds to prevent connection resets."
       - at: 2026-06-09T11:45:00Z
         note: "Resolved Alpine Linux compatibility issue by replacing 'bash -l -c' with 'sh -c' for remote command execution."
+      - at: 2026-06-09T11:50:00Z
+        note: "Improved remote file synchronization by adding scp fallback for rsync and adding post-sync verification to ensure .env.brat exists."
