@@ -163,15 +163,16 @@ export class DockerOrchestrator {
       env['DOCKER_HOST'] = target.host;
     }
     
+    const cmd = 'docker';
+    const globalArgs: string[] = [];
     if (target.context) {
-      args = ['--context', target.context, ...args];
+      globalArgs.push('--context', target.context);
     }
 
-    const cmd = 'docker';
-    const finalArgs = ['compose', '--project-directory', this.options.repoRoot, ...args];
+    const finalArgs = [...globalArgs, 'compose', '--project-directory', this.options.repoRoot, ...args];
 
     if (this.options.dryRun) {
-      console.log(`[dry-run] Executing: DOCKER_HOST=${env['DOCKER_HOST'] || ''} ${cmd} ${finalArgs.join(' ')}`);
+      console.log(`[dry-run] Executing: ${target.host ? `DOCKER_HOST=${target.host} ` : ''}${cmd} ${finalArgs.join(' ')}`);
       return;
     }
 
