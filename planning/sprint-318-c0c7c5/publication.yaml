@@ -1,7 +1,6 @@
-pr_url: pending
+pr_url: https://github.com/cnavta/BitBrat/pull/236
 branch: feature/sprint-318-c0c7c5-reusable-service-dockerfile
 base: main
-status: pending
+status: created
 notes: |
-  PR will be created with `gh pr create` after the implementation commit is pushed.
-  This file is updated with the resulting URL (Rule S13).
+  PR created with `gh pr create` (Rule S12/S13). Implementation commit 9b7af88.
