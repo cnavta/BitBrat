@@ -70,3 +70,7 @@ The easiest way to test your new command is using the `brat chat` CLI.
 ## Summary
 
 Congratulations! You've just created and deployed your first custom command to the BitBrat Platform. You can now experiment with more complex enrichments or even add analysis steps to your routing slip.
+
+## Next Steps
+
+Ready to make `!lurk` smarter? Continue with [Part 2: Routing to the LLM Bot, Prompts & Personalities](./lurk-command-part-2.md), where you replace the static responses with LLM-generated replies and give your command a distinct personality.
