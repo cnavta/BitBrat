@@ -15,3 +15,6 @@
 
 ## Publication note
 - See `publication.yaml` for PR status. If `gh`/GITHUB_TOKEN are unavailable in this environment, the PR must be opened manually from the feature branch.
+
+## Closure
+- Sprint closed by user ("Sprint complete.", Rule S2) after REQ-001 + REQ-002 were delivered and validation was logically passable. Auto-PR creation remained blocked (no `gh`/`GITHUB_TOKEN`); the failed attempt is logged in `publication.yaml` and the manual PR URL must be opened against `main` (Rule S13b).

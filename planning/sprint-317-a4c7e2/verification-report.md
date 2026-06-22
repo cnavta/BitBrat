@@ -32,5 +32,9 @@
 
 ## DoD Check (AGENTS.md – Documentation)
 - Rationale/trade-offs documented (why remove candidates; prompt vs. personality). ✓
-- Traceable to sprint-317 and REQ-001 in `request-log.md`. ✓
+- Traceable to sprint-317 and REQ-001/REQ-002/REQ-003 in `request-log.md`. ✓
 - Validation pipeline (`validate_deliverable.sh`) is logically passable and currently passes. ✓
+
+## Closure (REQ-003)
+- Sprint closed by user ("Sprint complete.", Rule S2); `sprint-manifest.yaml` status set to `complete`.
+- PR auto-creation remained blocked (no `gh`/`GITHUB_TOKEN`); failed attempt logged in `publication.yaml`, manual PR required against `main` (Rule S13b, accepted by user).
