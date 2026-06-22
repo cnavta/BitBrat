@@ -31,6 +31,10 @@ describe('llm-bot processor — history redundancy', () => {
       this.cfg.LLM_BOT_SYSTEM_PROMPT = 'SYSTEM-RULES';
       this.cfg.PERSONALITY_ENABLED = 'false';
       this.cfg.USER_CONTEXT_ENABLED = 'false';
+      // Disposition injection (default on) otherwise issues a live Firestore read for this
+      // identity-bearing event, which hangs without an emulator/credentials and trips the
+      // 5s Jest timeout. This suite does not exercise disposition, so disable it.
+      this.cfg.DISPOSITION_PROMPT_INJECTION_ENABLED = 'false';
       this.cfg.LLM_BOT_MEMORY_MAX_MESSAGES = 10;
       this.cfg.LLM_BOT_MEMORY_MAX_CHARS = 10000;
       this.cfg.CONVERSATION_STATE_RENDER_MODE = 'both';

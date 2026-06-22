@@ -2,6 +2,16 @@ import type { Firestore, DocumentData } from 'firebase-admin/firestore';
 import { getFirestore } from '../../common/firebase';
 import type { InternalEventV2, AnnotationV1 } from '../../types/events';
 import { metrics } from '../../common/metrics';
+import { withTimeout } from '../../common/async-timeout';
+
+// Best-effort user-context lookups must not hang the request hot path if Firestore is
+// slow/unreachable (or unconfigured, e.g. in tests). Bound each read; on timeout the
+// existing try/catch falls back to the degraded path. Override via env if needed.
+const DEFAULT_LOOKUP_TIMEOUT_MS = 2000;
+function lookupTimeoutMs(): number {
+  const v = Number(process.env.FIRESTORE_LOOKUP_TIMEOUT_MS);
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_LOOKUP_TIMEOUT_MS;
+}
 
 type RoleDoc = {
   roleId?: string;
@@ -63,7 +73,7 @@ export async function loadEnabledRoles(cfg: UserContextConfig, db?: Firestore): 
   const database = db || getFirestore();
   try {
     const colRef = parsePath(database, cfg.rolesPath);
-    const snap = await colRef.where('enabled', '==', true).get();
+    const snap = await withTimeout<any>(colRef.where('enabled', '==', true).get(), lookupTimeoutMs(), 'user-context.roles.get');
     const map: RolesMap = new Map();
     for (const doc of snap.docs) {
       const d = doc.data() as RoleDoc;
@@ -95,7 +105,7 @@ export async function loadUserDoc(userId: string, cfg: UserContextConfig, db?: F
     const c = userCache.get(userId);
     if (c && c.expiresAt > now()) return c.value;
     const database = db || getFirestore();
-    const snap = await (database as any).collection('users').doc(userId).get();
+    const snap = await withTimeout<any>((database as any).collection('users').doc(userId).get(), lookupTimeoutMs(), 'user-context.user.get');
     if (!snap || !snap.exists) return null;
     const data = snap.data() as DocumentData;
     userCache.set(userId, { value: data, expiresAt: now() + Math.max(0, cfg.ttlMs || 0) });
