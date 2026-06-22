@@ -131,3 +131,20 @@ items:
         note: "Starting deep dive update for brat.md."
       - at: 2026-06-22T13:25:00Z
         note: "Completed brat.md updates."
+
+  - id: DOC-007
+    title: "Revise top-level README.md"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [DOC-001, DOC-002, DOC-003, DOC-004, DOC-006]
+    blocked_reason: null
+    acceptance:
+      - "Reflects new setup/quickstart flow (brat setup seeding, doctor, local commands)"
+      - "Links to the new structured documentation (getting-started/concepts/guides/tutorials)"
+      - "Event flow updated to analysis -> reaction -> egress model"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T14:34:00Z
+        note: "Analyzed outdated README and rewrote it aligned with new documentation."

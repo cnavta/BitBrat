@@ -87,3 +87,14 @@
 - `documentation/tutorials/lurk-command.md`
 - `planning/sprint-316-d9e8f7/backlog-316.yaml`
 - `planning/sprint-316-d9e8f7/request-log.md`
+
+## [2026-06-22T14:34:00Z] README Revision (DOC-007)
+**Prompt Summary:** Analyze the outdated README.md and create a revised, up-to-date version based on the new setup and quickstart documentation.
+**Interpretation:** Rewrite README.md to align with the new structured docs: correct clone URL/path, document `brat setup` seeding, `doctor`, local commands, `brat chat`, link to the new documentation tree, and update the event flow to the analysis -> reaction -> egress model.
+**Commands Executed:**
+- Rewrote `README.md`
+- Added DOC-007 to `backlog-316.yaml`
+**Files Modified/Created:**
+- `README.md`
+- `planning/sprint-316-d9e8f7/backlog-316.yaml`
+- `planning/sprint-316-d9e8f7/request-log.md`
