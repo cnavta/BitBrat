@@ -4,7 +4,11 @@ services:
       - .env.brat
     build:
       context: .
-      dockerfile: Dockerfile.llm-bot
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: llm-bot
+        SERVICE_ENTRY: dist/apps/llm-bot-service.js
+        SERVICE_PORT: "3000"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - LLM_PROVIDER=${LLM_BOT_LLM_PROVIDER}

@@ -30,6 +30,18 @@ defaults: # Defaults for various entities. Individual entities may override thes
         enabled: false         # TRACING_ENABLED default
         sampler_ratio: 0.1     # TRACING_SAMPLER_RATIO default
     port: 3000
+    # Build (sprint-318): every standard service is built from the single reusable
+    # Dockerfile.service at the repo root. Per-service behavior is supplied as --build-args
+    # derived from THIS file, so architecture.yaml remains the canonical source of truth:
+    #   SERVICE_NAME  = the service key
+    #   SERVICE_PORT  = services.<name>.port (or this default)
+    #   SERVICE_ENTRY = services.<name>.entry with leading 'src/' -> 'dist/' and '.ts' -> '.js'
+    #                   (e.g. src/apps/llm-bot-service.ts -> dist/apps/llm-bot-service.js)
+    # A per-service Dockerfile.<service> is honored as an explicit override (escape hatch),
+    # e.g. brat (builds from tools/) and obs-mcp (uses a prebuilt image:).
+    build:
+      dockerfile: Dockerfile.service              # canonical build artifact for all services
+      entry_to_service_entry: "src/<x>.ts -> dist/<x>.js"
     health: # Default HTTP-based health check endpoints for services
       - /healthz
       - /readyz
@@ -293,6 +305,11 @@ services:
     active: true
     description: "Analyzes incoming events and provides summary capabilities"
     entry: src/apps/stream-analyst-service.ts
+    # Explicit non-default port (sprint-318): this deviator historically listened on 3010
+    # (former Dockerfile.stream-analyst). Made explicit so the shared build derives it
+    # unambiguously. This is the single canonical stream-analyst service; the duplicate
+    # Dockerfile.stream-analyst / Dockerfile.stream-analyst-service were reconciled away.
+    port: 3010
     secrets:
       - MCP_AUTH_TOKEN
 

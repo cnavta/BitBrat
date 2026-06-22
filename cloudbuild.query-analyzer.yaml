@@ -1,7 +1,20 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build query-analyzer image'
-    args: ['build', '-t', '${_IMAGE}', '-f', 'Dockerfile.query-analyzer', '.']
+    # sprint-318: build from the reusable Dockerfile.service via --build-args.
+    args:
+      - 'build'
+      - '-t'
+      - '${_IMAGE}'
+      - '-f'
+      - '${_DOCKERFILE}'
+      - '--build-arg'
+      - 'SERVICE_NAME=${_SERVICE_NAME}'
+      - '--build-arg'
+      - 'SERVICE_ENTRY=${_SERVICE_ENTRY}'
+      - '--build-arg'
+      - 'SERVICE_PORT=${_PORT}'
+      - '.'
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Push query-analyzer image'
@@ -34,6 +47,12 @@ steps:
 substitutions:
   _REGION: us-central1
   _IMAGE: us-central1-docker.pkg.dev/$PROJECT_ID/bitbrat/query-analyzer:${SHORT_SHA}
+  # Reusable standard service Dockerfile + derived build args (architecture.yaml entry:
+  # src/apps/query-analyzer.ts -> dist/apps/query-analyzer.js).
+  _DOCKERFILE: Dockerfile.service
+  _SERVICE_NAME: query-analyzer
+  _SERVICE_ENTRY: dist/apps/query-analyzer.js
+  _PORT: '3000'
   _MESSAGE_BUS_DRIVER: pubsub
   _MIN_INSTANCES: '0'
   _MAX_INSTANCES: '1'

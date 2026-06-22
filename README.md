@@ -129,6 +129,31 @@ npm run build   # Compile the TypeScript project
 npm test        # Run the test suite
 ```
 
+### Container Builds
+
+All standard services are built from a single, reusable **`Dockerfile.service`** at the repo root.
+Per-service behavior is supplied as build arguments derived from `architecture.yaml` — there is no
+per-service Dockerfile to maintain:
+
+- `SERVICE_NAME` — the service key in `architecture.yaml`.
+- `SERVICE_PORT` — `services.<name>.port` (defaults to `3000`).
+- `SERVICE_ENTRY` — `services.<name>.entry` mapped from `src/<x>.ts` to `dist/<x>.js`.
+
+```bash
+docker build -f Dockerfile.service \
+  --build-arg SERVICE_NAME=llm-bot \
+  --build-arg SERVICE_ENTRY=dist/apps/llm-bot-service.js \
+  --build-arg SERVICE_PORT=3000 \
+  -t llm-bot:latest .
+```
+
+The deploy tooling (`infrastructure/deploy-cloud.sh`, Cloud Build, and local Compose) wires these
+arguments automatically. **Escape hatch:** a service may still ship its own `Dockerfile.<service>`
+when it needs something the standard image cannot express (extra OS packages, a different base
+image, a non-`src/` build layout, or a prebuilt `image:`); when present, that file takes precedence.
+See [Reusable Standard Service Dockerfile](./documentation/technical-architecture/reusable-service-dockerfile.md)
+and the [usage guide](./documentation/technical-architecture/standard-service-dockerfile-usage.md).
+
 ## Management CLI (brat)
 
 `brat` (BitBrat Rapid Administration Tool) is the primary CLI tool for managing the platform. It simplifies common tasks such as environment validation, service bootstrapping, deployment, and infrastructure management.

@@ -76,11 +76,21 @@ describe('bootstrap-service generators', () => {
     expect(df).toContain('CMD ["node", "dist/apps/ingress-egress-service.js"]');
   });
 
-  test('generateComposeSource emits per-service compose with Dockerfile and port var', () => {
-    const y = generateComposeSource('ingress-egress');
+  test('generateComposeSource builds from the shared Dockerfile.service with derived args', () => {
+    const y = generateComposeSource('ingress-egress', null, [], [], 'src/apps/ingress-egress-service.ts', 3000);
     expect(y).toContain('services:');
     expect(y).toContain('ingress-egress:');
-    expect(y).toContain('dockerfile: Dockerfile.ingress-egress');
+    expect(y).toContain('dockerfile: Dockerfile.service');
+    expect(y).toContain('SERVICE_NAME: ingress-egress');
+    expect(y).toContain('SERVICE_ENTRY: dist/apps/ingress-egress-service.js');
+    expect(y).toContain('SERVICE_PORT: "3000"');
     expect(y).toContain('${INGRESS_EGRESS_HOST_PORT:-3001}');
+    expect(y).not.toContain('dockerfile: Dockerfile.ingress-egress');
+  });
+
+  test('generateComposeSource keeps image-based services on their image', () => {
+    const y = generateComposeSource('obs-mcp', 'us-central1-docker.pkg.dev/x/obs-mcp:latest');
+    expect(y).toContain('image: us-central1-docker.pkg.dev/x/obs-mcp:latest');
+    expect(y).not.toContain('dockerfile: Dockerfile.service');
   });
 });

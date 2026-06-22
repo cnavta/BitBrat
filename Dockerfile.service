@@ -1,6 +1,23 @@
 # syntax=docker/dockerfile:1
+# Reusable standard service Dockerfile for all Node/TypeScript BitBrat services.
+# Per-service behavior is supplied via --build-arg; nothing here is service-specific.
+#
+# Build example (matches the Cloud Build invocation shape):
+#   docker build -f Dockerfile.service \
+#     --build-arg SERVICE_NAME=llm-bot \
+#     --build-arg SERVICE_ENTRY=dist/apps/llm-bot-service.js \
+#     --build-arg SERVICE_PORT=3000 \
+#     -t llm-bot:latest .
+#
+# SERVICE_ENTRY is derived deterministically from architecture.yaml's `entry:` field
+# (src/apps/<x>.ts -> dist/apps/<x>.js under the standard tsconfig output layout); see
+# documentation/technical-architecture/reusable-service-dockerfile.md and
+# documentation/technical-architecture/standard-service-dockerfile-usage.md.
 
-FROM node:24-bookworm-slim AS builder
+ARG NODE_IMAGE=node:24-bookworm-slim
+
+# ---------- builder ----------
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /workspace
 ENV DEBIAN_FRONTEND=noninteractive
 RUN set -ex; \
@@ -15,7 +32,8 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-FROM node:24-bookworm-slim AS runner
+# ---------- runner ----------
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /workspace
 ENV NODE_ENV=production
 ENV DEBIAN_FRONTEND=noninteractive
@@ -32,7 +50,15 @@ RUN npm ci --omit=dev
 # Copy compiled app and architecture.yaml for runtime config lookups
 COPY --from=builder /workspace/dist ./dist
 COPY architecture.yaml ./architecture.yaml
-EXPOSE 3000
-ENV SERVICE_NAME=tool-gateway
-ENV SERVICE_PORT=3000
-CMD ["node", "dist/apps/tool-gateway.js"]
+
+# --- service-specific parameters (supplied via --build-arg) ---
+ARG SERVICE_NAME
+ARG SERVICE_ENTRY
+ARG SERVICE_PORT=3000
+ENV SERVICE_NAME=${SERVICE_NAME}
+ENV SERVICE_PORT=${SERVICE_PORT}
+ENV SERVICE_ENTRY=${SERVICE_ENTRY}
+EXPOSE ${SERVICE_PORT}
+
+# Use the shell form so ${SERVICE_ENTRY} is expanded at runtime from ENV.
+CMD ["sh", "-c", "exec node \"$SERVICE_ENTRY\""]
