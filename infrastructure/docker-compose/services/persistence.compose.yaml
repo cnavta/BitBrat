@@ -1,10 +1,10 @@
 services:
   persistence:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.persistence
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
 

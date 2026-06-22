@@ -1,0 +1,10 @@
+id: sprint-316-d9e8f7
+title: "Documentation Overhaul Plan"
+goal: "Create an execution plan and prioritized backlog for extensive user and agent documentation of the BitBrat platform."
+owner: "Junie"
+createdAt: "2026-06-22T12:15:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-316-documentation-plan"
+notes: |
+  Focusing on local setup, seed data, event routing, and core platform flows.

@@ -13,87 +13,120 @@
   <img src="./assets/BitBrat.png" alt="Description of Image" width="300"/>
 </p>
 
-BitBrat Platform is an LLM-powered event orchestration and execution engine currently designed for streamers, though can easily be adapted for a wide range of use cases. It bridges external event sources (like Twitch, Kick, Discord, and Twilio) with internal processing logic and AI-driven reactions.
+BitBrat Platform is an LLM-powered event orchestration and execution engine currently designed for streamers, though it can easily be adapted for a wide range of use cases. It bridges external event sources (like Twitch, Kick, Discord, and Twilio) with internal processing logic and AI-driven reactions.
 
 ## Features
 
 - **Multi-Platform Ingress**: Listen to events from Twitch (IRC & EventSub), Discord, and Twilio Conversations.
 - **AI-Driven Reactions**: Integration with OpenAI and Model Context Protocol (MCP) to provide intelligent responses and tool execution.
 - **Microservices Architecture**: Scalable, cloud-native services deployed on Google Cloud Platform (Cloud Run).
-- **Event-Driven**: Built on top of a robust message bus (NATS/PubSub) for asynchronous processing.
+- **Event-Driven**: Built on top of a robust message bus (NATS locally / Google Cloud Pub/Sub in production) for asynchronous processing.
+- **Rule-Driven Routing**: A central Event Router uses [JsonLogic](https://jsonlogic.com/) rules to match, enrich, and route events through configurable processing stages.
 - **Extensible**: Easily add new event sources, command processors, or MCP tools.
+
+## Documentation
+
+The `documentation/` folder contains structured guides for getting started, core concepts, and step-by-step tutorials. Start here:
+
+- **Getting Started**
+  - [Quickstart: Local Platform Setup](./documentation/getting-started/quickstart.md)
+- **Concepts**
+  - [Platform Flow Overview](./documentation/concepts/platform-flow.md) — the ingest → analysis → reaction → egress lifecycle.
+  - [Event Router & Rules](./documentation/concepts/event-router-rules.md) — rule format and matching logic.
+- **Guides**
+  - [Managing Seed Data](./documentation/guides/seed-data.md) — initial seeding via `brat setup` and the `firestore:upsert` tool.
+- **Tutorials**
+  - [Creating a `!lurk` Command](./documentation/tutorials/lurk-command.md) — build your first custom command.
+- **Tools**
+  - [The `brat` CLI](./documentation/tools/brat.md) — full command reference.
+  - [Firestore Upsert Tool](./documentation/tools/firestore-upsert.md) — load JSON data into Firestore.
+
+For the canonical system definition, see [architecture.yaml](./architecture.yaml).
 
 ## Architecture
 
 The platform consists of several core services:
 
-- **Ingress-Egress**: The gateway for external platforms.
-- **Auth Service**: Handles user enrichment and authorization.
-- **Event Router**: Matches incoming events, enriches them, and routes them through the platform.
-- **LLM Bot**: The brain of the platform, processing events using LLMs.
-- **Persistence**: Ensures events and states are stored reliably.
+- **Ingress-Egress**: The gateway for external platforms. Normalizes inbound events and delivers outbound responses.
+- **Auth Service**: Handles user enrichment (roles, tags, `displayName`) and authorization during the analysis stage.
+- **Event Router**: Matches incoming events against rules, attaches a routing slip, and advances events through the platform.
+- **LLM Bot**: The brain of the platform, processing events using LLMs and MCP tools.
+- **Persistence**: Ensures events and states are stored reliably for auditing and long-term memory.
 - **Scheduler**: Manages periodic tasks and ticks.
 
-For a detailed view, see [architecture.yaml](./architecture.yaml) and the [documentation](./documentation) folder.
+For a detailed view, see [architecture.yaml](./architecture.yaml) and the [Platform Flow Overview](./documentation/concepts/platform-flow.md).
 
 ## Getting Started
 
+> The following is a condensed version of the [Quickstart guide](./documentation/getting-started/quickstart.md). Refer to it for full details.
+
 ### Prerequisites
 
-- Node.js (v24.x recommended)
-- npm
-- Docker and Docker Compose
-- Google Cloud Project (for project ID)
-- OpenAI API Key
+- **Node.js** (v24.x or higher)
+- **npm**
+- **Docker** and Docker Compose
+- **Google Cloud SDK (`gcloud`)** — some local configs depend on GCP project structure.
+- **Git**
+- **OpenAI API Key** — required for LLM-powered features.
 
-### Installation & Setup
+### 1. Clone the repository
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/cnavta/BitBrat.git
-   cd BitBrat
-   ```
+```bash
+git clone https://github.com/BitBrat/BitBratPlatform.git
+cd BitBratPlatform
+```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+### 2. Install dependencies
 
-3. Initialize the platform:
-   ```bash
-   npm run brat -- setup
-   ```
-   The `setup` command will guide you through configuring your GCP Project ID, OpenAI API Key, and Bot Name. It will also bootstrap your local environment using Docker.
+```bash
+npm install
+```
 
-### Chatting with your Bot
+### 3. Initialize the platform
 
-Once setup is complete, you can start an interactive chat session with your bot:
+```bash
+npm run brat -- setup
+```
+
+The interactive `setup` command guides you through configuring your **GCP Project ID**, **OpenAI API Key**, and **Bot Name**. It also bootstraps your local environment by:
+
+- **Configuration**: Generating `.bitbrat.json` (admin credentials), `.secure.local` (secrets), and `env/local/global.yaml`.
+- **Admin Token**: Creating a unique API token for local administration (used by tools like `brat chat`).
+- **Initial Seeding**: Populating the local Firestore emulator with default bot **personalities**, base **Event Router rules** (analysis and bot-mention handling), and initial **authentication tokens**.
+
+See [Managing Seed Data](./documentation/guides/seed-data.md) for details on the seeded data and how to extend it.
+
+### 4. Verify your environment
+
+```bash
+npm run brat -- doctor
+```
+
+Look for all "PASS" results. The tool provides guidance for any failed checks.
+
+### 5. Run the platform locally
+
+```bash
+npm run local        # Start the local stack (Docker Compose)
+npm run local:logs   # Tail service logs
+npm run local:down   # Stop the local environment
+```
+
+### 6. Chat with your bot
+
+Once the platform is running, start an interactive chat session to test rules and interactions locally:
+
 ```bash
 npm run brat -- chat
 ```
 
-### Running Locally
-
-To manually start the platform locally using Docker Compose:
-```bash
-npm run local
-```
-
-To stop the local environment:
-```bash
-npm run local:down
-```
+See the [`brat chat` documentation](./documentation/tools/brat.md#brat-chat) for more options.
 
 ### Building and Testing
 
-Build the project:
 ```bash
-npm run build
-```
-
-Run tests:
-```bash
-npm test
+npm run build   # Compile the TypeScript project
+npm test        # Run the test suite
 ```
 
 ## Management CLI (brat)
@@ -109,7 +142,7 @@ npm run brat -- <command> [options]
 *(Note: Use `--` to pass arguments through npm to the underlying script)*
 
 ### Global Flags
-- `--env <name>`: Specify the environment (e.g., `dev`, `prod`). Can also be set via `BITBRAT_ENV`.
+- `--env <name>`: Specify the environment (e.g., `local`, `dev`, `prod`). Can also be set via `BITBRAT_ENV`.
 - `--project-id <id>`: Override the Google Cloud Project ID.
 - `--region <name>`: Override the GCP region.
 - `--dry-run`: Preview changes without applying them.
@@ -118,13 +151,18 @@ npm run brat -- <command> [options]
 ### Core Commands
 
 #### Setup & Interaction
-- `brat setup [--project-id <id>] [--openai-key <key>] [--bot-name <name>]`: Interactive platform initialization.
+- `brat setup [--project-id <id>] [--openai-key <key>] [--bot-name <name>]`: Interactive platform initialization and local seeding.
 - `brat chat [--env <name>] [--url <url>]`: Start an interactive chat session with the platform.
 
 #### Diagnostics & Config
 - `brat doctor`: Run diagnostic checks to ensure required tools (`gcloud`, `terraform`, `docker`) are installed.
 - `brat config show`: Display the resolved platform configuration.
 - `brat config validate`: Validate `architecture.yaml` against the platform schema.
+
+#### Local Environment
+- `brat docker up --env local`: Start the local stack (aliased as `npm run local`).
+- `brat docker logs --env local`: Tail local logs (aliased as `npm run local:logs`).
+- `brat docker down --env local`: Stop the local stack (aliased as `npm run local:down`).
 
 #### Service Management
 - `brat service bootstrap --name <name> [--mcp] [--force]`: Create a new service from a template. Use `--mcp` for Model Context Protocol servers.
@@ -149,43 +187,29 @@ npm run brat -- <command> [options]
 #### CI/CD Triggers
 - `brat trigger create --name <n> --repo <repo> --branch <regex> --config <path>`: Manage Cloud Build triggers.
 
-## Event Messaging & Architecture
+## Event Messaging & Flow
 
-The BitBrat platform follows a robust, event-driven architecture built on a unified message bus (NATS or Google Cloud Pub/Sub) and a standardized internal event contract.
+The BitBrat platform follows a robust, event-driven architecture built on a unified message bus (NATS locally, Google Cloud Pub/Sub in production) and a standardized internal event contract.
 
-### InternalEventV2
+### The Event Lifecycle
 
-`InternalEventV2` is the canonical event format used throughout the platform. It flattens the legacy V1 envelope and introduces specialized fields for AI-driven orchestration:
+Events flow through a series of decoupled stages. For the full breakdown, see the [Platform Flow Overview](./documentation/concepts/platform-flow.md).
 
-- **Metadata**: `correlationId`, `traceId`, `source`, `egressDestination`.
-- **Payloads**: 
-  - `message`: Normalized chat/text message metadata.
-  - `externalEvent`: Normalized platform-specific behavioral events (e.g., follows, subs).
-  - `payload`: Fallback for system or non-message data.
-- **Enrichment**:
-  - `annotations`: A collection of insights produced by services (e.g., intent, sentiment, user profile).
-  - `candidates`: Potential replies or actions proposed by processing services.
-- **Routing**:
-  - `routingSlip`: An array of `RoutingStep` objects defining the remaining processing path.
+1. **Ingest**: External platforms (Twitch, Discord, Twilio) hit the `Ingress-Egress` service. It normalizes the raw payload into the internal event format and publishes to `internal.ingress.v1`.
+2. **Analysis**: The event is enriched (e.g., the `Auth Service` populates user metadata such as `displayName`) and evaluated by the **Event Router** against active rules. Matching rules attach a **routing slip** that defines the remaining processing path. Analysis services like the **LLM Bot** or **Query Analyzer** may add annotations or candidate responses, returning the event via `internal.enriched.v1`.
+3. **Reaction**: Once analysis is complete, the Event Router advances the event to the `reaction` stage, where reactive services (e.g., **State Engine**, **Disposition Service**) act on it. If a rule's routing slip is empty, `BaseServer.next()` automatically routes the event to egress.
+4. **Egress**: The event is delivered back to the originating `Ingress-Egress` instance, which selects the best candidate reply and sends it to the target platform.
+5. **Persistence**: The `Persistence` service stores final state, selections, and errors for auditing and long-term memory.
 
-### Core Messaging Flow
-
-The typical lifecycle of an event involves several specialized microservices:
-
-1. **Ingress**: External platforms (Twitch, Discord, Twilio) hit the `Ingress-Egress` service. It maps the raw payload to `InternalEventV2`, sets the `egressDestination` to its specific instance topic, and publishes to `internal.ingress.v1`.
-2. **Auth (User Enrichment)**: The `Auth Service` consumes the event, enriches it with user metadata (roles, tags, notes) from Firestore, and publishes to `internal.user.enriched.v1`.
-3. **Event Router**: The `Event Router` evaluates the enriched event against a set of rules (using JsonLogic). It generates a `routingSlip` defining the next processing steps and dispatches the event.
-4. **Orchestration & Processing**: Services like `LLM Bot` or `Command Processor` receive events based on the routing slip. They add `annotations` or `candidates`, update the routing step status, and use `BaseServer` helpers (`next()`) to advance the event.
-5. **Egress**: Once processing is complete, the event is routed back to the specific `Ingress-Egress` instance via the `egressDestination`. The service selects the best candidate reply and delivers it to the target platform.
-6. **Persistence**: The `Persistence` service listens to various topics (including `internal.persistence.finalize.v1`) to store the final state, selections, and errors for auditing and long-term memory.
+> **Tip:** Command rules typically trigger during the `analysis` stage (where `user.displayName` is already available), then advance to `reaction` for delivery. See [Event Router & Rules](./documentation/concepts/event-router-rules.md) for the rule format and stage-filtering best practices.
 
 ### Development Primitives
 
 All services leverage `BaseServer` for standardized messaging patterns:
 
-- **`onMessage<T>(topic, handler)`**: Unified subscription to the message bus with automatic V1->V2 conversion.
-- **`next(event)`**: Automatically advances the event to the next pending step in the `routingSlip`.
-- **`complete(event)`**: Bypasses the remaining routing slip and sends the event directly to `egressDestination`.
+- **`onMessage<T>(topic, handler)`**: Unified subscription to the message bus with automatic event conversion.
+- **`next(event)`**: Automatically advances the event to the next pending step in the routing slip (or to egress when the slip is empty).
+- **`complete(event)`**: Bypasses the remaining routing slip and sends the event directly to its egress destination.
 
 ## Contributing
 

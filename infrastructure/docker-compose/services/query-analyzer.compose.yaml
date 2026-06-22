@@ -1,10 +1,10 @@
 services:
   query-analyzer:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.query-analyzer
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - LLM_PROVIDER=${QUERY_ANALYZER_LLM_PROVIDER}

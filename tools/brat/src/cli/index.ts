@@ -13,6 +13,7 @@ import { execCmd } from '../orchestration/exec';
 import { ArchitectureSchema } from '../config/schema';
 import { BratError, ConfigurationError, DependencyError, exitCodeForError } from '../orchestration/errors';
 import { synthModule } from '../providers/cdktf-synth';
+import { cmdDocker } from './docker';
 import { createTrigger, updateTrigger, deleteTrigger } from '../providers/gcp/cloudbuild-triggers';
 import { assertVpcPreconditions } from '../providers/gcp/preflight';
 import { renderAndWrite } from '../lb/urlmap';
@@ -121,6 +122,11 @@ Usage:
   brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger delete --name <n> [--dry-run]
+
+  brat docker up [--target <name>] [--env <name>] [--service <name>] [--dry-run]
+  brat docker down [--target <name>] [--service <name>] [--dry-run]
+  brat docker logs [--target <name>] [--service <name>] [--follow]
+  brat docker ps [--target <name>] [--service <name>]
 
 Notes:
   - Provide --env or set BITBRAT_ENV. Common values: dev, prod.
@@ -842,6 +848,22 @@ Options:
   }
   if (c1 === 'trigger' && (c2 === 'create' || c2 === 'update' || c2 === 'delete')) {
     await cmdTrigger(c2 as any, flags, rest);
+    return;
+  }
+  if (c1 === 'docker') {
+    const action = c2;
+    if (!action) {
+      console.error('Usage: brat docker <up|down|logs|ps> [--target <name>] [--env <name>] [--service <name>] [--dry-run]');
+      process.exit(2);
+    }
+    const m = parseKeyValueFlags(rest);
+    const dockerFlags = {
+      ...flags,
+      target: m['target'],
+      service: m['service'],
+      follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true'
+    };
+    await cmdDocker(action, dockerFlags);
     return;
   }
   printHelp();

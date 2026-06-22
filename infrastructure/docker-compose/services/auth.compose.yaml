@@ -1,10 +1,10 @@
 services:
   auth:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.auth
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}

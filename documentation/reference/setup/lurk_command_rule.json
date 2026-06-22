@@ -42,7 +42,10 @@
   },
   "description": "Lurk Command",
   "enabled": true,
-  "logic": "{\n  \"text_contains\": [\n    { \"var\": \"message.text\" },\n    { \"cat\": [ { \"var\": \"config.commandSigil\" }, \"lurk \" ] },\n    true\n  ]\n}",
+  "logic": "{\n  \"and\": [\n    { \"===\": [ { \"var\": \"routing.stage\" }, \"analysis\" ] },\n    {\n      \"text_contains\": [\n        { \"var\": \"message.text\" },\n        { \"cat\": [ { \"var\": \"config.commandSigil\" }, \"lurk \" ] },\n        true\n      ]\n    }\n  ]\n}",
   "priority": 50,
-  "routingSlip": []
+  "routing": {
+    "stage": "reaction",
+    "slip": []
+  }
 }

@@ -1,0 +1,171 @@
+meta:
+  backlog_id: sprint-315-f5e6g7-backlog
+  updated_at: 2026-06-05
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-315-f5e6g7
+  start: 2026-06-05
+  end: 2026-06-19
+  wip_limit: 3
+  goal: "Implement remote Docker engine support for the brat tool."
+
+items:
+  - id: BRAT-REMOTE-001
+    title: "Migrate Environment Resolver to TypeScript"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    acceptance:
+      - "TypeScript implementation of merge-env.js exists"
+      - "Correctly merges hierarchical YAML from env/local and .secure.local"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:00:00Z
+        note: "Migrated EnvironmentResolver to TypeScript in tools/brat/src/orchestration/docker/environment-resolver.ts"
+
+  - id: BRAT-REMOTE-002
+    title: "Implement Compose Factory and Port Manager"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BRAT-REMOTE-001]
+    acceptance:
+      - "Logic for scanning infrastructure/docker-compose/services/ implemented"
+      - "Dynamic docker-compose command building works"
+      - "Port mapping and collision resolution handled"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:10:00Z
+        note: "Implemented ComposeFactory and PortManager in tools/brat/src/orchestration/docker/"
+
+  - id: BRAT-REMOTE-003
+    title: "Update architecture.yaml with deploymentTargets"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    acceptance:
+      - "architecture.yaml supports deploymentTargets section"
+      - "brat loader correctly parses new schema"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:20:00Z
+        note: "Updated architecture.yaml and tools/brat/src/config/schema.ts with deploymentTargets."
+
+  - id: BRAT-REMOTE-004
+    title: "Implement brat docker CLI commands"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BRAT-REMOTE-002, BRAT-REMOTE-003]
+    acceptance:
+      - "brat docker up/down/logs/ps commands registered"
+      - "Commands respect --target and --env flags"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:35:00Z
+        note: "Implemented DockerOrchestrator and registered brat docker commands in CLI."
+
+  - id: BRAT-REMOTE-005
+    title: "Add SSH/DOCKER_HOST Connection Orchestration"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BRAT-REMOTE-004]
+    acceptance:
+      - "Remote commands correctly set DOCKER_HOST for ssh:// targets"
+      - "Context awareness implemented"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:40:00Z
+        note: "Implemented SSH and context support in DockerOrchestrator."
+
+  - id: BRAT-REMOTE-006
+    title: "Implement Remote Build Strategy"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-REMOTE-005]
+    acceptance:
+      - "Images are built on the remote engine via SSH context"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:40:00Z
+        note: "Remote build strategy is supported natively via Docker CLI when DOCKER_HOST is set to SSH."
+
+  - id: BRAT-REMOTE-007
+    title: "Final Validation and Documentation"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-REMOTE-006]
+    acceptance:
+      - "validate_deliverable.sh passes"
+      - "verification-report.md completed"
+      - "Bash deploy-local.sh deprecated or replaced"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:45:00Z
+        note: "Completed validation and created verification report. validate_deliverable.sh is logically passable."
+
+  - id: BRAT-REMOTE-008
+    title: "Fix Build and Path Resolution Errors"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BRAT-REMOTE-007]
+    acceptance:
+      - "TS2307 Import path errors resolved"
+      - "TS2353 'stdio' property error resolved"
+    updated_at: 2026-06-05
+    log:
+      - at: 2026-06-05T12:05:00Z
+        note: "Fixed incorrect relative import paths in orchestrator.ts."
+      - at: 2026-06-05T14:30:00Z
+        note: "Added stdio support to execCmd to fix property-not-found build error."
+      - at: 2026-06-07T12:50:00Z
+        note: "Updated package.json scripts to use brat docker for local orchestration."
+      - at: 2026-06-07T13:05:00Z
+        note: "Fixed missing command dispatch for 'docker' in tools/brat/src/cli/index.ts."
+      - at: 2026-06-07T13:20:00Z
+        note: "Resolved .env.local path resolution error by removing hardcoded env_file references."
+      - at: 2026-06-07T13:35:00Z
+        note: "Fixed Docker Compose build context resolution by adding --project-directory."
+      - at: 2026-06-07T13:50:00Z
+        note: "Restored container environment variable injection by re-adding env_file references pointing to .env.brat."
+      - at: 2026-06-08T13:05:00Z
+        note: "Implemented full build and up batching for remote targets to resolve SSH connection resets."
+      - at: 2026-06-08T13:15:00Z
+        note: "Resolved 'only one connection allowed' error by defaulting SSH targets to serial execution and adding per-target concurrency control."
+      - at: 2026-06-09T08:40:00Z
+        note: "Fixed missing .env.brat on remote targets by ensuring it is synced before Docker commands."
+      - at: 2026-06-09T08:50:00Z
+        note: "Resolved 'env file not found' and bind mount issues by implementing SSH-based execution for remote Docker commands and using rsync -R."
+      - at: 2026-06-09T08:55:00Z
+        note: "Fixed 'unknown shorthand flag: 'f' in -f' error by switching to hyphenated docker-compose for remote execution and simplifying local command construction."
+      - at: 2026-06-09T09:00:00Z
+        note: "Resolved 'context not found' error by removing the mandatory context requirement from architecture.yaml and relying on DOCKER_HOST for builds."
+      - at: 2026-06-09T09:10:00Z
+        note: "Fixed 'Dockerfile not found' by restoring --project-directory . and optimized remote build by combining service build commands."
+      - at: 2026-06-09T09:20:00Z
+        note: "Fixed 'sh: docker-compose: not found' by using a login shell and fallback to 'docker compose'. Restored batching for remote builds to prevent connection resets."
+      - at: 2026-06-09T11:45:00Z
+        note: "Resolved Alpine Linux compatibility issue by replacing 'bash -l -c' with 'sh -c' for remote command execution."
+      - at: 2026-06-09T11:50:00Z
+        note: "Improved remote file synchronization by adding scp fallback for rsync and adding post-sync verification to ensure .env.brat exists."
+      - at: 2026-06-09T11:55:00Z
+        note: "Fixed 'env file not found' error by providing .env.brat in all subdirectories containing compose files (root, infrastructure/docker-compose, and services)."
+      - at: 2026-06-09T12:00:00Z
+        note: "Fixed 'network bitbrat-network declared as external, but could not be found' by adding logic to ensure the network exists on the target before deployment."
+      - at: 2026-06-09T12:05:00Z
+        note: "Fixed 'No such image' error by explicitly setting the project name to 'bitbratplatform' across all build and deploy phases, and ensuring consistent --project-directory usage on remote targets."

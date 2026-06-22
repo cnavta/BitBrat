@@ -1,10 +1,10 @@
 services:
   oauth-flow:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.oauth-flow
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI}

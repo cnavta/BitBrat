@@ -1,10 +1,10 @@
 services:
   api-gateway:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.api-gateway
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
 

@@ -1,5 +1,7 @@
 services:
   story-engine-mcp:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.story-engine-mcp
@@ -9,8 +11,6 @@ services:
       - NODE_ENV=local
       - BITBRAT_ENV=local
       - PORT=${SERVICE_PORT:-8080}
-    env_file:
-      - .env.local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_PORT:-8080}/health"]
       interval: 30s
