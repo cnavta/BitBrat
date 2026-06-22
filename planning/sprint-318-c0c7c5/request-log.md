@@ -87,3 +87,40 @@ Role: DevOps Architect
     stream-analyst reconciled to single `stream-analyst-service` with explicit `port: 3010`.
   - Environment has no docker → image build/boot validated logically + real config-level dry-run
     (AGENTS.md §2.6).
+
+---
+
+## REQ-004 — Timeout test remediation & sprint completion
+- **Timestamp:** 2026-06-22T18:58:00Z
+- **Role:** Lead Implementor
+- **Prompt summary:** Two `llm-bot` processor tests began failing with Jest 5s timeouts
+  (`history-redundancy.test.ts` "excludes current message from history transcript" and
+  `processor.test.ts` "SKIP when no prompt annotations"). Investigate and remediate. Then:
+  "Sprint complete."
+- **Interpretation:** Fix the timeouts at the root cause (not by weakening assertions), confirm the
+  full suite is green, then close the sprint per Rule S2 / §2.9 (mark manifest `complete`, finalize
+  retro/key-learnings/verification, record publication).
+- **Root cause:** `processEvent` performs awaited, best-effort Firestore reads (USER_CONTEXT
+  roles/user lookups in `user-context.ts` and the disposition snapshot fetch in `processor.ts`).
+  Without an emulator/credentials these gRPC calls hang indefinitely; the first such call per Jest
+  worker exceeded the 5s timeout (and made other llm-bot specs flaky under load).
+- **Shell/git commands executed:**
+  - `npx jest src/services/llm-bot/processor.test.ts tests/services/llm-bot/history-redundancy.test.ts`
+    (now 2 suites / 7 tests pass), `npx jest llm-bot` (41/41 suites, 114 tests, run twice),
+    `npx jest` (full: 254 suites pass / 1 pre-existing skip; 834 tests pass / 2 skip; 0 fail),
+    `npx tsc --noEmit -p tsconfig.json` (clean).
+- **Files created/modified:**
+  - Added `src/common/async-timeout.ts` (`withTimeout` + `TimeoutError`, unref'd timer).
+  - `src/services/llm-bot/user-context.ts` + `src/services/llm-bot/processor.ts`: bound the
+    best-effort Firestore reads with `withTimeout` (env-overridable `FIRESTORE_LOOKUP_TIMEOUT_MS`,
+    default 2000ms); on timeout the existing try/catch degrades gracefully (production robustness
+    improvement, not an assertion change).
+  - Hermetic specs (defense-in-depth, no weakened assertions): `processor.test.ts` and
+    `processor.story-engine.spec.ts` disable `USER_CONTEXT_ENABLED` (+ disposition) via a
+    `getConfig` override; `history-redundancy.test.ts` disables `DISPOSITION_PROMPT_INJECTION_ENABLED`.
+  - Closure: `planning/sprint-318-c0c7c5/` verification-report.md, retro.md, key-learnings.md,
+    sprint-manifest.yaml (`status: complete`), publication.yaml, request-log.md (this entry).
+- **Notes / findings:**
+  - Full test suite is green after the fix (previously 2 failed). No tests were skipped, disabled,
+    or weakened to force a pass.
+  - User said "Sprint complete." → manifest flipped to `complete` (Rule S2 / §2.9).

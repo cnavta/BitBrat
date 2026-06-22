@@ -3,7 +3,7 @@ title: "Reusable Standard Service Dockerfile"
 goal: "Replace the dockerfile-per-service strategy with a single reusable, parametrized standard service Dockerfile (and template) used by all Node/TypeScript services wherever possible, eliminating duplication while preserving current build/deploy behavior."
 owner: "Junie (DevOps Architect)"
 createdAt: "2026-06-22T17:36:00Z"
-status: "published"
+status: "complete"
 links:
   branch: "feature/sprint-318-c0c7c5-reusable-service-dockerfile"
   pr: "https://github.com/cnavta/BitBrat/pull/236"
@@ -24,3 +24,10 @@ notes: |
   Task 1 (this step): produce a Technical Architecture document describing the reusable Dockerfile
   approach. Further sprint tasks (implementation/migration) will follow and be appended to
   implementation-plan.md per Rule S4 / section 2.4.1.
+
+  CLOSED 2026-06-22T18:58:00Z (Rule S2 / section 2.9): user said "Sprint complete." All backlog
+  items BL-001..BL-013 done; reusable Dockerfile.service shipped (18 -> 1 + 2 escape hatches);
+  post-implementation llm-bot test timeouts (REQ-004) remediated at the source. Full Jest suite
+  green (254 suites / 834 tests, 0 failures); tsc clean. PR #236 published.
+  Environment limitation: no docker runtime, so image build/boot/health-check validated logically
+  plus a real config-level dry-run (AGENTS.md section 2.6).
