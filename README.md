@@ -10,7 +10,7 @@
 > These both could be fairly easily updated to support additional options, I have just not focused on them specifically in favor of learning and exploring AI agent orchestration.
 
 <p align="center">
-  <img src="./assets/BitBrat.png" alt="Description of Image" width="300"/>
+  <img src="./assets/assets/BitBrat.png" alt="Description of Image" width="300"/>
 </p>
 
 BitBrat Platform is an LLM-powered event orchestration and execution engine currently designed for streamers, though it can easily be adapted for a wide range of use cases. It bridges external event sources (like Twitch, Kick, Discord, and Twilio) with internal processing logic and AI-driven reactions.
