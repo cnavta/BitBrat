@@ -1,0 +1,150 @@
+meta:
+  backlog_id: documentation-overhaul
+  updated_at: 2026-06-22
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-316-d9e8f7
+  start: 2026-06-22
+  end: 2026-07-06
+  wip_limit: 3
+  goal: "Execute the plan for extensive user documentation of the BitBrat platform."
+
+items:
+  - id: DOC-001
+    title: "Quickstart: Local Platform Setup"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Describes prerequisites (Node, Docker, gcloud)"
+      - "Walks through 'brat setup'"
+      - "Explains 'brat doctor' results"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T12:25:00Z
+        note: "Starting implementation of local setup guide."
+      - at: 2026-06-22T12:35:00Z
+        note: "Completed quickstart.md."
+      - at: 2026-06-22T12:45:00Z
+        note: "Revised to include 'brat setup' tool details and outputs."
+
+  - id: DOC-002
+    title: "Guide: Managing Seed Data"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [DOC-001]
+    blocked_reason: null
+    acceptance:
+      - "Explains how to load initial state"
+      - "Explains how to load initial rules"
+      - "Provides examples for local testing"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T12:40:00Z
+        note: "Starting implementation of seed data guide."
+      - at: 2026-06-22T12:45:00Z
+        note: "Completed seed-data.md."
+      - at: 2026-06-22T12:50:00Z
+        note: "Revised to include 'brat setup' as primary seeding method."
+
+  - id: DOC-003
+    title: "Concepts: Event Router & Rules"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Explains the role of the Event Router"
+      - "Details the Rule format (JSON-Logic, enrichments, routing slips)"
+      - "Documents the !lurk command rule specifically"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T12:50:00Z
+        note: "Completed event-router-rules.md."
+      - at: 2026-06-22T14:10:00Z
+        note: "Reworked !lurk rule to align with analysis -> reaction flow and stage filtering."
+      - at: 2026-06-22T14:35:00Z
+        note: "Removed unnecessary auth service from routing slip as it is pre-processed in analysis stage."
+
+  - id: DOC-004
+    title: "Concepts: Platform Flow Overview"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [DOC-003]
+    blocked_reason: null
+    acceptance:
+      - "Explains Ingest -> Analysis -> React -> Egress flow"
+      - "High-level diagram included"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T12:55:00Z
+        note: "Starting implementation of platform flow guide."
+      - at: 2026-06-22T13:00:00Z
+        note: "Completed platform-flow.md."
+
+  - id: DOC-005
+    title: "Tutorial: Creating the !lurk Command"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [DOC-002, DOC-003]
+    blocked_reason: null
+    acceptance:
+      - "Step-by-step guide to implement !lurk"
+      - "Uses brat chat for verification"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T13:05:00Z
+        note: "Starting implementation of lurk tutorial."
+      - at: 2026-06-22T13:10:00Z
+        note: "Completed lurk-command.md."
+      - at: 2026-06-22T14:15:00Z
+        note: "Updated tutorial with reworked analysis-first rule logic."
+      - at: 2026-06-22T14:35:00Z
+        note: "Removed auth service from routing slip example and adjusted explanation."
+
+  - id: DOC-006
+    title: "Reference: Brat CLI Deep Dive"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [DOC-001]
+    blocked_reason: null
+    acceptance:
+      - "Detailed flags and options for all core commands"
+      - "Includes 'brat chat' detailed usage"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T13:15:00Z
+        note: "Starting deep dive update for brat.md."
+      - at: 2026-06-22T13:25:00Z
+        note: "Completed brat.md updates."
+
+  - id: DOC-007
+    title: "Revise top-level README.md"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [DOC-001, DOC-002, DOC-003, DOC-004, DOC-006]
+    blocked_reason: null
+    acceptance:
+      - "Reflects new setup/quickstart flow (brat setup seeding, doctor, local commands)"
+      - "Links to the new structured documentation (getting-started/concepts/guides/tutorials)"
+      - "Event flow updated to analysis -> reaction -> egress model"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T14:34:00Z
+        note: "Analyzed outdated README and rewrote it aligned with new documentation."

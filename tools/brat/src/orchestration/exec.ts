@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, StdioOptions } from 'child_process';
 
 export interface ExecResult {
   code: number;
@@ -9,6 +9,7 @@ export interface ExecResult {
 export interface ExecOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
+  stdio?: StdioOptions;
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;
 }
@@ -16,19 +17,26 @@ export interface ExecOptions {
 export function execCmd(cmd: string, args: string[], opts: ExecOptions = {}): Promise<ExecResult> {
   return new Promise((resolve) => {
     let settled = false;
-    const child = spawn(cmd, args, { cwd: opts.cwd, env: { ...process.env, ...(opts.env || {}) }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const stdio = opts.stdio || ['ignore', 'pipe', 'pipe'];
+    const child = spawn(cmd, args, { cwd: opts.cwd, env: { ...process.env, ...(opts.env || {}) }, stdio });
     let stdout = '';
     let stderr = '';
-    child.stdout.on('data', (d) => {
-      const s = d.toString();
-      stdout += s;
-      try { opts.onStdout && opts.onStdout(s); } catch {}
-    });
-    child.stderr.on('data', (d) => {
-      const s = d.toString();
-      stderr += s;
-      try { opts.onStderr && opts.onStderr(s); } catch {}
-    });
+    
+    if (child.stdout) {
+      child.stdout.on('data', (d) => {
+        const s = d.toString();
+        stdout += s;
+        try { opts.onStdout && opts.onStdout(s); } catch {}
+      });
+    }
+    
+    if (child.stderr) {
+      child.stderr.on('data', (d) => {
+        const s = d.toString();
+        stderr += s;
+        try { opts.onStderr && opts.onStderr(s); } catch {}
+      });
+    }
     child.on('error', (err) => {
       if (!settled) {
         settled = true;

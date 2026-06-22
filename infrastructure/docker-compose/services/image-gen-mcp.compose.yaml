@@ -1,5 +1,7 @@
 services:
   image-gen-mcp:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.image-gen-mcp
@@ -10,8 +12,6 @@ services:
       - BITBRAT_ENV=local
       - PORT=${SERVICE_PORT:-8080}
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
-    env_file:
-      - .env.local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_PORT:-8080}/health"]
       interval: 30s

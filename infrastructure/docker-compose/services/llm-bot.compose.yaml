@@ -1,10 +1,10 @@
 services:
   llm-bot:
+    env_file:
+      - .env.brat
     build:
       context: .
       dockerfile: Dockerfile.llm-bot
-    env_file:
-      - .env.local
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - LLM_PROVIDER=${LLM_BOT_LLM_PROVIDER}
