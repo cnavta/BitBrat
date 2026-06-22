@@ -1,0 +1,26 @@
+id: sprint-318-c0c7c5
+title: "Reusable Standard Service Dockerfile"
+goal: "Replace the dockerfile-per-service strategy with a single reusable, parametrized standard service Dockerfile (and template) used by all Node/TypeScript services wherever possible, eliminating duplication while preserving current build/deploy behavior."
+owner: "Junie (DevOps Architect)"
+createdAt: "2026-06-22T17:36:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-318-c0c7c5-reusable-service-dockerfile"
+  pr: "" # to be created at sprint completion (Rule S12/S13)
+notes: |
+  DevOps Architect role. The repository currently maintains 18 root-level Dockerfile.<service>
+  files (15 "standard" + 3 "legacy"). Most follow a near-identical multi-stage "standard" pattern (node:24-bookworm-slim,
+  WORKDIR /workspace, apt source fix, curl in runner, EXPOSE 3000/3010, ENV SERVICE_NAME/SERVICE_PORT)
+  differing ONLY in SERVICE_NAME, port, and the CMD entrypoint path. A small "legacy" family
+  (disposition-service, story-engine-mcp, stream-analyst-service) uses node:24-slim, WORKDIR /app,
+  npm ci --production and a dist/src/... CMD path.
+
+  Existing build tooling already supports parametrization: cloudbuild.oauth-flow.yaml and
+  infrastructure/deploy-cloud.sh pass _DOCKERFILE, _SERVICE_NAME, and _PORT substitutions, and
+  resolve deployment knobs (port, cpu, memory, instances) from architecture.yaml. Each service in
+  architecture.yaml declares `entry: src/apps/<name>.ts`, which is the single source of truth for
+  the startup module and therefore the natural input for the runtime CMD parameter.
+
+  Task 1 (this step): produce a Technical Architecture document describing the reusable Dockerfile
+  approach. Further sprint tasks (implementation/migration) will follow and be appended to
+  implementation-plan.md per Rule S4 / section 2.4.1.

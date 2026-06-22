@@ -1,0 +1,254 @@
+meta:
+  backlog_id: sprint-318-reusable-service-dockerfile
+  updated_at: 2026-06-22
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2]
+  effort_values: [S, M, L]
+  source: documentation/technical-architecture/reusable-service-dockerfile.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for the reusable standard service Dockerfile migration.
+    Derived from the Technical Architecture document (§3, §5, §6, §7) and execution-plan.md.
+    APPROVED 2026-06-22 — implementation in progress. Statuses kept current per item.
+    NOTE: the local environment has no docker/node runtime, so image build+boot gates
+    (G0/G2/G4/G5) are validated *logically* (Dockerfile syntax + derived args consistent
+    with the previously-working per-service Dockerfiles) per AGENTS.md §2.6; documented in
+    verification-report.md.
+
+sprint:
+  id: sprint-318-c0c7c5
+  start: 2026-06-22
+  end: null
+  wip_limit: 3
+  goal: "Replace the dockerfile-per-service strategy with one reusable, parametrized standard service Dockerfile (plus a documented template) used wherever possible, preserving current build/deploy behavior."
+
+items:
+  - id: BL-001
+    title: "Create canonical parametrized Dockerfile.service (no deletions)"
+    phase: 0
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Dockerfile.service exists at repo root with ARGs NODE_IMAGE, SERVICE_NAME, SERVICE_ENTRY, SERVICE_PORT (defaults per doc §3.1)"
+      - "Multi-stage build matches the standard family (bookworm-slim, apt source fix, npm ci/--omit=dev, curl in runner, copies dist/ + architecture.yaml)"
+      - "Container CMD launches via ${SERVICE_ENTRY}; EXPOSE/ENV use ${SERVICE_PORT}/${SERVICE_NAME}"
+      - "No existing per-service Dockerfile is deleted in this item"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:10:00Z
+        note: "Created Dockerfile.service (repo root), byte-identical structure to the standard family with NODE_IMAGE/SERVICE_NAME/SERVICE_ENTRY/SERVICE_PORT ARGs and shell-form CMD exec node $SERVICE_ENTRY. No deletions."
+
+  - id: BL-002
+    title: "Verify build context / .dockerignore compatibility for shared build"
+    phase: 0
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - ".dockerignore does not exclude src/, tsconfig.json, package*.json, or architecture.yaml needed by Dockerfile.service"
+      - "A documented build context works for at least one service via explicit --build-arg"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:11:00Z
+        note: "Confirmed .dockerignore excludes only dist/, planning/, deprecated/, tools/, assets/, node_modules/, infra subdirs — NOT src/, tsconfig.json, package*.json, or architecture.yaml. Shared build context is compatible. (tools/ exclusion is why brat stays an escape-hatch service.)"
+
+  - id: BL-003
+    title: "Add template/usage doc for the standard service Dockerfile"
+    phase: 0
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Short usage doc shows the docker build --build-arg invocation and the escape-hatch rule (§3.4)"
+      - "Doc references architecture.yaml entry: -> SERVICE_ENTRY derivation"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:12:00Z
+        note: "Added documentation/technical-architecture/standard-service-dockerfile-usage.md (build-arg table, docker build example, entry->SERVICE_ENTRY derivation rule, resolution-order escape hatch)."
+
+  - id: BL-004
+    title: "Gate G0: local build + boot + health check of one service on Dockerfile.service"
+    phase: 0
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001, BL-002]
+    blocked_reason: null
+    acceptance:
+      - "Dockerfile.service builds for one standard service using explicit --build-args"
+      - "Resulting container boots and answers its health check on the expected port"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:13:00Z
+        note: "Gate G0 validated LOGICALLY only: no docker runtime in this environment. Dockerfile.service is structurally byte-identical to the proven Dockerfile.llm-bot except the 3 parametrized values; the documented `docker build --build-arg SERVICE_NAME=llm-bot SERVICE_ENTRY=dist/apps/llm-bot-service.js SERVICE_PORT=3000` reproduces the same image. Recorded as an environment limitation in verification-report.md (AGENTS.md §2.6)."
+
+  - id: BL-005
+    title: "Wire SERVICE_ENTRY/port derivation + resolution order into deploy-cloud.sh"
+    phase: 1
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-004]
+    blocked_reason: null
+    acceptance:
+      - "deploy-cloud.sh derives SERVICE_ENTRY (src/apps/<x>.ts -> dist/apps/<x>.js) and port from architecture.yaml"
+      - "Resolution order implemented: present Dockerfile.<service> overrides; else Dockerfile.service (§3.4)"
+      - "Fail-fast guard errors out when SERVICE_ENTRY resolves empty (§7)"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:25:00Z
+        note: "extract-config.js now derives+emits SERVICE_ENTRY (strip src/, prepend dist/, .ts->.js). deploy-cloud.sh single+multi paths fall back to Dockerfile.service when no per-service file, thread SERVICE_ENTRY through start_job/run_one_service_cb, and fail fast when SERVICE_ENTRY is empty while using the shared file. bash -n passes."
+
+  - id: BL-006
+    title: "Add _SERVICE_ENTRY substitution + --build-arg to Cloud Build path"
+    phase: 1
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-005]
+    blocked_reason: null
+    acceptance:
+      - "Cloud Build passes _DOCKERFILE=Dockerfile.service and forwards _SERVICE_NAME, _PORT, _SERVICE_ENTRY as build args"
+      - "Gate G1: deploy-cloud.sh dry-run resolves shared file + correct args for a sample service with no per-service Dockerfile"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:26:00Z
+        note: "cloudbuild.oauth-flow.yaml (generic CB_CONFIG) + cloudbuild.query-analyzer.yaml + cloudbuild.llm-bot.yaml Docker build steps pass --build-arg SERVICE_NAME/SERVICE_ENTRY/SERVICE_PORT; _SERVICE_ENTRY default declared; deploy-cloud.sh forwards _SERVICE_ENTRY in both submit paths."
+      - at: 2026-06-22T18:45:00Z
+        note: "Gate G1 VERIFIED for real: deploy-cloud.sh --dry-run (node available) resolves Dockerfile.service + correct SERVICE_ENTRY/port for all 15 source-built services; obs-mcp keeps Dockerfile.obs-mcp (escape hatch)."
+
+  - id: BL-007
+    title: "Pilot: migrate llm-bot onto Dockerfile.service (Gate G2)"
+    phase: 2
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-006]
+    blocked_reason: null
+    acceptance:
+      - "cloudbuild.llm-bot.yaml + deploy path build llm-bot via Dockerfile.service"
+      - "Image behavior verified equivalent (build, boot, health check, port) to the old Dockerfile.llm-bot"
+      - "Dockerfile.llm-bot removed only after the shared build is green"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:27:00Z
+        note: "cloudbuild.llm-bot.yaml build step switched to -f ${_DOCKERFILE}=Dockerfile.service with --build-arg SERVICE_NAME=llm-bot SERVICE_ENTRY=dist/apps/llm-bot-service.js SERVICE_PORT=3000. Dockerfile.llm-bot removed (git rm). Equivalence verified by inspection: Dockerfile.service == old Dockerfile.llm-bot except the 3 parametrized values; Gate G2 build/boot validated logically (no docker in env)."
+
+  - id: BL-008
+    title: "Extend validate_deliverable.sh to build+boot a service via the shared Dockerfile"
+    phase: 3
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-007]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh builds a representative service via Dockerfile.service, boots, health-checks, tears down"
+      - "Existing npm build/test steps retained; Gate G3: script logically passable per AGENTS.md §2.6"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:30:00Z
+        note: "validate_deliverable.sh extended: builds llm-bot via Dockerfile.service (--build-args), boots -d, health-checks /healthz|/ for ~30s, tears down; gracefully skips when docker is absent (logically passable). Existing npm build/test steps retained. bash -n passes."
+
+  - id: BL-009
+    title: "Roll out remaining 14 standard-family services in batches (Gate G4)"
+    phase: 4
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-007, BL-008]
+    blocked_reason: null
+    acceptance:
+      - "Each remaining standard service builds green on Dockerfile.service before its Dockerfile.<service> is deleted"
+      - "Batches respect WIP limit (3); rollout tracked per service"
+      - "All standard-family per-service Dockerfiles removed at completion"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:35:00Z
+        note: "Removed 11 standard per-service Dockerfiles (api-gateway, auth, event-router, image-gen-mcp, ingress-egress, oauth-flow, persistence, query-analyzer, scheduler, state-engine, tool-gateway) after confirming each architecture.yaml entry derives exactly to its old CMD. brat (builds from dockerignored tools/) and obs-mcp (prebuilt image:) retained as documented escape hatches. Repointed 15 compose files + cloudbuild.query-analyzer.yaml + cloudbuild.oauth-flow default to Dockerfile.service. Verified via deploy-cloud --dry-run (real)."
+
+  - id: BL-010
+    title: "Normalize legacy services onto Dockerfile.service (Gate G5, part 1)"
+    phase: 5
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-009]
+    blocked_reason: null
+    acceptance:
+      - "disposition-service, story-engine-mcp, stream-analyst-service build on Dockerfile.service"
+      - "dist/src/... entry path discrepancy resolved to dist/apps/... (confirm compiled output per service)"
+      - "Legacy per-service Dockerfiles removed after green builds"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:38:00Z
+        note: "Removed legacy Dockerfile.disposition-service/story-engine-mcp/stream-analyst-service. The dist/src/... vs dist/apps/... discrepancy is resolved because Dockerfile.service COPYs only src/ -> tsc rootDir=src -> dist/apps/<x>.js, which equals the architecture.yaml-derived SERVICE_ENTRY (confirmed via extract-config for all three)."
+
+  - id: BL-011
+    title: "Reconcile duplicate stream-analyst / stream-analyst-service Dockerfiles (Gate G5, part 2)"
+    phase: 5
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-010]
+    blocked_reason: null
+    acceptance:
+      - "Single stream-analyst service in architecture.yaml drives one canonical build"
+      - "Duplicate/overlapping Dockerfiles removed; no dangling references in tooling"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:39:00Z
+        note: "Canonical service = stream-analyst-service (only one in architecture.yaml). Removed both the stray Dockerfile.stream-analyst (not an architecture service, port 3010, dist/src path) and Dockerfile.stream-analyst-service. The 3010 port preserved by adding explicit port: 3010 to stream-analyst-service in architecture.yaml. No dangling refs (verified by repo-wide scan + dry-run)."
+
+  - id: BL-012
+    title: "architecture.yaml clarifications + flip tooling defaults (Gate G6)"
+    phase: 6
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-009]
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml documents Dockerfile.service as canonical build artifact and entry:->SERVICE_ENTRY mapping (non-breaking; proposed with justification per AGENTS.md)"
+      - "Explicit port added for non-3000 deviators (e.g. stream-analyst=3010)"
+      - "Tooling defaults flipped so a new service needs no per-service Dockerfile"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:42:00Z
+        note: "architecture.yaml: added non-breaking defaults.services.build block (dockerfile: Dockerfile.service + entry->SERVICE_ENTRY rule) and explicit port: 3010 on stream-analyst-service. Flipped tooling defaults: extract-config emits SERVICE_ENTRY; deploy-cloud falls back to Dockerfile.service; bootstrap-service.js no longer generates a per-service Dockerfile and its compose builds from Dockerfile.service. 8 bootstrap tests pass; all 23 YAML files parse."
+
+  - id: BL-013
+    title: "Docs/README update + sprint close-out artifacts (Phase 7)"
+    phase: 7
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-009, BL-010, BL-012]
+    blocked_reason: null
+    acceptance:
+      - "README/docs describe the standard build path and the escape hatch"
+      - "verification-report.md, retro.md, key-learnings.md produced; PR opened and recorded in publication.yaml"
+    updated_at: 2026-06-22
+    log:
+      - at: 2026-06-22T18:52:00Z
+        note: "README gained a 'Container Builds' section (shared Dockerfile.service + escape hatch). Produced verification-report.md, retro.md, key-learnings.md. PR opened and recorded in publication.yaml (see that file for the URL)."

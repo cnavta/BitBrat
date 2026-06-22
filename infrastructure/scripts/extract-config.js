@@ -27,6 +27,18 @@ function loadArch(rootDir) {
 
 function boolToStr(v) { return v ? 'true' : 'false'; }
 
+// Derive the compiled entry path consumed by Dockerfile.service's SERVICE_ENTRY build arg
+// from architecture.yaml's `entry:` field. Rule: strip a leading `src/`, prepend `dist/`,
+// and swap a trailing `.ts` extension for `.js` (standard tsconfig `outDir: dist` layout,
+// where the build context only contains `src/`). Returns '' when no entry is declared.
+function deriveServiceEntry(entry) {
+  if (!entry || typeof entry !== 'string') return '';
+  let p = entry.trim().replace(/\\/g, '/').replace(/^\.\//, '');
+  if (p.startsWith('src/')) p = p.slice('src/'.length);
+  p = p.replace(/\.ts$/, '.js');
+  return `dist/${p}`;
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const root = process.cwd();
@@ -64,10 +76,13 @@ function main() {
   const secrets = Array.isArray(svc.secrets) ? svc.secrets.map(String) : [];
   const secretSetArg = secrets.map((s) => `${s}=${s}:latest`).join(';');
 
+  const serviceEntry = deriveServiceEntry(svc.entry);
+
   const out = {
     SERVICE_NAME: svcName,
     REGION: region,
     PORT: Number(port),
+    SERVICE_ENTRY: serviceEntry,
     MIN_INSTANCES: Number(minInstances),
     MAX_INSTANCES: Number(maxInstances),
     CPU: String(cpu),
@@ -83,6 +98,7 @@ function main() {
       `SERVICE_NAME=${out.SERVICE_NAME}`,
       `REGION=${out.REGION}`,
       `PORT=${out.PORT}`,
+      `SERVICE_ENTRY=${out.SERVICE_ENTRY}`,
       `MIN_INSTANCES=${out.MIN_INSTANCES}`,
       `MAX_INSTANCES=${out.MAX_INSTANCES}`,
       `CPU=${out.CPU}`,

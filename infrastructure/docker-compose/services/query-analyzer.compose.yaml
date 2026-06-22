@@ -4,7 +4,11 @@ services:
       - .env.brat
     build:
       context: .
-      dockerfile: Dockerfile.query-analyzer
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: query-analyzer
+        SERVICE_ENTRY: dist/apps/query-analyzer.js
+        SERVICE_PORT: "3000"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - LLM_PROVIDER=${QUERY_ANALYZER_LLM_PROVIDER}
