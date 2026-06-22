@@ -13,6 +13,11 @@
   - [x] Updated the rule to add a `personality` annotation attribution (`value: lurk-master`).
 - [x] Added a "Next Steps" link from Part 1 → Part 2.
 - [x] `validate_deliverable.sh` passes: required files, JSON validity (personality + all 3 embedded rule blocks), internal-link resolution, topic coverage, and Part 1→Part 2 link.
+- [x] **REQ-002 amendment** — documented default provider/model assumptions and per-personality overrides in `lurk-command-part-2.md`:
+  - [x] Added Step 1d explaining the platform defaults to **OpenAI** (requires `OPENAI_API_KEY`) with the model from `OPENAI_MODEL` (fallback `gpt-4o`).
+  - [x] Added `model` and `platform` rows to the personality schema table.
+  - [x] Added Step 2e showing how to override `model`/`platform` per personality, plus a troubleshooting bullet and a Summary point.
+  - [x] Extended `validate_deliverable.sh` (new link target + topic checks); re-validated, now 4/4 embedded JSON blocks valid.
 
 ## Partial
 - None.

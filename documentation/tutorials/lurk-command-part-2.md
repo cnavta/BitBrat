@@ -85,6 +85,14 @@ At this point we have **not** configured any personality, so the `llm-bot` uses 
 
 Run it a few times — each response should vary, because the `llm-bot` is generating them on the fly rather than picking from a fixed list.
 
+### 1d. Which model and provider answered?
+
+You never chose a model anywhere — so where did that response come from? Out of the box, the platform assumes **OpenAI** as the LLM provider. For the `llm-bot` to generate anything, its environment must include a valid **`OPENAI_API_KEY`** secret. The model it uses is controlled by the `OPENAI_MODEL` environment variable; the `llm-bot` falls back to `gpt-4o` if it is unset, and the local/deployed environments in this repo ship with `gpt-4.1-mini`.
+
+In other words, the reply you just saw came from OpenAI's configured default model. That is the platform-wide default, and unless you override it (we will do that in [Step 2e](#2e-optional-change-the-model-or-provider-per-personality)), **every** personality — including the default one — uses it.
+
+> **Got an error instead of a response?** The most common cause is a missing or invalid `OPENAI_API_KEY`. See [LLM Bot Service → Configuration](../services/llm-bot.md#configuration) for the full list of model and provider settings.
+
 > **No response, or the old static lines?** See [Troubleshooting](#troubleshooting) below.
 
 ## Step 2: Add a Personality
@@ -104,6 +112,8 @@ A personality document looks like this:
 | `status` | `active` \| `inactive` \| `archived` | Only `active` documents are selected. |
 | `version` | number | Monotonic; the **highest** active version wins. |
 | `tags` | string[] | Optional labels for organization. |
+| `model` | string | **Optional.** Overrides the model for this personality (otherwise the platform default from `OPENAI_MODEL`). |
+| `platform` | string | **Optional.** Overrides the LLM provider for this personality (defaults to `openai`). |
 | `createdAt` / `updatedAt` | ISO‑8601 string | Timestamps. |
 
 When resolving a personality, the `llm-bot` queries `/personalities` for `name == <annotation value>` and `status == "active"`, ordered by `version` descending, and uses the latest match. This is why bumping `version` lets you publish a new revision without deleting the old one.
@@ -185,12 +195,44 @@ npm run brat -- chat
 
 The response should now carry the **Lurk Master** voice defined in your personality `text` — warm, mysterious, and one short sentence — while still being generated fresh from your prompt. Try editing the personality `text`, bumping its `version`, re-upserting it, and watching the tone change without touching the rule at all.
 
+### 2e. (Optional) Change the model or provider per personality
+
+Back in [Step 1d](#1d-which-model-and-provider-answered) we saw that the platform defaults to OpenAI and a single configured model for *every* personality. You can override both **per personality** — without touching any environment variable or rule — using the two optional fields from the schema:
+
+- **`model`** — the model name to use when this personality is active (e.g., `gpt-4o`, `gpt-4.1-mini`).
+- **`platform`** — the LLM provider to use (defaults to `openai`).
+
+When the `llm-bot` resolves a personality that sets either field, it uses those values for that request instead of the platform defaults. For example, to pin the Lurk Master to a specific model, add `model` (and optionally `platform`) and bump the `version`:
+
+```json
+{
+  "name": "lurk-master",
+  "text": "You are the Lurk Master: a warm, slightly mysterious narrator who welcomes viewers into the shadows. Keep responses to a single short sentence, playful and inviting, and never break character.",
+  "status": "active",
+  "tags": ["tutorial", "lurk"],
+  "version": 2,
+  "model": "gpt-4o",
+  "platform": "openai",
+  "createdAt": "2026-06-22T17:09:00Z",
+  "updatedAt": "2026-06-22T17:30:00Z"
+}
+```
+
+Re-upsert it and the next `!lurk` runs on the model you specified — no rule change required:
+
+```bash
+npm run firestore:upsert -- personalities @my-lurk-personality.json --id lurk-master
+```
+
+Omit `model` and `platform` to fall back to the platform default. Whichever provider you target must still be configured and credentialed (for `openai`, that means a valid `OPENAI_API_KEY` in the `llm-bot` environment).
+
 ## Troubleshooting
 
 - **Still seeing the two static lines from Part 1?** Make sure you removed the `candidates`/`randomCandidate` enrichments and re-ran the `firestore:upsert` for the rule. Check `npm run local:logs` for `rule_loader.snapshot_applied` to confirm the new rule loaded.
 - **No response at all?** Run `npm run brat -- doctor` to confirm the services (including `llm-bot`) are healthy and connected to Firestore.
 - **Response ignores the personality?** Confirm the personality `status` is `active` and the annotation `value` matches the document `name` exactly. The `llm-bot` logs `personality.resolve.miss` when a name cannot be found and `personality.resolve.inactive` when the document is not active.
 - **Personality feature disabled?** The `llm-bot` honors a `PERSONALITY_ENABLED` flag; if it is set to `false`, only the base system prompt is used. See [LLM Bot – Modular Personality Injection](../llm-bot-personality.md).
+- **Errors mentioning the model or API key?** The platform defaults to OpenAI, so the `llm-bot` needs a valid `OPENAI_API_KEY`. If you set a personality `model`, make sure it is a model your key/provider can serve. See [LLM Bot Service → Configuration](../services/llm-bot.md#configuration).
 
 ## Summary
 
@@ -199,5 +241,6 @@ You upgraded `!lurk` from static, router-authored text to a fully **LLM-generate
 1. You added the `llm-bot` to the **routing slip** so the event is enriched before egress.
 2. You replaced the static candidates with a **prompt annotation** describing what to generate.
 3. You tested with the **default personality**, then introduced the **`/personalities`** collection and attributed a **personality** to the command for a consistent voice.
+4. You learned that the platform defaults to **OpenAI** (requiring an `OPENAI_API_KEY`) with a model set by `OPENAI_MODEL`, and that any personality can override the `model` and `platform` for itself.
 
-From here you can experiment with multiple personalities, richer prompts that reference more event fields, or adding `analysis`-stage steps before the `llm-bot` runs.
+From here you can experiment with multiple personalities, richer prompts that reference more event fields, per-personality model/provider tuning, or adding `analysis`-stage steps before the `llm-bot` runs.

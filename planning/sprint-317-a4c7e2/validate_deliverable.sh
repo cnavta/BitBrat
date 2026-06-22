@@ -61,6 +61,7 @@ LINKS=(
   "documentation/concepts/event-router-rules.md"
   "documentation/llm-bot-personality.md"
   "documentation/reference/setup/lurk_personality.json"
+  "documentation/services/llm-bot.md"
 )
 for target in "${LINKS[@]}"; do
   if [ ! -f "$target" ]; then
@@ -79,6 +80,9 @@ TOPICS=(
   "kind\": \"personality"
   "/personalities"
   "default personality"
+  "OPENAI_API_KEY"
+  "OPENAI_MODEL"
+  "per personality"
 )
 for t in "${TOPICS[@]}"; do
   if ! grep -qF "$t" "$TUTORIAL"; then

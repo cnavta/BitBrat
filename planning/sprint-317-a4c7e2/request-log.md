@@ -18,3 +18,15 @@
   - llm-bot routing target: `nextTopic: internal.llmbot.v1`, slip `id: llm-bot`
   - Personalities collection/schema: `documentation/llm-bot-personality.md`
   - Upsert tooling: `documentation/tools/firestore-upsert.md`
+
+## REQ-002 — 2026-06-22T17:24Z — Amendment: document default model/provider + per-personality override
+- **Prompt summary**: "Update the part 2 tutorial to include information about the default model and provider assumptions in the platform (OpenAI, need the OPENAI_API_KEY) as well as mentioning the ability to change them per personality."
+- **Interpretation**: Amend the active sprint-317 (Rule S4 / §2.4.1). Documentation-only change to `documentation/tutorials/lurk-command-part-2.md`: explain that the platform defaults to OpenAI and requires `OPENAI_API_KEY` (default model via `OPENAI_MODEL`), and document the optional per-personality `model`/`platform` overrides. No code or runtime changes.
+- **Grounding references** (verified in source):
+  - `src/services/llm-bot/processor.ts` lines 637–638 (model/provider defaults: `OPENAI_MODEL` → `gpt-4o`; `LLM_PROVIDER`/`LLM_PLATFORM` → `openai`) and 644–648 (personality `model`/`platform` override).
+  - `src/services/llm-bot/personality-resolver.ts` (`PersonalityDoc.platform`, `PersonalityDoc.model`; `ResolvedPersonality.platform`/`model`).
+  - `architecture.yaml` lines 159–162 (`OPENAI_API_KEY` secret, `OPENAI_MODEL` env).
+  - `documentation/services/llm-bot.md` Configuration table (`OPENAI_MODEL` default `gpt-4o`, `OPENAI_API_KEY`).
+- **Files modified**:
+  - `documentation/tutorials/lurk-command-part-2.md` (REQ-002: Step 1d, schema `model`/`platform` rows, Step 2e, troubleshooting bullet, Summary point)
+  - `planning/sprint-317-a4c7e2/request-log.md`
