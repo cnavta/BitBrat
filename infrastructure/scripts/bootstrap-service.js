@@ -56,8 +56,9 @@ function printHelp() {
   console.log('- src/apps/<entry>.ts (Express stub with health endpoints and stubbed paths)');
   console.log('  - use --mcp to use McpServer instead of BaseServer');
   console.log('- src/apps/<entry>.test.ts (basic health tests)');
-  console.log('- Dockerfile.<service> (Node 24, builds and runs the compiled entry)');
-  console.log('- infrastructure/docker-compose/services/<service>.compose.yaml (local runtime)');
+  console.log('- infrastructure/docker-compose/services/<service>.compose.yaml (local runtime,');
+  console.log('  built from the shared Dockerfile.service via --build-args)');
+  console.log('Note: new services use the reusable Dockerfile.service; no per-service Dockerfile is generated.');
 }
 
 function toPascal(name) {
@@ -214,6 +215,9 @@ ${stubTests}
 `;
 }
 
+// Deprecated (sprint-318): services now build from the reusable Dockerfile.service.
+// Retained (and still exported/tested) for the rare escape-hatch case where a service
+// genuinely needs its own Dockerfile; it is no longer written automatically by main().
 function generateDockerfile(serviceName, entryTsPath) {
   const entryJs = path.join('dist', entryTsPath.replace(/^src\//, '').replace(/\.ts$/, '.js'));
   return `# syntax=docker/dockerfile:1
@@ -246,17 +250,25 @@ function toUpperSnake(name) {
   return String(name).trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase();
 }
 
-function generateComposeSource(serviceName, image = null, env = [], secrets = []) {
+function generateComposeSource(serviceName, image = null, env = [], secrets = [], entry = null, port = 3000) {
   const upper = toUpperSnake(serviceName);
-  const dockerfile = `Dockerfile.${toKebab(serviceName)}`;
   const kebab = toKebab(serviceName);
-  
-  const buildOrImage = image 
+
+  // Build from the reusable Dockerfile.service with per-service behavior supplied as
+  // --build-args derived from architecture.yaml (no per-service Dockerfile required).
+  const serviceEntry = entry
+    ? path.join('dist', String(entry).replace(/^src\//, '').replace(/\.ts$/, '.js'))
+    : '';
+  const buildOrImage = image
     ? `image: ${image}
     platform: linux/amd64`
     : `build:
       context: .
-      dockerfile: ${dockerfile}`;
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: ${serviceName}
+        SERVICE_ENTRY: ${serviceEntry}
+        SERVICE_PORT: "${port}"`;
 
   const envList = [...(env || []), ...(secrets || [])];
   const environmentEntries = envList.map(e => `      - ${e}=\${${e}}`).join('\n');
@@ -312,33 +324,30 @@ function main() {
   const envVars = Array.isArray(svc.env) ? svc.env : [];
   const secretVars = Array.isArray(svc.secrets) ? svc.secrets : [];
 
-  const dockerfileName = `Dockerfile.${toKebab(serviceKey)}`;
-  const dockerfilePath = path.join(repoRoot, dockerfileName);
   const composePath = path.join(repoRoot, 'infrastructure', 'docker-compose', 'services', `${toKebab(serviceKey)}.compose.yaml`);
+  const svcPort = svc.port || 3000;
 
   let appRes = { skipped: true, path: 'N/A' };
   let testRes = { skipped: true, path: 'N/A' };
-  let dockRes = { skipped: true, path: 'N/A' };
 
   if (entry) {
     const appTsPath = path.join(repoRoot, entry);
     const testTsPath = appTsPath.replace(/\.ts$/, '.test.ts');
     appRes = writeFileSafe(appTsPath, generateAppSource(serviceKey, stubPaths, consumedTopics, args.mcp), args.force);
     testRes = writeFileSafe(testTsPath, generateTestSource(entry, stubPaths), args.force);
-    dockRes = writeFileSafe(dockerfilePath, generateDockerfile(serviceKey, entry), args.force);
   }
 
-  const composeRes = writeFileSafe(composePath, generateComposeSource(serviceKey, image, envVars, secretVars), args.force);
+  const composeRes = writeFileSafe(composePath, generateComposeSource(serviceKey, image, envVars, secretVars, entry, svcPort), args.force);
 
   console.log('[bootstrap-service] Results:');
   if (entry) {
     console.log(`- App: ${appRes.path} ${appRes.skipped ? '(exists, skipped)' : '(created)'}`);
     console.log(`- Test: ${testRes.path} ${testRes.skipped ? '(exists, skipped)' : '(created)'}`);
-    console.log(`- Dockerfile: ${dockRes.path} ${dockRes.skipped ? '(exists, skipped)' : '(created)'}`);
+    console.log('- Dockerfile: skipped (uses shared Dockerfile.service)');
   } else {
     console.log('- App: skipped (no entry)');
     console.log('- Test: skipped (no entry)');
-    console.log('- Dockerfile: skipped (no entry)');
+    console.log('- Dockerfile: skipped (uses shared Dockerfile.service)');
   }
   console.log(`- Compose: ${composeRes.path} ${composeRes.skipped ? '(exists, skipped)' : '(created)'}`);
   console.log('Next steps:');

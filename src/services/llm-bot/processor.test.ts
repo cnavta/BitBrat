@@ -2,7 +2,17 @@ import { processEvent } from './processor';
 import { BaseServer } from '../../common/base-server';
 import { InternalEventV2 } from '../../types/events';
 
-class TestServer extends BaseServer { constructor() { super({ serviceName: 'test-llm-bot' }); } }
+class TestServer extends BaseServer {
+  constructor() { super({ serviceName: 'test-llm-bot' }); }
+  // Keep this unit suite hermetic. With USER_CONTEXT enabled (the production default) the
+  // processor issues a live Firestore roles query via buildUserContextAnnotation(); in a test
+  // environment with no emulator/credentials that gRPC call hangs and blows the 5s Jest timeout.
+  // None of these tests assert user-context behavior, so disable it here.
+  getConfig(nameOrNothing?: any, opts?: any): any {
+    if (nameOrNothing === 'USER_CONTEXT_ENABLED') return false;
+    return super.getConfig(nameOrNothing, opts);
+  }
+}
 
 function baseEvt(): InternalEventV2 {
   return {

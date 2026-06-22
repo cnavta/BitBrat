@@ -26,6 +26,16 @@ import { metrics,
 import { dispositionStateKey, type DispositionSnapshotV1 } from '../../types/disposition';
 import { deriveDispositionUserKey } from '../disposition/observation';
 import { buildDispositionAnnotations, isDispositionSnapshotActive } from './disposition-context';
+import { withTimeout } from '../../common/async-timeout';
+
+// Best-effort disposition lookup must not hang the request hot path if Firestore is
+// slow/unreachable (or unconfigured, e.g. in tests). Bound it; on timeout the caller's
+// try/catch degrades gracefully. Override via env if needed.
+const DEFAULT_DISPOSITION_LOOKUP_TIMEOUT_MS = 2000;
+function dispositionLookupTimeoutMs(): number {
+  const v = Number(process.env.FIRESTORE_LOOKUP_TIMEOUT_MS);
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_DISPOSITION_LOOKUP_TIMEOUT_MS;
+}
 
 // ChatMessage is used for short-term memory within a single run
 export type ChatMessage = { role: 'system' | 'user' | 'assistant' | 'tool'; content: string; createdAt: string };
@@ -429,7 +439,13 @@ export async function processEvent(
           const fetchDisposition = async (key: string): Promise<DispositionSnapshotV1 | undefined> => {
             if (deps?.fetchDisposition) return deps.fetchDisposition(key);
             const db = getFirestore();
-            const doc = await db.collection('state').doc(dispositionStateKey(key)).get();
+            // Best-effort lookup: bound it so a slow/unreachable Firestore degrades
+            // gracefully (caught below) instead of hanging the request hot path.
+            const doc = await withTimeout(
+              db.collection('state').doc(dispositionStateKey(key)).get(),
+              dispositionLookupTimeoutMs(),
+              'llm-bot.disposition.get'
+            );
             return doc.data()?.value as DispositionSnapshotV1 | undefined;
           };
           const snapshot = await fetchDisposition(userKey);

@@ -4,7 +4,11 @@ services:
       - .env.brat
     build:
       context: .
-      dockerfile: Dockerfile.tool-gateway
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: tool-gateway
+        SERVICE_ENTRY: dist/apps/tool-gateway.js
+        SERVICE_PORT: "3000"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}

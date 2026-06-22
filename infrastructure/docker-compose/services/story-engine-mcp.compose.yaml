@@ -4,7 +4,11 @@ services:
       - .env.brat
     build:
       context: .
-      dockerfile: Dockerfile.story-engine-mcp
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: story-engine-mcp
+        SERVICE_ENTRY: dist/apps/story-engine-mcp.js
+        SERVICE_PORT: "3000"
     ports:
       - "${STORY_ENGINE_MCP_HOST_PORT:-8080}:${SERVICE_PORT:-8080}"
     environment:

@@ -2,7 +2,18 @@ import { processEvent } from './processor';
 import { BaseServer } from '../../common/base-server';
 import { InternalEventV2 } from '../../types/events';
 
-class TestServer extends BaseServer { constructor() { super({ serviceName: 'test-llm-bot' }); } }
+class TestServer extends BaseServer {
+  constructor() { super({ serviceName: 'test-llm-bot' }); }
+  // Keep this unit test hermetic. With USER_CONTEXT and disposition injection enabled (the
+  // production defaults) the processor issues awaited live Firestore reads for this
+  // identity-bearing event; without an emulator/credentials those gRPC calls stall and can
+  // trip the 5s Jest timeout under load. This test exercises neither feature, so disable them.
+  getConfig(nameOrNothing?: any, opts?: any): any {
+    if (nameOrNothing === 'USER_CONTEXT_ENABLED') return false;
+    if (nameOrNothing === 'DISPOSITION_PROMPT_INJECTION_ENABLED') return false;
+    return super.getConfig(nameOrNothing, opts);
+  }
+}
 
 function baseEvt(): InternalEventV2 {
   return {
