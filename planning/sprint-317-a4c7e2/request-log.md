@@ -30,3 +30,11 @@
 - **Files modified**:
   - `documentation/tutorials/lurk-command-part-2.md` (REQ-002: Step 1d, schema `model`/`platform` rows, Step 2e, troubleshooting bullet, Summary point)
   - `planning/sprint-317-a4c7e2/request-log.md`
+
+## REQ-003 — 2026-06-22T17:28Z — Sprint completion
+- **Prompt summary**: "Sprint complete."
+- **Interpretation**: User explicitly closes sprint-317 (Rule S2). All deliverables (REQ-001 + REQ-002) done, `validate_deliverable.sh` logically passable, branch pushed (commit `90b046c`). Per Rule S13(b), the failed auto-PR attempt is logged in `publication.yaml` and the user's "Sprint complete." constitutes explicit acceptance of closure with the PR opened manually.
+- **Actions**: Set `sprint-manifest.yaml` status to `complete`; retained `retro.md` and `key-learnings.md`.
+- **Files modified**:
+  - `planning/sprint-317-a4c7e2/sprint-manifest.yaml`
+  - `planning/sprint-317-a4c7e2/request-log.md`
