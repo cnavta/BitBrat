@@ -32,6 +32,12 @@ current build/deploy behavior.
   per-service Dockerfile).
 - [x] **BL-013** README "Container Builds" section + close-out artifacts (this report, retro,
   key-learnings, publication).
+- [x] **Post-implementation fix** Remediated two `llm-bot` processor tests that began failing with
+  Jest 5s timeouts (`history-redundancy.test.ts`, `processor.test.ts`). Root cause: awaited
+  best-effort Firestore reads hang without an emulator/credentials. Fixed at the source by bounding
+  those reads with a new `src/common/async-timeout.ts` `withTimeout` helper (env-overridable
+  `FIRESTORE_LOOKUP_TIMEOUT_MS`, default 2000ms) in `user-context.ts` and `processor.ts`; on timeout
+  the existing try/catch degrades gracefully. Specs made hermetic without weakening assertions.
 
 ## Verification performed
 - `extract-config.js` per service: every source-built service derives the exact `SERVICE_ENTRY`
@@ -43,6 +49,9 @@ current build/deploy behavior.
 - All 23 YAML files (architecture.yaml + cloudbuild.*.yaml + 15 compose) parse via `js-yaml`.
 - `npx jest infrastructure/scripts/bootstrap-service.test.js` → 8/8 pass.
 - `bash -n` clean for `infrastructure/deploy-cloud.sh` and `validate_deliverable.sh`.
+- Full Jest suite green after the timeout remediation: `npx jest` → 254 suites pass (1 pre-existing
+  skip), 834 tests pass (2 skip), 0 failures; `npx tsc --noEmit` clean; `npx jest llm-bot` 41/41
+  suites (run twice).
 
 ## Remaining / escape hatches (by design)
 - `Dockerfile.brat` retained: `brat` builds from `tools/` (excluded from the standard `src/`-only

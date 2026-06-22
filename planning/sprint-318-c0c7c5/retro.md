@@ -29,6 +29,15 @@ preserving build/deploy behavior.
 - **Wide blast radius.** Deleting per-service Dockerfiles required repointing 15 compose files,
   2 per-service Cloud Build configs, the generic Cloud Build default, and the bootstrap generator.
 
+## Post-implementation: test timeout remediation
+- After the migration, two `llm-bot` processor specs began failing on Jest's 5s timeout. The cause
+  was unrelated to the Dockerfile work: awaited best-effort Firestore reads in the request hot path
+  hang indefinitely without an emulator/credentials. Fixed at the source by bounding those reads
+  with a new `withTimeout` helper (`src/common/async-timeout.ts`, env-overridable
+  `FIRESTORE_LOOKUP_TIMEOUT_MS`) so a slow/unreachable Firestore degrades gracefully instead of
+  hanging — a genuine production robustness improvement, not a weakened assertion. Specs were also
+  made hermetic. Full suite is now green (254 suites / 834 tests, 0 failures).
+
 ## Environment limitation
 - No docker runtime here, so actual image build/boot/health-check was validated **logically** plus a
   real config-level dry-run; the docker steps in `validate_deliverable.sh` are present and intended

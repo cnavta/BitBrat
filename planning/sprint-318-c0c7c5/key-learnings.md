@@ -29,3 +29,8 @@
 8. **Migrations surface latent config drift.** This effort exposed a copy-pasted/missing `obs-mcp`
    `entry:` and a duplicate stream-analyst service with an implicit port — worth a periodic
    `architecture.yaml` lint.
+
+9. **Bound best-effort I/O in hot paths.** Awaited best-effort Firestore reads with no timeout hang
+   forever when the backing service is slow/unreachable (or unconfigured in tests), surfacing as
+   Jest 5s timeouts. A small `withTimeout` helper converts an unbounded hang into the existing
+   graceful-degradation path — fix flakes at the source, don't bump the test timeout.
