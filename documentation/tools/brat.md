@@ -33,27 +33,46 @@ npm run brat -- <command> [options]
 ### Setup & Interaction
 
 #### `brat setup`
-Interactive platform initialization. Guides you through configuring your GCP Project ID, OpenAI API Key, and Bot Name. It also bootstraps your local environment using Docker.
+Interactive platform initialization. Guides you through configuring your GCP Project ID, OpenAI API Key, and Bot Name.
 
 ```bash
 npm run brat -- setup [--project-id <id>] [--openai-key <key>] [--bot-name <name>]
 ```
 
+**What it does:**
+- **Configuration**: Generates `.bitbrat.json`, `.secure.local`, and `env/local/global.yaml`.
+- **Identity**: Sets up bot personalities and instructions in Firestore.
+- **Rules**: Bootstraps the Event Router with default rules for core platform stages.
+- **Security**: Creates an initial admin API token and stores its hash in Firestore.
+- **Local Persistence**: Sets up the local environment to use the Firestore emulator and other local services.
+
 #### `brat chat`
-Start an interactive chat session with your bot.
+Start an interactive chat session with your bot. This is the primary tool for testing rules and interactions locally.
 
 ```bash
-npm run brat -- chat [--env <name>] [--url <url>]
+npm run brat -- chat [--env <name>] [--url <url>] [--project-id <id>]
 ```
+
+**Features:**
+- **Auto-Discovery**: In `local` environment, the tool automatically discovers the API Gateway port by querying Docker.
+- **Authentication**: Requires an API token. It looks for `BITBRAT_API_TOKEN` environment variable or a `token` field in `.bitbrat.json` in the root directory.
+- **Interactive Commands**:
+    - `/help`: Show available terminal commands.
+    - `/clear`: Clear the terminal screen.
+    - `/exit` or `/quit`: End the chat session.
+
+---
 
 ### Diagnostics & Config
 
 #### `brat doctor`
-Run diagnostic checks to ensure required tools (`gcloud`, `terraform`, `docker`) are installed and accessible.
+Run diagnostic checks to ensure required tools (`gcloud`, `terraform`, `docker`) are installed and accessible. It also verifies your GCP authentication and project configuration.
 
 ```bash
 npm run brat -- doctor [--json] [--ci]
 ```
+- `--json`: Output the diagnostic report in JSON format.
+- `--ci`: Run in non-interactive mode suitable for CI pipelines.
 
 #### `brat config show`
 Display the resolved platform configuration, including merged environment overlays.
@@ -86,8 +105,11 @@ npm run brat -- service bootstrap --name <name> [--mcp] [--force]
 Deploy all services defined in `architecture.yaml` to the specified environment.
 
 ```bash
-npm run brat -- deploy services --all --env <name> [--concurrency N]
+npm run brat -- deploy services --all --env <name> [--concurrency N] [--force]
 ```
+- `--env`: Target environment (`local`, `dev`, `prod`).
+- `--concurrency`: Number of simultaneous deployments (default: 3).
+- `--force`: Ignore some safety checks during deployment.
 
 #### `brat deploy service <name>`
 Deploy a specific service.
