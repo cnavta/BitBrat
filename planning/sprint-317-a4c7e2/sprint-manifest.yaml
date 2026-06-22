@@ -1,0 +1,15 @@
+id: sprint-317-a4c7e2
+title: "!lurk Tutorial Part 2 — Routing, Prompts & Personalities"
+goal: "Extend the !lurk tutorial series with a Part 2 that introduces routing to the llm-bot, prompt annotations, and personalities."
+owner: "Junie"
+createdAt: "2026-06-22T17:09:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-317-a4c7e2-lurk-tutorial-part-2"
+  pr: "https://github.com/cnavta/BitBrat/pull/new/feature/sprint-317-a4c7e2-lurk-tutorial-part-2" # manual creation required (no gh/GITHUB_TOKEN)
+notes: |
+  Documentation-only sprint (lead technical writer role). Part 2 continues exactly where
+  documentation/tutorials/lurk-command.md ends. It routes the !lurk event to the llm-bot,
+  replaces the static candidate enrichments with a prompt annotation
+  ("Generate a random lurk response for ${user.displayName}"), tests with the default
+  personality, then introduces the /personalities collection and a personality attribution.
