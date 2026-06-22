@@ -6,3 +6,5 @@ notes: |
   PR created with `gh pr create` (Rule S12/S13). Implementation commit 9b7af88.
   Post-implementation timeout remediation (REQ-004) committed to the same branch and pushed,
   updating PR #236. Sprint closed (manifest status: complete) per Rule S2 / section 2.9.
+  Post-close remote-deploy hotfixes (REQ-005: firebase-emulator base-image build + firestore.rules/
+  firestore.indexes.json remote sync) committed to the same branch and pushed, updating PR #236.

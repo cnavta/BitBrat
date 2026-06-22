@@ -38,6 +38,13 @@ current build/deploy behavior.
   those reads with a new `src/common/async-timeout.ts` `withTimeout` helper (env-overridable
   `FIRESTORE_LOOKUP_TIMEOUT_MS`, default 2000ms) in `user-context.ts` and `processor.ts`; on timeout
   the existing try/catch degrades gracefully. Specs made hermetic without weakening assertions.
+- [x] **Post-close hotfix (REQ-005)** Remote `brat` deploys failed twice on the firebase-emulator:
+  (1) `No such image: bitbratplatform-firebase-emulator:latest` — the base-compose `firebase-emulator`
+  (own `build:`) was never built because the remote path built only per-service compose services then
+  ran `up --no-build`; fixed by `ComposeFactory.getBuildableBaseServices()` + prepending those base
+  build services in `orchestrator.ts`. (2) `cp: cannot stat '/workspace/firestore.rules'` — the remote
+  sync omitted `firestore.rules`/`firestore.indexes.json` referenced by `firebase.json`; added both to
+  `filesToSync`. New specs: `compose-factory.spec.ts`, `orchestrator.sync.spec.ts`.
 
 ## Verification performed
 - `extract-config.js` per service: every source-built service derives the exact `SERVICE_ENTRY`
@@ -52,6 +59,8 @@ current build/deploy behavior.
 - Full Jest suite green after the timeout remediation: `npx jest` → 254 suites pass (1 pre-existing
   skip), 834 tests pass (2 skip), 0 failures; `npx tsc --noEmit` clean; `npx jest llm-bot` 41/41
   suites (run twice).
+- Post-close hotfix (REQ-005): `npx tsc -p tsconfig.json` clean (exit 0); `npx jest tools/brat`
+  → 37 suites / 116 tests pass (incl. the two new specs); `dist` recompiled.
 
 ## Remaining / escape hatches (by design)
 - `Dockerfile.brat` retained: `brat` builds from `tools/` (excluded from the standard `src/`-only
