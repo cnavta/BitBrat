@@ -1,7 +1,21 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build llm-bot image'
-    args: ['build', '-t', '${_IMAGE}', '-f', 'Dockerfile.llm-bot', '.']
+    # Pilot (sprint-318): build llm-bot from the reusable Dockerfile.service via --build-args
+    # instead of the former per-service Dockerfile.llm-bot.
+    args:
+      - 'build'
+      - '-t'
+      - '${_IMAGE}'
+      - '-f'
+      - '${_DOCKERFILE}'
+      - '--build-arg'
+      - 'SERVICE_NAME=${_SERVICE_NAME}'
+      - '--build-arg'
+      - 'SERVICE_ENTRY=${_SERVICE_ENTRY}'
+      - '--build-arg'
+      - 'SERVICE_PORT=${_PORT}'
+      - '.'
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Push llm-bot image'
@@ -29,6 +43,12 @@ steps:
 substitutions:
   _REGION: us-central1
   _IMAGE: us-central1-docker.pkg.dev/$PROJECT_ID/bitbrat/llm-bot:${SHORT_SHA}
+  # Reusable standard service Dockerfile + derived build args (architecture.yaml entry:
+  # src/apps/llm-bot-service.ts -> dist/apps/llm-bot-service.js).
+  _DOCKERFILE: Dockerfile.service
+  _SERVICE_NAME: llm-bot
+  _SERVICE_ENTRY: dist/apps/llm-bot-service.js
+  _PORT: '3000'
   _MESSAGE_BUS_DRIVER: pubsub
   _OPENAI_MODEL: gpt-5-mini
   _OPENAI_TIMEOUT_MS: '30000'

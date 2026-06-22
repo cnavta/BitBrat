@@ -4,7 +4,11 @@ services:
       - .env.brat
     build:
       context: .
-      dockerfile: Dockerfile.scheduler
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: scheduler
+        SERVICE_ENTRY: dist/apps/scheduler-service.js
+        SERVICE_PORT: "3000"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}

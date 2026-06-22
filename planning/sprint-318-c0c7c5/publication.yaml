@@ -1,0 +1,7 @@
+pr_url: pending
+branch: feature/sprint-318-c0c7c5-reusable-service-dockerfile
+base: main
+status: pending
+notes: |
+  PR will be created with `gh pr create` after the implementation commit is pushed.
+  This file is updated with the resulting URL (Rule S13).

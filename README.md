@@ -10,7 +10,7 @@
 > These both could be fairly easily updated to support additional options, I have just not focused on them specifically in favor of learning and exploring AI agent orchestration.
 
 <p align="center">
-  <img src="./assets/BitBrat.png" alt="Description of Image" width="300"/>
+  <img src="./assets/assets/BitBrat.png" alt="Description of Image" width="300"/>
 </p>
 
 BitBrat Platform is an LLM-powered event orchestration and execution engine currently designed for streamers, though it can easily be adapted for a wide range of use cases. It bridges external event sources (like Twitch, Kick, Discord, and Twilio) with internal processing logic and AI-driven reactions.
@@ -128,6 +128,31 @@ See the [`brat chat` documentation](./documentation/tools/brat.md#brat-chat) for
 npm run build   # Compile the TypeScript project
 npm test        # Run the test suite
 ```
+
+### Container Builds
+
+All standard services are built from a single, reusable **`Dockerfile.service`** at the repo root.
+Per-service behavior is supplied as build arguments derived from `architecture.yaml` — there is no
+per-service Dockerfile to maintain:
+
+- `SERVICE_NAME` — the service key in `architecture.yaml`.
+- `SERVICE_PORT` — `services.<name>.port` (defaults to `3000`).
+- `SERVICE_ENTRY` — `services.<name>.entry` mapped from `src/<x>.ts` to `dist/<x>.js`.
+
+```bash
+docker build -f Dockerfile.service \
+  --build-arg SERVICE_NAME=llm-bot \
+  --build-arg SERVICE_ENTRY=dist/apps/llm-bot-service.js \
+  --build-arg SERVICE_PORT=3000 \
+  -t llm-bot:latest .
+```
+
+The deploy tooling (`infrastructure/deploy-cloud.sh`, Cloud Build, and local Compose) wires these
+arguments automatically. **Escape hatch:** a service may still ship its own `Dockerfile.<service>`
+when it needs something the standard image cannot express (extra OS packages, a different base
+image, a non-`src/` build layout, or a prebuilt `image:`); when present, that file takes precedence.
+See [Reusable Standard Service Dockerfile](./documentation/technical-architecture/reusable-service-dockerfile.md)
+and the [usage guide](./documentation/technical-architecture/standard-service-dockerfile-usage.md).
 
 ## Management CLI (brat)
 

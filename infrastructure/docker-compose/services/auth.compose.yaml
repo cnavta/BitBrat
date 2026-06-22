@@ -4,7 +4,11 @@ services:
       - .env.brat
     build:
       context: .
-      dockerfile: Dockerfile.auth
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: auth
+        SERVICE_ENTRY: dist/apps/auth-service.js
+        SERVICE_PORT: "3000"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}

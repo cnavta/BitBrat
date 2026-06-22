@@ -35,7 +35,7 @@ set -euo pipefail
 #   --repo-name <NAME>           Artifact Registry repo name (default: bitbrat-services)
 #   --cb-config <PATH>           Cloud Build config file (default: cloudbuild.oauth-flow.yaml)
 #   --cb-dry-run <true|false>    Pass-through for _DRY_RUN substitution in Cloud Build (default: true)
-#   --dockerfile <PATH>          Dockerfile to use for build (default: Dockerfile.<service> if present, else Dockerfile.oauth-flow)
+#   --dockerfile <PATH>          Dockerfile to use for build (default: Dockerfile.<service> if present, else the shared Dockerfile.service)
 #   --env <NAME>                 Environment folder under env/ to load variables from (default: prod or $BITBRAT_ENV)
 #   --max-concurrency <N>        Max concurrent service builds/deploys in multi-service mode (default from architecture.yaml)
 #   -h|--help                    Show this help
@@ -323,8 +323,9 @@ if [[ "$MULTI_MODE" == true ]]; then
       local cpu="$1"; shift
       local mem="$1"; shift
       local allow_unauth="$1"; shift
+      local service_entry="$1"; shift
 
-      local subs="_SERVICE_NAME=$svc,_REGION=$region,_REPO_NAME=$REPO_NAME,_DRY_RUN=false,_TAG=$build_tag,_PORT=$port,_MIN_INSTANCES=$min_i,_MAX_INSTANCES=$max_i,_CPU=$cpu,_MEMORY=$mem,_ALLOW_UNAUTH=$allow_unauth,_SECRET_SET_ARG=$secret_set_arg,_ENV_VARS_ARG=$env_kv,_DOCKERFILE=$dockerfile,_BILLING=instance,_GRUMBLE=tank"
+      local subs="_SERVICE_NAME=$svc,_REGION=$region,_REPO_NAME=$REPO_NAME,_DRY_RUN=false,_TAG=$build_tag,_PORT=$port,_MIN_INSTANCES=$min_i,_MAX_INSTANCES=$max_i,_CPU=$cpu,_MEMORY=$mem,_ALLOW_UNAUTH=$allow_unauth,_SECRET_SET_ARG=$secret_set_arg,_ENV_VARS_ARG=$env_kv,_DOCKERFILE=$dockerfile,_SERVICE_ENTRY=$service_entry,_BILLING=instance,_GRUMBLE=tank"
       gcloud builds submit --project "$PROJECT_ID" --config "$CB_CONFIG" \
         --substitutions="$subs" \
         .
@@ -422,12 +423,13 @@ if [[ "$MULTI_MODE" == true ]]; then
       local cpu="$1"; shift
       local mem="$1"; shift
       local allow_unauth="$1"; shift
+      local service_entry="$1"; shift
       local log_file="$LOG_DIR/${svc}.log"
       # Immediate console feedback for user
       echo "[deploy-cloud][$svc] ▶️  build+deploy started (logs: $log_file)\n"
       (
         echo "[deploy-cloud][$svc] starting build+deploy...\n"
-        run_one_service_cb "$svc" "$dockerfile" "$env_kv" "$secret_set_arg" "$build_tag" "$region" "$port" "$min_i" "$max_i" "$cpu" "$mem" "$allow_unauth"
+        run_one_service_cb "$svc" "$dockerfile" "$env_kv" "$secret_set_arg" "$build_tag" "$region" "$port" "$min_i" "$max_i" "$cpu" "$mem" "$allow_unauth" "$service_entry"
       ) >"$log_file" 2>&1 &
       PIDS+=("$!")
       NAMES+=("$svc")
@@ -560,7 +562,11 @@ if [[ "$MULTI_MODE" == true ]]; then
     if [[ -n "$ENV_KV_LOCAL" && -n "$SECRET_SET_ARG_LOCAL" ]]; then
       ENV_KV_LOCAL="$(filter_env_kv_excluding_secret_keys "$ENV_KV_LOCAL" "$SECRET_SET_ARG_LOCAL")"
     fi
-    # Determine Dockerfile for service
+    # Determine Dockerfile for service.
+    # Resolution order (architecture doc §3.4):
+    #   1. A per-service Dockerfile.<service> (or kebab variant) acts as an explicit override.
+    #   2. Otherwise fall back to the reusable Dockerfile.service driven by --build-args.
+    SERVICE_ENTRY_LOCAL="${CFG_SERVICE_ENTRY:-}"
     DOCKERFILE_LOCAL="Dockerfile.${svc}"
     if [[ ! -f "$DOCKERFILE_LOCAL" ]]; then
       # try kebab-case filename
@@ -568,20 +574,33 @@ if [[ "$MULTI_MODE" == true ]]; then
       DOCKERFILE_LOCAL="Dockerfile.${svc_kebab}"
     fi
     if [[ ! -f "$DOCKERFILE_LOCAL" ]]; then
-      echo "[deploy-cloud] WARN: Dockerfile not found for '$svc' (expected Dockerfile.$svc or Dockerfile.$svc_kebab). Skipping." >&2
-      continue
+      if [[ -f "Dockerfile.service" ]]; then
+        DOCKERFILE_LOCAL="Dockerfile.service"
+        echo "[deploy-cloud][$svc] No per-service Dockerfile; using shared Dockerfile.service (SERVICE_ENTRY=${SERVICE_ENTRY_LOCAL:-<empty>})."
+      else
+        echo "[deploy-cloud] WARN: Dockerfile not found for '$svc' (expected Dockerfile.$svc or Dockerfile.$svc_kebab) and Dockerfile.service is missing. Skipping." >&2
+        continue
+      fi
+    fi
+    # Fail-fast: the shared Dockerfile.service needs a non-empty SERVICE_ENTRY (architecture doc §7).
+    if [[ "$DOCKERFILE_LOCAL" == "Dockerfile.service" && -z "$SERVICE_ENTRY_LOCAL" ]]; then
+      echo "[deploy-cloud][$svc] ERROR: SERVICE_ENTRY could not be derived from architecture.yaml (services.$svc.entry). Add an 'entry:' or ship a Dockerfile.$svc override." >&2
+      if [[ "$APPLY" == true && "$DRY_RUN" == false ]]; then
+        FAILED+=("$svc:entry")
+        continue
+      fi
     fi
     if [[ "$APPLY" == true && "$DRY_RUN" == false ]]; then
       if [[ "$BLOCK_DEPLOY_LOCAL" == 1 ]]; then
         echo "[deploy-cloud][$svc] Skipping deploy due to missing required env keys."
       else
-        start_job "$svc" "$DOCKERFILE_LOCAL" "$ENV_KV_LOCAL" "$SECRET_SET_ARG_LOCAL" "$BUILD_TAG" "$REGION" "${CFG_PORT}" "${CFG_MIN_INSTANCES}" "${CFG_MAX_INSTANCES}" "${CFG_CPU}" "${CFG_MEMORY}" "${CFG_ALLOW_UNAUTH}"
+        start_job "$svc" "$DOCKERFILE_LOCAL" "$ENV_KV_LOCAL" "$SECRET_SET_ARG_LOCAL" "$BUILD_TAG" "$REGION" "${CFG_PORT}" "${CFG_MIN_INSTANCES}" "${CFG_MAX_INSTANCES}" "${CFG_CPU}" "${CFG_MEMORY}" "${CFG_ALLOW_UNAUTH}" "${SERVICE_ENTRY_LOCAL}"
       fi
       while [[ ${#PIDS[@]} -ge $MAX_CONCURRENCY ]]; do
         wait_one
       done
     else
-      log "(dry-run/plan) Would build and deploy '$svc' with: dockerfile=$DOCKERFILE_LOCAL, region=$REGION, port=${CFG_PORT}, min=${CFG_MIN_INSTANCES}, max=${CFG_MAX_INSTANCES}, cpu=${CFG_CPU}, memory=${CFG_MEMORY}, allowUnauth=${CFG_ALLOW_UNAUTH}"
+      log "(dry-run/plan) Would build and deploy '$svc' with: dockerfile=$DOCKERFILE_LOCAL, service_entry=${SERVICE_ENTRY_LOCAL:-<n/a>}, region=$REGION, port=${CFG_PORT}, min=${CFG_MIN_INSTANCES}, max=${CFG_MAX_INSTANCES}, cpu=${CFG_CPU}, memory=${CFG_MEMORY}, allowUnauth=${CFG_ALLOW_UNAUTH}"
     fi
   done <<< "$SERVICES"
 
@@ -708,24 +727,39 @@ if [[ "$DO_BUILD" == true ]]; then
     fi
   fi
   log "Using image tag: ${BUILD_TAG}"
+  # Compiled entry path for the reusable Dockerfile.service (derived from architecture.yaml).
+  SERVICE_ENTRY="${CFG_SERVICE_ENTRY:-}"
+  # Dockerfile resolution order (architecture doc §3.4):
+  #   1. An explicit --dockerfile flag wins.
+  #   2. A per-service Dockerfile.<service> acts as an override.
+  #   3. Otherwise fall back to the reusable Dockerfile.service driven by --build-args.
   if [[ -z "$DOCKERFILE" ]]; then
     CANDIDATE="Dockerfile.${SERVICE_NAME}"
     # normalize candidate by replacing spaces (unlikely) with hyphens
     CANDIDATE="${CANDIDATE// /-}"
     if [[ -f "$CANDIDATE" ]]; then
       DOCKERFILE="$CANDIDATE"
+    elif [[ -f "Dockerfile.service" ]]; then
+      DOCKERFILE="Dockerfile.service"
+      log "No per-service Dockerfile for '${SERVICE_NAME}'; using shared Dockerfile.service (SERVICE_ENTRY=${SERVICE_ENTRY:-<empty>})."
     else
-      DOCKERFILE="Dockerfile.oauth-flow"
+      echo "ERROR: No Dockerfile.${SERVICE_NAME} and no shared Dockerfile.service found; cannot build '${SERVICE_NAME}'." >&2
+      exit 1
     fi
   fi
   log "Using Dockerfile: ${DOCKERFILE}"
+  # Fail-fast: the shared Dockerfile.service needs a non-empty SERVICE_ENTRY (architecture doc §7).
+  if [[ "$DOCKERFILE" == "Dockerfile.service" && -z "$SERVICE_ENTRY" ]]; then
+    echo "ERROR: SERVICE_ENTRY could not be derived from architecture.yaml (services.${SERVICE_NAME}.entry). Add an 'entry:' or ship a Dockerfile.${SERVICE_NAME} override, or pass --dockerfile." >&2
+    exit 1
+  fi
   if [[ -n "${SECRET_SET_ARG:-}" ]]; then
     log "[secrets][single] Cloud Build _SECRET_SET_ARG: ${SECRET_SET_ARG}"
   else
     log "[secrets][single] Cloud Build _SECRET_SET_ARG: <empty>"
   fi
   gcloud builds submit --project "$PROJECT_ID" --config "$CB_CONFIG" \
-    --substitutions _SERVICE_NAME="$SERVICE_NAME",_REGION="$REGION",_REPO_NAME="$REPO_NAME",_DRY_RUN="$CB_DRY_RUN",_TAG="$BUILD_TAG",_PORT="${PORT}",_MIN_INSTANCES="${MIN_INSTANCES}",_MAX_INSTANCES="${MAX_INSTANCES}",_CPU="${CPU}",_MEMORY="${MEMORY}",_ALLOW_UNAUTH="${ALLOW_UNAUTH}",_SECRET_SET_ARG="${SECRET_SET_ARG}",_DOCKERFILE="${DOCKERFILE}",_BILLING=instance \
+    --substitutions _SERVICE_NAME="$SERVICE_NAME",_REGION="$REGION",_REPO_NAME="$REPO_NAME",_DRY_RUN="$CB_DRY_RUN",_TAG="$BUILD_TAG",_PORT="${PORT}",_MIN_INSTANCES="${MIN_INSTANCES}",_MAX_INSTANCES="${MAX_INSTANCES}",_CPU="${CPU}",_MEMORY="${MEMORY}",_ALLOW_UNAUTH="${ALLOW_UNAUTH}",_SECRET_SET_ARG="${SECRET_SET_ARG}",_DOCKERFILE="${DOCKERFILE}",_SERVICE_ENTRY="${SERVICE_ENTRY}",_BILLING=instance \
     .
 fi
 

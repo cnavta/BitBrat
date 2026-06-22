@@ -9,7 +9,14 @@ substitutions:
   # Flags commonly provided by caller; set safe defaults
   _ALLOW_UNAUTH: 'false'
   _DRY_RUN: 'false'
-  _DOCKERFILE: 'Dockerfile.oauth-flow'
+  # Default to the reusable standard service Dockerfile; deploy-cloud.sh overrides _DOCKERFILE
+  # per service (a present Dockerfile.<service> wins). Per-service Dockerfile.oauth-flow was
+  # removed in sprint-318 (oauth-flow now builds from Dockerfile.service).
+  _DOCKERFILE: 'Dockerfile.service'
+  # Compiled entry path forwarded to the reusable Dockerfile.service as SERVICE_ENTRY
+  # (derived from architecture.yaml by deploy-cloud.sh / extract-config.js). Ignored by
+  # per-service Dockerfiles that hardcode their CMD.
+  _SERVICE_ENTRY: ''
   # Billing mode for Cloud Run (display/logging). Default to instance to match architecture.yaml
   _BILLING: 'instance'
 steps:
@@ -27,6 +34,14 @@ steps:
       - 'build'
       - '-f'
       - '${_DOCKERFILE}'
+      # Build args consumed by the reusable Dockerfile.service; harmless for per-service
+      # Dockerfiles that do not declare these ARGs.
+      - '--build-arg'
+      - 'SERVICE_NAME=${_SERVICE_NAME}'
+      - '--build-arg'
+      - 'SERVICE_ENTRY=${_SERVICE_ENTRY}'
+      - '--build-arg'
+      - 'SERVICE_PORT=${_PORT}'
       - '-t'
       - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${_TAG}'
       - '-t'
