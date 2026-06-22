@@ -1,0 +1,11 @@
+branch: "feature/sprint-317-a4c7e2-lurk-tutorial-part-2"
+pushed: true
+remote: "git@github.com:cnavta/BitBrat.git"
+status: "failed"
+error: "GitHub CLI (gh) not installed and GITHUB_TOKEN not set; automatic PR creation (CLI + API) unavailable."
+manual_pr_url: "https://github.com/cnavta/BitBrat/pull/new/feature/sprint-317-a4c7e2-lurk-tutorial-part-2"
+notes: |
+  The feature branch was committed and pushed to origin successfully.
+  Per Rule S13, the failed auto-PR attempt is logged; please open the PR manually
+  using the URL above (base: main). Suggested title:
+  "Sprint 317 Deliverables – !lurk Tutorial Part 2 (routing, prompts, personalities)".
