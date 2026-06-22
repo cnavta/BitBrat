@@ -3,10 +3,10 @@ title: "Reusable Standard Service Dockerfile"
 goal: "Replace the dockerfile-per-service strategy with a single reusable, parametrized standard service Dockerfile (and template) used by all Node/TypeScript services wherever possible, eliminating duplication while preserving current build/deploy behavior."
 owner: "Junie (DevOps Architect)"
 createdAt: "2026-06-22T17:36:00Z"
-status: "in-progress"
+status: "published"
 links:
   branch: "feature/sprint-318-c0c7c5-reusable-service-dockerfile"
-  pr: "" # to be created at sprint completion (Rule S12/S13)
+  pr: "https://github.com/cnavta/BitBrat/pull/236"
 notes: |
   DevOps Architect role. The repository currently maintains 18 root-level Dockerfile.<service>
   files (15 "standard" + 3 "legacy"). Most follow a near-identical multi-stage "standard" pattern (node:24-bookworm-slim,
