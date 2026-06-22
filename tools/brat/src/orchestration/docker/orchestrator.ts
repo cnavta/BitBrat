@@ -45,13 +45,20 @@ export class DockerOrchestrator {
       
       const services = serviceFiles.map(f => path.basename(f, '.compose.yaml'));
 
+      // Base-file services with their own `build:` (e.g. firebase-emulator) are NOT part of
+      // the per-service compose set, so `docker compose build <service>` never builds them.
+      // On remote targets we run `up --no-build`, so they must be built explicitly here;
+      // otherwise the remote `up` fails with "No such image" (e.g. bitbratplatform-firebase-emulator).
+      const baseBuildServices = this.composeFactory.getBuildableBaseServices();
+      const buildServices = [...baseBuildServices, ...services.filter(s => !baseBuildServices.includes(s))];
+
       if (isRemote) {
-        console.log(`[brat] Remote target detected. Building and deploying ${services.length} services...`);
+        console.log(`[brat] Remote target detected. Building and deploying ${buildServices.length} services...`);
         
         // Build services sequentially or in small batches for SSH targets to avoid connection resets.
         // We use the target's maxConcurrent for batching.
-        for (let i = 0; i < services.length; i += maxConcurrent) {
-          const batch = services.slice(i, i + maxConcurrent);
+        for (let i = 0; i < buildServices.length; i += maxConcurrent) {
+          const batch = buildServices.slice(i, i + maxConcurrent);
           console.log(`[brat] Building batch: ${batch.join(', ')}`);
           await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
         }
@@ -179,12 +186,19 @@ export class DockerOrchestrator {
 
     // Sync essential files for Docker Compose
     // We sync infrastructure/docker-compose, .env.brat, and other config files
+    // NOTE: firebase.json references firestore.rules and firestore.indexes.json
+    // (see its `firestore` block). The firebase-emulator bootstrap copies both
+    // firebase.json and firestore.rules from the mounted /workspace, so all three
+    // must be synced to the remote; otherwise the emulator fails on startup with
+    // `cp: cannot stat '/workspace/firestore.rules': No such file or directory`.
     const filesToSync = [
       'infrastructure/docker-compose',
       '.env.brat',
       'dummy-creds.json',
       'architecture.yaml',
-      'firebase.json'
+      'firebase.json',
+      'firestore.rules',
+      'firestore.indexes.json'
     ].filter(file => fs.existsSync(path.join(this.options.repoRoot, file)));
 
     if (filesToSync.length === 0) return;

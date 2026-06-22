@@ -124,3 +124,37 @@ Role: DevOps Architect
   - Full test suite is green after the fix (previously 2 failed). No tests were skipped, disabled,
     or weakened to force a pass.
   - User said "Sprint complete." → manifest flipped to `complete` (Rule S2 / §2.9).
+
+---
+
+## REQ-005 — Post-close remote-deploy hotfixes (firebase-emulator) & finalize
+- **Timestamp:** 2026-06-22T19:32:00Z
+- **Role:** DevOps Architect
+- **Prompt summary:** After closing sprint-318, remote `brat` deploys surfaced two firebase-emulator
+  failures: (1) `No such image: bitbratplatform-firebase-emulator:latest` (image never built), and
+  (2) `cp: cannot stat '/workspace/firestore.rules': No such file or directory` on emulator startup.
+  Both fixed as direct hotfixes on the same branch/PR. Then: "Sprint complete." (finalize).
+- **Interpretation:** These are follow-ups to the sprint-318 Dockerfile/deploy migration (same
+  branch `feature/sprint-318-...`, same PR #236), not a new sprint (user never said "Start sprint").
+  "Sprint complete." → finalize: document, commit, and push the hotfixes to PR #236.
+- **Root causes:**
+  1. `firebase-emulator` is declared in the **base** compose file (`docker-compose.local.yaml`) with
+     its own `build:`; the remote path built only per-service compose services then ran
+     `up --no-build`, and `docker compose build <service>` does not build base-file/`depends_on` deps,
+     so the emulator image was never built.
+  2. `brat`'s remote sync (`syncRemoteFiles`) synced `firebase.json` but not the `firestore.rules` /
+     `firestore.indexes.json` it references, so the emulator bootstrap's `cp` failed.
+- **Shell/git commands executed:**
+  - `npx tsc -p tsconfig.json` (clean), `npx jest tools/brat` (37 suites / 116 tests pass).
+- **Files created/modified:**
+  - `tools/brat/src/orchestration/docker/compose-factory.ts`: added `getBuildableBaseServices()`
+    (parses base compose via `js-yaml`, returns base services with a `build:` block).
+  - `tools/brat/src/orchestration/docker/orchestrator.ts`: remote branch now prepends base build
+    services (deduped) before `up --no-build`; added `firestore.rules` + `firestore.indexes.json`
+    to `filesToSync` (guarded by `fs.existsSync`).
+  - Added specs: `compose-factory.spec.ts` (3 cases), `orchestrator.sync.spec.ts` (rsync includes
+    the firestore files). Recompiled `dist`.
+- **Notes / findings:**
+  - No docker runtime here → end-to-end remote build/sync/startup validated logically + via the new
+    unit tests (AGENTS.md §2.6), consistent with the rest of sprint-318.
+  - Sprint-318 was already `complete`; these are documented post-close hotfixes on the same PR.

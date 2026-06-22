@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import yaml from 'js-yaml';
 
 export interface ComposeFileSet {
   baseFile: string;
@@ -38,6 +39,36 @@ export class ComposeFactory {
     }
 
     return { baseFile, serviceFiles };
+  }
+
+  /**
+   * Returns the names of services declared in the base compose file that have a
+   * `build:` section (and therefore must be built locally), e.g. `firebase-emulator`.
+   *
+   * These services live in the base file rather than in `services/*.compose.yaml`,
+   * so they are NOT part of the per-service build set derived from `getComposeFiles`.
+   * On remote targets the orchestrator builds services explicitly and then runs
+   * `up --no-build`; without this, base-file build services are never built and the
+   * remote `up` fails with "No such image" (e.g. bitbratplatform-firebase-emulator).
+   */
+  public getBuildableBaseServices(): string[] {
+    const fullBasePath = path.join(this.repoRoot, this.baseComposePath);
+    if (!fs.existsSync(fullBasePath)) return [];
+
+    let doc: any;
+    try {
+      doc = yaml.load(fs.readFileSync(fullBasePath, 'utf8'));
+    } catch {
+      return [];
+    }
+
+    const services = doc?.services;
+    if (!services || typeof services !== 'object') return [];
+
+    return Object.keys(services).filter((name) => {
+      const svc = services[name];
+      return svc && typeof svc === 'object' && svc.build != null;
+    });
   }
 
   public buildComposeArgs(fileSet: ComposeFileSet, envFiles: string[]): string[] {
