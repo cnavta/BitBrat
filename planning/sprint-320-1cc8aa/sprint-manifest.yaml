@@ -6,7 +6,7 @@ createdAt: "2026-06-23T16:23:00Z"
 status: "complete"
 links:
   branch: "feature/sprint-320-1cc8aa-image-gen-prompt-logging"
-  pr: ""
+  pr: "https://github.com/cnavta/BitBrat/pull/240"
 notes: |
   Architect role. First task of the sprint is to author a Technical Architecture document
   describing how to add prompt logging to image-gen-mcp, mirroring the existing llm-bot and
