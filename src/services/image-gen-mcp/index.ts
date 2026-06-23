@@ -3,6 +3,7 @@ import { McpServer } from '../../common/mcp-server';
 import { experimental_generateImage as generateImage } from 'ai';
 import { getLlmProvider } from '../../common/llm/provider-factory';
 import { StorageManager } from '../../common/resources/storage-manager';
+import { retryAsync, isTransientError } from '../../common/retry';
 import type { Storage } from '@google-cloud/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
@@ -99,14 +100,24 @@ export class ImageGenMcpServer extends McpServer {
           }
 
           // 2. Image Generation (BL-003)
+          // Default to OpenAI's current image model (gpt-image-1). DALL-E 3 is being
+          // decommissioned and the OpenAI image endpoint now rejects the `response_format`
+          // parameter that the AI SDK forces for non-gpt-image models, surfacing as
+          // "Unknown parameter: 'response_format'.". The model is overridable via config.
+          const model = this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' });
           const provider = getLlmProvider({
             provider: 'openai',
-            model: 'dall-e-3',
+            model,
             apiKey,
           });
 
-          // Map aspectRatio to size for DALL-E 3 (AI SDK requirement)
-          const size = aspectRatio === '16:9' ? '1792x1024' : (aspectRatio === '9:16' ? '1024x1792' : '1024x1024');
+          // Map aspectRatio to a model-appropriate size (AI SDK requirement).
+          // gpt-image-* supports 1024x1024 / 1536x1024 / 1024x1536; DALL-E 3 supports
+          // 1024x1024 / 1792x1024 / 1024x1792.
+          const isGptImage = model.startsWith('gpt-image');
+          const landscape = isGptImage ? '1536x1024' : '1792x1024';
+          const portrait = isGptImage ? '1024x1536' : '1024x1792';
+          const size = aspectRatio === '16:9' ? landscape : (aspectRatio === '9:16' ? portrait : '1024x1024');
 
           const genResult = await generateImage({
             model: provider as any,
@@ -127,18 +138,51 @@ export class ImageGenMcpServer extends McpServer {
           const bucket = storage.bucket(bucketName);
           const file = bucket.file(fileName);
 
-          // Upload the image data
+          // Resolve the image bytes once so retries don't re-encode.
+          let imageBuffer: Buffer;
           if (genResult.image.base64) {
-            await file.save(Buffer.from(genResult.image.base64, 'base64'), {
-              metadata: { contentType: 'image/png' },
-            });
+            imageBuffer = Buffer.from(genResult.image.base64, 'base64');
           } else if (genResult.image.uint8Array) {
-            await file.save(Buffer.from(genResult.image.uint8Array), {
-              metadata: { contentType: 'image/png' },
-            });
+            imageBuffer = Buffer.from(genResult.image.uint8Array);
           } else {
             throw new Error('No image data returned from generation');
           }
+
+          // Upload the image data. Wrap the save in a backoff retry: ADC token fetches
+          // against https://www.googleapis.com/oauth2/v4/token intermittently fail with a
+          // transient "Premature close" / "socket hang up", which would otherwise surface
+          // as a hard persistence failure. Only transient network errors are retried.
+          //
+          // `resumable: false` forces a simple (all-or-nothing) multipart upload. This is the
+          // recommended path for small payloads like a single generated image, and — critically —
+          // it avoids the resumable-upload code path, which attaches an `abort-controller`
+          // (node polyfill) `signal` to the request. Because the Storage auth transport is now
+          // pinned to undici (global `fetch`) to dodge node-fetch's "Premature close" token bug,
+          // that foreign signal is rejected by undici with:
+          //   RequestInit: Expected signal ("AbortSignal {}") to be an instance of AbortSignal.
+          // The simple upload sets no signal, so it round-trips cleanly through undici.
+          await retryAsync(
+            () =>
+              file.save(imageBuffer, {
+                resumable: false,
+                metadata: { contentType: 'image/png' },
+              }),
+            {
+              attempts: 4,
+              baseDelayMs: 250,
+              maxDelayMs: 4000,
+              shouldRetry: (err, attempt) => {
+                const transient = isTransientError(err);
+                if (transient) {
+                  this.getLogger().warn('GCS upload failed with transient error; retrying', {
+                    attempt,
+                    error: err?.message,
+                  });
+                }
+                return transient;
+              },
+            },
+          );
 
           const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
           

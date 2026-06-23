@@ -1,4 +1,4 @@
-import { withBackoff } from './retry';
+import { withBackoff, isTransientError } from './retry';
 
 // Make timers deterministic per-test and restore afterwards to avoid leaking fake timers across suites
 afterEach(() => {
@@ -51,5 +51,24 @@ describe('withBackoff', () => {
 
     await expectation;
     expect(attempts).toBe(3);
+  });
+});
+
+describe('isTransientError', () => {
+  it('classifies Google OAuth2 token "Premature close" failures as transient', () => {
+    const err = new Error(
+      'Invalid response body while trying to fetch https://www.googleapis.com/oauth2/v4/token: Premature close',
+    );
+    expect(isTransientError(err)).toBe(true);
+  });
+
+  it('classifies socket hang up and ERR_STREAM_PREMATURE_CLOSE as transient', () => {
+    expect(isTransientError(new Error('socket hang up'))).toBe(true);
+    expect(isTransientError({ code: 'ERR_STREAM_PREMATURE_CLOSE' })).toBe(true);
+  });
+
+  it('does not classify ordinary 4xx/validation errors as transient', () => {
+    expect(isTransientError({ status: 400, message: 'Bad Request' })).toBe(false);
+    expect(isTransientError(new Error('Unknown parameter: response_format'))).toBe(false);
   });
 });
