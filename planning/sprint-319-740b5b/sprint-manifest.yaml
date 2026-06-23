@@ -3,10 +3,10 @@ title: "Firestore Config Backup & Restore (brat backup export/import)"
 goal: "Introduce a new `brat backup` command that exports and imports JSON backups of the platform's core configuration Firestore collections (excluding events and other log-based collections), so the core configuration of one platform instance can be transferred to a blank instance."
 owner: "Junie (Architect)"
 createdAt: "2026-06-22T19:39:00Z"
-status: "in-progress"
+status: "published"
 links:
   branch: "feature/sprint-319-740b5b-firestore-config-backup"
-  pr: "" # to be created at sprint completion (Rule S12/S13)
+  pr: "https://github.com/cnavta/BitBrat/pull/238"
 notes: |
   Architect role. First task of the sprint is to author a Technical Architecture document
   describing how to approach the export/import of JSON-based backups of key Firestore collections.
