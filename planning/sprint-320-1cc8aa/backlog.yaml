@@ -1,0 +1,166 @@
+meta:
+  backlog_id: sprint-320-image-gen-mcp-prompt-logging
+  updated_at: 2026-06-23T17:01:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2]
+  effort_values: [S, M, L]
+  source: documentation/technical-architecture/image-gen-mcp-prompt-logging.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for adding prompt logging to the image-gen-mcp service.
+    Derived from the Technical Architecture document (§3 pattern mirrored, §5.1 storage path,
+    §5.2 schema/field mapping, §5.3 success/rejection/error logging, §5.4 correlationId strategy,
+    §5.5 logPrompt integration point, §6 security/redaction, §7 fail-soft, §8 tests, §9 rollout)
+    and execution-plan.md (Phases 0–4 / Gates G0–G4).
+    Reuses the existing `llm.promptLogging.enabled` flag — NO new feature flag, collection family,
+    or architecture.yaml change.
+    STATUS: APPROVED — implementation in progress (REQ-003).
+
+sprint:
+  id: sprint-320-1cc8aa
+  start: 2026-06-23
+  end: null
+  wip_limit: 3
+  goal: "Add feature-flag-gated, fire-and-forget prompt logging to the image-gen-mcp service, writing each generate_image invocation (success/rejection/error) to services/image-gen-mcp/prompt_logs with redaction, mirroring llm-bot and query-analyzer."
+
+items:
+  - id: BL-001
+    title: "logPrompt(...) helper: flag gate + fail-soft Firestore write"
+    phase: 0
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Private logPrompt(entry) added to ImageGenMcpServer in src/services/image-gen-mcp/index.ts (TA §5.5)"
+      - "Early-returns when isFeatureEnabled('llm.promptLogging.enabled') is false (no Firestore access)"
+      - "When enabled, writes to services/image-gen-mcp/prompt_logs via getFirestore().add(...), fire-and-forget"
+      - "redactText applied to prompt/response/error; platform: 'openai' and createdAt: new Date() stamped"
+      - "try/catch + .catch() guard log image_gen_mcp.prompt_logging_failed and never throw into the tool result (TA §7)"
+      - "Imports added: getFirestore, isFeatureEnabled, redactText"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-002
+    title: "Resolve correlationId + userId (MCP request/response, no event envelope)"
+    phase: 1
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "correlationId resolves from extra._meta?.correlationId, else uuidv4() (already imported) per TA §5.4"
+      - "userId resolves from extra._meta/extra.userId ('anonymous' if absent), consistent with existing rate-limit logic"
+      - "A single start = Date.now() is established so processingTimeMs is computable for the success path"
+      - "No MCP tool contract change"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-003
+    title: "Wire success call site (status: 'success')"
+    phase: 2
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001, BL-002]
+    blocked_reason: null
+    acceptance:
+      - "After GCS persist (before return), logPrompt is called with status: 'success' (TA §5.3.1)"
+      - "response = publicUrl; image = { url, bucket, fileName, contentType: 'image/png' }"
+      - "moderation = { flagged: false, categories: [] }; aspectRatio, size, processingTimeMs populated"
+      - "The returned CallToolResult success payload is unchanged"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-004
+    title: "Wire moderation-rejection call site (status: 'rejected')"
+    phase: 2
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001, BL-002]
+    blocked_reason: null
+    acceptance:
+      - "At the moderation-flagged branch (before return), logPrompt is called with status: 'rejected' (TA §5.3.2)"
+      - "moderation = { flagged: true, categories }; response = 'moderation_rejected'; no image field"
+      - "The returned moderation-error CallToolResult is unchanged"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-005
+    title: "Wire error call site (status: 'error')"
+    phase: 2
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001, BL-002]
+    blocked_reason: null
+    acceptance:
+      - "In the handler catch block (before return), logPrompt is called with status: 'error' (TA §5.3.3)"
+      - "error is the redacted error message; response = 'error'"
+      - "The returned error CallToolResult is unchanged; logging cannot mask or alter the failure"
+      - "Gate G2: all three branches (success/rejected/error) log the correct status + fields when the flag is on"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-006
+    title: "Unit tests (flag off/on, success/rejection/error, fail-soft)"
+    phase: 3
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-003, BL-004, BL-005]
+    blocked_reason: null
+    acceptance:
+      - "tests/services/image-gen-mcp/prompt-logging.test.ts added, modeled on tests/services/llm-bot/prompt-logging.test.ts"
+      - "Firestore (getFirestore), moderation fetch, generateImage, and GCS (StorageManager/file.save) are mocked — no live calls (TA §8 / DoD §5)"
+      - "Flag off -> no Firestore write"
+      - "Flag on success -> exactly one write with status: 'success', redacted prompt, image.url set"
+      - "Flag on moderation rejection -> one write with status: 'rejected' and moderation.flagged"
+      - "Flag on error -> one write with status: 'error' and a redacted error"
+      - "Fail-soft -> when .add() rejects, the tool still returns its normal result and a warning is logged"
+      - "Gate G3: the new suite passes and existing image-gen-mcp/regression suites stay green"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-007
+    title: "Service documentation: image-gen-mcp Observability / Prompt Logging"
+    phase: 4
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-003, BL-004, BL-005]
+    blocked_reason: null
+    acceptance:
+      - "documentation/services/image-gen-mcp.md added (or existing service docs extended) with an Observability / Prompt Logging section"
+      - "Documents the storage path services/image-gen-mcp/prompt_logs/{logId}, the field schema (TA §5.2), the FF_LLM_PROMPT_LOGGING flag, and the three logged outcomes"
+      - "Consistent in shape with documentation/services/query-analyzer.md; cross-links the TA doc"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-008
+    title: "Validation harness + sprint close-out"
+    phase: 4
+    priority: P1
+    status: done
+    status_note: "validate_deliverable.sh passes (build + image-gen suite 5/5 + regression 11/11). retro.md, key-learnings.md, verification-report.md, publication.yaml produced; PR opened and recorded on 'Sprint complete'."
+    effort: S
+    owner: agent
+    deps: [BL-006, BL-007]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh runs npm run build + the image-gen-mcp prompt-logging suite (+ a llm-bot/query-analyzer regression check); logically passable per AGENTS.md §2.6"
+      - "Confirms prompt_logs remains an excluded prefix in the brat backup registry (TA §6) — no change needed"
+      - "verification-report.md, retro.md, key-learnings.md produced; PR opened and recorded in publication.yaml"
+      - "Gate G4: validate_deliverable.sh is logically passable and DoD (AGENTS.md §3) is met"
+    updated_at: 2026-06-23
+    log: []
