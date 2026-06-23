@@ -1,0 +1,246 @@
+meta:
+  backlog_id: sprint-319-brat-firestore-config-backup
+  updated_at: 2026-06-22T22:10:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2]
+  effort_values: [S, M, L]
+  source: documentation/technical-architecture/brat-firestore-config-backup.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for the new `brat backup` Firestore config
+    export/import command. Derived from the Technical Architecture document (§4 registry,
+    §5 file format/serializer, §6 CLI surface, §7 cross-cutting, §8 tests) and execution-plan.md.
+    Phase 5 (BL-011) folds in the deployment-target-aware emulator import path discussed during
+    the planning gate (TA §7.1/§7.2 refinement): importing into the local/staging docker stacks,
+    which run the Firestore emulator rather than real GCP.
+    STATUS: APPROVED 2026-06-22 — implementation in progress (REQ-003).
+
+sprint:
+  id: sprint-319-740b5b
+  start: 2026-06-22
+  end: null
+  wip_limit: 3
+  goal: "Introduce a `brat backup` command that exports/imports JSON backups of the platform's core configuration Firestore collections (excluding events and all other log-based collections), so core configuration can be transferred to a blank instance."
+
+items:
+  - id: BL-001
+    title: "Collection registry + FORBIDDEN_PREFIXES exclusion guard"
+    phase: 0
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "tools/brat/src/backup/registry.ts defines BackupCollectionSpec, CONFIG_BACKUP_REGISTRY, FORBIDDEN_PREFIXES per TA §4"
+      - "Allowlist contains exactly the config collections (users, stories, configs, stream_observers, mcp_servers, schedules, sources, gateways/api/tokens) with stripFields/sensitive flags per TA §3"
+      - "Startup assertion fails fast if any registry path matches a forbidden prefix"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Implemented tools/brat/src/backup/registry.ts with BackupCollectionSpec, CONFIG_BACKUP_REGISTRY, FORBIDDEN_PREFIXES, REGISTRY_VERSION, isForbiddenPath() (checks every collection segment) and assertRegistrySafe() (throws ConfigurationError)."
+
+  - id: BL-002
+    title: "Exclusion guard unit tests (highest-priority test)"
+    phase: 0
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Test asserts events, snapshots, mutation_log, state, summarization_runs, tool_usage, prompt_logs are never in the registry / export set"
+      - "Test asserts a registry entry matching FORBIDDEN_PREFIXES throws at startup"
+      - "Gate G0: exclusion guard test passes"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Added tools/brat/src/backup/__tests__/registry.guard.test.ts (11 tests). Gate G0 PASS: log/event collections never in registry; nested forbidden paths flagged; tainted registry throws ConfigurationError."
+
+  - id: BL-003
+    title: "Typed value serializer (encode/decode Firestore-native types)"
+    phase: 1
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "tools/brat/src/backup/serializer.ts implements the typed-wrapper convention (timestamp, geopoint, ref, bytes) per TA §5.2"
+      - "__type key reserved with __escaped handling for literal user maps; undefined stripped (consistent with stripUndefinedDeep)"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Implemented tools/brat/src/backup/serializer.ts: encodeValue/decodeValue + encodeDocumentData/decodeDocumentData for Timestamp/Date/GeoPoint/DocumentReference/Bytes; TYPE_KEY '__type' reserved with ESCAPE_KEY '__escaped' wrapper for literal maps; undefined stripped (mirrors stripUndefinedDeep)."
+
+  - id: BL-004
+    title: "Serializer round-trip unit tests"
+    phase: 1
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-003]
+    blocked_reason: null
+    acceptance:
+      - "Round-trip encode->decode preserves Timestamp, GeoPoint, DocumentReference, Bytes, nested maps/arrays"
+      - "__type collision escaping and undefined stripping covered"
+      - "Gate G1: serializer round-trip tests pass"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Added tools/brat/src/backup/__tests__/serializer.test.ts (11 tests incl. JSON.stringify/parse on-disk path + __type/__escaped collision). Gate G1 PASS."
+
+  - id: BL-005
+    title: "brat Firestore provider (ADC + multi-db + emulator)"
+    phase: 2
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "tools/brat/src/providers/gcp/firestore.ts mirrors src/common/firebase.ts (firebase-admin, ADC, resolveDatabaseId(), FIRESTORE_EMULATOR_HOST) per TA §7.1"
+      - "Resolves project id from --project-id/PROJECT_ID/GCLOUD_PROJECT and logs the resolved target before access (AGENTS.md §8)"
+      - "Gate G2: provider connects against the Firestore emulator in a test"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Implemented tools/brat/src/providers/gcp/firestore.ts (resolveProjectId/DatabaseId/Target + getBackupFirestore using a per-call named admin app, ADC, multi-db, FIRESTORE_EMULATOR_HOST, target echo via logger). Added __tests__/firestore.test.ts + emulator-utils.ts reachability probe. Gate G2 PASS against a live Firestore emulator (8088); emulator note: does not support named multi-db, so emulator paths use (default)."
+
+  - id: BL-006
+    title: "CLI dispatch + help: brat backup list/export/import"
+    phase: 3
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "New c1 === 'backup' branch in cli/index.ts main() with c2 in {list, export, import}"
+      - "printHelp() gains a `brat backup ...` block consistent with existing conventions (--env, --project-id, --dry-run, --json)"
+      - "`brat backup list` prints the registry + rationale with no DB access"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Added tools/brat/src/cli/backup.ts (cmdBackup list/export/import) + dispatch branch and help block in cli/index.ts. `brat backup list` verified via compiled CLI (registry + forbidden list, no DB access)."
+
+  - id: BL-007
+    title: "brat backup export (read-only envelope writer)"
+    phase: 3
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-003, BL-005, BL-006]
+    blocked_reason: null
+    acceptance:
+      - "Walks registry, applies stripFields, excludes sensitive unless --include-secrets, recurses subcollections preserving doc IDs (TA §5.3/§6.1)"
+      - "Writes the versioned envelope (format/schemaVersion/metadata/collections) to --out (default path) or stdout via --json (TA §5.1)"
+      - "--collections narrows to a registry subset; export is strictly read-only"
+      - "Gate G3: export against a seeded emulator yields a schema-valid envelope with log collections absent"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Implemented tools/brat/src/backup/{types.ts,export.ts}; recursive subcollection capture with per-subcollection forbidden guard, stripFields, sensitive skip, typed encoding, default out path, --json stdout. Gate G3 PASS (emulator export test: logs absent, IDs/subcollections/stripFields correct) + CLI smoke."
+
+  - id: BL-008
+    title: "brat backup import (dry-run default, modes, batched writes)"
+    phase: 4
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-007]
+    blocked_reason: null
+    acceptance:
+      - "Validates envelope (format, schemaVersion); rejects incompatible schemaVersion, warns on registryVersion mismatch; re-applies FORBIDDEN_PREFIXES guard on input"
+      - "Dry-run is default; --confirm required to write; modes merge (default)/overwrite/skip per TA §6.2"
+      - "Uses BulkWriter/batched commits (<=500 ops); parents written before subcollections; dry-run prints per-collection create/update/skip diff + op count"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Implemented tools/brat/src/backup/import.ts (validateEnvelope + input forbidden re-guard, merge/overwrite/skip, dry-run default with op counting, BulkWriter writes, parents-before-subcollections, registryVersion warning). Verified via emulator round-trip + CLI dry-run smoke."
+
+  - id: BL-009
+    title: "Emulator export->wipe->import round-trip integration test"
+    phase: 4
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-008]
+    blocked_reason: null
+    acceptance:
+      - "Seeds config + log data into the Firestore emulator, exports, wipes, imports into a blank DB"
+      - "Config collections (with IDs + subcollections) match; log collections remain empty (TA §8)"
+      - "Gate G4: round-trip test passes"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Added tools/brat/src/backup/__tests__/roundtrip.emulator.test.ts (+ testing/emulator-utils.ts reachability/skip helper). Gate G4 PASS against live emulator: export->wipe->import (skip mode) restores users/roles, configs/routingRules/rules, sources (volatile stripped); events/mutation_log/state/tool_usage stay empty; dry-run writes nothing."
+
+  - id: BL-010
+    title: "Safety rails, secrets handling & observability"
+    phase: 4
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-007, BL-008]
+    blocked_reason: null
+    acceptance:
+      - "Resolved target echoed before any op; non-dry-run import requires target match with --env/--project-id (TA §7.2)"
+      - "Sensitive entries excluded by default; --include-secrets opt-in; metadata.includeSecrets recorded (TA §7.3)"
+      - "FS + Firestore ops logged via orchestration/logger; errors use BratError + exitCodeForError (TA §7.4)"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Target echoed/logged before every op; non-dry-run real-GCP import requires explicit --project-id (relaxed for emulator/--target). Sensitive skipped by default with metadata.includeSecrets recorded; --include-secrets opt-in. Ops logged via orchestration/logger; errors flow through BratError/exitCodeForError (CLI top-level handler)."
+
+  - id: BL-011
+    title: "Deployment-target-aware connection (--target local/staging emulator)"
+    phase: 5
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-005, BL-007, BL-008]
+    blocked_reason: null
+    acceptance:
+      - "Reads deploymentTargets from architecture.yaml; --target <name> resolves docker-engine targets to the published emulator endpoint instead of ADC"
+      - "local -> localhost:8080; remote staging (ssh://root@bitbrat.lan) -> SSH tunnel to published 8080 (preferred) with bitbrat.lan:8080 fallback"
+      - "Sets FIRESTORE_EMULATOR_HOST + project bitbrat-local for emulator targets; GCP --project-id match check relaxed for emulator targets; resolved host:port echoed"
+      - "--env <gcp>/--project-id still targets a real GCP database (TA §7.1)"
+      - "Gate G5: import --target local --confirm seeds the local emulator; --target staging resolves+echoes the remote endpoint"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Implemented tools/brat/src/backup/connection.ts: --target reads deploymentTargets; local->localhost:8080, remote->openSshTunnel (free local port, ExitOnForwardFailure) with host:port fallback; sets emulatorHost+project bitbrat-local; GCP project match check relaxed for emulator. Gate G5: connection.test.ts covers endpoint resolution (local/staging/unknown/GCP) incl. real architecture.yaml local target. Note: live SSH-tunnel branch not exercised (no remote host in this env); fallback + unit-covered."
+
+  - id: BL-012
+    title: "Wire validate_deliverable.sh (build + tests + brat backup smoke)"
+    phase: 6
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-002, BL-004, BL-009]
+    blocked_reason: null
+    acceptance:
+      - "Script runs npm run build, npm test (serializer + guard + emulator round-trip) and a `brat backup list` smoke check"
+      - "Emulator round-trip gracefully skipped when no runtime is available (logically passable per AGENTS.md §2.6)"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Extended validate_deliverable.sh with a brat-backup block: runs the backup + provider test suites and a `brat backup list` smoke check after build. Emulator round-trip auto-skips when FIRESTORE_EMULATOR_HOST is unreachable (logically passable)."
+
+  - id: BL-013
+    title: "Operator runbook, brat help update & sprint close-out"
+    phase: 6
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-006, BL-010, BL-011, BL-012]
+    blocked_reason: null
+    acceptance:
+      - "Operator runbook documents secrets handling, --target usage, and the emulator durability caveat (firebase-data-v2 volume wiped by down -v)"
+      - "brat help reflects the backup commands; documentation cross-links the TA doc"
+      - "verification-report.md, retro.md, key-learnings.md produced; PR opened and recorded in publication.yaml"
+    updated_at: 2026-06-22
+    log:
+      - "2026-06-22: Added documentation/runbooks/brat-backup.md (secrets, --target, emulator durability caveat) cross-linking the TA; brat printHelp() shows the backup commands. Produced verification-report.md, retro.md, key-learnings.md; PR + publication.yaml recorded at sprint close."

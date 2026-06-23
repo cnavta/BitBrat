@@ -1,0 +1,28 @@
+id: sprint-319-740b5b
+title: "Firestore Config Backup & Restore (brat backup export/import)"
+goal: "Introduce a new `brat backup` command that exports and imports JSON backups of the platform's core configuration Firestore collections (excluding events and other log-based collections), so the core configuration of one platform instance can be transferred to a blank instance."
+owner: "Junie (Architect)"
+createdAt: "2026-06-22T19:39:00Z"
+status: "published"
+links:
+  branch: "feature/sprint-319-740b5b-firestore-config-backup"
+  pr: "https://github.com/cnavta/BitBrat/pull/238"
+notes: |
+  Architect role. First task of the sprint is to author a Technical Architecture document
+  describing how to approach the export/import of JSON-based backups of key Firestore collections.
+  Implementation (the actual `brat backup export|import` command, providers, and tests) is a
+  FUTURE task and will be appended to implementation-plan.md per Rule S4 / section 2.4.1 once the
+  TA document is approved.
+
+  Key context gathered during discovery:
+  - The `brat` CLI lives under `tools/brat/src` and dispatches subcommands via string matching in
+    `cli/index.ts` `main()`; it has no Firestore provider yet. brat compiles against the ROOT
+    `package.json`, which already depends on `firebase-admin ^13.6.0`.
+  - Firestore is accessed elsewhere via `src/common/firebase.ts` `getFirestore()` (firebase-admin,
+    ADC, named/multi-database via `resolveDatabaseId()`, `FIRESTORE_EMULATOR_HOST` aware).
+  - Config / "core" collections (candidate backup set): `users` (+ `roles` subcollection),
+    `stories`, `configs` (+ nested e.g. `configs/routingRules/rules`, `configs/bot/roles`),
+    `stream_observers`, `mcp_servers`, `schedules`, `sources`, `gateways/api/tokens` (sensitive).
+  - Log / event collections (MUST be excluded): `events` (+ `snapshots` subcollection),
+    `mutation_log`, `summarization_runs`, `tool_usage`, `prompt_logs` (under `services/*`),
+    disposition observation records.
