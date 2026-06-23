@@ -64,4 +64,21 @@ else
   echo "   ✅ ${SVC_NAME} built and booted from Dockerfile.service."
 fi
 
+# -----------------------------------------------------------------------------
+# brat backup (Firestore config export/import) validation (sprint-319)
+#   - serializer round-trip + exclusion guard + provider + connection unit tests
+#   - emulator export->wipe->import round-trip (auto-skips when no emulator runtime)
+#   - `brat backup list` smoke check (no DB access)
+# The emulator round-trip is gracefully skipped when FIRESTORE_EMULATOR_HOST is
+# unreachable, keeping this script logically passable per AGENTS.md §2.6.
+# -----------------------------------------------------------------------------
+echo "🧪 Running brat backup tests (registry guard, serializer, provider, connection, round-trip)..."
+npm test -- \
+  tools/brat/src/backup \
+  tools/brat/src/providers/gcp/__tests__/firestore.test.ts
+
+echo "📋 brat backup list smoke check ..."
+node dist/tools/brat/src/cli/index.js backup list >/dev/null
+echo "   ✅ brat backup list OK."
+
 echo "✅ Validation complete."

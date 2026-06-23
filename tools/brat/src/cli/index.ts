@@ -21,6 +21,7 @@ import { importUrlMap } from '../lb/importer';
 import { enableApis, getRequiredApis } from '../providers/gcp/apis';
 import { cmdServiceBootstrap } from './bootstrap';
 import { cmdSetup } from './setup';
+import { cmdBackup } from './backup';
 
 const RUN_ID = deriveTag();
 const log = createLogger({ base: { runId: RUN_ID, component: 'brat' } });
@@ -127,6 +128,12 @@ Usage:
   brat docker down [--target <name>] [--service <name>] [--dry-run]
   brat docker logs [--target <name>] [--service <name>] [--follow]
   brat docker ps [--target <name>] [--service <name>]
+
+  # Firestore config backup/restore (config collections only; events & log collections are NEVER exported)
+  brat backup list [--json]
+  brat backup export [--project-id <id> | --target <name>] [--out <path>] [--collections a,b] [--include-secrets] [--pretty] [--json]
+  brat backup import --in <path> [--project-id <id> | --target <name>] [--mode merge|overwrite|skip] [--collections a,b] [--include-secrets] [--dry-run] [--confirm] [--json]
+      # import is DRY-RUN by default; pass --confirm to write. --target <local|staging> targets a docker-stack Firestore emulator.
 
 Notes:
   - Provide --env or set BITBRAT_ENV. Common values: dev, prod.
@@ -848,6 +855,10 @@ Options:
   }
   if (c1 === 'trigger' && (c2 === 'create' || c2 === 'update' || c2 === 'delete')) {
     await cmdTrigger(c2 as any, flags, rest);
+    return;
+  }
+  if (c1 === 'backup') {
+    await cmdBackup(c2, { projectId: flags.projectId, env: flags.env, json: flags.json, dryRun: flags.dryRun }, rest, log);
     return;
   }
   if (c1 === 'docker') {
