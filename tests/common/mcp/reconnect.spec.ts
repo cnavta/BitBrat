@@ -84,6 +84,53 @@ describe('McpClientManager auto-reconnect', () => {
     expect(status).toBe('connected');
   });
 
+  it('does NOT tear down a healthy connection when re-invoked with an unchanged config', async () => {
+    // Always connect successfully for this scenario.
+    mockClientInstance.connect.mockReset().mockResolvedValue(undefined);
+
+    const cfg: any = {
+      name: 'obs-mcp',
+      transport: 'sse',
+      url: 'http://obs-mcp.bitbrat.local:3000/sse',
+    };
+
+    await manager.connectServer(cfg);
+    expect(mockClientInstance.connect).toHaveBeenCalledTimes(1);
+    expect(manager.getStats().getServerStats('obs-mcp')?.status).toBe('connected');
+
+    // A subsequent registry snapshot that only changes volatile metadata
+    // (updatedAt/correlationId) must NOT reconnect the healthy connection.
+    await manager.connectServer({
+      ...cfg,
+      updatedAt: new Date().toISOString(),
+      correlationId: 'reg-obs-mcp-999',
+      discoverySource: 'auto-registration',
+    });
+
+    expect(mockClientInstance.connect).toHaveBeenCalledTimes(1);
+    expect(mockClientInstance.close).not.toHaveBeenCalled();
+    expect(manager.getStats().getServerStats('obs-mcp')?.status).toBe('connected');
+  });
+
+  it('reconnects when a connection-relevant field (url) changes', async () => {
+    mockClientInstance.connect.mockReset().mockResolvedValue(undefined);
+
+    const cfg: any = {
+      name: 'obs-mcp',
+      transport: 'sse',
+      url: 'http://obs-mcp.bitbrat.local:3000/sse',
+    };
+
+    await manager.connectServer(cfg);
+    expect(mockClientInstance.connect).toHaveBeenCalledTimes(1);
+
+    // Changing the URL is a real change and must trigger a restart.
+    await manager.connectServer({ ...cfg, url: 'http://obs-mcp.bitbrat.local:4000/sse' });
+
+    expect(mockClientInstance.close).toHaveBeenCalledTimes(1);
+    expect(mockClientInstance.connect).toHaveBeenCalledTimes(2);
+  });
+
   it('cancels pending reconnects on disconnect', async () => {
     await manager.connectServer({
       name: 'gw2',

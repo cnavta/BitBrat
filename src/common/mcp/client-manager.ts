@@ -85,14 +85,63 @@ export class McpClientManager {
     return this.invoker;
   }
 
+  /**
+   * Build a stable signature from the connection-relevant fields of a config.
+   * Volatile registry metadata (e.g. updatedAt, correlationId, discoverySource)
+   * is intentionally excluded so that benign Firestore document rewrites do not
+   * churn an otherwise-healthy connection.
+   */
+  private connectionSignature(c: McpServerConfig): string {
+    return JSON.stringify({
+      transport: c.transport || 'stdio',
+      url: c.url,
+      command: c.command,
+      args: c.args || [],
+      env: c.env || {},
+      requiredRoles: c.requiredRoles || [],
+      toolPrefix: c.toolPrefix,
+      status: c.status,
+      timeoutMs: c.timeoutMs,
+      failureThreshold: c.failureThreshold,
+      resetTimeoutMs: c.resetTimeoutMs,
+    });
+  }
+
   async connectServer(config: McpServerConfig): Promise<void> {
+    const logger = (this.server as any).getLogger();
+
+    // Idempotency guard: if we already have a healthy connection whose
+    // connection-relevant config is unchanged, do NOT tear it down and
+    // reconnect. The RegistryWatcher invokes connectServer for every Firestore
+    // snapshot change, including writes that only touch volatile metadata
+    // (updatedAt, correlationId, etc.), which would otherwise churn every
+    // live (SSE) connection on a tight loop.
+    const previous = this.serverConfigs.get(config.name);
+    const isHealthy =
+      this.clients.has(config.name) &&
+      this.stats.getServerStats(config.name)?.status === 'connected';
+    if (
+      isHealthy &&
+      previous &&
+      this.connectionSignature(previous) === this.connectionSignature(config) &&
+      config.transport !== 'inactive' &&
+      config.status !== 'inactive'
+    ) {
+      logger.debug('mcp.client_manager.skip_reconnect_unchanged', { name: config.name });
+      // Refresh cached config so volatile metadata stays current.
+      this.serverConfigs.set(config.name, { ...config });
+      return;
+    }
+
     // cache latest config for reconnects
     this.serverConfigs.set(config.name, { ...config });
-    const logger = (this.server as any).getLogger();
 
     if (this.clients.has(config.name)) {
       logger.info('mcp.client_manager.restarting', { name: config.name });
       await this.disconnectServer(config.name);
+      // disconnectServer clears the cached config; restore it so reconnect
+      // scheduling and the connection monitor still know about this server.
+      this.serverConfigs.set(config.name, { ...config });
     }
 
     logger.info('mcp.client_manager.connecting', { 
