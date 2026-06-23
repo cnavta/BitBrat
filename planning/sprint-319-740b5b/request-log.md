@@ -106,3 +106,25 @@ Role: Architect
     `c1`/`c2` string matching in `cli/index.ts` `main()`, flags via `parseArgs`/`parseKeyValueFlags`,
     logging via `orchestration/logger`, errors via `BratError`/`exitCodeForError`, and the
     `src/common/firebase.ts` Firestore connection pattern.
+
+---
+
+## REQ-004 — Sprint closure (Rule S2)
+- **Timestamp:** 2026-06-23T15:45:00Z
+- **Prompt summary:** "Sprint Complete."
+- **Interpretation:** Explicit Rule S2 signal to close sprint-319-740b5b. All close-out conditions
+  are met: BL-001…BL-013 done, `validate_deliverable.sh` extended, verification-report.md / retro.md /
+  key-learnings.md present, and PR #238 created & recorded in publication.yaml (Rule S13). Flip the
+  manifest to `complete`.
+- **Shell/git commands executed:** None (bookkeeping only).
+- **Files created/modified:**
+  - `planning/sprint-319-740b5b/sprint-manifest.yaml` — `status: complete`, added `completedAt`
+    and a closure note.
+  - `planning/sprint-319-740b5b/request-log.md` (this entry).
+- **Notes / findings:**
+  - Post-publication test hardening (`tools/brat/src/backup/testing/emulator-utils.ts`): the
+    emulator-reachability probe now does an HTTP GET requiring a 2xx instead of a bare TCP connect,
+    so an unrelated nginx on :8080 no longer false-positives and hangs the emulator-dependent
+    backup/provider suites (they skip cleanly when no real emulator is reachable).
+  - Sole deferred item: live validation of the remote `--target staging` SSH-tunnel path (no remote
+    docker host in this environment); unit-covered with a direct `host:port` fallback.

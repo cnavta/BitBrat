@@ -3,7 +3,8 @@ title: "Firestore Config Backup & Restore (brat backup export/import)"
 goal: "Introduce a new `brat backup` command that exports and imports JSON backups of the platform's core configuration Firestore collections (excluding events and other log-based collections), so the core configuration of one platform instance can be transferred to a blank instance."
 owner: "Junie (Architect)"
 createdAt: "2026-06-22T19:39:00Z"
-status: "published"
+completedAt: "2026-06-23T15:45:00Z"
+status: "complete"
 links:
   branch: "feature/sprint-319-740b5b-firestore-config-backup"
   pr: "https://github.com/cnavta/BitBrat/pull/238"
@@ -26,3 +27,11 @@ notes: |
   - Log / event collections (MUST be excluded): `events` (+ `snapshots` subcollection),
     `mutation_log`, `summarization_runs`, `tool_usage`, `prompt_logs` (under `services/*`),
     disposition observation records.
+
+  Closure (2026-06-23): User declared "Sprint Complete." All BL-001…BL-013 done; PR #238 open
+  (publication.yaml). Post-publication hardening: the emulator-reachability probe in
+  `tools/brat/src/backup/testing/emulator-utils.ts` was switched from a bare TCP connect to an
+  HTTP GET requiring a 2xx, so an unrelated nginx on :8080 no longer false-positives and causes
+  the emulator-dependent backup/provider suites to hang/time out (they now skip cleanly when no
+  real emulator is reachable). Remote `--target staging` SSH-tunnel path remains the only deferred
+  item (no remote host in this env); it is unit-covered with a direct host:port fallback.

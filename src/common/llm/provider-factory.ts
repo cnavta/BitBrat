@@ -23,7 +23,9 @@ export function getLlmProvider(config: LlmProviderConfig) {
   switch (provider.toLowerCase()) {
     case 'openai': {
       const providerInstance = createOpenAI({ baseURL, apiKey });
-      if (model.startsWith('dall-e')) {
+      // Image generation models (DALL-E and the newer gpt-image-* family) must be
+      // instantiated via `.image()`, not as language models.
+      if (model.startsWith('dall-e') || model.startsWith('gpt-image')) {
         return providerInstance.image(model) as any;
       }
       if (kind === 'embedding') {
