@@ -66,12 +66,18 @@ export function isTransientError(err: any): boolean {
     const code = String(err?.code || '').toUpperCase();
     const name = String(err?.name || '').toUpperCase();
     const msg = String(err?.message || '');
-    const transientCodes = ['ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH', 'ECONNABORTED', 'EPIPE'];
+    const transientCodes = ['ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH', 'ECONNABORTED', 'EPIPE', 'ERR_STREAM_PREMATURE_CLOSE'];
     if (transientCodes.includes(code)) return true;
     if (/TIMEOUT/i.test(name) || /TIMEOUT/i.test(code)) return true;
     if (/timeout/i.test(msg)) return true;
     if (/temporar(y|ily) unavailable/i.test(msg)) return true;
     if (/rate limit/i.test(msg)) return true;
+    // Transient connection drops, frequently seen when fetching Google OAuth2 tokens
+    // (e.g. "Invalid response body while trying to fetch ...: Premature close").
+    if (/premature close/i.test(msg)) return true;
+    if (/socket hang up/i.test(msg)) return true;
+    if (/invalid response body/i.test(msg)) return true;
+    if (/network socket disconnected/i.test(msg)) return true;
     const rType = String(err?.type || err?.error?.type || '').toLowerCase();
     if (['server_error', 'temporary_unavailable', 'throttled'].includes(rType)) return true;
   } catch {
