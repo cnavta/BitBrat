@@ -6,3 +6,7 @@ notes: |
   PR created with `gh pr create` (Rule S12/S13). Implementation commit 9b7af88.
   Post-implementation timeout remediation (REQ-004) committed to the same branch and pushed,
   updating PR #236. Sprint closed (manifest status: complete) per Rule S2 / section 2.9.
+  Post-close remote-deploy hotfixes (REQ-005: firebase-emulator base-image build + firestore.rules/
+  firestore.indexes.json remote sync) committed to the branch (75c31e8) and pushed. PR #236 was
+  already MERGED (branch deleted on remote), so a follow-up PR #237 was opened for these hotfixes:
+  https://github.com/cnavta/BitBrat/pull/237 (base: main).
