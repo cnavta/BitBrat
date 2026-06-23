@@ -125,6 +125,29 @@ describe('provider-factory', () => {
     expect(provider).toEqual({ modelId: 'ollama-embedding-model' });
   });
 
+  it('should instantiate image model for OpenAI DALL-E', () => {
+    const config = {
+      provider: 'openai',
+      model: 'dall-e-3',
+      apiKey: 'test-key',
+    };
+    const provider = getLlmProvider(config);
+    expect((mockOpenAIProviderInstance as any).image).toHaveBeenCalledWith('dall-e-3');
+    expect(provider).toEqual({ modelId: 'openai-image-model' });
+  });
+
+  it('should instantiate image model for OpenAI gpt-image family', () => {
+    const config = {
+      provider: 'openai',
+      model: 'gpt-image-1',
+      apiKey: 'test-key',
+    };
+    const provider = getLlmProvider(config);
+    expect((mockOpenAIProviderInstance as any).image).toHaveBeenCalledWith('gpt-image-1');
+    expect((mockOpenAIProviderInstance as any)).not.toHaveBeenCalledWith('gpt-image-1');
+    expect(provider).toEqual({ modelId: 'openai-image-model' });
+  });
+
   it('should throw error for unsupported provider', () => {
     const config = {
       provider: 'anthropic',
