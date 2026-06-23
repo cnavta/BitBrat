@@ -1,0 +1,10 @@
+pr_url: https://github.com/cnavta/BitBrat/pull/238
+branch: feature/sprint-319-740b5b-firestore-config-backup
+base: main
+status: created
+created_at: 2026-06-22T22:40:00Z
+title: "Sprint 319: brat backup — Firestore config export/import"
+notes: |
+  Implements BL-001…BL-013 for the `brat backup list/export/import` command.
+  Build clean; 40 backup/provider tests pass against a live Firestore emulator;
+  brat cli/config suites pass (54). Co-authored-by Junie.
