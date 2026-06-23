@@ -1,0 +1,13 @@
+pr_url: https://github.com/cnavta/BitBrat/pull/240
+branch: feature/sprint-320-1cc8aa-image-gen-prompt-logging
+base: main
+status: created
+created_at: 2026-06-23T19:11:00Z
+title: "Sprint 320: image-gen-mcp prompt logging + tool-gateway reconnect fix"
+notes: |
+  Implements BL-001…BL-008: feature-flag-gated, fire-and-forget prompt logging for the
+  image-gen-mcp service (mirroring llm-bot/query-analyzer), with redaction and a 5-case test suite.
+  Also folds in a standalone tool-gateway SSE reconnect-storm remediation (idempotent connectServer
+  via a connectionSignature guard) with +2 reconnect tests.
+  Validation: validate_deliverable.sh exit 0 — build clean; image-gen 5/5; regression 11/11;
+  tests/common/mcp 44/44. Co-authored-by Junie.
