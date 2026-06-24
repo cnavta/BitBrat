@@ -38,8 +38,9 @@ Feature: tool-gateway env-var references in MCP server config (`env`/`args`).
 - None.
 
 ## Deferred
-- Sprint close-out artifacts (`retro.md`, `key-learnings.md`) and the GitHub PR (`publication.yaml`,
-  Rules S12/S13) are intentionally held until the user issues **"Sprint complete."** per Rule S2.
+- None. Sprint closed on user's "Sprint complete.": `retro.md`, `key-learnings.md`, and the GitHub PR
+  (`publication.yaml`, Rules S12/S13) are complete. PR #241 opened:
+  https://github.com/cnavta/BitBrat/pull/241.
 
 ## Alignment Notes
 - `architecture.yaml` unchanged (internal tool-gateway behavior; no canonical schema change).

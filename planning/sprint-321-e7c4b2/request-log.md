@@ -72,8 +72,9 @@ Traceability log for every meaningful prompt, interpretation, and shell/git oper
   - Created `retro.md` and `key-learnings.md`.
   - `git add` sprint artifacts + code; `git commit` (with `Co-authored-by: Junie` trailer).
   - `git push -u origin feature/sprint-321-e7c4b2-mcp-config-env-refs` → success (branch on origin).
-  - PR attempt: `gh` CLI NOT installed and no GITHUB_TOKEN/GH_TOKEN → automated PR creation failed.
-    Logged in `publication.yaml` (status `pr_creation_failed`) with the ready-to-use manual PR URL:
-    https://github.com/cnavta/BitBrat/pull/new/feature/sprint-321-e7c4b2-mcp-config-env-refs
-- **Status:** Close-out artifacts complete; branch pushed. Per Rule S13, awaiting either an API token /
-  `gh` install to auto-create the PR, OR explicit user acceptance of closure given the logged PR failure.
+  - PR attempt #1: `gh` CLI not on PATH and no GITHUB_TOKEN/GH_TOKEN → automated PR creation failed
+    (logged in `publication.yaml`). User then installed `gh` (v2.95.0).
+  - PR attempt #2: `gh pr create` (authenticated as cnavta, repo scope) → SUCCESS, PR #241:
+    https://github.com/cnavta/BitBrat/pull/241 (recorded in `publication.yaml`, status `created`).
+  - Manifest status → `complete`; `pr` link set.
+- **Status:** Sprint complete. Rule S13 satisfied (PR created). All close-out artifacts present and pushed.
