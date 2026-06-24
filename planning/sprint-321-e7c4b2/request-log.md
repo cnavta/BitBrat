@@ -61,3 +61,19 @@ Traceability log for every meaningful prompt, interpretation, and shell/git oper
     (env-interpolation 10/10, env-refs 7/7, mcp suite + tool-gateway 54/54). `validate_deliverable.sh` passes.
 - **Files modified/created:** see above; backlog.yaml BL-001…BL-008 marked `done`.
 - **Status:** Implementation complete and validated; preparing close-out artifacts + PR.
+
+## REQ-003 — Sprint complete (close-out + publication)
+- **Timestamp:** 2026-06-23T20:33:00Z
+- **Prompt summary:** User: "Sprint complete."
+- **Interpretation:** Trigger sprint close-out (AGENTS.md Rule S2 / §2.9): author `retro.md` +
+  `key-learnings.md`, commit & push the feature branch, attempt the GitHub PR (Rules S12/S13), record
+  the outcome in `publication.yaml`, and finalize the manifest.
+- **Commands / changes executed:**
+  - Created `retro.md` and `key-learnings.md`.
+  - `git add` sprint artifacts + code; `git commit` (with `Co-authored-by: Junie` trailer).
+  - `git push -u origin feature/sprint-321-e7c4b2-mcp-config-env-refs` → success (branch on origin).
+  - PR attempt: `gh` CLI NOT installed and no GITHUB_TOKEN/GH_TOKEN → automated PR creation failed.
+    Logged in `publication.yaml` (status `pr_creation_failed`) with the ready-to-use manual PR URL:
+    https://github.com/cnavta/BitBrat/pull/new/feature/sprint-321-e7c4b2-mcp-config-env-refs
+- **Status:** Close-out artifacts complete; branch pushed. Per Rule S13, awaiting either an API token /
+  `gh` install to auto-create the PR, OR explicit user acceptance of closure given the logged PR failure.
