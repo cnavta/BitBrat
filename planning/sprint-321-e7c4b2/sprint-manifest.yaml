@@ -1,0 +1,33 @@
+id: sprint-321-e7c4b2
+title: "tool-gateway: env-var references in MCP server config (env/args)"
+goal: "Allow an MCP server configuration's `env` and `args` values (stored in Firestore `mcp_servers`) to reference environment variables available to the tool-gateway container, so secrets (and future config) can be injected at runtime instead of being stored in Firestore."
+owner: "Junie (Lead Implementor)"
+createdAt: "2026-06-23T19:20:00Z"
+status: "verifying"
+links:
+  branch: "feature/sprint-321-e7c4b2-mcp-config-env-refs"
+  pr: null
+notes: |
+  Lead Implementor role. First task of the sprint (this deliverable) is to author an Execution Plan
+  (execution-plan.md) and a companion Trackable Prioritized YAML Backlog (backlog.yaml). Per the LLM
+  Sprint Protocol (AGENTS.md §2.4), NO implementation begins until the user explicitly approves the plan.
+
+  Key discovery (grounding the plan in real code):
+  - MCP config type `McpServerConfig` lives in `src/common/mcp/types.ts` with `env?: Record<string,string>`
+    and `args?: string[]`. (The issue says "envs"; the actual field is `env`. Open question for the user:
+    keep `env` only, or also accept an `envs` alias.)
+  - Configs are sourced from Firestore collection `mcp_servers` via `RegistryWatcher`
+    (`src/common/mcp/registry-watcher.ts`), which calls `onServerActive(config)` ->
+    `ToolGatewayServer.handleMcpRegistration` -> `McpClientManager.connectServer`.
+  - The single consumption point is `McpClientManager.connectServer`
+    (`src/common/mcp/client-manager.ts`, lines ~167-189):
+      * SSE: `config.env` is passed as request headers.
+      * stdio: `config.args` and `{ ...process.env, ...config.env }` are passed to StdioClientTransport.
+  - `connectionSignature()` (client-manager.ts lines ~94-108) hashes raw `env`/`args` for reconnect
+    idempotency; resolution must be ordered relative to signature computation (see plan, Phase 2).
+  - The platform already has an established interpolation syntax `${VAR}` and `${VAR:-default}` via a
+    duplicated `interpolateEnv` helper (`src/services/twitch-oauth.ts`, `.../oauth/providers/twitch-adapter.ts`,
+    `.../oauth/providers/discord-adapter.ts`) and `tools/brat/src/config/loader.ts#interpolateString`.
+    The feature SHOULD reuse this syntax via a shared `src/common` utility (DRY).
+  - Security: references resolve ONLY from the tool-gateway's own `process.env`; resolved secret values
+    must never be logged. Logs record referenced var names + unresolved names, not values.
