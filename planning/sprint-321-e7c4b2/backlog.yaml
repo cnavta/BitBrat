@@ -1,0 +1,171 @@
+meta:
+  backlog_id: sprint-321-tool-gateway-mcp-config-env-refs
+  updated_at: 2026-06-23T20:30:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2]
+  effort_values: [S, M, L]
+  source: planning/sprint-321-e7c4b2/execution-plan.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for letting an MCP server configuration's `env` and `args`
+    values reference environment variables available to the tool-gateway container.
+    Derived from execution-plan.md (Phases 0-4 / Gates G0-G4) and grounded in:
+      - src/common/mcp/types.ts (McpServerConfig.env / .args)
+      - src/common/mcp/client-manager.ts#connectServer (consumption point; lines ~167-189)
+      - src/common/mcp/registry-watcher.ts (Firestore `mcp_servers` -> onServerActive)
+      - existing `${VAR}` / `${VAR:-default}` interpolation (src/services/twitch-oauth.ts#interpolateEnv).
+    Primary goal: secret hygiene (reference container-provided secrets instead of storing them in Firestore).
+    STATUS: APPROVED — implementation complete (REQ-002).
+    RESOLVED DECISIONS (user, REQ-002): (1) implement on the canonical `env` field; (2) unresolved refs
+    => empty-string substitution + a single `mcp.config.env_ref.unresolved` warning listing missing names;
+    (3) resolve env/args BEFORE computing connectionSignature() (rotation triggers a reconnect).
+
+sprint:
+  id: sprint-321-e7c4b2
+  start: 2026-06-23
+  end: null
+  wip_limit: 3
+  goal: "Let MCP server config `env`/`args` values reference the tool-gateway's environment variables (e.g. ${OPENAI_API_KEY}), resolved at connection time, so secrets are not stored in Firestore — reusing the platform's ${VAR}/${VAR:-default} syntax, never logging resolved values, and preserving reconnect idempotency."
+
+items:
+  - id: BL-001
+    title: "Confirm open questions (envs vs env, unresolved-ref policy, rotation semantics)"
+    phase: 0
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "User confirms whether to implement on canonical `env` only or also accept an `envs` alias (execution-plan.md §3.1)"
+      - "User confirms unresolved-reference policy (default: empty-string substitution + single warning) (§3.2)"
+      - "User confirms rotation vs idempotency ordering relative to connectionSignature() (default: sign resolved values) (§3.3)"
+      - "Decisions recorded in request-log.md; plan/backlog amended if any default is overridden (Rule S4 / §2.4.1)"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-002
+    title: "Shared env-interpolation utility in src/common"
+    phase: 0
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "src/common/env-interpolation.ts added, supporting ${VAR} and ${VAR:-default} (same regex/semantics as src/services/twitch-oauth.ts#interpolateEnv)"
+      - "Exposes string, string[], and Record<string,string> resolution against a provided env (defaults to process.env)"
+      - "Returns observability metadata: referenced var names and unresolved names (values excluded) so callers can log safely"
+      - "Literal strings (no ${...}) are returned unchanged (identity transform)"
+      - "Utility performs NO logging of resolved values"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-003
+    title: "Unit tests for the shared env-interpolation utility"
+    phase: 0
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "tests/common/env-interpolation.spec.ts added"
+      - "Covers: literal passthrough, single & multiple refs, ${VAR:-default} fallback, missing var, mixed literal+ref, array & record inputs"
+      - "Asserts the returned referenced/unresolved name sets are correct"
+      - "Gate G0: utility compiles and the suite passes"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-004
+    title: "Resolve env/args in McpClientManager.connectServer (core feature)"
+    phase: 1
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "connectServer (src/common/mcp/client-manager.ts) resolves config.env values and config.args elements via the BL-002 utility before building the transport"
+      - "stdio: resolved args passed to StdioClientTransport; child env is { ...process.env, ...resolvedEnv } (undefined-filtered as today)"
+      - "SSE: requestInit.headers built from resolved env"
+      - "The cached/persisted McpServerConfig (serverConfigs) and the Firestore document remain UNMODIFIED (unresolved form)"
+      - "One structured log mcp.config.env_ref.resolved emitted with name + refsUsed[] + unresolved[] (names only, no values)"
+      - "Gate G1: refs resolve into the live transport; literal-only config is byte-for-byte unchanged; no secret value is logged"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-005
+    title: "Reconnect idempotency & rotation semantics (connectionSignature)"
+    phase: 2
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-004]
+    blocked_reason: null
+    acceptance:
+      - "Resolution ordering relative to connectionSignature() implemented per the BL-001 decision (default: signature computed over resolved env/args)"
+      - "Unchanged Firestore doc + unchanged env -> no reconnect churn (existing idempotency guard preserved)"
+      - "Changed underlying referenced value -> exactly one reconnect using the new resolved value (if 'sign resolved' chosen)"
+      - "Decision documented inline (comment) and referenced for BL-008 docs"
+      - "Gate G2: idempotency and rotation behaviors verified"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-006
+    title: "Tests for MCP env/args resolution path"
+    phase: 3
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-004, BL-005]
+    blocked_reason: null
+    acceptance:
+      - "tests/common/mcp/env-refs.spec.ts added with StdioClientTransport & SSEClientTransport mocked and process.env controlled — no live spawns/network"
+      - "Cases: stdio env/args refs resolved into transport; SSE header refs resolved; literal config unchanged"
+      - "Unresolved ref -> policy behavior (default empty value + warning) with no thrown error / no failed tool result"
+      - "Idempotency + rotation behavior per BL-005"
+      - "Assertion that resolved secret values never appear in emitted logs"
+      - "Gate G3: new cases pass and existing tool-gateway/client-manager suites (incl. src/apps/tool-gateway.test.ts) stay green"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-007
+    title: "Documentation: MCP config env-var references"
+    phase: 4
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-004, BL-005]
+    blocked_reason: null
+    acceptance:
+      - "Docs (under documentation/, where MCP server registration/tool-gateway is described) explain the supported ${VAR} / ${VAR:-default} syntax"
+      - "States resolution is from the tool-gateway container's environment; includes the secret-hygiene Firestore example env: { OPENAI_API_KEY: \"${OPENAI_API_KEY}\" }"
+      - "Documents the unresolved-reference policy and the rotation/reconnect-idempotency behavior (BL-005)"
+      - "Notes backward compatibility: existing literal mcp_servers documents are unaffected"
+    updated_at: 2026-06-23
+    log: []
+
+  - id: BL-008
+    title: "Validation harness + sprint close-out"
+    phase: 4
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-003, BL-006, BL-007]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh runs npm run build + the env-interpolation and MCP client-manager suites (+ a tool-gateway regression check); logically passable per AGENTS.md §2.6"
+      - "verification-report.md, retro.md, key-learnings.md produced"
+      - "PR opened and recorded in publication.yaml (Rules S12/S13)"
+      - "Gate G4: validate_deliverable.sh is logically passable and DoD (AGENTS.md §3) is met"
+    updated_at: 2026-06-23
+    log: []
