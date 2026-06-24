@@ -7,6 +7,7 @@ import { BaseServer } from '../base-server';
 import { McpStatsCollector } from './stats-collector';
 import { McpServerConfig } from './types';
 import { ProxyInvoker } from './proxy-invoker';
+import { interpolateEnvArray, interpolateEnvRecord } from '../env-interpolation';
 
 export class McpClientManager {
   private clients: Map<string, Client> = new Map();
@@ -19,6 +20,11 @@ export class McpClientManager {
   private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
   private serverConfigs: Map<string, McpServerConfig> = new Map();
+  // Resolved connection signature captured at the last successful connect. Used to decide whether a
+  // (re)invocation of connectServer must tear down and rebuild the transport. Because the signature is
+  // computed over the *resolved* env/args, a rotated underlying ${VAR} value yields a new signature and
+  // triggers exactly one reconnect, while benign Firestore metadata rewrites do not churn the connection.
+  private connectedSignatures: Map<string, string> = new Map();
 
   constructor(
     private server: BaseServer,
@@ -107,23 +113,76 @@ export class McpClientManager {
     });
   }
 
+  /**
+   * Build a resolved view of a config by interpolating environment-variable references
+   * (`${VAR}` / `${VAR:-default}`) in `env` values and `args` elements against the
+   * tool-gateway's own process.env. The returned object is a shallow clone; the input
+   * (and therefore the cached/persisted, safe-to-store form) is never mutated.
+   *
+   * Security: only the NAMES of referenced and unresolved variables are logged — never values.
+   * Unresolved references (no value, no default) are substituted with an empty string and
+   * surfaced via a single `mcp.config.env_ref.unresolved` warning.
+   */
+  private resolveConfig(config: McpServerConfig): McpServerConfig {
+    const logger = (this.server as any).getLogger();
+    const refsUsed = new Set<string>();
+    const unresolved = new Set<string>();
+    let env = config.env;
+    let args = config.args;
+
+    if (config.env && Object.keys(config.env).length > 0) {
+      const r = interpolateEnvRecord(config.env, process.env);
+      env = r.value;
+      r.refsUsed.forEach((n) => refsUsed.add(n));
+      r.unresolved.forEach((n) => unresolved.add(n));
+    }
+    if (config.args && config.args.length > 0) {
+      const r = interpolateEnvArray(config.args, process.env);
+      args = r.value;
+      r.refsUsed.forEach((n) => refsUsed.add(n));
+      r.unresolved.forEach((n) => unresolved.add(n));
+    }
+
+    if (refsUsed.size > 0) {
+      logger.info('mcp.config.env_ref.resolved', {
+        name: config.name,
+        refsUsed: [...refsUsed],
+        unresolved: [...unresolved],
+      });
+    }
+    if (unresolved.size > 0) {
+      logger.warn('mcp.config.env_ref.unresolved', {
+        name: config.name,
+        unresolved: [...unresolved],
+      });
+    }
+
+    return { ...config, env, args };
+  }
+
   async connectServer(config: McpServerConfig): Promise<void> {
     const logger = (this.server as any).getLogger();
 
-    // Idempotency guard: if we already have a healthy connection whose
+    // Resolve ${VAR} references in env/args against process.env BEFORE computing the
+    // connection signature so that a rotated underlying value triggers a reconnect
+    // (idempotency vs. rotation decision: sign the RESOLVED env/args). The persisted/cached
+    // McpServerConfig (serverConfigs) and the Firestore document keep the UNRESOLVED form.
+    const resolved = this.resolveConfig(config);
+    const signature = this.connectionSignature(resolved);
+
+    // Idempotency guard: if we already have a healthy connection whose resolved
     // connection-relevant config is unchanged, do NOT tear it down and
     // reconnect. The RegistryWatcher invokes connectServer for every Firestore
     // snapshot change, including writes that only touch volatile metadata
     // (updatedAt, correlationId, etc.), which would otherwise churn every
-    // live (SSE) connection on a tight loop.
-    const previous = this.serverConfigs.get(config.name);
+    // live (SSE) connection on a tight loop. The signature excludes that volatile
+    // metadata, and is computed over resolved env/args so secret rotation still reconnects.
     const isHealthy =
       this.clients.has(config.name) &&
       this.stats.getServerStats(config.name)?.status === 'connected';
     if (
       isHealthy &&
-      previous &&
-      this.connectionSignature(previous) === this.connectionSignature(config) &&
+      this.connectedSignatures.get(config.name) === signature &&
       config.transport !== 'inactive' &&
       config.status !== 'inactive'
     ) {
@@ -171,7 +230,7 @@ export class McpClientManager {
         }
         transport = new SSEClientTransport(new URL(config.url), {
           requestInit: {
-            headers: config.env
+            headers: resolved.env
           }
         });
       } else {
@@ -180,9 +239,9 @@ export class McpClientManager {
         }
         transport = new StdioClientTransport({
           command: config.command,
-          args: config.args || [],
+          args: resolved.args || [],
           env: Object.fromEntries(
-            Object.entries({ ...process.env, ...config.env })
+            Object.entries({ ...process.env, ...resolved.env })
               .filter(([_, v]) => v !== undefined)
           ) as Record<string, string>,
         });
@@ -197,6 +256,9 @@ export class McpClientManager {
 
       await client.connect(transport);
       this.clients.set(config.name, client);
+      // Record the resolved signature for this live connection so future connectServer
+      // calls can distinguish benign metadata rewrites from real (incl. rotated) changes.
+      this.connectedSignatures.set(config.name, signature);
       this.stats.updateServerStatus(config.name, 'connected');
       // Clear any scheduled reconnects/attempts upon successful connection
       const t = this.reconnectTimers.get(config.name);
@@ -230,6 +292,7 @@ export class McpClientManager {
     if (t) { clearTimeout(t); this.reconnectTimers.delete(name); }
     this.reconnectAttempts.delete(name);
     this.serverConfigs.delete(name);
+    this.connectedSignatures.delete(name);
     const logger = (this.server as any).getLogger();
     const client = this.clients.get(name);
     

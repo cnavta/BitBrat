@@ -1,0 +1,15 @@
+pr_url: https://github.com/cnavta/BitBrat/pull/241
+branch: feature/sprint-321-e7c4b2-mcp-config-env-refs
+base: main
+pushed: true
+status: created
+attempts:
+  - method: gh-cli
+    result: failed
+    reason: "GitHub CLI (`gh`) was initially not on the non-interactive shell PATH."
+  - method: gh-cli
+    result: success
+    reason: "User installed gh (v2.95.0 at /opt/homebrew/bin/gh), authenticated as cnavta (repo scope); PR #241 created."
+notes: |
+  Feature branch committed (Junie co-authored) and pushed to origin (git@github.com:cnavta/BitBrat.git).
+  PR #241 opened against main via `gh pr create`. Rule S13 satisfied (PR URL recorded).
