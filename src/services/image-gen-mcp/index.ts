@@ -7,6 +7,9 @@ import { retryAsync, isTransientError } from '../../common/retry';
 import type { Storage } from '@google-cloud/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import { getFirestore } from '../../common/firebase';
+import { isFeatureEnabled } from '../../common/feature-flags';
+import { redactText } from '../../common/prompt-assembly/redaction';
 
 /**
  * ImageGenMcpServer
@@ -37,11 +40,15 @@ export class ImageGenMcpServer extends McpServer {
       }),
       async (args, extra) => {
         const { prompt, aspect_ratio: aspectRatio } = args;
+        const start = Date.now();
 
         // 0. Rate Limiting (RBAC handled by tool-gateway)
-        const userId = (extra as any)?.userId || 'anonymous';
-        
-        this.getLogger().info('Image generation requested', { prompt, aspectRatio, userId });
+        const userId = (extra as any)?._meta?.userId || (extra as any)?.userId || 'anonymous';
+        // MCP is a request/response tool (no event envelope), so prefer a correlationId
+        // propagated by the caller via _meta, otherwise generate one. (TA §5.4)
+        const correlationId = (extra as any)?._meta?.correlationId || uuidv4();
+
+        this.getLogger().info('Image generation requested', { prompt, aspectRatio, userId, correlationId });
 
         // Rate limiting: 1 per 5 mins per user (default)
         const rateLimitMs = this.getConfig('IMAGE_GEN_RATE_LIMIT_MS', { default: 5 * 60 * 1000 });
@@ -88,6 +95,18 @@ export class ImageGenMcpServer extends McpServer {
               .map(([cat]) => cat);
             
             this.getLogger().warn('Prompt flagged by moderation', { prompt, categories });
+
+            this.logPrompt({
+              correlationId,
+              prompt,
+              response: 'moderation_rejected',
+              status: 'rejected',
+              model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' }),
+              aspectRatio,
+              userId,
+              moderation: { flagged: true, categories },
+            });
+
             return {
               isError: true,
               content: [
@@ -188,6 +207,20 @@ export class ImageGenMcpServer extends McpServer {
           
           this.getLogger().info('Image persisted to GCS', { publicUrl });
 
+          this.logPrompt({
+            correlationId,
+            prompt,
+            response: publicUrl,
+            status: 'success',
+            model,
+            aspectRatio,
+            size,
+            userId,
+            processingTimeMs: Date.now() - start,
+            image: { url: publicUrl, bucket: bucketName, fileName, contentType: 'image/png' },
+            moderation: { flagged: false, categories: [] },
+          });
+
           // Update rate limit timestamp after successful generation
           if (userId !== 'anonymous') {
             this.lastRequestByUser.set(userId, now);
@@ -203,6 +236,18 @@ export class ImageGenMcpServer extends McpServer {
           };
         } catch (error: any) {
           this.getLogger().error('Image generation or persistence failed', { error: error.message, prompt });
+
+          this.logPrompt({
+            correlationId,
+            prompt,
+            response: 'error',
+            status: 'error',
+            model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' }),
+            aspectRatio,
+            userId,
+            error: error?.message,
+          });
+
           return {
             isError: true,
             content: [
@@ -215,6 +260,49 @@ export class ImageGenMcpServer extends McpServer {
         }
       }
     );
+  }
+
+  /**
+   * Fire-and-forget prompt logging for each generate_image invocation.
+   * Mirrors llm-bot / query-analyzer: gated by the existing `llm.promptLogging.enabled`
+   * flag, writes to services/image-gen-mcp/prompt_logs/{auto-id}, redacts free-text fields,
+   * and never throws into the tool result. (TA §5.5)
+   */
+  private logPrompt(entry: {
+    correlationId: string;
+    prompt: string;
+    response: string;
+    status: 'success' | 'rejected' | 'error';
+    model: string;
+    aspectRatio: string;
+    size?: string;
+    userId: string;
+    processingTimeMs?: number;
+    image?: Record<string, unknown>;
+    moderation?: Record<string, unknown>;
+    error?: string;
+  }) {
+    if (!isFeatureEnabled('llm.promptLogging.enabled')) return;
+    try {
+      const db = getFirestore();
+      db.collection('services').doc('image-gen-mcp').collection('prompt_logs').add({
+        ...entry,
+        prompt: redactText(entry.prompt),
+        response: redactText(entry.response),
+        error: entry.error ? redactText(entry.error) : undefined,
+        platform: 'openai',
+        createdAt: new Date(),
+      }).catch((e: any) =>
+        this.getLogger().warn('image_gen_mcp.prompt_logging_failed', {
+          correlationId: entry.correlationId,
+          error: e?.message,
+        }));
+    } catch (e: any) {
+      this.getLogger().warn('image_gen_mcp.prompt_logging_failed', {
+        correlationId: entry.correlationId,
+        error: e?.message,
+      });
+    }
   }
 }
 

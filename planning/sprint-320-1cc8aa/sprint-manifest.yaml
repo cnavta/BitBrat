@@ -1,0 +1,32 @@
+id: sprint-320-1cc8aa
+title: "image-gen-mcp Prompt Logging"
+goal: "Add prompt logging to the image-gen-mcp service, following the same structure and patterns already in place for llm-bot and query-analyzer (feature-flag-gated, fire-and-forget writes to a service-specific Firestore sub-collection with redaction)."
+owner: "Junie (Architect)"
+createdAt: "2026-06-23T16:23:00Z"
+status: "complete"
+links:
+  branch: "feature/sprint-320-1cc8aa-image-gen-prompt-logging"
+  pr: "https://github.com/cnavta/BitBrat/pull/240"
+notes: |
+  Architect role. First task of the sprint is to author a Technical Architecture document
+  describing how to add prompt logging to image-gen-mcp, mirroring the existing llm-bot and
+  query-analyzer prompt-logging implementation (post sprint-242 sub-collection refactor).
+  Implementation (the actual logging code, tests, and documentation updates) is a FUTURE task
+  and will be appended to implementation-plan.md per Rule S4 / section 2.4.1 once the TA
+  document is approved.
+
+  Key context gathered during discovery:
+  - Existing prompt logging (llm-bot `src/services/llm-bot/processor.ts`, query-analyzer
+    `src/services/query-analyzer/llm-provider.ts`) is gated by the feature flag
+    `llm.promptLogging.enabled` (env synonym `FF_LLM_PROMPT_LOGGING`, default false) defined in
+    `src/common/feature-flags.manifest.json`.
+  - Logs are written fire-and-forget (un-awaited `.add(...).catch(...)`) to the Firestore
+    sub-collection `services/{serviceName}/prompt_logs/{logId}` via
+    `getFirestore()` (`src/common/firebase.ts`), with `redactText`
+    (`src/common/prompt-assembly/redaction.ts`) applied to prompt/response text.
+  - Common log fields: correlationId, prompt, response, model, platform, processingTimeMs,
+    usage{promptTokens,completionTokens,totalTokens}, createdAt; each service adds domain-specific
+    fields (llm-bot: toolCalls, behaviorProfile, personalityNames; query-analyzer: entities, topic).
+  - image-gen-mcp (`src/services/image-gen-mcp/index.ts`) is an `McpServer extends BaseServer`
+    with one `generate_image` tool (moderation -> generation -> GCS persist). It has NO prompt
+    logging yet; `userId` is available from MCP `extra._meta`, but no `correlationId` is plumbed.
