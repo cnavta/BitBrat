@@ -3,10 +3,10 @@ title: "tool-gateway: env-var references in MCP server config (env/args)"
 goal: "Allow an MCP server configuration's `env` and `args` values (stored in Firestore `mcp_servers`) to reference environment variables available to the tool-gateway container, so secrets (and future config) can be injected at runtime instead of being stored in Firestore."
 owner: "Junie (Lead Implementor)"
 createdAt: "2026-06-23T19:20:00Z"
-status: "verifying"
+status: "complete"
 links:
   branch: "feature/sprint-321-e7c4b2-mcp-config-env-refs"
-  pr: null
+  pr: "https://github.com/cnavta/BitBrat/pull/241"
 notes: |
   Lead Implementor role. First task of the sprint (this deliverable) is to author an Execution Plan
   (execution-plan.md) and a companion Trackable Prioritized YAML Backlog (backlog.yaml). Per the LLM

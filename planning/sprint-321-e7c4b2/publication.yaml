@@ -1,20 +1,15 @@
+pr_url: https://github.com/cnavta/BitBrat/pull/241
 branch: feature/sprint-321-e7c4b2-mcp-config-env-refs
 base: main
 pushed: true
-pr_url: null
-status: pr_creation_failed
+status: created
 attempts:
   - method: gh-cli
     result: failed
-    reason: "GitHub CLI (`gh`) is not installed in the environment."
-  - method: github-api
-    result: failed
-    reason: "No GITHUB_TOKEN / GH_TOKEN available to authenticate the REST API call."
-manual_pr_url: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-321-e7c4b2-mcp-config-env-refs
+    reason: "GitHub CLI (`gh`) was initially not on the non-interactive shell PATH."
+  - method: gh-cli
+    result: success
+    reason: "User installed gh (v2.95.0 at /opt/homebrew/bin/gh), authenticated as cnavta (repo scope); PR #241 created."
 notes: |
-  The feature branch was committed and successfully pushed to origin
-  (git@github.com:cnavta/BitBrat.git). Automated PR creation could not proceed because neither the
-  `gh` CLI nor an API token is available in this environment (see attempts above). Per AGENTS.md
-  Publication phase guidance, the failure is logged and a ready-to-use manual PR URL is provided.
-  Per Rule S13, sprint closure requires either a created PR URL recorded here OR explicit user
-  acceptance of closure given this logged failure.
+  Feature branch committed (Junie co-authored) and pushed to origin (git@github.com:cnavta/BitBrat.git).
+  PR #241 opened against main via `gh pr create`. Rule S13 satisfied (PR URL recorded).
