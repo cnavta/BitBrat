@@ -2,7 +2,6 @@ import {
   CollectionReference,
   DocumentSnapshot,
   Firestore,
-  QueryDocumentSnapshot,
 } from 'firebase-admin/firestore';
 import type { Logger } from '../orchestration/logger';
 import { ConfigurationError } from '../orchestration/errors';
@@ -52,22 +51,20 @@ function applyStripFields(data: Record<string, unknown>, stripFields?: string[])
 /**
  * Export one document and (optionally) its subcollections into a BackupDocumentNode.
  * Forbidden subcollections (log/event) are skipped defensively, never exported.
+ *
+ * Returns `null` when there is nothing to export for this path — i.e. the document does not exist
+ * in its own right (a Firestore "phantom"/missing parent) AND it has no exportable subcollections.
+ * A phantom parent that *does* hold subcollections is preserved (with `missing: true` and empty
+ * data) so its nested config is captured.
  */
 async function exportDocument(
-  snap: QueryDocumentSnapshot | DocumentSnapshot,
+  snap: DocumentSnapshot,
   spec: BackupCollectionSpec,
   opts: { recurse: boolean; stripFields?: string[] },
   counter: { n: number },
   logger?: Logger,
-): Promise<BackupDocumentNode> {
-  const raw = (snap.data() || {}) as Record<string, unknown>;
-  const stripped = applyStripFields(raw, opts.stripFields);
-  const node: BackupDocumentNode = {
-    id: snap.id,
-    data: encodeDocumentData(stripped),
-    subcollections: {},
-  };
-  counter.n += 1;
+): Promise<BackupDocumentNode | null> {
+  const subcollections: Record<string, BackupDocumentNode[]> = {};
 
   if (opts.recurse) {
     const subcols = await snap.ref.listCollections();
@@ -80,13 +77,44 @@ async function exportDocument(
         continue;
       }
       const childNodes = await exportCollectionDocs(sub, spec, { recurse: true }, counter, logger);
-      if (childNodes.length > 0) node.subcollections[sub.id] = childNodes;
+      if (childNodes.length > 0) subcollections[sub.id] = childNodes;
     }
+  }
+
+  const exists = snap.exists;
+  const hasSubcollections = Object.keys(subcollections).length > 0;
+
+  // A phantom parent with no (exportable) subcollections carries no information — drop it.
+  if (!exists && !hasSubcollections) return null;
+
+  const node: BackupDocumentNode = {
+    id: snap.id,
+    data: exists
+      ? encodeDocumentData(applyStripFields((snap.data() || {}) as Record<string, unknown>, opts.stripFields))
+      : {},
+    subcollections,
+  };
+
+  if (exists) {
+    // Only real documents count toward the exported document total; phantom parents are structural.
+    counter.n += 1;
+  } else {
+    node.missing = true;
+    logger?.debug({ action: 'backup.export.phantomParent', path: snap.ref.path },
+      `Captured phantom parent ${snap.ref.path} solely to preserve its subcollections`);
   }
   return node;
 }
 
-/** Export all documents of a collection reference into nodes (used for both top-level + nested). */
+/**
+ * Export all documents of a collection reference into nodes (used for both top-level + nested).
+ *
+ * Uses `listDocuments()` rather than `get()` so that Firestore "phantom"/missing parent documents
+ * (which hold subcollections but have no fields of their own, and are therefore NOT returned by a
+ * collection query) are still enumerated and their nested config captured. Without this, paths such
+ * as `configs/routingRules/rules` are silently omitted whenever `configs/routingRules` itself has
+ * no top-level fields.
+ */
 async function exportCollectionDocs(
   col: CollectionReference,
   spec: BackupCollectionSpec,
@@ -94,10 +122,12 @@ async function exportCollectionDocs(
   counter: { n: number },
   logger?: Logger,
 ): Promise<BackupDocumentNode[]> {
-  const snap = await col.get();
+  const refs = await col.listDocuments();
   const nodes: BackupDocumentNode[] = [];
-  for (const doc of snap.docs) {
-    nodes.push(await exportDocument(doc, spec, opts, counter, logger));
+  for (const ref of refs) {
+    const snap = await ref.get();
+    const node = await exportDocument(snap, spec, opts, counter, logger);
+    if (node) nodes.push(node);
   }
   return nodes;
 }
