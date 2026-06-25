@@ -14,6 +14,14 @@ export interface BackupDocumentNode {
   id: string;
   data: Record<string, EncodedValue>;
   subcollections: Record<string, BackupDocumentNode[]>;
+  /**
+   * True when this document does not exist in its own right and is only present as a *parent path*
+   * for nested subcollections (a Firestore "phantom"/missing document — e.g. `configs/routingRules`
+   * created solely by writing `configs/routingRules/rules/<id>`). Such parents carry no field data
+   * and MUST NOT be (re)created as empty documents on import; they exist only so their
+   * subcollections can be captured and restored. Omitted (undefined) for real documents.
+   */
+  missing?: boolean;
 }
 
 export interface BackupMetadata {

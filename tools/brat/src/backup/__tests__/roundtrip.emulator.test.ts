@@ -8,7 +8,7 @@ import { TEST_EMULATOR_HOST, isEmulatorReachable } from '../testing/emulator-uti
 jest.setTimeout(30000);
 
 const CONFIG_AND_LOG_COLLECTIONS = [
-  'users', 'configs', 'sources', 'stream_observers', 'mcp_servers', 'schedules',
+  'users', 'configs', 'personalities', 'sources', 'stream_observers', 'mcp_servers', 'schedules',
   'events', 'mutation_log', 'state', 'tool_usage',
 ];
 
@@ -27,9 +27,11 @@ describe('brat backup — emulator export -> wipe -> import round-trip (Gate G3/
 
   async function wipeAll() {
     for (const c of CONFIG_AND_LOG_COLLECTIONS) {
-      const snap = await db.collection(c).get();
-      for (const doc of snap.docs) {
-        await db.recursiveDelete(doc.ref);
+      // listDocuments() (not get()) so phantom/missing parents that only hold subcollections are
+      // also enumerated and recursively deleted between test runs.
+      const refs = await db.collection(c).listDocuments();
+      for (const ref of refs) {
+        await db.recursiveDelete(ref);
       }
     }
   }
@@ -45,6 +47,17 @@ describe('brat backup — emulator export -> wipe -> import round-trip (Gate G3/
     await db.collection('configs').doc('routingRules').set({ description: 'router config' });
     await db.collection('configs').doc('routingRules').collection('rules').doc('rule-1')
       .set({ name: 'vip-greeting', enabled: true });
+
+    // Config: a PHANTOM parent — configs/phantomRules has NO fields of its own and exists only as a
+    // path for its `rules` subcollection. A collection query (.get()) does NOT return such parents,
+    // so this reproduces the bug where nested config (configs/<phantom>/rules) was silently dropped.
+    await db.collection('configs').doc('phantomRules').collection('rules').doc('rule-2')
+      .set({ name: 'phantom-greeting', enabled: false });
+
+    // Config: personalities/bitbrat — bot personality definition (must be in the backup set).
+    await db.collection('personalities').doc('bitbrat').set({
+      name: 'BitBrat', text: 'You are BitBrat, a helpful AI assistant.', status: 'active', version: 1,
+    });
 
     // Config: sources/s1 with volatile fields that must be stripped on export
     await db.collection('sources').doc('s1').set({
@@ -88,9 +101,26 @@ describe('brat backup — emulator export -> wipe -> import round-trip (Gate G3/
     expect(s1.data).not.toHaveProperty('viewerCount');
     expect(s1.data).not.toHaveProperty('latencyMs');
 
+    // Regression: personalities collection must be captured in the backup envelope.
+    const personalities = envelope.collections['personalities'];
+    expect(personalities).toBeDefined();
+    const bitbrat = personalities.find((d) => d.id === 'bitbrat')!;
+    expect(bitbrat).toBeDefined();
+    expect((bitbrat.data as any).name).toBe('BitBrat');
+    expect((bitbrat.data as any).status).toBe('active');
+
     // configs/routingRules/rules/rule-1 nested.
     const routing = envelope.collections['configs'].find((d) => d.id === 'routingRules')!;
     expect(routing.subcollections.rules[0].id).toBe('rule-1');
+
+    // Regression: the phantom parent (no own fields) must still be captured with its `rules`
+    // subcollection, flagged `missing` and carrying no data of its own.
+    const phantom = envelope.collections['configs'].find((d) => d.id === 'phantomRules')!;
+    expect(phantom).toBeDefined();
+    expect(phantom.missing).toBe(true);
+    expect(phantom.data).toEqual({});
+    expect(phantom.subcollections.rules[0].id).toBe('rule-2');
+    expect((phantom.subcollections.rules[0].data as any).name).toBe('phantom-greeting');
   });
 
   it('imports into a wiped database restoring config (IDs + subcollections); logs stay empty', async () => {
@@ -123,6 +153,19 @@ describe('brat backup — emulator export -> wipe -> import round-trip (Gate G3/
     expect(r1.data()!.role).toBe('admin');
     const rule = await db.collection('configs').doc('routingRules').collection('rules').doc('rule-1').get();
     expect(rule.data()!.name).toBe('vip-greeting');
+
+    // The phantom parent's nested config is restored, and the parent itself stays a phantom
+    // (no field data materialised) just as it was in the source.
+    const phantomRule = await db.collection('configs').doc('phantomRules').collection('rules').doc('rule-2').get();
+    expect(phantomRule.exists).toBe(true);
+    expect(phantomRule.data()!.name).toBe('phantom-greeting');
+    const phantomParent = await db.collection('configs').doc('phantomRules').get();
+    expect(phantomParent.exists).toBe(false);
+    // Personality definition restored intact.
+    const persona = await db.collection('personalities').doc('bitbrat').get();
+    expect(persona.exists).toBe(true);
+    expect(persona.data()!.name).toBe('BitBrat');
+    expect(persona.data()!.status).toBe('active');
     const s1 = await db.collection('sources').doc('s1').get();
     expect(s1.data()!.channel).toBe('twitch-main');
     expect(s1.data()).not.toHaveProperty('status');

@@ -90,16 +90,22 @@ async function importNode(
 ): Promise<void> {
   const docPath = `${collectionPath}/${node.id}`;
   const ref = db.doc(docPath);
-  const existing = await ref.get();
-  const exists = existing.exists;
 
-  if (mode === 'skip' && exists) {
-    stats.skipped += 1;
-  } else {
-    const data = decodeDocumentData(node.data, db);
-    const merge = mode === 'merge';
-    if (sink) sink.set(docPath, data as Record<string, unknown>, merge);
-    if (exists) stats.updated += 1; else stats.created += 1;
+  // A phantom/missing parent existed only as a path for its subcollections in the source; it has
+  // no field data of its own and MUST NOT be materialised as an empty document on import. Skip the
+  // write entirely (it is not a real document) but still recurse into its subcollections below.
+  if (!node.missing) {
+    const existing = await ref.get();
+    const exists = existing.exists;
+
+    if (mode === 'skip' && exists) {
+      stats.skipped += 1;
+    } else {
+      const data = decodeDocumentData(node.data, db);
+      const merge = mode === 'merge';
+      if (sink) sink.set(docPath, data as Record<string, unknown>, merge);
+      if (exists) stats.updated += 1; else stats.created += 1;
+    }
   }
 
   // Recurse into subcollections (always — even when the parent was skipped, nested config may
