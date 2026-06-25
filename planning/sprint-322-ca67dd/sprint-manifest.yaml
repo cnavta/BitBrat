@@ -1,0 +1,38 @@
+id: sprint-322-ca67dd
+title: "architecture.yaml: improve descriptive formatting & data (contracts, flow, conventions)"
+goal: "Improve the formatting and data in the canonical architecture.yaml so it carries the contracts, flow, and rationale (messaging/topic catalog, end-to-end dataflow lifecycle, consistency fixes, secret/env documentation, Firestore in infrastructure, richer llm_guidance, per-service boundaries/kind tags, document cross-references, and structured decision blocks) currently scattered across documentation/ — without breaking its role as the structural source of truth."
+owner: "Junie (Lead Implementor)"
+createdAt: "2026-06-25T11:42:00Z"
+status: "verifying"
+links:
+  branch: "feature/sprint-322-ca67dd-architecture-yaml-docs"
+  pr: "" # PR not auto-created (no gh CLI / token); branch pushed. See publication.yaml (Rule S13b).
+notes: |
+  Lead Implementor role. Planning deliverables (execution-plan.md + backlog.yaml) were authored first
+  and the plan was APPROVED by the user (REQ-002) with answers to all 6 open questions. Implementation
+  of architecture.yaml enrichment is now in progress.
+
+  Resolved open questions (REQ-002): (1) free-form-but-consumed; (2) remove the stale command-processor
+  route; (3) document the intended internal-LB resolution; (4) absent `active:` means DISABLED; (5) all
+  9 analysis areas; (6) promote durable sprint-tagged comments to structured networking:/build: blocks
+  and remove the transient comment noise.
+
+  Source issue: the attached analysis "Improving Descriptive Text in architecture.yaml" enumerates 9
+  improvement areas. architecture.yaml is the canonical source of truth (AGENTS.md precedence rule #1)
+  but is currently a thin structural manifest.
+
+  Grounding (verified against architecture.yaml, 449 lines):
+  - Top-level keys present: name, description, project, llm_guidance, defaults, services, infrastructure,
+    deploymentDefaults, deploymentTargets. There is NO messaging:/topics:, dataflow:/lifecycle:,
+    references:/docs:, networking:, or build: block today.
+  - `command-processor` appears ONLY as a route target (line 414, under internal-load-balancer) and is
+    NOT defined under services: — stale route or missing service definition.
+  - `internal-load-balancer` has 9 routing rules all using `path_prefix: /` (lines ~401-417) — ambiguous
+    as written.
+  - `active:` is applied inconsistently across services (e.g. query-analyzer, api-gateway omit it).
+  - Durable decisions are buried in free-form sprint-tagged comments (e.g. "Sprint 113" networking posture
+    ~lines 445-449; "sprint-318" build notes ~lines 33-44).
+
+  CONSTRAINT: This sprint changes the canonical file. Every edit MUST preserve existing structural
+  semantics (no renaming/removing fields that tooling consumes) unless the change is an explicit,
+  approved consistency fix. The file must remain valid YAML and should be schema/lint validated.

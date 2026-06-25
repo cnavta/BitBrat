@@ -1,0 +1,276 @@
+meta:
+  backlog_id: sprint-322-architecture-yaml-descriptive-improvements
+  updated_at: 2026-06-25T11:58:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2]
+  effort_values: [S, M, L]
+  source: planning/sprint-322-ca67dd/execution-plan.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for improving the formatting and data in the canonical
+    architecture.yaml. Derived from execution-plan.md (Phases 0-5 / Gates G0-G5) and the attached
+    analysis "Improving Descriptive Text in architecture.yaml" (9 areas). Each item maps to one or
+    more analysis sections (§N).
+    Grounded in architecture.yaml (449 lines) — verified facts:
+      - top-level keys: name, description, project, llm_guidance, defaults, services, infrastructure,
+        deploymentDefaults, deploymentTargets (no messaging:/dataflow:/references:/networking:/build:).
+      - command-processor referenced only as a route target (line ~414), not defined under services:.
+      - internal-load-balancer: 9 rules all path_prefix: / (lines ~401-417).
+      - active: inconsistently applied (query-analyzer, api-gateway omit it).
+    STATUS: APPROVED (REQ-002) — implementation in progress. Resolved decisions: (1) free-form-but-consumed;
+    (2) remove stale command-processor route; (3) document internal-LB resolution; (4) absent active: = DISABLED;
+    (5) all 9 areas; (6) promote sprint comments to structured networking:/build: blocks and remove the noise.
+
+sprint:
+  id: sprint-322-ca67dd
+  start: 2026-06-25
+  end: null
+  wip_limit: 3
+  goal: "Enrich architecture.yaml with the contracts, flow, and rationale (messaging/topic catalog, end-to-end dataflow, consistency fixes, secret/env docs, Firestore in infrastructure, richer llm_guidance, per-service boundaries/kind tags, doc cross-references, structured decision blocks) while keeping it valid, concise, and structurally backward-compatible."
+
+items:
+  - id: BL-001
+    title: "Discovery: validation target + ground citations + answer open questions"
+    phase: 0
+    section: "all"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Determined whether a schema/validator/consumer parses architecture.yaml (Open Question 1); validation method chosen"
+      - "Confirmed every doc each addition will cite exists: documentation/concepts/platform-flow.md, messaging-system.md, documentation/schemas/envelope.v1.json, routing-slip.v1.json, firestore.rules, firestore.indexes.json, documentation/firestore/"
+      - "Baseline YAML parse of current architecture.yaml recorded as the 'still-valid' reference"
+      - "Open Questions 1-6 answered by user (or documented defaults accepted); decisions recorded in request-log.md (Rule S4 / §2.4.1)"
+      - "Gate G0 met"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T11:58:00Z
+        note: "Done. No JSON-Schema validator in repo -> validation = YAML parse + topic-catalog completeness check. All cited docs confirmed to exist (messaging-system.md is under documentation/reference/). Firestore collections: events, stream_observers, state, mutation_log, commands. Baseline architecture.yaml (450 lines) parses OK. OQ1-6 answered in REQ-002."
+
+  - id: BL-002
+    title: "Add messaging: block + topic catalog (naming, transport, envelope, DLQ)"
+    phase: 1
+    section: "§1"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Top-level messaging: block added with conventions (topic_naming internal.<domain>.<verb>.v<N>, .v<N> versioning rule, .{instanceId} per-instance semantics)"
+      - "Transport documented: MESSAGE_BUS_DRIVER / NATS_URL / BUS_PREFIX -> NATS locally, Google Cloud Pub/Sub in production"
+      - "envelope_schema points to documentation/schemas/envelope.v1.json; required envelope fields listed (v, source, correlationId, traceId, replyTo, routingSlip)"
+      - "DLQ semantics for internal.deadletter.v1 and internal.router.dlq.v1 documented"
+      - "Topic catalog: every topic referenced in any service publishes/consumes has purpose + producer(s) + consumer(s) + schema link"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:05:00Z
+        note: "Done. Top-level messaging: added (transport NATS-local/Pub-Sub-prod via MESSAGE_BUS_DRIVER, conventions, envelope required/optional fields + schema, DLQ topics) plus a 17-entry topic catalog covering every publishes/consumes topic (base topics cover the .{instanceId} variants). File parses OK."
+
+  - id: BL-003
+    title: "Add dataflow: lifecycle narrative (ingress -> analysis -> reaction -> egress)"
+    phase: 1
+    section: "§2"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Top-level dataflow: block added describing the canonical ingress-egress -> internal.ingress.v1 -> event-router -> enrichment -> llm-bot -> internal.egress.v1 path"
+      - "Block references documentation/concepts/platform-flow.md"
+      - "Optional per-service stage: field added where it aids placement (no structural breakage)"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:05:00Z
+        note: "Done. Top-level dataflow: added with the canonical narrative + a stages[] list (ingest/route/analyze/react/egress/persist mapped to services), referencing documentation/concepts/platform-flow.md. Per-service stage: tags will be added in BL-009."
+
+  - id: BL-004
+    title: "Consistency fix: resolve command-processor (stale route vs missing service)"
+    phase: 2
+    section: "§3"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Per the BL-001 decision, command-processor route (line ~414) is either removed or a matching services: definition is added"
+      - "No internal-load-balancer route targets a service undefined under services: (or the exception is explicitly documented)"
+      - "Change annotated with a short description of its rationale"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:12:00Z
+        note: "Done (OQ2=remove). Stale internal-load-balancer route to command-processor removed; replaced with a NOTE comment pointing to documentation/firestore/indexes.md (commands collection). Verified no internal-lb route targets an undefined service."
+
+  - id: BL-005
+    title: "Consistency fix: clarify/correct internal-load-balancer routing"
+    phase: 2
+    section: "§3"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "The 9 path_prefix: / rules (lines ~401-417) are either documented (intended host/per-service resolution) or corrected to unambiguous prefixes, per the BL-001 decision"
+      - "internal-load-balancer carries a description clarifying its resolution strategy"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:12:00Z
+        note: "Done (OQ3=document). internal-load-balancer description expanded to state routing is host-based per-service (each backend on its own internal hostname under default_domain); the 9 path_prefix: / rules are intentional and left unchanged, with an inline comment."
+
+  - id: BL-006
+    title: "Consistency fix: normalize active: + finish truncated descriptions"
+    phase: 2
+    section: "§3"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "defaults.services documents whether absent active: means enabled or disabled"
+      - "active: usage across services normalized to be consistent with the documented default"
+      - "Truncated/fragment descriptions completed into full sentences (e.g. ingress-egress '...to internal topics;')"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:12:00Z
+        note: "Done (OQ4=disabled). defaults.services.active: false added with a comment that absent active means DISABLED. query-analyzer and api-gateway now set active: true explicitly. ingress-egress truncated description completed into a full sentence."
+
+  - id: BL-007
+    title: "Document secrets & env vars: purpose + source"
+    phase: 3
+    section: "§4"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Secrets/env keys carry inline description + source (gcp-secret-manager | .env | cloud-run-injection), beginning with high-reuse keys (e.g. MCP_AUTH_TOKEN across ~8 services)"
+      - "A conventions.env note explains auto-provided vars (e.g. K_REVISION is Cloud-Run-injected)"
+      - "No secret VALUES added — names/purpose/source only"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:20:00Z
+        note: "Done. Added top-level conventions: block with env (sources + K_REVISION auto-injected note) and secrets (default_source gcp-secret-manager + a catalog of 14 secret names -> description/source/used_by). No values added."
+
+  - id: BL-008
+    title: "Declare Firestore data layer in infrastructure"
+    phase: 3
+    section: "§5"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "infrastructure.resources includes a Firestore resource with a description of collections/usage"
+      - "Grounded in firestore.rules / firestore.indexes.json and links to documentation/firestore/"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:20:00Z
+        note: "Done. infrastructure.resources.firestore added (cloud-firestore) with rules/indexes links, documentation/firestore/ docs link, and a collections map (events, stream_observers, state, mutation_log, commands) grounded in firestore.rules/indexes."
+
+  - id: BL-009
+    title: "Per-service responsibility & boundaries (state, scaling, deps, kind tags)"
+    phase: 3
+    section: "§7"
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-003]
+    blocked_reason: null
+    acceptance:
+      - "Services tagged with kind: (mcp-server | pipeline-service | gateway) so the two planes are legible"
+      - "Where useful: stateful/stateless + owned state noted (e.g. state-engine, disposition-service)"
+      - "Scaling rationale noted where non-obvious (min: 0/1; ingress-egress per-instance egress topics = singleton connection ownership)"
+      - "External dependencies surfaced per service (Twitch/Discord/Twilio/OpenAI/OBS)"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:20:00Z
+        note: "Done. Every service tagged kind: (gateway | pipeline-service | mcp-server) and pipeline services tagged stage:. Added external: deps (twitch/discord/twilio/openai/obs), stateful:/owned_state: for persistence/state-engine/disposition-service/llm-bot, and scaling_rationale: for oauth-flow/ingress-egress/api-gateway."
+
+  - id: BL-010
+    title: "Add document cross-references (references:/docs:)"
+    phase: 3
+    section: "§8"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Top-level references:/docs: field links the documentation/ tree (platform-flow.md, messaging-system.md, schemas, firestore/)"
+      - "All referenced paths resolve to real files"
+      - "Optional per service/topic doc links added where high-value"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:20:00Z
+        note: "Done. Top-level references: block links platform-flow, event-router-rules, messaging-system, messaging-config, envelope/routing-slip schemas, firestore docs/rules/indexes. All paths verified to resolve to real files."
+
+  - id: BL-011
+    title: "Strengthen llm_guidance + promote sprint comments into structured blocks"
+    phase: 4
+    section: "§6, §9"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-002, BL-003]
+    blocked_reason: null
+    acceptance:
+      - "llm_guidance gains a glossary (routing slip, disposition, MCP, egress, enrichment, 'brat' CLI)"
+      - "llm_guidance gains hard invariants (never import ./deprecated; all messages carry correlationId; bump topic version on breaking changes) and the Dockerfile.service build-contract reminder"
+      - "llm_guidance gains pointers to authoritative docs"
+      - "Durable sprint-tagged comments (e.g. Sprint 113 networking ~lines 445-449; sprint-318 build ~lines 33-44) promoted into structured networking: and build: blocks per the BL-001 decision"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:28:00Z
+        note: "Done (OQ6=promote+remove noise). llm_guidance gained glossary, invariants, doc_pointers, build_contract. Sprint-113 networking comment promoted to a top-level networking: block; sprint-318 build comment promoted to structured defaults.services.build (build_args, override) with the verbose comment removed; stream-analyst port comment trimmed. Durable decision text kept."
+
+  - id: BL-012
+    title: "Validation harness, doc cross-link sync & sprint close-out"
+    phase: 5
+    section: "DoD"
+    priority: P1
+    status: in_progress
+    effort: M
+    owner: agent
+    deps: [BL-002, BL-003, BL-004, BL-005, BL-006, BL-007, BL-008, BL-009, BL-010, BL-011]
+    blocked_reason: "PR could not be auto-created (no gh CLI / no token). Branch pushed; awaiting PR creation or user acceptance of closure (Rule S13b)."
+    acceptance:
+      - "validate_deliverable.sh parses architecture.yaml (YAML), runs any existing schema/lint, and verifies every publishes/consumes topic exists in the messaging catalog; logically passable per AGENTS.md §2.6"
+      - "Any affected documentation/ index/cross-links updated so docs and YAML agree"
+      - "verification-report.md, retro.md, key-learnings.md produced"
+      - "PR opened and recorded in publication.yaml (Rules S12/S13)"
+      - "Gate G5: validate_deliverable.sh is logically passable and DoD (AGENTS.md §3) is met"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T12:40:00Z
+        note: "validate_deliverable.sh created and PASSES (parse + 18-topic catalog + LB targets + 9 references). platform-flow.md reciprocal link fixed. verification-report.md, retro.md, key-learnings.md produced. Committed (461f735, Junie co-author) and pushed to origin."
+      - at: 2026-06-25T12:40:00Z
+        note: "PR NOT auto-created: gh CLI absent and no GITHUB_TOKEN/GH_TOKEN. Logged in publication.yaml (status: failed) with compare_url. Per Rule S13b this needs a created PR or explicit user acceptance to close."

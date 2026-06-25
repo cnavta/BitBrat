@@ -1,0 +1,17 @@
+pr_url: ""
+compare_url: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-322-ca67dd-architecture-yaml-docs
+branch: feature/sprint-322-ca67dd-architecture-yaml-docs
+base: main
+commit: 461f735
+pushed: true
+status: failed
+reason: |
+  Automated Pull Request creation could not be completed in this environment (Rule S13b):
+    - The GitHub CLI (`gh`) is not installed.
+    - No GITHUB_TOKEN / GH_TOKEN is available for the REST API fallback.
+  The feature branch WAS pushed to origin (git@github.com:cnavta/BitBrat.git) successfully, so the PR
+  can be opened in one click via compare_url above. Per Rule S13, the sprint cannot formally close until
+  either a PR is created (record its URL here) or this failed attempt is explicitly accepted by the user.
+next_action: |
+  Open the PR via compare_url (or run `gh pr create` / provide a token), then set pr_url and
+  status: created here.

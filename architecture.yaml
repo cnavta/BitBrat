@@ -10,11 +10,276 @@ project:
     - chris@ix-n.com
 llm_guidance:
   default_system_prompt: >
-    You are an experienced Staff Engineer responsible for developing the BitBrat Platform.
+    You are an experienced Lead Engineer responsible for developing the BitBrat Platform.
     Follow the architecture.yaml specs strictly. Justify any architectural deviation clearly.
+  glossary:
+    routing_slip: An ordered list of processing steps that travels with a message; each worker updates its step and republishes (see references.routing_slip_schema).
+    disposition: A short-term, TTL-bounded read of a user's behavior, computed by disposition-service.
+    mcp: Model Context Protocol; MCP servers expose tools to the LLM and are proxied/secured by tool-gateway.
+    egress: Delivery of an internal response back out to the originating platform (Twitch/Discord/Twilio).
+    enrichment: Optional analysis that augments an event before reaction (query-analyzer, llm-bot).
+    brat: The platform CLI/tooling under tools/brat (config, backup, setup).
+  invariants:
+    - Never import from or depend on ./deprecated in deliverables.
+    - Every message must carry a correlationId (see messaging.envelope.required).
+    - Bump the topic version (v<N>) on breaking payload changes; never mutate an existing version.
+    - Consumers must be idempotent because delivery is at-least-once.
+    - architecture.yaml is the canonical source of truth; service build args are derived from it.
+  doc_pointers:
+    flow: documentation/concepts/platform-flow.md
+    messaging: documentation/reference/messaging-system.md
+    schemas: documentation/schemas/
+  build_contract: >
+    Standard services build from the single reusable Dockerfile.service; per-service behavior is
+    supplied as --build-args derived from this file (see defaults.services.build).
+
+messaging: # Asynchronous internal event bus: contracts, conventions, and topic catalog.
+  description: >
+    The internal event bus that connects all services. NATS JetStream locally (Docker/dev) and
+    Google Cloud Pub/Sub in production; the driver is selected at runtime via MESSAGE_BUS_DRIVER.
+    Every message is an Envelope v1 and orchestration is decentralized via a routing slip that
+    travels with the message. Delivery is at-least-once, so every consumer MUST be idempotent.
+  reference: documentation/reference/messaging-system.md
+  transport:
+    driver_env: MESSAGE_BUS_DRIVER   # pubsub | nats (alias: MESSAGE_BUS)
+    local: nats                      # NATS JetStream; connection via NATS_URL (e.g. nats://localhost:4222)
+    production: pubsub               # Google Cloud Pub/Sub
+    subject_prefix_env: BUS_PREFIX   # optional per-environment subject prefix (primarily NATS, e.g. "dev.")
+    delivery: at-least-once          # consumers must be idempotent (dedupe on correlationId + step + attempt)
+  conventions:
+    topic_naming: "internal.<domain>.<verb>.v<version>"
+    versioning: "Bump v<N> on breaking payload changes; never mutate an existing version."
+    per_instance: >
+      A '.{instanceId}' suffix targets a single running instance. ingress-egress and api-gateway
+      resolve {instanceId} at runtime via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID
+      || HOSTNAME || generated id.
+  envelope:
+    schema: documentation/schemas/envelope.v1.json
+    required: [v, source, correlationId]
+    optional: [traceId, replyTo, timeoutAt, routingSlip]
+    routing_slip_schema: documentation/schemas/routing-slip.v1.json
+  dlq:
+    description: >
+      Unrecoverable failures are routed to dead-letter topics with rich context and consumed by the
+      persistence service for durable capture and later inspection. Retryable failures are re-published
+      by the originating step with backoff (see routing-slip.v1.json) rather than dead-lettered.
+    topics:
+      - internal.deadletter.v1   # generic unrecoverable failures
+      - internal.router.dlq.v1   # event-router-specific dead letters
+  # Topic catalog: every topic referenced in any service's publishes/consumes is defined here.
+  # Per-instance variants (e.g. internal.egress.v1.{instanceId}) are runtime derivatives of the
+  # base topic listed below (see conventions.per_instance).
+  topics:
+    internal.finalize.v1:
+      description: Generic finalize signal that any service may publish to close out a message (defaults.topics.publishes).
+      producers: [any-service]
+      consumers: []
+      schema: documentation/schemas/envelope.v1.json
+    internal.ingress.v1:
+      description: Normalized inbound events from external platforms, entering the pipeline.
+      producers: [ingress-egress, scheduler, api-gateway]
+      consumers: [event-router, persistence]
+      schema: documentation/schemas/envelope.v1.json
+    internal.enriched.v1:
+      description: Analysis/enrichment results returned to the router to advance the routing slip.
+      producers: [llm-bot, query-analyzer]
+      consumers: [event-router]
+      schema: documentation/schemas/envelope.v1.json
+    internal.query.analysis.v1:
+      description: Fast pre-analysis requests dispatched by the router for routing/response hints.
+      producers: [event-router]
+      consumers: [query-analyzer]
+      schema: documentation/schemas/envelope.v1.json
+    internal.llmbot.v1:
+      description: LLM reaction requests dispatched by the router to the headless LLM worker.
+      producers: [event-router]
+      consumers: [llm-bot]
+      schema: documentation/schemas/envelope.v1.json
+    internal.auth.v1:
+      description: Authentication/authorization requests routed to the auth service.
+      producers: [event-router]
+      consumers: [auth]
+      schema: documentation/schemas/envelope.v1.json
+    internal.story.enrich.v1:
+      description: Collaborative-storytelling enrichment requests for the story-engine MCP server.
+      producers: [event-router]
+      consumers: [story-engine-mcp]
+      schema: documentation/schemas/envelope.v1.json
+    internal.user.disposition.observation.v1:
+      description: Per-event user-behavior observations feeding short-term disposition analysis.
+      producers: [event-router]
+      consumers: [disposition-service]
+      schema: documentation/schemas/envelope.v1.json
+    internal.user.disposition.updated.v1:
+      description: Emitted when a user's computed disposition snapshot changes (DISPOSITION_PUBLISH_UPDATES).
+      producers: [disposition-service]
+      consumers: []
+      schema: documentation/schemas/envelope.v1.json
+    internal.state.mutation.v1:
+      description: State-change commands applied by the state engine to global/user state.
+      producers: [disposition-service]
+      consumers: [state-engine]
+      schema: documentation/schemas/envelope.v1.json
+    internal.egress.v1:
+      description: >
+        Final responses for delivery back to the originating platform. Consumed broadcast plus a
+        per-instance variant (internal.egress.v1.{instanceId}) addressing the connection-owning instance.
+      producers: [event-router]
+      consumers: [ingress-egress]
+      schema: documentation/schemas/envelope.v1.json
+    internal.api.egress.v1:
+      description: >
+        Egress responses destined for the API gateway's WebSocket clients; consumed via the
+        per-instance variant internal.api.egress.v1.{instanceId} owned by the serving instance.
+      producers: [event-router]
+      consumers: [api-gateway]
+      schema: documentation/schemas/envelope.v1.json
+    internal.persistence.snapshot.v1:
+      description: Event snapshots for durable persistence/indexing (PERSISTENCE_SNAPSHOT_MODE).
+      producers: [ingress-egress, api-gateway]
+      consumers: [persistence]
+      schema: documentation/schemas/envelope.v1.json
+    internal.persistence.finalize.v1:
+      description: Finalize signal instructing persistence to close out a stored event record.
+      producers: [event-router]
+      consumers: [persistence]
+      schema: documentation/schemas/envelope.v1.json
+    internal.scheduler.tick:
+      description: Periodic timer tick that drives the scheduler's cron-style tasks.
+      producers: [scheduler]
+      consumers: [scheduler]
+      schema: documentation/schemas/envelope.v1.json
+    internal.deadletter.v1:
+      description: Generic dead-letter topic for unrecoverable failures, captured durably.
+      producers: [any-service]
+      consumers: [persistence]
+      schema: documentation/schemas/envelope.v1.json
+    internal.router.dlq.v1:
+      description: Event-router-specific dead-letter topic for unroutable/failed events.
+      producers: [event-router]
+      consumers: [persistence]
+      schema: documentation/schemas/envelope.v1.json
+
+dataflow: # End-to-end event lifecycle narrative (see documentation/concepts/platform-flow.md).
+  description: >
+    Canonical event lifecycle (ingest -> route -> analysis/enrichment -> reaction -> egress):
+    ingress-egress normalizes external platform events and publishes internal.ingress.v1; the
+    event-router attaches a JsonLogic routing slip; analysis/enrichment services (query-analyzer,
+    llm-bot, disposition-service, story-engine-mcp) process steps and publish internal.enriched.v1;
+    the router advances the slip, drives reactive services (state-engine, disposition-service), and
+    finally publishes internal.egress.v1, which ingress-egress (or api-gateway) delivers back out.
+  reference: documentation/concepts/platform-flow.md
+  stages:
+    - id: ingest
+      description: Normalize external platform events into Envelope v1 and publish internal.ingress.v1.
+      services: [ingress-egress, api-gateway, scheduler]
+    - id: route
+      description: Attach and advance the routing slip; dispatch each step to its topic.
+      services: [event-router]
+    - id: analyze
+      description: Optional analysis/enrichment steps that publish results to internal.enriched.v1.
+      services: [query-analyzer, llm-bot, disposition-service, story-engine-mcp]
+    - id: react
+      description: Apply state mutations and behavioral side effects.
+      services: [state-engine, disposition-service]
+    - id: egress
+      description: Translate internal responses back into platform-native delivery.
+      services: [ingress-egress, api-gateway]
+    - id: persist
+      description: Durable capture of events, snapshots, and dead letters.
+      services: [persistence]
+
+conventions: # How env vars and secrets are supplied; documents purpose + source (no values).
+  env:
+    description: >
+      Variables listed under each service's env: are required at runtime. They are supplied by
+      Cloud Run at deploy time, by a local .env in development, or auto-injected by the platform.
+    sources: [gcp-secret-manager, dotenv, cloud-run-injection]
+    auto_injected:
+      - name: K_REVISION
+        source: cloud-run-injection
+        description: >
+          Cloud Run revision name, injected automatically when running on Cloud Run. Used as the
+          default per-instance egress {instanceId} (see messaging.conventions.per_instance).
+  secrets:
+    description: >
+      Names listed under each service's secrets: are resolved from Google Secret Manager and
+      mounted/injected at deploy time. No secret VALUES are stored in this file.
+    default_source: gcp-secret-manager
+    catalog:
+      MCP_AUTH_TOKEN:
+        description: Bearer token authorizing service-to-MCP-gateway (tool-gateway) calls.
+        source: gcp-secret-manager
+        used_by: [auth, event-router, obs-mcp, scheduler, state-engine, disposition-service, tool-gateway, image-gen-mcp, stream-analyst-service, story-engine-mcp]
+      OPENAI_API_KEY:
+        description: OpenAI API key for LLM analysis and image generation.
+        source: gcp-secret-manager
+        used_by: [query-analyzer, llm-bot, image-gen-mcp]
+      TWITCH_CLIENT_ID:
+        description: Twitch application client id for OAuth and EventSub/IRC.
+        source: gcp-secret-manager
+        used_by: [oauth-flow, ingress-egress, auth]
+      TWITCH_CLIENT_SECRET:
+        description: Twitch application client secret (pairs with TWITCH_CLIENT_ID).
+        source: gcp-secret-manager
+        used_by: [oauth-flow, ingress-egress, auth]
+      OAUTH_STATE_SECRET:
+        description: HMAC secret protecting the OAuth state parameter against CSRF/replay.
+        source: gcp-secret-manager
+        used_by: [oauth-flow]
+      DISCORD_CLIENT_ID:
+        description: Discord application client id (user-level OAuth, optional/future).
+        source: gcp-secret-manager
+        used_by: [oauth-flow]
+      DISCORD_CLIENT_SECRET:
+        description: Discord application client secret.
+        source: gcp-secret-manager
+        used_by: [oauth-flow]
+      DISCORD_BOT_TOKEN:
+        description: Discord bot token used by the ingress-egress Discord connection.
+        source: gcp-secret-manager
+        used_by: [ingress-egress]
+      TWILIO_ACCOUNT_SID:
+        description: Twilio account SID for Conversations integration.
+        source: gcp-secret-manager
+        used_by: [ingress-egress]
+      TWILIO_AUTH_TOKEN:
+        description: Twilio auth token (webhook validation + REST calls).
+        source: gcp-secret-manager
+        used_by: [ingress-egress]
+      TWILIO_API_KEY:
+        description: Twilio API key SID for scoped REST access.
+        source: gcp-secret-manager
+        used_by: [ingress-egress]
+      TWILIO_API_SECRET:
+        description: Twilio API key secret (pairs with TWILIO_API_KEY).
+        source: gcp-secret-manager
+        used_by: [ingress-egress]
+      TWILIO_CHAT_SERVICE_SID:
+        description: Twilio Conversations service SID.
+        source: gcp-secret-manager
+        used_by: [ingress-egress]
+      OBS_WEBSOCKET_PASSWORD:
+        description: Password for the OBS WebSocket control connection.
+        source: gcp-secret-manager
+        used_by: [obs-mcp]
+
+references: # Pointers from the canonical file into the documentation/ tree (link, do not duplicate).
+  platform_flow: documentation/concepts/platform-flow.md
+  event_router_rules: documentation/concepts/event-router-rules.md
+  messaging_system: documentation/reference/messaging-system.md
+  messaging_config: documentation/messaging-config.md
+  envelope_schema: documentation/schemas/envelope.v1.json
+  routing_slip_schema: documentation/schemas/routing-slip.v1.json
+  firestore_docs: documentation/firestore/
+  firestore_rules: firestore.rules
+  firestore_indexes: firestore.indexes.json
 
 defaults: # Defaults for various entities. Individual entities may override these.
   services: # Default settings for all services
+    # A service runs only when it explicitly sets `active: true`. An ABSENT `active` is treated as
+    # DISABLED (active: false). This default is documented here so the flag's meaning is unambiguous.
+    active: false
     implementation: cloud-run # What sort of cloud resource to use by default to provision for this service
     runtime: # Default runtime to use for services
       node: 24.x
@@ -30,18 +295,18 @@ defaults: # Defaults for various entities. Individual entities may override thes
         enabled: false         # TRACING_ENABLED default
         sampler_ratio: 0.1     # TRACING_SAMPLER_RATIO default
     port: 3000
-    # Build (sprint-318): every standard service is built from the single reusable
-    # Dockerfile.service at the repo root. Per-service behavior is supplied as --build-args
-    # derived from THIS file, so architecture.yaml remains the canonical source of truth:
-    #   SERVICE_NAME  = the service key
-    #   SERVICE_PORT  = services.<name>.port (or this default)
-    #   SERVICE_ENTRY = services.<name>.entry with leading 'src/' -> 'dist/' and '.ts' -> '.js'
-    #                   (e.g. src/apps/llm-bot-service.ts -> dist/apps/llm-bot-service.js)
-    # A per-service Dockerfile.<service> is honored as an explicit override (escape hatch),
-    # e.g. brat (builds from tools/) and obs-mcp (uses a prebuilt image:).
+    # Build contract (origin: sprint-318): every standard service builds from the single reusable
+    # Dockerfile.service; per-service behavior is supplied as --build-args derived from this file,
+    # so architecture.yaml stays the canonical source of truth.
     build:
-      dockerfile: Dockerfile.service              # canonical build artifact for all services
-      entry_to_service_entry: "src/<x>.ts -> dist/<x>.js"
+      dockerfile: Dockerfile.service   # canonical build artifact for all standard services
+      source_of_truth: architecture.yaml
+      build_args:
+        SERVICE_NAME: "the service key under services:"
+        SERVICE_PORT: "services.<name>.port (or defaults.services.port)"
+        SERVICE_ENTRY: "services.<name>.entry with leading 'src/' -> 'dist/' and '.ts' -> '.js'"
+      entry_to_service_entry: "src/<x>.ts -> dist/<x>.js (e.g. src/apps/llm-bot-service.ts -> dist/apps/llm-bot-service.js)"
+      per_service_override: "A Dockerfile.<service> is honored as an explicit override (escape hatch), e.g. brat (builds from tools/) and obs-mcp (uses a prebuilt image:)."
     health: # Default HTTP-based health check endpoints for services
       - /healthz
       - /readyz
@@ -61,6 +326,9 @@ services:
   oauth-flow:
     active: true
     description: "OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and broadcaster accounts."
+    kind: gateway
+    external: [twitch, discord]
+    scaling_rationale: "min: 0 — scales to zero when no OAuth flow is in progress; bursty, latency-tolerant."
     entry: src/apps/oauth-service.ts
     scaling:
       min: 0
@@ -82,7 +350,12 @@ services:
 
   ingress-egress:
     active: true
-    description: "Bridges external event sources/sinks (e.g., Twitch EventSub/IRC) to internal topics;"
+    description: "Bridges external event sources/sinks (e.g., Twitch EventSub/IRC, Discord, Twilio) to and from internal topics, normalizing inbound events to internal.ingress.v1 and delivering internal.egress.v1 responses back to the originating platform."
+    kind: pipeline-service
+    stage: [ingest, egress]
+    external: [twitch, discord, twilio]
+    stateful: false
+    scaling_rationale: "Owns singleton external connections; uses a per-instance egress topic (internal.egress.v1.{instanceId}) so replies route back to the instance holding the connection."
     entry: src/apps/ingress-egress-service.ts
     topics:
       publishes:
@@ -127,6 +400,8 @@ services:
   auth:
     active: true
     description: "Authentication service that handles user authentication and authorization."
+    kind: pipeline-service
+    external: [twitch]
     entry: src/apps/auth-service.ts
     topics:
       consumes:
@@ -137,7 +412,11 @@ services:
       - MCP_AUTH_TOKEN
 
   query-analyzer:
+    active: true # Explicit (was previously omitted; absent now means disabled per defaults.services.active).
     description: Executes fast, efficient pre-analysis of incoming events to better route and respond
+    kind: pipeline-service
+    stage: analyze
+    external: [openai]
     entry: src/apps/query-analyzer.ts
     topics:
       consumes:
@@ -151,6 +430,9 @@ services:
   event-router:
     active: true
     description: "Internal event routing service that reads from ingress channel(s) and assigns routing slips."
+    kind: pipeline-service
+    stage: route
+    stateful: false
     entry: src/apps/event-router-service.ts
     topics:
       consumes:
@@ -162,6 +444,10 @@ services:
   llm-bot:
     active: true
     description: "Headless LLM worker that consumes bot request subjects and produces responses."
+    kind: pipeline-service
+    stage: analyze
+    external: [openai]
+    stateful: false # Only ephemeral, instance-scoped short-term memory (see LLM_BOT_INSTANCE_MEM_* env).
     entry: src/apps/llm-bot-service.ts
     paths:
       - /_debug/mcp # Debug endpoint that displays the current state of the MCP servers
@@ -193,6 +479,10 @@ services:
   persistence:
     active: true
     description: "Persists and indexes events for later retrieval"
+    kind: pipeline-service
+    stage: persist
+    stateful: true
+    owned_state: "Firestore events collection (and dead-letter capture)."
     entry: src/apps/persistence-service.ts
     topics:
       consumes:
@@ -210,6 +500,8 @@ services:
   obs-mcp:
     active: true
     description: MCP server for controlling OBS
+    kind: mcp-server
+    external: [obs]
     image: us-central1-docker.pkg.dev/bitbrat-local/obs-mcp/obs-mcp:latest
     env:
       - MCP_TRANSPORT
@@ -222,6 +514,8 @@ services:
   scheduler:
     active: true
     description: Scheduler service for periodic tasks
+    kind: pipeline-service
+    stage: ingest
     entry: src/apps/scheduler-service.ts
     topics:
       publishes:
@@ -232,7 +526,11 @@ services:
       - MCP_AUTH_TOKEN
 
   api-gateway:
+    active: true # Explicit (was previously omitted; absent now means disabled per defaults.services.active).
     description: API Gateway for handling incoming requests and routing them to appropriate services
+    kind: gateway
+    stage: [ingest, egress]
+    scaling_rationale: "Serves WebSocket clients; uses a per-instance egress topic (internal.api.egress.v1.{instanceId}) so responses reach the instance owning the socket."
     entry: src/apps/api-gateway.ts
     topics:
       publishes:
@@ -253,6 +551,10 @@ services:
   state-engine:
     active: true
     description: State engine for managing application state
+    kind: pipeline-service
+    stage: react
+    stateful: true
+    owned_state: "Firestore state and mutation_log collections."
     entry: src/apps/state-engine.ts
     topics:
       consumes:
@@ -263,6 +565,10 @@ services:
   disposition-service:
     active: true
     description: Determines the short term disposition of users
+    kind: pipeline-service
+    stage: react
+    stateful: true
+    owned_state: "Short-term, TTL-bounded user disposition snapshots (DISPOSITION_SNAPSHOT_TTL_MS)."
     entry: src/apps/disposition-service.ts
     topics:
       consumes:
@@ -285,6 +591,7 @@ services:
   tool-gateway:
     active: true
     description: MCP Proxy for centralized MCP tool management and security
+    kind: gateway
     entry: src/apps/tool-gateway.ts
     secrets:
       - MCP_AUTH_TOKEN
@@ -292,6 +599,8 @@ services:
   image-gen-mcp:
     active: true
     description: "MCP server for on-demand image generation using OpenAI DALL-E 3."
+    kind: mcp-server
+    external: [openai]
     entry: src/services/image-gen-mcp/index.ts
     secrets:
       - OPENAI_API_KEY
@@ -304,11 +613,11 @@ services:
   stream-analyst-service:
     active: true
     description: "Analyzes incoming events and provides summary capabilities"
+    kind: pipeline-service
+    stage: analyze
     entry: src/apps/stream-analyst-service.ts
-    # Explicit non-default port (sprint-318): this deviator historically listened on 3010
-    # (former Dockerfile.stream-analyst). Made explicit so the shared build derives it
-    # unambiguously. This is the single canonical stream-analyst service; the duplicate
-    # Dockerfile.stream-analyst / Dockerfile.stream-analyst-service were reconciled away.
+    # Explicit non-default port: historically 3010; made explicit so the shared build derives it
+    # unambiguously (the duplicate Dockerfile.stream-analyst variants were reconciled away).
     port: 3010
     secrets:
       - MCP_AUTH_TOKEN
@@ -316,6 +625,8 @@ services:
   story-engine-mcp:
     active: true
     description: "Provides tools that enable on-demand collaborative storytelling"
+    kind: mcp-server
+    stage: analyze
     entry: src/apps/story-engine-mcp.ts
     topics:
       consumes:
@@ -326,6 +637,23 @@ services:
 infrastructure:
   target: gcp
   resources:
+    firestore:
+      type: document-database
+      implementation: cloud-firestore
+      description: >
+        Primary (and only supported) persistence layer. Backs event storage/indexing, application
+        and user state, the state mutation log, and command lookup. Security rules live in
+        firestore.rules and composite indexes in firestore.indexes.json.
+      docs: documentation/firestore/
+      rules: firestore.rules
+      indexes: firestore.indexes.json
+      collections:
+        events: Persisted/indexed inbound events (channel, eventType, ingressAt); written by persistence.
+        stream_observers: Stream observer registrations (active, trigger.type).
+        state: Global and per-user application state managed by state-engine.
+        mutation_log: Append-only log of state mutations.
+        commands: Command definitions (name, aliases) used for command lookup.
+
     default-content-bucket:
       type: object-store
       implementation: cloud-storage
@@ -394,9 +722,16 @@ infrastructure:
       implementation: regional-internal-application-lb
       name: bitbrat-internal-lb
       ip: bitbrat-internal-ip
-      description: Internal load balancer for service-to-service communication
+      description: >
+        Internal load balancer for service-to-service communication. Resolution is per-service by
+        HOST, not by path: each service is reachable at its own internal hostname under
+        routing.default_domain (e.g. llm-bot.bitbrat.local) and every rule therefore matches the
+        whole namespace with `path_prefix: /`. The `path_prefix: /` entries are intentional (each
+        backend owns its full path space on its own host); they are not ambiguous path routing.
       routing:
         default_domain: bitbrat.local
+        # One rule per backend service. path_prefix is always '/' because routing is host-based
+        # (see description); the service key selects the backend by internal hostname.
         rules:
           - path_prefix: /
             service: llm-bot
@@ -410,8 +745,9 @@ infrastructure:
             service: event-router
           - path_prefix: /
             service: persistence
-          - path_prefix: /
-            service: command-processor
+          # NOTE (sprint-322): the stale `command-processor` route was removed here. No service named
+          # `command-processor` is defined under services:; the historical command-lookup concept now
+          # lives in documentation/firestore/indexes.md (the `commands` collection), not as a service.
           - path_prefix: /
             service: obs-mcp
           - path_prefix: /
@@ -442,8 +778,13 @@ deploymentTargets:
     env: staging
     remoteDir: /opt/BitBratPlatform
 
-# Networking posture (Sprint 113):
-# - No Cloud NAT: outbound public traffic should use Cloud Run default egress path for best latency.
-# - VPC connectors are used to reach private RFC1918 ranges only; services should configure
-#   egress: PRIVATE_RANGES_ONLY when attaching a Serverless VPC Access connector.
-# - Subnets keep private_ip_google_access = true; PSC/restricted VIP for Google APIs is not required now.
+networking: # Platform networking posture (origin: Sprint 113 decision; promoted from a comment).
+  cloud_nat:
+    enabled: false
+    rationale: Outbound public traffic uses the Cloud Run default egress path for best latency.
+  vpc_connectors:
+    purpose: Reach private RFC1918 ranges only.
+    service_egress: PRIVATE_RANGES_ONLY # services set this when attaching a Serverless VPC Access connector
+  subnets:
+    private_ip_google_access: true
+    psc_restricted_vip: false # PSC / restricted VIP for Google APIs is not required at this time.
