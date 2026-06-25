@@ -27,11 +27,12 @@ export interface BackupCollectionSpec {
  * Registry schema version. Bumped when the registry shape/membership changes in a way that
  * a consumer (importer) should be aware of. Recorded in the backup envelope metadata.
  */
-export const REGISTRY_VERSION = 1;
+export const REGISTRY_VERSION = 2;
 
 export const CONFIG_BACKUP_REGISTRY: BackupCollectionSpec[] = [
   { path: 'users', recurseSubcollections: true, rationale: 'User profiles + roles subcollection' },
   { path: 'stories', rationale: 'Authored story definitions' },
+  { path: 'personalities', recurseSubcollections: true, rationale: 'Bot personality definitions (instructions/text, status, version)' },
   { path: 'configs', recurseSubcollections: true, rationale: 'Routing rules, bot roles, etc.' },
   { path: 'stream_observers', rationale: 'Stream observer config' },
   { path: 'mcp_servers', rationale: 'Registered MCP servers' },

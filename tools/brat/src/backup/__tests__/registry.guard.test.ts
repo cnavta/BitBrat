@@ -26,6 +26,13 @@ describe('backup registry exclusion guard (highest-priority test)', () => {
     expect(() => assertRegistrySafe()).not.toThrow();
   });
 
+  it('includes the personalities config collection in the export set', () => {
+    // Regression: bot personality definitions must be part of the backup allowlist; they were
+    // previously omitted so `brat backup export` silently dropped the `personalities` collection.
+    const registryPaths = CONFIG_BACKUP_REGISTRY.map((s) => s.path);
+    expect(registryPaths).toContain('personalities');
+  });
+
   it('asserts events and other log collections are excluded from the export set', () => {
     const registryPaths = CONFIG_BACKUP_REGISTRY.map((s) => s.path);
     for (const forbidden of FORBIDDEN_PREFIXES) {
