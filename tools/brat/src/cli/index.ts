@@ -2,6 +2,8 @@
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 import { createLogger } from '../orchestration/logger';
 import { resolveConfig, loadEnvKv, synthesizeSecretMapping, filterEnvKvAgainstSecrets, loadArchitecture, ResolvedServiceConfig } from '../config/loader';
 import { deriveTag } from '../util/git';
@@ -196,14 +198,47 @@ async function cmdConfigValidate(flags: GlobalFlags) {
   const root = process.cwd();
   const archPath = path.join(root, 'architecture.yaml');
   const src = fs.readFileSync(archPath, 'utf8');
-  const raw = yaml.load(src);
+  const raw = yaml.load(src) as any;
+
+  const issues: Array<{ path: string; message: string; code: string }> = [];
+
+  // 1) Structural validation against the runtime Zod schema (source of truth for the tooling).
   const parsed = ArchitectureSchema.safeParse(raw);
-  if (parsed.success) {
-    const out = { valid: true };
-    if (flags.json) console.log(JSON.stringify(out, null, 2)); else console.log('Config valid');
+  if (!parsed.success) {
+    for (const i of parsed.error.issues) {
+      issues.push({ path: i.path.join('.'), message: i.message, code: i.code });
+    }
+  }
+
+  // 2) Validation against the shipped, published JSON Schema so humans and agents can self-validate
+  //    architecture.yaml (path resolved from references.architecture_schema, with a sensible default).
+  const schemaRel: string =
+    (raw && raw.references && raw.references.architecture_schema) || 'documentation/schemas/architecture.v1.json';
+  const schemaPath = path.join(root, schemaRel);
+  if (!fs.existsSync(schemaPath)) {
+    issues.push({ path: schemaRel, message: `Referenced architecture schema not found at ${schemaRel}`, code: 'schema-missing' });
+  } else {
+    try {
+      const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+      const ajv = new Ajv({ allErrors: true, strict: false });
+      addFormats(ajv);
+      const validate = ajv.compile(schema);
+      if (!validate(raw)) {
+        for (const e of validate.errors || []) {
+          const p = (e.instancePath || '').replace(/^\//, '').replace(/\//g, '.');
+          issues.push({ path: p || '(root)', message: `${e.message}`, code: 'json-schema' });
+        }
+      }
+    } catch (e: any) {
+      issues.push({ path: schemaRel, message: `Failed to load/compile JSON schema: ${e.message}`, code: 'schema-load' });
+    }
+  }
+
+  if (issues.length === 0) {
+    const out = { valid: true, schema: schemaRel };
+    if (flags.json) console.log(JSON.stringify(out, null, 2)); else console.log(`Config valid (validated against ${schemaRel})`);
     return;
   }
-  const issues = parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message, code: i.code }));
   const out = { valid: false, issues };
   if (flags.json) {
     console.log(JSON.stringify(out, null, 2));

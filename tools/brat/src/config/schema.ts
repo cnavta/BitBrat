@@ -119,6 +119,18 @@ export const ArchitectureSchema = z.object({
       resources: z
         .record(
           z.discriminatedUnion('type', [
+            // document-database (cloud-firestore) — primary persistence layer
+            z
+              .object({
+                type: z.literal('document-database'),
+                implementation: z.literal('cloud-firestore'),
+                description: z.string().optional(),
+                docs: z.string().optional(),
+                rules: z.string().optional(),
+                indexes: z.string().optional(),
+                collections: z.record(z.string()).optional(),
+              })
+              .passthrough(),
             // object-store (cloud-storage)
             z
               .object({

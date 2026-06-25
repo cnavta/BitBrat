@@ -89,3 +89,17 @@ cdktf.out/
 /infrastructure/cdktf/out/
 
 .output.txt
+
+# Scratch / fixture / output artifacts that must never be committed (sprint-323 hygiene).
+# Fake/dummy credentials (e.g. a local GOOGLE_APPLICATION_CREDENTIALS stub) — never commit creds.
+dummy-creds.json
+*-creds.json
+# Ad-hoc rule/routing/JSONLogic scratch fixtures dropped at the repo root.
+/route.json
+/test.json
+# Captured validator stdout.
+/validation_output.txt
+validation_output.txt
+
+# Junie-specific Agent configuration
+.junie/

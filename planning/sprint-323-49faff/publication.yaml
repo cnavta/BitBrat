@@ -1,0 +1,20 @@
+branch: feature/sprint-323-49faff-evaluator-readiness
+pushed: true
+commit: 46f5a01
+pr_url: null
+status: failed   # branch pushed, but PR could not be auto-created
+compare_url: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-323-49faff-evaluator-readiness
+reason: |
+  The feature branch was committed and pushed to origin (git@github.com:cnavta/BitBrat.git)
+  successfully. The PR could NOT be created automatically because the GitHub CLI (`gh`) is not
+  installed and no GITHUB_TOKEN / GH_TOKEN is available in this environment (Rule S12/S13).
+  Create the PR manually via the compare_url above, or provide a token/`gh` auth so it can be
+  created automatically.
+attempted:
+  - method: gh-cli
+    result: unavailable (gh not installed)
+  - method: github-api
+    result: unavailable (no GITHUB_TOKEN/GH_TOKEN)
+notes: |
+  Per Rule S13, closing this sprint requires either a created PR (URL recorded here) OR explicit
+  user acceptance of closure without a PR. Awaiting "Sprint complete." / "Force complete sprint."
