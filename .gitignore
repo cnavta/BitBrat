@@ -101,3 +101,5 @@ dummy-creds.json
 /validation_output.txt
 validation_output.txt
 
+# Junie-specific Agent configuration
+.junie/
