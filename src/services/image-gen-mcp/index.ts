@@ -235,7 +235,7 @@ export class ImageGenMcpServer extends McpServer {
             ],
           };
         } catch (error: any) {
-          this.getLogger().error('Image generation or persistence failed', { error: error.message, prompt });
+          this.getLogger().error('Image generation or persistence failed', { error: error, prompt });
 
           this.logPrompt({
             correlationId,
