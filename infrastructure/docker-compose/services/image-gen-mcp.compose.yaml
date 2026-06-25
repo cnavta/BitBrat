@@ -28,6 +28,8 @@ services:
         condition: service_healthy
       firebase-emulator:
         condition: service_healthy
+      tool-gateway:
+        condition: service_healthy
     networks:
       bitbrat-network:
         aliases:
