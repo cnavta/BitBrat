@@ -3,10 +3,10 @@ title: "architecture.yaml: improve descriptive formatting & data (contracts, flo
 goal: "Improve the formatting and data in the canonical architecture.yaml so it carries the contracts, flow, and rationale (messaging/topic catalog, end-to-end dataflow lifecycle, consistency fixes, secret/env documentation, Firestore in infrastructure, richer llm_guidance, per-service boundaries/kind tags, document cross-references, and structured decision blocks) currently scattered across documentation/ — without breaking its role as the structural source of truth."
 owner: "Junie (Lead Implementor)"
 createdAt: "2026-06-25T11:42:00Z"
-status: "in-progress"
+status: "verifying"
 links:
   branch: "feature/sprint-322-ca67dd-architecture-yaml-docs"
-  pr: ""
+  pr: "" # PR not auto-created (no gh CLI / token); branch pushed. See publication.yaml (Rule S13b).
 notes: |
   Lead Implementor role. Planning deliverables (execution-plan.md + backlog.yaml) were authored first
   and the plan was APPROVED by the user (REQ-002) with answers to all 6 open questions. Implementation
