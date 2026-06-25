@@ -1,4 +1,8 @@
-import { buildResilientStorageOptions, StorageManager } from './storage-manager';
+import {
+  buildResilientStorageOptions,
+  createResilientFetch,
+  StorageManager,
+} from './storage-manager';
 
 const storageCtorArgs: any[] = [];
 jest.mock('@google-cloud/storage', () => ({
@@ -10,11 +14,12 @@ jest.mock('@google-cloud/storage', () => ({
 }));
 
 describe('buildResilientStorageOptions', () => {
-  it('injects the global fetch (undici) as the auth transporter fetchImplementation', () => {
+  it('injects a resilient fetch (undici wrapper) as the auth transporter fetchImplementation', () => {
     const opts = buildResilientStorageOptions();
-    expect((opts.clientOptions as any).transporterOptions.fetchImplementation).toBe(
-      (globalThis as any).fetch,
-    );
+    const impl = (opts.clientOptions as any).transporterOptions.fetchImplementation;
+    expect(typeof impl).toBe('function');
+    // It wraps, but is not the raw global fetch reference.
+    expect(impl).not.toBe((globalThis as any).fetch);
   });
 
   it('preserves caller-provided clientOptions/transporterOptions', () => {
@@ -24,8 +29,8 @@ describe('buildResilientStorageOptions', () => {
     });
     expect((opts as any).projectId).toBe('p');
     expect((opts.clientOptions as any).transporterOptions.timeout).toBe(1234);
-    expect((opts.clientOptions as any).transporterOptions.fetchImplementation).toBe(
-      (globalThis as any).fetch,
+    expect(typeof (opts.clientOptions as any).transporterOptions.fetchImplementation).toBe(
+      'function',
     );
   });
 
@@ -51,8 +56,8 @@ describe('StorageManager', () => {
     const mgr = new StorageManager();
     await mgr.setup({} as any);
     expect(storageCtorArgs).toHaveLength(1);
-    expect(storageCtorArgs[0].clientOptions.transporterOptions.fetchImplementation).toBe(
-      (globalThis as any).fetch,
+    expect(typeof storageCtorArgs[0].clientOptions.transporterOptions.fetchImplementation).toBe(
+      'function',
     );
   });
 
@@ -62,5 +67,70 @@ describe('StorageManager', () => {
     const b = await mgr.setup({} as any);
     expect(a).toBe(b);
     expect(storageCtorArgs).toHaveLength(1);
+  });
+});
+
+describe('createResilientFetch', () => {
+  it('adds duplex:half when the request body is a Node Readable stream', async () => {
+    const calls: any[] = [];
+    const fakeFetch = ((input: any, init?: any) => {
+      calls.push({ input, init });
+      return Promise.resolve('ok');
+    }) as unknown as typeof fetch;
+
+    const wrapped = createResilientFetch(fakeFetch);
+    const body = { pipe() {} }; // looks like a Node Readable
+    await wrapped('https://example.com/upload', { method: 'POST', body } as any);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init.duplex).toBe('half');
+    expect(calls[0].init.body).toBe(body);
+  });
+
+  it('adds duplex:half for async-iterable and web ReadableStream bodies', async () => {
+    const calls: any[] = [];
+    const fakeFetch = ((input: any, init?: any) => {
+      calls.push(init);
+      return Promise.resolve('ok');
+    }) as unknown as typeof fetch;
+    const wrapped = createResilientFetch(fakeFetch);
+
+    await wrapped('u', { body: { getReader() {} } } as any);
+    await wrapped('u', { body: { [Symbol.asyncIterator]() {} } } as any);
+
+    expect(calls[0].duplex).toBe('half');
+    expect(calls[1].duplex).toBe('half');
+  });
+
+  it('does not add duplex for string/Buffer/Uint8Array bodies', async () => {
+    const calls: any[] = [];
+    const fakeFetch = ((input: any, init?: any) => {
+      calls.push(init);
+      return Promise.resolve('ok');
+    }) as unknown as typeof fetch;
+    const wrapped = createResilientFetch(fakeFetch);
+
+    await wrapped('u', { body: 'token=abc' } as any);
+    await wrapped('u', { body: Buffer.from('x') } as any);
+    await wrapped('u', { body: new Uint8Array([1, 2, 3]) } as any);
+
+    expect(calls[0].duplex).toBeUndefined();
+    expect(calls[1].duplex).toBeUndefined();
+    expect(calls[2].duplex).toBeUndefined();
+  });
+
+  it('preserves a caller-provided duplex and passes through bodyless requests', async () => {
+    const calls: any[] = [];
+    const fakeFetch = ((input: any, init?: any) => {
+      calls.push(init);
+      return Promise.resolve('ok');
+    }) as unknown as typeof fetch;
+    const wrapped = createResilientFetch(fakeFetch);
+
+    await wrapped('u', { body: { pipe() {} }, duplex: 'full' } as any);
+    await wrapped('u', { method: 'GET' } as any);
+
+    expect(calls[0].duplex).toBe('full');
+    expect(calls[1].duplex).toBeUndefined();
   });
 });

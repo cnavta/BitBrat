@@ -57,4 +57,15 @@ During npm run local:
 - Docker Compose mounts the host file at /var/secrets/google-app-creds.json
 - Containers set GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
 
+#### Remote Docker targets (ssh:// deployment targets)
+When a `brat docker` deployment target uses an `ssh://` host (e.g. the `staging` target in
+architecture.yaml), the bind-mount source for the ADC key must exist on the *remote* host, not the
+local machine. The orchestrator handles this automatically:
+- The real service account key referenced by `GOOGLE_APPLICATION_CREDENTIALS` is copied (scp) to the
+  remote host at `<remoteDir>/secrets/google-app-creds.json` during file sync.
+- The generated `.env.brat` synced to the remote rewrites `GOOGLE_APPLICATION_CREDENTIALS` to that
+  remote path, so the Compose bind mount resolves on the remote filesystem.
+- The key is never copied into the repository, and the deploy fails fast if the configured local key
+  path does not exist.
+
 All cloud secure configuration must be stored in GCP Secrets Manager and mapped to deployed artifacts as environment variables.
