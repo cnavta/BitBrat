@@ -1,0 +1,23 @@
+id: sprint-323-49faff
+title: "Evaluator & Agent-Framework Readiness (external-evaluation remediation)"
+goal: "Address the external AI-agent-framework evaluation: sharpen the agent-framework framing, fix accuracy/consistency defects (clone URL, version story, unshipped config schema), add an offline/local quickstart, clean up repository hygiene, document a dependency-scanning cadence, and add the missing navigational aids (architecture diagram, capabilities matrix, evaluator's guide, CHANGELOG)."
+owner: "Lead Implementor"
+createdAt: "2026-06-25T13:05:00Z"
+status: "in-progress"
+links:
+  branch: "feature/sprint-323-49faff-evaluator-readiness"
+notes: |
+  Source: documentation/evaluation/external-evaluation.md (independent evaluation of BitBrat as an
+  AI Agent framework, dated 2026-06-25). Scorecard low points: "Agent framework" framing (2),
+  Repository hygiene (2), Security/dependency health (2), Onboarding/reproducibility (3),
+  Accuracy/consistency (3).
+
+  Plan APPROVED by user (REQ-002, 2026-06-25). Implementation in progress. Decisions of record:
+  (1) clone URL = https://github.com/cnavta/BitBrat; (2) reconcile version to 0.7.0 (pre-1.0) across
+  package.json + architecture.yaml; (3) ship architecture.yaml config schema + wire brat config validate;
+  (4) non-breaking dependency remediation + SECURITY.md cadence; (5) delete dummy-creds.json + .gitignore
+  (and untrack route.json/test.json/validation_output.txt).
+
+  Precedence reminder (AGENTS.md §0): architecture.yaml wins. The config-schema work (BL-105) and the
+  extension_points/agents block (BL-104) touch the canonical file additively; any field a consumer
+  parses must not be renamed/removed without surfacing to the user first.

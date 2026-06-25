@@ -1,9 +1,16 @@
+# yaml-language-server: $schema=./documentation/schemas/architecture.v1.json
+# The canonical BitBrat platform definition. Self-describing: see references.architecture_schema and
+# validate with `npm run brat -- config validate` (checks this file against the Zod + JSON schemas).
 name: BitBrat Platform
 description: The BitBrat Platform is an LLM powered event orchestration and execution engine aimed at Streamers. Uses Node/TypeScript, Twurple,
   Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.1.0
+  # Single source of truth for the version. Kept in sync with package.json "version".
+  version: 0.7.0
+  # Maturity signal: pre-1.0, early/experimental. APIs, config schemas, and core architectures may
+  # still change in breaking ways; not recommended for production yet (see README warning banner).
+  status: experimental
   description: |
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to them.
   owners:
@@ -265,6 +272,7 @@ conventions: # How env vars and secrets are supplied; documents purpose + source
         used_by: [obs-mcp]
 
 references: # Pointers from the canonical file into the documentation/ tree (link, do not duplicate).
+  architecture_schema: documentation/schemas/architecture.v1.json # JSON Schema for THIS file (brat config validate)
   platform_flow: documentation/concepts/platform-flow.md
   event_router_rules: documentation/concepts/event-router-rules.md
   messaging_system: documentation/reference/messaging-system.md
@@ -274,6 +282,44 @@ references: # Pointers from the canonical file into the documentation/ tree (lin
   firestore_docs: documentation/firestore/
   firestore_rules: firestore.rules
   firestore_indexes: firestore.indexes.json
+
+extension_points: # How to extend the agent: add a service, an MCP tool, or a routing rule, and which files change.
+  description: >
+    BitBrat is extended by adding message-passing services, MCP tool servers, or Event Router rules.
+    The `brat` CLI scaffolds new services; this file (architecture.yaml) is the canonical registry that
+    drives standard builds and deploys. See references.* and documentation/tools/brat.md.
+  add_service: # A new pipeline/gateway service participating in the agent loop.
+    summary: Scaffold and register a new service.
+    cli: brat service bootstrap --name <name>
+    steps:
+      - Run the CLI to scaffold src/apps/<name>-service.ts and src/services/<name>/.
+      - Register the service under `services:` here (set active: true; choose kind:, stage:, env:, secrets:).
+      - It builds from the standard Dockerfile.service (see defaults.services.build) — no per-service Dockerfile needed.
+    files_changed:
+      - architecture.yaml  # services.<name>
+      - src/apps/<name>-service.ts
+      - src/services/<name>/**
+  add_mcp_tool: # A Model Context Protocol server exposing tools the LLM can call (the "act" stage).
+    summary: Scaffold and register an MCP tool server.
+    cli: brat service bootstrap --name <name> --mcp
+    steps:
+      - Run the CLI with --mcp to scaffold an MCP server.
+      - Register it under `services:` with kind: mcp-server; it is proxied/secured by tool-gateway.
+      - Existing examples: obs-mcp (Dockerfile.obs-mcp), image-gen-mcp, story-engine-mcp.
+    files_changed:
+      - architecture.yaml  # services.<name> (kind: mcp-server)
+      - src/services/<name>/**  # MCP tool definitions
+  add_rule: # New agent behavior expressed as a JsonLogic matching/routing rule (the "plan" stage).
+    summary: Add a JsonLogic rule so the event-router routes matching events through services.
+    steps:
+      - Author a JsonLogic rule (seeded via `brat setup` / the firestore:upsert tool).
+      - The event-router matches it and attaches a routing slip directing the event through services.
+    reference: documentation/concepts/event-router-rules.md
+  see_also:
+    cli_docs: documentation/tools/brat.md
+    build_contract: defaults.services.build
+    agent_loop: README.md  # "What is BitBrat?" agent-loop mapping
+    collaboration_protocol: AGENTS.md
 
 defaults: # Defaults for various entities. Individual entities may override these.
   services: # Default settings for all services
