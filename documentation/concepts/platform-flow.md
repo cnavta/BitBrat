@@ -56,4 +56,4 @@ All communication between these stages is asynchronous. This allows the platform
 - If a service is down, messages stay in the queue until the service recovers.
 - Services can be scaled independently based on the volume of events they handle.
 
-For more information on the specific technologies used, refer to the [Technical Architecture](../architecture.yaml).
+For more information on the specific technologies used, refer to the canonical [architecture.yaml](../../architecture.yaml) (see its `messaging:` and `dataflow:` blocks).
