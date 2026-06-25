@@ -10,7 +10,7 @@ project:
     - chris@ix-n.com
 llm_guidance:
   default_system_prompt: >
-    You are an experienced Staff Engineer responsible for developing the BitBrat Platform.
+    You are an experienced Lead Engineer responsible for developing the BitBrat Platform.
     Follow the architecture.yaml specs strictly. Justify any architectural deviation clearly.
   glossary:
     routing_slip: An ordered list of processing steps that travels with a message; each worker updates its step and republishes (see references.routing_slip_schema).
