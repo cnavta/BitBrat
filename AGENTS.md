@@ -10,7 +10,7 @@ These rules define exactly how LLM agents and human developers collaborate in th
 3. Everything else — examples, legacy docs, and supporting materials
 
 If a conflict ever occurs:
-> **`architecture.yaml` wins.**  
+> **`architecture.yaml` wins.**
 Agents must surface the conflict, then align to it.
 
 ---
@@ -78,15 +78,15 @@ When a sprint starts, the agent MUST:
 1. **Check for active sprints.** Verify no `sprint-manifest.yaml` in `planning/` has a status other than `complete`. If an active sprint is found, you MUST NOT proceed with a new sprint; notify the user that a sprint is already active and must be completed or force-closed first (Rule S3).
 2. **Generate a sprint ID**
    ```
-sprint-<number>-<short-hash>
+   sprint-<number>-<short-hash>
    ```
 3. **Create the sprint directory**
    ```
-planning/sprint-<id>/
+   planning/sprint-<id>/
    ```
 4. **Create a new feature branch**
    ```
-git checkout -b feature/<sprint-id>-<short-description>
+   git checkout -b feature/<sprint-id>-<short-description>
    ```
 5. **Create `sprint-manifest.yaml`** with required metadata (see schema below)
 6. **Log the action in `request-log.md`**
@@ -102,15 +102,15 @@ git checkout -b feature/sprint-7-a13b2f-user-profile-service
 
 ```
 planning/
-sprint-7-a13b2f/
-sprint-manifest.yaml
-implementation-plan.md
-request-log.md
-validate_deliverable.sh
-verification-report.md
-publication.yaml
-retro.md
-key-learnings.md
+  sprint-7-a13b2f/
+    sprint-manifest.yaml
+    implementation-plan.md
+    request-log.md
+    validate_deliverable.sh
+    verification-report.md
+    publication.yaml
+    retro.md
+    key-learnings.md
 ```
 
 This directory is the single authoritative source of truth for every sprint.
@@ -202,7 +202,7 @@ Every user prompt relevant to the sprint MUST be logged in `request-log.md`:
 - Shell/git commands executed
 - Files modified or created
 
-Optional:  
+Optional:
 `code-summary.md` mapping files → request IDs.
 
 ---
@@ -334,6 +334,7 @@ If your chosen method fails (CLI or API):
 | **S11** | A new feature branch MUST be created at sprint start and used for all sprint changes. |
 | **S12** | At sprint completion, the agent MUST attempt to create a GitHub Pull Request for the feature branch and log the result (success or failure). |
 | **S13** | A sprint cannot close until either (a) a PR has been successfully created and its URL recorded in `publication.yaml`, **or** (b) a failed PR attempt has been logged with the error reason and the user has explicitly accepted closure. |
+
 `publication.yaml` should contain:
 
 ```yaml
@@ -357,7 +358,9 @@ Then the agent generates:
 
 - `retro.md` — what worked, what didn’t
 - `key-learnings.md` — lessons for future sprints
+
 ---
+
 ### 2.10 Force Completion Override
 
 If the user says `Force complete sprint`, the agent may close the sprint even if:
@@ -370,6 +373,7 @@ If the user says `Force complete sprint`, the agent may close the sprint even if
 
 1. All known failures and gaps are documented under **Partial** or **Deferred** in `verification-report.md`, and
 2. The issues are briefly summarized in `retro.md` for future sprints to pick up.
+
 ---
 
 # 🧮 3. Project-Wide Definition of Done (DoD)
@@ -392,7 +396,7 @@ If applicable:
 - Dockerfile
 - Cloud Build YAML
 - Cloud Run configs
-- IaC  
+- IaC
   These must integrate with `validate_deliverable.sh`
 
 ### ✅ Documentation
@@ -497,7 +501,7 @@ Logging:
 # 👥 10. Collaboration Roles
 
 - **Cloud Architect**
-  - Does not code.  
+  - Does not code.
   - Responsible for cloud architecture analysis and design.
 - **Lead Architect**
   - Does not code.

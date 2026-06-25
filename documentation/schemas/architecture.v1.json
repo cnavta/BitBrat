@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bitbrat.dev/schemas/architecture.v1.json",
+  "title": "BitBrat architecture.yaml (v1)",
+  "description": "Schema for the canonical BitBrat platform definition file (architecture.yaml). It is intentionally permissive (additionalProperties: true at the top level and within most blocks) so descriptive/documentation blocks can be added without breaking validation, while still asserting the core structure that the `brat` tooling relies on. This mirrors the runtime Zod ArchitectureSchema in tools/brat/src/config/schema.ts.",
+  "type": "object",
+  "required": ["name", "project", "services"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Human-readable platform name."
+    },
+    "description": {
+      "type": "string",
+      "description": "Short prose description of the platform."
+    },
+    "project": {
+      "type": "object",
+      "description": "Project-level metadata.",
+      "required": ["version"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "version": {
+          "type": "string",
+          "description": "Semantic version. Kept in sync with package.json \"version\".",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-+].+)?$"
+        },
+        "status": {
+          "type": "string",
+          "description": "Maturity signal for the project.",
+          "enum": ["experimental", "alpha", "beta", "stable", "deprecated"]
+        },
+        "description": { "type": "string" },
+        "owners": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "llm_guidance": {
+      "type": "object",
+      "description": "Guidance and invariants for LLM/agent contributors.",
+      "additionalProperties": true
+    },
+    "messaging": {
+      "type": "object",
+      "description": "Internal event bus: contracts, conventions, and topic catalog.",
+      "additionalProperties": true
+    },
+    "dataflow": {
+      "type": "object",
+      "description": "End-to-end event lifecycle narrative.",
+      "additionalProperties": true
+    },
+    "conventions": {
+      "type": "object",
+      "description": "How env vars and secrets are supplied (purpose + source, no values).",
+      "additionalProperties": true
+    },
+    "references": {
+      "type": "object",
+      "description": "Pointers from the canonical file into the documentation/ tree.",
+      "additionalProperties": true,
+      "properties": {
+        "architecture_schema": {
+          "type": "string",
+          "description": "Path to this JSON Schema, so humans and agents can self-validate architecture.yaml."
+        }
+      }
+    },
+    "extension_points": {
+      "type": "object",
+      "description": "How to extend the platform with a new agent/service/MCP tool and which files change.",
+      "additionalProperties": true
+    },
+    "agents": {
+      "type": "object",
+      "description": "Optional agent-centric extension metadata (alias surface for extension_points).",
+      "additionalProperties": true
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Defaults applied to entities unless overridden.",
+      "additionalProperties": true,
+      "properties": {
+        "services": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "description": "Map of service key -> service definition.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "active": { "type": "boolean" },
+          "description": { "type": "string" },
+          "image": { "type": "string" },
+          "entry": { "type": "string" },
+          "region": { "type": "string" },
+          "port": { "type": "integer" },
+          "kind": { "type": "string" },
+          "env": { "type": "array", "items": { "type": "string" } },
+          "secrets": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "deploymentDefaults": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "deploymentTargets": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "networking": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "lb": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "infrastructure": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "target": { "type": "string" },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

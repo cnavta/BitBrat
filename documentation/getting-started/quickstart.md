@@ -14,8 +14,8 @@ Before you begin, ensure you have the following tools installed:
 ## 2. Clone the Repository
 
 ```bash
-git clone https://github.com/BitBrat/BitBratPlatform.git
-cd BitBratPlatform
+git clone https://github.com/cnavta/BitBrat.git
+cd BitBrat
 ```
 
 ## 3. Install Dependencies
@@ -36,8 +36,23 @@ npm run brat -- setup
 
 During this process, you will be prompted for:
 - **GCP Project ID**: Your Google Cloud project identifier.
-- **OpenAI API Key**: Required for LLM-powered features.
+- **OpenAI API Key**: Required for the default OpenAI provider. **You can leave this blank** if you plan to run fully offline with a local model (see below).
 - **Bot Name**: The display name for your BitBrat bot.
+
+### Offline / Local-LLM mode (no OpenAI key)
+
+To try the platform without any paid API, run a local [Ollama](https://ollama.com) server and select it
+via environment variables (read by `llm-bot` and `query-analyzer`):
+
+```bash
+ollama pull llama3 && ollama serve     # serves http://localhost:11434
+
+export LLM_PROVIDER=ollama
+export LLM_MODEL=llama3
+export LLM_BASE_URL=http://localhost:11434   # http://host.docker.internal:11434 from Docker
+```
+
+No `LLM_API_KEY` is needed for Ollama. See the README [Offline / Local-LLM Quickstart](../../README.md#offline--local-llm-quickstart-no-openai-key) for the full hello-world-agent walkthrough.
 
 ### What Setup Does
 The setup command performs several critical initialization steps:

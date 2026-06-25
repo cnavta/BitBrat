@@ -15,6 +15,55 @@
 
 BitBrat Platform is an LLM-powered event orchestration and execution engine currently designed for streamers, though it can easily be adapted for a wide range of use cases. It bridges external event sources (like Twitch, Kick, Discord, and Twilio) with internal processing logic and AI-driven reactions.
 
+## What is BitBrat?
+
+**BitBrat is an event-driven LLM orchestration engine for building AI agents.** Rather than a single
+monolithic "agent" object, BitBrat decomposes the classic agent loop into independent, message-passing
+microservices that communicate over a unified bus (NATS locally / Google Cloud Pub/Sub in production).
+**Streaming is the reference application** — the shipped services react to Twitch/Discord/Twilio events —
+but nothing about the core engine is streaming-specific.
+
+### The agent loop, mapped to BitBrat services
+
+If you are evaluating BitBrat as an **AI agent framework**, this is where "the agent" lives. The familiar
+**perceive → plan → act → observe** loop maps directly onto real services defined in
+[`architecture.yaml`](./architecture.yaml):
+
+| Agent-loop stage | BitBrat realization | Service(s) |
+|---|---|---|
+| **Perceive** (ingest) | Normalize external events into an internal `Envelope v1` | `ingress-egress` |
+| **Plan** (decide) | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** describing the remaining steps | `event-router` (+ routing slip) |
+| **Act** (reason & use tools) | Run LLM reasoning and call tools via the Model Context Protocol (MCP) | `llm-bot`, `query-analyzer`, `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`) |
+| **Observe / Memory** | Persist state, selections, and short-term behavior for auditing and long-term memory | `persistence`, `state-engine`, `disposition-service` |
+
+The **routing slip** is BitBrat's plan representation: an ordered, self-describing list of steps that
+travels *with* the message, so orchestration is decentralized and each service simply advances the slip.
+See the [Platform Flow Overview](./documentation/concepts/platform-flow.md) for the full lifecycle.
+
+### Why BitBrat (beyond streaming)
+
+The same primitives — typed event ingest, rule-driven planning, an MCP tool layer, and durable
+memory — apply to any **event-driven agent**: chat-ops bots, webhook/automation pipelines, customer-support
+triage, or IoT/telephony reactions. Swap the `ingress-egress` adapters and the Event Router rules, and the
+reasoning/tool/memory planes are reused unchanged.
+
+### Core Agent Concepts
+
+| Concept | In BitBrat | Where it lives |
+|---|---|---|
+| **Reasoning loop** | The Event Router evaluates rules and advances a **routing slip** step-by-step; analysis services (`llm-bot`, `query-analyzer`) add candidate responses | [Event Router & Rules](./documentation/concepts/event-router-rules.md), [Platform Flow](./documentation/concepts/platform-flow.md) |
+| **Tool use** | Tools are exposed to the LLM via **MCP servers** and brokered/secured by `tool-gateway` | `tool-gateway`, `obs-mcp`, `image-gen-mcp`, `story-engine-mcp` |
+| **Memory** | Durable state and audit history in Firestore; short-term, TTL-bounded behavior via the disposition service | `persistence`, `state-engine`, `disposition-service` |
+| **Message contract** | Every message is an `Envelope v1` carrying `correlationId`, `routingSlip`, etc. | [`envelope.v1.json`](./documentation/schemas/envelope.v1.json), [`routing-slip.v1.json`](./documentation/schemas/routing-slip.v1.json) |
+
+### Extending BitBrat
+
+Adding a new agent capability is a matter of adding a service, an MCP tool, or a routing rule:
+
+- **New service / MCP tool:** scaffold it with `npm run brat -- service bootstrap --name <name> [--mcp]`, then register it under `services:` in [`architecture.yaml`](./architecture.yaml). See the [`brat service bootstrap` reference](./documentation/tools/brat.md#service-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
+- **New rule / behavior:** add a JsonLogic rule following [Event Router & Rules](./documentation/concepts/event-router-rules.md).
+- **Agent-assisted contributors:** BitBrat ships a machine-readable collaboration protocol in **[AGENTS.md](./AGENTS.md)** (a `Plan → Approve → Implement → Validate → Verify → Publish → Retro` sprint workflow) and treats [`architecture.yaml`](./architecture.yaml) as the canonical source of truth. Start there before making changes.
+
 ## Features
 
 - **Multi-Platform Ingress**: Listen to events from Twitch (IRC & EventSub), Discord, and Twilio Conversations.
@@ -30,6 +79,7 @@ The `documentation/` folder contains structured guides for getting started, core
 
 - **Getting Started**
   - [Quickstart: Local Platform Setup](./documentation/getting-started/quickstart.md)
+  - [Evaluator's Guide](./documentation/getting-started/evaluating-bitbrat.md) — try BitBrat in ~5 minutes (offline), what to read first, and how the pieces form an agent.
 - **Concepts**
   - [Platform Flow Overview](./documentation/concepts/platform-flow.md) — the ingest → analysis → reaction → egress lifecycle.
   - [Event Router & Rules](./documentation/concepts/event-router-rules.md) — rule format and matching logic.
@@ -55,6 +105,49 @@ The platform consists of several core services:
 - **Scheduler**: Manages periodic tasks and ticks.
 
 For a detailed view, see [architecture.yaml](./architecture.yaml) and the [Platform Flow Overview](./documentation/concepts/platform-flow.md).
+A standalone diagram asset is also available at [`assets/architecture-overview.md`](./assets/architecture-overview.md).
+
+```mermaid
+flowchart LR
+  subgraph External["External platforms"]
+    TW[Twitch]
+    DC[Discord]
+    TL[Twilio]
+  end
+
+  TW & DC & TL <--> IE[ingress-egress]
+
+  IE -->|internal.ingress.v1| ER["event-router<br/>+ routing slip"]
+  ER --> AU[auth]
+  ER -->|analysis| LB[llm-bot]
+  ER -->|analysis| QA[query-analyzer]
+  LB <--> TG[tool-gateway]
+  TG <--> MCP["MCP servers<br/>obs / image-gen / story-engine"]
+  ER -->|reaction| SE[state-engine]
+  ER -->|reaction| DS[disposition-service]
+  ER -->|internal.egress.v1| IE
+  LB -.-> PE[persistence]
+  SE -.-> PE
+  PE --> FS[(Firestore)]
+
+  classDef store fill:#eef,stroke:#669;
+  class FS store;
+```
+
+*Perceive → plan → act → observe: `ingress-egress` ingests, `event-router` plans via the routing slip,
+`llm-bot`/`query-analyzer` + `tool-gateway`/MCP act, and `state-engine`/`disposition-service`/`persistence`
+observe & remember (in Firestore).*
+
+### Capabilities Matrix
+
+| Dimension | Supported today | Notes |
+|---|---|---|
+| **Ingress/egress platforms** | Twitch (IRC & EventSub), Discord, Twilio Conversations | Add more by extending `ingress-egress` adapters. |
+| **LLM providers** | OpenAI (default), **Ollama** (local/offline), vLLM (OpenAI-compatible) | Selected via `LLM_PROVIDER`/`LLM_MODEL`/`LLM_BASE_URL`. |
+| **Tooling** | Model Context Protocol (MCP) via `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`) | Tools are exposed to the LLM at the "act" stage. |
+| **Message bus** | NATS (local/dev), Google Cloud Pub/Sub (production) | Selected via `MESSAGE_BUS_DRIVER`. |
+| **Persistence** | Google Cloud Firestore | Only supported persistence backend (by design, pre-1.0). |
+| **Deploy targets** | Docker Compose (local), Google Cloud Run (production) | Only supported targets (by design, pre-1.0). |
 
 ## Getting Started
 
@@ -67,13 +160,13 @@ For a detailed view, see [architecture.yaml](./architecture.yaml) and the [Platf
 - **Docker** and Docker Compose
 - **Google Cloud SDK (`gcloud`)** — some local configs depend on GCP project structure.
 - **Git**
-- **OpenAI API Key** — required for LLM-powered features.
+- **OpenAI API Key** — required for the default OpenAI provider. **Optional** if you run fully offline with a local model — see [Offline / Local-LLM Quickstart](#offline--local-llm-quickstart-no-openai-key) below.
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/BitBrat/BitBratPlatform.git
-cd BitBratPlatform
+git clone https://github.com/cnavta/BitBrat.git
+cd BitBrat
 ```
 
 ### 2. Install dependencies
@@ -121,6 +214,43 @@ npm run brat -- chat
 ```
 
 See the [`brat chat` documentation](./documentation/tools/brat.md#brat-chat) for more options.
+
+### Offline / Local-LLM Quickstart (no OpenAI key)
+
+You can try BitBrat **without an OpenAI key or any paid API** by pointing the LLM provider at a local
+[Ollama](https://ollama.com) server. BitBrat already ships the [`ai-sdk-ollama`](https://www.npmjs.com/package/ai-sdk-ollama)
+provider, so no code changes are needed — only environment variables.
+
+**1. Install and start Ollama, then pull a small model:**
+
+```bash
+# Install from https://ollama.com/download, then:
+ollama pull llama3        # any chat model works (e.g. llama3, qwen2.5, phi3)
+ollama serve              # serves the API on http://localhost:11434
+```
+
+**2. Tell BitBrat to use Ollama instead of OpenAI.** The provider is selected entirely by environment
+variables, read by every LLM-using service (`llm-bot`, `query-analyzer`):
+
+| Variable | Offline value | Meaning |
+|---|---|---|
+| `LLM_PROVIDER` | `ollama` | Use the local Ollama provider (default is `openai`). |
+| `LLM_MODEL` | `llama3` | The Ollama model you pulled above. |
+| `LLM_BASE_URL` | `http://localhost:11434` | Ollama API endpoint (use `http://host.docker.internal:11434` from inside Docker). |
+| `LLM_API_KEY` | _unset_ | Not required for Ollama. |
+
+Add these to your local environment file (e.g. `env/local/global.yaml` created by `brat setup`, or your
+shell) — when running the stack in Docker, set `LLM_BASE_URL=http://host.docker.internal:11434` so the
+containers can reach the Ollama server on your host.
+
+**3. Hello-world agent in ~5 minutes:** run `brat setup` (you can leave the OpenAI key blank), export the
+variables above, start the stack with `npm run local`, then `npm run brat -- chat` and send a message. The
+Event Router will route it to `llm-bot`, which now reasons using your local model — a complete
+perceive → plan → act → observe loop with **zero external API keys**. For a guided walkthrough see the
+[Evaluator's Guide](./documentation/getting-started/evaluating-bitbrat.md).
+
+> **Note:** GCP-specific deploy commands (`brat deploy`, `brat infra`) still require a Google Cloud project,
+> but the **local agent loop above does not**.
 
 ### Building and Testing
 
