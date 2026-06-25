@@ -6,6 +6,14 @@ import { loadArchitecture } from '../../config/loader';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Location (relative to a remote target's `remoteDir`) where the GCP ADC service
+// account key is placed on the remote host. The per-service compose files bind-mount
+// `${GOOGLE_APPLICATION_CREDENTIALS}` into the container, so for remote targets that
+// variable is rewritten to `<remoteDir>/<REMOTE_ADC_RELATIVE_PATH>` and the real key
+// is copied there by `syncRemoteFiles`. Without this, the local-only key path does
+// not exist on the remote filesystem and GCP auth fails.
+const REMOTE_ADC_RELATIVE_PATH = 'secrets/google-app-creds.json';
+
 export interface DockerOrchestratorOptions {
   repoRoot: string;
   target?: string;
@@ -121,11 +129,23 @@ export class DockerOrchestrator {
     const { serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
     const assignments = this.portManager.resolvePorts(serviceFiles, env);
     const portOverrides = this.portManager.getEnvOverrides(assignments);
-    const mergedEnv = { 
+    const mergedEnv: Record<string, string | number | boolean> = { 
       ...env, 
       ...portOverrides,
       COMPOSE_PROJECT_NAME: 'bitbratplatform'
     };
+
+    // For remote (ssh://) targets the ADC key lives only on the local machine, so the
+    // local absolute path in GOOGLE_APPLICATION_CREDENTIALS would not resolve as a bind
+    // mount source on the remote daemon. Point it at the deterministic location where
+    // syncRemoteFiles copies the real key on the remote host.
+    const isRemote = targetConfig?.host?.startsWith('ssh://');
+    if (isRemote && targetConfig?.remoteDir && mergedEnv['GOOGLE_APPLICATION_CREDENTIALS']) {
+      mergedEnv['GOOGLE_APPLICATION_CREDENTIALS'] = path.posix.join(
+        targetConfig.remoteDir,
+        REMOTE_ADC_RELATIVE_PATH,
+      );
+    }
 
     const envContent = EnvironmentResolver.flattenToDotEnv(mergedEnv);
     const tempEnvPath = '.env.brat';
@@ -229,6 +249,11 @@ export class DockerOrchestrator {
       }
     }
 
+    // Copy the real GCP ADC service account key to the remote host. The repo-relative
+    // files synced above intentionally exclude it (the key lives at an absolute local
+    // path outside the repo, e.g. from .secure.local), so it is handled separately.
+    await this.syncAdcCredentials(target);
+
     // Verification check for critical files
     const criticalFiles = [
       path.join(remoteDir, '.env.brat'),
@@ -245,6 +270,63 @@ export class DockerOrchestrator {
         }
         throw new Error(`Sync verification failed: ${file} not found on remote host ${sshTarget}`);
       }
+    }
+  }
+
+  /**
+   * Transfers the GCP Application Default Credentials (service account key) to the
+   * remote host. The key path comes from the resolved environment
+   * (GOOGLE_APPLICATION_CREDENTIALS, typically from .secure.local) and is copied to
+   * `<remoteDir>/<REMOTE_ADC_RELATIVE_PATH>` — the same location writeEnvFile points
+   * the container's GOOGLE_APPLICATION_CREDENTIALS at for remote targets.
+   */
+  private async syncAdcCredentials(target: any): Promise<void> {
+    if (!target.remoteDir) return;
+
+    const envName = this.options.env || target.env || 'local';
+    const env = this.envResolver.resolve(envName);
+    const localKeyPath = env['GOOGLE_APPLICATION_CREDENTIALS'];
+
+    if (!localKeyPath || typeof localKeyPath !== 'string') {
+      console.warn(
+        '[brat] GOOGLE_APPLICATION_CREDENTIALS is not set; skipping ADC key sync to remote host. ' +
+          'Services that need GCP access will fail to authenticate.',
+      );
+      return;
+    }
+
+    if (!fs.existsSync(localKeyPath)) {
+      throw new Error(
+        `ADC key not found at GOOGLE_APPLICATION_CREDENTIALS='${localKeyPath}'; cannot sync it to the remote host.`,
+      );
+    }
+
+    const sshTarget = target.host.replace('ssh://', '');
+    const remoteKeyPath = path.posix.join(target.remoteDir, REMOTE_ADC_RELATIVE_PATH);
+    const remoteKeyDir = path.posix.dirname(remoteKeyPath);
+
+    console.log(`[brat] Syncing GCP ADC key to remote: ${sshTarget}:${remoteKeyPath}`);
+
+    const mkdirResult = await execCmd('ssh', [sshTarget, `mkdir -p "${remoteKeyDir}"`], {
+      cwd: this.options.repoRoot,
+    });
+    if (mkdirResult.code !== 0) {
+      throw new Error(`Failed to create remote secrets directory ${remoteKeyDir} on ${sshTarget}`);
+    }
+
+    const scpResult = await execCmd('scp', [localKeyPath, `${sshTarget}:${remoteKeyPath}`], {
+      cwd: this.options.repoRoot,
+    });
+    if (scpResult.code !== 0) {
+      throw new Error(`Failed to copy ADC key to ${sshTarget}:${remoteKeyPath}`);
+    }
+
+    // Restrict permissions on the copied key (best-effort; do not fail the deploy on this).
+    const chmodResult = await execCmd('ssh', [sshTarget, `chmod 600 "${remoteKeyPath}"`], {
+      cwd: this.options.repoRoot,
+    });
+    if (chmodResult.code !== 0) {
+      console.warn(`[brat] Could not chmod 600 the remote ADC key at ${remoteKeyPath}.`);
     }
   }
 
