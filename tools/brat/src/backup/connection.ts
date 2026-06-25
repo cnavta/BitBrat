@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
+import * as http from 'http';
 import { spawn, ChildProcess } from 'child_process';
 import yaml from 'js-yaml';
 import { loadArchitecture } from '../config/loader';
@@ -98,17 +99,34 @@ export function resolveTargetEndpoint(
   return { kind: 'local', directHostPort: `localhost:${port}`, port, project };
 }
 
-async function isReachable(hostPort: string, timeoutMs = 1000): Promise<boolean> {
+/**
+ * Confirm that a *Firestore emulator* is actually answering at `hostPort` — not merely that a TCP
+ * socket can be opened. This is essential for the remote `--target` path: an SSH `-L` forward
+ * accepts the local connection immediately (so a bare TCP probe always "succeeds"), yet the
+ * forwarded channel can be functionally dead (e.g. the remote loopback hop resets gRPC/HTTP
+ * traffic), surfacing later as `14 UNAVAILABLE: ... read ECONNRESET` deep inside the first
+ * Firestore operation. The emulator answers `GET /` on its HTTP port with `200 OK` (body "Ok");
+ * we require a 2xx response. Anything else (connection refused, reset, timeout, or a foreign
+ * server's non-2xx) is treated as "not a reachable emulator".
+ */
+export function isEmulatorReachable(hostPort: string, timeoutMs = 1500): Promise<boolean> {
   return new Promise((resolve) => {
     const [host, portStr] = hostPort.split(':');
-    const socket = new net.Socket();
+    const port = Number(portStr || 8080);
     let settled = false;
-    const done = (ok: boolean) => { if (!settled) { settled = true; socket.destroy(); resolve(ok); } };
-    socket.setTimeout(timeoutMs);
-    socket.once('connect', () => done(true));
-    socket.once('timeout', () => done(false));
-    socket.once('error', () => done(false));
-    socket.connect(Number(portStr || 8080), host || '127.0.0.1');
+    const done = (ok: boolean) => { if (!settled) { settled = true; resolve(ok); } };
+    const req = http.request(
+      { host: host || '127.0.0.1', port, path: '/', method: 'GET', timeout: timeoutMs },
+      (res) => {
+        const ok = !!res.statusCode && res.statusCode >= 200 && res.statusCode < 300;
+        res.resume();
+        res.once('end', () => done(ok));
+        res.once('error', () => done(false));
+      },
+    );
+    req.once('timeout', () => { req.destroy(); done(false); });
+    req.once('error', () => done(false));
+    req.end();
   });
 }
 
@@ -153,13 +171,18 @@ export async function openSshTunnel(
     if (child.exitCode !== null) {
       throw new ConfigurationError(`SSH tunnel exited early (code ${child.exitCode}): ${stderr.trim()}`);
     }
-    if (await isReachable(localHostPort, 500)) {
+    // The local SSH forward socket accepts connections immediately, so a bare TCP check would
+    // false-positive on a functionally-dead tunnel. Require a real Firestore emulator response
+    // over the forwarded channel before declaring the tunnel ready.
+    if (await isEmulatorReachable(localHostPort, 750)) {
       return { hostPort: localHostPort, cleanup };
     }
     await new Promise((r) => setTimeout(r, 250));
   }
   await cleanup();
-  throw new ConfigurationError(`SSH tunnel to ${endpoint.sshTarget} did not become ready within ${readyTimeoutMs}ms.`);
+  throw new ConfigurationError(
+    `SSH tunnel to ${endpoint.sshTarget} did not expose a reachable Firestore emulator within ${readyTimeoutMs}ms.`,
+  );
 }
 
 /**
@@ -187,14 +210,34 @@ export async function resolveBackupConnection(
 
     if (endpoint.kind === 'remote') {
       // Prefer an SSH tunnel (the engine is already addressed over SSH); fall back to direct.
+      // `openSshTunnel` now verifies a live Firestore emulator over the forwarded channel, so a
+      // tunnel that opens but cannot actually carry traffic (the loopback hop resets gRPC, seen as
+      // `14 UNAVAILABLE: ... read ECONNRESET`) is rejected here and we fall back to the direct
+      // host:port, which we also verify before committing to it.
+      let tunnelOk = false;
       try {
         const tunnel = await openSshTunnel(endpoint, logger);
         hostPort = tunnel.hostPort;
         cleanup = tunnel.cleanup;
+        tunnelOk = true;
       } catch (e: any) {
         logger?.warn({ action: 'backup.tunnel.fallback', error: e?.message || String(e), fallback: endpoint.directHostPort },
-          `SSH tunnel failed; falling back to direct ${endpoint.directHostPort}`);
-        hostPort = endpoint.directHostPort;
+          `SSH tunnel unavailable; trying direct ${endpoint.directHostPort}`);
+      }
+
+      if (!tunnelOk) {
+        if (await isEmulatorReachable(endpoint.directHostPort, 3000)) {
+          hostPort = endpoint.directHostPort;
+          logger?.info({ action: 'backup.tunnel.direct', directHostPort: endpoint.directHostPort },
+            `Using direct connection to Firestore emulator ${endpoint.directHostPort}`);
+        } else {
+          throw new ConfigurationError(
+            `Could not reach the Firestore emulator for target '${targetName}': the SSH tunnel to ` +
+            `${endpoint.sshTarget} did not carry traffic and the direct endpoint ${endpoint.directHostPort} ` +
+            `did not answer as a Firestore emulator. Verify the remote stack is up and that ` +
+            `${endpoint.remoteHost}:${endpoint.port} (or SSH access) is reachable.`,
+          );
+        }
       }
     }
 
