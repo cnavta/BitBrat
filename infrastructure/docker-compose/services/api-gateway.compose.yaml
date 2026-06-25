@@ -19,6 +19,7 @@ services:
     depends_on:
       - nats
       - firebase-emulator
+      - tool-gateway
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s
