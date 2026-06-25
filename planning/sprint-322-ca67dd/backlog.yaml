@@ -257,11 +257,11 @@ items:
     phase: 5
     section: "DoD"
     priority: P1
-    status: in_progress
+    status: done
     effort: M
     owner: agent
     deps: [BL-002, BL-003, BL-004, BL-005, BL-006, BL-007, BL-008, BL-009, BL-010, BL-011]
-    blocked_reason: "PR could not be auto-created (no gh CLI / no token). Branch pushed; awaiting PR creation or user acceptance of closure (Rule S13b)."
+    blocked_reason: null
     acceptance:
       - "validate_deliverable.sh parses architecture.yaml (YAML), runs any existing schema/lint, and verifies every publishes/consumes topic exists in the messaging catalog; logically passable per AGENTS.md §2.6"
       - "Any affected documentation/ index/cross-links updated so docs and YAML agree"
@@ -274,3 +274,5 @@ items:
         note: "validate_deliverable.sh created and PASSES (parse + 18-topic catalog + LB targets + 9 references). platform-flow.md reciprocal link fixed. verification-report.md, retro.md, key-learnings.md produced. Committed (461f735, Junie co-author) and pushed to origin."
       - at: 2026-06-25T12:40:00Z
         note: "PR NOT auto-created: gh CLI absent and no GITHUB_TOKEN/GH_TOKEN. Logged in publication.yaml (status: failed) with compare_url. Per Rule S13b this needs a created PR or explicit user acceptance to close."
+      - at: 2026-06-25T12:56:00Z
+        note: "Done. User said 'Sprint complete.', explicitly accepting closure without a PR (Rule S13b). publication.yaml closure: accepted-by-user; manifest status -> complete. Sprint closed."

@@ -5,6 +5,7 @@ base: main
 commit: 461f735
 pushed: true
 status: failed
+closure: accepted-by-user # Rule S13b: user said "Sprint complete." (2026-06-25T12:56:00Z) accepting closure without a PR
 reason: |
   Automated Pull Request creation could not be completed in this environment (Rule S13b):
     - The GitHub CLI (`gh`) is not installed.
