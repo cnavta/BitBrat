@@ -1,0 +1,305 @@
+meta:
+  backlog_id: sprint-323-evaluator-and-agent-framework-readiness
+  updated_at: 2026-06-25T13:05:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]
+  effort_values: [S, M, L]
+  source: planning/sprint-323-49faff/execution-plan.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog remediating documentation/evaluation/external-evaluation.md
+    (BitBrat assessed as an AI Agent framework). Each item maps to an evaluation section (§N) and a
+    recommendation priority (P1 = highest evaluation impact). Derived from execution-plan.md
+    (Phases 0-6 / Gates G0-G6).
+    Grounded, verified facts:
+      - package.json version 1.0.0 vs architecture.yaml project.version 0.1.0 vs README "experimental".
+      - Tracked scratch files: dummy-creds.json, route.json, test.json, validation_output.txt.
+      - documentation/schemas/ has only envelope.v1.json + routing-slip.v1.json (no architecture schema).
+      - ai-sdk-ollama is already a dependency (undocumented offline path).
+      - No CHANGELOG.md; assets/ has no architecture-diagram asset.
+    STATUS: APPROVED (REQ-002) — implementation in progress. Resolved decisions: (1) clone URL =
+    https://github.com/cnavta/BitBrat; (2) reconcile version to 0.7.0 (pre-1.0); (3) ship config schema +
+    wire brat config validate; (4) non-breaking dependency remediation + SECURITY.md cadence; (5) delete
+    dummy-creds.json + .gitignore (untrack route.json/test.json/validation_output.txt).
+
+sprint:
+  id: sprint-323-49faff
+  start: 2026-06-25
+  end: null
+  wip_limit: 3
+  goal: "Make BitBrat read as a turnkey AI-agent framework to an external evaluator: fix accuracy/consistency defects, add agent-framework framing + an offline quickstart, clean repository hygiene, lift dependency-security health, and add the missing navigational aids — all documentation/metadata-focused with no runtime behavior change."
+
+items:
+  - id: BL-100
+    title: "Discovery: confirm clone URL, locate version/URL strings, check scratch-file consumers, answer open questions"
+    phase: 0
+    section: "all"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Real canonical clone URL confirmed (Open Question 1) and every README/doc occurrence of the wrong URL located"
+      - "Every place declaring a version or 'experimental' maturity string located (package.json, architecture.yaml, README)"
+      - "Confirmed whether any tooling/test/CLI reads dummy-creds.json / route.json / test.json / validation_output.txt at their current paths"
+      - "Open Questions 1-5 answered by user (or documented defaults accepted) and recorded in request-log.md (Rule S4 / §2.4.1)"
+      - "Gate G0 prerequisites met"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T13:20:00Z
+        note: "Done. Clone URL https://github.com/BitBrat/BitBratPlatform.git found in README.md:75 + documentation/getting-started/quickstart.md:17 -> canonical = https://github.com/cnavta/BitBrat. Versions: package.json 1.0.0, architecture.yaml 0.1.0 -> reconcile to 0.7.0. Only live scratch-file consumer is orchestrator.ts:197 (dummy-creds.json sync guarded by fs.existsSync, safe to delete). OQ1-5 answered in REQ-002."
+
+  - id: BL-101
+    title: "Fix README clone URL to the real repository"
+    phase: 0
+    section: "§3.3, §4.1"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - "README/quickstart clone command uses the confirmed canonical URL (Open Question 1)"
+      - "No remaining reference to the incorrect https://github.com/BitBrat/BitBratPlatform.git"
+      - "A copy-paste of the first quickstart command would succeed"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T13:30:00Z
+        note: "Done. README.md:75 and documentation/getting-started/quickstart.md:17 clone command -> https://github.com/cnavta/BitBrat.git; following 'cd' line updated to 'cd BitBrat'. No remaining reference to the old BitBrat/BitBratPlatform.git URL in README/quickstart."
+
+  - id: BL-102
+    title: "Reconcile the version + maturity story across package.json, architecture.yaml, README"
+    phase: 0
+    section: "§3.3, §4.1, §4.2"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - "package.json version, architecture.yaml project.version, and README maturity wording express ONE consistent signal (Open Question 2)"
+      - "architecture.yaml gains an explicit status:/maturity: field (e.g. experimental)"
+      - "Change is additive to architecture.yaml; no consumed field renamed/removed (AGENTS.md §0)"
+      - "File still parses as valid YAML"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T13:30:00Z
+        note: "Done (OQ2=0.7.0). package.json version 1.0.0 -> 0.7.0; architecture.yaml project.version 0.1.0 -> 0.7.0; added additive project.status: experimental. README 'early & experimental' banner aligns with pre-1.0. architecture.yaml re-parses OK (version=0.7.0, status=experimental)."
+
+  - id: BL-103
+    title: "Add 'What is BitBrat?' agent-framing section + agent-loop mapping to README"
+    phase: 1
+    section: "§3.1, §4.1"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - "README has a concise 'What is BitBrat?' section: event-driven LLM orchestration engine + 'Streaming is the reference application' note"
+      - "A paragraph maps the platform onto the agent loop: ingest=perceive, event-router+routing-slip=plan, llm-bot+MCP tools=act, persistence/disposition=memory/observe"
+      - "The mapping names real services that exist in architecture.yaml (no invented behavior)"
+      - "A 'Why BitBrat / use cases beyond streaming' note helps an evaluator generalize"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T13:45:00Z
+        note: "Done. README 'What is BitBrat?' section added: event-driven LLM orchestration engine + 'Streaming is the reference application' + an agent-loop table (perceive=ingress-egress, plan=event-router+routing slip, act=llm-bot/query-analyzer/tool-gateway+MCP servers, observe/memory=persistence/state-engine/disposition-service) + a 'Why BitBrat (beyond streaming)' note. All service names verified present in architecture.yaml."
+
+  - id: BL-106
+    title: "Add 'Core Agent Concepts' subsection + extension-guide pointer + prominent AGENTS.md link"
+    phase: 1
+    section: "§3.1, §4.1"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-103]
+    blocked_reason: null
+    acceptance:
+      - "README 'Core Agent Concepts' subsection defines the reasoning loop, memory, tool use in BitBrat's terms"
+      - "An extension-guide pointer ('how to add a new service / MCP tool / rule') links to brat service bootstrap"
+      - "AGENTS.md is linked prominently for agent-assisted contributors"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T13:45:00Z
+        note: "Done. README 'Core Agent Concepts' table (reasoning loop / tool use / memory / message contract) + an 'Extending BitBrat' subsection pointing to 'brat service bootstrap' (#service-management anchor verified) and the extension_points block; AGENTS.md linked prominently as the collaboration protocol."
+
+  - id: BL-107
+    title: "Document an offline/local quickstart (Ollama or mock LLM, no OpenAI key / GCP)"
+    phase: 1
+    section: "§3.2, §4.1"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - "README documents a quickstart that runs without an OpenAI key or GCP, using the existing ai-sdk-ollama dependency (or a documented mock LLM)"
+      - "A minimal 'hello-world agent in 5 minutes' path is described"
+      - "The documented commands are sanity-checked to be runnable (steps exercised, not just asserted)"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T13:45:00Z
+        note: "Done. README 'Offline / Local-LLM Quickstart (no OpenAI key)' + quickstart.md offline section document Ollama via LLM_PROVIDER=ollama / LLM_MODEL / LLM_BASE_URL (no LLM_API_KEY). Sanity-checked against dist: getLlmProvider({provider:'ollama',...}) instantiates with no API key (model bound llama3). Hello-world-agent path described."
+
+  - id: BL-201
+    title: "Untrack scratch artifacts, relocate/rename fixtures, tighten .gitignore"
+    phase: 2
+    section: "§3.4, §4.3"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - "dummy-creds.json, route.json, test.json, validation_output.txt are removed from git tracking"
+      - "Any genuine fixtures relocated to tests/fixtures/ (or examples/); fake credential file renamed so its dummy nature is unmistakable (Open Question 5)"
+      - ".gitignore extended so these scratch/output patterns cannot re-enter the tree"
+      - "No tooling, test, or CLI references a removed/renamed path (verified via BL-100 discovery)"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T13:55:00Z
+        note: "Done (OQ5=delete+gitignore). git rm'd dummy-creds.json, route.json, test.json, validation_output.txt (untracked + removed from disk). .gitignore extended with dummy-creds.json, *-creds.json, /route.json, /test.json, /validation_output.txt; git check-ignore confirms all are IGNORED. Only live reference (orchestrator.ts:197 dummy-creds.json sync) is existsSync-guarded, so deletion is safe."
+
+  - id: BL-105
+    title: "Ship architecture.yaml config schema + $schema/references pointer; wire brat config validate"
+    phase: 3
+    section: "§3.3, §4.2"
+    priority: P2
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-100, BL-102]
+    blocked_reason: null
+    acceptance:
+      - "A JSON Schema for architecture.yaml is shipped under documentation/schemas/ describing today's top-level structure (Open Question 3)"
+      - "architecture.yaml gains a top-of-file $schema: and/or references.architecture_schema pointer (additive)"
+      - "brat config validate validates architecture.yaml against the shipped schema and passes on the current file"
+      - "Schema does not require restructuring architecture.yaml; file still parses and stays backward-compatible"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T14:10:00Z
+        note: "Done (OQ3=confirmed). Shipped documentation/schemas/architecture.v1.json (draft-07, requires name/project.version/services, permissive elsewhere). architecture.yaml gained a top-of-file '# yaml-language-server: $schema=' comment + references.architecture_schema pointer. cmdConfigValidate now validates Zod + the shipped JSON schema via ajv (moved ajv/ajv-formats to runtime deps). Caught a pre-existing Zod gap (infrastructure.resources firestore type 'document-database' not in the union) and fixed it with a new document-database/cloud-firestore variant. 'brat config validate' PASSES; 32 config tests pass; build green."
+
+  - id: BL-104
+    title: "Add extension_points:/agents: block to architecture.yaml"
+    phase: 3
+    section: "§3.1, §4.2"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-105]
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml gains an extension_points: (or agents:) block describing how to add a new agent/service/MCP tool and which files change"
+      - "Block references real files/CLI commands (e.g. brat service bootstrap, Dockerfile.service, MCP server entrypoints)"
+      - "Block validates against the BL-105 schema; file still parses and stays backward-compatible"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T14:10:00Z
+        note: "Done. Added top-level extension_points: block (add_service / add_mcp_tool / add_rule / see_also) referencing real CLI + files: 'brat service bootstrap [--mcp]', src/apps/<name>-service.ts, src/services/<name>/, Dockerfile.service / Dockerfile.obs-mcp, tool-gateway, event-router-rules doc, AGENTS.md. Validates against BL-105 schema; 'brat config validate' still PASSES."
+
+  - id: BL-401
+    title: "Remediate dependency vulnerabilities + document scanning cadence in SECURITY.md"
+    phase: 4
+    section: "§3.5, §4.3"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - "npm audit run; non-breaking fixes + targeted bumps applied; vulnerability count materially reduced (Open Question 4)"
+      - "Residual/breaking-change advisories documented as Deferred in verification-report.md with rationale"
+      - "Build and test suite still pass after remediation (npm run build + npm test)"
+      - "SECURITY.md documents the scanning cadence (Dependabot / npm audit) and remediation expectations"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T14:30:00Z
+        note: "Done (OQ4=non-breaking). npm audit baseline 51 (3 crit/16 high/29 mod/3 low) -> after non-breaking 'npm audit fix' 42 (0 crit/1 high/41 mod/0 low): ALL 3 critical + 15/16 high cleared. Only package-lock.json changed (no breaking declared-dep changes). Build green; full suite 265 suites/919 tests pass. Residuals (1 high undici via @discordjs/rest; moderate jest/babel dev-tooling, uuid via twilio/google-cloud, @opentelemetry/core, js-yaml DoS, discord undici) need breaking upgrades/upstream fixes -> Deferred (verification-report.md). SECURITY.md gained a Dependency Scanning & Remediation Cadence section."
+
+  - id: BL-108
+    title: "Embed README architecture diagram (mermaid) + capabilities matrix"
+    phase: 5
+    section: "§3.6, §4.1"
+    priority: P2
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-103]
+    blocked_reason: null
+    acceptance:
+      - "A high-level inline mermaid architecture diagram is embedded near the README Architecture section"
+      - "A capabilities matrix lists supported platforms, LLM providers, and persistence backends — accurate to architecture.yaml/code"
+      - "Diagram renders as valid mermaid"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T14:45:00Z
+        note: "Done. README Architecture section gained an inline mermaid flowchart (agent loop: ingress-egress -> event-router/routing slip -> llm-bot/query-analyzer + tool-gateway/MCP -> state-engine/disposition/persistence -> Firestore; node labels quoted with <br/>) plus a Capabilities Matrix (platforms, LLM providers incl. Ollama/vLLM, MCP tooling, NATS/PubSub bus, Firestore-only persistence, Compose/Cloud Run targets) grounded in architecture.yaml/code."
+
+  - id: BL-301
+    title: "Add Evaluator's Guide (documentation/getting-started/evaluating-bitbrat.md)"
+    phase: 5
+    section: "§4.3"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-103, BL-107]
+    blocked_reason: null
+    acceptance:
+      - "documentation/getting-started/evaluating-bitbrat.md created: 'try it in 5 minutes', what to read first, how the pieces form an agent"
+      - "All internal links resolve to real files"
+      - "Linked from the README and/or documentation index"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T14:45:00Z
+        note: "Done. Created documentation/getting-started/evaluating-bitbrat.md (try-in-5-min offline path, 'what to read first' table, how-the-pieces-form-an-agent, evaluation checklist). All internal links point to real files; linked from the README Documentation index."
+
+  - id: BL-302
+    title: "Add CHANGELOG.md + top-level architecture-diagram asset under assets/"
+    phase: 5
+    section: "§3.6, §4.3"
+    priority: P3
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "CHANGELOG.md added (Keep-a-Changelog style) and seeded with current state / this sprint"
+      - "A top-level architecture-diagram asset added under assets/ and referenced from the README"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T14:45:00Z
+        note: "Done. CHANGELOG.md added (Keep-a-Changelog) seeded under [Unreleased] with this sprint's Added/Changed/Removed/Security. assets/architecture-overview.md added (mermaid diagram asset) and referenced from the README Architecture section."
+
+  - id: BL-600
+    title: "Validation harness, doc link sync & sprint close-out"
+    phase: 6
+    section: "DoD"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-101, BL-102, BL-103, BL-104, BL-105, BL-106, BL-107, BL-108, BL-201, BL-301, BL-302, BL-401]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh parses architecture.yaml, validates it against the new schema (BL-105), link-checks new/changed docs, and asserts no scratch artifacts are tracked; logically passable per AGENTS.md §2.6"
+      - "Build + tests pass (npm run build + npm test)"
+      - "verification-report.md, retro.md, key-learnings.md produced"
+      - "PR attempted and recorded in publication.yaml (Rules S12/S13)"
+      - "Gate G6: validate_deliverable.sh is logically passable and DoD (AGENTS.md §3) is met"
+    updated_at: 2026-06-25
+    log:
+      - at: 2026-06-25T15:00:00Z
+        note: "Done. planning/sprint-323-49faff/validate_deliverable.sh created and PASSES (build + 32 config tests + brat config validate + version-0.7.0 assertion + scratch-file untracked/ignored assertion + doc link-check + audit summary). Full suite 265 suites/919 tests pass. Discovered AGENTS.md was missing from the repo (broke the new links) -> materialized canonical AGENTS.md at root. verification-report.md, retro.md, key-learnings.md produced. Commit + PR attempt recorded in publication.yaml."
