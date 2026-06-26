@@ -1,11 +1,11 @@
-import { McpServer } from '../common/mcp-server';
 import { Express, Request, Response } from 'express';
 import { StreamAnalystEngine } from '../services/stream-analyst/engine';
 import type { SummarizationRequest, StreamObserver } from '../types/sessi';
 import type { Egress } from '../types/events';
 import { createMessagePublisher } from '../services/message-bus';
 import { z } from 'zod';
-import { BaseServerOptions } from '../common/base-server';
+import { Bit, BaseServerOptions } from '../common/base-server';
+import { applyProfiles, EventingProfile, LlmProfile } from '../common/profiles';
 import parser from 'cron-parser';
 
 /**
@@ -15,13 +15,14 @@ import parser from 'cron-parser';
  * - Pub/Sub: internal.summarization.request.v1
  * - HTTP: POST /summarize (used by tool-gateway)
  */
-export class StreamAnalystServer extends McpServer {
+export class StreamAnalystServer extends Bit {
   private engineInstance?: StreamAnalystEngine;
 
   constructor(opts: BaseServerOptions = {}) {
     super({ 
       ...opts,
-      serviceName: 'stream-analyst' 
+      serviceName: 'stream-analyst',
+      mcpExposure: opts.mcpExposure ?? 'platform+domain',
     });
     // BaseServer automatically registers health checks and middleware
     this.setupRoutes(this.getApp());
@@ -303,6 +304,12 @@ export class StreamAnalystServer extends McpServer {
     );
   }
 }
+
+// Bit model (sprint-324, Phase 2): stream-analyst is an LLM Bit. Composing LlmProfile over its McpServer
+// base gives it the identical bit.llm.* admin surface and provider/prompt scaffolding shared with
+// llm-bot and query-analyzer; its domain summarization tools are unchanged. The declared
+// architecture.yaml `profile: llm` is enforced against the applied LlmProfile at Bit bootstrap.
+applyProfiles(StreamAnalystServer, [EventingProfile, LlmProfile]);
 
 export function createApp() {
   return new StreamAnalystServer();

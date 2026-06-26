@@ -1,0 +1,450 @@
+meta:
+  backlog_id: bit-model-universal-mcp-control-plane
+  updated_at: 2026-06-26T13:14:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]
+  effort_values: [S, M, L]
+  source: planning/bit-model/execution-plan.md
+  design: documentation/architecture/bit-model-technical-architecture.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for the Bit model & universal MCP control plane
+    (Architect design doc, Phases 0-3 / §8; ADRs §9). Each item maps to a design section (§N),
+    a plan Phase (R/0/1/2/3/V), and a Gate (GR/G0/G1/G2/G3/GV).
+    ADR decisions (owner-accepted this issue):
+      - ADR-001 ACCEPTED, conditioned on existing MCP_AUTH_TOKEN + common/mcp/rbac.ts restrictions.
+      - ADR-002 ACCEPTED (composition / mixins).
+      - ADR-003 ACCEPTED (tool-gateway fabric default; direct-connect break-glass).
+      - ADR-004 ACCEPTED (keep services: key; soft-introduce "Bit").
+    Grounded, verified facts:
+      - extends McpServer (8): auth, api-gateway, event-router, scheduler, state-engine,
+        tool-gateway, stream-analyst, obs-mcp, story-engine-mcp, image-gen-mcp.
+      - extends BaseServer (6): llm-bot, query-analyzer, persistence, disposition, oauth, ingress-egress
+        (the §6.3 behavioral-change set — they gain an MCP endpoint).
+      - registerTool(name, desc, schema, handler, { scopes }) already carries the RBAC scope hook.
+      - Reusable commons: src/common/{mcp,llm,prompt-assembly,resources,feature-flags.ts,logging.ts}; tools/brat.
+    Scope: core platform only (src/common/**, base abstraction, Brat control surface). NOT domain logic.
+    Open-question resolutions (owner-accepted this issue, all Plan of Record):
+      - OQ1 ACCEPTED (PoR): retire BaseServer=Bit alias + McpServer shim at the Phase 3 exit gate.
+      - OQ2 ACCEPTED (PoR): ship exactly profile values [core | llm | mcp-domain | gateway]; absent => core.
+      - OQ3 ACCEPTED (PoR): MCP_AUTH_TOKEN required for auth to engage; absent => current behavior (auth off)
+        logged as a posture warning; holds across GCP Secret Manager, local .secure.local/.env.local, and
+        the ssh://-synced .env.brat for remote Docker.
+      - OQ4 ACCEPTED (PoR): documented direct-connect break-glass behind an explicit CLI flag
+        (e.g. brat fleet --direct <bit>); fabric-through-tool-gateway stays the default.
+    Deployment-target parity (owner approval condition): the implementation MUST keep working on ALL three
+      current targets with none left behind:
+      - GCP: Cloud Run / PubSub / Firestore via Cloud Build (infrastructure/deploy-cloud.sh, cloudbuild.*.yaml).
+      - Local Docker: Compose (infrastructure/docker-compose/docker-compose.local.yaml, npm run local), NATS bus.
+      - Remote Docker: ssh:// brat docker targets (DOCKER_HOST=ssh://), .env.brat synced to the remote host.
+      The bit.* surface, registry self-publish, MCP_AUTH_TOKEN auth, and mcp.exposure defaults must behave
+      identically regardless of messaging backend (PubSub vs NATS) or host (Cloud Run / local / remote ssh).
+      No GCP-only or Compose-only assumption may be baked into the base abstraction; asserted by BL-500.
+    STATUS: PLANNING APPROVED, PRE-SPRINT (AGENTS.md Rule S1). Plan approved (conditioned on deployment-target
+    parity); all four open questions resolved (PoR). No sprint started, no branch, no code changed. This
+    backlog awaits an explicit "Start sprint." (§2.2) before any implementation begins.
+
+sprint:
+  id: null
+  start: null
+  end: null
+  wip_limit: 3
+  goal: "Promote MCP from a per-service subclass decision (extends McpServer vs extends BaseServer) into the base abstraction so every Bit speaks MCP, expose a mandatory bit.* control plane Brat administers fleet-wide, and codify the duplicated LLM scaffolding into composable profiles — additively, behavior-preserving, and reversible, scoped to the core platform only."
+
+items:
+  # ---------------- Phase R — ratify the canonical file first (Law #2) ----------------
+  - id: BL-001
+    title: "Discovery & baseline inventory: confirm 8/6 split, MCP_AUTH_TOKEN coverage, profile/mixin targets"
+    phase: R
+    section: "§2, §6"
+    gate: GR
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "The extends McpServer (8) / extends BaseServer (6) split is verified against current source"
+      - "Per-Bit MCP_AUTH_TOKEN declaration in architecture.yaml is inventoried (which already list it vs not)"
+      - "The proposed profile: -> mixin map (Appendix A) is reconciled to the 14 real services"
+      - "Any out-of-scope (domain) coupling to BaseServer/McpServer that could break the fold-down is surfaced"
+      - "Findings recorded in request-log.md (Rule S4 / §2.4.1)"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-002
+    title: "Ratify architecture.yaml: add profile:, mcp.exposure, default MCP_AUTH_TOKEN, bit: glossary, document §6.3 promotion"
+    phase: R
+    section: "§6.1, §6.2, §6.3, ADR-001, ADR-004"
+    gate: GR
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "Optional profile: field added per Bit, one of [core | llm | mcp-domain | gateway]; absent => core"
+      - "mcp.exposure: [platform-only | platform+domain] added per Bit; default platform-only"
+      - "MCP_AUTH_TOKEN documented as a platform default secret (not per-service boilerplate)"
+      - "llm_guidance.glossary gains a bit: entry alongside the existing brat: entry (ADR-004, no hard rename; services: key retained)"
+      - "The §6.3 behavioral change (the 6 promoted Bits gaining an MCP endpoint) is documented in-file with ADR-001 justification"
+      - "All changes are additive; brat config validate passes against documentation/schemas/architecture.v1.json; file stays backward-compatible"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 0 — alias & fold (behavior-preserving) ----------------
+  - id: BL-100
+    title: "Introduce Bit (refactor BaseServer -> Bit) with a deprecated BaseServer alias + one-time deprecation log"
+    phase: 0
+    section: "§3.1, §8 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "src/common/base-server.ts exports class Bit; export const BaseServer = Bit retained as a deprecated alias"
+      - "Using the BaseServer alias emits a one-time deprecation log (logging.ts), not a hard failure"
+      - "All current importers of BaseServer continue to compile and behave unchanged"
+      - "Build green; existing base-server tests pass unchanged"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-101
+    title: "Fold MCP transport/discovery/registration down into Bit, gated behind mcp.exposure"
+    phase: 0
+    section: "§2.1, §8 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: L
+    owner: agent
+    deps: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - "The MCP Server instance, /sse + POST /message routes, registerTool/Resource/Prompt, discovery handlers, executeTool, traceMcpOperation, authMiddleware and publishRegistration() are available on Bit"
+      - "MCP machinery is gated by mcp.exposure so a default (platform-only / unset) Bit behaves exactly as today's BaseServer until flipped"
+      - "No new MCP endpoint is exposed by any of the 14 services solely as a result of this fold-down (no flip yet)"
+      - "The fold-down adds no deployment-target coupling: transport/gate/registration build and run identically on GCP (Cloud Run), Local Docker (Compose), and Remote Docker (ssh://)"
+      - "Build green; full test suite green"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-102
+    title: "Reduce McpServer to a thin subclass selecting platform+domain exposure (behavior-preserving)"
+    phase: 0
+    section: "§2.2, §8 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-101]
+    blocked_reason: null
+    acceptance:
+      - "McpServer extends Bit and only selects platform+domain exposure; no duplicated transport/registration logic remains in it"
+      - "The 8 existing extends McpServer services behave identically pre/post (routes, registration, RBAC unchanged)"
+      - "extends McpServer still compiles and works unchanged"
+      - "Behavior-preservation tests for the 8 MCP services pass unchanged"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-103
+    title: "Phase 0 behavior-preservation gate: full suite green, no observable service change"
+    phase: 0
+    section: "§8 Phase 0 exit, §10"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-101, BL-102]
+    blocked_reason: null
+    acceptance:
+      - "Existing McpServer and BaseServer service tests pass unchanged"
+      - "No service exposes a new endpoint or registration vs pre-refactor baseline"
+      - "npm run build + npm test green"
+      - "Gate G0 met"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 1 — platform tools & universal control plane ----------------
+  - id: BL-200
+    title: "Implement the mandatory bit.* platform toolset on the Platform Ring (registered before Business Ring)"
+    phase: 1
+    section: "§4.1"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: L
+    owner: agent
+    deps: [BL-103]
+    blocked_reason: null
+    acceptance:
+      - "bit.info (name/version/profile/topics/secrets from architecture.yaml) implemented"
+      - "bit.health / bit.readiness mirror /readyz via registerHealth/buildHealthBody"
+      - "bit.config.get / bit.config.describe return effective config with secret redaction (reuse prompt-assembly/redaction.ts)"
+      - "bit.flags.get / bit.flags.set use feature-flags.ts + manifest"
+      - "bit.log.level changes runtime log level via logging.ts"
+      - "bit.drain / bit.shutdown drive graceful close(reason)"
+      - "All bit.* tools are registered during Bit construction, before any Business-Ring code runs"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-201
+    title: "Apply RBAC scopes + token auth + redaction to bit.* tools (ADR-001 conditions)"
+    phase: 1
+    section: "§4.2, §7, ADR-001"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-200]
+    blocked_reason: null
+    acceptance:
+      - "Elevated operator scopes required for bit.shutdown / bit.drain / bit.flags.set; low scopes for read-only bit.info / bit.health (via registerTool { scopes } + common/mcp/rbac.ts)"
+      - "MCP_AUTH_TOKEN transport auth enforced consistently on the bit.* surface"
+      - "bit.config.get / bit.config.describe never return raw MCP_AUTH_TOKEN or provider keys"
+      - "RBAC/redaction unit tests cover platform-vs-domain scope enforcement and secret masking"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-202
+    title: "Registry self-publish on boot for every Bit (extend publishRegistration beyond the former McpServer set)"
+    phase: 1
+    section: "§4.3"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-200]
+    blocked_reason: null
+    acceptance:
+      - "Every Bit publishes INTERNAL_MCP_REGISTRATION_V1 on start (transport sse, external URL, bearer from MCP_AUTH_TOKEN)"
+      - "tool-gateway discovers newly-registering Bits without code change (existing aggregation path)"
+      - "Self-publish works on every deployment target: PubSub bus on GCP and NATS bus on Local/Remote Docker; external URL resolves correctly for Cloud Run, local, and ssh:// hosts"
+      - "Registration is idempotent and does not duplicate for the 8 services that already self-published"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-203
+    title: "Promote the 6 no-MCP Bits to platform-only exposure; verify health + RBAC (persistence/oauth stay elevated)"
+    phase: 1
+    section: "§6.3, §7, ADR-001"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-201, BL-202, BL-002]
+    blocked_reason: null
+    acceptance:
+      - "llm-bot, query-analyzer, persistence, disposition, oauth, ingress-egress expose a platform-only MCP control endpoint"
+      - "persistence and oauth expose ONLY platform tools, behind elevated RBAC scopes (highest-sensitivity case)"
+      - "Each promoted Bit passes health + RBAC checks; no domain tools are exposed by a platform-only Bit"
+      - "Promotion matches the ratified §6.3 entry in architecture.yaml (gated by BL-002)"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-204
+    title: "Brat as fleet MCP client: bit.* orchestration via tool-gateway fabric + direct-connect break-glass (ADR-003)"
+    phase: 1
+    section: "§4.3, ADR-003"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: L
+    owner: agent
+    deps: [BL-201, BL-202]
+    blocked_reason: null
+    acceptance:
+      - "Brat discovers Bits via registry-watcher / tool-gateway and offers fleet bit.info / bit.health / bit.flags / bit.drain commands"
+      - "Default path is fabric-through-gateway (one auth/RBAC/discovery chokepoint)"
+      - "A documented direct-connect break-glass path exists behind an explicit flag (e.g. brat fleet --direct <bit>)"
+      - "Brat fleet commands honor RBAC scopes and fail closed without an authorized token"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-205
+    title: "Platform Ring conformance suite + hello-bit fixture asserting the bit.* contract on every Bit"
+    phase: 1
+    section: "§10"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-200, BL-202]
+    blocked_reason: null
+    acceptance:
+      - "A hello-bit fixture (composes no extra profile) is added and gets the full Platform Ring for free"
+      - "A shared conformance suite asserts every Bit exposes the full bit.* toolset, self-registers, and serves health"
+      - "Negative cases covered: platform-only Bit refuses domain calls; bit.shutdown requires elevated scope; missing MCP_AUTH_TOKEN behaves as specified"
+      - "Suite runs in npm test and is wired into validate_deliverable.sh"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 2 — LLM profile (composition) ----------------
+  - id: BL-300
+    title: "Implement the composition mechanism (applyProfiles/mixins) + enforce the profile: -> mixin map at Bit bootstrap"
+    phase: 2
+    section: "§5.2, §5.4, Appendix A, ADR-002"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-103]
+    blocked_reason: null
+    acceptance:
+      - "applyProfiles(Class, [...]) (or equivalent mixin API) composes capability rings over Bit without deepening the class tree"
+      - "The Appendix A profile: -> mixin map (core/llm/mcp-domain/gateway) is enforced at Bit bootstrap so declared intent cannot diverge from runtime capability"
+      - "An unknown/invalid profile: value fails fast at startup with a clear error"
+      - "Unit tests cover composition + the bootstrap enforcement"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-301
+    title: "Extract EventingProfile, ResourcesProfile, McpClientProfile, LlmProfile from existing commons"
+    phase: 2
+    section: "§5.1, §5.2, §5.3"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: L
+    owner: agent
+    deps: [BL-300]
+    blocked_reason: null
+    acceptance:
+      - "EventingProfile bundles onMessage/publish/routing-slip helpers (base-server eventing + common/events)"
+      - "ResourcesProfile bundles firestore/storage/publisher managers (common/resources)"
+      - "McpClientProfile bundles client-manager + registry-watcher wiring (common/mcp) currently hand-rolled in llm-bot"
+      - "LlmProfile bundles provider resolution (common/llm/provider-factory) + prompt assembly/redaction (common/prompt-assembly)"
+      - "Profiles are mixins over Bit (no new inheritance depth); each is unit-tested"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-302
+    title: "Add bit.llm.* admin tools + surface memory/behavioral-guidance knobs as LlmProfile config"
+    phase: 2
+    section: "§5.3"
+    gate: G2
+    priority: P2
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-301, BL-201]
+    blocked_reason: null
+    acceptance:
+      - "bit.llm.model reads/sets the active provider+model"
+      - "bit.llm.promptPreview renders the assembled prompt with redaction applied"
+      - "bit.llm.toolFilter inspects/adjusts which discovered tools are exposed to the loop"
+      - "Memory/behavioral-guidance knobs (today buried in llm-bot CONFIG_DEFAULTS) are surfaced as profile config"
+      - "bit.llm.* tools are namespaced under bit.* (platform-level LLM admin) and RBAC-scoped"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-303
+    title: "Refit llm-bot onto LlmProfile (replace hand-rolled McpClientManager + RegistryWatcher dance)"
+    phase: 2
+    section: "§5.1, §8 Phase 2"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: L
+    owner: agent
+    deps: [BL-301]
+    blocked_reason: null
+    acceptance:
+      - "llm-bot composes EventingProfile + LlmProfile + McpClientProfile instead of hand-rolling the MCP-client stack"
+      - "llm-bot behaves identically pre/post (tool loop, provider resolution, prompt assembly)"
+      - "Duplicated scaffolding is removed from llm-bot"
+      - "Existing llm-bot tests pass unchanged"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-304
+    title: "Refit query-analyzer + stream-analyst onto the LLM profile; verify against existing tests"
+    phase: 2
+    section: "§5.1, §8 Phase 2 exit"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-303]
+    blocked_reason: null
+    acceptance:
+      - "query-analyzer and stream-analyst compose the LLM profile instead of re-implementing provider/prompt scaffolding"
+      - "Both behave identically pre/post and their existing tests pass unchanged"
+      - "bit.llm.* tools are available and identical across all three LLM Bits"
+      - "Gate G2 met (duplication removed, behavior preserved)"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 3 — deprecate & retire ----------------
+  - id: BL-400
+    title: "McpServer becomes a thin compat shim; remove extends McpServer from production code; update bootstrap templates/docs"
+    phase: 3
+    section: "§8 Phase 3"
+    gate: G3
+    priority: P2
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-304]
+    blocked_reason: null
+    acceptance:
+      - "No production code references extends McpServer (services declare profile/exposure instead)"
+      - "McpServer remains only as a thin compat shim over Bit"
+      - "brat service bootstrap templates and developer docs use the Bit vocabulary"
+      - "Build + full suite green"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-401
+    title: "Retire the BaseServer alias at end of migration window; update CHANGELOG"
+    phase: 3
+    section: "§8 Phase 3 exit, §11"
+    gate: G3
+    priority: P2
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-400]
+    blocked_reason: null
+    acceptance:
+      - "The deprecated BaseServer = Bit alias is removed (or its removal is explicitly scheduled and recorded if any out-of-scope domain code still depends on it)"
+      - "CHANGELOG.md records the Bit model, the bit.* control plane, and the McpServer/BaseServer deprecation"
+      - "No production import relies on the removed alias; build + full suite green"
+      - "Gate G3 met"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase V — validation & close-out ----------------
+  - id: BL-500
+    title: "Validation harness + sprint close-out (conformance + full suite, validate, docs, PR)"
+    phase: V
+    section: "§10, DoD"
+    gate: GV
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-103, BL-205, BL-304, BL-401]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh builds, runs the conformance + full suites, validates architecture.yaml, and asserts the bit.* contract on the hello-bit fixture; logically passable per AGENTS.md §2.6"
+      - "Deployment-target parity asserted: the bit.*/registration/auth path is exercised against both messaging backends (NATS-backed Local/Remote Docker Compose and the PubSub-backed GCP path, mockable) so no target (GCP / Local Docker / Remote Docker) regresses"
+      - "npm run build + npm test green"
+      - "verification-report.md, retro.md, key-learnings.md produced"
+      - "PR attempted and recorded in publication.yaml (Rules S12/S13)"
+      - "Gate GV: validate_deliverable.sh logically passable and DoD (AGENTS.md §3) met"
+    updated_at: 2026-06-26
+    log: []

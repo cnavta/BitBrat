@@ -1,4 +1,4 @@
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 
 // Minimal publisher mock shape
 function makePublisherMock() {
@@ -15,7 +15,7 @@ describe('ingress-egress finalize publish', () => {
     process.env.NODE_ENV = 'development';
     delete (process as any).env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
     // Capture onMessage registration of egress handler
-    jest.spyOn(BaseServer.prototype as any, 'onMessage').mockImplementation(async (opts: any, handler: any) => {
+    jest.spyOn(Bit.prototype as any, 'onMessage').mockImplementation(async (opts: any, handler: any) => {
       const destination = opts?.destination || opts?.subject || 'unknown';
       handlers.push({ destination, handler });
       return () => {};
@@ -32,7 +32,7 @@ describe('ingress-egress finalize publish', () => {
     }));
 
     // Mock publisher resource to capture finalize publish calls
-    jest.spyOn(BaseServer.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
+    jest.spyOn(Bit.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
       const key = args[0] as string;
       if (key === 'publisher') {
         return {

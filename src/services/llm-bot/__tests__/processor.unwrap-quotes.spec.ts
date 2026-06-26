@@ -1,8 +1,8 @@
 import { processEvent } from '../processor';
-import { BaseServer } from '../../../common/base-server';
+import { Bit } from '../../../common/base-server';
 import type { InternalEventV2 } from '../../../types/events';
 
-class TestServer extends BaseServer { constructor() { super({ serviceName: 'test-llm-bot' }); } }
+class TestServer extends Bit { constructor() { super({ serviceName: 'test-llm-bot' }); } }
 
 function baseEvt(): InternalEventV2 {
   return {

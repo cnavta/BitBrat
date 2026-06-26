@@ -1,13 +1,13 @@
 import { StateEngineServer } from '../../../src/apps/state-engine';
 import { MutationProposal } from '../../../src/types/state';
 
-// Mock McpServer and BaseServer dependencies
+// Mock the Bit base abstraction (Bit model, sprint-324)
 jest.mock('firebase-admin/firestore');
 jest.mock('../../../src/common/resources/publisher-manager');
 jest.mock('../../../src/common/logging');
 jest.mock('../../../src/common/base-server', () => {
   return {
-    BaseServer: class {
+    Bit: class {
       static ensureRequiredEnv = jest.fn();
       static computeRequiredKeysFromArchitecture = jest.fn().mockReturnValue([]);
       static loadArchitectureYaml = jest.fn().mockReturnValue({ project: { version: '1.0.0' }, services: {} });
@@ -26,6 +26,15 @@ jest.mock('../../../src/common/base-server', () => {
       getResource(k: string) { return this.resources[k]; }
       onHTTPRequest = jest.fn();
       subscribe = jest.fn();
+      // Bit model (sprint-324): the MCP control plane was folded into the base abstraction, so the
+      // base-server mock must provide the MCP surface that previously lived on McpServer.
+      mcpServer = { setRequestHandler: jest.fn(), connect: jest.fn() };
+      registerTool = jest.fn();
+      registerResource = jest.fn();
+      registerPrompt = jest.fn();
+      executeTool = jest.fn();
+      protected resolveMcpExposure() { return 'platform+domain'; }
+      protected isMcpEnabled() { return true; }
     }
   };
 });

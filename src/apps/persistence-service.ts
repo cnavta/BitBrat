@@ -1,4 +1,4 @@
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import type { InternalEventV2, PersistenceSnapshotEventV1 } from '../types/events';
 import { INTERNAL_PERSISTENCE_SNAPSHOT_V1 } from '../types/events';
@@ -15,7 +15,7 @@ const RAW_CONSUMED_TOPICS: string[] = [
   "internal.router.dlq.v1"
 ];
 
-class PersistenceServer extends BaseServer {
+class PersistenceServer extends Bit {
   constructor() {
     super({ serviceName: SERVICE_NAME });
     this.setupApp(this.getApp() as any, this.getConfig() as any);
@@ -230,7 +230,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const server = new PersistenceServer();
   void server.start(PORT);
 }

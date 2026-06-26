@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { InternalEventV2, CandidateV1, AnnotationV1 } from '../../types/events';
 import { generateText, ModelMessage, stepCountIs } from 'ai';
-import { BaseServer } from '../../common/base-server';
+import type { Bit } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
 import { resolvePersonalityParts, PersonalityDoc } from './personality-resolver';
 import { buildUserContextAnnotation } from './user-context';
@@ -381,7 +381,7 @@ function extractAdventureContexts(annotations?: AnnotationV1[]): any[] {
 }
 
 export async function processEvent(
-  server: BaseServer,
+  server: Bit,
   evt: InternalEventV2,
   deps?: { 
     registry?: IToolRegistry;

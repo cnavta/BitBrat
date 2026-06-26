@@ -1,7 +1,6 @@
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import { Express, Request, Response } from 'express';
 import type { InternalEventV2, InternalEventType, MessageV1, AnnotationV1 } from '../types/events';
-import { McpServer } from "../common/mcp-server";
 import { z } from "zod";
 import { Firestore, Timestamp } from 'firebase-admin/firestore';
 import parser from 'cron-parser';
@@ -66,9 +65,9 @@ interface ScheduleDoc {
   updatedAt: Timestamp;
 }
 
-class SchedulerServer extends McpServer {
+class SchedulerServer extends Bit {
   constructor() {
-    super({ serviceName: SERVICE_NAME });
+    super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
     this.setupApp(this.getApp() as any);
     this.registerTools();
   }
@@ -337,7 +336,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const server = new SchedulerServer();
   void server.start(PORT);
 }

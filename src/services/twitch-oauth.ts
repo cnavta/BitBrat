@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { IConfig, ITokenStore, TwitchTokenData } from '../types';
 import { logger } from '../common/logging';
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 
 function hmacSHA256(secret: string, data: string) {
   return crypto.createHmac('sha256', secret).update(data).digest('hex');
@@ -74,7 +74,7 @@ function interpolateEnv(str: string): string {
 
 function resolveLbBaseUrl(): string | null {
   try {
-    const arch: any = BaseServer.loadArchitectureYaml?.();
+    const arch: any = Bit.loadArchitectureYaml?.();
     const domainRaw: string | undefined = arch?.infrastructure?.resources?.['main-load-balancer']?.routing?.default_domain;
     if (domainRaw && typeof domainRaw === 'string') {
       const domain = interpolateEnv(domainRaw);

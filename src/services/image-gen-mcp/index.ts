@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { McpServer } from '../../common/mcp-server';
+import { Bit } from '../../common/base-server';
 import { experimental_generateImage as generateImage } from 'ai';
 import { getLlmProvider } from '../../common/llm/provider-factory';
 import { StorageManager } from '../../common/resources/storage-manager';
@@ -15,12 +15,13 @@ import { redactText } from '../../common/prompt-assembly/redaction';
  * ImageGenMcpServer
  * Handles image generation requests via MCP, now using the standard McpServer base class.
  */
-export class ImageGenMcpServer extends McpServer {
+export class ImageGenMcpServer extends Bit {
   private lastRequestByUser: Map<string, number> = new Map();
 
   constructor() {
     super({
       serviceName: 'image-gen-mcp',
+      mcpExposure: 'platform+domain',
       healthPaths: ['/health'],
       resources: {
         storage: new StorageManager(),

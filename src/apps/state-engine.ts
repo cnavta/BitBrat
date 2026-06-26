@@ -1,5 +1,4 @@
-import { McpServer } from '../common/mcp-server';
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import { z } from 'zod';
 import { Express, Request, Response } from 'express';
 import type { InternalEventV2 } from '../types/events';
@@ -43,11 +42,11 @@ const DEFAULT_CONFIG: StateEngineConfig = {
   ]
 };
 
-export class StateEngineServer extends McpServer {
+export class StateEngineServer extends Bit {
   private stateConfig: StateEngineConfig;
 
   constructor() {
-    super({ serviceName: SERVICE_NAME });
+    super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
     this.stateConfig = this.loadStateConfig();
     this.setupApp(this.getApp() as any, this.getConfig() as any);
     this.setupMcpTools();
@@ -332,7 +331,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const server = new StateEngineServer();
   void server.start(PORT);
 }

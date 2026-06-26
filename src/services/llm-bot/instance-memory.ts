@@ -1,6 +1,6 @@
 // Instance-scoped short-term memory store for llm-bot
 // Bounded by per-key limits and global key count; supports TTL eviction.
-import type { BaseServer } from '../../common/base-server';
+import type { Bit } from '../../common/base-server';
 
 export type ChatMessage = { role: 'system'|'user'|'assistant'; content: string; createdAt: string };
 
@@ -81,7 +81,7 @@ export class InstanceMemoryStore {
 
 // Singleton for the process lifetime
 let __store: InstanceMemoryStore | null = null;
-export function getInstanceMemoryStore(server?: BaseServer): InstanceMemoryStore {
+export function getInstanceMemoryStore(server?: Bit): InstanceMemoryStore {
   if (!__store) {
     const readNum = (key: string, def: number) =>
       server

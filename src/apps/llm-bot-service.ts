@@ -1,10 +1,9 @@
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import { Express } from 'express';
 import type { InternalEventV2, RoutingStep, CandidateV1 } from '../types/events';
 import { processEvent } from '../services/llm-bot/processor';
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
-import { McpClientManager } from '../common/mcp/client-manager';
-import { RegistryWatcher } from '../common/mcp/registry-watcher';
+import { applyProfiles, EventingProfile, LlmProfile, McpClientProfile, McpClientCapability } from '../common/profiles';
 import { createGetBotStatusTool, createListAvailableToolsTool } from '../services/llm-bot/tools/internal-tools';
 import { createGetCurrentTimeTool } from '../services/llm-bot/tools/basic-tools';
 import { createAdventureNarratorTool } from '../services/llm-bot/tools/adventure-tools';
@@ -84,10 +83,14 @@ export function appendAssistantCandidate(evt: InternalEventV2, text: string, mod
 
 // Legacy handleLlmEvent removed in BL-160-001. Use processEvent instead.
 
-class LlmBotServer extends BaseServer {
-  private registry = new ToolRegistry();
-  private mcpManager = new McpClientManager(this, this.registry);
-  private registryWatcher?: RegistryWatcher;
+class LlmBotServer extends Bit {
+  // Bit model (sprint-324, Phase 2): the MCP-client stack (manager + registry + gateway/registry-watcher
+  // choreography) is now provided by McpClientProfile and exposed as `this.mcpClient`. The shared tool
+  // registry lives there too, so the manager (tool registration) and the processor (tool execution loop)
+  // operate on the same instance.
+  private get mcp(): McpClientCapability { return (this as any).mcpClient as McpClientCapability; }
+  private get registry() { return this.mcp.registry; }
+  private get mcpManager() { return this.mcp.manager; }
 
   // Provide sensible defaults via BaseServer CONFIG_DEFAULTS so getConfig() can honor them
   protected static CONFIG_DEFAULTS: Record<string, any> = {
@@ -126,66 +129,16 @@ class LlmBotServer extends BaseServer {
   }
 
   async start(port: number) {
-    // Register internal tools
+    // Register internal tools into the profile-provided shared registry before super.start() runs the
+    // McpClientProfile startup hook (gateway connect / registry watcher), preserving the prior ordering.
     this.registry.registerTool(createGetBotStatusTool(this.mcpManager));
     this.registry.registerTool(createListAvailableToolsTool(this.registry));
     this.registry.registerTool(createGetCurrentTimeTool());
     this.registry.registerTool(createAdventureNarratorTool());
 
-    // Initialize MCP Registry Watcher
-    const gatewayUrl = this.getConfig<string>('MCP_GATEWAY_URL', { required: false });
-    if (gatewayUrl) {
-      this.getLogger().info('llm_bot.mcp.connecting_gateway', { url: gatewayUrl });
-      const cfg = {
-        name: 'tool-gateway',
-        transport: 'sse' as const,
-        url: gatewayUrl,
-        env: { 
-          'x-mcp-token': process.env.MCP_AUTH_TOKEN || '',
-          'x-agent-name': this.serviceName
-        }
-      };
-
-      // Retry loop to handle race conditions where the gateway container isn't ready yet
-      const maxAttempts = parseInt(process.env.MCP_GATEWAY_CONNECT_RETRIES || '10', 10);
-      const initialBackoffMs = parseInt(process.env.MCP_GATEWAY_CONNECT_BACKOFF_MS || '1000', 10);
-      let backoff = isFinite(initialBackoffMs) ? Math.max(100, initialBackoffMs) : 1000;
-      for (let attempt = 1; attempt <= Math.max(1, maxAttempts); attempt++) {
-        await this.mcpManager.connectServer(cfg);
-        const status = this.mcpManager.getStats().getServerStats('tool-gateway')?.status;
-        if (status === 'connected') {
-          this.getLogger().info('llm_bot.mcp.gateway_connected', { attempt });
-          break;
-        }
-        if (attempt === maxAttempts) {
-          this.getLogger().error('llm_bot.mcp.gateway_connect_failed', { attempts: maxAttempts, url: gatewayUrl });
-          break;
-        }
-        this.getLogger().warn('llm_bot.mcp.gateway_connect_retry', { attempt, backoffMs: backoff });
-        await new Promise((r) => setTimeout(r, backoff));
-        backoff = Math.min(backoff * 2, 15000);
-      }
-    } else {
-      this.registryWatcher = new RegistryWatcher(this, {
-        onServerActive: async (config) => {
-          await this.mcpManager.connectServer(config);
-        },
-        onServerInactive: async (name) => {
-          await this.mcpManager.disconnectServer(name);
-        }
-      });
-      this.registryWatcher.start();
-    }
-
+    // Bit model: the MCP-client connect choreography and teardown are owned by McpClientProfile
+    // (registered as Bit start/shutdown hooks), so no hand-rolled connection/shutdown code remains here.
     return super.start(port);
-  }
-
-  async close(reason?: string) {
-    if (this.registryWatcher) {
-      this.registryWatcher.stop();
-    }
-    await this.mcpManager.shutdown();
-    return super.close(reason);
   }
 
   private async setupApp(app: Express, _cfg: any) {
@@ -238,13 +191,23 @@ class LlmBotServer extends BaseServer {
   }
 }
 
+// Bit model (sprint-324, Phase 2): compose the capability profiles over the llm-bot Bit. EventingProfile
+// + LlmProfile (bit.llm.* admin tools + provider/prompt scaffolding) + McpClientProfile (the gateway/
+// registry-watcher dance, with the per-instance ToolRegistry as the shared registry). The declared
+// architecture.yaml `profile: llm` is enforced against the applied LlmProfile at Bit bootstrap.
+applyProfiles(LlmBotServer, [
+  EventingProfile,
+  LlmProfile,
+  McpClientProfile({ createRegistry: () => new ToolRegistry() }),
+]);
+
 export function createApp() {
   const server = new LlmBotServer();
   return server.getApp();
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv('llm-bot');
+  Bit.ensureRequiredEnv('llm-bot');
   const server = new LlmBotServer();
   // Prefer SERVICE_PORT when provided, otherwise PORT, with default from CONFIG_DEFAULTS
   let port = server.getConfig<number>('SERVICE_PORT', { required: false, parser: (s) => parseInt(String(s), 10) });

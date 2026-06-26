@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { BaseServer } from '../base-server';
+import { Bit } from '../base-server';
 
 describe('BaseServer.loadArchitectureYaml', () => {
   const yamlPath = path.resolve(process.cwd(), 'architecture.yaml');
@@ -20,14 +20,14 @@ describe('BaseServer.loadArchitectureYaml', () => {
   });
 
   it('should load the real architecture.yaml from the project root', () => {
-    const arch = BaseServer.loadArchitectureYaml();
+    const arch = Bit.loadArchitectureYaml();
     expect(arch).toBeDefined();
     expect(arch).not.toBeNull();
     expect(arch.name).toBe('BitBrat Platform');
   });
 
   it('should find the load balancer default domain', () => {
-    const arch = BaseServer.loadArchitectureYaml();
+    const arch = Bit.loadArchitectureYaml();
     const domain = arch?.infrastructure?.resources?.['main-load-balancer']?.routing?.default_domain;
     expect(domain).toBeDefined();
     expect(domain).toContain('bitbrat.ai');

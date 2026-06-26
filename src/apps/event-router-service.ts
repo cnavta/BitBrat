@@ -1,6 +1,5 @@
 import '../common/safe-timers'; // install safe timer clamps early for this process
-import { McpServer } from '../common/mcp-server';
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import { Express } from 'express';
 import { logger } from '../common/logging';
 import { InternalEventV2, INTERNAL_INGRESS_V1, INTERNAL_ENRICHED_V1, RoutingStage } from '../types/events';
@@ -48,9 +47,9 @@ export class FirestoreStateStore implements IStateStore {
   }
 }
 
-class EventRouterServer extends McpServer {
+class EventRouterServer extends Bit {
   constructor() {
-    super({ serviceName: SERVICE_NAME });
+    super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
     // Synchronously perform setup after BaseServer constructed
     this.setupApp(this.getApp() as any, this.getConfig() as any);
   }
@@ -294,7 +293,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const app = createApp();
   app.listen(PORT, () => {
     console.log('[event-router] listening on port ' + PORT);

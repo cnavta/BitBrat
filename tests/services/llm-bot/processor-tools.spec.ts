@@ -1,5 +1,5 @@
 import { processEvent } from '../../../src/services/llm-bot/processor';
-import { BaseServer } from '../../../src/common/base-server';
+import { Bit } from '../../../src/common/base-server';
 import { InternalEventV2 } from '../../../src/types/events';
 import { generateText } from 'ai';
 import { getInstanceMemoryStore } from '../../../src/services/llm-bot/instance-memory';
@@ -84,7 +84,7 @@ describe('Processor Tools', () => {
       egress: { connector: 'system', destination: 'test' },
     };
 
-    await processEvent(mockServer as BaseServer, evt, { registry: mockRegistry });
+    await processEvent(mockServer as Bit, evt, { registry: mockRegistry });
 
     expect(generateText).toHaveBeenCalledWith(expect.objectContaining({
       tools: expect.objectContaining({

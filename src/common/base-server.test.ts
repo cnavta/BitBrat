@@ -1,9 +1,9 @@
 import request from 'supertest';
-import { BaseServer } from './base-server';
+import { Bit } from './base-server';
 
 describe('BaseServer', () => {
   it('exposes health endpoints and root', async () => {
-    const server = new BaseServer({ serviceName: 'test-svc' });
+    const server = new Bit({ serviceName: 'test-svc' });
     const app = server.getApp();
     await request(app).get('/healthz').expect(200);
     await request(app).get('/readyz').expect(200);
@@ -12,7 +12,7 @@ describe('BaseServer', () => {
   });
 
   it('accepts a setup function to register custom routes', async () => {
-    const server = new BaseServer({
+    const server = new Bit({
       serviceName: 'custom',
       setup: (app) => {
         app.get('/custom', (_req, res) => res.status(204).end());
@@ -23,7 +23,7 @@ describe('BaseServer', () => {
   });
 
   it('computes required keys from architecture.yaml for oauth-flow', () => {
-    const keys = BaseServer.computeRequiredKeysFromArchitecture('oauth-flow');
+    const keys = Bit.computeRequiredKeysFromArchitecture('oauth-flow');
     // defaults.services.env + oauth-flow.secrets
     expect(keys).toEqual(
       expect.arrayContaining([

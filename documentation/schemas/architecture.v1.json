@@ -105,6 +105,23 @@
           "region": { "type": "string" },
           "port": { "type": "integer" },
           "kind": { "type": "string" },
+          "profile": {
+            "type": "string",
+            "description": "Bit model: declarative capability profile. Absent => core.",
+            "enum": ["core", "llm", "mcp-domain", "gateway"]
+          },
+          "mcp": {
+            "type": "object",
+            "description": "Bit model: MCP control-plane exposure for this Bit.",
+            "additionalProperties": true,
+            "properties": {
+              "exposure": {
+                "type": "string",
+                "description": "platform-only exposes just the bit.* control plane; platform+domain also exposes the Bit's domain tools. Default platform-only.",
+                "enum": ["platform-only", "platform+domain"]
+              }
+            }
+          },
           "env": { "type": "array", "items": { "type": "string" } },
           "secrets": { "type": "array", "items": { "type": "string" } }
         }

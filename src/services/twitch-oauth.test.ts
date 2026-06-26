@@ -1,6 +1,6 @@
 import { generateState, verifyState, getAuthUrl } from './twitch-oauth';
 import type { IConfig } from '../types';
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 
 describe('twitch-oauth helpers', () => {
   const baseCfg: IConfig = {
@@ -35,7 +35,7 @@ describe('twitch-oauth helpers', () => {
 
   it('getAuthUrl composes Twitch authorize URL with correct params', () => {
     // Ensure LB-based domain resolution is disabled for this test
-    const spy = jest.spyOn(BaseServer as any, 'loadArchitectureYaml').mockReturnValue(null);
+    const spy = jest.spyOn(Bit as any, 'loadArchitectureYaml').mockReturnValue(null);
     const req: any = {
       protocol: 'http',
       get: (name: string) => {
@@ -58,7 +58,7 @@ describe('twitch-oauth helpers', () => {
   });
 
   it('getAuthUrl prefers architecture.yaml load balancer default_domain when present', () => {
-    const spy = jest.spyOn(BaseServer as any, 'loadArchitectureYaml').mockReturnValue({
+    const spy = jest.spyOn(Bit as any, 'loadArchitectureYaml').mockReturnValue({
       infrastructure: {
         resources: {
           'main-load-balancer': {
