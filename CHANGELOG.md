@@ -13,9 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **The Bit model & universal MCP control plane** (sprint-324). The MCP capability was promoted from a
   per-service subclass decision (`extends McpServer` vs `extends BaseServer`) down into the base
-  abstraction: `BaseServer` was refactored to **`Bit`** (with `BaseServer` kept as a deprecated alias),
-  and the MCP transport (`/sse` + `POST /message`), tool/resource/prompt registration, discovery handlers,
-  token auth, and registry self-publish were folded into `Bit`, gated by `mcp.exposure`.
+  abstraction: `BaseServer` was refactored to **`Bit`**, and the MCP transport (`/sse` + `POST /message`),
+  tool/resource/prompt registration, discovery handlers, token auth, and registry self-publish were folded
+  into `Bit`, gated by `mcp.exposure`. (Phase 3) All 14 services now `extend Bit` directly; the
+  deprecated `BaseServer` alias has been retired.
 - **Mandatory `bit.*` control plane** on every MCP-enabled Bit: `bit.info`, `bit.health`/`bit.readiness`,
   `bit.config.get`/`bit.config.describe` (secret-redacted), `bit.flags.get`/`bit.flags.set`,
   `bit.log.level`, `bit.drain`/`bit.shutdown` — registered on the Platform Ring before any domain tools,
@@ -56,9 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This `CHANGELOG.md`.
 
 ### Changed
-- **`McpServer` is now a thin compatibility shim** over `Bit` (selecting `platform+domain` exposure);
-  existing `extends McpServer` services are behavior-identical. New code should `extend Bit` and declare
-  `mcp.exposure` in `architecture.yaml`.
+- **`McpServer` is now a thin compatibility shim** over `Bit` (selecting `platform+domain` exposure).
+  (Phase 3) No production code `extends McpServer` any more — every service now `extends Bit` and either
+  declares `mcp.exposure` in `architecture.yaml` or passes `mcpExposure: 'platform+domain'`. New code
+  should `extend Bit`; `McpServer` is retained only for backward compatibility.
+- **`brat service bootstrap` templates and developer docs now speak “Bit”** (sprint-324 Phase 3): generated
+  services `extend Bit` (with `mcpExposure: 'platform+domain'` when MCP is requested), and
+  `documentation/services/mcp-server.md` / `base-server-routing.md` were updated to the Bit vocabulary.
 - Reconciled the project **version to `0.7.0`** across `package.json` and `architecture.yaml`, and added an
   explicit `project.status: experimental`.
 - Fixed the README/quickstart **clone URL** to `https://github.com/cnavta/BitBrat.git`.
@@ -67,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved `ajv`/`ajv-formats` to runtime dependencies (used by `brat config validate`).
 
 ### Removed
+- **Retired the deprecated `BaseServer = Bit` alias** (sprint-324 Phase 3 / BL-401) at the end of the
+  migration window. All production and test code now extends/imports `Bit` directly; the
+  `BaseServerOptions` constructor-options interface is retained as the canonical `Bit` options shape.
 - Untracked and deleted repo-root scratch artifacts (`dummy-creds.json`, `route.json`, `test.json`,
   `validation_output.txt`) and tightened `.gitignore` so they cannot return.
 

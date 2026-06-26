@@ -401,7 +401,7 @@ items:
     section: "§8 Phase 3"
     gate: G3
     priority: P2
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [BL-304]
@@ -412,7 +412,17 @@ items:
       - "brat service bootstrap templates and developer docs use the Bit vocabulary"
       - "Build + full suite green"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - "2026-06-26: DONE. Migrated all 14 services off the old base classes to `extends Bit`: the 10 former
+        `extends McpServer` (tool-gateway, stream-analyst, scheduler, obs-mcp, story-engine-mcp, state-engine,
+        event-router, api-gateway, auth, image-gen-mcp) now pass explicit `mcpExposure: 'platform+domain'`
+        (behavior-identical to the shim, independent of serviceName/arch-key matching); the 4 former
+        `extends BaseServer` (ingress-egress, disposition, persistence, oauth) now `extends Bit` (platform-only
+        via architecture.yaml, unchanged). McpServer kept as a thin compat shim (now `extends Bit`). Updated
+        coupled jest module-mocks (state-engine, account-type-egress) and prototype-spy tests to `Bit`. brat
+        `bootstrap.ts` template now generates `extends Bit` (+ `mcpExposure` when MCP); mcp-server.md +
+        base-server-routing.md updated to Bit vocabulary. Build + full suite green (267 suites/949 tests);
+        validate_deliverable.sh exits 0 incl. PubSub/NATS parity."
 
   - id: BL-401
     title: "Retire the BaseServer alias at end of migration window; update CHANGELOG"
@@ -420,7 +430,7 @@ items:
     section: "§8 Phase 3 exit, §11"
     gate: G3
     priority: P2
-    status: todo
+    status: done
     effort: S
     owner: agent
     deps: [BL-400]
@@ -431,7 +441,13 @@ items:
       - "No production import relies on the removed alias; build + full suite green"
       - "Gate G3 met"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - "2026-06-26: DONE. Fully removed the `export class BaseServer extends Bit` alias from base-server.ts
+        (internal static self-refs repointed to `Bit.`). Migrated all remaining ~40 test files that imported/
+        extended/spied-on/cast-to `BaseServer` over to `Bit` (no test used `BaseServerOptions`, which is
+        retained as the canonical options interface). CHANGELOG.md updated (Added/Changed/Removed) recording
+        the Bit model, bit.* control plane, and the McpServer-shim/BaseServer-alias retirement. No production
+        import relies on the alias; build + full suite green (267 suites/949 tests). Gate G3 met."
 
   # ---------------- Phase V — validation & close-out ----------------
   - id: BL-500

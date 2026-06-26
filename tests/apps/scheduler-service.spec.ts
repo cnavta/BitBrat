@@ -48,7 +48,7 @@ jest.mock('../../src/common/resources/firestore-manager', () => ({
 }));
 
 import { createApp } from '../../src/apps/scheduler-service';
-import { BaseServer } from '../../src/common/base-server';
+import { Bit } from '../../src/common/base-server';
 
 describe('Scheduler Service', () => {
   let app: any;
@@ -57,7 +57,7 @@ describe('Scheduler Service', () => {
     jest.clearAllMocks();
     
     // Force getResource to return our mocks
-    jest.spyOn(BaseServer.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
+    jest.spyOn(Bit.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
       const name = args[0];
       if (name === 'firestore') return dbMock;
       return undefined;

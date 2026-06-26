@@ -37,3 +37,18 @@
 - BL-400/401 (Phase 3) remove `extends McpServer` from production, update bootstrap templates, retire the
   `BaseServer` alias at the end of the migration window. Note the prototype-chain/spy coupling above when
   doing so.
+
+## Phase 3 (deprecate & retire — BL-400 / BL-401, Gate G3)
+- **What worked:** Passing explicit `mcpExposure: 'platform+domain'` when moving the 10 MCP services to
+  `extends Bit` made the migration provably behavior-identical to the old `McpServer` shim, independent of
+  any serviceName↔architecture-key mismatch (`stream-analyst` vs `stream-analyst-service`, `api-gateway`'s
+  bare `super()`). The full suite stayed green at 267/949 with no test-count change.
+- **The retro-flagged coupling, resolved:** the earlier "keep `McpServer extends BaseServer` for the
+  prototype spies" compromise was finally unwound. Because services no longer route through
+  `BaseServer.prototype`, every `jest.spyOn(BaseServer.prototype, …)` had to be repointed to
+  `Bit.prototype` — this was the bulk of the Phase 3 test churn (~40 files) and is the kind of test↔base-
+  class coupling worth avoiding in future (spy on the concrete SUT class, not a shared base).
+- **Scope clarity:** BL-204 (Brat fleet MCP client + break-glass) is a deferred **Phase 1** item, not part
+  of Phase 3; it remains the main carry-forward for a follow-up sprint.
+- **`BaseServerOptions` kept:** only the `BaseServer` *class* alias was retired; the options interface is
+  pervasive and legitimately named, so renaming it was out of scope (would be churn for no benefit).

@@ -1,5 +1,5 @@
 import { processEvent } from '../../../src/services/llm-bot/processor';
-import { BaseServer } from '../../../src/common/base-server';
+import { Bit } from '../../../src/common/base-server';
 import { InternalEventV2 } from '../../../src/types/events';
 import { generateText } from 'ai';
 import { getInstanceMemoryStore } from '../../../src/services/llm-bot/instance-memory';
@@ -66,7 +66,7 @@ describe('Processor', () => {
       egress: { connector: 'system', destination: 'test' },
     };
 
-    const result = await processEvent(mockServer as BaseServer, evt);
+    const result = await processEvent(mockServer as Bit, evt);
 
     expect(result).toBe('OK');
     expect(generateText).toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('Processor', () => {
       egress: { connector: 'system', destination: 'test' },
     };
 
-    const result = await processEvent(mockServer as BaseServer, evt);
+    const result = await processEvent(mockServer as Bit, evt);
 
     expect(result).toBe('SKIP');
     expect(generateText).not.toHaveBeenCalled();
@@ -134,7 +134,7 @@ describe('Processor', () => {
 
     const callLLM = jest.fn().mockResolvedValue('Mocked response');
 
-    const result = await processEvent(mockServer as BaseServer, evt, { callLLM });
+    const result = await processEvent(mockServer as Bit, evt, { callLLM });
 
     expect(result).toBe('OK');
     expect(callLLM).toHaveBeenCalledTimes(1);
@@ -169,7 +169,7 @@ describe('Processor', () => {
     };
 
     const callLLM = jest.fn().mockResolvedValue('Mocked response');
-    await processEvent(mockServer as BaseServer, evt, { callLLM });
+    await processEvent(mockServer as Bit, evt, { callLLM });
 
     const prompt = callLLM.mock.calls[0][1] as string;
     expect(prompt).toContain('- User ID: bitbrat-u1');
@@ -198,7 +198,7 @@ describe('Processor', () => {
       egress: { connector: 'system', destination: 'test' },
     };
 
-    const result = await processEvent(mockServer as BaseServer, evt);
+    const result = await processEvent(mockServer as Bit, evt);
 
     expect(result).toBe('ERROR');
     expect(evt.errors).toHaveLength(1);

@@ -1,4 +1,4 @@
-import { McpServer } from '../common/mcp-server';
+import { Bit } from '../common/base-server';
 import { getFirestore } from '../common/firebase';
 import { INTERNAL_MCP_REGISTRATION_V1, InternalEventV2 } from '../types/events';
 import { Express, Request, Response } from 'express';
@@ -20,7 +20,7 @@ import { McpServerConfig, SessionContext } from '../common/mcp/types';
 const SERVICE_NAME = process.env.SERVICE_NAME || 'tool-gateway';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-export class ToolGatewayServer extends McpServer {
+export class ToolGatewayServer extends Bit {
   private registry = new ToolRegistry();
   private mcpManager = new McpClientManager(this as any, this.registry);
   private registryWatcher?: RegistryWatcher;
@@ -28,7 +28,7 @@ export class ToolGatewayServer extends McpServer {
   private rbac = new RbacEvaluator();
 
   constructor() {
-    super({ serviceName: SERVICE_NAME });
+    super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
     this.setupApp(this.getApp() as any);
   }
 

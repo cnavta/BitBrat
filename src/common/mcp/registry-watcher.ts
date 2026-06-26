@@ -1,5 +1,5 @@
 import { getFirestore } from '../firebase';
-import { BaseServer } from '../base-server';
+import { Bit } from '../base-server';
 import { McpServerConfig } from './types';
 
 export interface RegistryWatcherOptions {
@@ -11,7 +11,7 @@ export class RegistryWatcher {
   private unsubscribe?: () => void;
   private logger: any;
 
-  constructor(private server: BaseServer, private options: RegistryWatcherOptions) {
+  constructor(private server: Bit, private options: RegistryWatcherOptions) {
     this.logger = (server as any).getLogger();
   }
 

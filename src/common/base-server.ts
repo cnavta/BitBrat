@@ -674,7 +674,7 @@ export class Bit {
     // Default debug endpoint for redacted configuration
     this.app.get('/_debug/config', (_req: Request, res: Response) => {
       try {
-        const requiredEnv = BaseServer.computeRequiredKeysFromArchitecture(this.serviceName);
+        const requiredEnv = Bit.computeRequiredKeysFromArchitecture(this.serviceName);
         res.status(200).json({
           service: this.serviceName,
           config: safeConfig(this.config),
@@ -709,7 +709,7 @@ export class Bit {
       }
     } catch (e: any) {
       // eslint-disable-next-line no-console
-      console.error('[BaseServer] Failed to read architecture.yaml:', e?.message || e);
+      console.error('[Bit] Failed to read architecture.yaml:', e?.message || e);
     }
     return null;
   }
@@ -720,7 +720,7 @@ export class Bit {
    */
   static computeRequiredKeysFromArchitecture(serviceName?: string): string[] {
     const svc = serviceName || process.env.SERVICE_NAME || 'service';
-    const arch = BaseServer.loadArchitectureYaml();
+    const arch = Bit.loadArchitectureYaml();
     if (!arch) return [];
     const svcNode = arch.services?.[svc] || {};
     const defaults = arch.defaults?.services || {};
@@ -746,7 +746,7 @@ export class Bit {
       'DISCORD_BOT_TOKEN', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET',
     ]) : new Set<string>();
 
-    const required = BaseServer
+    const required = Bit
       .computeRequiredKeysFromArchitecture(serviceName)
       .filter((k) => !runtimeProvided.has(k) && !optionalLocally.has(k));
 
@@ -1540,24 +1540,6 @@ export class Bit {
   }
 }
 
-/**
- * @deprecated Use {@link Bit}. `BaseServer` is retained as a behavior-preserving alias for one
- * migration window (Bit model, sprint-324). It emits a one-time deprecation log on first use.
- * A plain Bit/BaseServer does not wire the MCP transport; promote a Bit by setting
- * `mcpExposure` (or, from Phase 1, `services.<name>.mcp.exposure` in architecture.yaml).
- */
-export class BaseServer extends Bit {
-  private static deprecationLogged = false;
-  constructor(opts: BaseServerOptions = {}) {
-    super(opts);
-    if (!BaseServer.deprecationLogged) {
-      BaseServer.deprecationLogged = true;
-      try {
-        this.getLogger().debug('base_server.deprecated_alias', {
-          message: 'BaseServer is deprecated; extend Bit instead (Bit model, sprint-324).',
-          service: (this as any).serviceName,
-        });
-      } catch { /* ignore */ }
-    }
-  }
-}
+// Bit model (sprint-324, Phase 3 / BL-401): the deprecated `BaseServer` alias has been retired at the
+// end of the migration window. All production and test code now extends/imports `Bit` directly. The
+// `BaseServerOptions` constructor-options interface is retained as the canonical Bit options shape.

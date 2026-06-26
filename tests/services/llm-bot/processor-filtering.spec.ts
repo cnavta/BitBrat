@@ -1,5 +1,5 @@
 import { processEvent } from '../../../src/services/llm-bot/processor';
-import { BaseServer } from '../../../src/common/base-server';
+import { Bit } from '../../../src/common/base-server';
 import { InternalEventV2 } from '../../../src/types/events';
 import { generateText } from 'ai';
 import { getInstanceMemoryStore } from '../../../src/services/llm-bot/instance-memory';
@@ -72,7 +72,7 @@ describe('Processor Tool Filtering', () => {
       egress: { connector: 'system', destination: 'test' },
     };
 
-    await processEvent(mockServer as BaseServer, evt, { registry: mockRegistry });
+    await processEvent(mockServer as Bit, evt, { registry: mockRegistry });
 
     const toolsPassedToAI = (generateText as jest.Mock).mock.calls[0][0].tools;
     expect(toolsPassedToAI).toHaveProperty('global_tool');
@@ -94,7 +94,7 @@ describe('Processor Tool Filtering', () => {
       egress: { connector: 'system', destination: 'test' },
     };
 
-    await processEvent(mockServer as BaseServer, evt, { registry: mockRegistry });
+    await processEvent(mockServer as Bit, evt, { registry: mockRegistry });
 
     const toolsPassedToAI = (generateText as jest.Mock).mock.calls[0][0].tools;
     expect(toolsPassedToAI).toHaveProperty('global_tool');

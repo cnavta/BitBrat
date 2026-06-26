@@ -1,4 +1,4 @@
-import { BaseServer } from '../../common/base-server';
+import { Bit } from '../../common/base-server';
 
 function makeDocSnapshot(data: any, exists = true) {
   return { exists, data: () => data };
@@ -74,7 +74,7 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
   beforeAll(() => {
     // Spy on onMessage to capture handlers instead of wiring a real subscriber
     jest
-      .spyOn(BaseServer.prototype as any, 'onMessage')
+      .spyOn(Bit.prototype as any, 'onMessage')
       .mockImplementation(async (opts: any, handler: any) => {
         const destination = opts?.destination || opts?.subject || 'unknown';
         handlers.push({ destination, handler });
@@ -84,7 +84,7 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
 
     // Make getResource('firestore') return our mock
     jest
-      .spyOn(BaseServer.prototype as any, 'getResource')
+      .spyOn(Bit.prototype as any, 'getResource')
       .mockImplementation((...args: any[]) => (args[0] === 'firestore' ? firestore : undefined));
 
     // Import and bootstrap the app (registers handlers via our spies)

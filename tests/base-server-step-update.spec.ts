@@ -1,7 +1,7 @@
-import { BaseServer } from '../src/common/base-server';
+import { Bit } from '../src/common/base-server';
 import { InternalEventV2, RoutingStep } from '../src/types/events';
 
-class TestServer extends BaseServer {
+class TestServer extends Bit {
   constructor() { super({ serviceName: 'test-service' }); }
   public update(evt: InternalEventV2, upd: any) { return (this as any).updateCurrentStep(evt, upd); }
 }

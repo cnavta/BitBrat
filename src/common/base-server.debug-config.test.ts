@@ -1,9 +1,9 @@
 import request from 'supertest';
-import { BaseServer } from './base-server';
+import { Bit } from './base-server';
 
 describe('/_debug/config endpoint', () => {
   it('returns redacted configuration and required env keys', async () => {
-    const server = new BaseServer({
+    const server = new Bit({
       serviceName: 'test-svc',
       configOverrides: {
         port: 0,

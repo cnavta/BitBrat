@@ -1,8 +1,8 @@
 import { processEvent } from './processor';
-import { BaseServer } from '../../common/base-server';
+import { Bit } from '../../common/base-server';
 import { InternalEventV2 } from '../../types/events';
 
-class TestServer extends BaseServer {
+class TestServer extends Bit {
   constructor() { super({ serviceName: 'test-llm-bot' }); }
   // Keep this unit suite hermetic. With USER_CONTEXT enabled (the production default) the
   // processor issues a live Firestore roles query via buildUserContextAnnotation(); in a test

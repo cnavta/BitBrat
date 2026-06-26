@@ -1,4 +1,4 @@
-import { BaseServer } from './base-server';
+import { Bit } from './base-server';
 
 describe('BaseServer logger provisioning', () => {
   const origLog = console.log;
@@ -18,7 +18,7 @@ describe('BaseServer logger provisioning', () => {
   });
 
   it('exposes a service-scoped logger via app.locals and getLogger()', () => {
-    const server = new BaseServer({ serviceName: 'test-svc', configOverrides: { port: 0, logLevel: 'debug' } });
+    const server = new Bit({ serviceName: 'test-svc', configOverrides: { port: 0, logLevel: 'debug' } });
     const app: any = server.getApp();
     expect(app.locals).toBeDefined();
     expect(app.locals.logger).toBeDefined();
@@ -26,7 +26,7 @@ describe('BaseServer logger provisioning', () => {
   });
 
   it('logger prints JSON with service name and redacts sensitive context', () => {
-    const server = new BaseServer({ serviceName: 'test-svc', configOverrides: { port: 0, logLevel: 'debug' } });
+    const server = new Bit({ serviceName: 'test-svc', configOverrides: { port: 0, logLevel: 'debug' } });
     const logs: string[] = [];
     console.log = jest.fn((...args: any[]) => logs.push(String(args[0])));
 

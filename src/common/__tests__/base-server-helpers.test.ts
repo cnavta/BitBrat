@@ -15,7 +15,7 @@ jest.mock('../../services/message-bus', () => ({
 describe('BaseServer helpers', () => {
   // Import after mocks
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { BaseServer } = require('../base-server');
+  const { Bit } = require('../base-server');
 
   beforeEach(() => {
     subscribeMock.mockClear();
@@ -23,7 +23,7 @@ describe('BaseServer helpers', () => {
   });
 
   it('onHTTPRequest registers GET by default and supports config object with method', async () => {
-    class TestServer extends BaseServer {
+    class TestServer extends Bit {
       constructor() {
         super({ serviceName: 'test' });
         this.onHTTPRequest('/ping', (_req: any, res: any) => res.status(200).json({ ok: true }));
@@ -39,7 +39,7 @@ describe('BaseServer helpers', () => {
   it('onMessage skips subscription while in test environment', async () => {
     const prev = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
     process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = '1';
-    class TestServer extends BaseServer {
+    class TestServer extends Bit {
       constructor() {
         super({ serviceName: 'test' });
       }
@@ -65,7 +65,7 @@ describe('BaseServer helpers', () => {
       process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = '0';
       process.env.BUS_PREFIX = 'bp.';
 
-      class TestServer extends BaseServer {
+      class TestServer extends Bit {
         constructor() {
           super({ serviceName: 'test' });
         }
