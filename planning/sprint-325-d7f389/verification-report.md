@@ -30,11 +30,28 @@
       entrypoint wired into `validate_deliverable.sh`; verification/retro/key-learnings produced; PR
       attempted (see `publication.yaml`).
 
-## Test Evidence
+## Post-publication operator fixes (same branch / PR #250 — all consumer-only, Law #2)
+After the PR was opened, four operator-reported defects were fixed while running `brat fleet`
+against a real local Docker stack. These are folded into this sprint at close:
+- [x] **REQ-003** — `brat fleet` now honors the standard `--target` flag: it resolves the
+      deployment-target Firestore connection via the same `resolveBackupConnection` used by
+      `brat backup`, so `--target local` reads the emulator-backed `mcp_servers` registry
+      (project `bitbrat-local`, `localhost:8080`) instead of real GCP (`twitch-452523` → `5 NOT_FOUND`).
+- [x] **REQ-004** — confirmed and locked in that `--target` flows through to **all** nine fleet
+      subcommands (resolved once in the shared path before dispatch); +9 parametrized tests.
+- [x] **REQ-005** — local-Docker host-port awareness: `docker-ports.ts` resolves each service's
+      *published* host port (`<SVC>_HOST_PORT` env → `docker ps` probe → fallback) so the gateway
+      probe and `--direct` connections no longer hit the hardcoded internal `:3000`.
+- [x] **REQ-006** — fleet discovery filters the `mcp_servers` registry-fallback to genuine
+      self-registered Bits (`discoverySource: 'auto-registration'`) and never renders the gateway
+      itself, removing bogus `unreachable (Tool not found)` rows; `--all` failures are now classified
+      (`forbidden` / `unreachable` / `error`) and rendered distinctly, with an elevated-`--roles` hint.
+
+## Test Evidence (at close)
 - `npm run build` (tsc): green.
-- Full suite (`npx jest`): **Test Suites 270 passed / 1 skipped (271 total); Tests 978 passed / 2 skipped
-  / 0 failed** — no regressions.
-- Targeted: gateway addressing (5), fleet client (11), parity (2), fleet CLI (13) — all green.
+- Full suite (`npx jest`): **Tests 1016 passed / 2 skipped / 0 failed; Test Suites 272 passed /
+  1 skipped (273 total)** — no regressions (grew from 978 as the REQ-003…006 fixes added coverage).
+- Targeted fleet suites (gateway addressing, fleet client, parity, fleet CLI, docker-ports) — all green.
 - `node dist/tools/brat/src/cli/index.js fleet` prints the command surface (exit 0).
 
 ## Partial
