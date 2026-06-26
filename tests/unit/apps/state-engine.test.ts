@@ -26,6 +26,15 @@ jest.mock('../../../src/common/base-server', () => {
       getResource(k: string) { return this.resources[k]; }
       onHTTPRequest = jest.fn();
       subscribe = jest.fn();
+      // Bit model (sprint-324): the MCP control plane was folded into the base abstraction, so the
+      // base-server mock must provide the MCP surface that previously lived on McpServer.
+      mcpServer = { setRequestHandler: jest.fn(), connect: jest.fn() };
+      registerTool = jest.fn();
+      registerResource = jest.fn();
+      registerPrompt = jest.fn();
+      executeTool = jest.fn();
+      protected resolveMcpExposure() { return 'platform+domain'; }
+      protected isMcpEnabled() { return true; }
     }
   };
 });
