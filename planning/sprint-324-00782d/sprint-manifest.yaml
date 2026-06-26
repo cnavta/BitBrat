@@ -3,10 +3,10 @@ title: "The Bit Model & Universal MCP Control Plane"
 goal: "Promote MCP from a per-service subclass decision (extends McpServer vs extends BaseServer) into the base abstraction so every Bit speaks MCP, expose a mandatory bit.* control plane Brat administers fleet-wide, and codify the duplicated LLM scaffolding into composable profiles — additively, behavior-preserving, reversible, and with parity across all three deployment targets (GCP / Local Docker / Remote Docker)."
 owner: "Lead Implementor"
 createdAt: "2026-06-26T13:30:00Z"
-status: "in-progress"
+status: "verifying"   # all in-scope items done + build/suite/validate green + branch pushed; PR pending (no gh/token) — see publication.yaml. Phase 2 / BL-204 / BL-401 deferred (see verification-report.md).
 links:
   branch: "feature/sprint-324-00782d-bit-model-universal-mcp"
-  pr: null
+  pr: null   # could not auto-create (no gh CLI / token); compare_url in publication.yaml
 notes: |
   Approved plan + backlog: planning/bit-model/execution-plan.md and planning/bit-model/backlog.yaml.
   Design: documentation/architecture/bit-model-technical-architecture.md (ADR-001..004 ACCEPTED).
