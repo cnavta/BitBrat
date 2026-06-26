@@ -53,8 +53,12 @@ function generateAppSource(serviceName: string, stubPaths: string[], consumedTop
       }`).join('\n')
     : '';
   
-  const baseClass = useMcp ? 'McpServer' : 'BaseServer';
-  const baseImportPath = useMcp ? '../common/mcp-server' : '../common/base-server';
+  // Bit model (sprint-324): every generated service extends the Bit base abstraction. MCP exposure is
+  // an explicit, per-Bit opt-in via mcpExposure (which maps to services.<name>.mcp.exposure in
+  // architecture.yaml) rather than a choice of base class.
+  const baseClass = 'Bit';
+  const baseImportPath = '../common/base-server';
+  const superArg = useMcp ? "{ mcpExposure: 'platform+domain' }" : '';
   const zodImport = useMcp ? "import { z } from 'zod';\n" : "";
   const mcpToolExample = useMcp ? `
     // Example MCP tool registration
@@ -81,7 +85,7 @@ ${zodImport}import { ${baseClass} } from '${baseImportPath}';
  */
 export class ${ClassName} extends ${baseClass} {
   constructor() {
-    super();
+    super(${superArg});
     this.setupRoutes();
   }
 
@@ -130,7 +134,7 @@ describe('${serviceName}', () => {
   it('GET /health returns 200', async () => {
     const response = await request(server.getApp()).get('/health');
     expect(response.status).toBe(200);
-    // BaseServer response might differ slightly if it uses registerHealth, but let's assume our override for now
+    // Bit response might differ slightly if it uses registerHealth, but let's assume our override for now
     expect(response.body.status).toBe('ok');
   });
 });
@@ -151,7 +155,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --production
 COPY --from=builder /app/dist ./dist
-# We need architecture.yaml for McpServer/BaseServer
+# We need architecture.yaml for the Bit base abstraction
 COPY architecture.yaml ./
 
 ENV NODE_ENV=production

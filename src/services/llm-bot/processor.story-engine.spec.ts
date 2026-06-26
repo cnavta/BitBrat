@@ -1,8 +1,8 @@
 import { processEvent } from './processor';
-import { BaseServer } from '../../common/base-server';
+import { Bit } from '../../common/base-server';
 import { InternalEventV2 } from '../../types/events';
 
-class TestServer extends BaseServer {
+class TestServer extends Bit {
   constructor() { super({ serviceName: 'test-llm-bot' }); }
   // Keep this unit test hermetic. With USER_CONTEXT and disposition injection enabled (the
   // production defaults) the processor issues awaited live Firestore reads for this

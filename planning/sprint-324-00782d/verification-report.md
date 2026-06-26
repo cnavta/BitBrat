@@ -57,24 +57,31 @@
 - [x] **BL-304 (Gate G2 exit)** `query-analyzer` (now `extends Bit`) and `stream-analyst` (over its
       `McpServer` base) compose `[EventingProfile, LlmProfile]`; all three LLM Bits share the identical
       `bit.llm.*` surface. Domain paths unchanged; existing tests pass unchanged.
-
-## Partial
-- [~] **BL-400 / Phase 3** `McpServer` is already a thin compat shim over `Bit` (the structural part of
-      Phase 3 is done). Removing `extends McpServer` from production services, updating `brat service
-      bootstrap` templates/docs, and **retiring the `BaseServer` alias (BL-401)** are **deferred** to keep
-      this slice behavior-preserving and green.
+- [x] **BL-400 (Gate G3)** Removed `extends McpServer` from **all** production code: the 10 former MCP
+      services now `extends Bit` with explicit `mcpExposure: 'platform+domain'`, and the 4 former
+      `extends BaseServer` services now `extends Bit` (platform-only via `architecture.yaml`). `McpServer`
+      is retained only as a thin compat shim (now `extends Bit`). `brat service bootstrap` template and the
+      `mcp-server.md` / `base-server-routing.md` developer docs were updated to the Bit vocabulary.
+- [x] **BL-401 (Gate G3 exit)** Retired the deprecated `export class BaseServer extends Bit` alias.
+      Migrated all remaining ~40 test files (imports / `extends` / `jest.spyOn(BaseServer.prototype, …)` /
+      `as BaseServer` casts / module-mock keys) and the base-server internal static self-refs to `Bit`.
+      `BaseServerOptions` is retained as the canonical Bit options interface. CHANGELOG updated.
 
 ## Deferred (follow-up sprint)
 - [ ] **BL-204** Brat as a fleet MCP client (`bit.*` orchestration via the `tool-gateway` fabric) +
       documented direct-connect break-glass (ADR-003). The `bit.*` surface and registry self-publish that
-      Brat would consume are in place; the Brat CLI commands themselves are not yet implemented.
-- [ ] **BL-401** Retire the deprecated `BaseServer` alias + bootstrap-template updates (end of migration
-      window) — deferred with Phase 3 (BL-400).
+      Brat would consume are in place; the Brat CLI commands themselves are not yet implemented. (This was
+      a deferred **Phase 1** item, out of Phase 3 scope.)
 
 ## Alignment / Deviations
-- **Behavior-preservation choice:** `McpServer extends BaseServer` (not `extends Bit`) was retained so the
-  existing prototype chain (`extends McpServer` services) and tests that `jest.spyOn(BaseServer.prototype,
-  …)` keep working. `BaseServer` is itself a thin deprecated subclass of `Bit`, so the model is intact.
+- **Phase 3 resolved the prototype-spy coupling.** Earlier phases kept `McpServer extends BaseServer` so
+  tests spying on `BaseServer.prototype` kept working. In Phase 3 all services moved to `extends Bit`, so
+  those spies were repointed to `Bit.prototype` and `McpServer` now `extends Bit` directly. The deprecated
+  `BaseServer` alias has been fully removed with no production or test dependency remaining.
+- **Behavior-preservation choice (BL-400):** former `extends McpServer` services pass explicit
+  `mcpExposure: 'platform+domain'` rather than relying on `architecture.yaml` lookup, so exposure is
+  identical to the old `McpServer` shim regardless of any serviceName↔architecture-key mismatch (e.g.
+  `stream-analyst` vs key `stream-analyst-service`, or `api-gateway`'s bare `super()`).
 - **Promotion gating:** `resolveMcpExposure` promotes only services that **explicitly** declare
   `mcp.exposure` in `architecture.yaml`; unlisted Bits (test fixtures) stay MCP-off, which preserved the
   full suite without per-test edits.

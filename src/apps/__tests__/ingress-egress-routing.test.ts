@@ -1,5 +1,5 @@
 import { IngressEgressServer } from '../ingress-egress-service';
-import { BaseServer } from '../../common/base-server';
+import { Bit } from '../../common/base-server';
 import { InternalEventV2 } from '../../types/events';
 
 // Mock the twitch client so we can observe calls to sendText
@@ -62,7 +62,7 @@ jest.mock('../../services/message-bus', () => ({
 }));
 
 // Mock BaseServer.onMessage
-jest.spyOn(BaseServer.prototype as any, 'onMessage');
+jest.spyOn(Bit.prototype as any, 'onMessage');
 
 describe('IngressEgressServer routing', () => {
   let server: IngressEgressServer;

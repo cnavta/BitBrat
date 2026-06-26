@@ -1,6 +1,6 @@
 import { DiscordAdapter } from './discord-adapter';
 import type { IConfig } from '../../../types';
-import { BaseServer } from '../../../common/base-server';
+import { Bit } from '../../../common/base-server';
 
 describe('DiscordAdapter', () => {
   const baseCfg: IConfig = {
@@ -128,7 +128,7 @@ describe('DiscordAdapter', () => {
     const archCfg: IConfig = {
       discordClientId: 'dcid',
     } as any;
-    const spy = jest.spyOn(BaseServer as any, 'loadArchitectureYaml').mockReturnValue({
+    const spy = jest.spyOn(Bit as any, 'loadArchitectureYaml').mockReturnValue({
       infrastructure: {
         resources: {
           'main-load-balancer': {

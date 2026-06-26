@@ -3,7 +3,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../types/tools';
-import { BaseServer } from '../base-server';
+import { Bit } from '../base-server';
 import { McpStatsCollector } from './stats-collector';
 import { McpServerConfig } from './types';
 import { ProxyInvoker } from './proxy-invoker';
@@ -27,7 +27,7 @@ export class McpClientManager {
   private connectedSignatures: Map<string, string> = new Map();
 
   constructor(
-    private server: BaseServer,
+    private server: Bit,
     private registry: IToolRegistry
   ) {
     this.invoker = new ProxyInvoker({ logger: (this.server as any).getLogger() });

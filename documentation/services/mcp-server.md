@@ -1,6 +1,15 @@
 # McpServer
 
-`McpServer` is a subclass of `BaseServer` that provides built-in support for the Model Context Protocol (MCP) over Server-Sent Events (SSE).
+> **Bit model (sprint-324, Phase 3):** the MCP control plane has been folded down into the base
+> abstraction, now named **`Bit`** (see `documentation/architecture/bit-model-technical-architecture.md`).
+> New code should **`extend Bit`** and declare `mcp.exposure` (per-Bit, in `architecture.yaml`) or pass
+> `mcpExposure: 'platform+domain'` to the constructor — there is no longer a separate base class to
+> choose. `McpServer` remains only as a thin, deprecated compatibility shim over `Bit` (it simply
+> selects `platform+domain` exposure); the previous `BaseServer` alias has been retired. The guidance
+> below is preserved for reference, with `Bit` as the base class.
+
+Every MCP-enabled `Bit` provides built-in support for the Model Context Protocol (MCP) over
+Server-Sent Events (SSE).
 
 ## Features
 
@@ -9,20 +18,22 @@
 - **Resource & Prompt Support**: Easily expose resources and system prompts.
 - **Security**: Built-in authentication token validation.
 - **Observability**: Automatic logging and OpenTelemetry tracing for MCP operations.
-- **Lifecycle Management**: Integrated with `BaseServer` for graceful shutdown and resource management.
+- **Lifecycle Management**: Integrated with `Bit` for graceful shutdown and resource management.
 
 ## Usage
 
 ### 1. Create a server
 
 ```typescript
-import { McpServer } from './common/mcp-server';
+import { Bit } from './common/base-server';
 import { z } from 'zod';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-class MyService extends McpServer {
+class MyService extends Bit {
   constructor() {
-    super({ serviceName: 'my-mcp-service' });
+    // Opt into serving domain tools over MCP. Equivalently, declare
+    // services.my-mcp-service.mcp.exposure: platform+domain in architecture.yaml.
+    super({ serviceName: 'my-mcp-service', mcpExposure: 'platform+domain' });
 
     // Register a tool
     this.registerTool(

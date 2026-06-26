@@ -2,7 +2,7 @@ import { mountTwitchOAuthRoutes } from '../services/twitch-oauth';
 import { FirestoreTokenStore } from '../services/firestore-token-store';
 import { IConfig, ITokenStore } from '../types';
 import { assertRequiredSecrets, buildConfig } from '../common/config';
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import type { Logger } from '../common/logging';
 import type { Firestore } from 'firebase-admin/firestore';
 import { api } from '../common/tracing';
@@ -12,7 +12,7 @@ import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
 // Avoid direct env usage in app code; use a stable service name and central Config for port
 const SERVICE_NAME = 'oauth-flow';
 
-class OauthServer extends BaseServer {
+class OauthServer extends Bit {
   constructor(private readonly options?: { botStore?: ITokenStore; broadcasterStore?: ITokenStore; config?: Partial<IConfig> }) {
     super({
       serviceName: SERVICE_NAME,

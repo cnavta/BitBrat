@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { McpServer } from '../common/mcp-server';
+import { Bit } from '../common/base-server';
 import { FirestoreManager } from '../common/resources/firestore-manager';
 import type { Firestore } from 'firebase-admin/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -11,10 +11,11 @@ import { INTERNAL_STORY_ENRICH_V1, InternalEventV2, AnnotationV1, INTERNAL_PERSI
  * StoryEngineMcpServer
  * Provides tools for interactive Choose Your Own Adventure storytelling.
  */
-export class StoryEngineMcpServer extends McpServer {
+export class StoryEngineMcpServer extends Bit {
   constructor() {
     super({
       serviceName: 'story-engine-mcp',
+      mcpExposure: 'platform+domain',
       healthPaths: ['/health'],
       resources: {
         firestore: new FirestoreManager(),

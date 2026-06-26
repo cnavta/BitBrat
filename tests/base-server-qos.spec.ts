@@ -1,4 +1,4 @@
-import { BaseServer } from '../src/common/base-server';
+import { Bit } from '../src/common/base-server';
 import { logger } from '../src/common/logging';
 
 // Mock the message-bus to capture the subscribed handler and invoke it manually
@@ -14,7 +14,7 @@ jest.mock('../src/services/message-bus', () => ({
 }));
 
 describe('BaseServer QOS Enforcement', () => {
-  class TestServer extends BaseServer {
+  class TestServer extends Bit {
     constructor() { super({ serviceName: 'test-qos' }); }
     async wire() {
       await this.onMessage('test.topic', async (data) => {

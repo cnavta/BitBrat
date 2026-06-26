@@ -29,10 +29,10 @@ const mockDiscordBroadcasterClient = {
   stop: jest.fn().mockResolvedValue(undefined),
 };
 
-// Mock BaseServer
+// Mock the Bit base abstraction (Bit model, sprint-324)
 jest.mock('../../common/base-server', () => {
   return {
-    BaseServer: class {
+    Bit: class {
       constructor() {}
       getApp() { return { use: jest.fn() }; }
       getConfig() { return { firestoreEnabled: true }; }

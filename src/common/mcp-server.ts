@@ -1,4 +1,4 @@
-import { BaseServer, BaseServerOptions, McpExposure } from "./base-server";
+import { Bit, BaseServerOptions, McpExposure } from "./base-server";
 
 /**
  * McpServer (Bit model, sprint-324)
@@ -12,7 +12,7 @@ import { BaseServer, BaseServerOptions, McpExposure } from "./base-server";
  * New code should `extend Bit` and declare `mcp.exposure` in architecture.yaml instead of
  * extending `McpServer`.
  */
-export class McpServer extends BaseServer {
+export class McpServer extends Bit {
   constructor(opts: BaseServerOptions = {}) {
     const mcpExposure: McpExposure = opts.mcpExposure ?? "platform+domain";
     super({ ...opts, mcpExposure });

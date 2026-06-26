@@ -1,11 +1,10 @@
-import { McpServer } from '../common/mcp-server';
 import { Express, Request, Response } from 'express';
 import { StreamAnalystEngine } from '../services/stream-analyst/engine';
 import type { SummarizationRequest, StreamObserver } from '../types/sessi';
 import type { Egress } from '../types/events';
 import { createMessagePublisher } from '../services/message-bus';
 import { z } from 'zod';
-import { BaseServerOptions } from '../common/base-server';
+import { Bit, BaseServerOptions } from '../common/base-server';
 import { applyProfiles, EventingProfile, LlmProfile } from '../common/profiles';
 import parser from 'cron-parser';
 
@@ -16,13 +15,14 @@ import parser from 'cron-parser';
  * - Pub/Sub: internal.summarization.request.v1
  * - HTTP: POST /summarize (used by tool-gateway)
  */
-export class StreamAnalystServer extends McpServer {
+export class StreamAnalystServer extends Bit {
   private engineInstance?: StreamAnalystEngine;
 
   constructor(opts: BaseServerOptions = {}) {
     super({ 
       ...opts,
-      serviceName: 'stream-analyst' 
+      serviceName: 'stream-analyst',
+      mcpExposure: opts.mcpExposure ?? 'platform+domain',
     });
     // BaseServer automatically registers health checks and middleware
     this.setupRoutes(this.getApp());

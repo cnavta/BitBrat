@@ -1,5 +1,5 @@
 import { AuthServer } from '../../src/apps/auth-service';
-import { BaseServer } from '../../src/common/base-server';
+import { Bit } from '../../src/common/base-server';
 
 // Mock message bus
 const publishJsonMock = jest.fn(async () => {});
@@ -35,7 +35,7 @@ describe('AuthServer Admin Tools', () => {
       }),
     };
 
-    jest.spyOn(BaseServer.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
+    jest.spyOn(Bit.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
       const name = args[0];
       if (name === 'firestore') return dbMock;
       if (name === 'publisher') return pubResMock;

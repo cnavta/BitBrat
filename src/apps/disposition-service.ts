@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import type { Firestore } from 'firebase-admin/firestore';
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import {
   DEFAULT_DISPOSITION_CONFIG,
@@ -21,7 +21,7 @@ import { computeDispositionSnapshot } from '../services/disposition/scoring';
 const SERVICE_NAME = process.env.SERVICE_NAME || 'disposition-service';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-export class DispositionServiceServer extends BaseServer {
+export class DispositionServiceServer extends Bit {
   private readonly dispositionConfig: DispositionConfig;
 
   constructor() {
@@ -211,7 +211,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const server = new DispositionServiceServer();
   void server.start(PORT);
 }
