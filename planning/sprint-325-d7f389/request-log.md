@@ -1,0 +1,58 @@
+# Request Log – sprint-325-d7f389 (BL-204 — Brat as a Fleet MCP Client)
+
+Per AGENTS.md §2.5: every meaningful user prompt + shell/git operation relevant to the sprint is logged here.
+
+---
+
+## REQ-001 — Sprint start + planning artifacts
+
+- **at:** 2026-06-26T17:22:00-04:00
+- **prompt (summary):** "We are starting a new sprint. Assume the role of Lead Implementor. Implement the brat fleet capabilities outlined in the attached TA document. First task: analyze it and create an Execution Plan and a Trackable Prioritized YAML Backlog breaking the sprint down into accomplishable tasks."
+- **interpretation:** Open sprint-325 against the BL-204 Technical Architecture
+  (`documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md`). Produce the
+  Planning-Phase deliverables only — `implementation-plan.md` (Execution Plan) and `backlog.yaml`
+  (Trackable Prioritized YAML Backlog). No implementation code yet (AGENTS.md §2.4: coding forbidden
+  until the plan is approved). The backlog example to mirror was supplied
+  (`planning/backlog-example.yaml`); the richer house style is `planning/bit-model/backlog.yaml`.
+- **shell / git commands executed:**
+  - Reviewed planning conventions (existing sprint dirs + manifests) — confirmed no active sprint
+    (Rule S3): every `planning/*/sprint-manifest.yaml` is `status: complete`. Next sprint number = 325.
+  - Verified TA-referenced source paths exist: `tools/brat/src/cli/index.ts`,
+    `tools/brat/src/cli/chat.ts`, `tools/brat/src/orchestration/queue.ts`,
+    `src/common/mcp/{bridge,client-manager,rbac,registry-watcher}.ts`, `src/apps/tool-gateway.ts`,
+    `tests/apps/` (gateway coverage lives here).
+  - `git checkout -b feature/sprint-325-d7f389-brat-fleet-mcp-client` (Rule S11 — new feature branch at
+    sprint start; prior branch `feature/sprint-324-00782d-bit-model-universal-mcp`, clean tree).
+  - `mkdir -p planning/sprint-325-d7f389` (sprint directory, §2.3).
+- **files modified / created:**
+  - `planning/sprint-325-d7f389/sprint-manifest.yaml` (status `planning`).
+  - `planning/sprint-325-d7f389/request-log.md` (this file).
+  - `planning/sprint-325-d7f389/implementation-plan.md` (Execution Plan).
+  - `planning/sprint-325-d7f389/backlog.yaml` (Trackable Prioritized YAML Backlog, BL2-001 … BL2-700).
+- **gate / next action:** Planning approval gate (§2.4). Awaiting an explicit owner approval / "Start sprint."
+  before any implementation begins.
+
+---
+
+## REQ-002 — Planning approved; Start sprint
+
+- **at:** 2026-06-26T17:31:00-04:00
+- **prompt (summary):** "Planning approved. Start sprint. Be sure to keep backlog items statuses up to date as they change."
+- **interpretation:** Owner approval of `implementation-plan.md` satisfied (AGENTS.md §2.4 / Rule S1).
+  Begin implementation on the existing feature branch. Keep `backlog.yaml` item statuses
+  (todo→in_progress→done) current as work progresses, honoring the WIP limit of 3.
+- **plan of execution (gateway-first):**
+  - Phase A — additive Bit-qualified addressing in `tool-gateway` (BL2-100/101).
+  - Phase B — `tools/brat/src/fleet/` client module (BL2-200..203).
+  - Phase C — `brat fleet` command surface (BL2-300..304).
+  - Phase V — full Jest matrix + bus-driver parity + docs/CHANGELOG + validate + close-out (BL2-400..500).
+- **shell / git commands executed:**
+  - Grounded the change set by reading `src/apps/tool-gateway.ts`, `src/common/mcp/{bridge,client-manager,rbac,types}.ts`,
+    `src/services/llm-bot/tools/registry.ts`, `src/types/tools.ts`, `tools/brat/src/cli/{index,chat}.ts`,
+    `tools/brat/src/orchestration/queue.ts`, `tests/apps/tool-gateway-rest.spec.ts`, `jest.config.js`,
+    `validate_deliverable.sh`, `package.json`.
+  - Confirmed toolchain: node v24 / npm 11 at `/opt/homebrew/bin` (matches `validate_deliverable.sh` PATH fix).
+- **files modified / created (this request, ongoing):**
+  - `planning/sprint-325-d7f389/sprint-manifest.yaml` (status `planning` → `in-progress`).
+  - `planning/sprint-325-d7f389/backlog.yaml` (sprint.start set; item statuses updated as work proceeds).
+- **gate / next action:** Implement BL2-100 (Bit-qualified ids in `McpBridge.translateTool`).

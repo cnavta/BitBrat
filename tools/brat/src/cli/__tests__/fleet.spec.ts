@@ -1,0 +1,197 @@
+import { parseFleetArgs, runFleet, FleetDeps } from '../fleet';
+import { PermissionError, ConfigurationError } from '../../orchestration/errors';
+import { FleetIdentity, FleetTool, FleetTransport, RegistryReader } from '../../fleet';
+
+const IDENTITY: FleetIdentity = { token: 't', roles: ['bit:read'], agentName: 'brat' };
+
+function silentLogger(): any {
+  const calls: any[] = [];
+  const mk = () => (obj: any, msg?: any) => calls.push({ obj, msg });
+  return { info: mk(), warn: mk(), error: mk(), debug: mk(), _calls: calls };
+}
+
+/** A recording transport with configurable per-tool behavior. */
+class FakeTransport implements FleetTransport {
+  readonly label: string;
+  calls: Array<{ toolId: string; args: any }> = [];
+  constructor(
+    label: string,
+    private tools: FleetTool[],
+    private behavior: (toolId: string) => any = () => ({ ok: true }),
+  ) {
+    this.label = label;
+  }
+  async listTools(): Promise<FleetTool[]> { return this.tools; }
+  async callTool(toolId: string, args: Record<string, any>): Promise<any> {
+    this.calls.push({ toolId, args });
+    return this.behavior(toolId);
+  }
+  async close(): Promise<void> { /* noop */ }
+}
+
+const registry: RegistryReader = {
+  listServers: async () => [
+    { name: 'auth', profile: 'core', exposure: 'platform-only' },
+    { name: 'persistence', profile: 'core', exposure: 'platform-only' },
+  ],
+};
+
+function deps(transport: FleetTransport, out: string[], logger: any, directTransport?: FleetTransport): FleetDeps {
+  return {
+    resolveIdentityFn: () => IDENTITY,
+    gatewayTransportFactory: () => transport,
+    directTransportFactory: () => directTransport || transport,
+    registryFactory: () => registry,
+    out: (l) => out.push(l),
+  };
+}
+
+describe('brat fleet — parseFleetArgs', () => {
+  it('parses subcommand, positionals, and modifiers from cmd/rest', () => {
+    const args = parseFleetArgs(
+      ['fleet', 'flags', 'auth', 'set'],
+      ['--key=k', '--value=v'],
+      { json: true },
+    );
+    expect(args.sub).toBe('flags');
+    expect(args.positionals).toEqual(['auth', 'set']);
+    expect(args.key).toBe('k');
+    expect(args.value).toBe('v');
+    expect(args.json).toBe(true);
+  });
+
+  it('captures --all, --direct <bit>, --confirm, --describe', () => {
+    const args = parseFleetArgs(['fleet', 'info'], ['--all', '--describe'], {});
+    expect(args.all).toBe(true);
+    expect(args.describe).toBe(true);
+    const a2 = parseFleetArgs(['fleet', 'drain'], ['--direct=auth', '--confirm'], {});
+    expect(a2.direct).toBe('auth');
+    expect(a2.confirm).toBe(true);
+  });
+});
+
+describe('brat fleet — read commands (bit:read)', () => {
+  it('info <bit> calls bit.info on the qualified id', async () => {
+    const t = new FakeTransport('gateway', [], () => ({ name: 'auth' }));
+    const out: string[] = [];
+    await runFleet(parseFleetArgs(['fleet', 'info', 'auth'], [], { json: true }), {}, silentLogger(), deps(t, out, silentLogger()));
+    expect(t.calls[0].toolId).toBe('mcp:auth/bit.info');
+  });
+
+  it('config <bit> --describe maps to bit.config.describe', async () => {
+    const t = new FakeTransport('gateway', [], () => ({ cfg: true }));
+    const out: string[] = [];
+    await runFleet(parseFleetArgs(['fleet', 'config', 'auth'], ['--describe'], {}), {}, silentLogger(), deps(t, out, silentLogger()));
+    expect(t.calls[0].toolId).toBe('mcp:auth/bit.config.describe');
+  });
+
+  it('--all fans out read-only and tolerates an unreachable Bit', async () => {
+    const tools: FleetTool[] = [{ id: 'mcp:auth/bit.health' }, { id: 'mcp:persistence/bit.health' }];
+    const t = new FakeTransport('gateway', tools, (id) => {
+      if (id.startsWith('mcp:persistence/')) throw new Error('ECONNREFUSED');
+      return { status: 'ok' };
+    });
+    const out: string[] = [];
+    const results = await runFleet(parseFleetArgs(['fleet', 'health'], ['--all'], { json: true }), {}, silentLogger(), deps(t, out, silentLogger()));
+    expect(results.find((r: any) => r.bit === 'auth').ok).toBe(true);
+    expect(results.find((r: any) => r.bit === 'persistence').ok).toBe(false);
+  });
+});
+
+describe('brat fleet — mutating commands (bit:operate)', () => {
+  it('flags set maps to bit.flags.set with key/value', async () => {
+    const t = new FakeTransport('gateway', [], () => ({ set: true }));
+    const out: string[] = [];
+    await runFleet(parseFleetArgs(['fleet', 'flags', 'auth', 'set'], ['--key=feature', '--value=on'], {}), {}, silentLogger(), deps(t, out, silentLogger()));
+    expect(t.calls[0].toolId).toBe('mcp:auth/bit.flags.set');
+    expect(t.calls[0].args).toEqual({ key: 'feature', value: 'on' });
+  });
+
+  it('surfaces Forbidden from an insufficient-scope shutdown and does not retry', async () => {
+    const t = new FakeTransport('gateway', [], () => { throw new Error('Forbidden'); });
+    const out: string[] = [];
+    await expect(
+      runFleet(parseFleetArgs(['fleet', 'shutdown', 'auth'], [], {}), {}, silentLogger(), deps(t, out, silentLogger())),
+    ).rejects.toThrow('Forbidden');
+    expect(t.calls.length).toBe(1); // single attempt
+  });
+
+  it('fleet-wide shutdown is NOT implied by --all without --confirm', async () => {
+    const t = new FakeTransport('gateway', [{ id: 'mcp:auth/bit.health' }], () => ({}));
+    const out: string[] = [];
+    await expect(
+      runFleet(parseFleetArgs(['fleet', 'shutdown'], ['--all'], {}), {}, silentLogger(), deps(t, out, silentLogger())),
+    ).rejects.toThrow(ConfigurationError);
+    expect(t.calls.length).toBe(0); // refused before any call
+  });
+
+  it('fleet-wide shutdown with --confirm runs sequentially across discovered Bits', async () => {
+    const t = new FakeTransport('gateway', [{ id: 'mcp:auth/bit.info' }], () => ({ ok: true }));
+    const out: string[] = [];
+    const results = await runFleet(parseFleetArgs(['fleet', 'shutdown'], ['--all', '--confirm'], { json: true }), {}, silentLogger(), deps(t, out, silentLogger()));
+    const bits = results.map((r: any) => r.bit).sort();
+    expect(bits).toEqual(['auth', 'persistence']);
+  });
+});
+
+describe('brat fleet — break-glass (--direct) guardrails', () => {
+  it('emits a fleet.break_glass audit line and uses the direct transport', async () => {
+    const gateway = new FakeTransport('gateway', [], () => ({}));
+    const direct = new FakeTransport('direct:auth', [], () => ({ via: 'direct' }));
+    const logger = silentLogger();
+    const out: string[] = [];
+    const res = await runFleet(parseFleetArgs(['fleet', 'info', 'auth'], ['--direct=auth'], { json: true }), {}, logger, deps(gateway, out, logger, direct));
+    expect(res).toEqual({ via: 'direct' });
+    expect(direct.calls[0].toolId).toBe('mcp:auth/bit.info');
+    expect(gateway.calls.length).toBe(0); // gateway bypassed
+    expect(logger._calls.some((c: any) => c.obj?.action === 'fleet.break_glass')).toBe(true);
+  });
+
+  it('rejects --direct combined with --all', async () => {
+    const t = new FakeTransport('gateway', [], () => ({}));
+    const out: string[] = [];
+    await expect(
+      runFleet(parseFleetArgs(['fleet', 'info'], ['--direct=auth', '--all'], {}), {}, silentLogger(), deps(t, out, silentLogger())),
+    ).rejects.toThrow(/cannot be combined with --all/);
+  });
+});
+
+describe('brat fleet — fail-closed (OQ3)', () => {
+  const ORIG = process.env.MCP_AUTH_TOKEN;
+  afterEach(() => {
+    if (ORIG === undefined) delete process.env.MCP_AUTH_TOKEN;
+    else process.env.MCP_AUTH_TOKEN = ORIG;
+  });
+
+  it('refuses to run (PermissionError) when no token resolves', async () => {
+    delete process.env.MCP_AUTH_TOKEN;
+    const t = new FakeTransport('gateway', [], () => ({}));
+    const out: string[] = [];
+    // Do NOT inject resolveIdentityFn — exercise the real fail-closed path with an empty cwd.
+    const noIdentityDeps: FleetDeps = {
+      gatewayTransportFactory: () => t,
+      registryFactory: () => registry,
+      out: (l) => out.push(l),
+    };
+    const prevCwd = process.cwd();
+    process.chdir('/');
+    try {
+      await expect(
+        runFleet(parseFleetArgs(['fleet', 'info', 'auth'], [], {}), {}, silentLogger(), noIdentityDeps),
+      ).rejects.toThrow(PermissionError);
+    } finally {
+      process.chdir(prevCwd);
+    }
+    expect(t.calls.length).toBe(0);
+  });
+});
+
+describe('brat fleet — help', () => {
+  it('prints the command surface for no subcommand', async () => {
+    const out: string[] = [];
+    const t = new FakeTransport('gateway', [], () => ({}));
+    const res = await runFleet(parseFleetArgs(['fleet'], [], {}), {}, silentLogger(), deps(t, out, silentLogger()));
+    expect(res).toEqual({ help: true });
+    expect(out.join('\n')).toMatch(/brat fleet/);
+  });
+});
