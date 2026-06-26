@@ -9,9 +9,14 @@ import {
   DirectTransport,
   FirestoreRegistryReader,
   resolveIdentity,
+  resolveServiceHostPort,
+  rewriteToLocalHostPort,
 } from '../fleet';
 import { resolveBackupConnection, ResolvedBackupConnection } from '../backup/connection';
 import { FirestoreConnectOptions } from '../providers/gcp/firestore';
+
+/** The tool-gateway's internal container port (it publishes on a mapped host port locally). */
+const GATEWAY_CONTAINER_PORT = 3000;
 
 /**
  * BL-204 §4.1 / Appendix A — the `brat fleet` command group.
@@ -54,7 +59,17 @@ const MUTATING_SUBS = new Set(['log', 'drain', 'shutdown']);
 export interface FleetDeps {
   resolveIdentityFn?: (opts: { roles?: string[]; userId?: string }, logger?: Logger) => FleetIdentity;
   gatewayTransportFactory?: (baseUrl: string, identity: FleetIdentity, logger?: Logger) => FleetTransport;
-  directTransportFactory?: (bit: string, registry: RegistryReader, logger?: Logger) => FleetTransport;
+  directTransportFactory?: (
+    bit: string,
+    registry: RegistryReader,
+    logger?: Logger,
+    urlRewriter?: (url: string, bit: string) => string,
+  ) => FleetTransport;
+  /**
+   * Resolve a local Docker compose service's published host port (`<SVC>_HOST_PORT` env → `docker ps`
+   * probe → fallback). Injectable for tests; defaults to {@link resolveServiceHostPort}.
+   */
+  hostPortResolverFn?: (service: string, containerPort: number, logger?: Logger) => number;
   /** Build the registry reader from the resolved Firestore connection (target-aware). */
   registryFactory?: (connect: FirestoreConnectOptions, logger?: Logger) => RegistryReader;
   /**
@@ -97,6 +112,9 @@ Notes:
   • Default path is the tool-gateway fabric (one auth/RBAC/discovery chokepoint).
   • --target maps to a docker-engine target in architecture.yaml; the local stack runs the Firestore
     emulator, so discovery reads mcp_servers from it (not GCP). Without --target, GCP/ADC is used.
+  • For a LOCAL docker --target, the gateway (and any --direct Bit) is reached on its PUBLISHED host
+    port — resolved from <SERVICE>_HOST_PORT or a "docker ps" probe (e.g. localhost:3001), not the
+    internal :3000. Set TOOL_GATEWAY_URL / --url to override the gateway endpoint explicitly.
   • --direct is emergency-only (gateway unhealthy / isolating a misbehaving Bit); it is logged as fleet.break_glass.
   • Commands fail closed: without a resolvable MCP_AUTH_TOKEN they refuse to run.`;
 
@@ -134,9 +152,12 @@ function defaultDeps(): Required<Omit<FleetDeps, 'out'>> & { out: (l: string) =>
   return {
     resolveIdentityFn: (opts, logger) => resolveIdentity(opts, logger),
     gatewayTransportFactory: (baseUrl, _identity, logger) => new GatewayTransport({ baseUrl, logger }),
-    directTransportFactory: (bit, registry, logger) => new DirectTransport({ bit, registry, logger }),
+    directTransportFactory: (bit, registry, logger, urlRewriter) =>
+      new DirectTransport({ bit, registry, logger, urlRewriter }),
     registryFactory: (connect, logger) => new FirestoreRegistryReader(connect, logger),
     connectionResolverFn: (flags, m, logger) => resolveBackupConnection(flags, m, logger),
+    hostPortResolverFn: (service, containerPort, logger) =>
+      resolveServiceHostPort(service, { containerPort, logger }),
     out: (line: string) => console.log(line),
   };
 }
@@ -181,6 +202,10 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
     databaseId: args.database,
   };
   let connectionCleanup: (() => Promise<void>) | undefined;
+  // True when `--target` resolved to a *local* docker engine (unix socket). Only then can we probe
+  // `docker ps` on this machine to remap services from their internal container port to the
+  // operator-reachable published host port. (Remote/ssh targets are left to their published URLs.)
+  let isLocalDocker = false;
   if (args.target) {
     const m: Record<string, string> = { target: args.target };
     if (args.projectId) m['project-id'] = args.projectId;
@@ -189,8 +214,9 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
     const resolved = await d.connectionResolverFn({ projectId: flags?.projectId, env: flags?.env }, m, logger);
     connectOptions = resolved.connectOptions;
     connectionCleanup = resolved.cleanup;
+    isLocalDocker = resolved.targetKind === 'local';
     logger.info(
-      { action: 'fleet.target.resolved', target: args.target, isEmulator: resolved.isEmulator },
+      { action: 'fleet.target.resolved', target: args.target, isEmulator: resolved.isEmulator, kind: resolved.targetKind },
       `Fleet registry resolved to ${resolved.description}`,
     );
   }
@@ -204,9 +230,19 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
       { action: 'fleet.break_glass', bit: args.direct, by: identity.userId || identity.agentName, sub: args.sub },
       `BREAK-GLASS: bypassing the gateway to reach Bit '${args.direct}' directly (operator '${identity.userId || identity.agentName}').`,
     );
-    transport = d.directTransportFactory(args.direct, registry, logger);
+    // For a local docker target, remap the Bit's internal registry URL to its published host port
+    // (using the same injectable resolver as the gateway URL).
+    const urlRewriter = isLocalDocker
+      ? (url: string, bit: string) =>
+          rewriteToLocalHostPort(url, bit, {
+            logger,
+            resolveHostPort: (service, containerPort) =>
+              d.hostPortResolverFn(service, containerPort ?? GATEWAY_CONTAINER_PORT, logger),
+          })
+      : undefined;
+    transport = d.directTransportFactory(args.direct, registry, logger, urlRewriter);
   } else {
-    const baseUrl = resolveGatewayUrl(flags, connectOptions);
+    const baseUrl = resolveGatewayUrl(flags, connectOptions, isLocalDocker ? d.hostPortResolverFn : undefined, logger);
     transport = d.gatewayTransportFactory(baseUrl, identity, logger);
   }
 
@@ -227,20 +263,34 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
 }
 
 /**
- * Resolve the tool-gateway base URL. An explicit `--url` / `TOOL_GATEWAY_URL` always wins. When a
- * deployment target resolved to a Firestore emulator host (a docker stack), derive the gateway host
- * from that same host so a `--target local` run probes the local stack rather than a stale default.
+ * Resolve the tool-gateway base URL. An explicit `--url` / `TOOL_GATEWAY_URL` always wins. For a
+ * local docker `--target`, the gateway runs on the host's *published* port (`TOOL_GATEWAY_HOST_PORT`,
+ * e.g. `localhost:3001` — `deploy-local.sh` may auto-assign it), NOT the internal `3000`; resolve it
+ * via the host-port resolver instead of the old hardcoded `:3000`. Otherwise derive the host from any
+ * resolved emulator host (still defaulting the port to 3000 for non-docker stacks).
  */
-function resolveGatewayUrl(flags: any, connect?: FirestoreConnectOptions): string {
+function resolveGatewayUrl(
+  flags: any,
+  connect?: FirestoreConnectOptions,
+  hostPortResolverFn?: (service: string, containerPort: number, logger?: Logger) => number,
+  logger?: Logger,
+): string {
   const explicit = (flags?.url || process.env.TOOL_GATEWAY_URL || '').trim();
   if (explicit) return explicit.replace(/\/+$/, '');
+
+  // Local docker target: the gateway is reachable on its published host port (not the internal 3000).
+  if (hostPortResolverFn) {
+    const port = hostPortResolverFn('tool-gateway', GATEWAY_CONTAINER_PORT, logger);
+    return `http://localhost:${port}`;
+  }
+
   const emulatorHost = connect?.emulatorHost?.trim();
   if (emulatorHost) {
     const host = emulatorHost.split(':')[0] || 'localhost';
     const gwHost = host === '0.0.0.0' ? 'localhost' : host;
-    return `http://${gwHost}:3000`;
+    return `http://${gwHost}:${GATEWAY_CONTAINER_PORT}`;
   }
-  return 'http://localhost:3000';
+  return `http://localhost:${GATEWAY_CONTAINER_PORT}`;
 }
 
 /** The single Bit target for a non-`--all` command (first positional that isn't a verb). */

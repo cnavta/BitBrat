@@ -114,3 +114,43 @@ Per AGENTS.md §2.5: every meaningful user prompt + shell/git operation relevant
   - `npx jest tools/brat/src/cli/__tests__/fleet.spec.ts` — **25 passed** (incl. 9 new per-command
     `--target` cases); `npm run build` green.
 - **gate / next action:** Run full Jest suite; commit + push to the BL-204 feature branch (PR #250).
+
+---
+
+## REQ-005 — Bugfix: `brat fleet` always used `:3000`, ignoring local Docker mapped ports
+
+- **at:** 2026-06-26T18:16:00-04:00
+- **prompt (summary):** "`brat fleet` is not using the correct local Docker mapped port for different
+  bits, and instead is always using 3000." `fleet list --target local` now resolves the emulator
+  registry correctly (15 Bits read), but the gateway SSE/REST probe still fails with
+  `ECONNREFUSED ::1:3000 / 127.0.0.1:3000`.
+- **interpretation:** Second defect on the local path. After REQ-003 the registry resolves correctly,
+  but `runFleet` still derived the tool-gateway URL with a hardcoded internal port `3000`. In the
+  local Docker stack every Bit (and the tool-gateway) listens on its *internal* container port
+  (3000/8080) and is published to the host on a *different* mapped port — `<SERVICE>_HOST_PORT`
+  (e.g. `TOOL_GATEWAY_HOST_PORT`, default `3001`, auto-assigned by `deploy-local.sh` to avoid
+  collisions). Each Bit self-publishes an internal URL `http://<svc>.bitbrat.local:3000/sse` to
+  `mcp_servers`, which is unreachable from the host. So the gateway probe (and any `--direct` Bit
+  connection) hit `:3000` instead of the published host port.
+- **root cause:** `resolveGatewayUrl` hardcoded `:3000`; the `--direct` transport used the
+  registry-published internal URL verbatim. Neither consulted the published host-port mapping that
+  `brat chat` (`discoverLocalPort`) / `deploy-local.sh` already rely on.
+- **fix:**
+  - New `tools/brat/src/fleet/docker-ports.ts`: `resolveServiceHostPort` (`<SVC>_HOST_PORT` env →
+    `docker ps` port-mapping probe → `3001` fallback) + `rewriteToLocalHostPort` (remaps an internal
+    compose URL to `http://localhost:<publishedPort>/sse`), plus pure `parseDockerPortMapping`.
+  - `tools/brat/src/cli/fleet.ts`: for a **local** docker `--target` (new `targetKind` from
+    `resolveBackupConnection`), derive the gateway URL from the tool-gateway's published host port and
+    pass a per-Bit `urlRewriter` to the `--direct` transport. Explicit `--url` / `TOOL_GATEWAY_URL`
+    still wins; remote/SSH targets keep their published URLs. Added injectable `hostPortResolverFn`.
+  - `tools/brat/src/fleet/transports/direct-transport.ts`: optional `urlRewriter` applied in
+    `resolveUrl` (logged as `fleet.direct.url_remapped`).
+  - `tools/brat/src/backup/connection.ts`: `ResolvedBackupConnection.targetKind` ('local'|'remote').
+  - Help text + `CHANGELOG.md` (`### Fixed`) updated.
+- **tests:** new `tools/brat/src/fleet/__tests__/docker-ports.spec.ts` (parser/resolver/rewriter);
+  `tools/brat/src/cli/__tests__/fleet.spec.ts` — gateway URL derives from the published host port for
+  local docker, stays `:3000` without a target, explicit `--url` wins, and the `--direct` rewriter is
+  threaded only for local targets.
+- **shell / git commands executed:**
+  - `npm run build` (green); targeted suites `docker-ports.spec.ts` + `fleet.spec.ts` — **42 passed**.
+- **gate / next action:** Run full Jest suite; commit + push to the BL-204 feature branch (PR #250).

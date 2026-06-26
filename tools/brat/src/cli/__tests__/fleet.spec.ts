@@ -174,6 +174,97 @@ describe('brat fleet — deployment target resolution (--target)', () => {
   });
 });
 
+describe('brat fleet — local Docker host-port mapping (regression: always used :3000)', () => {
+  const LOCAL_RESOLVED = {
+    connectOptions: { emulatorHost: 'localhost:8080', projectId: 'bitbrat-local', databaseId: '(default)' },
+    isEmulator: true,
+    targetName: 'local',
+    targetKind: 'local' as const,
+    description: "target 'local' -> Firestore emulator localhost:8080 (project 'bitbrat-local')",
+    cleanup: jest.fn(async () => {}),
+  };
+
+  it('derives the gateway URL from the tool-gateway PUBLISHED host port (not the internal 3000)', async () => {
+    let baseUrl = '';
+    const seenResolve: Array<{ service: string; containerPort: number }> = [];
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: (url) => { baseUrl = url; return new FakeTransport('gateway', [], () => ({})); },
+      registryFactory: () => registry,
+      connectionResolverFn: jest.fn(async () => LOCAL_RESOLVED) as any,
+      hostPortResolverFn: (service, containerPort) => { seenResolve.push({ service, containerPort }); return 3006; },
+      out: () => {},
+    };
+    await runFleet(parseFleetArgs(['fleet', 'list'], ['--target=local'], { json: true }), {}, silentLogger(), d);
+    // The published host port for the tool-gateway (3006) is used — not the hardcoded internal 3000.
+    expect(baseUrl).toBe('http://localhost:3006');
+    expect(seenResolve).toEqual([{ service: 'tool-gateway', containerPort: 3000 }]);
+  });
+
+  it('does NOT probe docker host ports without a target (gateway stays on :3000)', async () => {
+    let baseUrl = '';
+    const hostPortResolverFn = jest.fn(() => 9999);
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: (url) => { baseUrl = url; return new FakeTransport('gateway', [], () => ({})); },
+      registryFactory: () => registry,
+      hostPortResolverFn,
+      out: () => {},
+    };
+    await runFleet(parseFleetArgs(['fleet', 'list'], [], { json: true }), {}, silentLogger(), d);
+    expect(hostPortResolverFn).not.toHaveBeenCalled();
+    expect(baseUrl).toBe('http://localhost:3000');
+  });
+
+  it('an explicit --url / TOOL_GATEWAY_URL always wins over docker discovery', async () => {
+    let baseUrl = '';
+    const hostPortResolverFn = jest.fn(() => 3006);
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: (url) => { baseUrl = url; return new FakeTransport('gateway', [], () => ({})); },
+      registryFactory: () => registry,
+      connectionResolverFn: jest.fn(async () => LOCAL_RESOLVED) as any,
+      hostPortResolverFn,
+      out: () => {},
+    };
+    await runFleet(parseFleetArgs(['fleet', 'list'], ['--target=local'], { json: true }), { url: 'http://localhost:9000/' }, silentLogger(), d);
+    expect(baseUrl).toBe('http://localhost:9000');
+    expect(hostPortResolverFn).not.toHaveBeenCalled();
+  });
+
+  it('passes a per-Bit URL rewriter to the direct transport for a local docker target', async () => {
+    let seenRewriter: ((url: string, bit: string) => string) | undefined;
+    const direct = new FakeTransport('direct:auth', [], () => ({ ok: true }));
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: () => new FakeTransport('gateway', [], () => ({})),
+      directTransportFactory: (_bit, _registry, _logger, urlRewriter) => { seenRewriter = urlRewriter; return direct; },
+      registryFactory: () => registry,
+      connectionResolverFn: jest.fn(async () => LOCAL_RESOLVED) as any,
+      hostPortResolverFn: () => 3006,
+      out: () => {},
+    };
+    await runFleet(parseFleetArgs(['fleet', 'info', 'auth'], ['--target=local', '--direct=auth'], { json: true }), {}, silentLogger(), d);
+    expect(typeof seenRewriter).toBe('function');
+    // The rewriter remaps an internal compose URL to the published host port via the resolver.
+    expect(seenRewriter!('http://auth.bitbrat.local:3000/sse', 'auth')).toBe('http://localhost:3006/sse');
+  });
+
+  it('does NOT pass a URL rewriter to the direct transport without a target', async () => {
+    let seenRewriter: ((url: string, bit: string) => string) | undefined = (() => 'sentinel') as any;
+    const direct = new FakeTransport('direct:auth', [], () => ({ ok: true }));
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: () => new FakeTransport('gateway', [], () => ({})),
+      directTransportFactory: (_bit, _registry, _logger, urlRewriter) => { seenRewriter = urlRewriter; return direct; },
+      registryFactory: () => registry,
+      out: () => {},
+    };
+    await runFleet(parseFleetArgs(['fleet', 'info', 'auth'], ['--direct=auth'], { json: true }), {}, silentLogger(), d);
+    expect(seenRewriter).toBeUndefined();
+  });
+});
+
 describe('brat fleet — read commands (bit:read)', () => {
   it('info <bit> calls bit.info on the qualified id', async () => {
     const t = new FakeTransport('gateway', [], () => ({ name: 'auth' }));
