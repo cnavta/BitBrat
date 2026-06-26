@@ -1,4 +1,5 @@
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
+import { applyProfiles, EventingProfile, LlmProfile } from '../common/profiles';
 import { Express } from 'express';
 import type { InternalEventV2, AnnotationV1, Routing, RoutingStep } from '../types/events';
 import crypto from 'crypto';
@@ -17,7 +18,7 @@ const RAW_CONSUMED_TOPICS: string[] = [
   "internal.query.analysis.v1"
 ];
 
-class QueryAnalyzerServer extends BaseServer {
+class QueryAnalyzerServer extends Bit {
   constructor() {
     super({ serviceName: SERVICE_NAME });
     this.setupApp(this.getApp() as any, this.getConfig() as any);
@@ -279,6 +280,12 @@ class QueryAnalyzerServer extends BaseServer {
   }
 }
 
+// Bit model (sprint-324, Phase 2): query-analyzer is an LLM Bit. Composing LlmProfile gives it the
+// identical bit.llm.* admin surface and provider/prompt scaffolding shared with llm-bot and
+// stream-analyst; its domain analysis path (services/query-analyzer/llm-provider) is unchanged. The
+// declared architecture.yaml `profile: llm` is enforced against the applied LlmProfile at bootstrap.
+applyProfiles(QueryAnalyzerServer, [EventingProfile, LlmProfile]);
+
 export function createServer() {
   return new QueryAnalyzerServer();
 }
@@ -289,7 +296,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const server = new QueryAnalyzerServer();
   void server.start(PORT);
 }

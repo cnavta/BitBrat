@@ -6,6 +6,7 @@ import type { Egress } from '../types/events';
 import { createMessagePublisher } from '../services/message-bus';
 import { z } from 'zod';
 import { BaseServerOptions } from '../common/base-server';
+import { applyProfiles, EventingProfile, LlmProfile } from '../common/profiles';
 import parser from 'cron-parser';
 
 /**
@@ -303,6 +304,12 @@ export class StreamAnalystServer extends McpServer {
     );
   }
 }
+
+// Bit model (sprint-324, Phase 2): stream-analyst is an LLM Bit. Composing LlmProfile over its McpServer
+// base gives it the identical bit.llm.* admin surface and provider/prompt scaffolding shared with
+// llm-bot and query-analyzer; its domain summarization tools are unchanged. The declared
+// architecture.yaml `profile: llm` is enforced against the applied LlmProfile at Bit bootstrap.
+applyProfiles(StreamAnalystServer, [EventingProfile, LlmProfile]);
 
 export function createApp() {
   return new StreamAnalystServer();

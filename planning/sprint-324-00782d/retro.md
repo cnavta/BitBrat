@@ -20,8 +20,20 @@
   are sizeable; they were deliberately deferred to keep a green, behavior-preserving slice rather than
   ship a half-done refactor.
 
+## Phase 2 follow-up (completed this sprint, REQ-002)
+- **Composition landed cleanly.** `applyProfiles` + per-instance `bootstrapProfiles()` (after
+  `initializeMcp`) + the `profile:`→mixin contract gave a working capability-mixin model without any new
+  inheritance depth. Enforcing only `llm`⇒`LlmProfile` kept the blast radius tiny while still catching
+  declared-vs-runtime drift; the three `llm`-declared services were all in scope, so no other Bit tripped.
+- **Lifecycle hooks were the key enabler.** Adding `Bit.onStartup`/`onShutdown` let `McpClientProfile`
+  absorb llm-bot's gateway-connect/retry + registry-watcher/teardown dance verbatim (same ordering), so
+  the refit was behavior-preserving and the existing tests passed unchanged.
+- **One pragmatic deviation:** `McpClientProfile` is a factory (injected `createRegistry`) rather than the
+  design's bare singleton, because the per-instance `ToolRegistry` must be shared between the manager and
+  the loop. Documented in `verification-report.md`.
+
 ## Carry-forward (next sprint)
 - BL-204 Brat fleet MCP client + direct-connect break-glass.
-- BL-300–304 composition mechanism + Eventing/Resources/McpClient/Llm profiles + `bit.llm.*` + refits.
-- BL-400/401 remove `extends McpServer` from production, update bootstrap templates, retire `BaseServer`
-  alias at the end of the migration window. Note the prototype-chain/spy coupling above when doing so.
+- BL-400/401 (Phase 3) remove `extends McpServer` from production, update bootstrap templates, retire the
+  `BaseServer` alias at the end of the migration window. Note the prototype-chain/spy coupling above when
+  doing so.

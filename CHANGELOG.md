@@ -29,6 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asserting the full `bit.*` contract, transport wiring, secret redaction, RBAC scopes, default-deny
   exposure, and legacy-off behavior; wired into `validate_deliverable.sh` with a PubSub/NATS
   messaging-driver parity check (GCP / Local Docker / Remote Docker).
+- **Capability profiles — composition over inheritance** (sprint-324 Phase 2, ADR-002). A Bit now
+  *composes* capability mixins via `applyProfiles(<Class>, [...])` (no new inheritance depth):
+  `EventingProfile`, `ResourcesProfile`, `McpClientProfile`, and `LlmProfile` under `src/common/profiles/`.
+  The declared `architecture.yaml` `profile:` is enforced against the applied mixins at `Bit` bootstrap
+  (`profile: llm` ⇒ `LlmProfile`), so declared intent cannot diverge from runtime capability; an unknown
+  profile or a missing required mixin fails fast.
+- **`bit.llm.*` LLM-admin tools** (registered by `LlmProfile`, namespaced under the `bit.*` control plane,
+  RBAC-scoped): `bit.llm.model` (read/set the active provider+model), `bit.llm.promptPreview` (assembled
+  prompt, redacted), and `bit.llm.toolFilter` (inspect/adjust the exposed tool set). Memory/behavioral
+  knobs are surfaced as `LlmProfile` config.
+- **`Bit` lifecycle hooks** `onStartup`/`onShutdown` so profiles (e.g. `McpClientProfile`) can wire their
+  connect/teardown choreography in the historical order.
 - **Agent-framework framing** in the README: a "What is BitBrat?" section mapping the platform onto the
   perceive → plan → act → observe agent loop, a "Core Agent Concepts" table, an "Extending BitBrat" guide,
   and a high-level mermaid architecture diagram + capabilities matrix.
