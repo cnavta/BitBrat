@@ -10,6 +10,8 @@ import {
   FirestoreRegistryReader,
   resolveIdentity,
 } from '../fleet';
+import { resolveBackupConnection, ResolvedBackupConnection } from '../backup/connection';
+import { FirestoreConnectOptions } from '../providers/gcp/firestore';
 
 /**
  * BL-204 §4.1 / Appendix A — the `brat fleet` command group.
@@ -36,6 +38,12 @@ interface FleetArgs {
   level?: string;
   roles?: string[];
   userId?: string;
+  /** Deployment target name (e.g. `local` | `staging`) — selects the emulator-backed registry. */
+  target?: string;
+  /** Explicit project id / emulator host / database overrides (parity with `brat backup`). */
+  projectId?: string;
+  emulatorHost?: string;
+  database?: string;
 }
 
 /** A read subcommand needs only bit:read; mutating subcommands need bit:operate. */
@@ -47,7 +55,18 @@ export interface FleetDeps {
   resolveIdentityFn?: (opts: { roles?: string[]; userId?: string }, logger?: Logger) => FleetIdentity;
   gatewayTransportFactory?: (baseUrl: string, identity: FleetIdentity, logger?: Logger) => FleetTransport;
   directTransportFactory?: (bit: string, registry: RegistryReader, logger?: Logger) => FleetTransport;
-  registryFactory?: (logger?: Logger) => RegistryReader;
+  /** Build the registry reader from the resolved Firestore connection (target-aware). */
+  registryFactory?: (connect: FirestoreConnectOptions, logger?: Logger) => RegistryReader;
+  /**
+   * Resolve a deployment-target (`--target`) to its Firestore connection (emulator for docker
+   * stacks). Defaults to the same resolver `brat backup` uses, so `--target local` points the
+   * registry at the local emulator rather than real GCP.
+   */
+  connectionResolverFn?: (
+    flags: { projectId?: string; env?: string },
+    m: Record<string, string>,
+    logger?: Logger,
+  ) => Promise<ResolvedBackupConnection>;
   /** Sink for printed output (defaults to console.log). */
   out?: (line: string) => void;
 }
@@ -70,10 +89,14 @@ Global modifiers:
   --direct <bit>     BREAK-GLASS: bypass the gateway, connect directly to one Bit (audited; never with --all)
   --confirm          required for fleet-wide / high-blast-radius mutations
   --json             machine-readable output
+  --target <name>    select a docker deployment target (e.g. local | staging); reads that stack's
+                     Firestore emulator registry instead of real GCP
   --env <name>       select environment (reuses the global flag + BITBRAT_ENV)
 
 Notes:
   • Default path is the tool-gateway fabric (one auth/RBAC/discovery chokepoint).
+  • --target maps to a docker-engine target in architecture.yaml; the local stack runs the Firestore
+    emulator, so discovery reads mcp_servers from it (not GCP). Without --target, GCP/ADC is used.
   • --direct is emergency-only (gateway unhealthy / isolating a misbehaving Bit); it is logged as fleet.break_glass.
   • Commands fail closed: without a resolvable MCP_AUTH_TOKEN they refuse to run.`;
 
@@ -100,6 +123,10 @@ export function parseFleetArgs(cmd: string[], rest: string[], flags: any): Fleet
     level: m['level'],
     roles: rolesRaw ? rolesRaw.split(/[\s,]+/).filter(Boolean) : undefined,
     userId: m['user-id'] || process.env.MCP_USER_ID || undefined,
+    target: m['target'] && m['target'] !== 'true' ? m['target'] : undefined,
+    projectId: m['project-id'] && m['project-id'] !== 'true' ? m['project-id'] : undefined,
+    emulatorHost: m['emulator-host'] && m['emulator-host'] !== 'true' ? m['emulator-host'] : undefined,
+    database: m['database'] && m['database'] !== 'true' ? m['database'] : undefined,
   };
 }
 
@@ -108,7 +135,8 @@ function defaultDeps(): Required<Omit<FleetDeps, 'out'>> & { out: (l: string) =>
     resolveIdentityFn: (opts, logger) => resolveIdentity(opts, logger),
     gatewayTransportFactory: (baseUrl, _identity, logger) => new GatewayTransport({ baseUrl, logger }),
     directTransportFactory: (bit, registry, logger) => new DirectTransport({ bit, registry, logger }),
-    registryFactory: (logger) => new FirestoreRegistryReader({}, logger),
+    registryFactory: (connect, logger) => new FirestoreRegistryReader(connect, logger),
+    connectionResolverFn: (flags, m, logger) => resolveBackupConnection(flags, m, logger),
     out: (line: string) => console.log(line),
   };
 }
@@ -142,7 +170,32 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
   const roles = args.roles && args.roles.length ? args.roles : (isMutating ? ['bit:operate'] : ['bit:read']);
   const identity = d.resolveIdentityFn({ roles, userId: args.userId }, logger); // throws PermissionError (fail-closed) if no token
 
-  const registry = d.registryFactory(logger);
+  // Resolve the registry's Firestore connection. With `--target` we map a docker deployment target
+  // to its (emulator) endpoint exactly as `brat backup` does — so e.g. `--target local` reads the
+  // local Firestore emulator's `mcp_servers` registry instead of real GCP (the root cause of the
+  // `5 NOT_FOUND` / `twitch-452523` failure). Without `--target`, honor explicit project/emulator/
+  // database overrides and otherwise fall back to ADC/env.
+  let connectOptions: FirestoreConnectOptions = {
+    projectId: args.projectId,
+    emulatorHost: args.emulatorHost,
+    databaseId: args.database,
+  };
+  let connectionCleanup: (() => Promise<void>) | undefined;
+  if (args.target) {
+    const m: Record<string, string> = { target: args.target };
+    if (args.projectId) m['project-id'] = args.projectId;
+    if (args.emulatorHost) m['emulator-host'] = args.emulatorHost;
+    if (args.database) m['database'] = args.database;
+    const resolved = await d.connectionResolverFn({ projectId: flags?.projectId, env: flags?.env }, m, logger);
+    connectOptions = resolved.connectOptions;
+    connectionCleanup = resolved.cleanup;
+    logger.info(
+      { action: 'fleet.target.resolved', target: args.target, isEmulator: resolved.isEmulator },
+      `Fleet registry resolved to ${resolved.description}`,
+    );
+  }
+
+  const registry = d.registryFactory(connectOptions, logger);
 
   // Transport selection: fabric by default, direct break-glass behind --direct.
   let transport: FleetTransport;
@@ -153,7 +206,7 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
     );
     transport = d.directTransportFactory(args.direct, registry, logger);
   } else {
-    const baseUrl = resolveGatewayUrl(flags);
+    const baseUrl = resolveGatewayUrl(flags, connectOptions);
     transport = d.gatewayTransportFactory(baseUrl, identity, logger);
   }
 
@@ -163,11 +216,31 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
     return await dispatch(args, client, out, logger);
   } finally {
     await client.close();
+    if (connectionCleanup) {
+      try {
+        await connectionCleanup();
+      } catch {
+        /* best-effort teardown of any tunnel opened for a remote --target */
+      }
+    }
   }
 }
 
-function resolveGatewayUrl(flags: any): string {
-  return (flags?.url || process.env.TOOL_GATEWAY_URL || 'http://localhost:3000').replace(/\/+$/, '');
+/**
+ * Resolve the tool-gateway base URL. An explicit `--url` / `TOOL_GATEWAY_URL` always wins. When a
+ * deployment target resolved to a Firestore emulator host (a docker stack), derive the gateway host
+ * from that same host so a `--target local` run probes the local stack rather than a stale default.
+ */
+function resolveGatewayUrl(flags: any, connect?: FirestoreConnectOptions): string {
+  const explicit = (flags?.url || process.env.TOOL_GATEWAY_URL || '').trim();
+  if (explicit) return explicit.replace(/\/+$/, '');
+  const emulatorHost = connect?.emulatorHost?.trim();
+  if (emulatorHost) {
+    const host = emulatorHost.split(':')[0] || 'localhost';
+    const gwHost = host === '0.0.0.0' ? 'localhost' : host;
+    return `http://${gwHost}:3000`;
+  }
+  return 'http://localhost:3000';
 }
 
 /** The single Bit target for a non-`--all` command (first positional that isn't a verb). */

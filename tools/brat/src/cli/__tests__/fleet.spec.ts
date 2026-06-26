@@ -68,6 +68,70 @@ describe('brat fleet — parseFleetArgs', () => {
     expect(a2.direct).toBe('auth');
     expect(a2.confirm).toBe(true);
   });
+
+  it('captures --target and connection overrides', () => {
+    const args = parseFleetArgs(['fleet', 'list'], ['--target=local'], {});
+    expect(args.target).toBe('local');
+    const a2 = parseFleetArgs(
+      ['fleet', 'list'],
+      ['--project-id=p', '--emulator-host=localhost:8080', '--database=db'],
+      {},
+    );
+    expect(a2.projectId).toBe('p');
+    expect(a2.emulatorHost).toBe('localhost:8080');
+    expect(a2.database).toBe('db');
+    expect(a2.target).toBeUndefined();
+  });
+});
+
+describe('brat fleet — deployment target resolution (--target)', () => {
+  it('resolves --target to the emulator connection and builds the registry from it', async () => {
+    const t = new FakeTransport('gateway', [], () => ({}));
+    const out: string[] = [];
+    const seenConnect: any[] = [];
+    const cleanup = jest.fn(async () => {});
+    const resolved = {
+      connectOptions: { emulatorHost: 'localhost:8080', projectId: 'bitbrat-local', databaseId: '(default)' },
+      isEmulator: true,
+      targetName: 'local',
+      description: "target 'local' -> Firestore emulator localhost:8080 (project 'bitbrat-local')",
+      cleanup,
+    };
+    const resolver = jest.fn(async () => resolved as any);
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: () => t,
+      registryFactory: (connect) => {
+        seenConnect.push(connect);
+        return registry;
+      },
+      connectionResolverFn: resolver as any,
+      out: (l) => out.push(l),
+    };
+    const bits = await runFleet(parseFleetArgs(['fleet', 'list'], ['--target=local'], { json: true }), {}, silentLogger(), d);
+    // The resolver was consulted and its emulator connect options reached the registry factory.
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(seenConnect[0]).toEqual(resolved.connectOptions);
+    // The registry (emulator-backed) still rendered Bits even though the gateway returned nothing.
+    expect(bits.map((b: any) => b.name).sort()).toEqual(['auth', 'persistence']);
+    // Any tunnel/handle opened for the target is torn down.
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT consult the target resolver when no --target is given', async () => {
+    const t = new FakeTransport('gateway', [], () => ({}));
+    const out: string[] = [];
+    const resolver = jest.fn(async () => { throw new Error('should not be called'); });
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: () => t,
+      registryFactory: () => registry,
+      connectionResolverFn: resolver as any,
+      out: (l) => out.push(l),
+    };
+    await runFleet(parseFleetArgs(['fleet', 'list'], [], { json: true }), {}, silentLogger(), d);
+    expect(resolver).not.toHaveBeenCalled();
+  });
 });
 
 describe('brat fleet — read commands (bit:read)', () => {

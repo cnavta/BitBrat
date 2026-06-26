@@ -56,3 +56,38 @@ Per AGENTS.md §2.5: every meaningful user prompt + shell/git operation relevant
   - `planning/sprint-325-d7f389/sprint-manifest.yaml` (status `planning` → `in-progress`).
   - `planning/sprint-325-d7f389/backlog.yaml` (sprint.start set; item statuses updated as work proceeds).
 - **gate / next action:** Implement BL2-100 (Bit-qualified ids in `McpBridge.translateTool`).
+
+---
+
+## REQ-003 — Bugfix: `brat fleet list --target local` cannot reach the local stack
+
+- **at:** 2026-06-26T18:10:00-04:00
+- **prompt (summary):** "When trying to list the bits running in a local docker env, we get an
+  error. `npm run brat -- fleet list --target local` → gateway SSE/REST ECONNREFUSED on :3000, then
+  registry read against project `twitch-452523` fails `5 NOT_FOUND`; empty list."
+- **interpretation:** Defect in the shipped BL-204 surface: `brat fleet` ignored `--target`
+  entirely. `runFleet` hardcoded the gateway URL (`http://localhost:3000`) and built the
+  `FirestoreRegistryReader` with empty connect options, so discovery read the `mcp_servers` registry
+  from real GCP (ADC / `PROJECT_ID=twitch-452523`) instead of the local Docker stack's Firestore
+  emulator. The local compose stack runs only NATS + the emulator (no tool-gateway), so the SSE/REST
+  attempts are expected to fail and discovery must fall back to the registry — which was pointed at
+  the wrong place.
+- **root cause:** `brat fleet` never threaded the deployment target into connection resolution
+  (unlike `brat backup`, which already maps `--target` → emulator via `resolveBackupConnection` /
+  `resolveTargetEndpoint`).
+- **fix:**
+  - `tools/brat/src/cli/fleet.ts`: parse `--target` (+ `--project-id` / `--emulator-host` /
+    `--database` overrides); when `--target` is set, resolve the Firestore connection via the shared
+    `resolveBackupConnection` and build `FirestoreRegistryReader(connectOptions)` from it; derive the
+    gateway base URL from the resolved emulator host; tear down any remote SSH tunnel in `finally`.
+    Added a `connectionResolverFn` seam and changed `registryFactory` to accept `connect` first.
+  - Help text + `CHANGELOG.md` (`### Fixed`) updated.
+- **tests:** `tools/brat/src/cli/__tests__/fleet.spec.ts` — new `--target` parse + resolution cases
+  (resolver consulted, emulator connect options reach the registry factory, Bits still render from
+  the emulator registry, cleanup invoked; resolver NOT consulted without `--target`).
+- **shell / git commands executed:**
+  - `npm run build` (green); `npx jest` full suite — **983 passed / 2 skipped / 0 failed**.
+  - Live: `MCP_AUTH_TOKEN=… node dist/.../index.js fleet list --target local` now logs
+    `fleet.target.resolved` + `backup.firestore.connect emulatorHost=localhost:8080
+    projectId=bitbrat-local` (was `twitch-452523` / `emulatorHost: none`).
+- **gate / next action:** Commit + push to the existing BL-204 feature branch (PR #250).

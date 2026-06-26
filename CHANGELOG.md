@@ -75,6 +75,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dependency Scanning & Remediation Cadence** section in `SECURITY.md`.
 - This `CHANGELOG.md`.
 
+### Fixed
+- **`brat fleet` now honors `--target` for fleet discovery** (sprint-325, BL-204 follow-up). Fleet
+  commands previously ignored the deployment target and always read the `mcp_servers` registry from
+  real GCP (ADC / `PROJECT_ID`), so `brat fleet list --target local` connected to the cloud project
+  (e.g. `twitch-452523`) and failed with `5 NOT_FOUND` while the local Docker stack ran its own
+  Firestore emulator. `--target` now resolves the same docker-engine endpoint `brat backup` uses
+  (via `resolveBackupConnection`) and points the `FirestoreRegistryReader` at that stack's emulator
+  (`localhost:8080`, project `bitbrat-local` for `local`), with `--project-id` / `--emulator-host` /
+  `--database` overrides for parity. The gateway base URL is derived from the resolved emulator host
+  (so a local run probes the local stack), and any SSH tunnel opened for a remote target is torn down
+  after the command.
+
 ### Changed
 - **`McpServer` is now a thin compatibility shim** over `Bit` (selecting `platform+domain` exposure).
   (Phase 3) No production code `extends McpServer` any more — every service now `extends Bit` and either
