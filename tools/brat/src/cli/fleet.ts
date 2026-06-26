@@ -11,6 +11,7 @@ import {
   resolveIdentity,
   resolveServiceHostPort,
   rewriteToLocalHostPort,
+  classifyFleetError,
 } from '../fleet';
 import { resolveBackupConnection, ResolvedBackupConnection } from '../backup/connection';
 import { FirestoreConnectOptions } from '../providers/gcp/firestore';
@@ -363,6 +364,34 @@ async function dispatch(args: FleetArgs, client: FleetClient, out: (l: string) =
   }
 }
 
+/**
+ * Render a failed `--all` row, labeling it by its classified status so an RBAC denial is no longer
+ * conflated with a connectivity failure: `forbidden (...)` (reachable but unauthorized — supply
+ * elevated --roles), `unreachable (...)` (Bit down/not reachable), or `error (...)` (other failure).
+ */
+function renderFailure(r: { status?: string; error?: string }): string {
+  const detail = r.error || 'unknown';
+  switch (r.status) {
+    case 'forbidden':
+      return `forbidden (${detail})`;
+    case 'error':
+      return `error (${detail})`;
+    case 'unreachable':
+    default:
+      return `unreachable (${detail})`;
+  }
+}
+
+/** When any rows were RBAC-denied, hint that elevated roles may be required (non-JSON output only). */
+function forbiddenHint(out: (l: string) => void, results: Array<{ ok: boolean; status?: string }>): void {
+  if (results.some((r) => !r.ok && r.status === 'forbidden')) {
+    out(
+      'note: "forbidden" means the Bit is reachable but your identity lacks the required scope. ' +
+        'Re-run with elevated roles, e.g. --roles bit:operate (RBAC is server-authoritative).',
+    );
+  }
+}
+
 /** Read op: single Bit, or fan out read-only across the fleet with --all. */
 async function readOrAll(args: FleetArgs, client: FleetClient, tool: string, out: (l: string) => void): Promise<any> {
   if (args.all) {
@@ -370,7 +399,8 @@ async function readOrAll(args: FleetArgs, client: FleetClient, tool: string, out
     if (args.json) out(JSON.stringify(results, null, 2));
     else {
       out(`BIT                 ${tool}`);
-      for (const r of results) out(`${r.bit.padEnd(20)}${r.ok ? JSON.stringify(r.result) : `unreachable (${r.error})`}`);
+      for (const r of results) out(`${r.bit.padEnd(20)}${r.ok ? JSON.stringify(r.result) : renderFailure(r)}`);
+      forbiddenHint(out, results);
     }
     return results;
   }
@@ -393,7 +423,7 @@ async function mutate(args: FleetArgs, client: FleetClient, tool: string, out: (
       );
     }
     const bits = await client.list();
-    const results: Array<{ bit: string; ok: boolean; result?: any; error?: string }> = [];
+    const results: Array<{ bit: string; ok: boolean; result?: any; error?: string; status?: string }> = [];
     for (const b of bits) {
       try {
         logger.info({ action: 'fleet.mutate', tool, bit: b.name }, `Applying ${tool} to '${b.name}'`);
@@ -401,11 +431,15 @@ async function mutate(args: FleetArgs, client: FleetClient, tool: string, out: (
         results.push({ bit: b.name, ok: true, result });
       } catch (e: any) {
         const msg = e?.message || String(e);
-        results.push({ bit: b.name, ok: false, error: msg });
+        const status = classifyFleetError(msg);
+        results.push({ bit: b.name, ok: false, status, error: status === 'forbidden' ? 'Forbidden' : msg });
       }
     }
     if (args.json) out(JSON.stringify(results, null, 2));
-    else for (const r of results) out(`${r.bit.padEnd(20)}${r.ok ? 'ok' : `failed (${r.error})`}`);
+    else {
+      for (const r of results) out(`${r.bit.padEnd(20)}${r.ok ? 'ok' : `failed (${renderFailure(r)})`}`);
+      forbiddenHint(out, results);
+    }
     return results;
   }
   const bit = requireBit(args);

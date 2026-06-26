@@ -154,3 +154,41 @@ Per AGENTS.md §2.5: every meaningful user prompt + shell/git operation relevant
 - **shell / git commands executed:**
   - `npm run build` (green); targeted suites `docker-ports.spec.ts` + `fleet.spec.ts` — **42 passed**.
 - **gate / next action:** Run full Jest suite; commit + push to the BL-204 feature branch (PR #250).
+
+---
+
+## REQ-006 — Bugfix: `brat fleet` listed non-Bit MCP servers and mislabeled RBAC denials
+
+- **at:** 2026-06-26T18:57:00-04:00
+- **prompt (summary):** `fleet info --all --target local` shows two issues: (1) non-Bit MCP servers
+  appear in the list; (2) some Bits report errors — `unreachable (Tool not found)` for
+  `Simple Web Search` / `tool-gateway` / `Twitch Information`, and `unreachable (Forbidden)` for
+  `api-gateway` / `scheduler` / `stream-analyst`.
+- **interpretation:** Two distinct defects in the fleet *consumer* (no platform/RBAC change — Law #2).
+- **root cause:**
+  - (1) `FleetClient.discover` merged ALL `mcp_servers` registry entries. That collection is the
+    tool-gateway's *upstream catalog*: it also holds manually-added external MCP servers (no `bit.*`
+    plane) and the gateway's own self-registration. Those leaked into the fleet and then failed every
+    `bit.*` call with `Tool not found`.
+  - (2) `callAll` results were all rendered as `unreachable (${error})`, so a *reachable* Bit that
+    returned a server-authoritative `Forbidden` (RBAC denial) was mislabeled as a connectivity failure.
+    Confirmed brat already forwards the bearer token + `bit:read`/`bit:operate` roles correctly
+    (`gateway-transport`), and the `bit.*` reads are `bit:read`-scoped uniformly — so Forbidden is an
+    upstream/server decision, not a brat bug.
+- **fix (consumer-only):**
+  - `tools/brat/src/fleet/types.ts`: `RegistryEntry.discoverySource`; `FleetCallResult.status`
+    (`FleetCallStatus = 'forbidden' | 'unreachable' | 'error'`).
+  - `tools/brat/src/fleet/firestore-registry.ts`: surface `discoverySource` from the doc.
+  - `tools/brat/src/fleet/fleet-client.ts`: `isBitRegistryEntry` (keep only
+    `discoverySource === 'auto-registration'` Bits on the registry-fallback path) + never render the
+    gateway's own service; new `classifyFleetError()` + `callAll` sets `status`.
+  - `tools/brat/src/cli/fleet.ts`: status-aware `renderFailure()` for `--all` read + mutate output and
+    a `forbiddenHint()` ("re-run with elevated --roles") when any row is `forbidden`; help text already
+    covers `--target` host-port behavior.
+- **tests:** `fleet-client.spec.ts` — discovery excludes non-Bits + gateway (fabric up *and* down),
+  `classifyFleetError` matrix, and a Forbidden-vs-unreachable `callAll` regression; `fleet.spec.ts` —
+  `--all` renders `forbidden (...)` distinctly (never `unreachable (Forbidden)`) with the roles hint.
+- **shell / git commands executed:**
+  - `npm run build` (green); `npx jest tools/brat/src/fleet tools/brat/src/cli/__tests__/fleet.spec.ts`
+    — **62 passed**; full `npx jest` — **1016 passed / 2 skipped / 0 failed**.
+- **gate / next action:** Commit + push to the BL-204 feature branch (PR #250).

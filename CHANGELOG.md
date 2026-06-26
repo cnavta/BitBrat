@@ -94,6 +94,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `--direct <bit>` break-glass now remaps each Bit's internal registry URL
   (`http://<svc>.bitbrat.local:3000/sse`) to its operator-reachable `http://localhost:<publishedPort>/sse`.
   An explicit `--url` / `TOOL_GATEWAY_URL` still wins, and remote/SSH targets keep their published URLs.
+- **`brat fleet` no longer lists non-Bit MCP servers (or the gateway itself), and labels RBAC denials
+  accurately** (sprint-325, BL-204 follow-up). Two defects surfaced by `fleet info --all --target local`:
+  (1) the `mcp_servers` registry is the gateway's *upstream* catalog and also contains manually-added
+  external MCP servers (e.g. a stdio web-search tool) and the `tool-gateway` itself — none of which
+  expose the universal `bit.*` plane — so they leaked into the fleet and then failed every call with
+  `unreachable (Tool not found)`. The registry-fallback contribution is now filtered to genuine,
+  self-registered Bits (the gateway stamps `discoverySource: 'auto-registration'`), and the gateway's
+  own service is never rendered as a fleet member. (2) `--all` previously rendered every failure as
+  `unreachable (...)`, mislabeling a server-authoritative RBAC denial (a *reachable* but unauthorized
+  Bit) as a connectivity failure; failures are now classified (`forbidden` / `unreachable` / `error`)
+  and rendered distinctly, with a hint to re-run with elevated `--roles` when any Bit is `forbidden`.
 
 ### Changed
 - **`McpServer` is now a thin compatibility shim** over `Bit` (selecting `platform+domain` exposure).
