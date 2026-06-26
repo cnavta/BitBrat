@@ -298,7 +298,7 @@ items:
     section: "§5.2, §5.4, Appendix A, ADR-002"
     gate: G2
     priority: P1
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [BL-103]
@@ -309,7 +309,8 @@ items:
       - "An unknown/invalid profile: value fails fast at startup with a clear error"
       - "Unit tests cover composition + the bootstrap enforcement"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - "2026-06-26: DONE. src/common/profiles/{types,registry}.ts: applyProfiles/collectProfiles (class-level, inherited, de-duped by name) + enforceProfileContract over PROFILE_REQUIREMENTS (llm => ['llm']). Bit.bootstrapProfiles()/resolveProfile() run after initializeMcp; unknown profile or missing required mixin fails fast. Covered by tests/common/bit-profiles.spec.ts."
 
   - id: BL-301
     title: "Extract EventingProfile, ResourcesProfile, McpClientProfile, LlmProfile from existing commons"
@@ -317,7 +318,7 @@ items:
     section: "§5.1, §5.2, §5.3"
     gate: G2
     priority: P1
-    status: todo
+    status: done
     effort: L
     owner: agent
     deps: [BL-300]
@@ -329,7 +330,8 @@ items:
       - "LlmProfile bundles provider resolution (common/llm/provider-factory) + prompt assembly/redaction (common/prompt-assembly)"
       - "Profiles are mixins over Bit (no new inheritance depth); each is unit-tested"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - "2026-06-26: DONE. src/common/profiles/: eventing-profile.ts + resources-profile.ts (marker mixins exposing publishEvent / getFirestore|getStorage|getPublisher over existing Bit capabilities, no behavior change); mcp-client-profile.ts (factory wiring McpClientManager + RegistryWatcher via Bit onStartup/onShutdown hooks, exposed as bit.mcpClient); llm-profile.ts (provider-factory resolution + prompt-assembly/redaction + bit.llm.* tools, exposed as bit.llm). Unit-tested in tests/common/bit-profiles.spec.ts."
 
   - id: BL-302
     title: "Add bit.llm.* admin tools + surface memory/behavioral-guidance knobs as LlmProfile config"
@@ -337,7 +339,7 @@ items:
     section: "§5.3"
     gate: G2
     priority: P2
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [BL-301, BL-201]
@@ -349,7 +351,8 @@ items:
       - "Memory/behavioral-guidance knobs (today buried in llm-bot CONFIG_DEFAULTS) are surfaced as profile config"
       - "bit.llm.* tools are namespaced under bit.* (platform-level LLM admin) and RBAC-scoped"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - "2026-06-26: DONE. LlmProfile registers bit.llm.model (read/set provider+model; bit:operate), bit.llm.promptPreview (assemble + redactText; bit:read), bit.llm.toolFilter (inspect/adjust exposed tools + report registry tool names; bit:operate). Tools registered only when isMcpEnabled(). Memory/behavioral knobs surfaced via capability.getConfigKnobs(). Covered by bit-profiles.spec.ts."
 
   - id: BL-303
     title: "Refit llm-bot onto LlmProfile (replace hand-rolled McpClientManager + RegistryWatcher dance)"
@@ -357,7 +360,7 @@ items:
     section: "§5.1, §8 Phase 2"
     gate: G2
     priority: P1
-    status: todo
+    status: done
     effort: L
     owner: agent
     deps: [BL-301]
@@ -368,7 +371,8 @@ items:
       - "Duplicated scaffolding is removed from llm-bot"
       - "Existing llm-bot tests pass unchanged"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - "2026-06-26: DONE. src/apps/llm-bot-service.ts now extends Bit and applyProfiles([EventingProfile, LlmProfile, McpClientProfile({createRegistry: () => new ToolRegistry()})]). Removed the hand-rolled McpClientManager/RegistryWatcher fields, the connect-retry loop and the close() override; this.mcp/registry/mcpManager are getters over bit.mcpClient. start() only registers internal tools (before the profile's startup connect hook). Existing llm-bot + processor tests pass unchanged."
 
   - id: BL-304
     title: "Refit query-analyzer + stream-analyst onto the LLM profile; verify against existing tests"
@@ -376,7 +380,7 @@ items:
     section: "§5.1, §8 Phase 2 exit"
     gate: G2
     priority: P1
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [BL-303]
@@ -387,7 +391,8 @@ items:
       - "bit.llm.* tools are available and identical across all three LLM Bits"
       - "Gate G2 met (duplication removed, behavior preserved)"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - "2026-06-26: DONE. query-analyzer now extends Bit + applyProfiles([EventingProfile, LlmProfile]); stream-analyst applies the same profiles over its McpServer base. All three LLM Bits share the identical bit.llm.* surface (same LlmProfile). Their domain paths are unchanged; existing query-analyzer + stream-analyst tests pass unchanged. Gate G2 met."
 
   # ---------------- Phase 3 — deprecate & retire ----------------
   - id: BL-400

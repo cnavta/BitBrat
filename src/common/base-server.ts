@@ -38,6 +38,7 @@ import {
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { INTERNAL_MCP_REGISTRATION_V1 } from '../types/events';
+import { collectProfiles, enforceProfileContract } from './profiles/registry';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
@@ -94,6 +95,12 @@ export class Bit {
   private readonly resources: ResourceInstances;
   private shutdownBound = false;
   private readonly unsubscribers: UnsubscribeFn[] = [];
+  // Bit model (sprint-324, Phase 2): lifecycle hooks capability profiles can register into. Startup
+  // hooks run at the very start of start() (before the HTTP listener binds, preserving the historical
+  // "connect before listen" ordering); shutdown hooks run early in close() (before the unsubscribe
+  // loop, matching the prior hand-rolled teardown order).
+  private readonly startupHooks: Array<(port: number, host: string) => void | Promise<void>> = [];
+  private readonly shutdownHooks: Array<(reason: string) => void | Promise<void>> = [];
 
   // ---------- Bit model: MCP control-plane state (folded down from McpServer) ----------
   /** The Bit's effective MCP exposure; undefined means the transport is not wired. */
@@ -161,6 +168,12 @@ export class Bit {
     // constructed (cheap, in-memory) but the HTTP transport + self-registration are only wired when
     // exposure is set, so a plain Bit behaves exactly like the legacy BaseServer until promoted.
     this.initializeMcp(opts);
+
+    // Bit model (sprint-324, Phase 2): compose the declared capability profiles over this Bit and
+    // enforce the architecture.yaml profile: -> mixin contract, so declared intent cannot diverge
+    // from runtime capability. Runs after initializeMcp so profiles may register bit.* control-plane
+    // tools (e.g. bit.llm.*) onto an already-initialized MCP server.
+    this.bootstrapProfiles();
   }
 
   /** Returns the underlying Express app instance */
@@ -234,6 +247,11 @@ export class Bit {
 
   /** Starts the HTTP server on the given port and optional host */
   async start(port: number, host = '0.0.0.0'): Promise<void> {
+    // Bit model: run profile-registered startup hooks first (e.g. McpClientProfile's gateway
+    // connect / registry-watcher dance), preserving the prior "connect before listen" ordering.
+    for (const fn of this.startupHooks) {
+      await fn(port, host);
+    }
     this.app.locals.port = port;
     await new Promise<void>((resolve) => {
       this.app.listen(port, host, () => resolve());
@@ -253,6 +271,15 @@ export class Bit {
     if (this.shutdownBound) return; // idempotent
     this.shutdownBound = true;
     this.logger.info('base_server.shutdown.start', { reason });
+    // Bit model: run profile-registered shutdown hooks first (e.g. McpClientProfile manager.shutdown
+    // + registry-watcher stop), matching the prior hand-rolled teardown order (before unsubscribe).
+    for (const fn of this.shutdownHooks.splice(0)) {
+      try {
+        await fn(reason);
+      } catch (e: any) {
+        this.logger.warn('bit.shutdown_hook.error', { error: e?.message || String(e) });
+      }
+    }
     // Attempt to unsubscribe from any message subscriptions first
     for (const fn of this.unsubscribers.splice(0)) {
       try {
@@ -285,6 +312,65 @@ export class Bit {
     const n = String(name || '').trim();
     if (!n) return undefined;
     return (this.resources as any)[n] as T | undefined;
+  }
+
+  // ==========================================================================
+  // Bit model (sprint-324, Phase 2): capability composition (mixins over Bit).
+  // Profiles register lifecycle hooks and tools at bootstrap; the declared
+  // architecture.yaml profile: is enforced against the applied mixins.
+  // ==========================================================================
+
+  /**
+   * Register a startup hook (Bit model). Runs at the very start of start(), before the HTTP listener
+   * binds. Used by capability profiles (e.g. McpClientProfile) to perform their connect choreography
+   * with the same ordering the services previously hand-rolled.
+   */
+  public onStartup(fn: (port: number, host: string) => void | Promise<void>): void {
+    this.startupHooks.push(fn);
+  }
+
+  /**
+   * Register a shutdown hook (Bit model). Runs early in close(), before the unsubscribe loop, so a
+   * profile can tear down its own resources (e.g. MCP client manager) in the historical order.
+   */
+  public onShutdown(fn: (reason: string) => void | Promise<void>): void {
+    this.shutdownHooks.push(fn);
+  }
+
+  /**
+   * Resolve the Bit's declared capability profile from architecture.yaml. Precedence:
+   * services.<name>.profile > defaults.services.profile > 'core'. Unlisted Bits (test fixtures)
+   * resolve to 'core'.
+   */
+  protected resolveProfile(): string {
+    try {
+      const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+      const svcNode = arch?.services?.[this.serviceName];
+      const defaults = arch?.defaults?.services;
+      return String(svcNode?.profile || defaults?.profile || 'core');
+    } catch {
+      return 'core';
+    }
+  }
+
+  /**
+   * Compose the capability profiles applied to this Bit's class (and ancestors) and enforce the
+   * declared profile: -> mixin contract. An unknown profile value or a missing required mixin fails
+   * fast with a clear error, so declared intent cannot diverge from runtime capability (ADR-002).
+   */
+  protected bootstrapProfiles(): void {
+    const applied = collectProfiles(this.constructor as Function);
+    const declared = this.resolveProfile();
+    enforceProfileContract(declared, applied, this.serviceName);
+    for (const profile of applied) {
+      try {
+        profile.install(this as any);
+        this.logger.info('bit.profile.installed', { profile: profile.name });
+      } catch (e: any) {
+        this.logger.error('bit.profile.install_error', { profile: profile.name, error: e?.message || String(e) });
+        throw e;
+      }
+    }
   }
 
   // ---------- Protected helpers: HTTP and Message subscription ----------
