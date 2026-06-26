@@ -81,4 +81,28 @@ echo "📋 brat backup list smoke check ..."
 node dist/tools/brat/src/cli/index.js backup list >/dev/null
 echo "   ✅ brat backup list OK."
 
+# -----------------------------------------------------------------------------
+# Bit model & universal MCP control plane validation (sprint-324)
+#   - architecture.yaml additive ratification (profile / mcp.exposure / bit: glossary / §6.3)
+#   - Platform Ring conformance on the hello-bit fixture + the MCP fold-down + discovery
+#   - deployment-target parity: the bit.* / registration / auth path must behave identically
+#     regardless of the messaging backend (PubSub on GCP vs NATS on Local/Remote Docker)
+# -----------------------------------------------------------------------------
+echo "🧩 Validating architecture.yaml (Bit model additive ratification)..."
+node dist/tools/brat/src/cli/index.js config validate
+
+echo "🧪 Running Bit Platform Ring conformance + MCP fold-down + discovery tests..."
+npm test -- \
+  tests/common/bit-conformance.spec.ts \
+  tests/common/mcp-server.spec.ts \
+  tests/integration/mcp-discovery.test.ts
+
+echo "🔀 Asserting messaging-driver parity for the bit.* / registration path (PubSub + NATS)..."
+for DRIVER in pubsub nats; do
+  echo "   • MESSAGE_BUS_DRIVER=${DRIVER}"
+  MESSAGE_BUS_DRIVER="${DRIVER}" MESSAGE_BUS_DISABLE_SUBSCRIBE=1 \
+    npm test -- tests/common/bit-conformance.spec.ts >/dev/null
+done
+echo "   ✅ Bit control plane behaves identically across messaging drivers (GCP / Local / Remote Docker parity)."
+
 echo "✅ Validation complete."

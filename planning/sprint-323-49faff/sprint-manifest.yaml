@@ -3,7 +3,7 @@ title: "Evaluator & Agent-Framework Readiness (external-evaluation remediation)"
 goal: "Address the external AI-agent-framework evaluation: sharpen the agent-framework framing, fix accuracy/consistency defects (clone URL, version story, unshipped config schema), add an offline/local quickstart, clean up repository hygiene, document a dependency-scanning cadence, and add the missing navigational aids (architecture diagram, capabilities matrix, evaluator's guide, CHANGELOG)."
 owner: "Lead Implementor"
 createdAt: "2026-06-25T13:05:00Z"
-status: "verifying"   # all backlog items done + validation green + branch pushed; PR pending (no gh/token) — see publication.yaml
+status: "complete"   # owner closed sprint 2026-06-26 ("Sprint complete for 323"); PR could not be auto-created (no gh/token), accepted per Rule S13 — see publication.yaml
 links:
   branch: "feature/sprint-323-49faff-evaluator-readiness"
   pr: null   # could not auto-create (no gh CLI / token); compare_url in publication.yaml

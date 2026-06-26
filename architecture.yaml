@@ -26,6 +26,13 @@ llm_guidance:
     egress: Delivery of an internal response back out to the originating platform (Twitch/Discord/Twilio).
     enrichment: Optional analysis that augments an event before reaction (query-analyzer, llm-bot).
     brat: The platform CLI/tooling under tools/brat (config, backup, setup).
+    bit: >-
+      A platform service unit under the Bit model. Every Bit speaks MCP, exposing a mandatory bit.*
+      control plane (the Platform Ring) that Brat administers fleet-wide. The YAML services key is
+      retained for back-compat (each service entry is conceptually a Bit). A Bit's optional profile
+      declares its capability mixins (core, llm, mcp-domain, gateway) and mcp.exposure controls whether
+      it serves only the platform control plane (platform-only, the default) or also its domain tools
+      (platform+domain). See documentation/architecture/bit-model-technical-architecture.md.
   invariants:
     - Never import from or depend on ./deprecated in deliverables.
     - Every message must carry a correlationId (see messaging.envelope.required).
@@ -341,6 +348,12 @@ defaults: # Defaults for various entities. Individual entities may override thes
         enabled: false         # TRACING_ENABLED default
         sampler_ratio: 0.1     # TRACING_SAMPLER_RATIO default
     port: 3000
+    # Bit model (sprint-324): platform-wide Bit defaults. Every service is a Bit; absent profile => core.
+    # The MCP control plane defaults to platform-only (just the universal bit.* tools), so promoting a
+    # service to expose its domain tools is an explicit, per-Bit opt-in (mcp.exposure: platform+domain).
+    profile: core
+    mcp:
+      exposure: platform-only
     # Build contract (origin: sprint-318): every standard service builds from the single reusable
     # Dockerfile.service; per-service behavior is supplied as --build-args derived from this file,
     # so architecture.yaml stays the canonical source of truth.
@@ -370,6 +383,10 @@ defaults: # Defaults for various entities. Individual entities may override thes
 
 services:
   oauth-flow:
+    # Bit model: §6.3 promoted Bit (was extends BaseServer) — gains a platform-only MCP control plane.
+    profile: gateway
+    mcp:
+      exposure: platform-only
     active: true
     description: "OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and broadcaster accounts."
     kind: gateway
@@ -395,6 +412,10 @@ services:
       - TWITCH_OAUTH_SCOPES
 
   ingress-egress:
+    # Bit model: §6.3 promoted Bit (was extends BaseServer) — gains a platform-only MCP control plane.
+    profile: gateway
+    mcp:
+      exposure: platform-only
     active: true
     description: "Bridges external event sources/sinks (e.g., Twitch EventSub/IRC, Discord, Twilio) to and from internal topics, normalizing inbound events to internal.ingress.v1 and delivering internal.egress.v1 responses back to the originating platform."
     kind: pipeline-service
@@ -444,6 +465,9 @@ services:
       - K_REVISION
 
   auth:
+    profile: gateway
+    mcp:
+      exposure: platform+domain
     active: true
     description: "Authentication service that handles user authentication and authorization."
     kind: pipeline-service
@@ -458,6 +482,10 @@ services:
       - MCP_AUTH_TOKEN
 
   query-analyzer:
+    # Bit model: §6.3 promoted Bit (was extends BaseServer) — gains a platform-only MCP control plane.
+    profile: llm
+    mcp:
+      exposure: platform-only
     active: true # Explicit (was previously omitted; absent now means disabled per defaults.services.active).
     description: Executes fast, efficient pre-analysis of incoming events to better route and respond
     kind: pipeline-service
@@ -474,6 +502,9 @@ services:
       - OPENAI_API_KEY
 
   event-router:
+    profile: gateway
+    mcp:
+      exposure: platform+domain
     active: true
     description: "Internal event routing service that reads from ingress channel(s) and assigns routing slips."
     kind: pipeline-service
@@ -488,6 +519,10 @@ services:
       - MCP_AUTH_TOKEN
 
   llm-bot:
+    # Bit model: §6.3 promoted Bit (was extends BaseServer, heavy MCP client) — platform-only control plane.
+    profile: llm
+    mcp:
+      exposure: platform-only
     active: true
     description: "Headless LLM worker that consumes bot request subjects and produces responses."
     kind: pipeline-service
@@ -523,6 +558,10 @@ services:
       - LLM_BOT_INSTANCE_MEM_TTL_MS
 
   persistence:
+    # Bit model: §6.3 promoted Bit (was extends BaseServer) — sensitive; platform-only behind elevated RBAC scopes.
+    profile: core
+    mcp:
+      exposure: platform-only
     active: true
     description: "Persists and indexes events for later retrieval"
     kind: pipeline-service
@@ -544,6 +583,9 @@ services:
       - PERSISTENCE_TTL_DAYS
 
   obs-mcp:
+    profile: mcp-domain
+    mcp:
+      exposure: platform+domain
     active: true
     description: MCP server for controlling OBS
     kind: mcp-server
@@ -558,6 +600,9 @@ services:
       - MCP_AUTH_TOKEN
 
   scheduler:
+    profile: mcp-domain
+    mcp:
+      exposure: platform+domain
     active: true
     description: Scheduler service for periodic tasks
     kind: pipeline-service
@@ -572,6 +617,9 @@ services:
       - MCP_AUTH_TOKEN
 
   api-gateway:
+    profile: gateway
+    mcp:
+      exposure: platform+domain
     active: true # Explicit (was previously omitted; absent now means disabled per defaults.services.active).
     description: API Gateway for handling incoming requests and routing them to appropriate services
     kind: gateway
@@ -595,6 +643,9 @@ services:
       - API_GATEWAY_ALLOW_ANONYMOUS_WS
 
   state-engine:
+    profile: mcp-domain
+    mcp:
+      exposure: platform+domain
     active: true
     description: State engine for managing application state
     kind: pipeline-service
@@ -609,6 +660,10 @@ services:
       - MCP_AUTH_TOKEN
 
   disposition-service:
+    # Bit model: §6.3 promoted Bit (was extends BaseServer) — gains a platform-only MCP control plane.
+    profile: core
+    mcp:
+      exposure: platform-only
     active: true
     description: Determines the short term disposition of users
     kind: pipeline-service
@@ -635,6 +690,9 @@ services:
       - DISPOSITION_MODERATION_ASSIST_ENABLED
 
   tool-gateway:
+    profile: gateway
+    mcp:
+      exposure: platform+domain
     active: true
     description: MCP Proxy for centralized MCP tool management and security
     kind: gateway
@@ -643,6 +701,9 @@ services:
       - MCP_AUTH_TOKEN
 
   image-gen-mcp:
+    profile: mcp-domain
+    mcp:
+      exposure: platform+domain
     active: true
     description: "MCP server for on-demand image generation using OpenAI DALL-E 3."
     kind: mcp-server
@@ -657,6 +718,9 @@ services:
       - IMAGE_GEN_RATE_LIMIT_MS
 
   stream-analyst-service:
+    profile: llm
+    mcp:
+      exposure: platform+domain
     active: true
     description: "Analyzes incoming events and provides summary capabilities"
     kind: pipeline-service
@@ -669,6 +733,9 @@ services:
       - MCP_AUTH_TOKEN
 
   story-engine-mcp:
+    profile: mcp-domain
+    mcp:
+      exposure: platform+domain
     active: true
     description: "Provides tools that enable on-demand collaborative storytelling"
     kind: mcp-server
