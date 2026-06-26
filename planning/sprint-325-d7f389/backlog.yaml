@@ -1,6 +1,6 @@
 meta:
   backlog_id: bl-204-brat-fleet-mcp-client
-  updated_at: 2026-06-26T17:24:00Z
+  updated_at: 2026-06-26T18:30:00Z
   status_values: [todo, in_progress, blocked, done]
   priority_values: [P0, P1, P2, P3]
   effort_values: [S, M, L]
@@ -44,9 +44,10 @@ meta:
     self-published external URL; the bus backend is off the synchronous MCP call path. Asserted under both
     MESSAGE_BUS_DRIVER=pubsub and =nats per the BL-500 harness (BL2-401).
 
-    STATUS: IN-PROGRESS (AGENTS.md §2.5). Owner approved the plan and said "Start sprint." (2026-06-26).
-    Implementation underway on branch feature/sprint-325-d7f389-brat-fleet-mcp-client, gateway-first.
-    Item statuses below are kept current as work progresses. WIP limit = 3.
+    STATUS: PUBLISHED (AGENTS.md §2.8). All items BL2-100..500 are DONE; build green; full Jest suite
+    978 passed / 0 failed; new suites + pubsub/nats parity wired into validate_deliverable.sh. PR #250
+    opened (see publication.yaml). Awaiting owner review/merge + explicit "Sprint complete." to close.
+    WIP limit = 3.
 
 sprint:
   id: sprint-325-d7f389
@@ -361,7 +362,7 @@ items:
     section: "§9, DoD, AGENTS.md §2.6/§2.7/§2.8"
     gate: GV
     priority: P1
-    status: todo
+    status: done
     effort: M
     owner: agent
     deps: [BL2-400, BL2-401]
@@ -374,4 +375,6 @@ items:
       - "PR attempted and recorded in publication.yaml (Rules S12/S13)"
       - "Gate GV: validate_deliverable.sh logically passable and DoD (AGENTS.md §3) met"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - at: 2026-06-26T18:30:00-04:00
+        note: "Done. brat fleet --help + operator note shipped (FLEET_HELP + printHelp); CHANGELOG [Unreleased] records the brat fleet capability + additive Bit-qualified gateway addressing; new suites + per-driver parity + fleet help entrypoint wired into validate_deliverable.sh (logically passable). verification-report.md / retro.md / key-learnings.md produced. PR #250 created and recorded in publication.yaml (Rules S12/S13). Gate GV met."

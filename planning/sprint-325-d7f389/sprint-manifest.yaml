@@ -3,10 +3,10 @@ title: "BL-204 — Brat as a Fleet MCP Client"
 goal: "Make Brat a fleet MCP client: a new `brat fleet` command group that enumerates the fleet and drives the universal `bit.*` control plane across one Bit or all Bits, defaulting to the fabric-through-tool-gateway path (one auth/RBAC/discovery chokepoint) with a documented, audited `--direct <bit>` break-glass; add the one additive piece of platform code needed — per-Bit (Bit-qualified) addressing in `tool-gateway` so identically-named `bit.*` tools are individually targetable; fail-closed RBAC; read-only `--all` fan-out with `--confirm`-gated mutations; identical behavior across GCP / Local Docker / Remote Docker. Consumer-only — no `bit.*` toolset change, no `architecture.yaml` behavioral change (Law #2)."
 owner: "Lead Implementor"
 createdAt: "2026-06-26T17:24:00Z"
-status: "in-progress"   # Owner approved the plan and said "Start sprint." (2026-06-26T17:31). Implementation underway on the feature branch.
+status: "published"   # Implementation complete; PR #250 opened (Rules S12/S13). Awaiting owner review/merge + explicit "Sprint complete." to close.
 links:
   branch: "feature/sprint-325-d7f389-brat-fleet-mcp-client"
-  pr: null   # created at publication phase (Rules S12/S13)
+  pr: "https://github.com/cnavta/BitBrat/pull/250"   # created at publication phase (Rules S12/S13)
 notes: |
   Source design: documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md (Architect, Draft for review).
   Backlog item carried forward: BL-204 (Phase 1 / Gate G1) from planning/sprint-324-00782d/backlog.yaml — sprint-324
@@ -24,6 +24,7 @@ notes: |
   single-Bit, audited (fleet.break_glass), never combined with `--all`; `--all` read-only by default, mutations
   require `--confirm` and run sequentially; deployment-target parity (GCP/Local/Remote Docker) asserted in tests
   per BL-500 harness; WIP limit = 3.
-  STATUS: IN-PROGRESS — owner approved the plan and said "Start sprint." (2026-06-26). Implementation
-  proceeds gateway-first (Phase A) then Brat fleet client (Phase B), command surface (Phase C), validation
-  & close-out (Phase V). Backlog item statuses are kept current in backlog.yaml as work progresses.
+  STATUS: PUBLISHED — all backlog items (BL2-100..500) done; gateway addressing (Phase A), Brat fleet
+  client (Phase B), `brat fleet` surface (Phase C), and validation/parity/close-out (Phase V) complete.
+  Build green; full Jest suite 978 passed / 0 failed; new suites + parity wired into validate_deliverable.sh.
+  PR #250 opened. Awaiting owner review/merge and an explicit "Sprint complete." to formally close.
