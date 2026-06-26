@@ -31,8 +31,9 @@ class FakeTransport implements FleetTransport {
 
 const registry: RegistryReader = {
   listServers: async () => [
-    { name: 'auth', profile: 'core', exposure: 'platform-only' },
-    { name: 'persistence', profile: 'core', exposure: 'platform-only' },
+    // Genuine, self-registered Bits (the tool-gateway stamps `discoverySource: 'auto-registration'`).
+    { name: 'auth', profile: 'core', exposure: 'platform-only', discoverySource: 'auto-registration' },
+    { name: 'persistence', profile: 'core', exposure: 'platform-only', discoverySource: 'auto-registration' },
   ],
 };
 
@@ -290,6 +291,29 @@ describe('brat fleet — read commands (bit:read)', () => {
     const results = await runFleet(parseFleetArgs(['fleet', 'health'], ['--all'], { json: true }), {}, silentLogger(), deps(t, out, silentLogger()));
     expect(results.find((r: any) => r.bit === 'auth').ok).toBe(true);
     expect(results.find((r: any) => r.bit === 'persistence').ok).toBe(false);
+  });
+
+  it('--all labels a Forbidden Bit distinctly from an unreachable one and hints at elevated roles (regression: "unreachable (Forbidden)")', async () => {
+    const tools: FleetTool[] = [
+      { id: 'mcp:auth/bit.info' },
+      { id: 'mcp:scheduler/bit.info' },
+      { id: 'mcp:persistence/bit.info' },
+    ];
+    const t = new FakeTransport('gateway', tools, (id) => {
+      if (id.startsWith('mcp:scheduler/')) throw new Error('Forbidden');
+      if (id.startsWith('mcp:persistence/')) throw new Error('connect ECONNREFUSED 127.0.0.1:3000');
+      return { name: 'auth' };
+    });
+    const out: string[] = [];
+    // Non-JSON output so we assert the human-facing rendering.
+    await runFleet(parseFleetArgs(['fleet', 'info'], ['--all'], {}), {}, silentLogger(), deps(t, out, silentLogger()));
+    const text = out.join('\n');
+    expect(text).toMatch(/scheduler\s+forbidden \(Forbidden\)/);
+    expect(text).toMatch(/persistence\s+unreachable \(/);
+    // A Forbidden row must NOT be mislabeled as unreachable.
+    expect(text).not.toMatch(/unreachable \(Forbidden\)/);
+    // And the operator gets actionable guidance.
+    expect(text).toMatch(/elevated roles/);
   });
 });
 

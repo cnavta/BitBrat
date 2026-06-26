@@ -28,6 +28,7 @@ export class FirestoreRegistryReader implements RegistryReader {
         profile: d.profile,
         exposure: d.exposure || d.mcpExposure,
         transport: d.transport,
+        discoverySource: d.discoverySource,
       });
     });
     this.logger?.info({ action: 'fleet.registry.read', count: entries.length }, `Read ${entries.length} Bit(s) from mcp_servers`);

@@ -41,14 +41,25 @@ export interface FleetBit {
   platformOnly?: boolean;
 }
 
+/**
+ * Classification of a failed `bit.*` call, so the CLI can render an accurate status instead of
+ * conflating every failure with connectivity. `forbidden` is a server-authoritative RBAC denial
+ * (the Bit is reachable but the operator identity is not authorized — supply elevated `--roles`);
+ * `unreachable` is a transport/connection failure (the Bit is down or not reachable); `error` is any
+ * other operational failure surfaced by the Bit.
+ */
+export type FleetCallStatus = 'forbidden' | 'unreachable' | 'error';
+
 /** Result of a single `bit.*` call against one Bit. */
 export interface FleetCallResult {
   bit: string;
   ok: boolean;
   /** Parsed/raw result payload when ok. */
   result?: any;
-  /** Error message when not ok (e.g. `Forbidden`, `unreachable`). */
+  /** Error message when not ok (e.g. `Forbidden`, `connect ECONNREFUSED ...`). */
   error?: string;
+  /** Classified failure kind when not ok (drives accurate CLI labeling). */
+  status?: FleetCallStatus;
 }
 
 /**
@@ -74,6 +85,13 @@ export interface RegistryEntry {
   profile?: string;
   exposure?: string;
   transport?: string;
+  /**
+   * How the entry got into `mcp_servers`. Bits self-register over the internal bus and the
+   * tool-gateway stamps `discoverySource: 'auto-registration'`; manually-added external MCP servers
+   * (e.g. a stdio web-search tool) carry no such marker. Used to keep non-Bit MCP servers out of the
+   * fleet (they do not expose the `bit.*` control plane).
+   */
+  discoverySource?: string;
 }
 
 /** Reads the live registry of Bits (Firestore `mcp_servers`), used for discovery + `--direct` lookup. */
