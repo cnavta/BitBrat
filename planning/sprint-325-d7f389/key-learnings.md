@@ -24,3 +24,17 @@
 
 6. **Mind the transport's id constraints.** A Bit-qualified id contains `/`, which an Express `:id` route
    won't match raw — the client must URL-encode it for the REST mirror. Encode early; assert it in a test.
+
+7. **Mocks prove the logic; only a live run proves the integration.** Every post-PR defect (REQ-003…006)
+   was an environment assumption the mocks never exercised: an operator flag (`--target`) silently ignored,
+   a port assumed internal instead of the published host port, and a registry assumed to be "just Bits".
+   For an operator CLI, budget at least one run against a real local stack before declaring done.
+
+8. **A discovery source is not a Bit roster.** `mcp_servers` is the gateway's *upstream catalog* — it also
+   holds manually-added external MCP servers and the gateway's own self-registration. Filter to the
+   provenance you actually want (`discoverySource: 'auto-registration'`) instead of treating the whole
+   collection as the fleet.
+
+9. **Don't conflate "unauthorized" with "unreachable".** A reachable Bit returning a server-authoritative
+   `Forbidden` is a different operator action (supply elevated `--roles`) than a connection failure.
+   Classify failures and render them distinctly — a single catch-all label actively misleads the operator.

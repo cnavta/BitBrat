@@ -19,6 +19,16 @@
 - Full-suite runs emit a lot of intentional error/open-handle log noise, which makes "did it pass?" a
   grep-for-the-summary exercise rather than an at-a-glance read.
 
+## Post-publication fixes (the cost of "no live stack at build time")
+- The whole first wave of operator-reported defects (REQ-003…006) shared one root cause: the feature was
+  validated entirely against mocks, so the gaps that only a **real local Docker stack** exposes slipped
+  through — `--target` was ignored (read real GCP, not the emulator), service ports were assumed to be the
+  internal `:3000` rather than the published host port, and the `mcp_servers` registry was treated as a
+  pure "list of Bits" when it is really the gateway's upstream catalog (external MCP servers + the gateway
+  itself included). Each fix was small; finding them required actually running the command.
+- Good news: because everything was dependency-injected, every fix landed with focused unit tests and the
+  suite grew cleanly from 978 → 1016 with zero regressions, all on the same branch / PR #250.
+
 ## Deferred / follow-ups
 - TA §4.2 Option B (a gateway `fleet.call` façade) intentionally not built; revisit only if a single
   proxy tool is ever preferred over per-Bit qualified ids.

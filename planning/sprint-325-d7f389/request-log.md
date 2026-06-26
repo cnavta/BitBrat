@@ -192,3 +192,26 @@ Per AGENTS.md §2.5: every meaningful user prompt + shell/git operation relevant
   - `npm run build` (green); `npx jest tools/brat/src/fleet tools/brat/src/cli/__tests__/fleet.spec.ts`
     — **62 passed**; full `npx jest` — **1016 passed / 2 skipped / 0 failed**.
 - **gate / next action:** Commit + push to the BL-204 feature branch (PR #250).
+
+---
+
+## REQ-007 — Owner: "Sprint complete." (formal close — Rule S2 / §2.9)
+
+- **at:** 2026-06-26T19:51:00-04:00
+- **prompt (summary):** Owner said **"Sprint complete."**
+- **interpretation:** Formally close sprint-325-d7f389 per AGENTS.md §2.9. All backlog items
+  (BL2-100…500) are `done`; the post-publication operator fixes (REQ-003…006) were folded onto the
+  same branch / PR #250; build green and full suite passing.
+- **close-out actions:**
+  - `sprint-manifest.yaml`: `status` published → **complete**; STATUS block updated with the REQ-003…006
+    fixes and the current 1016-test count.
+  - `verification-report.md`: added a "Post-publication operator fixes" section (REQ-003…006) and refreshed
+    the Test Evidence to **1016 passed / 2 skipped / 0 failed**.
+  - `retro.md`: added a "Post-publication fixes" retro note (root cause: mock-only validation).
+  - `key-learnings.md`: added learnings 7–9 (live-run for operator CLIs; discovery-source ≠ Bit roster;
+    don't conflate unauthorized with unreachable).
+- **publication:** PR #250 remains the sprint PR (`publication.yaml`, Rules S12/S13); all fixes were pushed
+  to `feature/sprint-325-d7f389-brat-fleet-mcp-client`.
+- **shell / git commands executed:** `npm run build` (green); targeted fleet suites green; full `npx jest`
+  — **1016 passed / 2 skipped / 0 failed**; commit + push close-out artifacts.
+- **status:** Sprint **CLOSED**.
