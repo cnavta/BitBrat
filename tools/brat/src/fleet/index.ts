@@ -8,6 +8,7 @@ export * from './types';
 export * from './rbac-context';
 export * from './fleet-client';
 export * from './firestore-registry';
+export * from './docker-ports';
 export { GatewayTransport, parseMcpResult } from './transports/gateway-transport';
 export type { McpClientLike, GatewayTransportOptions } from './transports/gateway-transport';
 export { DirectTransport, toUpstreamToolName } from './transports/direct-transport';

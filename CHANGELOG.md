@@ -86,6 +86,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--database` overrides for parity. The gateway base URL is derived from the resolved emulator host
   (so a local run probes the local stack), and any SSH tunnel opened for a remote target is torn down
   after the command.
+- **`brat fleet` now uses each service's PUBLISHED local Docker port instead of the hardcoded `:3000`**
+  (sprint-325, BL-204 follow-up). Against a local docker `--target`, the tool-gateway is reached on its
+  published host port — resolved from `<SERVICE>_HOST_PORT` (e.g. `TOOL_GATEWAY_HOST_PORT`) or a
+  `docker ps` port-mapping probe (mirroring `brat chat`), with a `3001` fallback — rather than the
+  internal container port `3000` (which is only reachable from inside the compose network). Likewise,
+  the `--direct <bit>` break-glass now remaps each Bit's internal registry URL
+  (`http://<svc>.bitbrat.local:3000/sse`) to its operator-reachable `http://localhost:<publishedPort>/sse`.
+  An explicit `--url` / `TOOL_GATEWAY_URL` still wins, and remote/SSH targets keep their published URLs.
 
 ### Changed
 - **`McpServer` is now a thin compatibility shim** over `Bit` (selecting `platform+domain` exposure).

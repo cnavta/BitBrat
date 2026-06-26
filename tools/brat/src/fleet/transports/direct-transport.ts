@@ -22,6 +22,12 @@ export interface DirectTransportOptions {
   logger?: Logger;
   /** Override the MCP client factory (tests inject a mock). */
   clientFactory?: (url: string, identity: FleetIdentity) => Promise<McpClientLike>;
+  /**
+   * Optional rewrite of the registry-published URL before connecting. Used for local Docker targets
+   * to remap a Bit's internal `http://<svc>.bitbrat.local:<containerPort>/sse` to the operator-
+   * reachable `http://localhost:<publishedHostPort>/sse`.
+   */
+  urlRewriter?: (url: string, bit: string) => string;
 }
 
 /** Recover the upstream (un-qualified) tool name from a possibly-qualified discovery id. */
@@ -37,6 +43,7 @@ export class DirectTransport implements FleetTransport {
   private readonly registry: RegistryReader;
   private readonly logger?: Logger;
   private readonly clientFactory: (url: string, identity: FleetIdentity) => Promise<McpClientLike>;
+  private readonly urlRewriter?: (url: string, bit: string) => string;
   private client?: McpClientLike;
 
   constructor(opts: DirectTransportOptions) {
@@ -45,6 +52,7 @@ export class DirectTransport implements FleetTransport {
     this.registry = opts.registry;
     this.logger = opts.logger;
     this.clientFactory = opts.clientFactory || defaultDirectClientFactory;
+    this.urlRewriter = opts.urlRewriter;
   }
 
   private async resolveUrl(): Promise<string> {
@@ -54,6 +62,16 @@ export class DirectTransport implements FleetTransport {
       throw new ConfigurationError(
         `Direct-connect target '${this.bit}' not found in the MCP registry (no self-published URL).`,
       );
+    }
+    if (this.urlRewriter) {
+      const rewritten = this.urlRewriter(entry.url, this.bit);
+      if (rewritten !== entry.url) {
+        this.logger?.info(
+          { action: 'fleet.direct.url_remapped', bit: this.bit, from: entry.url, to: rewritten },
+          `Remapped Bit '${this.bit}' registry URL to local host port`,
+        );
+      }
+      return rewritten;
     }
     return entry.url;
   }
