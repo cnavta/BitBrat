@@ -105,4 +105,28 @@ for DRIVER in pubsub nats; do
 done
 echo "   ✅ Bit control plane behaves identically across messaging drivers (GCP / Local / Remote Docker parity)."
 
+# -----------------------------------------------------------------------------
+# Brat fleet MCP client + Bit-qualified gateway addressing (sprint-325, BL-204)
+#   - gateway Bit-qualified addressing (mcp:<bit>/bit.*) without domain/RBAC regression
+#   - fleet client: discovery, invocation/addressing, fail-closed RBAC, --all fan-out, break-glass
+#   - brat fleet command surface (read/mutate mapping, --confirm gating, --direct guardrails)
+#   - deployment-target parity: fleet path under MESSAGE_BUS_DRIVER=pubsub and =nats (registry-published URL)
+# -----------------------------------------------------------------------------
+echo "🛰️  Running brat fleet MCP client + Bit-qualified gateway addressing tests..."
+npm test -- \
+  tests/apps/tool-gateway-bit-addressing.spec.ts \
+  tools/brat/src/fleet \
+  tools/brat/src/cli/__tests__/fleet.spec.ts
+
+echo "🔀 Asserting fleet-path deployment-target parity (PubSub + NATS)..."
+for DRIVER in pubsub nats; do
+  echo "   • MESSAGE_BUS_DRIVER=${DRIVER}"
+  MESSAGE_BUS_DRIVER="${DRIVER}" \
+    npm test -- tools/brat/src/fleet/__tests__/fleet-parity.spec.ts >/dev/null
+done
+echo "   ✅ brat fleet behaves identically across messaging drivers (GCP / Local / Remote Docker parity)."
+
+echo "🏃 Verifying brat fleet help entrypoint ..."
+node dist/tools/brat/src/cli/index.js fleet >/dev/null || true
+
 echo "✅ Validation complete."

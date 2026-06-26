@@ -13,8 +13,24 @@ export class McpBridge {
     private invokerOptions?: ProxyInvokerOptions
   ) {}
 
+  /**
+   * Platform (`bit.*`) tools are identical on every Bit, so a flat `mcp:<toolName>` id collides
+   * across the fleet (last-writer-wins). For these we qualify the discovery id with the origin
+   * Bit name (the registry key / `toolPrefix`) as `mcp:<bit>/<toolName>` so a fleet client can both
+   * enumerate WHICH Bit owns WHICH `bit.*` tool and invoke it unambiguously (TA §4.2, Option A).
+   * Domain tools already carry distinct names and are left unqualified (no behavior change).
+   */
+  private isPlatformToolName(name: string): boolean {
+    return name === 'bit' || name.startsWith('bit.');
+  }
+
+  /** Build the (possibly Bit-qualified) discovery id for a tool name. */
+  qualifyToolId(name: string): string {
+    return this.isPlatformToolName(name) ? `mcp:${this.serverName}/${name}` : `mcp:${name}`;
+  }
+
   translateTool(mcpTool: { name: string; description?: string; inputSchema: any; scopes?: string[] }, requiredRoles?: string[]): BitBratTool {
-    const toolId = `mcp:${mcpTool.name}`;
+    const toolId = this.qualifyToolId(mcpTool.name);
 
     // Defensive: Ensure inputSchema is an object and has a valid type
     let schema = mcpTool.inputSchema;

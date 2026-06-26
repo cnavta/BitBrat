@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Brat as a fleet MCP client — `brat fleet`** (sprint-325, BL-204). A new Brat command group turns
+  Brat into a consumer of the universal `bit.*` control plane: `brat fleet list|info|health|config|flags|
+  log|drain|shutdown`, mapping each subcommand to the corresponding `bit.*` tool (Appendix A). The
+  default path is the **`tool-gateway` fabric** (one auth/RBAC/discovery chokepoint, ADR-003); a
+  documented, audited **`--direct <bit>` break-glass** bypasses the gateway to reach a single Bit
+  directly (emits a `fleet.break_glass` audit line, single-Bit only, rejected with `--all`, OQ4).
+  Commands are **fail-closed**: without a resolvable `MCP_AUTH_TOKEN` they refuse to run (non-zero exit
+  + posture warning, OQ3). `--all` fans out **read-only** via a bounded queue (partial-failure tolerant);
+  fleet-wide mutations require an explicit `--confirm` and run sequentially. RBAC is server-authoritative
+  (`bit:read` vs `bit:operate`); Brat only forwards identity (`_meta.{userRoles,userId}`) and never
+  self-authorizes. Lives in `tools/brat/src/fleet/` (`FleetClient` + `gateway-transport` +
+  `direct-transport` + `rbac-context` + Firestore `RegistryReader`), reusing the platform
+  `@modelcontextprotocol/sdk` `Client`/`SSEClientTransport` wrappers.
+- **Bit-qualified addressing in `tool-gateway`** (additive, read-path only). `McpBridge.translateTool`
+  now assigns platform (`bit.*`) tools a Bit-qualified discovery id `mcp:<bit>/<tool>` (derived from the
+  registry key / origin Bit name), so identically-named `bit.*` tools across the fleet no longer collide
+  (last-writer-wins) and each Bit's control tools are individually enumerable and invocable through the
+  fabric (MCP `CallTool` + REST `POST /v1/tools/:id`). Domain tools and `displayName` are unchanged; no
+  `bit.*` definition or `architecture.yaml` change (Law #2).
 - **The Bit model & universal MCP control plane** (sprint-324). The MCP capability was promoted from a
   per-service subclass decision (`extends McpServer` vs `extends BaseServer`) down into the base
   abstraction: `BaseServer` was refactored to **`Bit`**, and the MCP transport (`/sse` + `POST /message`),
