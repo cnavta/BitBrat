@@ -1,4 +1,4 @@
-import { BaseServer } from '../common/base-server';
+import { Bit } from '../common/base-server';
 import express, { Express, Request, Response } from 'express';
 import {
   TwitchIrcClient,
@@ -36,7 +36,7 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'ingress-egress';
 // Use centralized configuration for port instead of reading env directly in app code
 const PORT = buildConfig(process.env).port;
 
-export class IngressEgressServer extends BaseServer {
+export class IngressEgressServer extends Bit {
   // Declare default configuration values for this service
   // Expose persistence TTL days so other components can align via ENV
   protected static CONFIG_DEFAULTS: Record<string, any> = {
@@ -705,7 +705,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const server = new IngressEgressServer();
   void server.start(PORT);
 }

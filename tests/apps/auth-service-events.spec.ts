@@ -1,5 +1,5 @@
 import { AuthServer } from '../../src/apps/auth-service';
-import { BaseServer } from '../../src/common/base-server';
+import { Bit } from '../../src/common/base-server';
 import { INTERNAL_AUTH_V1, INTERNAL_SYSTEM_EVENTS_V1 } from '../../src/types/events';
 
 // Mock message bus
@@ -35,7 +35,7 @@ describe('AuthServer Event Emission', () => {
       }),
     };
 
-    jest.spyOn(BaseServer.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
+    jest.spyOn(Bit.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
       const name = args[0];
       if (name === 'firestore') return dbMock;
       if (name === 'publisher') return pubResMock;
@@ -43,7 +43,7 @@ describe('AuthServer Event Emission', () => {
     });
 
     // Capture the onMessage handler
-    jest.spyOn(BaseServer.prototype as any, 'onMessage').mockImplementation((cfg: any, handler: any) => {
+    jest.spyOn(Bit.prototype as any, 'onMessage').mockImplementation((cfg: any, handler: any) => {
       if (cfg.destination === INTERNAL_AUTH_V1) {
         onMessageHandler = handler;
       }
@@ -68,7 +68,7 @@ describe('AuthServer Event Emission', () => {
     dbMock.get.mockResolvedValue({ exists: false });
 
     // Mock next() and ack()
-    const nextSpy = jest.spyOn(BaseServer.prototype as any, 'next').mockResolvedValue(undefined);
+    const nextSpy = jest.spyOn(Bit.prototype as any, 'next').mockResolvedValue(undefined);
     const ackMock = jest.fn().mockResolvedValue(undefined);
 
     await onMessageHandler(incomingEvent, {}, { ack: ackMock });
@@ -118,7 +118,7 @@ describe('AuthServer Event Emission', () => {
       data: () => dataExisting,
     });
 
-    const nextSpy = jest.spyOn(BaseServer.prototype as any, 'next').mockResolvedValue(undefined);
+    const nextSpy = jest.spyOn(Bit.prototype as any, 'next').mockResolvedValue(undefined);
     const ackMock = jest.fn().mockResolvedValue(undefined);
 
     await onMessageHandler(incomingEvent, {}, { ack: ackMock });

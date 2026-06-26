@@ -1,7 +1,7 @@
-import { BaseServer } from '../../src/common/base-server';
+import { Bit } from '../../src/common/base-server';
 import type { ResourceManager, SetupContext } from '../../src/common/resources/types';
 
-class TestServer extends BaseServer {
+class TestServer extends Bit {
   public peek<T>(name: string): T | undefined {
     // Access protected getResource via a public test-only wrapper
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

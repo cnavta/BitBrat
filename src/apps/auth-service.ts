@@ -1,6 +1,5 @@
 import '../common/safe-timers';
-import { BaseServer } from '../common/base-server';
-import { McpServer } from '../common/mcp-server';
+import { Bit } from '../common/base-server';
 import { Express } from 'express';
 import { INTERNAL_AUTH_V1, InternalEventV2, INTERNAL_SYSTEM_EVENTS_V1 } from '../types/events';
 import { AttributeMap, createMessagePublisher } from '../services/message-bus';
@@ -17,11 +16,11 @@ import crypto from 'crypto';
 const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
-export class AuthServer extends McpServer {
+export class AuthServer extends Bit {
   private userRepo?: FirestoreUserRepo;
 
   constructor() {
-    super({ serviceName: SERVICE_NAME });
+    super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
     this.setupApp(this.getApp() as any, this.getConfig() as any);
   }
 
@@ -493,7 +492,7 @@ export function createApp() {
 }
 
 if (require.main === module) {
-  BaseServer.ensureRequiredEnv(SERVICE_NAME);
+  Bit.ensureRequiredEnv(SERVICE_NAME);
   const app = createApp();
   app.listen(PORT, () => {
     console.log('[auth] listening on port ' + PORT);

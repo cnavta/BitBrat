@@ -1,0 +1,27 @@
+branch: feature/sprint-324-00782d-bit-model-universal-mcp
+pushed: true
+commit: 6c0d8e0
+pr_url: null
+status: closed-without-pr   # branch pushed; PR not auto-created (no gh/token); owner explicitly accepted PR-less closure (Rule S13)
+compare_url: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-324-00782d-bit-model-universal-mcp
+reason: |
+  The feature branch was committed and pushed to origin (git@github.com:cnavta/BitBrat.git)
+  successfully. The PR could NOT be created automatically because the GitHub CLI (`gh`) is not
+  installed and no GITHUB_TOKEN / GH_TOKEN is available in this environment (Rule S12/S13).
+  Create the PR manually via the compare_url above, or provide a token / `gh` auth so it can be
+  created automatically.
+attempted:
+  - method: gh-cli
+    result: unavailable (gh not installed)
+  - method: github-api
+    result: unavailable (no GITHUB_TOKEN/GH_TOKEN)
+owner_closure_acceptance:
+  accepted: true
+  trigger: "Sprint complete."
+  date: "2026-06-26"
+  rule: S13
+notes: |
+  Per Rule S13, closing this sprint requires either a created PR (URL recorded here) OR explicit
+  user acceptance of closure without a PR. Owner said "Sprint complete." on 2026-06-26, explicitly
+  accepting closure without an auto-created PR. The branch is pushed; create the PR manually via
+  compare_url above (or provide a token / gh auth) when convenient.

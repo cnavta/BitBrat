@@ -1,4 +1,4 @@
-import express, { Express, Request, Response, RequestHandler } from 'express';
+import express, { Express, Request, Response, RequestHandler, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
@@ -20,10 +20,37 @@ import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../service
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
 import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1 } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
+import { features } from './feature-flags';
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
 import type { PublisherResource } from './resources/publisher-manager';
+// Bit model (sprint-324): MCP control-plane machinery folded down into the base abstraction.
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import {
+  CallToolResult,
+  GetPromptResult,
+  ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceResult,
+  CallToolRequestSchema,
+  ReadResourceRequestSchema,
+  GetPromptRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { INTERNAL_MCP_REGISTRATION_V1 } from '../types/events';
+import { collectProfiles, enforceProfileContract } from './profiles/registry';
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export type ExpressSetup = (app: Express, cfg: IConfig, resources?: ResourceInstances) => void | Promise<void>;
+
+/**
+ * Bit model: the MCP control-plane exposure level for a Bit.
+ * - platform-only: serve just the universal bit.* control plane (Platform Ring).
+ * - platform+domain: also serve the Bit's domain tools.
+ * Absent/undefined means the MCP transport is not wired (legacy BaseServer behavior).
+ */
+export type McpExposure = 'platform-only' | 'platform+domain';
 
 export interface BaseServerOptions {
   serviceName?: string;
@@ -37,6 +64,12 @@ export interface BaseServerOptions {
   readinessCheck?: () => boolean | Promise<boolean>;
   /** Optional resource managers map. Merged over defaults (publisher, firestore). */
   resources?: Record<string, ResourceManager<any>>;
+  /**
+   * Bit model: explicit MCP control-plane exposure. When set, the Bit wires the MCP
+   * transport (/sse + POST /message) and self-publishes its registration on start.
+   * When omitted, the MCP transport is not wired (preserves legacy BaseServer behavior).
+   */
+  mcpExposure?: McpExposure;
 }
 
 /**
@@ -46,7 +79,7 @@ export interface BaseServerOptions {
  * - Accepts an optional setup(app) function to customize routes/middleware
  * - Provides helpers to read architecture.yaml and validate required env
  */
-export class BaseServer {
+export class Bit {
   /**
    * Class-level configuration defaults for env-backed values.
    * Subclasses may override this to provide default values per CONFIG_KEY.
@@ -62,6 +95,22 @@ export class BaseServer {
   private readonly resources: ResourceInstances;
   private shutdownBound = false;
   private readonly unsubscribers: UnsubscribeFn[] = [];
+  // Bit model (sprint-324, Phase 2): lifecycle hooks capability profiles can register into. Startup
+  // hooks run at the very start of start() (before the HTTP listener binds, preserving the historical
+  // "connect before listen" ordering); shutdown hooks run early in close() (before the unsubscribe
+  // loop, matching the prior hand-rolled teardown order).
+  private readonly startupHooks: Array<(port: number, host: string) => void | Promise<void>> = [];
+  private readonly shutdownHooks: Array<(reason: string) => void | Promise<void>> = [];
+
+  // ---------- Bit model: MCP control-plane state (folded down from McpServer) ----------
+  /** The Bit's effective MCP exposure; undefined means the transport is not wired. */
+  protected mcpExposure?: McpExposure;
+  /** The MCP Server instance. Always constructed; transport is only wired when enabled. */
+  protected mcpServer!: Server;
+  protected readonly transports: Map<string, SSEServerTransport> = new Map();
+  private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult>; scopes?: string[] }> = new Map();
+  private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string, extra?: any) => Promise<ReadResourceResult> }> = new Map();
+  private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>, extra?: any) => Promise<GetPromptResult> }> = new Map();
 
   /**
    * Creates an instance of BaseServer.
@@ -114,6 +163,17 @@ export class BaseServer {
     if (typeof opts.setup === 'function') {
       opts.setup(this.app, this.config, this.resources);
     }
+
+    // Bit model: fold the MCP control plane into the base abstraction. The MCP Server is always
+    // constructed (cheap, in-memory) but the HTTP transport + self-registration are only wired when
+    // exposure is set, so a plain Bit behaves exactly like the legacy BaseServer until promoted.
+    this.initializeMcp(opts);
+
+    // Bit model (sprint-324, Phase 2): compose the declared capability profiles over this Bit and
+    // enforce the architecture.yaml profile: -> mixin contract, so declared intent cannot diverge
+    // from runtime capability. Runs after initializeMcp so profiles may register bit.* control-plane
+    // tools (e.g. bit.llm.*) onto an already-initialized MCP server.
+    this.bootstrapProfiles();
   }
 
   /** Returns the underlying Express app instance */
@@ -156,7 +216,7 @@ export class BaseServer {
     if (!has) {
       if (opts && 'default' in (opts as any)) return (opts as any).default as T;
       if (useClassDefaults) {
-        const Ctor = this.constructor as typeof BaseServer;
+        const Ctor = this.constructor as typeof Bit;
         const clsDefaults = (Ctor && (Ctor as any).CONFIG_DEFAULTS) as Record<string, any> | undefined;
         if (clsDefaults && Object.prototype.hasOwnProperty.call(clsDefaults, key)) {
           const dv = clsDefaults[key];
@@ -187,11 +247,20 @@ export class BaseServer {
 
   /** Starts the HTTP server on the given port and optional host */
   async start(port: number, host = '0.0.0.0'): Promise<void> {
+    // Bit model: run profile-registered startup hooks first (e.g. McpClientProfile's gateway
+    // connect / registry-watcher dance), preserving the prior "connect before listen" ordering.
+    for (const fn of this.startupHooks) {
+      await fn(port, host);
+    }
     this.app.locals.port = port;
     await new Promise<void>((resolve) => {
       this.app.listen(port, host, () => resolve());
     });
     this.logger.info('listening', { host, port });
+    // Bit model: self-publish the MCP registration once listening, when the control plane is enabled.
+    if (this.isMcpEnabled()) {
+      await this.publishRegistration();
+    }
   }
 
   /**
@@ -202,6 +271,15 @@ export class BaseServer {
     if (this.shutdownBound) return; // idempotent
     this.shutdownBound = true;
     this.logger.info('base_server.shutdown.start', { reason });
+    // Bit model: run profile-registered shutdown hooks first (e.g. McpClientProfile manager.shutdown
+    // + registry-watcher stop), matching the prior hand-rolled teardown order (before unsubscribe).
+    for (const fn of this.shutdownHooks.splice(0)) {
+      try {
+        await fn(reason);
+      } catch (e: any) {
+        this.logger.warn('bit.shutdown_hook.error', { error: e?.message || String(e) });
+      }
+    }
     // Attempt to unsubscribe from any message subscriptions first
     for (const fn of this.unsubscribers.splice(0)) {
       try {
@@ -234,6 +312,65 @@ export class BaseServer {
     const n = String(name || '').trim();
     if (!n) return undefined;
     return (this.resources as any)[n] as T | undefined;
+  }
+
+  // ==========================================================================
+  // Bit model (sprint-324, Phase 2): capability composition (mixins over Bit).
+  // Profiles register lifecycle hooks and tools at bootstrap; the declared
+  // architecture.yaml profile: is enforced against the applied mixins.
+  // ==========================================================================
+
+  /**
+   * Register a startup hook (Bit model). Runs at the very start of start(), before the HTTP listener
+   * binds. Used by capability profiles (e.g. McpClientProfile) to perform their connect choreography
+   * with the same ordering the services previously hand-rolled.
+   */
+  public onStartup(fn: (port: number, host: string) => void | Promise<void>): void {
+    this.startupHooks.push(fn);
+  }
+
+  /**
+   * Register a shutdown hook (Bit model). Runs early in close(), before the unsubscribe loop, so a
+   * profile can tear down its own resources (e.g. MCP client manager) in the historical order.
+   */
+  public onShutdown(fn: (reason: string) => void | Promise<void>): void {
+    this.shutdownHooks.push(fn);
+  }
+
+  /**
+   * Resolve the Bit's declared capability profile from architecture.yaml. Precedence:
+   * services.<name>.profile > defaults.services.profile > 'core'. Unlisted Bits (test fixtures)
+   * resolve to 'core'.
+   */
+  protected resolveProfile(): string {
+    try {
+      const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+      const svcNode = arch?.services?.[this.serviceName];
+      const defaults = arch?.defaults?.services;
+      return String(svcNode?.profile || defaults?.profile || 'core');
+    } catch {
+      return 'core';
+    }
+  }
+
+  /**
+   * Compose the capability profiles applied to this Bit's class (and ancestors) and enforce the
+   * declared profile: -> mixin contract. An unknown profile value or a missing required mixin fails
+   * fast with a clear error, so declared intent cannot diverge from runtime capability (ADR-002).
+   */
+  protected bootstrapProfiles(): void {
+    const applied = collectProfiles(this.constructor as Function);
+    const declared = this.resolveProfile();
+    enforceProfileContract(declared, applied, this.serviceName);
+    for (const profile of applied) {
+      try {
+        profile.install(this as any);
+        this.logger.info('bit.profile.installed', { profile: profile.name });
+      } catch (e: any) {
+        this.logger.error('bit.profile.install_error', { profile: profile.name, error: e?.message || String(e) });
+        throw e;
+      }
+    }
   }
 
   // ---------- Protected helpers: HTTP and Message subscription ----------
@@ -537,7 +674,7 @@ export class BaseServer {
     // Default debug endpoint for redacted configuration
     this.app.get('/_debug/config', (_req: Request, res: Response) => {
       try {
-        const requiredEnv = BaseServer.computeRequiredKeysFromArchitecture(this.serviceName);
+        const requiredEnv = Bit.computeRequiredKeysFromArchitecture(this.serviceName);
         res.status(200).json({
           service: this.serviceName,
           config: safeConfig(this.config),
@@ -572,7 +709,7 @@ export class BaseServer {
       }
     } catch (e: any) {
       // eslint-disable-next-line no-console
-      console.error('[BaseServer] Failed to read architecture.yaml:', e?.message || e);
+      console.error('[Bit] Failed to read architecture.yaml:', e?.message || e);
     }
     return null;
   }
@@ -583,7 +720,7 @@ export class BaseServer {
    */
   static computeRequiredKeysFromArchitecture(serviceName?: string): string[] {
     const svc = serviceName || process.env.SERVICE_NAME || 'service';
-    const arch = BaseServer.loadArchitectureYaml();
+    const arch = Bit.loadArchitectureYaml();
     if (!arch) return [];
     const svcNode = arch.services?.[svc] || {};
     const defaults = arch.defaults?.services || {};
@@ -609,7 +746,7 @@ export class BaseServer {
       'DISCORD_BOT_TOKEN', 'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET',
     ]) : new Set<string>();
 
-    const required = BaseServer
+    const required = Bit
       .computeRequiredKeysFromArchitecture(serviceName)
       .filter((k) => !runtimeProvided.has(k) && !optionalLocally.has(k));
 
@@ -930,4 +1067,479 @@ export class BaseServer {
     }
     return attrs;
   }
+
+  // ==========================================================================
+  // Bit model: MCP control plane (folded down from the former McpServer).
+  // The MCP Server is always constructed; the HTTP transport (/sse + /message)
+  // and registry self-publish are only wired when `mcpExposure` is set.
+  // ==========================================================================
+
+  /**
+   * Resolve the Bit's effective MCP exposure (Bit model, sprint-324).
+   * Precedence: explicit opts.mcpExposure (e.g. the McpServer shim) > the ratified
+   * `services.<name>.mcp.exposure` in architecture.yaml > undefined (MCP-off). Only services that
+   * explicitly declare an exposure are promoted, so test fixtures and unlisted Bits keep legacy
+   * behavior. Subclasses may override to compute exposure differently.
+   */
+  protected resolveMcpExposure(opts: BaseServerOptions): McpExposure | undefined {
+    // Explicit opts win (e.g. the McpServer shim selects platform+domain).
+    if (opts.mcpExposure) return opts.mcpExposure;
+    // Otherwise read the ratified declaration from architecture.yaml (Phase R / §6.3). Only services
+    // that explicitly declare mcp.exposure are promoted; unlisted Bits (e.g. test fixtures) stay
+    // MCP-off, preserving legacy behavior. Sensitive services were ratified as platform-only.
+    try {
+      const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+      const svcNode = arch?.services?.[this.serviceName];
+      const exposure = svcNode?.mcp?.exposure;
+      if (exposure === 'platform-only' || exposure === 'platform+domain') return exposure;
+    } catch { /* ignore — fall through to MCP-off */ }
+    return undefined;
+  }
+
+  /** True when this Bit serves an MCP control-plane endpoint. */
+  protected isMcpEnabled(): boolean {
+    return this.mcpExposure === 'platform-only' || this.mcpExposure === 'platform+domain';
+  }
+
+  /** True when this Bit also serves its domain tools (not just the bit.* control plane). */
+  protected isDomainExposed(): boolean {
+    return this.mcpExposure === 'platform+domain';
+  }
+
+  /**
+   * Construct the MCP Server and (when enabled) wire its HTTP transport. Called once at the end of
+   * construction so the MCP routes are registered after any user-supplied setup(), matching the
+   * historical McpServer ordering.
+   */
+  protected initializeMcp(opts: BaseServerOptions): void {
+    this.mcpExposure = this.resolveMcpExposure(opts);
+
+    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+    const svcNode = arch?.services?.[this.serviceName] || {};
+    const description = svcNode.description || 'BitBrat MCP Server';
+    const version = arch?.project?.version || '1.0.0';
+
+    this.mcpServer = new Server(
+      {
+        name: this.serviceName,
+        version: version,
+        description: description,
+      } as any,
+      {
+        capabilities: {
+          tools: {},
+          resources: {},
+          prompts: {},
+        },
+      }
+    );
+
+    this.setupDiscoveryHandlers();
+
+    if (this.isMcpEnabled()) {
+      // Platform Ring: the mandatory bit.* control plane is registered before any Business-Ring
+      // (domain) tools, so it is guaranteed present and identical across every Bit.
+      this.registerPlatformTools();
+      this.setupMcpRoutes();
+    }
+  }
+
+  /**
+   * Register the mandatory bit.* platform toolset (the universal control plane Brat administers).
+   * Each tool is backed by an existing platform primitive and carries RBAC scopes: read-only tools
+   * use the low `bit:read` scope; mutating/operator tools require the elevated `bit:operate` scope.
+   * Secrets are never returned (config is redacted via the same safeConfig() used by /_debug/config).
+   */
+  protected registerPlatformTools(): void {
+    const READ = ['bit:read'];
+    const OPERATE = ['bit:operate'];
+    const ok = (data: any): CallToolResult => ({
+      content: [{ type: 'text', text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }],
+    });
+
+    // bit.info — identity, version, declared profile/exposure, topics and secret *names* (no values).
+    this.registerTool('bit.info', 'Bit identity: name, version, profile, exposure, declared topics and secret names.', z.object({}), async () => {
+      const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+      const svcNode = arch?.services?.[this.serviceName] || {};
+      const defaults = arch?.defaults?.services || {};
+      return ok({
+        name: this.serviceName,
+        version: arch?.project?.version || '0.0.0',
+        profile: svcNode.profile || defaults.profile || 'core',
+        exposure: this.mcpExposure,
+        kind: svcNode.kind,
+        topics: svcNode.topics || {},
+        secrets: Array.isArray(svcNode.secrets) ? svcNode.secrets : [],
+      });
+    }, { scopes: READ });
+
+    // bit.health / bit.readiness — structured status mirroring /healthz and /readyz.
+    this.registerTool('bit.health', 'Structured health status (mirrors /healthz).', z.object({}), async () => ok(this.buildHealthBody()), { scopes: READ });
+    this.registerTool('bit.readiness', 'Structured readiness status (mirrors /readyz).', z.object({}), async () => ok({ ...this.buildHealthBody(), ready: true }), { scopes: READ });
+
+    // bit.config.get / bit.config.describe — effective config with secrets redacted.
+    this.registerTool('bit.config.get', 'Effective configuration with secrets redacted.', z.object({}), async () => ok(safeConfig(this.config)), { scopes: READ });
+    this.registerTool('bit.config.describe', 'Effective configuration plus the required env keys for this Bit (secrets redacted).', z.object({}), async () => ok({
+      service: this.serviceName,
+      config: safeConfig(this.config),
+      requiredEnv: (this.constructor as any).computeRequiredKeysFromArchitecture?.(this.serviceName) || [],
+    }), { scopes: READ });
+
+    // bit.flags.get / bit.flags.set — live feature-flag inspect/toggle via the FeatureGate.
+    this.registerTool('bit.flags.get', 'Inspect a feature flag (or list all known canonical keys).', z.object({ key: z.string().optional() }), async (args) => {
+      if (args.key) return ok({ key: args.key, enabled: features.enabled(args.key), raw: features.rawValue(args.key) });
+      return ok({ keys: features.keys() });
+    }, { scopes: READ });
+    this.registerTool('bit.flags.set', 'Set an in-memory feature-flag override (pass empty value to clear).', z.object({ key: z.string(), value: z.string() }), async (args) => {
+      features.setOverride(args.key, args.value === '' ? undefined : args.value);
+      return ok({ key: args.key, enabled: features.enabled(args.key) });
+    }, { scopes: OPERATE });
+
+    // bit.log.level — runtime log-level change.
+    this.registerTool('bit.log.level', 'Change the runtime log level (error|warn|info|debug).', z.object({ level: z.enum(['error', 'warn', 'info', 'debug']) }), async (args) => {
+      this.logger.setLevel(args.level as any);
+      this.logger.info('bit.log.level.changed', { level: args.level });
+      return ok({ level: args.level });
+    }, { scopes: OPERATE });
+
+    // bit.drain / bit.shutdown — graceful lifecycle via close(reason).
+    this.registerTool('bit.drain', 'Gracefully drain and release resources (alias of shutdown).', z.object({ reason: z.string().optional() }), async (args) => {
+      const reason = args.reason || 'bit.drain';
+      setTimeout(() => { this.close(reason).catch(() => { /* ignore */ }); }, 0);
+      return ok({ draining: true, reason });
+    }, { scopes: OPERATE });
+    this.registerTool('bit.shutdown', 'Gracefully shut the Bit down via close(reason).', z.object({ reason: z.string().optional() }), async (args) => {
+      const reason = args.reason || 'bit.shutdown';
+      setTimeout(() => { this.close(reason).catch(() => { /* ignore */ }); }, 0);
+      return ok({ shuttingDown: true, reason });
+    }, { scopes: OPERATE });
+  }
+
+  /**
+   * Subclasses can override this to provide a per-connection Server instance.
+   * Default: use the shared server instance.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async getMcpServerForConnection(_req: Request): Promise<Server> {
+    return this.mcpServer;
+  }
+
+  /**
+   * Register a tool with type-safe Zod schema validation.
+   */
+  public registerTool<T extends z.ZodType>(
+    name: string,
+    description: string,
+    schema: T,
+    handler: (args: z.infer<T>, extra?: any) => Promise<CallToolResult>,
+    options?: { scopes?: string[] }
+  ) {
+    this.registeredTools.set(name, { description, schema, handler, scopes: options?.scopes });
+    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+      const tool = this.registeredTools.get(request.params.name);
+      if (!tool) throw new Error(`Tool not found: ${request.params.name}`);
+      const args = tool.schema.parse(request.params.arguments);
+
+      const meta = (request.params as any)._meta;
+      const combinedExtra = {
+        ...extra,
+        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
+        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
+      };
+
+      return await this.traceMcpOperation(`tool:${request.params.name}`, () => tool.handler(args, combinedExtra));
+    });
+    this.getLogger().info("mcp_server.tool_registered", { name });
+  }
+
+  /**
+   * Register a resource.
+   */
+  public registerResource(
+    uri: string,
+    name: string,
+    description: string,
+    handler: (uri: string, extra?: any) => Promise<ReadResourceResult>
+  ) {
+    this.registeredResources.set(uri, { name, description, handler });
+    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
+      const resource = this.registeredResources.get(request.params.uri);
+      if (!resource) throw new Error(`Resource not found: ${request.params.uri}`);
+
+      const meta = (request.params as any)._meta;
+      const combinedExtra = {
+        ...extra,
+        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
+        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
+      };
+
+      return await this.traceMcpOperation(`resource:${resource.name}`, () => resource.handler(request.params.uri, combinedExtra));
+    });
+    this.getLogger().info("mcp_server.resource_registered", { name, uri });
+  }
+
+  /**
+   * Register a prompt.
+   */
+  public registerPrompt(
+    name: string,
+    description: string,
+    args: { name: string; description?: string; required?: boolean }[],
+    handler: (
+      name: string,
+      args: Record<string, string>,
+      extra?: any
+    ) => Promise<GetPromptResult>
+  ) {
+    this.registeredPrompts.set(name, { description, args, handler });
+    this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
+      const prompt = this.registeredPrompts.get(request.params.name);
+      if (!prompt) throw new Error(`Prompt not found: ${request.params.name}`);
+
+      const meta = (request.params as any)._meta;
+      const combinedExtra = {
+        ...extra,
+        userId: meta?.userId || extra?.requestInfo?.headers?.['x-user-id'] || extra?.requestInfo?.headers?.['x-bitbrat-user-id'],
+        userRoles: meta?.userRoles || extra?.requestInfo?.headers?.['x-roles'] || extra?.requestInfo?.headers?.['x-bitbrat-roles']
+      };
+
+      return await this.traceMcpOperation(`prompt:${request.params.name}`, () =>
+        prompt.handler(request.params.name, (request.params.arguments as Record<string, string>) || {}, combinedExtra)
+      );
+    });
+    this.getLogger().info("mcp_server.prompt_registered", { name });
+  }
+
+  /**
+   * Publish an MCP registration event to the internal message bus so the tool-gateway can
+   * automatically discover this Bit. Runs on start when the control plane is enabled.
+   */
+  protected async publishRegistration() {
+    const port = (this.getApp().locals as any).port ?? 3000;
+    const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/sse`;
+    const externalUrl = process.env.MCP_EXTERNAL_URL || defaultUrl;
+
+    const registrationEvent = {
+      v: '2',
+      correlationId: `reg-${this.serviceName}-${Date.now()}`,
+      type: INTERNAL_MCP_REGISTRATION_V1,
+      payload: {
+        name: this.serviceName,
+        transport: 'sse',
+        url: externalUrl,
+        status: 'active',
+        env: process.env.MCP_AUTH_TOKEN ? {
+          Authorization: `Bearer ${process.env.MCP_AUTH_TOKEN}`
+        } : {}
+      },
+      ingress: {
+        ingressAt: new Date().toISOString(),
+        source: this.serviceName,
+        connector: 'system'
+      },
+      identity: {
+        external: {
+          id: this.serviceName,
+          platform: 'system'
+        }
+      },
+      egress: {
+        destination: 'system',
+        connector: 'system'
+      },
+      routing: {
+        stage: 'meta',
+        slip: [],
+        history: []
+      }
+    };
+
+    try {
+      const pub = createMessagePublisher(INTERNAL_MCP_REGISTRATION_V1);
+      await pub.publishJson(registrationEvent, {
+        source: this.serviceName,
+        type: INTERNAL_MCP_REGISTRATION_V1
+      });
+      this.getLogger().info("mcp_server.registration.published", { url: externalUrl });
+    } catch (error) {
+      this.getLogger().error("mcp_server.registration.publish_failed", { error });
+    }
+  }
+
+  private setupDiscoveryHandlers() {
+    // tools/list
+    this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+      const tools = Array.from(this.registeredTools.entries()).map(([name, { description, schema, scopes }]) => {
+        const jsonSchema = zodToJsonSchema(schema);
+        return {
+          name,
+          description,
+          inputSchema: jsonSchema as any,
+          scopes,
+        };
+      });
+      return { tools };
+    });
+
+    // resources/list
+    this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
+      const resources = Array.from(this.registeredResources.entries()).map(([uri, { name, description }]) => ({
+        uri,
+        name,
+        description,
+      }));
+      return { resources };
+    });
+
+    // prompts/list
+    this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+      const prompts = Array.from(this.registeredPrompts.entries()).map(([name, { description, args }]) => ({
+        name,
+        description,
+        arguments: args,
+      }));
+      return { prompts };
+    });
+  }
+
+  /**
+   * Helper to wrap MCP operations in OpenTelemetry spans if available.
+   */
+  protected async traceMcpOperation<T>(
+    operation: string,
+    fn: () => Promise<T>
+  ): Promise<T> {
+    const tracer = (this as any).getTracer?.();
+    if (tracer && typeof tracer.startActiveSpan === "function") {
+      return await tracer.startActiveSpan(
+        `mcp.${operation}`,
+        async (span: any) => {
+          try {
+            const result = await fn();
+            return result;
+          } catch (error) {
+            span.recordException(error as Error);
+            throw error;
+          } finally {
+            span.end();
+          }
+        }
+      );
+    }
+    return await fn();
+  }
+
+  /**
+   * Execute a registered tool by name with arguments.
+   * Useful for internal calls and testing without going through SSE.
+   */
+  public async executeTool(name: string, args: any): Promise<CallToolResult> {
+    const tool = this.registeredTools.get(name);
+    if (!tool) throw new Error(`Tool not found: ${name}`);
+    const validatedArgs = tool.schema.parse(args);
+    return await this.traceMcpOperation(`tool:${name}`, () => tool.handler(validatedArgs));
+  }
+
+  private setupMcpRoutes() {
+    const authMiddleware = (
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ) => {
+      const authToken = process.env.MCP_AUTH_TOKEN;
+      if (authToken) {
+        let providedToken = req.headers["x-mcp-token"] || req.query.token;
+
+        // Also support Authorization: Bearer <token>
+        const authHeader = req.headers["authorization"];
+        if (!providedToken && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          providedToken = authHeader.substring(7);
+        }
+
+        if (providedToken !== authToken) {
+          this.getLogger().warn("mcp_server.auth_failed", {
+            path: req.path,
+            ip: req.ip,
+          });
+          res.status(401).send("Unauthorized");
+          return;
+        }
+      }
+      next();
+    };
+
+    this.onHTTPRequest("/sse", (req: Request, res: Response) => {
+      authMiddleware(req, res, async () => {
+        this.getLogger().info("mcp_server.sse_connection_attempt", {
+          sessionId: req.query.sessionId,
+        });
+
+        const transport = new SSEServerTransport("/message", res);
+        this.transports.set(transport.sessionId, transport);
+
+        transport.onclose = () => {
+          this.getLogger().info("mcp_server.transport_closed", {
+            sessionId: transport.sessionId,
+          });
+          this.transports.delete(transport.sessionId);
+        };
+
+        try {
+          const sessionServer = await this.getMcpServerForConnection(req);
+          await sessionServer.connect(transport);
+          this.getLogger().info("mcp_server.connected", {
+            sessionId: transport.sessionId,
+          });
+        } catch (error) {
+          this.getLogger().error("mcp_server.connect_error", {
+            error,
+            sessionId: transport.sessionId,
+          });
+          this.transports.delete(transport.sessionId);
+          if (!res.headersSent) {
+            res.status(500).send("Connection error");
+          }
+        }
+      });
+    });
+
+    this.onHTTPRequest(
+      { path: "/message", method: "POST" },
+      (req: Request, res: Response) => {
+        authMiddleware(req, res, async () => {
+          const sessionId = req.query.sessionId as string;
+          if (!sessionId) {
+            if (!res.headersSent) {
+              res.status(400).send("sessionId is required");
+            }
+            return;
+          }
+
+          const transport = this.transports.get(sessionId);
+          if (transport) {
+            try {
+              await transport.handlePostMessage(req, res, req.body);
+            } catch (error) {
+              this.getLogger().error("mcp_server.message_handle_error", {
+                error,
+                sessionId,
+              });
+              if (!res.headersSent) {
+                res.status(500).send("Error handling message");
+              }
+            }
+          } else {
+            this.getLogger().warn("mcp_server.session_not_found", { sessionId });
+            if (!res.headersSent) {
+              res.status(404).send("Session not found");
+            }
+          }
+        });
+      }
+    );
+  }
 }
+
+// Bit model (sprint-324, Phase 3 / BL-401): the deprecated `BaseServer` alias has been retired at the
+// end of the migration window. All production and test code now extends/imports `Bit` directly. The
+// `BaseServerOptions` constructor-options interface is retained as the canonical Bit options shape.

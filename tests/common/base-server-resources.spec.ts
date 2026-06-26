@@ -1,4 +1,4 @@
-import { BaseServer } from '../../src/common/base-server';
+import { Bit } from '../../src/common/base-server';
 import type { ResourceManager, SetupContext } from '../../src/common/resources/types';
 
 function makeMgr(name: string, calls: string[], out: any): ResourceManager<any> {
@@ -27,7 +27,7 @@ describe('BaseServer resource lifecycle', () => {
     const mgrA = makeMgr('a', calls, {});
     const mgrB = makeMgr('b', calls, {});
     let gotResources: any = null;
-    const server = new BaseServer({
+    const server = new Bit({
       serviceName: 'test-svc',
       resources: { a: mgrA, b: mgrB },
       setup: (_app, _cfg, resources) => {
@@ -58,7 +58,7 @@ describe('BaseServer resource lifecycle', () => {
         throw new Error('boom');
       },
     };
-    const server = new BaseServer({ serviceName: 'svc', resources: { one: mgr1, two: mgr2 } });
+    const server = new Bit({ serviceName: 'svc', resources: { one: mgr1, two: mgr2 } });
     // Emit SIGTERM to trigger shutdown handler
     process.emit('SIGTERM' as any);
     // Allow microtask queue to drain

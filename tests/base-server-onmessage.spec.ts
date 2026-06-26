@@ -14,9 +14,9 @@ jest.mock('../src/services/message-bus', () => ({
 describe('BaseServer.onMessage<T>() JSON parsing', () => {
   // Import after mocks
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { BaseServer } = require('../src/common/base-server');
+  const { Bit } = require('../src/common/base-server');
 
-  class TestServer extends BaseServer {
+  class TestServer extends Bit {
     constructor() { super({ serviceName: 'test' }); }
     async wire(handler: (d: any, a: any, c: any) => Promise<void> | void) {
       await this.onMessage('internal.test.json', handler);

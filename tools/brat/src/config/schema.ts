@@ -14,6 +14,14 @@ export const DeploymentDefaultsSchema = z.object({
   'cloud-run': CloudRunDefaultsSchema.optional(),
 });
 
+// Bit model (sprint-324): declarative capability profile + MCP control-plane exposure.
+// Additive/optional so existing service definitions stay valid. Absent profile => 'core'.
+export const BitProfileEnum = z.enum(['core', 'llm', 'mcp-domain', 'gateway']);
+export const McpExposureEnum = z.enum(['platform-only', 'platform+domain']);
+export const McpConfigSchema = z.object({
+  exposure: McpExposureEnum.optional(),
+}).optional();
+
 export const ServiceSchema = z.object({
   active: z.boolean().optional(),
   description: z.string().optional(),
@@ -25,6 +33,10 @@ export const ServiceSchema = z.object({
   cpu: z.string().optional(),
   memory: z.string().optional(),
   security: z.object({ allowUnauthenticated: z.boolean().optional() }).optional(),
+  // Bit model: declarative intent in the canonical file; code composes the matching profile
+  // and gates the MCP control plane on `mcp.exposure` (default platform-only).
+  profile: BitProfileEnum.optional(),
+  mcp: McpConfigSchema,
   env: z.array(z.string()).optional(),
   secrets: z.array(z.string()).optional(),
 });
@@ -52,6 +64,9 @@ export const DefaultsServicesSchema = z.object({
   health: z.array(z.string()).optional(),
   topics: z.any().optional(),
   security: z.object({ allowUnauthenticated: z.boolean().optional() }).optional(),
+  // Bit model: platform-wide defaults applied unless a service overrides them.
+  profile: BitProfileEnum.optional(),
+  mcp: McpConfigSchema,
   env: z.array(z.string()).optional(),
 });
 

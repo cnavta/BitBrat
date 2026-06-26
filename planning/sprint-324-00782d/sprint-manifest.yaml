@@ -1,0 +1,19 @@
+id: sprint-324-00782d
+title: "The Bit Model & Universal MCP Control Plane"
+goal: "Promote MCP from a per-service subclass decision (extends McpServer vs extends BaseServer) into the base abstraction so every Bit speaks MCP, expose a mandatory bit.* control plane Brat administers fleet-wide, and codify the duplicated LLM scaffolding into composable profiles — additively, behavior-preserving, reversible, and with parity across all three deployment targets (GCP / Local Docker / Remote Docker)."
+owner: "Lead Implementor"
+createdAt: "2026-06-26T13:30:00Z"
+status: "complete"   # closed on owner "Sprint complete." (2026-06-26). Build/suite/validate green + branch pushed; PR-less closure explicitly accepted by owner (Rule S13) — see publication.yaml. BL-204 carried forward to next sprint (design doc shipped).
+links:
+  branch: "feature/sprint-324-00782d-bit-model-universal-mcp"
+  pr: null   # could not auto-create (no gh CLI / token); compare_url in publication.yaml
+notes: |
+  Approved plan + backlog: planning/bit-model/execution-plan.md and planning/bit-model/backlog.yaml.
+  Design: documentation/architecture/bit-model-technical-architecture.md (ADR-001..004 ACCEPTED).
+  Owner: "Planning approved. Start sprint." (2026-06-26). Planning approval conditioned on
+  deployment-target parity (GCP / Local Docker / Remote Docker).
+  Phases: R (ratify architecture.yaml first, Law #2) -> 0 (Bit + alias + behavior-preserving fold-down)
+  -> 1 (bit.* control plane + RBAC + self-publish + Brat fleet client) -> 2 (composition / LlmProfile
+  refits) -> 3 (deprecate/retire) -> V (validate + close-out).
+  Constraints: additive canonical-file changes; behavior preserved at every gate; default
+  mcp.exposure: platform-only; MCP_AUTH_TOKEN + RBAC mandatory; WIP limit = 3.

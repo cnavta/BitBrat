@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { McpServer } from '../common/mcp-server';
+import { Bit } from '../common/base-server';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import { Firestore } from 'firebase-admin/firestore';
@@ -18,7 +18,7 @@ import { publishPersistenceSnapshot } from '../common/events/persistence-snapsho
  * ApiGatewayServer
  * WebSocket gateway for the BitBrat Platform.
  */
-export class ApiGatewayServer extends McpServer {
+export class ApiGatewayServer extends Bit {
   private wss: WebSocketServer | undefined;
   private httpServer: http.Server | undefined;
   private authService: AuthService | undefined;
@@ -29,7 +29,7 @@ export class ApiGatewayServer extends McpServer {
   private userConnections: Map<string, Set<WebSocket>> = new Map();
 
   constructor() {
-    super();
+    super({ mcpExposure: 'platform+domain' });
     this.setupRoutes();
   }
 

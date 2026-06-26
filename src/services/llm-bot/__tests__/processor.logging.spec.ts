@@ -1,5 +1,5 @@
 import { processEvent } from '../processor';
-import { BaseServer } from '../../../common/base-server';
+import { Bit } from '../../../common/base-server';
 import { InternalEventV2 } from '../../../types/events';
 import { getFirestore } from '../../../common/firebase';
 import { isFeatureEnabled } from '../../../common/feature-flags';
@@ -7,7 +7,7 @@ import { isFeatureEnabled } from '../../../common/feature-flags';
 jest.mock('../../../common/firebase');
 jest.mock('../../../common/feature-flags');
 
-class TestServer extends BaseServer {
+class TestServer extends Bit {
   constructor() {
     super({ serviceName: 'test-llm-bot' });
   }

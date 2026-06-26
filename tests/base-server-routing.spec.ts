@@ -1,12 +1,12 @@
 import { InternalEventV2, RoutingStep } from '../src/types/events';
-import { BaseServer } from '../src/common/base-server';
+import { Bit } from '../src/common/base-server';
 import * as bus from '../src/services/message-bus';
 
 // Ensure noop driver in tests
 process.env.MESSAGE_BUS_DISABLE_IO = '1';
 process.env.NODE_ENV = 'test';
 
-class TestServer extends BaseServer {
+class TestServer extends Bit {
   constructor() {
     super({ serviceName: 'test-service' });
   }
