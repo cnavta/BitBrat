@@ -132,6 +132,46 @@ describe('brat fleet — deployment target resolution (--target)', () => {
     await runFleet(parseFleetArgs(['fleet', 'list'], [], { json: true }), {}, silentLogger(), d);
     expect(resolver).not.toHaveBeenCalled();
   });
+
+  // --target is a property of the shared runFleet path, not of any single subcommand. These cases
+  // prove parity: every read AND mutating subcommand resolves --target through the same resolver and
+  // threads the resolved (emulator) connect options into the registry — not just `list`.
+  const TARGET_CASES: Array<{ name: string; cmd: string[]; rest: string[] }> = [
+    { name: 'list', cmd: ['fleet', 'list'], rest: ['--target=local'] },
+    { name: 'info', cmd: ['fleet', 'info', 'auth'], rest: ['--target=local'] },
+    { name: 'health', cmd: ['fleet', 'health', 'auth'], rest: ['--target=local'] },
+    { name: 'config', cmd: ['fleet', 'config', 'auth'], rest: ['--target=local'] },
+    { name: 'flags get', cmd: ['fleet', 'flags', 'auth', 'get'], rest: ['--target=local'] },
+    { name: 'flags set', cmd: ['fleet', 'flags', 'auth', 'set'], rest: ['--target=local', '--key=k', '--value=v'] },
+    { name: 'log', cmd: ['fleet', 'log', 'auth'], rest: ['--target=local', '--level=debug'] },
+    { name: 'drain', cmd: ['fleet', 'drain', 'auth'], rest: ['--target=local'] },
+    { name: 'shutdown', cmd: ['fleet', 'shutdown', 'auth'], rest: ['--target=local'] },
+  ];
+
+  it.each(TARGET_CASES)('honors --target for `$name` (resolver + emulator connect reach the registry)', async ({ cmd, rest }) => {
+    const t = new FakeTransport('gateway', [], () => ({ ok: true }));
+    const out: string[] = [];
+    const seenConnect: any[] = [];
+    const resolved = {
+      connectOptions: { emulatorHost: 'localhost:8080', projectId: 'bitbrat-local', databaseId: '(default)' },
+      isEmulator: true,
+      targetName: 'local',
+      description: "target 'local' -> Firestore emulator localhost:8080 (project 'bitbrat-local')",
+      cleanup: jest.fn(async () => {}),
+    };
+    const resolver = jest.fn(async () => resolved as any);
+    const d: FleetDeps = {
+      resolveIdentityFn: () => IDENTITY,
+      gatewayTransportFactory: () => t,
+      registryFactory: (connect) => { seenConnect.push(connect); return registry; },
+      connectionResolverFn: resolver as any,
+      out: (l) => out.push(l),
+    };
+    await runFleet(parseFleetArgs(cmd, rest, {}), {}, silentLogger(), d);
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(seenConnect[0]).toEqual(resolved.connectOptions);
+    expect(resolved.cleanup).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('brat fleet — read commands (bit:read)', () => {

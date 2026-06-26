@@ -91,3 +91,26 @@ Per AGENTS.md §2.5: every meaningful user prompt + shell/git operation relevant
     `fleet.target.resolved` + `backup.firestore.connect emulatorHost=localhost:8080
     projectId=bitbrat-local` (was `twitch-452523` / `emulatorHost: none`).
 - **gate / next action:** Commit + push to the existing BL-204 feature branch (PR #250).
+
+---
+
+## REQ-004 — Verify `--target` applies to ALL `brat fleet` commands (not just `list`)
+
+- **at:** 2026-06-26T18:30:00-04:00
+- **prompt (summary):** "Will the standard brat --target parameter work for all the other fleet
+  commands as well? If not, please make sure it does."
+- **interpretation:** Confirm the REQ-003 fix is not `list`-specific — every `brat fleet` subcommand
+  (info/health/config/flags get+set/log/drain/shutdown) must honor `--target`.
+- **finding (already correct by construction):** `--target` is NOT a recognized global flag in
+  `parseArgs` (`tools/brat/src/cli/index.ts`), so it falls through into `rest` (as `--target=local`)
+  and is forwarded to `cmdFleet` for every fleet invocation. `runFleet` resolves `--target`
+  (`connectionResolverFn` → `registryFactory(connectOptions)` + target-aware gateway URL) BEFORE
+  `dispatch`, so the resolution is shared across all subcommands. No production change required.
+- **hardening (test coverage / proof):** `tools/brat/src/cli/__tests__/fleet.spec.ts` — added a
+  parametrized `it.each` over all nine subcommands asserting the target resolver is consulted exactly
+  once, the resolved emulator connect options reach the registry factory, and the connection cleanup
+  runs — locking in cross-command parity.
+- **shell / git commands executed:**
+  - `npx jest tools/brat/src/cli/__tests__/fleet.spec.ts` — **25 passed** (incl. 9 new per-command
+    `--target` cases); `npm run build` green.
+- **gate / next action:** Run full Jest suite; commit + push to the BL-204 feature branch (PR #250).
