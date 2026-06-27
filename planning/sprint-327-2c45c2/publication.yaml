@@ -1,0 +1,24 @@
+sprint: sprint-327-2c45c2
+branch: feature/sprint-327-2c45c2-docs-bit-mcp
+base: main
+commit: 305ee7d
+pushed: true
+push_remote: "git@github.com:cnavta/BitBrat.git"
+
+pr_url: null
+pr_status: failed
+pr_attempts:
+  - method: gh-cli
+    result: unavailable
+    reason: "`gh` CLI is not installed in this environment."
+  - method: github-api
+    result: blocked
+    reason: "No GitHub token available (GITHUB_TOKEN / GH_TOKEN unset); cannot authenticate the REST PR call."
+
+# Rule S13: the branch is pushed, but the PR could not be created automatically. Per AGENTS.md the sprint
+# cannot close until either (a) a PR is created and its URL recorded here, or (b) this failed attempt is
+# accepted by the owner. Two ways to proceed:
+manual_pr_url: "https://github.com/cnavta/BitBrat/pull/new/feature/sprint-327-2c45c2-docs-bit-mcp"
+needed_to_create_pr: "Provide a GitHub token (GITHUB_TOKEN/GH_TOKEN) or install + authenticate `gh`, then re-run PR creation."
+owner_acceptance: pending   # set to true once the owner accepts closure or the PR is created
+status: blocked-on-credentials
