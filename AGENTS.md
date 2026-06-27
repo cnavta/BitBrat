@@ -343,6 +343,24 @@ branch: feature/sprint-X-Y-...
 status: created
 ```
 
+### Cutting a version during Publish (single source of truth)
+
+The platform version's **single source of truth is `architecture.yaml` `project.version`** (§0; also the
+runtime value every Bit reports via `bit.info` / `brat fleet info`). `package.json` and `package-lock.json`
+mirror it. **Never hand-edit the version in multiple files** — use the integrated release tool, which keeps
+all three in lockstep, rolls `CHANGELOG.md` `## [Unreleased]` into a dated block, and (optionally) tags:
+
+```bash
+brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--yes]
+# npm aliases: npm run release -- <bump>   /   npm run release:dry -- <bump>
+```
+
+- When a shipping sprint cuts a version, run `npm run release -- <bump>` as part of Publish (before opening
+  the PR) and log it as a request ID in the sprint `request-log.md` (§2.5). The bump type is **explicit**
+  (never guessed; pre-1.0 SemVer).
+- `validate_deliverable.sh` already runs `npm run release:dry -- patch` and asserts the three files agree, so
+  every sprint proves a bump is mechanically possible before close (CI-safe, idempotent, no mutation).
+
 ---
 
 # 🏁 2.9 Sprint Completion

@@ -129,4 +129,46 @@ echo "   ✅ brat fleet behaves identically across messaging drivers (GCP / Loca
 echo "🏃 Verifying brat fleet help entrypoint ..."
 node dist/tools/brat/src/cli/index.js fleet >/dev/null || true
 
+# -----------------------------------------------------------------------------
+# Integrated version handling — release tooling (sprint-326, BL-326)
+#   - architecture.yaml project.version is the SINGLE SOURCE OF TRUTH; assert the three
+#     version-bearing files agree (generalized from sprint-323; NO hardcoded version literal).
+#   - run `npm run release:dry -- patch` and require exit 0 with ZERO working-tree mutation
+#     (proves a bump is mechanically possible; CI-safe, idempotent — AGENTS.md §2.6 / §2.8).
+# -----------------------------------------------------------------------------
+echo "🧪 Running release tool unit + integration tests..."
+npm test -- tools/brat/src/release
+
+echo "🧾 Asserting version consistency (architecture.yaml == package.json == package-lock.json)..."
+node -e '
+const fs = require("fs");
+const yaml = require("js-yaml");
+const arch = yaml.load(fs.readFileSync("architecture.yaml", "utf8"))?.project?.version;
+const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
+const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8")).version;
+if (!(arch === pkg && pkg === lock)) {
+  console.error(`❌ Version mismatch: architecture.yaml=${arch} package.json=${pkg} package-lock.json=${lock}`);
+  process.exit(1);
+}
+console.log(`   ✅ version=${arch} consistent across all three files`);
+'
+
+echo "🚀 Proving a release is mechanically possible (release:dry must write nothing)..."
+PRE_HASH="$(node -e '
+const fs = require("fs"), c = require("crypto");
+const files = ["architecture.yaml", "package.json", "package-lock.json", "CHANGELOG.md"];
+process.stdout.write(c.createHash("sha256").update(files.map(f => fs.readFileSync(f)).join("\u0000")).digest("hex"));
+')"
+npm run release:dry -- patch >/dev/null
+POST_HASH="$(node -e '
+const fs = require("fs"), c = require("crypto");
+const files = ["architecture.yaml", "package.json", "package-lock.json", "CHANGELOG.md"];
+process.stdout.write(c.createHash("sha256").update(files.map(f => fs.readFileSync(f)).join("\u0000")).digest("hex"));
+')"
+if [[ "${PRE_HASH}" != "${POST_HASH}" ]]; then
+  echo "❌ release:dry mutated tracked files — dry-run must be a no-op." >&2
+  exit 1
+fi
+echo "   ✅ release:dry is a no-op (no working-tree mutation)."
+
 echo "✅ Validation complete."

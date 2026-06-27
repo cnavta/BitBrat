@@ -11,6 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.7.1] - 2026-06-27
+### Added
+- **Integrated version handling — `brat release` / `npm run release`** (sprint-326, BL-326). A single,
+  idempotent, dry-run-able release tool makes `architecture.yaml` `project.version` the **single source
+  of truth** for the platform version. `brat release <patch|minor|major|x.y.z>` (or `npm run release --
+  <bump>`) computes the next SemVer, writes it to `architecture.yaml` (ONLY `project.version`,
+  comment-preserving, then re-validated — Law #2) and `package.json`, syncs `package-lock.json`, asserts
+  all three agree, and rolls `CHANGELOG.md` `## [Unreleased]` into a dated `## [<version>]` block with a
+  fresh empty `## [Unreleased]` skeleton. Flags: `--dry-run` (writes nothing; CI-safe), `--tag` (local
+  `git tag v<version>`, never pushes; off by default), `--yes`. `npm run release:dry -- patch` is wired
+  into `validate_deliverable.sh` (with a generalized three-file version-consistency assertion) so every
+  shipping sprint proves a bump is mechanically possible. Lives in `tools/brat/src/release/`
+  (`semver` + `version-files` + `changelog` + `release` orchestrator) with the thin
+  `tools/brat/src/cli/release.ts` shell.
 - **Brat as a fleet MCP client — `brat fleet`** (sprint-325, BL-204). A new Brat command group turns
   Brat into a consumer of the universal `bit.*` control plane: `brat fleet list|info|health|config|flags|
   log|drain|shutdown`, mapping each subcommand to the corresponding `bit.*` tool (Appendix A). The
