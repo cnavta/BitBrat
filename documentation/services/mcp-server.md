@@ -1,15 +1,18 @@
-# McpServer
+# Serving MCP from a Bit
 
-> **Bit model (sprint-324, Phase 3):** the MCP control plane has been folded down into the base
-> abstraction, now named **`Bit`** (see `documentation/architecture/bit-model-technical-architecture.md`).
-> New code should **`extend Bit`** and declare `mcp.exposure` (per-Bit, in `architecture.yaml`) or pass
-> `mcpExposure: 'platform+domain'` to the constructor — there is no longer a separate base class to
-> choose. `McpServer` remains only as a thin, deprecated compatibility shim over `Bit` (it simply
-> selects `platform+domain` exposure); the previous `BaseServer` alias has been retired. The guidance
-> below is preserved for reference, with `Bit` as the base class.
+> **Bit model (sprint-324):** the MCP control plane has been folded down into the base abstraction, now
+> named **`Bit`** (see [The Bit Model](../concepts/bit-model.md) and the
+> [design doc](../architecture/bit-model-technical-architecture.md)). There is **no longer a separate
+> base class to choose**: new code **`extends Bit`** and declares `mcp.exposure` (per-Bit, in
+> [`architecture.yaml`](../../architecture.yaml)) or passes `mcpExposure` to the constructor.
+> `McpServer` remains only as a thin, **deprecated** compatibility shim over `Bit` (it simply selects
+> `platform+domain` exposure); the `BaseServer` alias has been retired.
 
-Every MCP-enabled `Bit` provides built-in support for the Model Context Protocol (MCP) over
-Server-Sent Events (SSE).
+**Every Bit speaks MCP.** Regardless of `mcp.exposure`, an MCP-enabled Bit always serves the mandatory
+universal `bit.*` control plane (the Platform Ring) — see the
+[Bit Control-Plane Reference](../reference/bit-control-plane.md). This page covers the additional case of
+exposing your **own domain tools** (`mcp.exposure: platform+domain`) over the Model Context Protocol
+(MCP) via Server-Sent Events (SSE).
 
 ## Features
 
@@ -22,7 +25,7 @@ Server-Sent Events (SSE).
 
 ## Usage
 
-### 1. Create a server
+### 1. Create a Bit that serves domain tools
 
 ```typescript
 import { Bit } from './common/base-server';
@@ -57,7 +60,7 @@ server.start(3000);
 
 ### 2. Connect as a client
 
-MCP clients can connect to `http://localhost:3000/sse` to establish a session and use the `/message` endpoint for JSON-RPC communication.
+MCP clients can connect to `http://localhost:3000/sse` to establish a session and use the `/message` endpoint for JSON-RPC communication. In practice, clients reach Bits through the `tool-gateway` fabric (discovery + RBAC chokepoint); see the [`brat fleet` guide](../guides/brat-fleet.md) for the operator path.
 
 ## Security
 

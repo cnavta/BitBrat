@@ -1,5 +1,14 @@
 # Model Context Protocol (MCP) Evolution Roadmap: BitBrat Platform
 
+> **Bit model update (sprint-324 / sprint-325).** A large part of this roadmap's "self-administrative"
+> direction has since shipped, but in a different shape than originally sketched here. Under the
+> [Bit model](./concepts/bit-model.md), **every Bit speaks MCP** and exposes a mandatory, RBAC-scoped
+> [`bit.*` control plane](./reference/bit-control-plane.md) that [`brat fleet`](./guides/brat-fleet.md)
+> drives fleet-wide. The platform self-administration capability (§4) is therefore **delivered as an
+> operator-facing control plane** (Brat over `bit.*`) rather than the LLM-facing "BitBrat for BitBrat"
+> tool set described below; the RAG tool-discovery direction (§3) and the LLM-facing admin tools (§4.1)
+> remain forward-looking. The sections below are retained for historical context.
+
 ## 1. Executive Summary
 Following the successful integration of the Vercel AI SDK and the establishment of the core `ToolRegistry` and `McpBridge` in Sprint 160, the BitBrat platform is positioned to transition from static tool registration to a dynamic, context-aware intelligence layer. This roadmap outlines the progression from simple tool connectivity to a RAG-based tool discovery system and self-administrative capabilities.
 
@@ -23,6 +32,12 @@ Following the successful integration of the Vercel AI SDK and the establishment 
 
 ## 4. Phase 3: Self-Administrative Capabilities
 **Objective**: Empower the AI to manage its own configuration, personality, and capabilities through specialized administrative tools.
+
+> **Delivered (operator-facing, sprint-324/325).** Fleet self-administration shipped as the universal
+> [`bit.*` control plane](./reference/bit-control-plane.md) — every Bit exposes `bit.info` / `bit.health`
+> / `bit.config.*` / `bit.flags.*` / `bit.log.level` / `bit.drain` / `bit.shutdown` (and `bit.llm.*` on
+> LLM Bits), administered fleet-wide by [`brat fleet`](./guides/brat-fleet.md) through the `tool-gateway`
+> fabric. The LLM-facing "BitBrat for BitBrat" tools below (§4.1) remain future work.
 
 ### 4.1 "BitBrat for BitBrat" Tools
 Implement a suite of internal tools accessible to the `llm-bot`:
