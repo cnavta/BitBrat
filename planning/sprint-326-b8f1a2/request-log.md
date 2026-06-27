@@ -1,0 +1,41 @@
+# Request Log — sprint-326-b8f1a2 (Integrated Version Handling)
+
+> Per AGENTS.md §2.5 every meaningful prompt and shell/git operation is logged here for traceability.
+
+---
+
+## REQ-001 — Sprint start + plan/backlog authoring
+- **at:** 2026-06-26T20:15:00-04:00
+- **prompt (summary):** "We are starting a new sprint. Assume the role of Lead Implementor. Implement integrated version handling per the attached scratch. First task: create an Execution Plan and a Trackable Prioritized YAML Backlog breaking it into accomplishable tasks."
+- **interpretation:** Begin a new sprint (no active sprint exists — sprint-325 and all prior are `complete`, Rule S3 satisfied). This first task is **planning only** — produce `implementation-plan.md` + `backlog.yaml` and seek explicit approval before any implementation (AGENTS.md §2.4, coding forbidden until approved).
+- **shell/git commands executed:**
+  - `git rev-parse --abbrev-ref HEAD` (was on `feature/sprint-325-d7f389-brat-fleet-mcp-client`)
+  - `git checkout -b feature/sprint-326-b8f1a2-integrated-version-handling` (Rule S11 — new feature branch at sprint start)
+  - `mkdir -p planning/sprint-326-b8f1a2`
+  - read-only inspection: `architecture.yaml` (project.version=0.7.0), `package.json` / `package-lock.json` (version 0.7.0), `CHANGELOG.md` (`## [Unreleased]`), `src/common/base-server.ts` (runtime version read at lines 1120/1167), sprint-323 `validate_deliverable.sh` (version-assertion pattern), `tools/brat/src/cli/` layout.
+- **files created/modified:**
+  - `planning/sprint-326-b8f1a2/sprint-manifest.yaml` (status: planning)
+  - `planning/sprint-326-b8f1a2/request-log.md` (this file)
+  - `planning/sprint-326-b8f1a2/implementation-plan.md`
+  - `planning/sprint-326-b8f1a2/backlog.yaml`
+- **gate:** Awaiting explicit owner approval of the plan + backlog (AGENTS.md §2.4). No production/tooling code written yet.
+
+---
+
+## REQ-002 — Implementation (Phases A–V) + Publish
+- **at:** 2026-06-26T20:27:00-04:00
+- **prompt (summary):** "Documentation approved. Start sprint. As you implement, make sure to keep backlog item statuses up to date as they change."
+- **interpretation:** Owner approved the plan/backlog → begin implementation (Rule S1). Build the release tooling end-to-end (Phases A–V), updating `backlog.yaml` item statuses as work progresses, then validate and Publish (PR per S12/S13).
+- **work performed:**
+  - Phase A (BL-326-100/101/102): `tools/brat/src/release/semver.ts` (compute/validate), `version-files.ts` (authoritative reader, comment-preserving architecture.yaml writer + re-parse, package.json writer, lockfile sync w/ fallback, 3-file consistency assertion).
+  - Phase B (BL-326-200): `tools/brat/src/release/changelog.ts` (idempotent `[Unreleased]` rollover + fresh skeleton).
+  - Phase C (BL-326-300/301): `tools/brat/src/release/release.ts` orchestrator + `tools/brat/src/cli/release.ts` shell wired into `tools/brat/src/cli/index.ts` router + help; `package.json` `release` / `release:dry` scripts.
+  - Phase D (BL-326-400): 4 Jest specs / 32 tests under `tools/brat/src/release/__tests__/` (mock `execCmd` for npm/git; copy real files to temp fixtures).
+  - Phase V (BL-326-500/501): `validate_deliverable.sh` (release tests + generalized 3-file assertion + `release:dry` no-op proof); docs in README, CONTRIBUTING, AGENTS.md §2.8, CHANGELOG `[Unreleased]`.
+- **shell/git commands executed (key):**
+  - `npx jest tools/brat/src/release` → 32 passed; `npm run build` → green; `npm run release:dry -- patch` → `0.7.0 -> 0.7.1`, no mutation.
+  - `npm test` → 1047 passed / 2 skipped (one pre-existing flaky MCP reconnect-timeout suite; passes 9/9 in isolation — not a regression).
+  - version-consistency assertion + `release:dry` no-op proof verified live.
+  - `git add -A && git commit && git push` (feature branch) + PR creation (see publication.yaml).
+- **files created/modified:** release module (5 files) + `cli/release.ts` + `cli/index.ts` + `package.json` + `validate_deliverable.sh` + `README.md` + `CONTRIBUTING.md` + `AGENTS.md` + `CHANGELOG.md` + sprint artifacts (backlog statuses, verification-report.md, retro.md, key-learnings.md, publication.yaml, sprint-manifest.yaml).
+- **gate:** Backlog BL-326-100..501 = done; 600/601 = deferred. Validation logically passable. Awaiting "Sprint complete." after PR.

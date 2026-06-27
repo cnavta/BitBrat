@@ -131,6 +131,9 @@ Usage:
 
   brat cloud-run shutdown --env <name> [--project-id <id>] [--region <r>] [--dry-run]
 
+  # Cut a platform version (single source of truth: architecture.yaml project.version)
+  brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--yes]
+
   brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger delete --name <n> [--dry-run]
@@ -761,6 +764,11 @@ Options:
   if (c1 === 'fleet') {
     const { cmdFleet } = require('./fleet');
     await cmdFleet(cmd, rest, flags);
+    return;
+  }
+  if (c1 === 'release') {
+    const { cmdRelease } = require('./release');
+    await cmdRelease(cmd, rest, flags, log);
     return;
   }
   if (c1 === 'cloud-run' && c2 === 'shutdown') {
