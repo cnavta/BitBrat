@@ -1,0 +1,237 @@
+meta:
+  backlog_id: integrated-version-handling
+  updated_at: 2026-06-26T20:15:00-04:00
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]
+  effort_values: [S, M, L]
+  source: planning/sprint-326-b8f1a2/implementation-plan.md
+  design: "scratch: If_we_wanted_to_up_the_version_of_the_pl.md (attached to issue)"
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for "Integrated Version Handling". Goal: make architecture.yaml
+    `project.version` the single source of truth and add one idempotent, dry-run-able release tool
+    (`brat release` / `npm run release`) that bumps architecture.yaml + package.json (+ lockfile sync),
+    rolls CHANGELOG `[Unreleased]`, optionally git-tags, and is wired into validate_deliverable.sh and the
+    Sprint Publish phase.
+
+    Each item maps to a plan Phase (A/B/C/D/V) and its exit Gate (GA/GB/GC/GD/GV).
+
+    Binding constraints:
+      - SINGLE SOURCE OF TRUTH = architecture.yaml project.version (AGENTS.md §0 + runtime source
+        src/common/base-server.ts:1120,1167).
+      - Law #2: tool changes ONLY project.version in architecture.yaml and re-validates after writing; never
+        touches behavioral architecture.
+      - Bump type is an ARGUMENT (patch|minor|major|explicit x.y.z); never guessed. Pre-1.0 SemVer.
+      - Idempotent + --dry-run (CI-safe inside validate_deliverable.sh).
+
+    Grounded facts:
+      - Versions today (in lockstep, hand-maintained): architecture.yaml=0.7.0, package.json=0.7.0,
+        package-lock.json=0.7.0. CHANGELOG.md has `## [Unreleased]` (Keep-a-Changelog/SemVer).
+      - Brat CLI flat router: tools/brat/src/cli/index.ts; groups: docker|backup|chat|bootstrap|setup|
+        trigger|fleet. infrastructure/scripts/ holds Node helpers w/ co-located tests.
+      - sprint-323 validate_deliverable.sh has a version-consistency assertion to generalize.
+
+    STATUS: IN-PROGRESS — owner approved the plan/backlog ("Documentation approved. Start sprint."). Implementing
+    Phase A→V. WIP limit = 3.
+
+sprint:
+  id: sprint-326-b8f1a2
+  start: 2026-06-26
+  end: null
+  wip_limit: 3
+  goal: "Make architecture.yaml project.version the single source of truth and ship one idempotent, dry-run-able release tool (brat release / npm run release) that bumps architecture.yaml + package.json (+ lockfile), rolls the CHANGELOG [Unreleased] block, optionally git-tags, and is wired into validate_deliverable.sh and the Sprint Publish phase. Tooling-only; no behavioral architecture.yaml change (Law #2)."
+
+items:
+  # ---------------- Phase A — version core ----------------
+  - id: BL-326-100
+    title: "SemVer compute + version reader: read architecture.yaml project.version; resolve next version from patch|minor|major|explicit x.y.z"
+    phase: A
+    gate: GA
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Reads current version from architecture.yaml project.version (authoritative source)"
+      - "patch 0.7.0 -> 0.7.1; minor -> 0.8.0; major -> 1.0.0; explicit '1.2.3' accepted verbatim"
+      - "Invalid bump arg / malformed SemVer fails closed: non-zero exit + clear message; no files touched"
+      - "Pure/testable function with no filesystem side effects in the compute step"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-326-101
+    title: "Writers: set architecture.yaml project.version (ONLY that field, comment-preserving) and package.json version"
+    phase: A
+    gate: GA
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-326-100]
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml diff is exactly one line: project.version -> new value; comments/formatting/order preserved (Law #2)"
+      - "package.json version updated; JSON formatting/indentation preserved; no other keys reordered"
+      - "After write, architecture.yaml re-parses as valid YAML and only project.version differs vs prior"
+      - "Writers are no-ops under --dry-run (assertable)"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-326-102
+    title: "Lockfile sync + post-write consistency assertion (architecture.yaml == package.json == package-lock.json)"
+    phase: A
+    gate: GA
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-326-101]
+    blocked_reason: null
+    acceptance:
+      - "package-lock.json top-level version synced to the new version (npm install --package-lock-only or equivalent)"
+      - "A reusable assertion verifies all three files report the identical version; mismatch => non-zero exit"
+      - "Gate GA met: version core can read, compute, write, sync, and self-verify"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase B — CHANGELOG rollover ----------------
+  - id: BL-326-200
+    title: "CHANGELOG transformer: roll ## [Unreleased] into ## [<version>] - <date> and insert fresh empty [Unreleased]; idempotent"
+    phase: B
+    gate: GB
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-326-100]
+    blocked_reason: null
+    acceptance:
+      - "## [Unreleased] heading renamed to ## [<version>] - <YYYY-MM-DD> preserving its existing entries"
+      - "A new empty ## [Unreleased] (Keep-a-Changelog section skeleton) is inserted above the dated block"
+      - "Idempotent: a second run does not double-roll, duplicate Unreleased, or corrupt existing entries"
+      - "No-op under --dry-run; reports the intended change instead"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase C — CLI surface + npm scripts ----------------
+  - id: BL-326-300
+    title: "brat release CLI group + router wiring (tools/brat/src/cli/release.ts -> index.ts); thin shell over the release module"
+    phase: C
+    gate: GC
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-326-102, BL-326-200]
+    blocked_reason: null
+    acceptance:
+      - "`brat release <patch|minor|major|x.y.z>` orchestrates: compute -> write architecture.yaml+package.json -> lockfile sync -> re-validate -> CHANGELOG roll"
+      - "Flags supported: --dry-run (no writes), --tag (git tag v<version>, off by default, never pushes), --yes (skip confirm)"
+      - "Registered in the flat router alongside docker|backup|chat|bootstrap|setup|trigger|fleet; `brat release --help` documents usage"
+      - "Logs through the existing brat logger facade (info/error/debug) per AGENTS.md §8"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-326-301
+    title: "Root package.json scripts: release + release:dry delegating to brat release"
+    phase: C
+    gate: GC
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-326-300]
+    blocked_reason: null
+    acceptance:
+      - "`npm run release -- <bump>` and `npm run release:dry -- <bump>` invoke the brat release command"
+      - "release:dry passes --dry-run through; exits 0 and mutates nothing"
+      - "Scripts placed alongside existing brat-based scripts; consistent style"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase D — tests ----------------
+  - id: BL-326-400
+    title: "Jest unit + integration tests: SemVer compute, writers (comment-preserving), CHANGELOG rollover/idempotency, end-to-end over temp fixtures, dry-run no-op"
+    phase: D
+    gate: GD
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-326-300, BL-326-301]
+    blocked_reason: null
+    acceptance:
+      - "Unit tests cover patch/minor/major/explicit/invalid; architecture.yaml/package.json writers; CHANGELOG transform + idempotency"
+      - "Integration test copies the three real files to a temp dir, runs real + dry-run, asserts results and re-parse validity; git tag + npm install stubbed/mocked"
+      - "Dry-run test asserts zero filesystem mutation"
+      - "`npm test` passes including the new suites; no existing tests weakened/skipped"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase V — validation, docs, protocol hook ----------------
+  - id: BL-326-500
+    title: "validate_deliverable.sh: generalize version-consistency assertion (3 files agree) + run release:dry"
+    phase: V
+    gate: GV
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-326-301]
+    blocked_reason: null
+    acceptance:
+      - "Script asserts architecture.yaml == package.json == package-lock.json version (generalized from sprint-323, no hardcoded literal)"
+      - "Script runs `npm run release:dry -- patch` and requires exit 0 with no working-tree mutation"
+      - "Build + full test suite invoked; script is logically passable per AGENTS.md §2.6"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-326-501
+    title: "Docs: README/CONTRIBUTING usage, CHANGELOG [Unreleased] Added entry, AGENTS.md §2.8 Publish-phase hook note"
+    phase: V
+    gate: GV
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-326-300]
+    blocked_reason: null
+    acceptance:
+      - "README/CONTRIBUTING document `brat release` / `npm run release[:dry]` usage and the single-source-of-truth rule"
+      - "CHANGELOG [Unreleased] gains an Added entry describing the release tooling (sprint-326)"
+      - "AGENTS.md §2.8 notes how to cut a version during Publish (run release / add release:dry to validation)"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Deferred (scratch §5 'later') ----------------
+  - id: BL-326-600
+    title: "DEFERRED: Conventional-Commits / Changesets / standard-version auto-derivation pointed at architecture.yaml as authoritative version"
+    phase: V
+    gate: GV
+    priority: P3
+    status: todo
+    effort: L
+    owner: agent
+    deps: [BL-326-300]
+    blocked_reason: "Out of scope this sprint; requires a custom updater so the tool does not reintroduce drift"
+    acceptance:
+      - "(Future) bump + changelog derived from Conventional Commits while keeping architecture.yaml authoritative"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-326-601
+    title: "DEFERRED: CI on merge to main runs release + pushes git tag (Cloud Build)"
+    phase: V
+    gate: GV
+    priority: P3
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-326-300]
+    blocked_reason: "Out of scope this sprint; depends on BL-326-600 trigger automation and CI credentials"
+    acceptance:
+      - "(Future) Cloud Build step runs the release on merge and pushes the version tag"
+    updated_at: 2026-06-26
+    log: []

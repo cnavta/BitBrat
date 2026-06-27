@@ -29,6 +29,8 @@
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
     "bootstrap:service": "node ./infrastructure/scripts/bootstrap-service.js",
     "brat": "node dist/tools/brat/src/cli/index.js",
+    "release": "node dist/tools/brat/src/cli/index.js release",
+    "release:dry": "node dist/tools/brat/src/cli/index.js release --dry-run",
     "firestore:upsert": "node dist/tools/firestore-upsert.js",
     "migrate:tokens": "node dist/tools/migrate-tokens.js"
   },
