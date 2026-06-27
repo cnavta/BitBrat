@@ -7,7 +7,7 @@ status: "complete"
 closedAt: "2026-06-26T20:52:00Z"
 links:
   branch: "feature/sprint-326-b8f1a2-integrated-version-handling"
-  pr: ""   # PR not auto-created — no gh CLI / no GITHUB_TOKEN (see publication.yaml). Branch pushed; owner accepted closure with the failed attempt logged (Rule S13b).
+  pr: "https://github.com/cnavta/BitBrat/pull/251"   # PR opened post-closure via gh CLI after owner adjusted permissions (S13a satisfied; see publication.yaml pr_resolution).
 notes: |
   Source design: scratch "If we wanted to up the version of the platform…" (attached to issue) — recommends
   architecture.yaml as the single source of truth and an idempotent `npm run release` / `brat release`
@@ -44,3 +44,6 @@ notes: |
   S13(b) with the failed PR attempt logged in publication.yaml. Deliverable shipped: the version was cut to
   0.7.1 (architecture.yaml == package.json == package-lock.json, all consistent) and the branch is pushed
   and up to date with origin. BL-326-100..501 done; BL-326-600/601 intentionally deferred.
+  PR UPDATE (2026-06-26T21:00): the owner adjusted permissions; PR #251 was subsequently created via the
+  gh CLI (https://github.com/cnavta/BitBrat/pull/251), so S13(a) is now also satisfied. See
+  publication.yaml pr_resolution for details.

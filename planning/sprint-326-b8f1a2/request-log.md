@@ -51,3 +51,21 @@
   - Branch `feature/sprint-326-b8f1a2-integrated-version-handling` pushed and up to date with origin (0/0).
   - `verification-report.md`, `retro.md`, `key-learnings.md` present. BL-326-100..501 done; 600/601 deferred.
 - **actions:** Set `sprint-manifest.yaml` status → `complete` (closedAt recorded); recorded owner closure acceptance in `publication.yaml` (status `pr_failed_owner_accepted_closure`).
+
+---
+
+## REQ-004 — Post-closure PR creation (owner adjusted permissions)
+- **at:** 2026-06-26T21:00:00-04:00
+- **prompt (summary):** Owner: "When I execute 'gh auth status' myself, it works… I have adjusted some permissions for you. Please try again." (provided `gh auth status` output: account `cnavta`, ssh, scopes incl. `repo`).
+- **interpretation:** The original PR blocker (S13b) can now be resolved. Re-attempt PR creation so S13(a) is also satisfied and the sprint's Publish phase is fully complete.
+- **root cause of earlier failure:** `gh` v2.95.0 is installed at `/opt/homebrew/bin/gh`, but `/opt/homebrew/bin` is **not** on the agent shell's PATH (PATH = nvm node bin + /usr/bin:/bin:/usr/sbin:/sbin). `command -v gh` therefore returned empty. Invoking gh by full path uses the keyring auth and works. No `GITHUB_TOKEN` env var is needed.
+- **shell/git commands executed:**
+  - `/opt/homebrew/bin/gh auth status` → logged in as `cnavta` (keyring), scopes `admin:public_key, gist, read:org, repo`.
+  - `git fetch origin` + `git status -sb` → branch in sync with origin (0/0).
+  - `/opt/homebrew/bin/gh pr list --head … --state all` → no existing PR.
+  - `/opt/homebrew/bin/gh pr create --base main --head feature/sprint-326-b8f1a2-integrated-version-handling --title … --body …` → **created https://github.com/cnavta/BitBrat/pull/251**.
+- **files created/modified:**
+  - `planning/sprint-326-b8f1a2/publication.yaml` (`pr_url` set, `status: created`, added `pr_resolution` block).
+  - `planning/sprint-326-b8f1a2/sprint-manifest.yaml` (`links.pr` set to PR #251 + PR UPDATE note).
+  - `planning/sprint-326-b8f1a2/request-log.md` (this entry).
+- **result:** PR #251 created → Rule **S13(a)** now satisfied (sprint was already `complete` under S13(b)). Branch committed + pushed.
