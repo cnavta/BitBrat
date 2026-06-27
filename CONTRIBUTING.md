@@ -42,6 +42,22 @@ See the [Getting Started](./README.md#getting-started) section in the README for
 - Use `camelCase` for variables and functions, `PascalCase` for classes and interfaces, and `UPPER_SNAKE_CASE` for constants.
 - Files should be named using `kebab-case`.
 
+## Versioning & Releases
+
+The platform version has a **single source of truth**: `architecture.yaml` `project.version` (AGENTS.md §0,
+and the runtime value every Bit reports). `package.json` and `package-lock.json` mirror it. **Never hand-edit
+the version in multiple files** — use the release tool, which keeps all three in lockstep and rolls the
+CHANGELOG:
+
+```bash
+npm run release:dry -- patch    # preview the bump (writes nothing; CI-safe)
+npm run release -- patch        # bump architecture.yaml + package.json + package-lock.json, roll CHANGELOG
+# or, equivalently: brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--yes]
+```
+
+The bump type is always explicit (never guessed; pre-1.0 SemVer). See
+[Versioning & Releases](./README.md#versioning--releases) for details.
+
 ## License
 
 By contributing to BitBrat Platform, you agree that your contributions will be licensed under its [MIT License](./LICENSE).

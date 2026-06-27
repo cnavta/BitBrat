@@ -1,0 +1,49 @@
+id: sprint-326-b8f1a2
+title: "Integrated Version Handling — single-source-of-truth release tooling"
+goal: "Make architecture.yaml `project.version` the single source of truth for the platform version and add one idempotent, dry-run-able release tool (`brat release <patch|minor|major|x.y.z>` / `npm run release`) that: (1) computes the next SemVer, (2) writes it to architecture.yaml AND package.json (lockfile synced via npm install), (3) re-validates architecture.yaml (only project.version changed — Law #2), (4) rolls CHANGELOG.md `## [Unreleased]` into a dated `## [x.y.z]` block and inserts a fresh empty `## [Unreleased]`, (5) optionally git-tags. Wire `release:dry` into validate_deliverable.sh and the Sprint Publish phase so every shipping sprint can cut a version with one traceable command. Consumer/tooling change only — no behavioral architecture.yaml edit."
+owner: "Lead Implementor"
+createdAt: "2026-06-26T20:15:00Z"
+status: "complete"
+closedAt: "2026-06-26T20:52:00Z"
+links:
+  branch: "feature/sprint-326-b8f1a2-integrated-version-handling"
+  pr: "https://github.com/cnavta/BitBrat/pull/251"   # PR opened post-closure via gh CLI after owner adjusted permissions (S13a satisfied; see publication.yaml pr_resolution).
+notes: |
+  Source design: scratch "If we wanted to up the version of the platform…" (attached to issue) — recommends
+  architecture.yaml as the single source of truth and an idempotent `npm run release` / `brat release`
+  subcommand that bumps both files + rolls the CHANGELOG, with --dry-run, hooked into the Publish phase.
+
+  Grounded, verified facts (current repo state):
+    - Version lives in THREE places that must stay in lockstep, today hand-maintained:
+        architecture.yaml -> project.version: 0.7.0  (AGENTS.md §0 precedence "source of truth" AND the
+          runtime source — src/common/base-server.ts:1120,1167 read arch?.project?.version for bit.info /
+          `fleet info`).
+        package.json -> "version": "0.7.0"  (npm/build identity).
+        package-lock.json -> "version": "0.7.0"  (mirrors package.json; synced by npm install).
+    - CHANGELOG.md is Keep-a-Changelog + SemVer with a `## [Unreleased]` heading (currently holding sprint-325
+      notes) — structured for automated rollover.
+    - Brat CLI is a flat router: tools/brat/src/cli/index.ts (parseArgs, parseKeyValueFlags, logger, --env).
+      Existing groups: docker, backup, chat, bootstrap, setup, trigger, fleet — a `release` group fits the
+      same shape (tools/brat/src/cli/release.ts).
+    - infrastructure/scripts/ holds Node helper scripts (bootstrap-service.js, load-env.js, merge-env.js …)
+      with co-located *.test.* — an alternative home for a thin release.js wrapper.
+    - sprint-323 established a "version assertion" pattern in its validate_deliverable.sh (asserts
+      package.json == architecture.yaml == <ver>) — reuse/generalize that idea.
+
+  Constraints / decisions:
+    - SINGLE SOURCE OF TRUTH = architecture.yaml `project.version` (AGENTS.md §0 + runtime source). Release
+      tool READS it and WRITES the bumped value into architecture.yaml AND package.json; lockfile synced via
+      `npm install --package-lock-only`.
+    - Law #2: the tool may ONLY change `project.version` in architecture.yaml (a non-behavioral field) and
+      MUST re-parse/validate the file after writing. It must never touch behavioral architecture.
+    - Bump type is an ARGUMENT (patch|minor|major|explicit x.y.z) — never guessed. Pre-1.0 SemVer applies.
+    - Tool is idempotent and supports `--dry-run` so it runs safely inside validate_deliverable.sh.
+    - This sprint produces code + tests + validation integration (AGENTS.md §6 + §3 DoD).
+
+  STATUS: COMPLETE. Owner said "Sprint complete." (2026-06-26) — explicit acceptance of closure per Rule
+  S13(b) with the failed PR attempt logged in publication.yaml. Deliverable shipped: the version was cut to
+  0.7.1 (architecture.yaml == package.json == package-lock.json, all consistent) and the branch is pushed
+  and up to date with origin. BL-326-100..501 done; BL-326-600/601 intentionally deferred.
+  PR UPDATE (2026-06-26T21:00): the owner adjusted permissions; PR #251 was subsequently created via the
+  gh CLI (https://github.com/cnavta/BitBrat/pull/251), so S13(a) is now also satisfied. See
+  publication.yaml pr_resolution for details.
