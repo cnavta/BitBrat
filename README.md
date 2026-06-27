@@ -68,7 +68,8 @@ Adding a new agent capability is a matter of adding a service, an MCP tool, or a
 
 - **Multi-Platform Ingress**: Listen to events from Twitch (IRC & EventSub), Discord, and Twilio Conversations.
 - **AI-Driven Reactions**: Integration with OpenAI and Model Context Protocol (MCP) to provide intelligent responses and tool execution.
-- **Microservices Architecture**: Scalable, cloud-native services deployed on Google Cloud Platform (Cloud Run).
+- **Microservices Architecture**: Scalable, cloud-native services deployed on Google Cloud Platform (Cloud Run). Every service is a **Bit** — see [The Bit Model](./documentation/concepts/bit-model.md).
+- **Universal Control Plane**: **Every Bit speaks MCP** and exposes a mandatory [`bit.*` control plane](./documentation/reference/bit-control-plane.md) that `brat fleet` administers fleet-wide.
 - **Event-Driven**: Built on top of a robust message bus (NATS locally / Google Cloud Pub/Sub in production) for asynchronous processing.
 - **Rule-Driven Routing**: A central Event Router uses [JsonLogic](https://jsonlogic.com/) rules to match, enrich, and route events through configurable processing stages.
 - **Extensible**: Easily add new event sources, command processors, or MCP tools.
@@ -81,9 +82,14 @@ The `documentation/` folder contains structured guides for getting started, core
   - [Quickstart: Local Platform Setup](./documentation/getting-started/quickstart.md)
   - [Evaluator's Guide](./documentation/getting-started/evaluating-bitbrat.md) — try BitBrat in ~5 minutes (offline), what to read first, and how the pieces form an agent.
 - **Concepts**
+  - [The Bit Model](./documentation/concepts/bit-model.md) — the `Bit` base abstraction, the three rings, and `profile:` / `mcp.exposure:`.
+  - [Capability Profiles](./documentation/concepts/capability-profiles.md) — the `profile:` → mixin composition model.
   - [Platform Flow Overview](./documentation/concepts/platform-flow.md) — the ingest → analysis → reaction → egress lifecycle.
   - [Event Router & Rules](./documentation/concepts/event-router-rules.md) — rule format and matching logic.
+- **Reference**
+  - [Bit Control-Plane Reference](./documentation/reference/bit-control-plane.md) — the mandatory `bit.*` toolset, RBAC scopes, redaction, and exposure model.
 - **Guides**
+  - [The `brat fleet` Guide](./documentation/guides/brat-fleet.md) — drive the `bit.*` control plane across the fleet.
   - [Managing Seed Data](./documentation/guides/seed-data.md) — initial seeding via `brat setup` and the `firestore:upsert` tool.
 - **Tutorials**
   - [Creating a `!lurk` Command](./documentation/tutorials/lurk-command.md) — build your first custom command.
@@ -95,7 +101,11 @@ For the canonical system definition, see [architecture.yaml](./architecture.yaml
 
 ## Architecture
 
-The platform consists of several core services:
+Under the **[Bit model](./documentation/concepts/bit-model.md)**, every service is a **Bit** built on a
+single base abstraction. Each Bit always serves a universal [`bit.*` control plane](./documentation/reference/bit-control-plane.md)
+(the Platform Ring) that Brat administers uniformly, and composes optional capability
+[profiles](./documentation/concepts/capability-profiles.md) (`profile:`) and an `mcp.exposure:` level
+declared in [`architecture.yaml`](./architecture.yaml). The platform consists of several core Bits:
 
 - **Ingress-Egress**: The gateway for external platforms. Normalizes inbound events and delivers outbound responses.
 - **Auth Service**: Handles user enrichment (roles, tags, `displayName`) and authorization during the analysis stage.
@@ -148,6 +158,7 @@ observe & remember (in Firestore).*
 | **Message bus** | NATS (local/dev), Google Cloud Pub/Sub (production) | Selected via `MESSAGE_BUS_DRIVER`. |
 | **Persistence** | Google Cloud Firestore | Only supported persistence backend (by design, pre-1.0). |
 | **Deploy targets** | Docker Compose (local), Google Cloud Run (production) | Only supported targets (by design, pre-1.0). |
+| **Control plane** | Universal `bit.*` MCP toolset on every Bit, driven fleet-wide by `brat fleet` | RBAC-scoped (`bit:read` / `bit:operate`); see the [control-plane reference](./documentation/reference/bit-control-plane.md). |
 
 ## Getting Started
 
@@ -320,7 +331,7 @@ npm run brat -- <command> [options]
 - `brat docker down --env local`: Stop the local stack (aliased as `npm run local:down`).
 
 #### Service Management
-- `brat service bootstrap --name <name> [--mcp] [--force]`: Create a new service from a template. Use `--mcp` for Model Context Protocol servers.
+- `brat service bootstrap --name <name> [--mcp] [--force]`: Scaffold a new **Bit** from a template. Every Bit serves the universal `bit.*` control plane; use `--mcp` to also scaffold domain tools (`mcp.exposure: platform+domain`).
 
 #### Deployment
 - `brat deploy services --all`: Deploy all services defined in `architecture.yaml`.
@@ -341,6 +352,18 @@ npm run brat -- <command> [options]
 
 #### CI/CD Triggers
 - `brat trigger create --name <n> --repo <repo> --branch <regex> --config <path>`: Manage Cloud Build triggers.
+
+#### Fleet Control Plane
+`brat fleet` turns Brat into a fleet MCP client over the universal [`bit.*` control plane](./documentation/reference/bit-control-plane.md).
+By default it drives Bits through the `tool-gateway` fabric (one auth/RBAC/discovery chokepoint), with an
+audited `--direct <bit>` break-glass path. Read subcommands need the `bit:read` scope; mutating ones need
+`bit:operate`. See the [`brat fleet` guide](./documentation/guides/brat-fleet.md).
+- `brat fleet list`: Enumerate live Bits (name, profile, exposure).
+- `brat fleet info|health [<bit> | --all]`: Read `bit.info` / `bit.health` for one Bit or the whole fleet.
+- `brat fleet config <bit> [--describe]`: Show effective config (secrets redacted).
+- `brat fleet flags <bit> get|set [--key K] [--value V]`: Inspect/toggle feature flags (`set` is elevated).
+- `brat fleet log <bit> --level <error|warn|info|debug>`: Change runtime log level (elevated).
+- `brat fleet drain|shutdown <bit> [--confirm]`: Graceful lifecycle (elevated; fleet-wide mutations need `--confirm`).
 
 #### Versioning & Releases
 The platform version has a **single source of truth**: `architecture.yaml` `project.version` (per
@@ -374,7 +397,7 @@ Events flow through a series of decoupled stages. For the full breakdown, see th
 
 1. **Ingest**: External platforms (Twitch, Discord, Twilio) hit the `Ingress-Egress` service. It normalizes the raw payload into the internal event format and publishes to `internal.ingress.v1`.
 2. **Analysis**: The event is enriched (e.g., the `Auth Service` populates user metadata such as `displayName`) and evaluated by the **Event Router** against active rules. Matching rules attach a **routing slip** that defines the remaining processing path. Analysis services like the **LLM Bot** or **Query Analyzer** may add annotations or candidate responses, returning the event via `internal.enriched.v1`.
-3. **Reaction**: Once analysis is complete, the Event Router advances the event to the `reaction` stage, where reactive services (e.g., **State Engine**, **Disposition Service**) act on it. If a rule's routing slip is empty, `BaseServer.next()` automatically routes the event to egress.
+3. **Reaction**: Once analysis is complete, the Event Router advances the event to the `reaction` stage, where reactive services (e.g., **State Engine**, **Disposition Service**) act on it. If a rule's routing slip is empty, `Bit.next()` automatically routes the event to egress.
 4. **Egress**: The event is delivered back to the originating `Ingress-Egress` instance, which selects the best candidate reply and sends it to the target platform.
 5. **Persistence**: The `Persistence` service stores final state, selections, and errors for auditing and long-term memory.
 
@@ -382,7 +405,9 @@ Events flow through a series of decoupled stages. For the full breakdown, see th
 
 ### Development Primitives
 
-All services leverage `BaseServer` for standardized messaging patterns:
+All services are **Bits** (built on the `Bit` base abstraction; the former `BaseServer` alias has been
+retired). Beyond the always-on [`bit.*` control plane](./documentation/reference/bit-control-plane.md),
+the eventing capability provides standardized messaging patterns:
 
 - **`onMessage<T>(topic, handler)`**: Unified subscription to the message bus with automatic event conversion.
 - **`next(event)`**: Automatically advances the event to the next pending step in the routing slip (or to egress when the slip is empty).

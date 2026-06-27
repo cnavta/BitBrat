@@ -1,0 +1,251 @@
+meta:
+  backlog_id: sprint-327-2c45c2-docs-bit-mcp
+  updated_at: 2026-06-26
+  status: in_progress   # sprint started by owner ("Start sprint"); all doc items done, close-out in progress
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-327-2c45c2
+  start: 2026-06-26
+  end: 2026-07-10
+  wip_limit: 3
+  goal: "Update README.md and the ./documentation tree to accurately reflect the Bit model, the universal bit.* MCP control plane (sprint-324), Brat as a fleet MCP client / `brat fleet` (sprint-325), and the single-source-of-truth release tooling / `brat release` (sprint-326). Documentation only — no behavioral code or architecture.yaml changes."
+
+items:
+  # ---------------------------------------------------------------------------
+  # Phase A — Foundational vocabulary (the Bit model)
+  # ---------------------------------------------------------------------------
+  - id: BL-327-001
+    title: "Author concept doc: documentation/concepts/bit-model.md (the Bit, three rings, profile/mcp.exposure, bit:↔services: glossary)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "New reader-facing concept page explains a Bit and the Platform/Capability/Business rings"
+      - "Documents the additive architecture.yaml fields `profile:` and `mcp.exposure:` and their defaults (core / platform-only)"
+      - "Explains the `bit:` ↔ `services:` glossary alias (ADR-004) and links to the architecture design doc"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T21:40:00Z
+        note: "Sprint started; verified bit.* tools/scopes, profiles, mcp.exposure, and glossary against source. Authoring concept doc."
+      - at: 2026-06-26T21:45:00Z
+        note: "Created documentation/concepts/bit-model.md (Bit, three rings, profile/mcp.exposure defaults, glossary alias, migration notes)."
+
+  - id: BL-327-002
+    title: "Update README.md Architecture/Features/Capabilities to the Bit model (every Bit speaks MCP; retire BaseServer-vs-McpServer framing)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-327-001]
+    blocked_reason: null
+    acceptance:
+      - "README describes MCP as a baseline capability of every Bit, not a separate server class"
+      - "Architecture section, Capabilities Matrix, and Mermaid diagram reflect Bit/control-plane vocabulary"
+      - "Development Primitives / Extending sections reference `Bit` (not `BaseServer`) and link to the new Bit concept doc"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T21:50:00Z
+        note: "README updated: Bit model in Architecture/Features, control-plane row in Capabilities Matrix, brat fleet Core Commands, Bit.next() lifecycle, Bit-based Development Primitives, new doc links."
+
+  - id: BL-327-003
+    title: "Finalize documentation/services/mcp-server.md and base-server-routing.md to the Bit vocabulary; retire the BaseServer-vs-McpServer decision narrative"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-327-001]
+    blocked_reason: null
+    acceptance:
+      - "Body (not just the banner) of mcp-server.md uses the Bit model; McpServer described only as a deprecated compat shim"
+      - "base-server-routing.md refers to `Bit` and `onMessage`/`next`/`complete` consistently"
+      - "No page presents 'choose BaseServer vs McpServer' as current guidance"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T21:52:00Z
+        note: "mcp-server.md retitled/rewritten to Bit model (every Bit speaks MCP; McpServer = deprecated shim; domain-tools focus + cross-links); base-server-routing.md example now extends Bit."
+
+  # ---------------------------------------------------------------------------
+  # Phase B — Control plane & capability profiles
+  # ---------------------------------------------------------------------------
+  - id: BL-327-100
+    title: "Author reference: documentation/reference/bit-control-plane.md (mandatory bit.* toolset + bit.llm.*, RBAC scopes, redaction, exposure model)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-327-001]
+    blocked_reason: null
+    acceptance:
+      - "Lists every shipped bit.* tool (info, health, readiness, config.get/describe, flags.get/set, log.level, drain, shutdown) and bit.llm.* tools with purpose"
+      - "Documents RBAC scopes (`bit:read` vs `bit:operate`), secret redaction, and exposure (`platform-only` vs `platform+domain`)"
+      - "Tool names/scopes verified against src/common (no invented surface); linked from README"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:00:00Z
+        note: "Created documentation/reference/bit-control-plane.md; tool names + bit:read/bit:operate scopes + bit.llm.* verified against base-server.ts registerPlatformTools() and llm-profile.ts."
+
+  - id: BL-327-101
+    title: "Author capability-profiles doc (EventingProfile/ResourcesProfile/McpClientProfile/LlmProfile + profile→mixin map, applyProfiles composition)"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-327-001]
+    blocked_reason: null
+    acceptance:
+      - "Explains composition-over-inheritance (applyProfiles) and the four shipped profiles"
+      - "Includes the canonical `profile:` value → composed-mixins mapping (core/llm/mcp-domain/gateway)"
+      - "Mapping verified against src/common/profiles and architecture.yaml profile annotations"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:05:00Z
+        note: "Created documentation/concepts/capability-profiles.md; profile names (eventing/resources/mcp-client/llm) + PROFILE_REQUIREMENTS (llm requires llm mixin) verified against src/common/profiles/registry.ts and design-doc Appendix A."
+
+  # ---------------------------------------------------------------------------
+  # Phase C — CLI surfaces (brat fleet, brat release)
+  # ---------------------------------------------------------------------------
+  - id: BL-327-200
+    title: "Update documentation/tools/brat.md: add `brat fleet` and `brat release` sections; note `service bootstrap` scaffolds a Bit"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "`brat fleet` subcommands + flags (--all, --direct, --confirm, --target, --json) documented and match the shipped CLI"
+      - "`brat release <patch|minor|major|x.y.z>` (+ npm aliases, --dry-run/--tag/--yes) documented, consistent with README/AGENTS.md"
+      - "All documented flags verified against tools/brat/src/cli/{fleet,release}.ts"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:12:00Z
+        note: "brat.md: added Fleet Control Plane (brat fleet, all subcommands+modifiers from FLEET_HELP) and Versioning & Releases (brat release flags + npm aliases from release.ts); service bootstrap now describes scaffolding a Bit."
+
+  - id: BL-327-201
+    title: "Author fleet operations guide: documentation/guides/brat-fleet.md (fabric default vs --direct break-glass, RBAC posture, --all/--confirm safety)"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-327-100, BL-327-200]
+    blocked_reason: null
+    acceptance:
+      - "Explains fabric-through-gateway default and the audited --direct break-glass (ADR-003)"
+      - "Documents read-only --all fan-out, --confirm-gated mutations, and --target deployment-target resolution"
+      - "Cross-links the bit.* control-plane reference; linked from README"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:16:00Z
+        note: "Created documentation/guides/brat-fleet.md (fabric default vs --direct break-glass, --all read-only fan-out, --confirm-gated mutations, --target resolution, RBAC posture, fail-closed). Linked from README + brat.md + control-plane ref."
+
+  # ---------------------------------------------------------------------------
+  # Phase D — Reconciliation & discoverability
+  # ---------------------------------------------------------------------------
+  - id: BL-327-300
+    title: "Reconcile mcp-evolution-roadmap.md and technical-architecture/mcp-auto-discovery.md with shipped reality (every Bit self-publishes registration)"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-327-001]
+    blocked_reason: null
+    acceptance:
+      - "Docs no longer state only `McpServer` publishes registration; reflect that every MCP-enabled Bit self-publishes on start()"
+      - "Self-administration / control-plane roadmap items marked delivered where sprint-324/325 shipped them"
+      - "Cross-linked to the Bit model + control-plane docs"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:24:00Z
+        note: "mcp-auto-discovery.md: status->Implemented, registration now via Bit.start() for every MCP-enabled Bit. mcp-evolution-roadmap.md: banners marking fleet self-administration delivered via bit.*/brat fleet; cross-linked Bit docs."
+
+  - id: BL-327-301
+    title: "Flip design-doc status headers to 'Implemented' (bit-model + bl-204 brat-fleet technical-architecture docs)"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "bit-model-technical-architecture.md header reflects ADR-001..004 ACCEPTED and implemented in sprint-324 (no longer 'Draft/pre-sprint')"
+      - "bl-204-brat-fleet-mcp-client-technical-architecture.md header reflects implementation in sprint-325"
+      - "No remaining doc calls the Bit model 'proposed' or 'draft' as current state"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:28:00Z
+        note: "bit-model-technical-architecture.md header -> Implemented (ADR-001..004 ACCEPTED, sprint-324) with reader-doc links; bl-204 header -> Implemented (sprint-325) with brat fleet guide/CLI links."
+
+  - id: BL-327-302
+    title: "Documentation index / cross-link pass: ensure new Bit/control-plane/fleet/profiles docs are discoverable from README and any docs index"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-327-001, BL-327-100, BL-327-101, BL-327-200, BL-327-201]
+    blocked_reason: null
+    acceptance:
+      - "README Documentation section links the new/updated Bit, control-plane, profiles, and fleet docs"
+      - "Cross-links between related docs added; no orphaned new pages"
+      - "All internal links resolve (verified by the link check in BL-327-400)"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:35:00Z
+        note: "README Documentation section links all new docs (Concepts/Reference/Guides); new pages cross-link each other and the design docs. Link check: 139 internal links across 62 files all resolve."
+
+  # ---------------------------------------------------------------------------
+  # Phase V — Validation, verification, publication
+  # ---------------------------------------------------------------------------
+  - id: BL-327-400
+    title: "Author validate_deliverable.sh for docs (Markdown lint + internal link check + structure verify + npm run release:dry assertion)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Script runs Markdown lint + an internal link checker over README + documentation/**"
+      - "Script runs `npm run release:dry -- patch` and asserts version files agree (AGENTS.md §2.6); logs missing-tool fallbacks"
+      - "Script is logically passable and idempotent (no mutation); exits non-zero on broken links"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:36:00Z
+        note: "Created + ran planning/sprint-327-2c45c2/validate_deliverable.sh: structure OK, 139 links resolve, version 0.7.1 consistent, release:dry wrote nothing. markdownlint not installed -> skipped (logged)."
+
+  - id: BL-327-401
+    title: "Accuracy parity check: documented bit.*/brat surfaces and profile/mcp.exposure fields match source and architecture.yaml"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-327-100, BL-327-200, BL-327-101]
+    blocked_reason: null
+    acceptance:
+      - "Every documented bit.* tool, brat fleet/release flag, and architecture field is grep-verified to exist in code/architecture.yaml"
+      - "Discrepancies fixed in the docs (docs conform to canonical source; Law #2)"
+      - "Findings recorded in verification-report.md"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:38:00Z
+        note: "Grep parity: all 13 documented bit.*/bit.llm.* tools present in src/; fleet subcommands+modifiers in fleet.ts; release flags in release.ts; bit:read/bit:operate scopes in base-server.ts; profile/mcp.exposure present in architecture.yaml. No discrepancies."
+
+  - id: BL-327-500
+    title: "Close-out: verification-report.md, retro.md, key-learnings.md, and publication.yaml; push branch and open PR (Rules S12/S13)"
+    priority: P0
+    status: blocked
+    effort: M
+    owner: agent
+    deps: [BL-327-002, BL-327-003, BL-327-101, BL-327-201, BL-327-300, BL-327-301, BL-327-302, BL-327-400, BL-327-401]
+    blocked_reason: "PR could not be auto-created: `gh` CLI not installed and no GITHUB_TOKEN/GH_TOKEN available. Branch is pushed; failure logged in publication.yaml. Needs owner credentials (or explicit closure acceptance) + owner 'Sprint complete.' (Rules S13/S2)."
+    acceptance:
+      - "verification-report.md, retro.md, key-learnings.md present and accurate"
+      - "Branch pushed; PR attempted and URL (or logged failure + explicit owner acceptance) recorded in publication.yaml"
+      - "validate_deliverable.sh logically passable; owner says 'Sprint complete.'"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T22:48:00Z
+        note: "verification-report.md, retro.md, key-learnings.md written; validate_deliverable.sh passes (exit 0). Branch committed (305ee7d) + pushed to origin. PR attempt FAILED: gh CLI missing and no token; logged in publication.yaml with manual PR URL. Awaiting owner credentials or explicit closure acceptance + 'Sprint complete.'"

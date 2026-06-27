@@ -1,8 +1,8 @@
 # Technical Architecture: The Bit Model & Universal MCP Control Plane
 
-> **Status:** Draft for review (pre-sprint design artifact)
+> **Status:** Implemented (sprint-324). ADR-001..004 (§9) are **ACCEPTED** and shipped: the `Bit` base abstraction, the universal `bit.*` control plane, capability profiles, and the additive `profile:` / `mcp.exposure:` fields are all in `architecture.yaml` and `src/common/**`. Reader-facing summaries: [The Bit Model](../concepts/bit-model.md), [Capability Profiles](../concepts/capability-profiles.md), [Bit Control-Plane Reference](../reference/bit-control-plane.md).
 > **Author role:** Architect
-> **Precedence:** Per `AGENTS.md` Law #2, `architecture.yaml` is the canonical source of truth. This document proposes an extension to it and surfaces the one behavioral conflict that must be ratified there before implementation.
+> **Precedence:** Per `AGENTS.md` Law #2, `architecture.yaml` is the canonical source of truth. The extension this document proposed (and the one behavioral conflict in §6.3) was ratified in `architecture.yaml` before implementation in sprint-324.
 > **Scope:** Core platform only (`src/common/**`, the base abstraction, and the Brat control surface). **Not** the domain implementations of individual services.
 
 ---
