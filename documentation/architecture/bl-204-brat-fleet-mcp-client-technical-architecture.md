@@ -1,6 +1,6 @@
 # Technical Architecture: BL-204 — Brat as a Fleet MCP Client
 
-> **Status:** Draft for review (pre-sprint design artifact — slated for the next sprint)
+> **Status:** Implemented (sprint-325, BL-204). This design shipped as the `brat fleet` command group; see the [`brat fleet` guide](../guides/brat-fleet.md) and the [`brat` CLI reference](../tools/brat.md#brat-fleet).
 > **Author role:** Architect
 > **Backlog item:** `BL-204` (Phase 1, Gate G1, ADR-003) — *"Brat as fleet MCP client: `bit.*` orchestration via tool-gateway fabric + direct-connect break-glass."*
 > **Precedence:** Per `AGENTS.md` Law #2, `architecture.yaml` is the canonical source of truth. This document proposes **no** new behavioral change to `architecture.yaml`; it consumes the already-ratified `bit.*` control plane and `mcp.exposure`/`profile` model.

@@ -1,0 +1,40 @@
+id: sprint-327-2c45c2
+title: "Documentation Refresh — The Bit Model, Universal MCP Control Plane & Fleet/Release Tooling"
+goal: "Update the project documentation (README.md + the ./documentation tree and all linked docs) to accurately reflect and incorporate the architecture introduced in sprints 324 (the Bit model + universal bit.* MCP control plane), 325 (Brat as a fleet MCP client: `brat fleet`), and 326 (single-source-of-truth release tooling: `brat release`). Documentation-only sprint: retire the now-stale 'BaseServer vs McpServer' vocabulary in favor of the Bit model, document the mandatory `bit.*` control plane, the `brat fleet` and `brat release` command surfaces, and align design docs/roadmaps with what actually shipped — without changing any behavioral code or architecture.yaml."
+owner: "Lead Technical Writer"
+createdAt: "2026-06-26T21:25:00Z"
+status: "verifying"   # implementation + validation complete; publishing/close-out in progress
+links:
+  pr: null   # set at the Publication phase (Rules S12/S13); see publication.yaml
+  branch: "feature/sprint-327-2c45c2-docs-bit-mcp"
+notes: |
+  Role for this sprint: Lead Technical Writer (documentation deliverables only — AGENTS.md §6 note on
+  documentation/discovery sprints; validation lints/link-checks/structure rather than building code).
+
+  Source of truth for the changes being documented (all COMPLETE):
+    - sprint-324-00782d "The Bit Model & Universal MCP Control Plane": BaseServer -> Bit; MCP control plane
+      folded into the base abstraction (every Bit speaks MCP); mandatory `bit.*` toolset (bit.info,
+      bit.health/readiness, bit.config.get/describe, bit.flags.get/set, bit.log.level, bit.drain,
+      bit.shutdown) + `bit.llm.*`; capability profiles (Eventing/Resources/McpClient/Llm) via
+      applyProfiles(); additive architecture.yaml fields `profile:` + `mcp.exposure:`; `bit:` glossary;
+      McpServer is now a thin compat shim; BaseServer alias retired.
+    - sprint-325-d7f389 "Brat as a Fleet MCP Client (BL-204)": new `brat fleet` command group driving the
+      `bit.*` plane fleet-wide through the tool-gateway fabric (default), with `--direct` break-glass,
+      `--all` read-only fan-out, `--confirm`-gated mutations, `--target` deployment-target resolution,
+      Bit-qualified addressing in tool-gateway.
+    - sprint-326-b8f1a2 "Integrated Version Handling": architecture.yaml `project.version` is the single
+      source of truth; `brat release <patch|minor|major|x.y.z>` (+ `npm run release`) bumps the three files
+      in lockstep and rolls the CHANGELOG (already reflected in README + AGENTS.md).
+
+  Authoritative design docs to align with shipped reality:
+    - documentation/architecture/bit-model-technical-architecture.md (status header still "Draft for
+      review (pre-sprint)"; ADR-001..004 are ACCEPTED/implemented).
+    - documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md (status header
+      still "Draft ... slated for the next sprint"; now implemented).
+
+  Constraints:
+    - DOCUMENTATION ONLY. No behavioral code changes; no architecture.yaml edits (Law #2). Code/architecture
+      may be READ to verify accuracy; the documented surface must match the canonical architecture.yaml.
+    - WIP limit = 3 (per backlog).
+    - Planning gate: implementation (doc edits) does not begin until the owner approves the plan + backlog
+      and says "Start sprint" (Rule S1).

@@ -4,13 +4,21 @@
 - **Date:** 2026-05-31
 - **Author:** Lead Architect (@Junie)
 - **Sprint:** sprint-314-a9b8c7
-- **Status:** Proposed
+- **Status:** Implemented
+
+> **Bit model update (sprint-324):** registry self-publish is no longer limited to services that
+> `extend McpServer`. Under the [Bit model](../concepts/bit-model.md), **every
+> MCP-enabled Bit** self-publishes its registration on `Bit.start()` (gated by `mcp.exposure`). Read
+> "`McpServer`" below as "any MCP-enabled `Bit`". See the
+> [Bit Control-Plane Reference](../reference/bit-control-plane.md).
 
 ## 1. Problem Statement
 Currently, MCP servers must be manually added to the `mcp_servers` collection in Firestore for the `tool-gateway` to discover and connect to them. This creates manual overhead and potential for configuration drift as services are deployed or updated.
 
-## 2. Proposed Goal
-Introduce a decentralized auto-discovery mechanism where any service extending `McpServer` can announce its presence and connection details upon startup.
+## 2. Goal
+Provide a decentralized auto-discovery mechanism where any **MCP-enabled Bit** announces its presence and
+connection details upon startup. (Originally scoped to services extending `McpServer`; under the Bit model
+this applies to every MCP-enabled Bit.)
 
 ## 3. Analysis of Proposed Approach
 The proposed approach involves:
@@ -45,8 +53,10 @@ The `payload` field of the `InternalEventV2` shall contain:
 
 ### 4.3 Service Enhancements
 
-#### McpServer (Common Library)
-- **Startup Logic:** After the HTTP server starts listening (in `BaseServer.start()`), the `McpServer` class shall publish a registration event.
+#### Bit (Common Library)
+- **Startup Logic:** After the HTTP server starts listening, **`Bit.start()`** publishes a registration
+  event for every MCP-enabled Bit (this logic was previously housed in `McpServer`; it now lives in the
+  base `Bit` and runs whenever `mcp.exposure` is set).
 - **Environment Variables:** Each service will need to be aware of its own external URL. This is ideally provided via the `MCP_EXTERNAL_URL` environment variable. If missing, it defaults to `http://{{SERVICE_NAME}}.bitbrat.local:3000/sse`.
 - **Payload Generation:**
   - `name`: Derived from `this.serviceName`.
