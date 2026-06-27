@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.7.1] - 2026-06-27
+### Added
 - **Integrated version handling — `brat release` / `npm run release`** (sprint-326, BL-326). A single,
   idempotent, dry-run-able release tool makes `architecture.yaml` `project.version` the **single source
   of truth** for the platform version. `brat release <patch|minor|major|x.y.z>` (or `npm run release --
