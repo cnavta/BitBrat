@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Brat as a fleet MCP client — `brat fleet`** (sprint-325, BL-204). A new Brat command group turns
+  Brat into a consumer of the universal `bit.*` control plane: `brat fleet list|info|health|config|flags|
+  log|drain|shutdown`, mapping each subcommand to the corresponding `bit.*` tool (Appendix A). The
+  default path is the **`tool-gateway` fabric** (one auth/RBAC/discovery chokepoint, ADR-003); a
+  documented, audited **`--direct <bit>` break-glass** bypasses the gateway to reach a single Bit
+  directly (emits a `fleet.break_glass` audit line, single-Bit only, rejected with `--all`, OQ4).
+  Commands are **fail-closed**: without a resolvable `MCP_AUTH_TOKEN` they refuse to run (non-zero exit
+  + posture warning, OQ3). `--all` fans out **read-only** via a bounded queue (partial-failure tolerant);
+  fleet-wide mutations require an explicit `--confirm` and run sequentially. RBAC is server-authoritative
+  (`bit:read` vs `bit:operate`); Brat only forwards identity (`_meta.{userRoles,userId}`) and never
+  self-authorizes. Lives in `tools/brat/src/fleet/` (`FleetClient` + `gateway-transport` +
+  `direct-transport` + `rbac-context` + Firestore `RegistryReader`), reusing the platform
+  `@modelcontextprotocol/sdk` `Client`/`SSEClientTransport` wrappers.
+- **Bit-qualified addressing in `tool-gateway`** (additive, read-path only). `McpBridge.translateTool`
+  now assigns platform (`bit.*`) tools a Bit-qualified discovery id `mcp:<bit>/<tool>` (derived from the
+  registry key / origin Bit name), so identically-named `bit.*` tools across the fleet no longer collide
+  (last-writer-wins) and each Bit's control tools are individually enumerable and invocable through the
+  fabric (MCP `CallTool` + REST `POST /v1/tools/:id`). Domain tools and `displayName` are unchanged; no
+  `bit.*` definition or `architecture.yaml` change (Law #2).
 - **The Bit model & universal MCP control plane** (sprint-324). The MCP capability was promoted from a
   per-service subclass decision (`extends McpServer` vs `extends BaseServer`) down into the base
   abstraction: `BaseServer` was refactored to **`Bit`**, and the MCP transport (`/sse` + `POST /message`),
@@ -55,6 +74,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   architecture-diagram asset (`assets/architecture-overview.md`).
 - **Dependency Scanning & Remediation Cadence** section in `SECURITY.md`.
 - This `CHANGELOG.md`.
+
+### Fixed
+- **`brat fleet` now honors `--target` for fleet discovery** (sprint-325, BL-204 follow-up). Fleet
+  commands previously ignored the deployment target and always read the `mcp_servers` registry from
+  real GCP (ADC / `PROJECT_ID`), so `brat fleet list --target local` connected to the cloud project
+  (e.g. `twitch-452523`) and failed with `5 NOT_FOUND` while the local Docker stack ran its own
+  Firestore emulator. `--target` now resolves the same docker-engine endpoint `brat backup` uses
+  (via `resolveBackupConnection`) and points the `FirestoreRegistryReader` at that stack's emulator
+  (`localhost:8080`, project `bitbrat-local` for `local`), with `--project-id` / `--emulator-host` /
+  `--database` overrides for parity. The gateway base URL is derived from the resolved emulator host
+  (so a local run probes the local stack), and any SSH tunnel opened for a remote target is torn down
+  after the command.
+- **`brat fleet` now uses each service's PUBLISHED local Docker port instead of the hardcoded `:3000`**
+  (sprint-325, BL-204 follow-up). Against a local docker `--target`, the tool-gateway is reached on its
+  published host port — resolved from `<SERVICE>_HOST_PORT` (e.g. `TOOL_GATEWAY_HOST_PORT`) or a
+  `docker ps` port-mapping probe (mirroring `brat chat`), with a `3001` fallback — rather than the
+  internal container port `3000` (which is only reachable from inside the compose network). Likewise,
+  the `--direct <bit>` break-glass now remaps each Bit's internal registry URL
+  (`http://<svc>.bitbrat.local:3000/sse`) to its operator-reachable `http://localhost:<publishedPort>/sse`.
+  An explicit `--url` / `TOOL_GATEWAY_URL` still wins, and remote/SSH targets keep their published URLs.
+- **`brat fleet` no longer lists non-Bit MCP servers (or the gateway itself), and labels RBAC denials
+  accurately** (sprint-325, BL-204 follow-up). Two defects surfaced by `fleet info --all --target local`:
+  (1) the `mcp_servers` registry is the gateway's *upstream* catalog and also contains manually-added
+  external MCP servers (e.g. a stdio web-search tool) and the `tool-gateway` itself — none of which
+  expose the universal `bit.*` plane — so they leaked into the fleet and then failed every call with
+  `unreachable (Tool not found)`. The registry-fallback contribution is now filtered to genuine,
+  self-registered Bits (the gateway stamps `discoverySource: 'auto-registration'`), and the gateway's
+  own service is never rendered as a fleet member. (2) `--all` previously rendered every failure as
+  `unreachable (...)`, mislabeling a server-authoritative RBAC denial (a *reachable* but unauthorized
+  Bit) as a connectivity failure; failures are now classified (`forbidden` / `unreachable` / `error`)
+  and rendered distinctly, with a hint to re-run with elevated `--roles` when any Bit is `forbidden`.
 
 ### Changed
 - **`McpServer` is now a thin compatibility shim** over `Bit` (selecting `platform+domain` exposure).

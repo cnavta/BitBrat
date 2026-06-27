@@ -1,0 +1,12 @@
+pr_url: https://github.com/cnavta/BitBrat/pull/250
+branch: feature/sprint-325-d7f389-brat-fleet-mcp-client
+base: main
+status: created
+created_at: 2026-06-26T18:30:00-04:00
+notes: |
+  Sprint-325 (BL-204 — Brat as a Fleet MCP Client) deliverables published.
+  Commit authored with Co-authored-by: Junie <junie@jetbrains.com> (AGENTS.md GIT COMMITS).
+  PR opened via `gh pr create` against main (Rules S12/S13).
+  Validation: `npm run build` green; full Jest suite 978 passed / 2 skipped / 0 failed;
+  new fleet/addressing/parity suites + `brat fleet` help entrypoint wired into validate_deliverable.sh.
+  Awaiting owner review/merge and an explicit "Sprint complete." to close the sprint.

@@ -1,0 +1,36 @@
+id: sprint-325-d7f389
+title: "BL-204 — Brat as a Fleet MCP Client"
+goal: "Make Brat a fleet MCP client: a new `brat fleet` command group that enumerates the fleet and drives the universal `bit.*` control plane across one Bit or all Bits, defaulting to the fabric-through-tool-gateway path (one auth/RBAC/discovery chokepoint) with a documented, audited `--direct <bit>` break-glass; add the one additive piece of platform code needed — per-Bit (Bit-qualified) addressing in `tool-gateway` so identically-named `bit.*` tools are individually targetable; fail-closed RBAC; read-only `--all` fan-out with `--confirm`-gated mutations; identical behavior across GCP / Local Docker / Remote Docker. Consumer-only — no `bit.*` toolset change, no `architecture.yaml` behavioral change (Law #2)."
+owner: "Lead Implementor"
+createdAt: "2026-06-26T17:24:00Z"
+status: "complete"   # Owner said "Sprint complete." (Rule S2). Implementation + post-PR fixes done; PR #250 open (Rules S12/S13).
+links:
+  branch: "feature/sprint-325-d7f389-brat-fleet-mcp-client"
+  pr: "https://github.com/cnavta/BitBrat/pull/250"   # created at publication phase (Rules S12/S13)
+notes: |
+  Source design: documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md (Architect, Draft for review).
+  Backlog item carried forward: BL-204 (Phase 1 / Gate G1) from planning/sprint-324-00782d/backlog.yaml — sprint-324
+  shipped the `bit.*` fabric this sprint consumes; BL-204 was deferred there.
+  Approved plan + backlog (this sprint): planning/sprint-325-d7f389/implementation-plan.md and .../backlog.yaml.
+  ADR: implements ADR-003 (fabric default + documented direct-connect break-glass), already ACCEPTED.
+  Open-question alignment: OQ3 (token-required-to-engage; absent => posture warning) and OQ4 (direct-connect
+  break-glass behind an explicit CLI flag).
+  Scope: tools/brat/** (new `brat fleet` surface + tools/brat/src/fleet/ client module) PLUS a small additive
+  read-path/aggregation change in src/apps/tool-gateway.ts for per-Bit (Bit-qualified) addressing. NOT any Bit's
+  domain logic, NOT the `bit.*` toolset (shipped sprint-324).
+  Reused as-is: src/common/mcp/{client-manager,registry-watcher,bridge,rbac}.ts; the @modelcontextprotocol/sdk
+  Client + SSEClientTransport wrappers; tools/brat/src/orchestration/queue.ts (bounded fan-out concurrency).
+  Constraints: fabric default (ADR-003); fail-closed RBAC (bit:read vs bit:operate); `--direct` is explicit,
+  single-Bit, audited (fleet.break_glass), never combined with `--all`; `--all` read-only by default, mutations
+  require `--confirm` and run sequentially; deployment-target parity (GCP/Local/Remote Docker) asserted in tests
+  per BL-500 harness; WIP limit = 3.
+  STATUS: COMPLETE — all backlog items (BL2-100..500) done; gateway addressing (Phase A), Brat fleet
+  client (Phase B), `brat fleet` surface (Phase C), and validation/parity/close-out (Phase V) complete.
+  Owner said "Sprint complete." (Rule S2) on 2026-06-26.
+  Post-publication operator bugfixes folded onto the same branch / PR #250 (all consumer-only, Law #2):
+    REQ-003 — `brat fleet` now honors `--target` (resolves the local emulator-backed registry, not GCP).
+    REQ-004 — confirmed/locked `--target` parity across ALL fleet subcommands (+9 tests).
+    REQ-005 — local Docker host-port awareness (per-service published port, not hardcoded :3000).
+    REQ-006 — exclude non-Bit MCP servers + the gateway from the list; classify RBAC denials distinctly.
+  Build green; full Jest suite 1016 passed / 2 skipped / 0 failed; new suites + parity wired into validate_deliverable.sh.
+  PR #250 open (Rules S12/S13). Sprint formally closed.

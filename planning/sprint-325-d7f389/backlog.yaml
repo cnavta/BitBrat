@@ -1,0 +1,380 @@
+meta:
+  backlog_id: bl-204-brat-fleet-mcp-client
+  updated_at: 2026-06-26T18:30:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]
+  effort_values: [S, M, L]
+  source: planning/sprint-325-d7f389/implementation-plan.md
+  design: documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for BL-204 — "Brat as a Fleet MCP Client" (carried forward from
+    sprint-324, Phase 1 / Gate G1). Items use a sprint-local BL2-* id space and additionally carry the
+    parent backlog id (BL-204) for traceability. Each item maps to a TA design section (§N) and a plan
+    Phase (A/B/C/V) with its exit Gate (GA/GB/GC/GV).
+
+    Binding decisions (already ACCEPTED upstream):
+      - ADR-003 ACCEPTED: fabric-through-tool-gateway is the default path; direct-connect is a documented
+        break-glass behind an explicit flag.
+      - OQ3 ACCEPTED (PoR): a resolvable bearer token is REQUIRED to engage; absent => fail closed
+        (refuse, non-zero exit) + posture warning. Resolution: MCP_AUTH_TOKEN env -> environment-target
+        secret (GCP Secret Manager / .secure.local / ssh://-synced .env.brat).
+      - OQ4 ACCEPTED (PoR): direct-connect break-glass behind `brat fleet --direct <bit>`; explicit,
+        single-Bit, audited (fleet.break_glass), never combined with --all.
+      - Addressing (TA §4.2): Option A chosen — gateway-side Bit-qualified aggregation (mcp:<bit>/bit.*)
+        derived from the registry key (Bit name) / toolPrefix, reusing originServer already tracked.
+
+    Grounded, verified facts:
+      - Brat CLI flat router: tools/brat/src/cli/index.ts (parseArgs, parseKeyValueFlags, logger, --env).
+        Existing groups: docker, backup, chat, bootstrap, setup, trigger.
+      - Reused as-is: src/common/mcp/{client-manager,registry-watcher,bridge,rbac}.ts; the
+        @modelcontextprotocol/sdk Client + SSEClientTransport wrappers.
+      - tool-gateway (src/apps/tool-gateway.ts) aggregates the fleet, serves /sse + POST /message and a
+        REST mirror (GET /v1/tools, POST /v1/tools/:id), records originServer + holds each McpServerConfig
+        (with toolPrefix). McpBridge.translateTool currently flattens ids to mcp:<toolName> (the gap).
+      - Bounded fan-out concurrency primitive: tools/brat/src/orchestration/queue.ts.
+      - Gateway tests live under tests/apps/.
+
+    Scope: tools/brat/** (brat fleet surface + tools/brat/src/fleet/ client module) PLUS one additive
+    read-path/aggregation change in src/apps/tool-gateway.ts (Bit-qualified addressing). NOT any Bit's
+    domain logic; NOT the bit.* toolset (shipped sprint-324); NO architecture.yaml behavioral change (Law #2).
+
+    Deployment-target parity (owner approval condition): identical behavior across GCP (Cloud Run / PubSub /
+    Firestore), Local Docker (Compose / NATS), Remote Docker (ssh://). Discovery uses the registry
+    self-published external URL; the bus backend is off the synchronous MCP call path. Asserted under both
+    MESSAGE_BUS_DRIVER=pubsub and =nats per the BL-500 harness (BL2-401).
+
+    STATUS: PUBLISHED (AGENTS.md §2.8). All items BL2-100..500 are DONE; build green; full Jest suite
+    978 passed / 0 failed; new suites + pubsub/nats parity wired into validate_deliverable.sh. PR #250
+    opened (see publication.yaml). Awaiting owner review/merge + explicit "Sprint complete." to close.
+    WIP limit = 3.
+
+sprint:
+  id: sprint-325-d7f389
+  start: 2026-06-26
+  end: null
+  wip_limit: 3
+  goal: "Make Brat a fleet MCP client: a `brat fleet` command group that enumerates the fleet and drives the universal bit.* control plane on one Bit or all, defaulting to the fabric-through-tool-gateway path with a documented, audited --direct break-glass; plus the one additive piece of platform code — per-Bit (Bit-qualified) addressing in tool-gateway. Fail-closed RBAC, read-only --all fan-out with --confirm-gated mutations, and parity across GCP / Local Docker / Remote Docker. Consumer-only — no bit.* or architecture.yaml change."
+
+items:
+  # ---------------- Phase A — gateway per-Bit addressing (the one new platform affordance) ----------------
+  - id: BL2-100
+    parent: BL-204
+    title: "Expose Bit-qualified discovery ids for platform (bit.*) tools in tool-gateway aggregation (mcp:<bit>/bit.*)"
+    phase: A
+    section: "§4.2 (Option A), §2.1"
+    gate: GA
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "tool-gateway aggregation assigns platform (bit.*) tools a Bit-qualified discovery id (e.g. mcp:<bit>/bit.health) derived from the registry key (Bit name) / McpServerConfig.toolPrefix, reusing the originServer already tracked per tool"
+      - "displayName/description of each bit.* tool is unchanged; only the addressable id is qualified"
+      - "ListTools / GET /v1/tools enumerate WHICH Bit owns WHICH bit.* tool (no more last-writer-wins collision)"
+      - "Domain tools (already distinctly named) are unaffected — no id change, no behavior change"
+      - "Change is additive and read-path only: no bit.* tool definition change, no architecture.yaml change (Law #2)"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T17:36:00-04:00
+        note: "Done. McpBridge.translateTool now qualifies platform (bit/bit.*) ids as mcp:<serverName>/<name> (serverName=registry key) via qualifyToolId(); displayName + domain ids unchanged; upstream execute still calls the unqualified name. Verified by tests/apps/tool-gateway-bit-addressing.spec.ts."
+
+  - id: BL2-101
+    parent: BL-204
+    title: "Make Bit-qualified ids invocable through the gateway (MCP CallTool + REST POST /v1/tools/:id) without RBAC/domain regressions"
+    phase: A
+    section: "§4.2, §5"
+    gate: GA
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-100]
+    blocked_reason: null
+    acceptance:
+      - "CallTool on mcp:<bit>/bit.* routes to the correct upstream Bit and returns its result"
+      - "POST /v1/tools/:id accepts the qualified id and proxies to the same upstream"
+      - "RBAC is still enforced at discovery AND invocation for qualified ids (RbacEvaluator + getRequestContext)"
+      - "Existing domain-tool aggregation + invocation tests pass unchanged (no regression)"
+      - "Gate GA met: per-Bit bit.* is enumerable and invocable; domain tools unaffected"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T17:36:00-04:00
+        note: "Done. No gateway code change needed: CallTool + REST resolve by registry id, so qualified ids invoke the correct upstream. REST mirror requires URL-encoding the '/' in the id (client responsibility). Existing tool-gateway-rest + mcp-rbac suites pass unchanged (no regression); new addressing test asserts two Bits' bit.info no longer collide and each is individually invocable."
+
+  # ---------------- Phase B — fleet client module (Brat side) ----------------
+  - id: BL2-200
+    parent: BL-204
+    title: "Define FleetClient interface + rbac-context (SessionContext build + fail-closed bearer-token resolution)"
+    phase: B
+    section: "§4.3, §6.1, OQ3"
+    gate: GB
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-101]
+    blocked_reason: null
+    acceptance:
+      - "tools/brat/src/fleet/fleet-client.ts declares the FleetClient interface: discover() / list() / call(bit, tool, args) / callAll(tool, args)"
+      - "tools/brat/src/fleet/rbac-context.ts builds SessionContext (roles/agentName/userId) and resolves the bearer token in order: MCP_AUTH_TOKEN env -> environment-target secret (GCP Secret Manager / .secure.local / ssh://-synced .env.brat)"
+      - "No resolvable token => fail closed: the command refuses (non-zero exit), never a silent unauthenticated call; emits a posture warning (OQ3)"
+      - "No secrets embedded in code; tokens resolved at runtime only (TA §6.6)"
+      - "Unit tests cover token-present and token-absent (fail-closed + posture warning) paths"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T17:50:00-04:00
+        note: "Done. tools/brat/src/fleet/types.ts (FleetClient/FleetTransport/RegistryReader ifaces) + rbac-context.ts (resolveToken env->.secure.local/.env.brat/.env.local; resolveIdentity fails closed with PermissionError exit=4 + fleet.auth.posture_warning). Tested."
+
+  - id: BL2-201
+    parent: BL-204
+    title: "Implement gateway-transport (DEFAULT): MCP SSE client -> tool-gateway /sse with GET /v1/tools + POST /v1/tools/:id REST fallback"
+    phase: B
+    section: "§4.3, §5 (fabric)"
+    gate: GB
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-200]
+    blocked_reason: null
+    acceptance:
+      - "tools/brat/src/fleet/transports/gateway-transport.ts connects to the gateway via the @modelcontextprotocol/sdk Client + SSEClientTransport wrappers (as McpClientManager does), with x-mcp-token / MCP_AUTH_TOKEN auth"
+      - "ListTools returns the Bit-qualified ids from BL2-100; CallTool invokes mcp:<bit>/bit.* and forwards identity via _meta:{userRoles,userId}"
+      - "REST fallback (GET /v1/tools, POST /v1/tools/:id) is used when SSE is unavailable"
+      - "Transport reuses platform SDK wrappers rather than re-implementing transport (TA §4.3 'Reuse')"
+      - "Unit tests drive the transport against a mocked gateway"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T17:50:00-04:00
+        note: "Done. transports/gateway-transport.ts reuses SDK Client+SSEClientTransport (injectable clientFactory); maps gateway qualified ids; forwards _meta:{userRoles,userId}; REST fallback GET /v1/tools + POST /v1/tools/:id (URL-encoded id); Forbidden surfaced, not retried. Tested."
+
+  - id: BL2-202
+    parent: BL-204
+    title: "Implement direct-transport (BREAK-GLASS): MCP SSE client -> a single Bit's registry-published MCP URL"
+    phase: B
+    section: "§4.3, §5 (direct-connect)"
+    gate: GB
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL2-200]
+    blocked_reason: null
+    acceptance:
+      - "tools/brat/src/fleet/transports/direct-transport.ts connects to ONE Bit's external MCP /sse URL looked up from the Firestore mcp_servers registry, with MCP_AUTH_TOKEN sent to the Bit directly"
+      - "Both transports satisfy a single shared transport interface so FleetClient is transport-agnostic"
+      - "Direct transport targets exactly one named Bit (no aggregation, no fan-out)"
+      - "Unit tests drive the transport against a mocked single-Bit MCP endpoint + mocked registry lookup"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T17:50:00-04:00
+        note: "Done. transports/direct-transport.ts targets ONE Bit (label direct:<bit>), resolves its registry URL, strips the mcp:<bit>/ qualifier before calling upstream, no fan-out. Tested incl. missing-URL ConfigurationError."
+
+  - id: BL2-203
+    parent: BL-204
+    title: "Implement FleetClient.discover()/list()/call()/callAll() over the chosen transport (gateway + optional registry read)"
+    phase: B
+    section: "§4.3, §9 (discovery/invocation)"
+    gate: GB
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-201, BL2-202]
+    blocked_reason: null
+    acceptance:
+      - "discover()/list() render name/profile/exposure/health; default reads the gateway (qualified ids) and MAY read the Firestore mcp_servers registry so a platform-only Bit with zero domain tools still appears"
+      - "call(bit, 'bit.health', args) issues a CallTool for the Bit-qualified id over the selected transport, forwarding _meta:{userRoles,userId}"
+      - "callAll(tool, args) fans out across discovered Bits (read-only) and returns a per-Bit result set"
+      - "Gate GB met: lists Bits incl. a platform-only Bit and calls a Bit-qualified bit.* over either transport against a mocked gateway/registry; fail-closed without a token"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T17:50:00-04:00
+        note: "Done. fleet-client.ts discover() merges fabric qualified ids + optional registry (platform-only Bits appear); list() alias; call(bit,tool) builds mcp:<bit>/<tool>; callAll() bounded Queue fan-out, partial-failure tolerant. FirestoreRegistryReader reads mcp_servers. Gate GB met; 11/11 fleet tests green."
+
+  # ---------------- Phase C — brat fleet command surface ----------------
+  - id: BL2-300
+    parent: BL-204
+    title: "Dispatch the new `fleet` command group from brat CLI with global modifiers (--all, --direct, --json, --env)"
+    phase: C
+    section: "§4.1"
+    gate: GC
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL2-203]
+    blocked_reason: null
+    acceptance:
+      - "tools/brat/src/cli/index.ts routes c1 === 'fleet' to a new fleet handler, mirroring the existing docker/backup blocks"
+      - "Global modifiers parsed: --all, --direct <bit>, --json, --env <name> (reusing the existing global flag + BITBRAT_ENV)"
+      - "`brat fleet` with no/invalid subcommand prints help listing the §4.1 / Appendix A command surface"
+      - "Output style is consistent with existing brat commands (incl. --json machine-readable mode)"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:05:00-04:00
+        note: "Done. tools/brat/src/cli/fleet.ts (testable runFleet + thin cmdFleet) wired via c1==='fleet' in cli/index.ts; parseFleetArgs reads --all/--direct/--confirm/--describe/--key/--value/--level/--roles; --json honored; FLEET_HELP printed for no/invalid subcommand; printHelp lists the surface."
+
+  - id: BL2-301
+    parent: BL-204
+    title: "Wire read subcommands -> bit.* (bit:read): list, info, health, config [--describe], flags <bit> get"
+    phase: C
+    section: "§4.1, §6.2, Appendix A"
+    gate: GC
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-300]
+    blocked_reason: null
+    acceptance:
+      - "fleet list enumerates live Bits (name, profile, exposure, health)"
+      - "fleet info [<bit>|--all] -> bit.info; fleet health [<bit>|--all] -> bit.health / bit.readiness"
+      - "fleet config <bit> [--describe] -> bit.config.get / bit.config.describe; secrets stay server-redacted (no client de-redaction)"
+      - "fleet flags <bit> get [--key K] -> bit.flags.get"
+      - "All read commands require only bit:read; Brat sends identity and never self-authorizes"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:05:00-04:00
+        note: "Done. list->discover; info->bit.info; health->bit.health; config [--describe]->bit.config.get/describe; flags <bit> get->bit.flags.get. Default roles hint bit:read; identity forwarded, never self-authorized. Tested."
+
+  - id: BL2-302
+    parent: BL-204
+    title: "Wire mutating subcommands -> bit.* (bit:operate): flags set, log --level, drain, shutdown (clear Forbidden on insufficient scope)"
+    phase: C
+    section: "§4.1, §6.2, Appendix A"
+    gate: GC
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-301]
+    blocked_reason: null
+    acceptance:
+      - "fleet flags <bit> set --key K --value V -> bit.flags.set; fleet log <bit> --level <lvl> -> bit.log.level"
+      - "fleet drain <bit> -> bit.drain; fleet shutdown <bit> -> bit.shutdown"
+      - "All mutating commands require bit:operate; an insufficient-scope response surfaces a clear Forbidden error and does NOT retry (RBAC is server-authoritative)"
+      - "Single-Bit mutations work on the fabric path by default"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:05:00-04:00
+        note: "Done. flags set->bit.flags.set; log --level->bit.log.level; drain->bit.drain; shutdown->bit.shutdown. Default roles hint bit:operate. A Forbidden response surfaces as 'Forbidden' and is NOT retried (single attempt asserted). Single-Bit mutation runs on the fabric by default."
+
+  - id: BL2-303
+    parent: BL-204
+    title: "Implement --all fan-out: read-only by default (bounded Queue, partial-failure tolerant); mutations gated by --confirm, run sequentially"
+    phase: C
+    section: "§7"
+    gate: GC
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-301, BL2-302]
+    blocked_reason: null
+    acceptance:
+      - "--all on read ops (info/health) concurrently queries every discovered Bit via the bounded Queue (tools/brat/src/orchestration/queue.ts) and renders a per-Bit table (or --json array)"
+      - "A down/unreachable Bit shows `unreachable` and the command still returns the rest (partial-failure tolerant)"
+      - "Fleet-wide drain/shutdown/flags set are NOT implied by --all: they require an explicit --confirm and execute sequentially with per-Bit logging"
+      - "Read fan-out never opens unbounded connections (bounded concurrency asserted)"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:05:00-04:00
+        note: "Done. Read ops with --all use FleetClient.callAll (bounded orchestration/queue.ts), render a per-Bit table/--json array, and tolerate an unreachable Bit. Fleet-wide drain/shutdown/flags set are NOT implied by --all: they require --confirm and run sequentially with per-Bit logging. Tested."
+
+  - id: BL2-304
+    parent: BL-204
+    title: "Implement --direct break-glass guardrails: gateway bypass, fleet.break_glass audit line, single-Bit only, rejected with --all"
+    phase: C
+    section: "§5, §6.5, OQ4"
+    gate: GC
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL2-300, BL2-202]
+    blocked_reason: null
+    acceptance:
+      - "--direct <bit> selects the direct transport (gateway bypass) for a single named Bit"
+      - "Using --direct emits an explicit `fleet.break_glass` audit log line (who / which Bit)"
+      - "--direct combined with --all is rejected with a clear error (single-Bit only)"
+      - "Docs frame --direct as emergency-only (gateway unhealthy / isolating a misbehaving Bit)"
+      - "Gate GC met: full §4.1 mapping works on the fabric path; mutations demand bit:operate; --all read-only + --confirm-gated mutations; --direct audited and --all-incompatible"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:05:00-04:00
+        note: "Done. --direct <bit> selects DirectTransport (gateway bypassed; asserted gateway.calls=0), emits a fleet.break_glass audit log line, and is rejected when combined with --all. Gate GC met; 13/13 fleet CLI tests green; full tsc build green."
+
+  # ---------------- Phase V — validation, parity & close-out ----------------
+  - id: BL2-400
+    parent: BL-204
+    title: "Full Jest test matrix: discovery, invocation/addressing, RBAC/fail-closed, break-glass, gateway addressing regression"
+    phase: V
+    section: "§9"
+    gate: GV
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL2-304]
+    blocked_reason: null
+    acceptance:
+      - "Discovery tests: FleetClient.discover() lists Bits incl. a platform-only Bit (no domain tools) from a mocked registry + gateway"
+      - "Invocation/addressing tests: call(bit,'bit.health') and per-Bit ids hit the correct upstream; --all aggregates and tolerates one unreachable Bit"
+      - "RBAC/fail-closed tests: missing token => refuse + posture warning; a bit:read token cannot bit.shutdown (Forbidden); a bit:operate token succeeds"
+      - "Break-glass tests: --direct bypasses the gateway, emits the audit line, and is rejected with --all"
+      - "Gateway addressing tests: mcp:<bit>/bit.* exposed/invoked without regressing domain-tool aggregation or RBAC (extends tests/apps gateway coverage)"
+      - "External services mocked; npm test green"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:20:00-04:00
+        note: "Done. Matrix across tests/apps/tool-gateway-bit-addressing.spec.ts (addressing + regression), tools/brat/src/fleet/__tests__/fleet-client.spec.ts (discovery, invocation, RBAC fail-closed, break-glass, --all partial-failure), and tools/brat/src/cli/__tests__/fleet.spec.ts (full command surface incl. Forbidden-no-retry + --confirm gating + --direct audit/--all rejection). Externals mocked. Full suite: 978 passed / 2 skipped / 0 failed."
+
+  - id: BL2-401
+    parent: BL-204
+    title: "Deployment-target parity test: fleet path under MESSAGE_BUS_DRIVER=pubsub and =nats; registry-published URL (no host assumption)"
+    phase: V
+    section: "§8, §9 (parity), BL-500"
+    gate: GV
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-400]
+    blocked_reason: null
+    acceptance:
+      - "The fleet client path is exercised against a mocked gateway/registry under both MESSAGE_BUS_DRIVER=pubsub and =nats (mockable), consistent with the BL-500 harness"
+      - "Discovery resolves each Bit's external URL from the registry self-published value (Cloud Run / compose-network host / ssh://-resolved host) — no Cloud-Run-only or Compose-only host baked in"
+      - "Identical fleet behavior is asserted across GCP / Local Docker / Remote Docker target shapes"
+      - "No PubSub-only or NATS-only assumption is on the synchronous MCP call path"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:20:00-04:00
+        note: "Done. tools/brat/src/fleet/__tests__/fleet-parity.spec.ts asserts identical discovery+invocation under MESSAGE_BUS_DRIVER=pubsub and =nats (bus off the call path), and that DirectTransport connects to exactly each Bit's registry-published URL across Cloud Run / compose-host / ssh-resolved shapes (no baked-in host). Wired into validate_deliverable.sh (per-driver loop)."
+
+  - id: BL2-500
+    parent: BL-204
+    title: "Docs + CHANGELOG, wire tests into validate_deliverable.sh, and sprint close-out (verification/retro/PR)"
+    phase: V
+    section: "§9, DoD, AGENTS.md §2.6/§2.7/§2.8"
+    gate: GV
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL2-400, BL2-401]
+    blocked_reason: null
+    acceptance:
+      - "brat fleet --help text + a short operator note (fabric default; --direct emergency-only; --all read-only with --confirm-gated mutations) added"
+      - "CHANGELOG.md records the brat fleet capability + the additive Bit-qualified gateway addressing"
+      - "New Jest suites wired into validate_deliverable.sh; npm run build + npm test green; script logically passable (AGENTS.md §2.6)"
+      - "verification-report.md, retro.md, key-learnings.md produced"
+      - "PR attempted and recorded in publication.yaml (Rules S12/S13)"
+      - "Gate GV: validate_deliverable.sh logically passable and DoD (AGENTS.md §3) met"
+    updated_at: 2026-06-26
+    log:
+      - at: 2026-06-26T18:30:00-04:00
+        note: "Done. brat fleet --help + operator note shipped (FLEET_HELP + printHelp); CHANGELOG [Unreleased] records the brat fleet capability + additive Bit-qualified gateway addressing; new suites + per-driver parity + fleet help entrypoint wired into validate_deliverable.sh (logically passable). verification-report.md / retro.md / key-learnings.md produced. PR #250 created and recorded in publication.yaml (Rules S12/S13). Gate GV met."
