@@ -5,20 +5,27 @@ commit: 305ee7d
 pushed: true
 push_remote: "git@github.com:cnavta/BitBrat.git"
 
-pr_url: null
-pr_status: failed
+pr_url: "https://github.com/cnavta/BitBrat/pull/252"
+pr_number: 252
+pr_status: merged
+pr_merged_at: "2026-06-27T02:09:39Z"
+pr_merge_commit: "7da5b1dd2ac115cd1af61395f2a1e791c3ca61d0"   # == origin/main HEAD
+status: published
+
+# Resolution note (Rule S13 satisfied):
+# The earlier sprint close attempted PR creation while `gh` was not installed and no GitHub token was
+# available, so this file recorded `status: blocked-on-credentials`. On a later check the `gh` CLI was
+# found (v2.95.0, authenticated as cnavta with `repo` scope). It confirmed PR #252 for this branch was
+# already created and MERGED into `main`; the branch tip (bdd4456) is an ancestor of origin/main. The
+# publication phase is therefore complete and the previous blocked state is obsolete.
 pr_attempts:
   - method: gh-cli
+    result: success
+    reason: "PR #252 found already MERGED into main (verified via `gh pr view 252`)."
+  - method: gh-cli
     result: unavailable
-    reason: "`gh` CLI is not installed in this environment."
+    reason: "(historical) `gh` CLI was not installed at original sprint close."
   - method: github-api
     result: blocked
-    reason: "No GitHub token available (GITHUB_TOKEN / GH_TOKEN unset); cannot authenticate the REST PR call."
-
-# Rule S13: the branch is pushed, but the PR could not be created automatically. Per AGENTS.md the sprint
-# cannot close until either (a) a PR is created and its URL recorded here, or (b) this failed attempt is
-# accepted by the owner. Two ways to proceed:
-manual_pr_url: "https://github.com/cnavta/BitBrat/pull/new/feature/sprint-327-2c45c2-docs-bit-mcp"
-needed_to_create_pr: "Provide a GitHub token (GITHUB_TOKEN/GH_TOKEN) or install + authenticate `gh`, then re-run PR creation."
-owner_acceptance: pending   # set to true once the owner accepts closure or the PR is created
-status: blocked-on-credentials
+    reason: "(historical) No GitHub token (GITHUB_TOKEN / GH_TOKEN) available at original sprint close."
+owner_acceptance: not-required   # PR exists and is merged
