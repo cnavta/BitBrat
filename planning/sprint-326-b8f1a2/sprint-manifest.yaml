@@ -3,10 +3,10 @@ title: "Integrated Version Handling — single-source-of-truth release tooling"
 goal: "Make architecture.yaml `project.version` the single source of truth for the platform version and add one idempotent, dry-run-able release tool (`brat release <patch|minor|major|x.y.z>` / `npm run release`) that: (1) computes the next SemVer, (2) writes it to architecture.yaml AND package.json (lockfile synced via npm install), (3) re-validates architecture.yaml (only project.version changed — Law #2), (4) rolls CHANGELOG.md `## [Unreleased]` into a dated `## [x.y.z]` block and inserts a fresh empty `## [Unreleased]`, (5) optionally git-tags. Wire `release:dry` into validate_deliverable.sh and the Sprint Publish phase so every shipping sprint can cut a version with one traceable command. Consumer/tooling change only — no behavioral architecture.yaml edit."
 owner: "Lead Implementor"
 createdAt: "2026-06-26T20:15:00Z"
-status: "in-progress"
+status: "verifying"
 links:
   branch: "feature/sprint-326-b8f1a2-integrated-version-handling"
-  pr: ""   # created at publication phase (Rules S12/S13)
+  pr: ""   # PR creation BLOCKED — no gh CLI / no GITHUB_TOKEN (see publication.yaml). Branch pushed; awaiting PR + owner closure (S13).
 notes: |
   Source design: scratch "If we wanted to up the version of the platform…" (attached to issue) — recommends
   architecture.yaml as the single source of truth and an idempotent `npm run release` / `brat release`
