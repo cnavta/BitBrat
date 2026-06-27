@@ -28,6 +28,8 @@ export interface ResolvedBackupConnection {
   isEmulator: boolean;
   /** The deployment target name, when --target was used. */
   targetName?: string;
+  /** The deployment-target engine kind, when --target was used (`local` unix socket vs `remote` ssh). */
+  targetKind?: 'local' | 'remote';
   /** A short human description of the resolved endpoint, echoed before any op. */
   description: string;
   /** Tear down any resources (e.g. an SSH tunnel) opened during resolution. */
@@ -245,6 +247,7 @@ export async function resolveBackupConnection(
       connectOptions: { emulatorHost: hostPort, projectId: endpoint.project, databaseId: '(default)' },
       isEmulator: true,
       targetName,
+      targetKind: endpoint.kind,
       description: `target '${targetName}' -> Firestore emulator ${hostPort} (project '${endpoint.project}')`,
       cleanup,
     };

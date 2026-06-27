@@ -120,6 +120,15 @@ Usage:
 
   brat chat [--env <name>] [--project-id <id>]
 
+  # Fleet control plane (drives the universal bit.* tools via the tool-gateway fabric; fail-closed RBAC)
+  brat fleet list [--json]
+  brat fleet info|health [<bit> | --all] [--json]
+  brat fleet config <bit> [--describe] [--json]
+  brat fleet flags <bit> get [--key K] | set --key K --value V [--json]
+  brat fleet log <bit> --level <error|warn|info|debug>
+  brat fleet drain|shutdown <bit> [--all --confirm]
+  brat fleet ... [--direct <bit>]   # BREAK-GLASS: bypass the gateway (audited; single-Bit; never with --all)
+
   brat cloud-run shutdown --env <name> [--project-id <id>] [--region <r>] [--dry-run]
 
   brat trigger create --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
@@ -747,6 +756,11 @@ Options:
   if (c1 === 'chat') {
     const { cmdChat } = require('./chat');
     await cmdChat(flags);
+    return;
+  }
+  if (c1 === 'fleet') {
+    const { cmdFleet } = require('./fleet');
+    await cmdFleet(cmd, rest, flags);
     return;
   }
   if (c1 === 'cloud-run' && c2 === 'shutdown') {
