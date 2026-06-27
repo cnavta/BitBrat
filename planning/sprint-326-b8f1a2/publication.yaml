@@ -3,7 +3,7 @@ pushed: true
 push_remote: "git@github.com:cnavta/BitBrat.git"
 base: main
 pr_url: null
-status: pr_failed
+status: pr_failed_owner_accepted_closure
 compare_url: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-326-b8f1a2-integrated-version-handling
 attempt:
   at: "2026-06-26T20:27:00-04:00"
@@ -19,8 +19,13 @@ body: |
   re-validated — Law #2) + package.json + package-lock.json, rolls CHANGELOG [Unreleased] into a dated
   block, optional local git tag, --dry-run no-op. 32 new Jest tests; validate_deliverable.sh assertion +
   release:dry hook; docs in README/CONTRIBUTING/AGENTS.md §2.8.
+owner_closure:
+  accepted: true
+  at: "2026-06-26T20:52:00-04:00"
+  trigger: "Owner said: Sprint complete."
+  rule: "S13(b) — explicit owner acceptance of closure with the failed PR attempt logged."
 notes: |
-  Per Rule S13: the feature branch is pushed and the failed PR attempt is logged here. Sprint closure
-  requires either a successfully created PR (record its URL above) or explicit owner acceptance of closure
-  with this failure recorded. To open the PR manually, visit the compare_url above, or provide a
-  GITHUB_TOKEN / install `gh` so the agent can create it.
+  Per Rule S13: the feature branch is pushed and the failed PR attempt is logged here. Sprint closure was
+  authorized under S13(b): the owner explicitly accepted closure ("Sprint complete.") with this PR failure
+  recorded. To open the PR later, visit the compare_url above, or provide a GITHUB_TOKEN / install `gh` so
+  the agent can create it. The branch is pushed and up to date with origin (version cut to 0.7.1).
