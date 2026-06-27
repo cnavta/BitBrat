@@ -4,9 +4,9 @@ Date: 2025-12-06
 Sprint: sprint-119-a8827e
 Sources: src/common/base-server.ts, planning/sprint-119-a8827e/technical-architecture.md
 
-> Bit model (sprint-324, Phase 3): the base abstraction is now named `Bit` (the `BaseServer` alias has
-> been retired). The routing helpers below are unchanged; substitute `Bit` wherever older docs said
-> `BaseServer`.
+> Bit model (sprint-324): the base abstraction is now named `Bit` (the `BaseServer` alias has been
+> retired). The routing helpers below are unchanged; substitute `Bit` wherever older docs said
+> `BaseServer`. For the broader model see [The Bit Model](../concepts/bit-model.md).
 
 Overview
 - Bit provides protected helpers to standardize routing-slip advancement across services:
@@ -47,7 +47,7 @@ Idempotency
 
 Usage example
 ```
-class MyService extends BaseServer {
+class MyService extends Bit {
   async handle(evt: InternalEventV2) {
     // ... process current step ...
     this.updateCurrentStep(evt, { status: 'OK' });
