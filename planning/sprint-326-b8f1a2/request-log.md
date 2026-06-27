@@ -39,3 +39,15 @@
   - `git add -A && git commit && git push` (feature branch) + PR creation (see publication.yaml).
 - **files created/modified:** release module (5 files) + `cli/release.ts` + `cli/index.ts` + `package.json` + `validate_deliverable.sh` + `README.md` + `CONTRIBUTING.md` + `AGENTS.md` + `CHANGELOG.md` + sprint artifacts (backlog statuses, verification-report.md, retro.md, key-learnings.md, publication.yaml, sprint-manifest.yaml).
 - **gate:** Backlog BL-326-100..501 = done; 600/601 = deferred. Validation logically passable. Awaiting "Sprint complete." after PR.
+
+---
+
+## REQ-003 — Sprint closure ("Sprint complete.")
+- **timestamp:** 2026-06-26T20:52:00-04:00
+- **prompt summary:** Owner said "Sprint complete."
+- **interpretation:** S2 closure trigger. PR could not be auto-created (no `gh`/token) and that failure is logged in publication.yaml, so the owner's confirmation is explicit acceptance of closure under Rule S13(b).
+- **state at closure:**
+  - Version cut to **0.7.1**; architecture.yaml == package.json == package-lock.json (consistent).
+  - Branch `feature/sprint-326-b8f1a2-integrated-version-handling` pushed and up to date with origin (0/0).
+  - `verification-report.md`, `retro.md`, `key-learnings.md` present. BL-326-100..501 done; 600/601 deferred.
+- **actions:** Set `sprint-manifest.yaml` status → `complete` (closedAt recorded); recorded owner closure acceptance in `publication.yaml` (status `pr_failed_owner_accepted_closure`).

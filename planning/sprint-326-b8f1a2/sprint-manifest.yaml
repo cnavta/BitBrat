@@ -3,10 +3,11 @@ title: "Integrated Version Handling — single-source-of-truth release tooling"
 goal: "Make architecture.yaml `project.version` the single source of truth for the platform version and add one idempotent, dry-run-able release tool (`brat release <patch|minor|major|x.y.z>` / `npm run release`) that: (1) computes the next SemVer, (2) writes it to architecture.yaml AND package.json (lockfile synced via npm install), (3) re-validates architecture.yaml (only project.version changed — Law #2), (4) rolls CHANGELOG.md `## [Unreleased]` into a dated `## [x.y.z]` block and inserts a fresh empty `## [Unreleased]`, (5) optionally git-tags. Wire `release:dry` into validate_deliverable.sh and the Sprint Publish phase so every shipping sprint can cut a version with one traceable command. Consumer/tooling change only — no behavioral architecture.yaml edit."
 owner: "Lead Implementor"
 createdAt: "2026-06-26T20:15:00Z"
-status: "verifying"
+status: "complete"
+closedAt: "2026-06-26T20:52:00Z"
 links:
   branch: "feature/sprint-326-b8f1a2-integrated-version-handling"
-  pr: ""   # PR creation BLOCKED — no gh CLI / no GITHUB_TOKEN (see publication.yaml). Branch pushed; awaiting PR + owner closure (S13).
+  pr: ""   # PR not auto-created — no gh CLI / no GITHUB_TOKEN (see publication.yaml). Branch pushed; owner accepted closure with the failed attempt logged (Rule S13b).
 notes: |
   Source design: scratch "If we wanted to up the version of the platform…" (attached to issue) — recommends
   architecture.yaml as the single source of truth and an idempotent `npm run release` / `brat release`
@@ -39,5 +40,7 @@ notes: |
     - Tool is idempotent and supports `--dry-run` so it runs safely inside validate_deliverable.sh.
     - This sprint produces code + tests + validation integration (AGENTS.md §6 + §3 DoD).
 
-  STATUS: PLANNING. First task = author implementation-plan.md + Trackable Prioritized YAML backlog.yaml and
-  obtain explicit owner approval (AGENTS.md §2.4 — coding forbidden until approved). WIP limit = 3.
+  STATUS: COMPLETE. Owner said "Sprint complete." (2026-06-26) — explicit acceptance of closure per Rule
+  S13(b) with the failed PR attempt logged in publication.yaml. Deliverable shipped: the version was cut to
+  0.7.1 (architecture.yaml == package.json == package-lock.json, all consistent) and the branch is pushed
+  and up to date with origin. BL-326-100..501 done; BL-326-600/601 intentionally deferred.
