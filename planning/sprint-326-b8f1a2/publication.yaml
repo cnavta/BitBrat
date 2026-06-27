@@ -2,8 +2,8 @@ branch: feature/sprint-326-b8f1a2-integrated-version-handling
 pushed: true
 push_remote: "git@github.com:cnavta/BitBrat.git"
 base: main
-pr_url: null
-status: pr_failed_owner_accepted_closure
+pr_url: https://github.com/cnavta/BitBrat/pull/251
+status: created
 compare_url: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-326-b8f1a2-integrated-version-handling
 attempt:
   at: "2026-06-26T20:27:00-04:00"
@@ -24,8 +24,17 @@ owner_closure:
   at: "2026-06-26T20:52:00-04:00"
   trigger: "Owner said: Sprint complete."
   rule: "S13(b) — explicit owner acceptance of closure with the failed PR attempt logged."
+pr_resolution:
+  resolved: true
+  at: "2026-06-26T21:00:00-04:00"
+  pr_url: https://github.com/cnavta/BitBrat/pull/251
+  method: "gh pr create (gh v2.95.0 at /opt/homebrew/bin/gh; keyring auth, account cnavta, repo scope)"
+  note: |
+    Earlier attempts reported `gh` missing only because /opt/homebrew/bin was absent from the agent
+    shell PATH. Invoking gh by full path with the owner-provided keyring auth succeeded. The S13(b)
+    owner-accepted closure above remains for the historical record; the PR is now created (S13a satisfied).
 notes: |
-  Per Rule S13: the feature branch is pushed and the failed PR attempt is logged here. Sprint closure was
-  authorized under S13(b): the owner explicitly accepted closure ("Sprint complete.") with this PR failure
-  recorded. To open the PR later, visit the compare_url above, or provide a GITHUB_TOKEN / install `gh` so
-  the agent can create it. The branch is pushed and up to date with origin (version cut to 0.7.1).
+  The feature branch is pushed and the PR has now been successfully created (S13a): see pr_url above.
+  History: closure was originally authorized under S13(b) when PR creation failed (no gh on PATH / no
+  token); the owner subsequently adjusted permissions and the PR was opened via the gh CLI. Version cut
+  to 0.7.1 (architecture.yaml == package.json == package-lock.json).
