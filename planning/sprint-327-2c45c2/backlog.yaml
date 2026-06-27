@@ -236,14 +236,16 @@ items:
   - id: BL-327-500
     title: "Close-out: verification-report.md, retro.md, key-learnings.md, and publication.yaml; push branch and open PR (Rules S12/S13)"
     priority: P0
-    status: in_progress
+    status: blocked
     effort: M
     owner: agent
     deps: [BL-327-002, BL-327-003, BL-327-101, BL-327-201, BL-327-300, BL-327-301, BL-327-302, BL-327-400, BL-327-401]
-    blocked_reason: null
+    blocked_reason: "PR could not be auto-created: `gh` CLI not installed and no GITHUB_TOKEN/GH_TOKEN available. Branch is pushed; failure logged in publication.yaml. Needs owner credentials (or explicit closure acceptance) + owner 'Sprint complete.' (Rules S13/S2)."
     acceptance:
       - "verification-report.md, retro.md, key-learnings.md present and accurate"
       - "Branch pushed; PR attempted and URL (or logged failure + explicit owner acceptance) recorded in publication.yaml"
       - "validate_deliverable.sh logically passable; owner says 'Sprint complete.'"
     updated_at: 2026-06-26
-    log: []
+    log:
+      - at: 2026-06-26T22:48:00Z
+        note: "verification-report.md, retro.md, key-learnings.md written; validate_deliverable.sh passes (exit 0). Branch committed (305ee7d) + pushed to origin. PR attempt FAILED: gh CLI missing and no token; logged in publication.yaml with manual PR URL. Awaiting owner credentials or explicit closure acceptance + 'Sprint complete.'"
