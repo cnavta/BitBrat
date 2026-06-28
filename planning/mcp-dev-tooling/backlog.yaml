@@ -1,0 +1,339 @@
+meta:
+  backlog_id: mcp-dev-tooling-easy-wins
+  updated_at: 2026-06-26T22:57:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]
+  effort_values: [S, M, L]
+  source: planning/mcp-dev-tooling/execution-plan.md
+  design: documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md
+  approval_required: true
+  notes: |
+    Trackable Prioritized YAML Backlog for the MCP dev-tooling "easy wins" — the
+    read/observe/validate/plan quadrant of the dev-tooling assessment. Each item wraps something that
+    ALREADY exists (a brat --json subcommand, an already-MCP bit.* read tool, or a pure repo/registry read)
+    as a typed MCP tool so an agent stops brittle-parsing human-formatted CLI output, without gaining any
+    mutating command.
+    The unifying rule (binding for every item):
+      - Read-only / idempotent only; anything that writes is exposed ONLY as its --dry-run / plan half.
+      - Gateway-mediated (ADR-003 chokepoint); no second path around the fabric; never self-authorize;
+        RBAC is server-authoritative (tools only forward identity, the gateway + Bit decide).
+      - Fail-closed: no resolvable MCP_AUTH_TOKEN => refuse to run; absent token logged as a posture warning.
+      - Redaction preserved: config/registry reads return server-side-redacted values and token hashes only.
+      - Typed I/O over CLI parsing: every tool has an explicit input/output JSON schema.
+    Easy wins covered (assessment -> backlog):
+      1. brat config show / config validate / doctor as typed MCP reads (zero blast radius)  -> BL-200..202
+      2. Drive the bit.* READ plane (info/health/readiness/config.*/flags.get) over MCP       -> BL-210..211
+      3. fleet list enumeration as a typed MCP read                                           -> BL-212
+      4. release --dry-run planning tool (CI-safe, idempotent)                                -> BL-300
+      5. infra plan / deploy --dry-run planning halves (mutating halves EXCLUDED)             -> BL-301
+      6. Read-only Firestore / registry snapshot reads (token hashes, never plaintext)        -> BL-400
+    EXCLUDED (stay human-initiated, --confirm-gated, single-target, audited): bit.flags.set, bit.log.level,
+      bit.drain, bit.shutdown (bit:operate); brat setup, infra apply, deploy services --all,
+      cloud-run shutdown, fleet ... --direct break-glass, release --tag. Asserted unreachable by BL-500.
+    DEFERRED (high value, NOT an easy win — net-new structured logs + correlation-trace reads): BL-D01.
+    Deployment-target parity (GCP Cloud Run/PubSub/Firestore, Local Docker Compose/NATS, Remote Docker
+      ssh://) is required of every tool and asserted by BL-500; discovery uses the registry-published URL
+      and the bus backend is off the synchronous read path.
+    STATUS: PRE-SPRINT (AGENTS.md Rule S1). Plan drafted, approval pending; exposing a new operator surface
+      over MCP is itself an ADR + sprint item (Phase R / BL-002). No sprint started, no branch, no code
+      changed. This backlog awaits an explicit "Start sprint." (§2.2) before any implementation begins.
+
+sprint:
+  id: null
+  start: null
+  end: null
+  wip_limit: 3
+  goal: "Expose the dev-tooling assessment's easy wins (read/observe/validate/plan) as typed, gateway-mediated, fail-closed, read-only MCP tools — wrapping existing brat --json subcommands, the already-MCP bit.* read plane, and pure repo/registry reads — so an agent gets reliable typed diagnostics and dry-run planning without any mutating command."
+
+items:
+  # ---------------- Phase R — ratify the surface first (ADR + guardrails, Law #2) ----------------
+  - id: BL-001
+    title: "Inventory candidate tools + confirm each emits stable --json (or a typed bit.* result) and none in scope mutates state"
+    phase: R
+    section: "§3, §2"
+    gate: GR
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Each candidate brat subcommand (config show, config validate, doctor, release --dry-run, infra plan, deploy --dry-run) is confirmed to emit stable, parseable --json/--ci output"
+      - "The bit:read surface (bit.info/health/readiness/config.*/flags.get) + brat fleet list are confirmed already-MCP and aggregated by tool-gateway"
+      - "Every in-scope candidate is confirmed read-only or dry-run (writes nothing); any that mutates is moved to the exclusion list"
+      - "Findings recorded in request-log.md"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-002
+    title: "Author ADR: allowed read-only/dry-run tool subset, agent->bit:read scope map, gateway/fail-closed/redaction guardrails, exclusion list, shared read-tool harness contract"
+    phase: R
+    section: "§2, §4 Phase R"
+    gate: GR
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - "ADR enumerates the exact allowed tool subset (config.show/validate, doctor, bit.* reads, fleet.list, release/infra/deploy dry-run, registry.snapshot) and the explicit exclusion list (bit:operate mutations + brat high-blast-radius + break-glass)"
+      - "Agent identity -> bit:read scope mapping is defined; tools never self-authorize; RBAC stays server-authoritative"
+      - "Guardrails written: gateway-mediated (ADR-003 chokepoint), fail-closed token resolution + posture warning, server-side redaction preserved"
+      - "A shared MCP read-tool harness contract is specified (typed I/O schema, token resolution order, posture-warning + Forbidden handling) for reuse by all later tools"
+      - "ADR confirms no architecture.yaml behavioral change is required beyond an additive exposure note; ADR accepted"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 1 — deterministic config / schema / doctor reads (zero blast radius) ----------------
+  - id: BL-200
+    title: "config.show MCP tool wrapping brat config show --json (resolved/merged config incl. env overlays)"
+    phase: 1
+    section: "§4 Phase 1"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "config.show tool returns the resolved/merged platform configuration as typed JSON via the gateway"
+      - "Secrets are server-side redacted; no raw MCP_AUTH_TOKEN or provider keys are returned"
+      - "Tool fails closed without a resolvable token (posture warning logged)"
+      - "Unit tests cover typed output + redaction + fail-closed"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-201
+    title: "config.validate MCP tool wrapping brat config validate --json (architecture.yaml vs architecture.v1.json)"
+    phase: 1
+    section: "§4 Phase 1, Law #2"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "config.validate validates architecture.yaml against documentation/schemas/architecture.v1.json and returns typed pass/fail + structured errors"
+      - "Lets an agent confirm a proposed change is schema-legal BEFORE proposing it (honors Law #2)"
+      - "Deterministic: identical input => identical output; writes nothing"
+      - "Unit tests cover a valid file (pass) and an intentionally invalid file (typed errors)"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-202
+    title: "doctor MCP tool wrapping brat doctor --json --ci (env/tooling/auth preflight)"
+    phase: 1
+    section: "§4 Phase 1"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "doctor tool returns the typed diagnostic report (tooling presence, gcloud/terraform/docker, auth/project) from brat doctor --json --ci"
+      - "Runs non-interactively (CI mode); never prompts"
+      - "No secret values are emitted; only presence/version/posture facts"
+      - "Unit tests cover a healthy and a degraded environment report shape"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-203
+    title: "Phase 1 gate: config/doctor tools typed, gateway-routed, fail-closed, redacted, parity-clean"
+    phase: 1
+    section: "§4 Phase 1 exit, §6"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-200, BL-201, BL-202]
+    blocked_reason: null
+    acceptance:
+      - "All three tools return typed JSON over tool-gateway and fail closed without a token"
+      - "No secret leaks through any of the three tools"
+      - "Tools behave identically across GCP / Local Docker / Remote Docker (pure repo/env reads, no target coupling)"
+      - "npm run build + npm test green; Gate G1 met"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 2 — fleet read-plane wiring (bit.* reads + fleet.list) ----------------
+  - id: BL-210
+    title: "Typed MCP read tools for the bit:read surface (bit.info / health / readiness / config.* / flags.get), single-Bit + read-only --all"
+    phase: 2
+    section: "§4 Phase 2"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "Per-Bit read tools invoke bit.info, bit.health/bit.readiness, bit.config.get/describe, bit.flags.get via the gateway using the BL-204 Bit-qualified addressing"
+      - "A read-only --all fan-out aggregates per-Bit results and tolerates partial failure (a down Bit shows unreachable; the rest still return)"
+      - "All reads are bit:read scoped; secrets stay server-side redacted"
+      - "Unit tests cover single-Bit, --all fan-out, and a partially-unreachable fleet"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-211
+    title: "Fail-closed RBAC + redaction conformance for the read plane (read scope cannot reach any bit:operate tool)"
+    phase: 2
+    section: "§4 Phase 2, §6"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-210]
+    blocked_reason: null
+    acceptance:
+      - "A bit:read token/identity cannot invoke any bit:operate tool (flags.set/log.level/drain/shutdown) — Forbidden surfaces cleanly"
+      - "Missing token => refuse + posture warning (no silent unauthenticated call)"
+      - "config.* reads never return raw MCP_AUTH_TOKEN or provider keys"
+      - "Negative-path tests cover insufficient-scope and missing-token"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-212
+    title: "fleet.list typed MCP tool enumerating every live Bit (name/profile/exposure), incl. platform-only Bits"
+    phase: 2
+    section: "§4 Phase 2"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-210]
+    blocked_reason: null
+    acceptance:
+      - "fleet.list returns name/profile/exposure for all discovered Bits, including platform-only Bits with zero domain tools (registry read consistent with RegistryWatcher)"
+      - "Output is typed JSON; bit:read scoped; routes through the gateway"
+      - "Unit test asserts a platform-only Bit appears in the enumeration"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-213
+    title: "Phase 2 gate: fleet read plane usable over MCP; no mutating bit.* reachable from read scope"
+    phase: 2
+    section: "§4 Phase 2 exit"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-210, BL-211, BL-212]
+    blocked_reason: null
+    acceptance:
+      - "An agent can enumerate the fleet and read bit.* per-Bit (and read-only --all) entirely over MCP"
+      - "No bit:operate tool is reachable from the read scope (enforced + tested)"
+      - "npm run build + npm test green; Gate G2 met"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 3 — dry-run planning halves (plan, never apply) ----------------
+  - id: BL-300
+    title: "release.dryRun MCP tool wrapping brat release <bump> --dry-run (reports planned bump; writes nothing)"
+    phase: 3
+    section: "§4 Phase 3"
+    gate: G3
+    priority: P2
+    status: todo
+    effort: S
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "release.dryRun takes an explicit bump (patch|minor|major|x.y.z) and returns the planned version across the three lockstep files (architecture.yaml, package.json, package-lock.json)"
+      - "Writes nothing and creates no git tag (the mutating release / --tag is EXCLUDED); idempotent / CI-safe"
+      - "Asserts the three files currently agree (mirrors validate_deliverable.sh release:dry)"
+      - "Unit test asserts no file mutation and a correct planned-version computation"
+    updated_at: 2026-06-26
+    log: []
+
+  - id: BL-301
+    title: "infra.plan / deploy.dryRun MCP tools wrapping brat infra plan <module> and brat deploy ... --dry-run (delta only)"
+    phase: 3
+    section: "§4 Phase 3"
+    gate: G3
+    priority: P2
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "infra.plan returns the Terraform/CDKTF plan delta for a named module (network|lb|connectors|buckets) without applying"
+      - "deploy.dryRun returns the planned deploy delta for a target without applying"
+      - "The mutating halves (infra apply, deploy services --all) are NOT exposed by these tools"
+      - "Both write nothing / make no infra change; tests assert plan-only behavior"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase 4 — read-only data-plane reproduction reads ----------------
+  - id: BL-400
+    title: "registry.snapshot / Firestore read tools (mcp_servers registry + rules/identities, token hashes only)"
+    phase: 4
+    section: "§4 Phase 4"
+    gate: G4
+    priority: P2
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: null
+    acceptance:
+      - "registry.snapshot reads the live mcp_servers registry (the same source RegistryWatcher consumes) and reports which Bits are published/live on the selected target"
+      - "Read-only Firestore queries for related rules/identities are supported; token values are returned as HASHES only, never plaintext"
+      - "All queries route through the gateway and are bit:read scoped; no document is written"
+      - "Unit tests cover a present vs absent registration and assert no plaintext secret is ever returned"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Phase V — validation & close-out ----------------
+  - id: BL-500
+    title: "Validation harness + sprint close-out (read-only/fail-closed asserts, exclusion asserts, parity, docs, PR)"
+    phase: V
+    section: "§4 Phase V, §6, DoD"
+    gate: GV
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-203, BL-213, BL-300, BL-301, BL-400]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh builds, runs the new tool tests, and asserts every exposed tool is read-only/dry-run and fail-closed"
+      - "Exclusion asserted: no mutating bit:operate tool nor any high-blast-radius/break-glass brat command is reachable from the exposed MCP surface"
+      - "Deployment-target parity asserted: the read path is exercised against both MESSAGE_BUS_DRIVER=pubsub and =nats (mockable) so GCP / Local Docker / Remote Docker do not regress"
+      - "npm run build + npm test green; logically passable per AGENTS.md §2.6"
+      - "verification-report.md, retro.md, key-learnings.md produced; PR attempted and recorded in publication.yaml (Rules S12/S13)"
+      - "Gate GV: validate_deliverable.sh logically passable and DoD (AGENTS.md §3) met"
+    updated_at: 2026-06-26
+    log: []
+
+  # ---------------- Deferred — NOT an easy win (high value, net-new effort) ----------------
+  - id: BL-D01
+    title: "DEFERRED EPIC: structured logs + correlation-trace reads (by Bit/level/time-window/trace-id, redacted)"
+    phase: deferred
+    section: "assessment §2"
+    gate: null
+    priority: P2
+    status: blocked
+    effort: L
+    owner: agent
+    deps: [BL-002]
+    blocked_reason: "Highest-value but net-new (not an easy win); needs its own design for a read-only structured log/trace query surface with the same server-side redaction posture as bit.config.*. Tracked separately from the easy-wins backlog."
+    acceptance:
+      - "A read-only structured log query (by Bit name, level, time window, correlation/trace id) returns typed JSON via the gateway"
+      - "Correlation-id trace lookup follows one event across the bus (NATS/PubSub) between Bits"
+      - "Inherits server-authoritative secret redaction; no de-redaction"
+    updated_at: 2026-06-26
+    log: []

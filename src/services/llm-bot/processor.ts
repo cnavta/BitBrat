@@ -11,6 +11,7 @@ import { assemble } from '../../common/prompt-assembly/assemble';
 import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
 import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser } from '../../common/prompt-assembly/types';
 import { redactText } from '../../common/prompt-assembly/redaction';
+import { extractContextPacksFromNamedContexts } from '../../common/context/named-context';
 import { IToolRegistry } from '../../types/tools';
 import { getLlmProvider } from '../../common/llm/provider-factory';
 import { buildBehavioralGuidance, buildBehavioralTaskInstruction, deriveBehaviorProfile, type BehaviorProfile } from './behavior-profile';
@@ -646,6 +647,19 @@ export async function processEvent(
       } : undefined
     };
 
+    // ContextPacks (sprint-328) render into spec.contexts as NamedContexts tagged with a pack
+    // subheader. Surface which packs contributed to this prompt for debugging + analysis.
+    const includedContextPacks = extractContextPacksFromNamedContexts(spec.contexts);
+    if (includedContextPacks.length > 0) {
+      logger.info('llm_bot.prompt.context_packs', {
+        correlationId: corr,
+        count: includedContextPacks.length,
+        contextPacks: includedContextPacks.map((p) => `${p.id} v${p.version}`),
+      });
+    } else {
+      logger.debug('llm_bot.prompt.context_packs', { correlationId: corr, count: 0 });
+    }
+
     const assembled = assemble(spec, { headingLevel: 2, showEmptySections: true });
     const payload = openaiAdapter(assembled);
 
@@ -857,6 +871,7 @@ export async function processEvent(
         processingTimeMs,
         behaviorProfile: behaviorProfileSummary,
         personalityNames: resolvedPersonalityNames,
+        contextPacks: includedContextPacks,
         toolCalls: toolLogs,
         usage: usage ? {
           promptTokens: usage.promptTokens,

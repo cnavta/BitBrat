@@ -3,9 +3,9 @@ title: "Documentation Refresh — The Bit Model, Universal MCP Control Plane & F
 goal: "Update the project documentation (README.md + the ./documentation tree and all linked docs) to accurately reflect and incorporate the architecture introduced in sprints 324 (the Bit model + universal bit.* MCP control plane), 325 (Brat as a fleet MCP client: `brat fleet`), and 326 (single-source-of-truth release tooling: `brat release`). Documentation-only sprint: retire the now-stale 'BaseServer vs McpServer' vocabulary in favor of the Bit model, document the mandatory `bit.*` control plane, the `brat fleet` and `brat release` command surfaces, and align design docs/roadmaps with what actually shipped — without changing any behavioral code or architecture.yaml."
 owner: "Lead Technical Writer"
 createdAt: "2026-06-26T21:25:00Z"
-status: "verifying"   # implementation + validation complete; publishing/close-out in progress
+status: "complete"   # Owner said "Sprint complete for 327" (2026-06-28, Rule S2). PR #252 created & MERGED into main (see publication.yaml); validation green.
 links:
-  pr: null   # set at the Publication phase (Rules S12/S13); see publication.yaml
+  pr: "https://github.com/cnavta/BitBrat/pull/252"   # merged (Rules S12/S13); see publication.yaml
   branch: "feature/sprint-327-2c45c2-docs-bit-mcp"
 notes: |
   Role for this sprint: Lead Technical Writer (documentation deliverables only — AGENTS.md §6 note on

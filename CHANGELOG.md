@@ -22,6 +22,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.7.2] - 2026-06-28
+### Added
+- Just-in-Time Context Provisioning ("Context Packs"): a `src/common/context/` convention
+  (`ContextPack`/`ContextBinding`/`ContextProvider`, de-duplicating `resolveContextPacks`, and a
+  `packToNamedContext` renderer) that surfaces relevant, versioned schema/usage context to agents only
+  when the related MCP tool/task/event is active (sprint-328).
+- `Bit.registerToolWithContext()` + `registerContextPack`/`registerContextBinding`/`getContextProvider`
+  on the base abstraction; scheduler and event-router now expose `context://schema/internal-event-v2`
+  and `context://router/jsonlogic-guide` MCP Resources and bind them to `create_schedule`/`create_rule`.
+- Generated, drift-guarded packs derived from the source of truth (`events.ts` annotation kinds;
+  `jsonlogic-evaluator.ts` custom operators + EvalContext paths) with tests that fail on drift.
+- `INTERNAL_MCP_REGISTRATION_V1` optionally advertises `payload.context.{packs,bindings}` (additive);
+  the tool-gateway aggregates them and exposes `resolveContextForTools()` for just-in-time injection.
+- llm-bot prompt logging now lists the ContextPacks that contributed to each generated prompt: an
+  `llm_bot.prompt.context_packs` log line plus a `contextPacks[]` field on the `prompt_logs` document,
+  backed by shared `formatPackSubheader`/`parsePackSubheader`/`extractContextPacksFromNamedContexts`
+  helpers so pack detection never drifts from rendering (sprint-328).
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+- **state-engine `propose_mutation` no longer reports a false-positive success for disallowed keys**
+  (sprint-328 follow-up). The mutation pipeline is fire-and-forget (publish to `internal.state.mutation.v1`,
+  validate asynchronously in the consumer), so a proposal for a key outside the allow-list was silently
+  rejected (`Key not allowed`) while the tool still returned `Mutation … proposed` — the caller (and the
+  LLM) saw success even though nothing was persisted. `propose_mutation` now pre-validates the key against
+  the same allow-list the consumer enforces and returns an `isError` result that lists the allowed
+  namespaces; its description advertises them too, so agents pick a valid key. A `user.fact.*` namespace was
+  added to the default allow-list so personal facts (e.g. "store that I love the band Yes") can actually be
+  stored under `user.fact.<userId>.<topic>`.
+
+### Security
+
 ## [0.7.1] - 2026-06-27
 ### Added
 - **Integrated version handling — `brat release` / `npm run release`** (sprint-326, BL-326). A single,

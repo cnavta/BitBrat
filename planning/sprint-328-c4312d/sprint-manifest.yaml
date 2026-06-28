@@ -1,0 +1,57 @@
+id: sprint-328-c4312d
+title: "Just-in-Time Context Provisioning for MCP Tools & Tasks (Context Packs)"
+goal: >
+  Implement the MCP tool-context improvements from
+  documentation/architecture/tool-context-provisioning.md: a single, consistent
+  Context Pack / Context Provider / binding convention (src/common/context/) that
+  surfaces relevant, versioned schema/usage context to LLM agents only when the
+  related MCP tool, task/stage, or event type is in play. Render packs just-in-time
+  through the existing prompt-assembly layer (NamedContext, priority-ordered,
+  de-duplicated), expose them as MCP Resources for tool turns, and generate the
+  shared schema/JsonLogic packs from the source of truth (src/types/events.ts,
+  src/services/router/jsonlogic-evaluator.ts) with drift-guard tests. Scope follows
+  the ADR phases P0–P4; P4 (Firestore/RAG scale-out) is design-only/deferred unless
+  the owner pulls it in.
+owner: "Lead Implementor"
+createdAt: "2026-06-28T01:00:00Z"
+status: "complete"   # P0-P3 + follow-ups (BL-328-203/204) implemented; full Jest suite green; branch pushed (7bde2ed). Owner said "Sprint complete." (2026-06-28); closed without auto-PR (no gh/token) per Rule S13b.
+links:
+  pr: null            # PR not auto-created (no gh CLI / GITHUB_TOKEN); failed attempt logged + owner-accepted closure (Rule S13b). See publication.yaml; open manually at /pull/new/feature/sprint-328-c4312d-tool-context-provisioning
+  branch: "feature/sprint-328-c4312d-tool-context-provisioning"
+notes: |
+  Role: Lead Implementor (AGENTS.md §10) — produce execution plan + trackable
+  prioritized backlog first; implement only after explicit approval.
+
+  Source design (owner-attached): documentation/architecture/tool-context-provisioning.md
+  (ADR / Proposal). Phased plan §6: P0 quick win → P1 convention → P2 JIT assembly →
+  P3 generated + drift-guarded → P4 RAG scale-out.
+
+  Canonical building blocks verified in-repo (the ADR's file citations predate the
+  Bit rename in sprint-324):
+    - MCP registration primitives (registerTool/registerResource/registerPrompt) live on
+      the Bit base abstraction: src/common/base-server.ts (registerResource @ ~1258);
+      tool-registry contract in src/types/tools.ts (IToolRegistry / BitBratResource).
+      The ADR cites "src/common/mcp-server.ts" — mcp-server.ts is now a thin compat shim.
+    - Canonical schema: src/types/events.ts (InternalEventV2, AnnotationV1, AnnotationKindV1);
+      MCP registration event INTERNAL_MCP_REGISTRATION_V1 = 'internal.mcp.registration.v1'
+      (events.ts:317) is the channel to advertise packs/bindings (P2).
+    - Prompt assembly: src/common/prompt-assembly/{types.ts,assemble.ts} — Priority (1..5),
+      NamedContext, TaskAnnotation, priority-ordered render/truncate (the JIT render target).
+    - JsonLogic context + custom ops: src/services/router/jsonlogic-evaluator.ts —
+      buildContext(evt) (EvalContext keys) + ops ci_eq, re_test, slip_complete, has_role,
+      has_annotation, has_candidate, text_contains (single source for the router pack, P3).
+    - Tool aggregation / gating point: src/common/mcp/ (bridge.ts, client-manager.ts,
+      registry-watcher.ts) + src/apps/tool-gateway.ts (central pack resolution/de-dup, P2).
+    - No src/common/context/ exists yet — greenfield convention (P1).
+
+  Constraints:
+    - architecture.yaml is canonical (Law #2). Any registration-event / topic changes for
+      pack advertisement (P2) must be additive and version-respecting (envelope/topic rules).
+    - Schema/JsonLogic packs MUST be generated from source of truth + drift-guarded (G2/G6, P3);
+      no hand-copied schema in production paths.
+    - Relevance-gated + token-aware (G1/G3): bind narrowly; de-dupe shared packs; rely on the
+      assembler's priority truncation.
+    - Backlog WIP limit = 3. Planning gate: implementation does not begin until owner approval
+      + "Start sprint" (Rule S1).
+    - P4 (Firestore persistence + embedding retrieval) is deferred/design-only by default;
+      reuses the mcp-evolution-roadmap.md Phase 2 substrate rather than a competing mechanism.
