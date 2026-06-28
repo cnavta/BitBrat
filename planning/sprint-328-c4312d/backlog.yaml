@@ -1,7 +1,7 @@
 meta:
   backlog_id: sprint-328-c4312d-tool-context-provisioning
   updated_at: 2026-06-28
-  status: verifying   # P0-P3 implemented + full suite green; branch pushed. Close-out blocked on PR credentials + owner 'Sprint complete.' (BL-328-502).
+  status: complete   # P0-P3 implemented + full suite green; follow-ups (BL-328-203/204) done; branch pushed. Owner said 'Sprint complete.' (2026-06-28); closed without auto-PR (Rule S13b).
   status_values: [todo, in_progress, blocked, done]
   priority_values: [P0, P1, P2, P3]   # P0 highest
   effort_values: [S, M, L]
@@ -321,17 +321,18 @@ items:
   - id: BL-328-502
     title: "Close-out: verification-report.md, retro.md, key-learnings.md, publication.yaml; push branch + open PR (Rules S12/S13)"
     priority: P0
-    status: blocked
+    status: done
     effort: M
     owner: agent
     deps: [BL-328-003, BL-328-102, BL-328-201, BL-328-202, BL-328-302, BL-328-500, BL-328-501]
-    blocked_reason: "Docs (verification-report/retro/key-learnings/publication) authored; branch committed + pushed. PR auto-creation blocked: no `gh` CLI and no GITHUB_TOKEN/GH_TOKEN. Needs owner credentials (or manual PR + explicit closure acceptance) + owner 'Sprint complete.' (Rules S13/S2)."
+    blocked_reason: null
     acceptance:
       - "verification-report.md, retro.md, key-learnings.md present and accurate"
       - "Branch pushed; PR attempted and URL (or logged failure + explicit owner acceptance) recorded in publication.yaml"
       - "If a release is cut, npm run release -- <bump> run and logged in request-log.md (AGENTS.md Publish §); validate_deliverable.sh logically passable; owner says 'Sprint complete.'"
     updated_at: 2026-06-28
-    log: []
+    log:
+      - "2026-06-28: Follow-ups (BL-328-203/204) committed (7bde2ed) + branch pushed. PR auto-creation failed (no gh CLI / no GITHUB_TOKEN); failure logged in publication.yaml. Owner said 'Sprint complete.' accepting closure without auto-PR (Rule S13b). Manifest -> complete."
 
 # ---------------------------------------------------------------------------
 # Sequencing notes

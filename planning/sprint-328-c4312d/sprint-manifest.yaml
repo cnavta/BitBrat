@@ -14,9 +14,9 @@ goal: >
   the owner pulls it in.
 owner: "Lead Implementor"
 createdAt: "2026-06-28T01:00:00Z"
-status: "verifying"   # P0-P3 implemented; full Jest suite green (1082 passed/2 skipped); branch pushed. Close-out (PR) blocked on credentials; awaiting owner "Sprint complete." (Rules S13/S2).
+status: "complete"   # P0-P3 + follow-ups (BL-328-203/204) implemented; full Jest suite green; branch pushed (7bde2ed). Owner said "Sprint complete." (2026-06-28); closed without auto-PR (no gh/token) per Rule S13b.
 links:
-  pr: null            # set at the Publication phase (Rules S12/S13); see publication.yaml
+  pr: null            # PR not auto-created (no gh CLI / GITHUB_TOKEN); failed attempt logged + owner-accepted closure (Rule S13b). See publication.yaml; open manually at /pull/new/feature/sprint-328-c4312d-tool-context-provisioning
   branch: "feature/sprint-328-c4312d-tool-context-provisioning"
 notes: |
   Role: Lead Implementor (AGENTS.md §10) — produce execution plan + trackable

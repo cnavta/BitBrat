@@ -25,3 +25,16 @@
   Firestore/embedding `ContextProvider` (mcp-evolution-roadmap Phase 2).
 - **Actual prompt-build wiring:** `resolveContextForTools` is available but the llm-bot turn-build calling it for
   every tool turn is a natural next step (out of this sprint's behavior-preserving scope).
+
+## Close-out notes (2026-06-28)
+- Two in-sprint follow-ups landed after P0–P3: **BL-328-203** (llm-bot prompt logging lists included
+  ContextPacks via shared subheader helpers — detection can't drift from rendering) and **BL-328-204**
+  (state-engine `propose_mutation` stopped returning false-positive success for disallowed keys; added
+  `user.fact.*`). Both green; committed `7bde2ed`.
+- **Publication friction repeated:** no `gh` CLI / `GITHUB_TOKEN` in the environment, so the PR still
+  couldn't be auto-created. Owner accepted closure without an auto-PR (Rule S13b); branch is pushed and the
+  PR only needs a one-click manual open. Follow-up: provision `gh`/token so future sprints can satisfy S12
+  automatically.
+- **Truthful tool results > silent async drop:** BL-328-204 reinforced a guideline — when a tool fronts a
+  fire-and-forget pipeline, validate synchronously and surface `isError` rather than reporting success the
+  async consumer later rejects.

@@ -21,3 +21,14 @@
 
 6. **Environment note:** node/npm are only available via nvm here; sprint scripts should source `~/.nvm/nvm.sh`
    and select Node 20 so they run in non-interactive shells.
+
+## sprint-328 close-out learnings
+- **Fire-and-forget tools must pre-validate:** a tool that publishes to a bus and returns immediately should
+  re-check the same constraints its async consumer enforces (e.g. allow-lists) and return `isError` on
+  rejection — otherwise the caller/LLM sees a false-positive success while nothing is persisted (BL-328-204).
+- **Keep detection in lock-step with rendering:** parsing what was written via the same helper that wrote it
+  (`formatPackSubheader` ↔ `parsePackSubheader`) makes observability (which ContextPacks were used) impossible
+  to drift (BL-328-203).
+- **Environment gates publication:** S12/S13 PR automation depends on `gh`/token availability; without it the
+  fallback is a logged failed attempt + explicit owner acceptance (S13b). Provision credentials to avoid the
+  manual-PR fallback.
