@@ -1,0 +1,27 @@
+sprint: sprint-328-c4312d
+branch: feature/sprint-328-c4312d-tool-context-provisioning
+base: main
+pushed: true
+push_remote: "git@github.com:cnavta/BitBrat.git"
+
+pr_url: null
+status: blocked-on-credentials   # branch pushed; PR could not be auto-created in this environment
+
+# Rule S13: a PR has NOT yet been created. The branch is pushed and all deliverables are complete +
+# validated (see verification-report.md). PR auto-creation is blocked because neither the `gh` CLI nor
+# a GitHub token (GITHUB_TOKEN / GH_TOKEN) is available in this environment.
+#
+# To complete publication, either provide credentials or open the PR manually:
+#   https://github.com/cnavta/BitBrat/pull/new/feature/sprint-328-c4312d-tool-context-provisioning
+# Suggested title: "Sprint sprint-328-c4312d Deliverables – Just-in-Time Context Provisioning (Context Packs)"
+#
+# Sprint closure (Rule S2) additionally requires the owner to say "Sprint complete." (or
+# "Force complete sprint."). Until then the sprint stays in the verifying state.
+pr_attempts:
+  - method: gh-cli
+    result: unavailable
+    reason: "`gh` CLI is not installed on PATH in this environment."
+  - method: github-api
+    result: blocked
+    reason: "No GitHub token (GITHUB_TOKEN / GH_TOKEN) available."
+owner_acceptance: pending   # awaiting owner credentials/PR + "Sprint complete."

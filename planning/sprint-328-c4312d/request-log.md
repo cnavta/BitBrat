@@ -27,3 +27,18 @@ operations it triggered are logged here. Code changes trace back to a BL-328-NNN
     - `src/services/router/jsonlogic-evaluator.ts` — `buildContext`/`EvalContext` + 7 custom ops.
     - `src/apps/scheduler-service.ts` (`create_schedule`) and `src/apps/event-router-service.ts` (`create_rule`).
 - **Result:** Sprint active; implementation in progress (see per-item log entries below as they are completed).
+
+## REQ-003 — 2026-06-28 — Implementation + validation + close-out
+- **Interpretation:** Deliver ADR phases P0–P3 (P4 design-only); keep backlog statuses current.
+- **Files created:** `src/common/context/{types,resolver,named-context,provider,packs,index}.ts`;
+  `tests/common/context/{context-resolver,context-packs-drift}.spec.ts`; `tests/apps/context-provisioning.spec.ts`;
+  `planning/sprint-328-c4312d/{validate_deliverable.sh,verification-report.md,retro.md,key-learnings.md,publication.yaml}`.
+- **Files modified:** `src/common/base-server.ts` (context registration + introspection APIs + additive
+  `payload.context` advertisement); `src/types/events.ts` (`ANNOTATION_KINDS_V1`); `src/services/router/jsonlogic-evaluator.ts`
+  (`CUSTOM_OPERATORS` + `EVAL_CONTEXT_PATHS`; `registerOperatorsOnce` iterates the registry); `src/apps/{scheduler-service,
+  event-router-service,auth-service,tool-gateway}.ts`; `documentation/architecture/tool-context-provisioning.md` (§6.1);
+  `CHANGELOG.md`; backlog + manifest statuses.
+- **Commands:** `npm run build` ✅; `npm test` ✅ (1082 passed, 2 skipped, 0 failed); `npm run release:dry -- patch` ✅
+  (version parity, no mutation); `git commit` + `git push -u origin feature/sprint-328-c4312d-tool-context-provisioning` ✅.
+- **Result:** All P0–P3 items `done`; P4 `done` (design-only). BL-328-502 `blocked` — PR auto-creation unavailable
+  (no `gh` CLI / token). Awaiting owner credentials or manual PR + "Sprint complete." (Rules S13/S2). No release cut.
