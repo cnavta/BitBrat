@@ -34,8 +34,19 @@ arrays** (`ANNOTATION_KINDS_V1`, `INTERNAL_EVENT_V2_FIELD_PATHS`, `ANNOTATION_V1
 - `INTERNAL_MCP_REGISTRATION_V1` gained an **optional** `payload.context` field — additive, omitted when empty; no topic/version mutated; `architecture.yaml` untouched (Law #2).
 - `jsonlogic-evaluator.ts` operator registration refactored to iterate `CUSTOM_OPERATORS` — behavior-preserving (52 router/jsonlogic tests green).
 
+## Follow-ups completed (post-P3, same sprint)
+- [x] **BL-328-203** — llm-bot prompt logging now lists the ContextPacks that contributed to each prompt: an `llm_bot.prompt.context_packs` log line + a `contextPacks[]` field on the `prompt_logs` document, backed by shared `formatPackSubheader` / `parsePackSubheader` / `extractContextPacksFromNamedContexts` (detection can't drift from rendering). Non-pack contexts excluded; empty/back-compat when no packs bound. Tests: extractor/round-trip + extended prompt-logging assertion.
+- [x] **BL-328-204** — state-engine `propose_mutation` no longer returns a false-positive success for disallowed keys: it pre-validates the key against the same allow-list the async consumer enforces and returns an `isError` result listing allowed namespaces; the tool description advertises them; a `user.fact.*` namespace was added so personal facts persist under `user.fact.<userId>.<topic>`. Tests: `isAllowedKey` wildcard, rejection→`isError`, allowed-key publish (state-engine suite green).
+
+## Close-out (BL-328-502)
+- Follow-ups committed (`7bde2ed`) and branch pushed. Build ✅; touched suites green (state-engine + context + prompt-logging = 42 tests).
+- **Publication:** PR auto-creation failed again — no `gh` CLI and no `GITHUB_TOKEN`/`GH_TOKEN` in this environment (logged in `publication.yaml`, `pr_attempts`). Owner said **"Sprint complete."** (2026-06-28), explicitly accepting closure without an auto-created PR (Rule S13b). Open the PR manually: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-328-c4312d-tool-context-provisioning
+- No release cut (not requested); `architecture.yaml` untouched (Law #2).
+
 ## Partial / Deferred
 - **P4 RAG scale-out (BL-328-400):** design-only by default; no Firestore/embedding code (owner did not pull P4 into scope). Seam is in place.
+- **PR creation (publication):** deferred to a manual step — environment lacks `gh`/token. Branch is pushed; only the PR link is outstanding.
+- **llm-bot pack injection:** the prompt-pack log will stay empty until packs are bound into the bot's own `spec.contexts` (packs currently flow via the tool-gateway); the logging is keyed to the pack subheader convention and will populate automatically once wired.
 
 ## Pre-existing test noise (not introduced by this sprint)
 - Some suites emit open-handle warnings / expected error logs (e.g. `client-manager` reconnect timers, discord/twitch login errors in mocked tests). These are pre-existing and the overall run exits 0.

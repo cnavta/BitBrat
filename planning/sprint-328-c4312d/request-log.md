@@ -72,3 +72,11 @@ operations it triggered are logged here. Code changes trace back to a BL-328-NNN
   `backlog.yaml` (BL-328-204).
 - **Commands:** `npm run build` ✅; `npx jest src/apps/state-engine.test.ts` ✅ (7 passed).
 - **Result:** BL-328-204 `done`.
+
+## REQ-006 — 2026-06-28 — Sprint complete (close-out, BL-328-502)
+- **Prompt:** "Sprint complete." (owner closure command, Rule S2).
+- **Interpretation:** Finalize sprint-328: commit the outstanding follow-ups (BL-328-203/204), push, attempt
+  the PR, and complete close-out artifacts.
+- **Commands:** `npm run build` ✅; `npx jest src/apps/state-engine.test.ts tests/common/context tests/services/llm-bot/prompt-logging.test.ts` ✅ (4 suites / 42 tests); `git commit` (`7bde2ed`, co-authored) + `git push` ✅; PR attempt ❌ (no `gh` CLI / `GITHUB_TOKEN`).
+- **Files modified:** `sprint-manifest.yaml` (status→complete), `publication.yaml` (closed-without-pr, Rule S13b), `backlog.yaml` (meta + BL-328-502 → done), `verification-report.md`, `retro.md`, `key-learnings.md`.
+- **Result:** Sprint **closed** per Rule S13b (failed PR attempt logged + owner-accepted closure). PR to be opened manually: https://github.com/cnavta/BitBrat/pull/new/feature/sprint-328-c4312d-tool-context-provisioning
