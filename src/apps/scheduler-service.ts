@@ -6,6 +6,11 @@ import { Firestore, Timestamp } from 'firebase-admin/firestore';
 import parser from 'cron-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { createMessagePublisher } from '../services/message-bus';
+import {
+  buildInternalEventSchemaPack,
+  SCHEMA_INTERNAL_EVENT_V2_PACK_ID,
+  SCHEMA_INTERNAL_EVENT_V2_RESOURCE_URI,
+} from '../common/context';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'scheduler';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -97,6 +102,20 @@ class SchedulerServer extends Bit {
   }
 
   private registerTools() {
+    // Just-in-Time Context Provisioning (sprint-328, P0/P1): contribute the InternalEventV2 schema
+    // pack, expose it as an MCP Resource for tool turns, and bind it to create_schedule so an agent
+    // is told a "prompt" is an AnnotationV1 of kind 'prompt' on a type: 'llm.request.v1' event.
+    const schemaPack = buildInternalEventSchemaPack();
+    this.registerContextPack(schemaPack);
+    this.registerResource(
+      SCHEMA_INTERNAL_EVENT_V2_RESOURCE_URI,
+      schemaPack.title,
+      'InternalEventV2 / AnnotationV1 contract explainer (generated from src/types/events.ts).',
+      async (uri) => ({
+        contents: [{ uri, mimeType: 'text/markdown', text: String(schemaPack.body) }],
+      })
+    );
+
     this.registerTool(
       "list_schedules",
       "List all scheduled events",
@@ -146,9 +165,9 @@ class SchedulerServer extends Bit {
       }
     );
 
-    this.registerTool(
+    this.registerToolWithContext(
       "create_schedule",
-      "Create a new scheduled event",
+      "Create a new scheduled event. The 'event' produces an InternalEventV2: a 'prompt' is NOT an event type \u2014 it is an AnnotationV1 of kind 'prompt' (event.annotations[]), and the driving event type is typically 'llm.request.v1'. See the context://schema/internal-event-v2 resource for the full contract.",
       CreateScheduleSchema,
       async (args) => {
         const firestore = this.getResource<Firestore>('firestore');
@@ -170,7 +189,8 @@ class SchedulerServer extends Bit {
         return {
           content: [{ type: "text", text: `Schedule created with ID: ${id}` }]
         };
-      }
+      },
+      [SCHEMA_INTERNAL_EVENT_V2_PACK_ID]
     );
 
     this.registerTool(
@@ -328,6 +348,10 @@ class SchedulerServer extends Bit {
         correlationId: event.correlationId
     });
   }
+}
+
+export function createServer() {
+  return new SchedulerServer();
 }
 
 export function createApp() {

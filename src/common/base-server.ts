@@ -39,6 +39,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { INTERNAL_MCP_REGISTRATION_V1 } from '../types/events';
 import { collectProfiles, enforceProfileContract } from './profiles/registry';
+import type { ContextBinding, ContextPack, ContextProvider } from './context/types';
+import { StaticContextProvider } from './context/provider';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
@@ -111,6 +113,11 @@ export class Bit {
   private readonly registeredTools: Map<string, { description: string; schema: any; handler: (args: any, extra?: any) => Promise<CallToolResult>; scopes?: string[] }> = new Map();
   private readonly registeredResources: Map<string, { name: string; description: string; handler: (uri: string, extra?: any) => Promise<ReadResourceResult> }> = new Map();
   private readonly registeredPrompts: Map<string, { description: string; args: { name: string; description?: string; required?: boolean }[]; handler: (name: string, args: Record<string, string>, extra?: any) => Promise<GetPromptResult> }> = new Map();
+  // Just-in-Time Context Provisioning (sprint-328): packs contributed by this Bit + the bindings that
+  // declare when each pack is relevant (by tool / task / eventType). Exposed via getContextProvider()
+  // and advertised additively on the MCP registration event so the tool-gateway can resolve them.
+  private readonly registeredContextPacks: Map<string, ContextPack> = new Map();
+  private readonly registeredContextBindings: ContextBinding[] = [];
 
   /**
    * Creates an instance of BaseServer.
@@ -1278,6 +1285,77 @@ export class Bit {
     this.getLogger().info("mcp_server.resource_registered", { name, uri });
   }
 
+  // ---------- Just-in-Time Context Provisioning (sprint-328) ----------
+
+  /**
+   * Contribute a Context Pack from this Bit. Packs are advertised on the MCP registration event and
+   * exposed via getContextProvider(); they are NOT auto-registered as MCP Resources (a service may
+   * still call registerResource to expose a pack body for tool turns).
+   */
+  public registerContextPack(pack: ContextPack): void {
+    this.registeredContextPacks.set(pack.id, pack);
+    this.getLogger().info('context.pack_registered', { id: pack.id, version: pack.version });
+  }
+
+  /**
+   * Record a Context Pack binding (by tool / task / eventType). Used directly for task/eventType
+   * bindings; tool bindings are usually recorded via registerToolWithContext.
+   */
+  public registerContextBinding(binding: ContextBinding): void {
+    this.registeredContextBindings.push(binding);
+  }
+
+  /**
+   * Register an MCP tool AND bind one or more Context Packs to it (by tool name). Behaves exactly
+   * like registerTool when packIds is empty (no binding recorded), so existing callers are
+   * unaffected. The bound packs are surfaced just-in-time when this tool is in the active set.
+   */
+  public registerToolWithContext<T extends z.ZodType>(
+    name: string,
+    description: string,
+    schema: T,
+    handler: (args: z.infer<T>, extra?: any) => Promise<CallToolResult>,
+    packIds: string[] = [],
+    options?: { scopes?: string[] }
+  ): void {
+    this.registerTool(name, description, schema, handler, options);
+    for (const packId of packIds) {
+      this.registeredContextBindings.push({ pack: packId, when: { tools: [name] } });
+    }
+  }
+
+  /** All Context Packs contributed by this Bit. */
+  public listContextPacks(): ContextPack[] {
+    return Array.from(this.registeredContextPacks.values());
+  }
+
+  /** All Context Pack bindings recorded on this Bit. */
+  public listContextBindings(): ContextBinding[] {
+    return [...this.registeredContextBindings];
+  }
+
+  /** A ContextProvider view over this Bit's registered packs + bindings. */
+  public getContextProvider(): ContextProvider {
+    return new StaticContextProvider(this.listContextPacks(), this.listContextBindings());
+  }
+
+  /** Introspection: descriptors of the MCP Tools registered on this Bit (name/description). */
+  public listToolDescriptors(): { name: string; description: string }[] {
+    return Array.from(this.registeredTools.entries()).map(([name, { description }]) => ({ name, description }));
+  }
+
+  /** Introspection: descriptors of the MCP Resources registered on this Bit (uri/name/description). */
+  public listResourceDescriptors(): { uri: string; name: string; description: string }[] {
+    return Array.from(this.registeredResources.entries()).map(([uri, { name, description }]) => ({ uri, name, description }));
+  }
+
+  /** Introspection: read a registered MCP Resource body by uri (returns the ReadResourceResult). */
+  public async readRegisteredResource(uri: string, extra?: any): Promise<ReadResourceResult> {
+    const resource = this.registeredResources.get(uri);
+    if (!resource) throw new Error(`Resource not found: ${uri}`);
+    return resource.handler(uri, extra);
+  }
+
   /**
    * Register a prompt.
    */
@@ -1319,6 +1397,15 @@ export class Bit {
     const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/sse`;
     const externalUrl = process.env.MCP_EXTERNAL_URL || defaultUrl;
 
+    // Just-in-Time Context Provisioning (sprint-328): advertise this Bit's context packs + bindings
+    // ADDITIVELY. Older consumers ignore unknown fields; the field is only present when non-empty so
+    // a Bit with no packs produces a byte-for-byte unchanged payload (back-compat / envelope rules).
+    const contextPacks = this.listContextPacks();
+    const contextBindings = this.listContextBindings();
+    const contextAdvertisement = (contextPacks.length > 0 || contextBindings.length > 0)
+      ? { context: { packs: contextPacks, bindings: contextBindings } }
+      : {};
+
     const registrationEvent = {
       v: '2',
       correlationId: `reg-${this.serviceName}-${Date.now()}`,
@@ -1330,7 +1417,8 @@ export class Bit {
         status: 'active',
         env: process.env.MCP_AUTH_TOKEN ? {
           Authorization: `Bearer ${process.env.MCP_AUTH_TOKEN}`
-        } : {}
+        } : {},
+        ...contextAdvertisement,
       },
       ingress: {
         ingressAt: new Date().toISOString(),
