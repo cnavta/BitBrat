@@ -126,7 +126,16 @@ export interface MessageV1 {
   rawPlatformPayload?: Record<string, any>;
 }
 
-export type AnnotationKindV1 = 'intent' | 'entities' | 'sentiment' | 'topic' | 'custom' | 'prompt' | 'personality' | 'instruction' | string;
+/**
+ * Canonical, runtime-available list of well-known annotation kinds. This is the single source of
+ * truth consumed by the schema Context Pack generator + drift guard (sprint-328); `AnnotationKindV1`
+ * is derived from it. The trailing `string` keeps the kind open-ended (custom kinds remain valid).
+ */
+export const ANNOTATION_KINDS_V1 = [
+  'intent', 'entities', 'sentiment', 'topic', 'custom', 'prompt', 'personality', 'instruction',
+] as const;
+
+export type AnnotationKindV1 = (typeof ANNOTATION_KINDS_V1)[number] | string;
 
 export interface AnnotationV1 {
   id: string;

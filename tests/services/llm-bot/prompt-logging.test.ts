@@ -90,6 +90,8 @@ describe('llm-bot processor — Prompt Logging', () => {
       correlationId: 'corr-123',
       model: 'gpt-5-mini',
       response: 'LLM Response',
+      // ContextPacks contributing to prompt generation are listed for debugging/analysis (sprint-328).
+      contextPacks: expect.any(Array),
       createdAt: expect.any(Date),
     }));
     // Check prompt content (contains (system) and (user) markers)

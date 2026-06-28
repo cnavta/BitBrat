@@ -16,6 +16,13 @@ import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
+import {
+  StaticContextProvider,
+  resolveContextPacks,
+  packsToNamedContexts,
+  type ContextActiveSet,
+} from '../common/context';
+import type { NamedContext } from '../common/prompt-assembly/types';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'tool-gateway';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -26,6 +33,10 @@ export class ToolGatewayServer extends Bit {
   private registryWatcher?: RegistryWatcher;
   private serverConfigs: Map<string, McpServerConfig> = new Map();
   private rbac = new RbacEvaluator();
+  // Just-in-Time Context Provisioning (sprint-328, P2): context packs/bindings advertised by each
+  // registered Bit on INTERNAL_MCP_REGISTRATION_V1, keyed by Bit name. Used to resolve which packs
+  // to inject for an active tool set at tool-turn context build (de-duplicated by pack id).
+  private contextProviders: Map<string, StaticContextProvider> = new Map();
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -78,6 +89,17 @@ export class ToolGatewayServer extends Bit {
       correlationId: event.correlationId 
     });
 
+    // Capture any advertised context packs/bindings (additive field; absent on older Bits).
+    const ctx = (payload as any).context;
+    if (ctx && (Array.isArray(ctx.packs) || Array.isArray(ctx.bindings))) {
+      this.contextProviders.set(payload.name, new StaticContextProvider(ctx.packs || [], ctx.bindings || []));
+      this.getLogger().info('tool_gateway.context.advertised', {
+        name: payload.name,
+        packs: (ctx.packs || []).length,
+        bindings: (ctx.bindings || []).length,
+      });
+    }
+
     try {
       const db = getFirestore();
       // Upsert into mcp_servers collection, using name as doc ID
@@ -105,6 +127,23 @@ export class ToolGatewayServer extends Bit {
     if (this.registryWatcher) this.registryWatcher.stop();
     await this.mcpManager.shutdown();
     return super.close(reason);
+  }
+
+  /**
+   * Just-in-Time Context Provisioning (sprint-328, P2): resolve the Context Packs bound to the
+   * active tool set across all registered Bits, de-duplicated by pack id, and render them as
+   * prompt-assembly NamedContexts. Tool names may be bare ("create_schedule") or discovery-qualified
+   * ("mcp:create_schedule"); the leading "mcp:" prefix is stripped. With no bound packs this returns
+   * [] so the assembled prompt is unchanged vs. today (behavior-preserving).
+   */
+  public resolveContextForTools(toolNames: string[], extra?: Partial<ContextActiveSet>): NamedContext[] {
+    const tools = (toolNames || []).map((n) => (n.startsWith('mcp:') ? n.slice(4) : n));
+    const active: ContextActiveSet = { tools, tasks: extra?.tasks, eventTypes: extra?.eventTypes };
+    const providers = Array.from(this.contextProviders.values());
+    const packs = resolveContextPacks(active, providers, {
+      onWarn: (message, meta) => this.getLogger().warn(message, meta),
+    });
+    return packsToNamedContexts(packs);
   }
 
   private setupApp(app: Express) {

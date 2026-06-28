@@ -1,0 +1,27 @@
+sprint: sprint-328-c4312d
+branch: feature/sprint-328-c4312d-tool-context-provisioning
+base: main
+pushed: true
+push_remote: "git@github.com:cnavta/BitBrat.git"
+head_commit: 7bde2ed   # sprint-328 follow-ups (BL-328-203 prompt-pack logging, BL-328-204 propose_mutation)
+
+pr_url: null
+status: closed-without-pr   # branch pushed; PR could not be auto-created in this environment (no gh/token). Owner explicitly accepted closure (Rule S13b).
+
+# Rule S13: closure path (b) — a failed PR attempt is logged AND the owner explicitly accepted closure
+# ("Sprint complete." on 2026-06-28). PR auto-creation remains blocked because neither the `gh` CLI nor a
+# GitHub token (GITHUB_TOKEN / GH_TOKEN) is available in this environment.
+#
+# To open the PR manually (recommended follow-up):
+#   https://github.com/cnavta/BitBrat/pull/new/feature/sprint-328-c4312d-tool-context-provisioning
+# Suggested title: "Sprint sprint-328-c4312d Deliverables – Just-in-Time Context Provisioning (Context Packs)"
+pr_attempts:
+  - method: gh-cli
+    when: 2026-06-28
+    result: unavailable
+    reason: "`gh` CLI is not installed on PATH in this environment."
+  - method: github-api
+    when: 2026-06-28
+    result: blocked
+    reason: "No GitHub token (GITHUB_TOKEN / GH_TOKEN) available."
+owner_acceptance: accepted   # owner said "Sprint complete." (2026-06-28) accepting closure without an auto-created PR (Rule S13b)

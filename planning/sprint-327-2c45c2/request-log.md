@@ -87,3 +87,31 @@ internal links resolve; version 0.7.1 consistent; `release:dry` wrote nothing; m
 
 **Status:** All backlog items (BL-327-001..401) done; close-out (BL-327-500) — branch pushed + PR attempted;
 awaiting owner "Sprint complete." (Rule S2).
+
+---
+
+## REQ-002 — Re-check for the GitHub CLI (`gh`) and finalize publication
+
+**Timestamp:** 2026-06-26T22:25 (local)
+
+**Prompt summary:** "Try finding the github cli (gh) again."
+
+**Interpretation:** Re-probe the environment for `gh` (previously reported missing) and, if available,
+complete the blocked publication step (PR creation) for sprint-327.
+
+**Findings:**
+- `gh` is now present at `/opt/homebrew/bin/gh` (v2.95.0), authenticated as `cnavta` (keyring) with
+  scopes incl. `repo` — sufficient to create PRs. It is not on `PATH`, so invoke via the full path.
+- PR creation returned "No commits between main and feature/..."; investigation showed the branch tip
+  (`bdd4456`) is already an ancestor of `origin/main`. `gh pr view 252` confirms **PR #252 already
+  exists and was MERGED** into `main` at 2026-06-27T02:09:39Z (merge commit `7da5b1d` = current main).
+- Net: the publication phase is already complete; the prior `blocked-on-credentials` state is obsolete.
+
+**Commands executed (read-only / git):** `command -v gh`, `gh --version`, `gh auth status`,
+`gh repo view`, `git ls-remote`, `git fetch origin main`, `git merge-base --is-ancestor`,
+`gh pr list`, `gh pr view 252`; re-pushed the feature branch (stale remote ref).
+
+**Files modified:** `planning/sprint-327-2c45c2/publication.yaml` (PR #252 = merged; status: published),
+`planning/sprint-327-2c45c2/request-log.md` (this entry).
+
+**Status:** Publication complete (PR #252 merged). Sprint can be closed pending owner "Sprint complete."

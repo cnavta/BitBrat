@@ -7,7 +7,7 @@ description: The BitBrat Platform is an LLM powered event orchestration and exec
 project:
   name: BitBrat Platform
   # Single source of truth for the version. Kept in sync with package.json "version".
-  version: 0.7.1
+  version: 0.7.2
   # Maturity signal: pre-1.0, early/experimental. APIs, config schemas, and core architectures may
   # still change in breaking ways; not recommended for production yet (see README warning banner).
   status: experimental
@@ -43,6 +43,8 @@ llm_guidance:
     flow: documentation/concepts/platform-flow.md
     messaging: documentation/reference/messaging-system.md
     schemas: documentation/schemas/
+    backlog: documentation/reference/backlog-example.yaml
+    execution-or-implementation-plan: documentation/reference/execution-implementation-plan-template.md
   build_contract: >
     Standard services build from the single reusable Dockerfile.service; per-service behavior is
     supplied as --build-args derived from this file (see defaults.services.build).

@@ -14,6 +14,13 @@ import { busAttrsFromEvent } from '../common/events/attributes';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import { IStateStore } from '../services/routing/router-engine';
+import {
+  buildInternalEventSchemaPack,
+  buildRouterJsonLogicPack,
+  ROUTER_JSONLOGIC_GUIDE_PACK_ID,
+  ROUTER_JSONLOGIC_GUIDE_RESOURCE_URI,
+  SCHEMA_INTERNAL_EVENT_V2_PACK_ID,
+} from '../common/context';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'event-router';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -184,6 +191,21 @@ class EventRouterServer extends Bit {
   private registerAdminTools() {
     const db = this.getResource<Firestore>('firestore');
 
+    // Just-in-Time Context Provisioning (sprint-328, P0/P1): contribute the JsonLogic guide pack
+    // (generated from jsonlogic-evaluator.ts) + the shared schema pack, expose the guide as an MCP
+    // Resource, and bind both to create_rule. The shared schema pack de-dupes across the fleet.
+    const routerPack = buildRouterJsonLogicPack();
+    this.registerContextPack(routerPack);
+    this.registerContextPack(buildInternalEventSchemaPack());
+    this.registerResource(
+      ROUTER_JSONLOGIC_GUIDE_RESOURCE_URI,
+      routerPack.title,
+      'JsonLogic routing guide: EvalContext paths + custom operators (generated from jsonlogic-evaluator.ts).',
+      async (uri) => ({
+        contents: [{ uri, mimeType: 'text/markdown', text: String(routerPack.body) }],
+      })
+    );
+
     // --- list_rules ---
     this.registerTool(
       'list_rules',
@@ -233,11 +255,11 @@ class EventRouterServer extends Bit {
     );
 
     // --- create_rule ---
-    this.registerTool(
+    this.registerToolWithContext(
       'create_rule',
-      'Create a new routing rule with specific logic and routing slip.',
+      'Create a new routing rule with specific logic and routing slip. See the context://router/jsonlogic-guide resource for the evaluation-context paths and custom operators.',
       z.object({
-        logic: z.string().describe('A JsonLogic expression as a JSON string.'),
+        logic: z.string().describe('A JsonLogic expression (JSON string) evaluated against an event-derived context. Available paths: type, identity.*, annotations[], candidates[], routingSlip, message, payload, source, channel, userId, user, auth. Custom ops: ci_eq, re_test, slip_complete, has_role, has_annotation, has_candidate, text_contains. See context://router/jsonlogic-guide.'),
         services: z.array(z.string()).describe('A list of service names (e.g., llm-bot, auth) to form the routing slip.'),
         description: z.string().optional().describe('A description for the rule.'),
         priority: z.number().optional().default(100).describe('Rule priority.'),
@@ -278,8 +300,16 @@ class EventRouterServer extends Bit {
             isError: true,
           };
         }
-      }
+      },
+      [ROUTER_JSONLOGIC_GUIDE_PACK_ID, SCHEMA_INTERNAL_EVENT_V2_PACK_ID]
     );
+
+    // Task binding (sprint-328, P2/BL-202): the rule-authoring task pulls the JsonLogic guide even
+    // when invoked as an internal pipeline stage (not via the create_rule MCP tool).
+    this.registerContextBinding({
+      pack: ROUTER_JSONLOGIC_GUIDE_PACK_ID,
+      when: { tasks: ['routing.create_rule'] },
+    });
   }
 }
 
