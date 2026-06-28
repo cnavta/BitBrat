@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.7.2] - 2026-06-28
+### Added
 - Just-in-Time Context Provisioning ("Context Packs"): a `src/common/context/` convention
   (`ContextPack`/`ContextBinding`/`ContextProvider`, de-duplicating `resolveContextPacks`, and a
   `packToNamedContext` renderer) that surfaces relevant, versioned schema/usage context to agents only
