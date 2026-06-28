@@ -14,7 +14,7 @@ goal: >
   the owner pulls it in.
 owner: "Lead Implementor"
 createdAt: "2026-06-28T01:00:00Z"
-status: "in-progress"   # Owner approved the plan + backlog and said "Start sprint" (2026-06-28, Rule S1). Implementation underway on the feature branch.
+status: "verifying"   # P0-P3 implemented; full Jest suite green (1082 passed/2 skipped); branch pushed. Close-out (PR) blocked on credentials; awaiting owner "Sprint complete." (Rules S13/S2).
 links:
   pr: null            # set at the Publication phase (Rules S12/S13); see publication.yaml
   branch: "feature/sprint-328-c4312d-tool-context-provisioning"

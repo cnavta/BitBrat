@@ -1,7 +1,7 @@
 meta:
   backlog_id: sprint-328-c4312d-tool-context-provisioning
   updated_at: 2026-06-28
-  status: in_progress   # Owner approved + said "Start sprint" (2026-06-28, Rule S1). Implementation underway.
+  status: verifying   # P0-P3 implemented + full suite green; branch pushed. Close-out blocked on PR credentials + owner 'Sprint complete.' (BL-328-502).
   status_values: [todo, in_progress, blocked, done]
   priority_values: [P0, P1, P2, P3]   # P0 highest
   effort_values: [S, M, L]
@@ -284,11 +284,11 @@ items:
   - id: BL-328-502
     title: "Close-out: verification-report.md, retro.md, key-learnings.md, publication.yaml; push branch + open PR (Rules S12/S13)"
     priority: P0
-    status: todo
+    status: blocked
     effort: M
     owner: agent
     deps: [BL-328-003, BL-328-102, BL-328-201, BL-328-202, BL-328-302, BL-328-500, BL-328-501]
-    blocked_reason: null
+    blocked_reason: "Docs (verification-report/retro/key-learnings/publication) authored; branch committed + pushed. PR auto-creation blocked: no `gh` CLI and no GITHUB_TOKEN/GH_TOKEN. Needs owner credentials (or manual PR + explicit closure acceptance) + owner 'Sprint complete.' (Rules S13/S2)."
     acceptance:
       - "verification-report.md, retro.md, key-learnings.md present and accurate"
       - "Branch pushed; PR attempted and URL (or logged failure + explicit owner acceptance) recorded in publication.yaml"
