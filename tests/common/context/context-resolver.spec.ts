@@ -5,10 +5,14 @@ import {
   bindingMatches,
   packToNamedContext,
   packsToNamedContexts,
+  formatPackSubheader,
+  parsePackSubheader,
+  extractContextPacksFromNamedContexts,
   type ContextPack,
   type ContextBinding,
   type ContextProvider,
 } from '../../../src/common/context';
+import type { NamedContext } from '../../../src/common/prompt-assembly/types';
 
 const schemaPack: ContextPack = {
   id: 'schema.internal-event-v2',
@@ -123,5 +127,53 @@ describe('packToNamedContext mapping', () => {
   it('maps an ordered list preserving order', () => {
     const ncs = packsToNamedContexts([schemaPack, routerPack]);
     expect(ncs.map((n) => n.name)).toEqual(['Event Schema v2', 'JsonLogic Guide']);
+  });
+});
+
+describe('pack subheader format/parse (round-trip)', () => {
+  it('formats then parses back to the same identity', () => {
+    const sub = formatPackSubheader(schemaPack);
+    expect(sub).toBe('schema.internal-event-v2 v2 (source: src/types/events.ts)');
+    expect(parsePackSubheader(sub)).toEqual({
+      id: 'schema.internal-event-v2',
+      version: '2',
+      source: 'src/types/events.ts',
+    });
+  });
+
+  it('round-trips the subheader produced by packToNamedContext', () => {
+    const nc = packToNamedContext(routerPack);
+    expect(parsePackSubheader(nc.subheader)).toEqual({
+      id: 'router.jsonlogic-guide',
+      version: '1',
+      source: 'src/services/router/jsonlogic-evaluator.ts',
+    });
+  });
+
+  it('returns null for missing or non-pack subheaders', () => {
+    expect(parsePackSubheader(undefined)).toBeNull();
+    expect(parsePackSubheader('')).toBeNull();
+    expect(parsePackSubheader('Some free-form descriptive text')).toBeNull();
+  });
+});
+
+describe('extractContextPacksFromNamedContexts', () => {
+  it('returns refs only for pack-originated contexts, preserving order', () => {
+    const contexts: NamedContext[] = [
+      packToNamedContext(schemaPack),
+      { name: 'World State', content: 'a non-pack adventure context', priority: 3 },
+      packToNamedContext(routerPack),
+    ];
+    const refs = extractContextPacksFromNamedContexts(contexts);
+    expect(refs).toEqual([
+      { id: 'schema.internal-event-v2', version: '2', title: 'Event Schema v2', source: 'src/types/events.ts' },
+      { id: 'router.jsonlogic-guide', version: '1', title: 'JsonLogic Guide', source: 'src/services/router/jsonlogic-evaluator.ts' },
+    ]);
+  });
+
+  it('returns [] when there are no contexts or none are packs', () => {
+    expect(extractContextPacksFromNamedContexts(undefined)).toEqual([]);
+    expect(extractContextPacksFromNamedContexts([])).toEqual([]);
+    expect(extractContextPacksFromNamedContexts([{ name: 'X', content: 'y' }])).toEqual([]);
   });
 });
