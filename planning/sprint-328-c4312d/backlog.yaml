@@ -249,6 +249,43 @@ items:
     log: []
 
   # ===========================================================================
+  # Observability — follow-up
+  # ===========================================================================
+  - id: BL-328-203
+    title: "llm-bot prompt logging lists included ContextPacks (debug log + prompt_logs.contextPacks)"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-328-101, BL-328-201]
+    blocked_reason: null
+    acceptance:
+      - "src/common/context/named-context.ts exposes a shared formatPackSubheader + parsePackSubheader + extractContextPacksFromNamedContexts(ContextPackRef[]) so pack detection never drifts from rendering"
+      - "llm-bot processor logs llm_bot.prompt.context_packs (info when packs present) and records a contextPacks[] field on the Firestore prompt_logs document for analysis"
+      - "Non-pack NamedContexts (e.g. adventure contexts) are excluded; empty when no packs are bound (back-compat preserved)"
+      - "Unit tests for the extractor/round-trip + prompt-logging test assert the contextPacks field; full build + relevant suites green"
+    updated_at: 2026-06-28
+    log:
+      - "2026-06-28: Implemented shared pack subheader helpers + extractContextPacksFromNamedContexts; wired llm-bot prompt logging; added tests. Build green; context + llm-bot suites pass."
+
+  - id: BL-328-204
+    title: "state-engine propose_mutation: stop false-positive success for disallowed keys; add user.fact.* namespace"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "propose_mutation pre-validates the key against the same allow-list handleMutation() enforces and returns an isError result (listing allowed namespaces) instead of publishing a mutation that the consumer silently rejects"
+      - "Tool description advertises the allowed key namespaces so agents pick a valid key"
+      - "Default allow-list includes user.fact.* so personal facts can be stored under user.fact.<userId>.<topic>"
+      - "Tests cover the isAllowedKey user.fact.* case, the rejection (isError) path, and the allowed-key publish path; build + state-engine suite green"
+    updated_at: 2026-06-28
+    log:
+      - "2026-06-28: Root-caused silent drop (fire-and-forget publish + async allow-list reject while tool returned success). Added sync validation/isError, user.fact.* namespace, enriched description, and 3 tests. Build + state-engine suite green."
+
+  # ===========================================================================
   # Validation, verification, publication
   # ===========================================================================
   - id: BL-328-500

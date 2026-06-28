@@ -23,7 +23,7 @@ interface StateEngineConfig {
 }
 
 const DEFAULT_CONFIG: StateEngineConfig = {
-  allowedKeys: ['stream.state', 'stream.title', 'stream.category', 'obs.scene', 'user.disposition.*'],
+  allowedKeys: ['stream.state', 'stream.title', 'stream.category', 'obs.scene', 'user.disposition.*', 'user.fact.*'],
   rules: [
     {
       id: 'on_stream_start',
@@ -119,7 +119,9 @@ export class StateEngineServer extends Bit {
 
     this.registerTool(
       'propose_mutation',
-      'Submits a mutation proposal to change state.',
+      `Submits a mutation proposal to change state. Only keys within the allowed namespaces are accepted; ` +
+        `proposals for any other key are rejected and NOT persisted. Allowed keys: ${this.stateConfig.allowedKeys.join(', ')} ` +
+        `(a trailing '*' denotes a prefix, e.g. store a personal fact under 'user.fact.<userId>.<topic>').`,
       z.object({
         key: z.string(),
         value: z.any(),
@@ -128,6 +130,22 @@ export class StateEngineServer extends Bit {
         expectedVersion: z.number().optional(),
       }),
       async (args) => {
+        // Pre-validate against the same allow-list the consumer enforces in handleMutation(). The
+        // mutation pipeline is fire-and-forget (publish to the bus, validate asynchronously), so
+        // without this check a disallowed key would be silently rejected while the tool still
+        // reported success. Surface the rejection to the caller instead of returning a false positive.
+        if (!this.isAllowedKey(args.key)) {
+          this.getLogger().warn('state-engine.propose_mutation.rejected', { key: args.key, reason: 'Key not allowed' });
+          return {
+            isError: true,
+            content: [{
+              type: 'text',
+              text: `Mutation rejected: key '${args.key}' is not in an allowed namespace, so nothing was stored. ` +
+                `Allowed keys: ${this.stateConfig.allowedKeys.join(', ')} (a trailing '*' denotes a prefix).`,
+            }],
+          };
+        }
+
         const publisher = this.getResource<PublisherResource>('publisher');
         if (!publisher) throw new Error('Publisher not available');
 
