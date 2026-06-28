@@ -12,6 +12,7 @@ import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { Firestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { buildInternalEventSchemaPack, SCHEMA_INTERNAL_EVENT_V2_PACK_ID } from '../common/context';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -164,6 +165,15 @@ export class AuthServer extends Bit {
   }
 
   private registerAdminTools() {
+    // Just-in-Time Context Provisioning (sprint-328, P2/BL-202): the enrichment task mutates
+    // identity.* / annotations, so bind the shared InternalEventV2 schema pack to the 'enrichment'
+    // task (and the enriched event type) so an agent reasoning about enrichment sees the contract.
+    this.registerContextPack(buildInternalEventSchemaPack());
+    this.registerContextBinding({
+      pack: SCHEMA_INTERNAL_EVENT_V2_PACK_ID,
+      when: { tasks: ['enrichment'] },
+    });
+
     this.registerTool(
       'update_user',
       'Update user information such as roles or status.',

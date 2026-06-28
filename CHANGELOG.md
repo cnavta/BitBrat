@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Just-in-Time Context Provisioning ("Context Packs"): a `src/common/context/` convention
+  (`ContextPack`/`ContextBinding`/`ContextProvider`, de-duplicating `resolveContextPacks`, and a
+  `packToNamedContext` renderer) that surfaces relevant, versioned schema/usage context to agents only
+  when the related MCP tool/task/event is active (sprint-328).
+- `Bit.registerToolWithContext()` + `registerContextPack`/`registerContextBinding`/`getContextProvider`
+  on the base abstraction; scheduler and event-router now expose `context://schema/internal-event-v2`
+  and `context://router/jsonlogic-guide` MCP Resources and bind them to `create_schedule`/`create_rule`.
+- Generated, drift-guarded packs derived from the source of truth (`events.ts` annotation kinds;
+  `jsonlogic-evaluator.ts` custom operators + EvalContext paths) with tests that fail on drift.
+- `INTERNAL_MCP_REGISTRATION_V1` optionally advertises `payload.context.{packs,bindings}` (additive);
+  the tool-gateway aggregates them and exposes `resolveContextForTools()` for just-in-time injection.
 
 ### Changed
 

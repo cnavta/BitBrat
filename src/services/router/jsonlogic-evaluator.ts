@@ -20,6 +20,29 @@ import type { IConfig } from '../../types';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const jsonLogic: any = require('json-logic-js');
 
+/**
+ * Canonical list of evaluation-context paths an authored rule may reference. This is the single
+ * source of truth consumed by the router Context Pack generator (sprint-328) so the JsonLogic guide
+ * never drifts from what `buildContext` actually exposes. Keep aligned with EvalContext below and
+ * the assignments in buildContext().
+ */
+export const EVAL_CONTEXT_PATHS: ReadonlyArray<{ path: string; note: string }> = [
+  { path: 'type', note: 'InternalEventType of the event, e.g. "chat.message.v1".' },
+  { path: 'identity', note: 'Identity object (identity.user, identity.auth, identity.external.*).' },
+  { path: 'annotations', note: 'AnnotationV1[] attached to the event (use has_annotation).' },
+  { path: 'candidates', note: 'CandidateV1[] proposed for the event (use has_candidate).' },
+  { path: 'routingSlip', note: 'RoutingStep[] of the in-flight routing slip (use slip_complete).' },
+  { path: 'message', note: 'MessageV1 for chat/text events (message.text, message.role).' },
+  { path: 'payload', note: 'Normalized payload (message.rawPlatformPayload or event.payload).' },
+  { path: 'source', note: 'Legacy flattened path -> ingress.source.' },
+  { path: 'channel', note: 'Legacy flattened path -> ingress.channel.' },
+  { path: 'userId', note: 'Legacy flattened path -> identity.external.id.' },
+  { path: 'user', note: 'Legacy flattened path -> identity.user.' },
+  { path: 'auth', note: 'Legacy flattened path -> identity.auth.' },
+  { path: 'now', note: 'ISO8601 evaluation timestamp.' },
+  { path: 'ts', note: 'Epoch milliseconds of evaluation.' },
+];
+
 export interface EvalContext extends Record<string, any> {
   // --- New Root Paths (V2) ---
   v: '2';
@@ -130,118 +153,162 @@ function getRegex(pattern: any, flags?: any): RegExp | null {
   }
 }
 
-/** Idempotently register custom JsonLogic operators. */
-export function registerOperatorsOnce(): void {
-  if (__opsRegistered) return;
-  // ci_eq: case-insensitive equality
-  jsonLogic.add_operation('ci_eq', (a: any, b: any) => {
-    const aa = toText(a).toLowerCase();
-    const bb = toText(b).toLowerCase();
-    return aa === bb;
-  });
+/**
+ * Custom JsonLogic operator definition. `fn` is the runtime implementation handed to
+ * `jsonLogic.add_operation`; `signature`/`description` are surfaced by the router Context Pack
+ * generator (sprint-328) so the documented guide is derived from this single source of truth.
+ */
+export interface CustomOperatorDef {
+  name: string;
+  signature: string;
+  description: string;
+  fn: (...args: any[]) => any;
+}
 
-  // re_test: regex test; supports (value, pattern[, flags]) or (value, [pattern, flags])
-  jsonLogic.add_operation('re_test', (value: any, pattern: any, flags?: any) => {
-    const text = toText(value);
-    let pat: any = pattern;
-    let fl: any = flags;
-    if (Array.isArray(pattern)) {
-      pat = pattern[0];
-      fl = pattern[1];
-    }
-    const rx = getRegex(pat, fl);
-    if (!rx) return false;
-    try {
-      return rx.test(text);
-    } catch {
-      return false;
-    }
-  });
+/**
+ * Single source of truth for the custom JsonLogic operators available to authored routing rules.
+ * `registerOperatorsOnce` registers exactly these; the router Context Pack + drift guard read the
+ * same list, so a new operator auto-documents and a removed/renamed one fails the drift test.
+ */
+export const CUSTOM_OPERATORS: ReadonlyArray<CustomOperatorDef> = [
+  {
+    name: 'ci_eq',
+    signature: 'ci_eq(a, b)',
+    description: 'Case-insensitive equality; null/undefined coerce to "".',
+    fn: (a: any, b: any) => {
+      const aa = toText(a).toLowerCase();
+      const bb = toText(b).toLowerCase();
+      return aa === bb;
+    },
+  },
+  {
+    name: 're_test',
+    signature: 're_test(value, pattern[, flags]) | re_test(value, [pattern, flags])',
+    description: 'Regex test with safe caching; invalid patterns return false.',
+    fn: (value: any, pattern: any, flags?: any) => {
+      const text = toText(value);
+      let pat: any = pattern;
+      let fl: any = flags;
+      if (Array.isArray(pattern)) {
+        pat = pattern[0];
+        fl = pattern[1];
+      }
+      const rx = getRegex(pat, fl);
+      if (!rx) return false;
+      try {
+        return rx.test(text);
+      } catch {
+        return false;
+      }
+    },
+  },
+  {
+    name: 'slip_complete',
+    signature: 'slip_complete(routingSlip)',
+    description: 'True if the routing slip is fully complete (no PENDING/ERROR; terminal or all-OK).',
+    fn: (slip: any) => {
+      const arr: any[] = Array.isArray(slip) ? slip : [];
+      if (arr.length === 0) return false;
+      // If any PENDING or ERROR exists, not complete
+      for (const s of arr) {
+        const st = (s?.status || '').toUpperCase();
+        if (st === 'PENDING' || st === 'ERROR') return false;
+      }
+      // If last OK step is terminal (no nextTopic), consider complete
+      const oks = arr.filter((s) => (s?.status || '').toUpperCase() === 'OK');
+      if (oks.length === 0) return false;
+      const lastOk = oks[oks.length - 1];
+      const terminal = !lastOk?.nextTopic;
+      if (terminal) return true;
+      // Otherwise, if all steps are OK (no SKIP), consider complete
+      const allOk = arr.every((s) => (s?.status || '').toUpperCase() === 'OK');
+      return allOk;
+    },
+  },
+  {
+    name: 'has_role',
+    signature: 'has_role(roles, role[, ci])',
+    description: 'Membership test in a roles array; optional case-insensitive third arg.',
+    fn: (roles: any, role: any, ci?: any) => {
+      const rlist = safeArray(roles).map((r) => toText(r));
+      const needle = toText(role);
+      const caseInsensitive = ci === true || toText(ci).toLowerCase() === 'true';
+      if (caseInsensitive) {
+        const n = needle.toLowerCase();
+        return rlist.some((r) => r.toLowerCase() === n);
+      }
+      return rlist.includes(needle);
+    },
+  },
+  {
+    name: 'text_contains',
+    signature: 'text_contains(value, needle[, ci])',
+    description: 'Substring test; optional case-insensitive third arg.',
+    fn: (value: any, needle: any, ci?: any) => {
+      const hay = toText(value);
+      const ndl = toText(needle);
+      const caseInsensitive = ci === true || toText(ci).toLowerCase() === 'true';
 
-  // slip_complete: expects routingSlip array as first arg; if omitted/invalid → false
-  jsonLogic.add_operation('slip_complete', (slip: any) => {
-    const arr: any[] = Array.isArray(slip) ? slip : [];
-    if (arr.length === 0) return false;
-    // If any PENDING or ERROR exists, not complete
-    for (const s of arr) {
-      const st = (s?.status || '').toUpperCase();
-      if (st === 'PENDING' || st === 'ERROR') return false;
-    }
-    // If last OK step is terminal (no nextTopic), consider complete
-    const oks = arr.filter((s) => (s?.status || '').toUpperCase() === 'OK');
-    if (oks.length === 0) return false;
-    const lastOk = oks[oks.length - 1];
-    const terminal = !lastOk?.nextTopic;
-    if (terminal) return true;
-    // Otherwise, if all steps are OK (no SKIP), consider complete
-    const allOk = arr.every((s) => (s?.status || '').toUpperCase() === 'OK');
-    return allOk;
-  });
+      if (caseInsensitive) {
+        const lowerHay = hay.toLowerCase();
+        const lowerNdl = ndl.toLowerCase();
+        if (lowerHay.includes(lowerNdl)) return true;
 
-  // has_role: roles array contains role (optionally case-insensitive third param)
-  jsonLogic.add_operation('has_role', (roles: any, role: any, ci?: any) => {
-    const rlist = safeArray(roles).map((r) => toText(r));
-    const needle = toText(role);
-    const caseInsensitive = ci === true || toText(ci).toLowerCase() === 'true';
-    if (caseInsensitive) {
-      const n = needle.toLowerCase();
-      return rlist.some((r) => r.toLowerCase() === n);
-    }
-    return rlist.includes(needle);
-  });
+        // Sprint 225: If trailing space in needle causes mismatch at end of string, try trimmed
+        if (lowerNdl.endsWith(' ') && lowerHay.endsWith(lowerNdl.trimEnd())) {
+          return true;
+        }
+        return false;
+      }
 
-  // text_contains: substring search with optional ci
-  jsonLogic.add_operation('text_contains', (value: any, needle: any, ci?: any) => {
-    const hay = toText(value);
-    let ndl = toText(needle);
-    const caseInsensitive = ci === true || toText(ci).toLowerCase() === 'true';
-
-    if (caseInsensitive) {
-      const lowerHay = hay.toLowerCase();
-      const lowerNdl = ndl.toLowerCase();
-      if (lowerHay.includes(lowerNdl)) return true;
-
-      // Sprint 225: If trailing space in needle causes mismatch at end of string, try trimmed
-      if (lowerNdl.endsWith(' ') && lowerHay.endsWith(lowerNdl.trimEnd())) {
+      if (hay.includes(ndl)) return true;
+      if (ndl.endsWith(' ') && hay.endsWith(ndl.trimEnd())) {
         return true;
       }
       return false;
-    }
+    },
+  },
+  {
+    name: 'has_annotation',
+    signature: 'has_annotation(annotationsOrEvent, key[, value])',
+    description: 'Presence of an annotation by kind/label (optionally matching value).',
+    fn: (annsOrEvt: any, key: any, val?: any) => {
+      let anns: any[] = [];
+      if (Array.isArray(annsOrEvt)) anns = annsOrEvt;
+      else if (annsOrEvt && Array.isArray(annsOrEvt.annotations)) anns = annsOrEvt.annotations;
+      const k = toText(key);
+      const v = val !== undefined ? toText(val) : undefined;
+      if (!anns || anns.length === 0) return false;
+      return anns.some((a) => {
+        const kind = toText(a?.kind);
+        const label = toText(a?.label);
+        const value = a?.value !== undefined ? toText(a?.value) : undefined;
+        if (v === undefined) return label === k || kind === k;
+        return (label === k && value === v) || (kind === k && (value === v || label === v));
+      });
+    },
+  },
+  {
+    name: 'has_candidate',
+    signature: 'has_candidate(candidatesOrEvent[, provider])',
+    description: 'Presence of a candidate; optional filter by source/provider.',
+    fn: (candsOrEvt: any, provider?: any) => {
+      let cands: any[] = [];
+      if (Array.isArray(candsOrEvt)) cands = candsOrEvt;
+      else if (candsOrEvt && Array.isArray(candsOrEvt.candidates)) cands = candsOrEvt.candidates;
+      if (!cands || cands.length === 0) return false;
+      const prov = provider !== undefined ? toText(provider) : undefined;
+      if (prov === undefined) return cands.length > 0;
+      return cands.some((c) => toText(c?.source) === prov || toText(c?.provider) === prov);
+    },
+  },
+];
 
-    if (hay.includes(ndl)) return true;
-    if (ndl.endsWith(' ') && hay.endsWith(ndl.trimEnd())) {
-      return true;
-    }
-    return false;
-  });
-
-  // has_annotation: accepts (annotationsOrEvent, key[, value])
-  jsonLogic.add_operation('has_annotation', (annsOrEvt: any, key: any, val?: any) => {
-    let anns: any[] = [];
-    if (Array.isArray(annsOrEvt)) anns = annsOrEvt;
-    else if (annsOrEvt && Array.isArray(annsOrEvt.annotations)) anns = annsOrEvt.annotations;
-    const k = toText(key);
-    const v = val !== undefined ? toText(val) : undefined;
-    if (!anns || anns.length === 0) return false;
-    return anns.some((a) => {
-      const kind = toText(a?.kind);
-      const label = toText(a?.label);
-      const value = a?.value !== undefined ? toText(a?.value) : undefined;
-      if (v === undefined) return label === k || kind === k;
-      return (label === k && value === v) || (kind === k && (value === v || label === v));
-    });
-  });
-
-  // has_candidate: accepts (candidatesOrEvent[, provider]) matching by source/provider
-  jsonLogic.add_operation('has_candidate', (candsOrEvt: any, provider?: any) => {
-    let cands: any[] = [];
-    if (Array.isArray(candsOrEvt)) cands = candsOrEvt;
-    else if (candsOrEvt && Array.isArray(candsOrEvt.candidates)) cands = candsOrEvt.candidates;
-    if (!cands || cands.length === 0) return false;
-    const prov = provider !== undefined ? toText(provider) : undefined;
-    if (prov === undefined) return cands.length > 0;
-    return cands.some((c) => toText(c?.source) === prov || toText(c?.provider) === prov);
-  });
-
+/** Idempotently register custom JsonLogic operators from the CUSTOM_OPERATORS source of truth. */
+export function registerOperatorsOnce(): void {
+  if (__opsRegistered) return;
+  for (const op of CUSTOM_OPERATORS) {
+    jsonLogic.add_operation(op.name, op.fn);
+  }
   __opsRegistered = true;
 }

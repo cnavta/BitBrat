@@ -1,0 +1,306 @@
+meta:
+  backlog_id: sprint-328-c4312d-tool-context-provisioning
+  updated_at: 2026-06-28
+  status: in_progress   # Owner approved + said "Start sprint" (2026-06-28, Rule S1). Implementation underway.
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]   # P0 highest
+  effort_values: [S, M, L]
+
+sprint:
+  id: sprint-328-c4312d
+  start: 2026-06-28
+  end: 2026-07-12
+  wip_limit: 3
+  goal: >
+    Implement Just-in-Time Context Provisioning (Context Packs): a Context Pack /
+    Context Provider / binding convention (src/common/context/) that surfaces relevant,
+    versioned schema/usage context to LLM agents only when the related MCP tool, task,
+    or event type is active; rendered just-in-time via prompt-assembly NamedContext
+    (priority-ordered, de-duped), exposed as MCP Resources, and generated from the source
+    of truth (events.ts / jsonlogic-evaluator.ts) with drift-guard tests. ADR phases P0–P4;
+    P4 (Firestore/RAG) deferred/design-only by default.
+  source_design: documentation/architecture/tool-context-provisioning.md
+  references:
+    - architecture.yaml          # canonical source of truth (Law #2)
+    - src/types/events.ts        # InternalEventV2 / AnnotationV1 / AnnotationKindV1 / INTERNAL_MCP_REGISTRATION_V1
+    - src/common/base-server.ts  # the Bit: registerTool/registerResource/registerPrompt
+    - src/types/tools.ts         # IToolRegistry / BitBratResource contract
+    - src/common/prompt-assembly/types.ts  # Priority / NamedContext / TaskAnnotation
+    - src/services/router/jsonlogic-evaluator.ts  # buildContext + custom ops
+    - src/apps/tool-gateway.ts   # central pack resolution / de-dup point
+    - documentation/mcp-evolution-roadmap.md  # P4 RAG substrate (reuse)
+
+items:
+  # ===========================================================================
+  # Phase P0 — Quick win: rich descriptions + MCP Resources (no orchestrator change)
+  # ===========================================================================
+  - id: BL-328-001
+    title: "Enrich create_schedule description + register MCP Resource context://schema/internal-event-v2 on scheduler"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "create_schedule (src/apps/scheduler-service.ts) description/params explain that a 'prompt' is an AnnotationV1 of kind 'prompt', the driving event type is typically 'llm.request.v1', and annotations is an AnnotationV1[]"
+      - "Scheduler registers an MCP Resource at context://schema/internal-event-v2 (via the Bit registerResource) returning a concise InternalEventV2/AnnotationV1 explainer"
+      - "Wording verified against src/types/events.ts (AnnotationKindV1 includes 'prompt'); no invented kinds/types"
+      - "Existing scheduler tests stay green; a test asserts the Resource is registered with the expected URI"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-002
+    title: "Enrich create_rule description + register MCP Resource context://router/jsonlogic-guide on event-router"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "create_rule (src/apps/event-router-service.ts) 'logic' param description lists the EvalContext paths (type, identity.*, annotations[], candidates[], routingSlip, source, channel, userId) and the 7 custom ops"
+      - "Event-router registers an MCP Resource at context://router/jsonlogic-guide returning the guide; explains services -> routing slip, customAnnotation/promptTemplate effects"
+      - "Paths/ops verified against src/services/router/jsonlogic-evaluator.ts (buildContext + add_operation); no invented operators"
+      - "Existing event-router tests stay green; a test asserts the Resource is registered"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-003
+    title: "P0 tests: assert resources discoverable + descriptions present (baseline, pre-convention)"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-328-001, BL-328-002]
+    blocked_reason: null
+    acceptance:
+      - "Unit/integration test verifies both Resources are listed for their owning Bit and resolve to non-empty bodies"
+      - "Test asserts the enriched descriptions mention the key contract terms (prompt annotation / EvalContext / custom ops)"
+      - "No regression in scheduler or event-router suites"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Phase P1 — Convention: src/common/context/ + registerToolWithContext
+  # ===========================================================================
+  - id: BL-328-100
+    title: "Create src/common/context/types.ts: ContextPack, ContextBinding, ContextProvider interfaces"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "ContextPack { id, version, title, priority?:1..5, format:'markdown'|'json', body:string|object, source }"
+      - "ContextBinding { pack, when:{ tools?, tasks?, eventTypes? } } and ContextProvider { listPacks(), listBindings() }"
+      - "priority type aligns with prompt-assembly Priority (1..5); kebab-case filename; PascalCase interfaces (AGENTS.md §8)"
+      - "Unit tests cover type-shape construction + a sample provider"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-101
+    title: "Binding index/resolver + de-dup in src/common/context/ (resolve packs for an active set)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-328-100]
+    blocked_reason: null
+    acceptance:
+      - "resolve(activeSet:{tools?, tasks?, eventTypes?}, providers[]) returns the matching packs, de-duplicated by pack id"
+      - "Shared packs (e.g. schema.internal-event-v2) appear once even when matched via multiple tools/tasks"
+      - "Unknown pack ids in a binding are surfaced as a warning, not a throw; empty active set -> [] (no-op)"
+      - "Unit tests: match-by-tool, match-by-task, match-by-eventType, de-dup, unknown-id, empty-set"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-102
+    title: "registerToolWithContext(tool, packIds[]) helper on the Bit; bind schema + jsonlogic packs to create_schedule/create_rule"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-328-100, BL-328-101]
+    blocked_reason: null
+    acceptance:
+      - "registerToolWithContext records the binding alongside the existing registerTool on src/common/base-server.ts (no behavior change when packIds empty)"
+      - "scheduler binds create_schedule -> [schema.internal-event-v2]; event-router binds create_rule -> [router.jsonlogic-guide, schema.internal-event-v2]"
+      - "Bindings are queryable via the Bit's ContextProvider surface (listBindings)"
+      - "Unit tests assert bindings recorded; existing registerTool callers unaffected"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Phase P2 — JIT assembly: resolve + de-dup + NamedContext at the turn-build
+  # ===========================================================================
+  - id: BL-328-200
+    title: "Map ContextPack -> prompt-assembly NamedContext (priority, body/format) with truncation honored"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-328-100]
+    blocked_reason: null
+    acceptance:
+      - "A pack maps to a NamedContext (src/common/prompt-assembly/types.ts) preserving its priority (default 3) and title"
+      - "markdown body passes through; json body rendered deterministically; assembler sort/truncate applies unchanged"
+      - "Unit tests: mapping + ordering + oversized pack truncated by priority"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-201
+    title: "JIT injection in tool-gateway/McpBridge: resolve bound packs for the active tool set, de-dupe, render NamedContext"
+    priority: P0
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-328-101, BL-328-102, BL-328-200]
+    blocked_reason: null
+    acceptance:
+      - "At tool-turn context build (src/apps/tool-gateway.ts / src/common/mcp bridge), the active tools determine which packs are pulled (G1)"
+      - "Shared schema pack injected once across multiple bound tools (de-dup, demonstrated by integration test)"
+      - "With no bound packs, the assembled prompt is unchanged vs today (behavior-preserving)"
+      - "create_schedule turn injects schema.internal-event-v2; create_rule turn injects router.jsonlogic-guide (asserted)"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-202
+    title: "Bind internal task pipelines (routing/enrichment) by task/stage/eventType; advertise packs/bindings additively on INTERNAL_MCP_REGISTRATION_V1"
+    priority: P1
+    status: done
+    effort: L
+    owner: agent
+    deps: [BL-328-101, BL-328-201]
+    blocked_reason: null
+    acceptance:
+      - "Enrichment (src/services/auth/enrichment.ts) and rule-authoring tasks pull bound packs at the relevant stage (G5) via task/eventType bindings"
+      - "INTERNAL_MCP_REGISTRATION_V1 payload optionally carries packs + bindings; field is ADDITIVE — older consumers ignoring it parse unchanged (verified by a back-compat test)"
+      - "tool-gateway resolves advertised packs centrally; no architecture.yaml topic/version is mutated (additive note only if needed, re-validated by brat config validate)"
+      - "Integration test: a registering Bit advertises a pack and the gateway can resolve it for a bound tool"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Phase P3 — Generated from source of truth + drift guards (Law #2 / G2 / G6)
+  # ===========================================================================
+  - id: BL-328-300
+    title: "Decide + wire generation path for schema.internal-event-v2 (zod-to-json-schema vs ts-json-schema-generator vs curated-markdown generator)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-328-100]
+    blocked_reason: null
+    acceptance:
+      - "A documented decision (recorded in verification-report.md) selecting the lightest viable generation path; avoid heavy new deps where possible"
+      - "A build/script step generates the schema.internal-event-v2 pack body from src/types/events.ts (trimmed/curated, short — Markdown preferred over raw JSON Schema dump)"
+      - "Generated pack carries version (aligned to InternalEventV2 'v') + source provenance; not hand-edited in prod path"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-301
+    title: "Generate router.jsonlogic-guide pack from jsonlogic-evaluator.ts operator list + EvalContext keys"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-328-100]
+    blocked_reason: null
+    acceptance:
+      - "The router pack is derived from the single place ops + EvalContext are defined (jsonlogic-evaluator.ts) so new operators auto-document"
+      - "Lists all 7 ops (ci_eq, re_test, slip_complete, has_role, has_annotation, has_candidate, text_contains) + EvalContext paths, generated not hand-copied"
+      - "Pack carries version + source"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-302
+    title: "Drift-guard tests: every field path/operator referenced by generated packs still exists in source"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-328-300, BL-328-301]
+    blocked_reason: null
+    acceptance:
+      - "Test fails if the schema pack references a field path absent from InternalEventV2/AnnotationV1"
+      - "Test fails if the router pack lists an operator not registered in jsonlogic-evaluator.ts (or omits a registered one)"
+      - "A deliberately mutated path/op in a fixture demonstrates the guard fires (negative test)"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Phase P4 — RAG scale-out (DEFERRED / design-only by default)
+  # ===========================================================================
+  - id: BL-328-400
+    title: "[Deferred/design-only] Seam + ADR note for Firestore-persisted, embedding-retrieved packs (roadmap Phase 2 reuse)"
+    priority: P3
+    status: done   # design-only deliverable complete: seam present (resolveContextPacks(providers[])) + ADR §6.1 note. No Firestore/embedding code shipped (deferred).
+    effort: S
+    owner: agent
+    deps: [BL-328-101]
+    blocked_reason: null
+    acceptance:
+      - "ContextProvider/resolver expose a seam allowing a future retrieval-backed source without changing callers"
+      - "Short note in tool-context-provisioning.md (or a follow-up ADR stub) records that packs reuse the mcp-evolution-roadmap.md Phase 2 substrate; static bindings are the deterministic floor"
+      - "No Firestore/embedding code shipped this sprint unless owner-approved"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Validation, verification, publication
+  # ===========================================================================
+  - id: BL-328-500
+    title: "Author validate_deliverable.sh (npm ci -> build -> test -> release:dry version-parity assert; idempotent, logically passable)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Script installs deps, builds (prod+test compile), runs full Jest suite incl. context + drift tests"
+      - "Runs npm run release:dry -- patch and asserts architecture.yaml/package.json/package-lock.json version agreement (AGENTS.md §2.6)"
+      - "Idempotent (no mutation); exits non-zero on build/test failure; logs missing-tool fallbacks"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-501
+    title: "Accuracy + drift parity check: documented pack contents match events.ts / jsonlogic-evaluator.ts; full suite green"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-328-300, BL-328-301, BL-328-302, BL-328-201]
+    blocked_reason: null
+    acceptance:
+      - "Generated pack contents grep-verified against source symbols (kinds, field paths, operator names)"
+      - "Full npm test green; no behavior change when no packs are bound"
+      - "Findings recorded in verification-report.md"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-328-502
+    title: "Close-out: verification-report.md, retro.md, key-learnings.md, publication.yaml; push branch + open PR (Rules S12/S13)"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-328-003, BL-328-102, BL-328-201, BL-328-202, BL-328-302, BL-328-500, BL-328-501]
+    blocked_reason: null
+    acceptance:
+      - "verification-report.md, retro.md, key-learnings.md present and accurate"
+      - "Branch pushed; PR attempted and URL (or logged failure + explicit owner acceptance) recorded in publication.yaml"
+      - "If a release is cut, npm run release -- <bump> run and logged in request-log.md (AGENTS.md Publish §); validate_deliverable.sh logically passable; owner says 'Sprint complete.'"
+    updated_at: 2026-06-28
+    log: []
+
+# ---------------------------------------------------------------------------
+# Sequencing notes
+# ---------------------------------------------------------------------------
+# - Critical path: P0 resources (001/002) -> P1 convention (100->101->102) ->
+#   P2 JIT (200->201->202) -> P3 generation+drift (300/301->302) -> close-out (500->501->502).
+# - WIP limit = 3 concurrent in_progress items.
+# - P4 (BL-328-400) stays todo/deferred unless owner pulls it into scope.
+# - No item moves out of 'todo' until the owner approves the plan and says "Start sprint" (Rule S1).

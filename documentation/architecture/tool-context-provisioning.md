@@ -208,6 +208,24 @@ Phase 2 of `mcp-evolution-roadmap.md` already plans Firestore-backed, embedding-
 
 ---
 
+## 6.1 Implementation note (sprint-328) — what shipped + the P4 seam
+
+P0–P3 shipped in sprint-328 (`src/common/context/`): the `ContextPack`/`ContextBinding`/`ContextProvider`
+convention, `Bit.registerToolWithContext` + `registerContextPack`/`registerContextBinding`, a
+de-duplicating `resolveContextPacks(activeSet, providers)`, a `packToNamedContext` renderer, the two
+**generated** packs (`schema.internal-event-v2` from `events.ts`, `router.jsonlogic-guide` from
+`jsonlogic-evaluator.ts`) with drift-guard tests, MCP Resources (`context://…`), and additive
+advertisement of `payload.context.{packs,bindings}` on `INTERNAL_MCP_REGISTRATION_V1` resolved
+centrally by the tool-gateway (`ToolGatewayServer.resolveContextForTools`).
+
+**P4 (RAG scale-out) is deferred / design-only.** The seam already exists: `resolveContextPacks`
+takes an array of `ContextProvider`s, and the gateway aggregates one provider per registered Bit.
+A future Firestore/embedding-backed retrieval source only needs to implement `ContextProvider`
+(`listPacks`/`listBindings`) — or a `resolveContextPacks` variant that ranks/top-N's packs — without
+changing any caller. Static bindings remain the deterministic floor (§5.6); RAG reuses the
+`mcp-evolution-roadmap.md` Phase 2 substrate rather than introducing a competing mechanism. No
+Firestore/embedding code ships until the owner pulls P4 into scope.
+
 ## 7. Trade-offs & Risks
 
 - **Token budget:** mitigated by relevance-gating (G1), de-dup, and priority-based truncation in the assembler. Keep packs short; prefer curated Markdown over raw JSON Schema dumps.
