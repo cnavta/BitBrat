@@ -1,0 +1,230 @@
+meta:
+  backlog_id: sprint-329-bf2d2b-scheduler-full-event-topic
+  updated_at: 2026-06-28
+  status: in-progress   # owner approved (OD-1/OD-2 Plan of Record + G4 no-back-compat) and said "Start sprint" (REQ-002)
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]   # P0 highest
+  effort_values: [S, M, L]
+
+sprint:
+  id: sprint-329-bf2d2b
+  start: 2026-06-28
+  end: 2026-07-12
+  wip_limit: 3
+  goal: >
+    Make the scheduler able to emit ANY InternalEventV2 (not a partial projection) and publish it on
+    any governed topic. Change ScheduleDoc.event + the create_schedule/update_schedule input contract
+    to a full InternalEventV2 authoring shape; add an OPTIONAL `topic` defaulting to internal.ingress.v1;
+    stop hard-coding egress in executeSchedule and the topic in handleTick (fall back to system / ingress
+    only when unset). Closes the Twitch-egress gap from the owner-attached note.
+  source_gap: "Owner-attached scratch note §3-§4 (Twitch egress half is a gap; create_schedule cannot express egress; executeSchedule hard-codes egress=system; handleTick hard-codes topic=internal.ingress.v1)."
+  references:
+    - architecture.yaml                       # canonical (Law #2); topic catalog L88-177; scheduler publishes L613-615
+    - src/apps/scheduler-service.ts            # EventDefinitionSchema ~L23-31; ScheduleDoc.event ~L60-65; executeSchedule ~L305-350; handleTick ~L269-303
+    - src/types/events.ts                      # InternalEventV2 (201-221), Egress (56-67), ConnectorType (54, incl 'twitch'), Ingress, Identity, MessageV1, AnnotationV1
+    - src/services/message-bus/index.ts        # createMessagePublisher(subject) — subject IS the publish topic
+    - tests/apps/scheduler-service.spec.ts     # existing /tick due + once tests (mocks message-bus + Firestore)
+  open_decisions:
+    - "OD-1: RESOLVED (owner: Use Plan of Record) -> curated emit allow-list = [internal.ingress.v1, internal.egress.v1]; topic validated against it; scheduler topics.publishes + internal.egress.v1 producer updated in architecture.yaml."
+    - "OD-2: RESOLVED (owner: Use Plan of Record) -> author-settable = type, egress, payload, message, annotations, identity, candidates, qos, externalEvent, metadata (+ ingress connector/channel); server-owned = v, correlationId, traceId, ingress.ingressAt/source, routing."
+    - "G4 (owner override): NO back-compat with the old partial event schema; existing data will be deleted. ScheduleDoc.event is the full InternalEventV2 authoring shape outright; the back-compat task/test is dropped."
+
+items:
+  # ===========================================================================
+  # Phase P0 — Contract widening: full InternalEventV2 authoring shape + optional topic
+  # ===========================================================================
+  - id: BL-329-001
+    title: "Widen EventDefinitionSchema -> full InternalEventV2 authoring Zod schema (add egress + remaining fields)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "EventDefinitionSchema (src/apps/scheduler-service.ts) accepts the full author-settable InternalEventV2 subset: type, egress, payload, message, annotations, identity, candidates, qos, externalEvent, metadata (+ optional ingress overrides)"
+      - "egress mirrors src/types/events.ts Egress: { destination, connector: ConnectorType, type?, channel?, metadata? }; connector enum reuses ConnectorType ('twitch'|'discord'|'twilio'|'webhook'|'api'|'system')"
+      - "Annotations typed as AnnotationV1[] (not z.record(z.any())); message mirrors MessageV1; all new fields optional so old payloads still validate (back-compat)"
+      - "Schema kept in lockstep with InternalEventV2 (G2/Law #2); no invented fields/connectors"
+      - "Unit test: a full event incl. Twitch egress validates; a malformed `type`/`egress.connector` is rejected"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-329-002
+    title: "Add optional `topic` to Create/UpdateScheduleSchema + ScheduleDoc; retype ScheduleDoc.event to the full shape"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-329-001]
+    blocked_reason: null
+    acceptance:
+      - "CreateScheduleSchema/UpdateScheduleSchema gain `topic: z.string().optional()` (default applied at execution, not forced into the stored doc unless set)"
+      - "ScheduleDoc gains `topic?: string` and ScheduleDoc.event is retyped from the partial { type,payload,message,annotations } to the full InternalEventV2 authoring shape"
+      - "Default documented in the schema description: 'Topic to publish on; defaults to internal.ingress.v1 when unset'"
+      - "UpdateScheduleSchema (.partial()) still compiles; existing update_schedule path unaffected when topic omitted"
+      - "Type-check/build passes"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Phase P0 — Execution honors the contract (remove hard-coding)
+  # ===========================================================================
+  - id: BL-329-003
+    title: "executeSchedule: honor author-supplied egress/identity/message/etc.; fall back to `system` egress only when unset"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-329-001, BL-329-002]
+    blocked_reason: null
+    acceptance:
+      - "executeSchedule merges author-supplied event fields over server-owned defaults; the unconditional `egress: { destination:'system', connector:'system' }` (current ~L324) is removed"
+      - "egress = schedule.event.egress ?? { destination:'system', connector:'system' } (system only when unset)"
+      - "Server still OWNS v:'2', correlationId, traceId, ingress.ingressAt/source('scheduler')/connector, routing — author cannot override these (OD-2 whitelist enforced)"
+      - "payload/message/annotations/identity/candidates/qos/externalEvent/metadata pass through when present"
+      - "Unit/integration: a Twitch-egress schedule emits an event whose egress equals the author input (no system overwrite)"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-329-004
+    title: "handleTick: publish each schedule on its `topic` (default internal.ingress.v1); stop hard-coding the topic"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-329-002]
+    blocked_reason: null
+    acceptance:
+      - "handleTick no longer creates a single createMessagePublisher('internal.ingress.v1') for all docs; the publish subject derives from schedule.topic ?? 'internal.ingress.v1'"
+      - "Publishers may be created/cached per distinct topic for efficiency; correctness over micro-optimization"
+      - "A schedule with topic set publishes to that subject; a schedule without topic publishes to internal.ingress.v1 (asserted via createMessagePublisher subject)"
+      - "Tick still updates lastRun/nextRun/enabled exactly as before; once-off disable behavior unchanged"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Phase P1 — Governance & validation (Law #2) + agent comprehension
+  # ===========================================================================
+  - id: BL-329-100
+    title: "[OD-1] Validate `topic` against the governed architecture.yaml topic catalog (reject unknown topics)"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-329-002]
+    blocked_reason: null
+    acceptance:
+      - "create_schedule rejects (isError / Zod refine) a `topic` that is not in the governed topic catalog (architecture.yaml topics, L88-177) per the OD-1 decision"
+      - "The allowed-topic source is the canonical catalog (no hand-copied drifting list in prod path where avoidable); curated subset documented if OD-1 chooses subset"
+      - "Default (unset) topic resolves to internal.ingress.v1 and is always allowed"
+      - "Unit test: known topic accepted, unknown topic rejected, omitted topic -> default"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-329-101
+    title: "[OD-1] Update scheduler topics.publishes in architecture.yaml to the topics the scheduler can now emit; brat config validate"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-329-100]
+    blocked_reason: null
+    acceptance:
+      - "architecture.yaml scheduler.topics.publishes (currently [internal.ingress.v1]) updated to match the emit allow-list resolved in OD-1 (additive; no rename/removal of existing topics/versions)"
+      - "If emitting on internal.egress.v1 etc., scheduler is added as a producer on those catalog entries too (consistency)"
+      - "`brat config validate` (or the repo's architecture validation) passes; change traces to this item in request-log.md"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-329-102
+    title: "Enrich create_schedule tool description to advertise egress + topic authoring"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-329-001, BL-329-002]
+    blocked_reason: null
+    acceptance:
+      - "create_schedule description notes the event is a full InternalEventV2 and can set `egress` (e.g. { connector:'twitch', destination:'twitch', channel:'#<channel>' }) and an optional `topic` (default internal.ingress.v1)"
+      - "Wording verified against src/types/events.ts (ConnectorType incl. 'twitch') and the governed topic catalog; no invented connectors/topics"
+      - "Existing sprint-328 schema Context Pack binding remains intact"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Phase P2 — Tests
+  # ===========================================================================
+  - id: BL-329-200
+    title: "Integration tests: egress passthrough (Twitch), topic selection + default, server-owned fields"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-329-003, BL-329-004]
+    blocked_reason: null
+    acceptance:
+      - "Extend tests/apps/scheduler-service.spec.ts: a due schedule with event.egress Twitch -> publishJson event.egress equals author input (no system overwrite)"
+      - "topic set -> createMessagePublisher called with that subject; topic unset -> internal.ingress.v1"
+      - "Server-owned fields still present (correlationId, ingress.source='scheduler', routing) on the emitted event"
+      - "All new tests pass; existing /tick due + once tests stay green"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-329-201
+    title: "Negative + default-egress tests: unknown topic / malformed event rejected; system egress only when unset (back-compat task dropped per G4)"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-329-100, BL-329-200]
+    blocked_reason: null
+    acceptance:
+      - "G4: back-compat test REMOVED — no legacy partial-event path exists; existing data is deleted, not migrated"
+      - "CreateScheduleSchema unit tests reject an unknown `topic` and a malformed event.type / egress.connector; accept known/omitted topic"
+      - "A schedule with no egress emits egress { destination:'system', connector:'system' } on the default topic"
+      - "No regression across the full Jest suite"
+    updated_at: 2026-06-28
+    log: []
+
+  # ===========================================================================
+  # Validation, verification, publication
+  # ===========================================================================
+  - id: BL-329-500
+    title: "Author validate_deliverable.sh (npm ci -> build -> test -> release:dry parity; targeted scheduler suite; idempotent, logically passable)"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Script installs deps, builds (prod+test compile), runs full Jest suite incl. new scheduler tests"
+      - "Runs npm run release:dry -- patch and asserts architecture.yaml/package.json/package-lock.json version agreement (AGENTS.md §2.6)"
+      - "Idempotent (no mutation); exits non-zero on build/test failure; logs missing-tool fallbacks"
+    updated_at: 2026-06-28
+    log: []
+
+  - id: BL-329-501
+    title: "Close-out: verification-report.md, retro.md, key-learnings.md, publication.yaml, CHANGELOG.md; push branch + open PR (Rules S12/S13)"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [BL-329-200, BL-329-201, BL-329-101, BL-329-102, BL-329-500]
+    blocked_reason: null
+    acceptance:
+      - "verification-report.md, retro.md, key-learnings.md present and accurate; CHANGELOG.md [Unreleased] updated"
+      - "Branch pushed; PR attempted and URL (or logged failure + explicit owner acceptance) recorded in publication.yaml"
+      - "If a release is cut, npm run release -- <bump> run + logged in request-log.md; validate_deliverable.sh logically passable; owner says 'Sprint complete.'"
+    updated_at: 2026-06-28
+    log: []
+
+# ---------------------------------------------------------------------------
+# Sequencing notes
+# ---------------------------------------------------------------------------
+# - Critical path: P0 contract (001->002) -> P0 execution (003/004) -> P2 tests (200) ->
+#   P1 governance (100->101) + description (102) + back-compat/negative (201) -> close-out (500->501).
+# - WIP limit = 3 concurrent in_progress items.
+# - OD-1 (topic allow-list scope) gates BL-329-100/101; OD-2 (author-settable whitelist) gates BL-329-003.
+# - No item moves out of 'todo' until the owner approves the plan and says "Start sprint" (Rule S1).
