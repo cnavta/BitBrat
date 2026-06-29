@@ -37,6 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schedule documents must be deleted/recreated against the full `InternalEventV2` authoring contract.
 
 ### Fixed
+- **event-router now registers with the tool-gateway.** Its service entrypoint called `app.listen()`
+  directly instead of going through the `Bit.start()` lifecycle, so the post-listen
+  `publishRegistration()` step never ran — leaving event-router absent from the tool-gateway's
+  registered MCP servers (a sprint-324 Bit-migration miss; every other service uses
+  `server.start(PORT)`). The entrypoint now instantiates the Bit and calls `server.start(PORT)`, so
+  event-router self-publishes on `INTERNAL_MCP_REGISTRATION_V1` like the rest of the fleet. Added a
+  regression test asserting `start()` self-publishes the registration.
+- **tool-gateway no longer "continually reloads" the MCP registry.** `handleMcpRegistration` upserted
+  the `mcp_servers` Firestore doc on every registration event — and because each write stamped a fresh
+  `updatedAt`/`correlationId`, the `RegistryWatcher.onSnapshot` fired and re-loaded every server, even
+  though Bits re-publish identical registrations on a heartbeat. This created a self-sustaining
+  write → snapshot → reload loop. The gateway now caches a stable signature of each Bit's meaningful
+  registration payload (excluding the volatile per-event `correlationId`) and skips the Firestore write
+  when nothing changed, breaking the loop while still persisting genuine changes. Added a regression
+  test asserting repeated identical registrations write once and a changed payload re-persists.
 
 ### Security
 
