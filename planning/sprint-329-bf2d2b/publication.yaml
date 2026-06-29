@@ -2,8 +2,8 @@ branch: feature/sprint-329-bf2d2b-scheduler-full-event-topic
 base: main
 commit: e8cfb0b
 pushed: true
-pr_url: null
-status: pr_attempt_failed_owner_accepted   # owner said "Sprint complete." (REQ-003), explicitly accepting this logged PR-attempt failure per Rule S13(b)
+pr_url: https://github.com/cnavta/BitBrat/pull/254
+status: created   # PR opened via gh CLI once it became available on PATH (/opt/homebrew/bin); supersedes the earlier owner-accepted PR-attempt failure (REQ-004)
 pr_attempt:
   method_attempted: [gh-cli, github-api]
   result: blocked
@@ -23,6 +23,5 @@ pr_attempt:
     no back-compat with the old partial event schema (existing data deleted). Full Jest suite green
     (1097 passed). Closes BL-329-001..201,500,501.
 owner_action_required: >
-  Either install `gh` / provide a GITHUB_TOKEN so the PR can be opened automatically, or open the PR
-  manually via create_pr_url and record the URL here. Per Rule S13, sprint closure requires the PR URL
-  recorded OR explicit owner acceptance of this logged PR-attempt failure.
+  RESOLVED: `gh` became available on PATH (/opt/homebrew/bin) and the PR was opened automatically
+  (https://github.com/cnavta/BitBrat/pull/254). Rule S13(a) now satisfied with a recorded PR URL.
