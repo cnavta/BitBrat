@@ -3,7 +3,7 @@ base: main
 commit: e8cfb0b
 pushed: true
 pr_url: null
-status: pr_attempt_failed
+status: pr_attempt_failed_owner_accepted   # owner said "Sprint complete." (REQ-003), explicitly accepting this logged PR-attempt failure per Rule S13(b)
 pr_attempt:
   method_attempted: [gh-cli, github-api]
   result: blocked
