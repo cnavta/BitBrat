@@ -45,3 +45,22 @@ operations it triggered are logged here. Code changes trace back to a BL-329-NNN
   - Implementing BL-329-001…004 in `src/apps/scheduler-service.ts`; BL-329-100/101 governance in
     `architecture.yaml`; BL-329-102 description; BL-329-200/201 tests; BL-329-500/501 close-out.
 - **Result:** Sprint moved from `planning` → `in-progress`; backlog item statuses updated as work proceeds.
+
+---
+
+## REQ-003 — 2026-06-29 — "Sprint complete." (close-out / owner acceptance)
+- **Prompt:** "Sprint complete."
+- **Interpretation:** Owner closes sprint-329 (Rule S2). Implementation, validation, and verification are
+  done; the only open gate (BL-329-501) was the GitHub PR, which could NOT be auto-created (no `gh` CLI /
+  `GITHUB_TOKEN`). "Sprint complete." is the owner's explicit acceptance of the logged PR-attempt failure,
+  satisfying Rule S13(b).
+- **Actions:**
+  - Re-checked PR tooling: `gh` not installed and no `GITHUB_TOKEN`/`GH_TOKEN` — PR still cannot be opened
+    automatically; branch `feature/sprint-329-bf2d2b-scheduler-full-event-topic` remains pushed
+    (commit e8cfb0b). Manual PR via `create_pr_url` in `publication.yaml`.
+  - `sprint-manifest.yaml` `status` → `complete` (records owner acceptance per Rule S13b).
+  - `backlog.yaml` `meta.status` → `complete`; **BL-329-501** → `done` (blocked_reason resolved by owner
+    acceptance).
+  - `publication.yaml` annotated with owner acceptance of the PR-attempt failure.
+- **Result:** Sprint-329 closed. `verification-report.md`, `retro.md`, `key-learnings.md` present; no
+  Partial/Deferred items against the sprint goal. PR still to be opened manually by the owner.
