@@ -208,11 +208,11 @@ items:
   - id: BL-329-501
     title: "Close-out: verification-report.md, retro.md, key-learnings.md, publication.yaml, CHANGELOG.md; push branch + open PR (Rules S12/S13)"
     priority: P0
-    status: todo
+    status: blocked
     effort: M
     owner: agent
     deps: [BL-329-200, BL-329-201, BL-329-101, BL-329-102, BL-329-500]
-    blocked_reason: null
+    blocked_reason: "Close-out docs + CHANGELOG done and branch pushed (commit e8cfb0b); PR could NOT be auto-created (no gh CLI / GITHUB_TOKEN). Per Rule S13, needs owner to open the PR (create_pr_url in publication.yaml) or explicitly accept the logged PR-attempt failure to close."
     acceptance:
       - "verification-report.md, retro.md, key-learnings.md present and accurate; CHANGELOG.md [Unreleased] updated"
       - "Branch pushed; PR attempted and URL (or logged failure + explicit owner acceptance) recorded in publication.yaml"
