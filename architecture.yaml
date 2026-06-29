@@ -140,7 +140,7 @@ messaging: # Asynchronous internal event bus: contracts, conventions, and topic 
       description: >
         Final responses for delivery back to the originating platform. Consumed broadcast plus a
         per-instance variant (internal.egress.v1.{instanceId}) addressing the connection-owning instance.
-      producers: [event-router]
+      producers: [event-router, scheduler]
       consumers: [ingress-egress]
       schema: documentation/schemas/envelope.v1.json
     internal.api.egress.v1:
@@ -612,7 +612,11 @@ services:
     entry: src/apps/scheduler-service.ts
     topics:
       publishes:
+        # sprint-329: a scheduled event may now carry a full InternalEventV2 and select its publish
+        # topic (curated allow-list). internal.egress.v1 lets a schedule address a delivery target
+        # (e.g. Twitch egress); internal.ingress.v1 remains the default.
         - internal.ingress.v1
+        - internal.egress.v1
       consumes:
         - internal.scheduler.tick
     secrets:
