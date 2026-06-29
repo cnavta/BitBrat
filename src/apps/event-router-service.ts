@@ -324,8 +324,9 @@ export function createApp() {
 
 if (require.main === module) {
   Bit.ensureRequiredEnv(SERVICE_NAME);
-  const app = createApp();
-  app.listen(PORT, () => {
-    console.log('[event-router] listening on port ' + PORT);
-  });
+  // Use the Bit start() lifecycle (not app.listen directly) so the post-listen hooks run — most
+  // importantly publishRegistration(), which advertises this Bit on INTERNAL_MCP_REGISTRATION_V1 so
+  // the tool-gateway discovers it. Bypassing start() left event-router absent from the registry.
+  const server = createServer();
+  void server.start(PORT);
 }

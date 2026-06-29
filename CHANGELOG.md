@@ -22,6 +22,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.7.3] - 2026-06-29
+### Added
+- **Scheduler can now emit ANY `InternalEventV2` on a selectable topic** (sprint-329). `create_schedule`'s
+  `event` was widened from a partial `{ type, payload, message, annotations }` projection to a full
+  `InternalEventV2` authoring shape (adds `egress`, `identity`, `candidates`, `qos`, `externalEvent`,
+  `metadata`, and ingress connector/channel overrides — mirroring `src/types/events.ts`, with `egress`
+  reusing `ConnectorType` incl. `'twitch'`). A new **optional top-level `topic`** selects the publish
+  topic (validated against a curated governed allow-list — `internal.ingress.v1`, `internal.egress.v1`)
+  and defaults to `internal.ingress.v1` when unset. This makes the "schedule an event … with egress set
+  for Twitch" request expressible end-to-end.
+
+### Changed
+- **Scheduler execution no longer hard-codes egress or the publish topic** (sprint-329). `executeSchedule`
+  now honors the author-supplied `egress`/`identity`/`message`/`annotations`/`candidates`/`qos`/
+  `externalEvent`/`metadata`, falling back to `{ destination: 'system', connector: 'system' }` egress only
+  when unset; server-owned envelope fields (`v`, `correlationId`, `traceId`, `ingress.ingressAt`+`source`,
+  `routing`) remain server-owned (OD-2). `handleTick` publishes each due schedule on its `topic`
+  (default `internal.ingress.v1`), caching one publisher per distinct topic. `architecture.yaml` now
+  declares the scheduler as a producer on `internal.egress.v1` (Law #2; `brat config validate` passes).
+
+### Deprecated
+
+### Removed
+- **BREAKING (sprint-329, G4): `ScheduleDoc.event` is no longer the legacy partial projection.** No
+  backward compatibility is provided for stored schedules using the old `event` shape; any existing
+  schedule documents must be deleted/recreated against the full `InternalEventV2` authoring contract.
+
+### Fixed
+- **event-router now registers with the tool-gateway.** Its service entrypoint called `app.listen()`
+  directly instead of going through the `Bit.start()` lifecycle, so the post-listen
+  `publishRegistration()` step never ran — leaving event-router absent from the tool-gateway's
+  registered MCP servers (a sprint-324 Bit-migration miss; every other service uses
+  `server.start(PORT)`). The entrypoint now instantiates the Bit and calls `server.start(PORT)`, so
+  event-router self-publishes on `INTERNAL_MCP_REGISTRATION_V1` like the rest of the fleet. Added a
+  regression test asserting `start()` self-publishes the registration.
+- **tool-gateway no longer "continually reloads" the MCP registry.** `handleMcpRegistration` upserted
+  the `mcp_servers` Firestore doc on every registration event — and because each write stamped a fresh
+  `updatedAt`/`correlationId`, the `RegistryWatcher.onSnapshot` fired and re-loaded every server, even
+  though Bits re-publish identical registrations on a heartbeat. This created a self-sustaining
+  write → snapshot → reload loop. The gateway now caches a stable signature of each Bit's meaningful
+  registration payload (excluding the volatile per-event `correlationId`) and skips the Firestore write
+  when nothing changed, breaking the loop while still persisting genuine changes. Added a regression
+  test asserting repeated identical registrations write once and a changed payload re-persists.
+
+### Security
+
 ## [0.7.2] - 2026-06-28
 ### Added
 - Just-in-Time Context Provisioning ("Context Packs"): a `src/common/context/` convention

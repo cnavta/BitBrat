@@ -1,12 +1,14 @@
 import request from 'supertest';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// Mock message bus
+// Mock message bus. createMessagePublisher's argument IS the publish topic (subject), so we capture
+// it to assert per-schedule topic selection (sprint-329).
 const publishJsonMock = jest.fn(async () => {});
+const createMessagePublisherMock = jest.fn((_subject: string) => ({
+  publishJson: publishJsonMock,
+}));
 jest.mock('../../src/services/message-bus', () => ({
-  createMessagePublisher: () => ({
-    publishJson: publishJsonMock,
-  }),
+  createMessagePublisher: (subject: string) => createMessagePublisherMock(subject),
   createMessageSubscriber: () => ({
     subscribe: jest.fn(async () => () => {}),
   }),
@@ -47,7 +49,11 @@ jest.mock('../../src/common/resources/firestore-manager', () => ({
   }
 }));
 
-import { createApp } from '../../src/apps/scheduler-service';
+import {
+  createApp,
+  CreateScheduleSchema,
+  DEFAULT_PUBLISH_TOPIC,
+} from '../../src/apps/scheduler-service';
 import { Bit } from '../../src/common/base-server';
 
 describe('Scheduler Service', () => {
@@ -105,6 +111,9 @@ describe('Scheduler Service', () => {
       expect(event.ingress.source).toBe('scheduler');
       expect(attrs.source).toBe('scheduler');
 
+      // No topic on the schedule -> published on the default topic.
+      expect(createMessagePublisherMock).toHaveBeenCalledWith(DEFAULT_PUBLISH_TOPIC);
+
       // Verify schedule was updated
       expect(updateMock).toHaveBeenCalled();
       const updateData = (updateMock.mock.calls as any)[0][0];
@@ -139,11 +148,121 @@ describe('Scheduler Service', () => {
       expect(updateData.enabled).toBe(false);
       expect(updateData.nextRun).toBeNull();
     });
+
+    it('honors author-supplied Twitch egress and the chosen topic (sprint-329)', async () => {
+      const past = new Date(Date.now() - 10000);
+      const twitchEgress = { connector: 'twitch', destination: 'twitch', channel: '#mychannel' };
+      const dueSchedule = {
+        id: 'sched-twitch',
+        title: 'Scream on Twitch',
+        enabled: true,
+        nextRun: Timestamp.fromDate(past),
+        schedule: { type: 'once', value: past.toISOString() },
+        topic: 'internal.egress.v1',
+        event: {
+          type: 'egress.deliver.v1',
+          egress: twitchEgress,
+          message: { role: 'system', text: 'Scream!!!' },
+        },
+      };
+
+      whereMock.mockReturnValue({
+        where: jest.fn().mockReturnValue({
+          get: async () => ({ size: 1, docs: [makeDoc('sched-twitch', dueSchedule)] })
+        })
+      });
+
+      await request(app).post('/tick');
+
+      expect(publishJsonMock).toHaveBeenCalled();
+      const [event] = (publishJsonMock.mock.calls as any)[0];
+      // Egress is passed through EXACTLY (no `system` overwrite).
+      expect(event.egress).toEqual(twitchEgress);
+      expect(event.message.text).toBe('Scream!!!');
+      // Published on the schedule's chosen topic.
+      expect(createMessagePublisherMock).toHaveBeenCalledWith('internal.egress.v1');
+      // Server-owned envelope fields are still set by the scheduler.
+      expect(event.v).toBe('2');
+      expect(typeof event.correlationId).toBe('string');
+      expect(event.ingress.source).toBe('scheduler');
+      expect(event.routing).toEqual({ stage: 'initial', slip: [], history: [] });
+    });
+
+    it('falls back to system egress only when the schedule does not specify one', async () => {
+      const past = new Date(Date.now() - 10000);
+      const dueSchedule = {
+        id: 'sched-default-egress',
+        title: 'No egress',
+        enabled: true,
+        nextRun: Timestamp.fromDate(past),
+        schedule: { type: 'once', value: past.toISOString() },
+        event: { type: 'system.timer.v1' },
+      };
+
+      whereMock.mockReturnValue({
+        where: jest.fn().mockReturnValue({
+          get: async () => ({ size: 1, docs: [makeDoc('sched-default-egress', dueSchedule)] })
+        })
+      });
+
+      await request(app).post('/tick');
+
+      const [event] = (publishJsonMock.mock.calls as any)[0];
+      expect(event.egress).toEqual({ destination: 'system', connector: 'system' });
+      expect(createMessagePublisherMock).toHaveBeenCalledWith(DEFAULT_PUBLISH_TOPIC);
+    });
   });
 
-  describe('MCP Tools', () => {
-    // Note: Testing MCP tools via HTTP SSE is complex, 
-    // but we can verify they were registered if we had access to the mcpServer.
-    // For now, the successful /tick test covers the core logic.
+  describe('CreateScheduleSchema (sprint-329)', () => {
+    const baseEvent = { type: 'llm.request.v1' };
+    const baseSchedule = {
+      title: 'T',
+      schedule: { type: 'once', value: new Date().toISOString() },
+    };
+
+    it('accepts a full event with Twitch egress', () => {
+      const parsed = CreateScheduleSchema.safeParse({
+        ...baseSchedule,
+        event: {
+          type: 'egress.deliver.v1',
+          egress: { connector: 'twitch', destination: 'twitch', channel: '#x' },
+          payload: { foo: 'bar' },
+        },
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('rejects a malformed event.type', () => {
+      const parsed = CreateScheduleSchema.safeParse({
+        ...baseSchedule,
+        event: { type: 123 as any },
+      });
+      expect(parsed.success).toBe(false);
+    });
+
+    it('rejects an invalid egress.connector', () => {
+      const parsed = CreateScheduleSchema.safeParse({
+        ...baseSchedule,
+        event: { type: 'egress.deliver.v1', egress: { connector: 'pager', destination: 'x' } as any },
+      });
+      expect(parsed.success).toBe(false);
+    });
+
+    it('accepts a known topic and rejects an unknown topic', () => {
+      expect(
+        CreateScheduleSchema.safeParse({ ...baseSchedule, event: baseEvent, topic: 'internal.egress.v1' }).success
+      ).toBe(true);
+      expect(
+        CreateScheduleSchema.safeParse({ ...baseSchedule, event: baseEvent, topic: 'internal.bogus.v1' }).success
+      ).toBe(false);
+    });
+
+    it('accepts an omitted topic (defaults applied at execution)', () => {
+      const parsed = CreateScheduleSchema.safeParse({ ...baseSchedule, event: baseEvent });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.topic).toBeUndefined();
+      }
+    });
   });
 });

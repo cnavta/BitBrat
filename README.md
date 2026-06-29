@@ -6,8 +6,9 @@
 > Several design decisions were deliberately fixed to keep scope simple and focus exploration:
 > - The only target platforms are Docker Compose and Google Cloud.
 > - The only persistence framework supported is Firestore.
+> - Logging, persisted data and message verbosity is deliberately high to facilitate ease of learning and debugging.
 > 
-> These both could be fairly easily updated to support additional options, I have just not focused on them specifically in favor of learning and exploring AI agent orchestration.
+> These all could be fairly easily updated to support additional options, I have just not focused on them specifically in favor of learning and exploring AI agent orchestration.
 
 <p align="center">
   <img src="./assets/assets/BitBrat.png" alt="Description of Image" width="300"/>
