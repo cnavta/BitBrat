@@ -12,7 +12,7 @@ owner: "Lead Implementor"
 createdAt: "2026-06-28T20:31:00Z"
 status: "complete"   # Owner approved (OD-1/OD-2 Plan of Record + G4 no-back-compat), said "Start sprint" (REQ-002), and closed with "Sprint complete." (REQ-003). Implementation done; full Jest suite green. PR could not be auto-created (no gh CLI / GITHUB_TOKEN) — owner explicitly accepted the logged PR-attempt failure per Rule S13(b).
 links:
-  pr: null            # not created — no gh CLI / GITHUB_TOKEN; PR-attempt failure logged in publication.yaml and accepted by owner ("Sprint complete.", Rule S13b)
+  pr: "https://github.com/cnavta/BitBrat/pull/254"   # opened via gh CLI once it became available on PATH (REQ-004); Rule S13(a) satisfied
   branch: "feature/sprint-329-bf2d2b-scheduler-full-event-topic"
 notes: |
   Role: Lead Implementor (AGENTS.md §10) — produce execution plan + trackable prioritized backlog

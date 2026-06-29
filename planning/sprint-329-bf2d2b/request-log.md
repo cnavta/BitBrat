@@ -64,3 +64,18 @@ operations it triggered are logged here. Code changes trace back to a BL-329-NNN
   - `publication.yaml` annotated with owner acceptance of the PR-attempt failure.
 - **Result:** Sprint-329 closed. `verification-report.md`, `retro.md`, `key-learnings.md` present; no
   Partial/Deferred items against the sprint goal. PR still to be opened manually by the owner.
+
+---
+
+## REQ-004 — 2026-06-29 — "gh is in the /opt/homebrew/bin directory" (open the deferred PR)
+- **Prompt:** "gh is in the /opt/homebrew/bin directory"
+- **Interpretation:** The PR tooling that was missing at close-out (REQ-003) is now available; open the
+  GitHub PR that was deferred for sprint-329 and record its URL (upgrading Rule S13(b) acceptance to the
+  preferred Rule S13(a) — a recorded PR URL).
+- **Actions:**
+  - Confirmed `gh` 2.95.0 on PATH (`/opt/homebrew/bin`), authenticated as `cnavta` (scopes incl. `repo`).
+  - Committed + pushed the pending close-out docs onto the branch (commit a131c7a).
+  - Opened the PR with the title/body from `publication.yaml`:
+    **https://github.com/cnavta/BitBrat/pull/254** (base `main`).
+  - `publication.yaml` `status` → `created`, `pr_url` recorded; `sprint-manifest.yaml` `links.pr` set.
+- **Result:** Sprint-329 PR now open and recorded; Rule S13(a) satisfied. Sprint remains `complete`.
