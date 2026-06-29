@@ -37,6 +37,12 @@ export class ToolGatewayServer extends Bit {
   // registered Bit on INTERNAL_MCP_REGISTRATION_V1, keyed by Bit name. Used to resolve which packs
   // to inject for an active tool set at tool-turn context build (de-duplicated by pack id).
   private contextProviders: Map<string, StaticContextProvider> = new Map();
+  // Signature of the last meaningful registration payload persisted to Firestore, keyed by Bit name.
+  // Bits re-publish their registration on a heartbeat; without this guard every heartbeat rewrites the
+  // mcp_servers doc (stamping a fresh updatedAt/correlationId), which fires the RegistryWatcher's
+  // onSnapshot and re-loads every server on a tight loop. We only write when the meaningful payload
+  // actually changes, breaking the write -> snapshot -> reload feedback loop.
+  private registrationSignatures: Map<string, string> = new Map();
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -100,6 +106,19 @@ export class ToolGatewayServer extends Bit {
       });
     }
 
+    // Skip the Firestore write when the meaningful registration payload is unchanged from what we
+    // last persisted. The per-event correlationId is excluded from the signature because it changes
+    // on every heartbeat yet carries no configuration meaning. This prevents the write -> onSnapshot
+    // -> reload churn that made the registry appear to be "continually reloading".
+    const signature = this.registrationSignature(payload);
+    if (this.registrationSignatures.get(payload.name) === signature) {
+      this.getLogger().debug('tool_gateway.registration.skip_unchanged', {
+        name: payload.name,
+        correlationId: event.correlationId,
+      });
+      return;
+    }
+
     try {
       const db = getFirestore();
       // Upsert into mcp_servers collection, using name as doc ID
@@ -109,6 +128,7 @@ export class ToolGatewayServer extends Bit {
         discoverySource: 'auto-registration',
         correlationId: event.correlationId
       }, { merge: true });
+      this.registrationSignatures.set(payload.name, signature);
       
       this.getLogger().info('tool_gateway.registration.upserted', { 
         name: payload.name,
@@ -121,6 +141,30 @@ export class ToolGatewayServer extends Bit {
         correlationId: event.correlationId 
       });
     }
+  }
+
+  /**
+   * Build a stable signature over the connection-meaningful fields of a registration payload so we can
+   * detect heartbeat re-registrations that carry no change. The per-event `correlationId` is excluded
+   * because it varies on every publish yet has no configuration meaning; the metadata we add ourselves
+   * on write (`updatedAt`, `discoverySource`) is likewise not part of the payload. Keys are sorted so
+   * the signature is independent of property ordering.
+   */
+  private registrationSignature(payload: any): string {
+    const { correlationId, updatedAt, discoverySource, ...meaningful } = payload || {};
+    const stable = (value: any): any => {
+      if (Array.isArray(value)) return value.map(stable);
+      if (value && typeof value === 'object') {
+        return Object.keys(value)
+          .sort()
+          .reduce((acc: Record<string, any>, key) => {
+            acc[key] = stable(value[key]);
+            return acc;
+          }, {});
+      }
+      return value;
+    };
+    return JSON.stringify(stable(meaningful));
   }
 
   async close(reason?: string) {

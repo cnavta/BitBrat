@@ -1,6 +1,17 @@
 import { Bit } from '../common/base-server';
 import { Express, Request, Response } from 'express';
-import type { InternalEventV2, InternalEventType, MessageV1, AnnotationV1 } from '../types/events';
+import type {
+  InternalEventV2,
+  InternalEventType,
+  MessageV1,
+  AnnotationV1,
+  CandidateV1,
+  QOSV1,
+  ExternalEventV1,
+  Egress,
+  Ingress,
+  Identity,
+} from '../types/events';
 import { z } from "zod";
 import { Firestore, Timestamp } from 'firebase-admin/firestore';
 import parser from 'cron-parser';
@@ -16,21 +27,124 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'scheduler';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 const COLLECTION_NAME = 'schedules';
 
+// --- Topic governance (sprint-329, OD-1 Plan of Record) ---
+// The scheduler may publish a scheduled event on any of the topics below (curated subset of the
+// governed architecture.yaml topic catalog). When a schedule does not specify a `topic`, the event
+// is published on DEFAULT_PUBLISH_TOPIC. Keep this list in lockstep with the scheduler's
+// `topics.publishes` entry in architecture.yaml (Law #2).
+export const DEFAULT_PUBLISH_TOPIC = 'internal.ingress.v1';
+export const ALLOWED_PUBLISH_TOPICS = [
+  'internal.ingress.v1',
+  'internal.egress.v1',
+] as const;
+
 // --- Zod Schemas for MCP Tools ---
 
 const ScheduleTypeSchema = z.enum(['once', 'cron']);
 
-const EventDefinitionSchema = z.object({
-  type: z.string().describe("InternalEventType for the produced event"),
-  payload: z.record(z.any()).optional().describe("Payload for the InternalEventV2"),
-  message: z.object({
-    text: z.string().optional(),
-    role: z.enum(['user', 'assistant', 'system', 'tool']).default('system'),
-  }).optional().describe("Optional message metadata"),
-  annotations: z.array(z.record(z.any())).optional().describe("Optional annotations"),
+// ConnectorType mirror (src/types/events.ts) — kept in lockstep (G2/Law #2).
+const ConnectorTypeSchema = z.enum(['twitch', 'discord', 'twilio', 'webhook', 'api', 'system']);
+
+// Egress authoring shape mirrors src/types/events.ts `Egress`.
+const EgressSchema = z.object({
+  destination: z.string().describe("Destination/entry point for the message (e.g. 'twitch')"),
+  type: z.enum(['chat', 'dm', 'event']).optional(),
+  connector: ConnectorTypeSchema.describe("Delivery connector (e.g. 'twitch')"),
+  channel: z.string().optional().describe("#channel or room ID"),
+  metadata: z.record(z.any()).optional(),
 });
 
-const CreateScheduleSchema = z.object({
+// Ingress overrides (author-settable subset); server always owns ingressAt + source ('scheduler').
+const IngressOverrideSchema = z.object({
+  connector: ConnectorTypeSchema.optional(),
+  channel: z.string().optional(),
+});
+
+// MessageV1 mirror (src/types/events.ts). `id` is server-fillable when omitted.
+const MessageSchema = z.object({
+  id: z.string().optional(),
+  role: z.enum(['user', 'assistant', 'system', 'tool']).default('system'),
+  text: z.string().optional(),
+  language: z.string().optional(),
+  rawPlatformPayload: z.record(z.any()).optional(),
+});
+
+// AnnotationV1 mirror (src/types/events.ts) — typed, not z.record(z.any()).
+const AnnotationSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  source: z.string(),
+  createdAt: z.string(),
+  confidence: z.number().optional(),
+  label: z.string().optional(),
+  value: z.string().optional(),
+  score: z.number().optional(),
+  payload: z.record(z.any()).optional(),
+});
+
+// CandidateV1 mirror (src/types/events.ts).
+const CandidateSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  source: z.string(),
+  createdAt: z.string(),
+  status: z.enum(['proposed', 'selected', 'superseded', 'rejected']),
+  priority: z.number(),
+  confidence: z.number().optional(),
+  text: z.string().optional(),
+  format: z.string().optional(),
+  reason: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
+// QOSV1 mirror (src/types/events.ts).
+const QosSchema = z.object({
+  persistenceTtlSec: z.number().optional(),
+  tracer: z.boolean().optional(),
+  maxResponseMs: z.number().optional(),
+});
+
+// ExternalEventV1 mirror (src/types/events.ts).
+const ExternalEventSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  kind: z.string(),
+  version: z.string(),
+  createdAt: z.string(),
+  metadata: z.record(z.any()).optional(),
+  rawPayload: z.record(z.any()).optional(),
+});
+
+// Full InternalEventV2 authoring shape (sprint-329). The author may set the event type plus the
+// OD-2 author-settable subset; the server still owns v/correlationId/traceId/ingress.ingressAt/
+// ingress.source/routing at execution time.
+const EventDefinitionSchema = z.object({
+  type: z.string().describe("InternalEventType for the produced event (e.g. 'llm.request.v1')"),
+  egress: EgressSchema.optional().describe(
+    "Where the event is delivered. Defaults to { destination: 'system', connector: 'system' } when unset. " +
+    "Set { connector: 'twitch', destination: 'twitch', channel: '#<channel>' } to target Twitch."
+  ),
+  ingress: IngressOverrideSchema.optional().describe("Optional ingress overrides (connector/channel); ingressAt + source are server-owned"),
+  identity: z.record(z.any()).optional().describe("Optional identity (defaults to the scheduler system identity)"),
+  payload: z.record(z.any()).optional().describe("Payload for the InternalEventV2"),
+  message: MessageSchema.optional().describe("Optional message (MessageV1)"),
+  annotations: z.array(AnnotationSchema).optional().describe("Optional annotations (AnnotationV1[])"),
+  candidates: z.array(CandidateSchema).optional().describe("Optional candidates (CandidateV1[])"),
+  qos: QosSchema.optional().describe("Optional quality-of-service hints (QOSV1)"),
+  externalEvent: ExternalEventSchema.optional().describe("Optional behavioral external event (ExternalEventV1)"),
+  metadata: z.record(z.any()).optional().describe("Optional free-form event metadata"),
+});
+
+// Topic the event is published on. Optional; defaults to internal.ingress.v1. Validated against the
+// curated governed allow-list (OD-1).
+const TopicSchema = z
+  .string()
+  .refine((t) => (ALLOWED_PUBLISH_TOPICS as readonly string[]).includes(t), {
+    message: `topic must be one of: ${ALLOWED_PUBLISH_TOPICS.join(', ')}`,
+  })
+  .describe(`Topic to publish on; defaults to ${DEFAULT_PUBLISH_TOPIC} when unset`);
+
+export const CreateScheduleSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
   schedule: z.object({
@@ -38,6 +152,7 @@ const CreateScheduleSchema = z.object({
     value: z.string().describe("ISO timestamp for 'once', or Cron expression for 'cron'"),
   }),
   event: EventDefinitionSchema,
+  topic: TopicSchema.optional(),
   enabled: z.boolean().default(true),
 });
 
@@ -49,6 +164,23 @@ const ScheduleIdSchema = z.object({
 
 // --- Internal Types ---
 
+// Full InternalEventV2 authoring shape stored on a schedule (sprint-329). Server-owned envelope
+// fields (v, correlationId, traceId, ingress.ingressAt/source, routing) are NOT authored here — they
+// are filled by executeSchedule at emit time (OD-2).
+interface ScheduledEventInput {
+  type: InternalEventType;
+  egress?: Egress;
+  ingress?: Pick<Partial<Ingress>, 'connector' | 'channel'>;
+  identity?: Identity;
+  payload?: Record<string, any>;
+  message?: Partial<MessageV1>;
+  annotations?: AnnotationV1[];
+  candidates?: CandidateV1[];
+  qos?: QOSV1;
+  externalEvent?: ExternalEventV1;
+  metadata?: Record<string, any>;
+}
+
 interface ScheduleDoc {
   id: string;
   title: string;
@@ -57,12 +189,8 @@ interface ScheduleDoc {
     type: 'once' | 'cron';
     value: string;
   };
-  event: {
-    type: InternalEventType;
-    payload?: Record<string, any>;
-    message?: Partial<MessageV1>;
-    annotations?: AnnotationV1[];
-  };
+  event: ScheduledEventInput;
+  topic?: string;
   enabled: boolean;
   lastRun?: Timestamp;
   nextRun?: Timestamp;
@@ -167,7 +295,7 @@ class SchedulerServer extends Bit {
 
     this.registerToolWithContext(
       "create_schedule",
-      "Create a new scheduled event. The 'event' produces an InternalEventV2: a 'prompt' is NOT an event type \u2014 it is an AnnotationV1 of kind 'prompt' (event.annotations[]), and the driving event type is typically 'llm.request.v1'. See the context://schema/internal-event-v2 resource for the full contract.",
+      "Create a new scheduled event. The 'event' is a full InternalEventV2: a 'prompt' is NOT an event type \u2014 it is an AnnotationV1 of kind 'prompt' (event.annotations[]), and the driving event type is typically 'llm.request.v1'. You may set 'event.egress' to address a delivery target, e.g. { connector: 'twitch', destination: 'twitch', channel: '#<channel>' } (egress defaults to { connector: 'system', destination: 'system' } when unset). An optional top-level 'topic' selects the publish topic (one of: internal.ingress.v1, internal.egress.v1; defaults to internal.ingress.v1). See the context://schema/internal-event-v2 resource for the full contract.",
       CreateScheduleSchema,
       async (args) => {
         const firestore = this.getResource<Firestore>('firestore');
@@ -281,12 +409,23 @@ class SchedulerServer extends Bit {
 
     this.getLogger().info('scheduler.tick.executing', { count: snapshot.size });
 
-    const publisher = createMessagePublisher('internal.ingress.v1');
+    // Publishers are created/cached per distinct topic so each schedule is emitted on its own
+    // topic (default internal.ingress.v1). Subject IS the publish topic (message-bus contract).
+    const publishers = new Map<string, ReturnType<typeof createMessagePublisher>>();
+    const getPublisher = (topic: string) => {
+      let publisher = publishers.get(topic);
+      if (!publisher) {
+        publisher = createMessagePublisher(topic);
+        publishers.set(topic, publisher);
+      }
+      return publisher;
+    };
 
     for (const doc of snapshot.docs) {
       const data = doc.data() as ScheduleDoc;
       try {
-        await this.executeSchedule(data, publisher);
+        const topic = data.topic ?? DEFAULT_PUBLISH_TOPIC;
+        await this.executeSchedule(data, getPublisher(topic));
         
         // Update nextRun
         const nextRun = this.calculateNextRun(data.schedule.type, data.schedule.value);
@@ -305,30 +444,44 @@ class SchedulerServer extends Bit {
   private async executeSchedule(schedule: ScheduleDoc, publisher: any) {
     const now = new Date().toISOString();
     const correlationId = uuidv4();
+    const authored = schedule.event;
+
+    // Server-owned envelope fields (OD-2): v, correlationId, traceId, ingress.ingressAt/source, and
+    // routing are ALWAYS set here and cannot be overridden by the author. The author-supplied
+    // egress/identity/payload/message/annotations/candidates/qos/externalEvent/metadata (and the
+    // ingress connector/channel overrides) are honored as-is.
     const event: InternalEventV2 = {
       v: '2',
       correlationId,
       traceId: uuidv4(),
-      type: schedule.event.type,
+      type: authored.type,
       ingress: {
         ingressAt: now,
         source: 'scheduler',
-        connector: 'system',
+        connector: authored.ingress?.connector ?? 'system',
+        ...(authored.ingress?.channel ? { channel: authored.ingress.channel } : {}),
       },
-      identity: {
+      identity: authored.identity ?? {
         external: {
           id: 'scheduler',
           platform: 'system',
         }
       },
-      egress: { destination: 'system', connector: 'system' },
-      payload: schedule.event.payload || {},
-      message: schedule.event.message ? {
-        id: uuidv4(),
-        role: schedule.event.message.role || 'system',
-        text: schedule.event.message.text,
+      // Honor author-supplied egress; fall back to `system` ONLY when unset.
+      egress: authored.egress ?? { destination: 'system', connector: 'system' },
+      payload: authored.payload || {},
+      message: authored.message ? {
+        id: authored.message.id ?? uuidv4(),
+        role: authored.message.role || 'system',
+        text: authored.message.text,
+        ...(authored.message.language ? { language: authored.message.language } : {}),
+        ...(authored.message.rawPlatformPayload ? { rawPlatformPayload: authored.message.rawPlatformPayload } : {}),
       } : undefined,
-      annotations: schedule.event.annotations,
+      annotations: authored.annotations,
+      candidates: authored.candidates,
+      qos: authored.qos,
+      externalEvent: authored.externalEvent,
+      metadata: authored.metadata,
       routing: {
         stage: 'initial',
         slip: [],

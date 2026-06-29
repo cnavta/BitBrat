@@ -1,0 +1,52 @@
+id: sprint-329-bf2d2b
+title: "Scheduler: full InternalEventV2 events + optional emit topic"
+goal: >
+  Close the scheduler egress/event-shape gap documented in the owner-attached note: make
+  ScheduleDoc.event (and the create_schedule input contract) a FULL InternalEventV2 instead of
+  a partial { type, payload, message, annotations } projection, so a schedule can emit ANY event
+  the platform supports (including a non-'system' egress such as Twitch). Add an OPTIONAL per-schedule
+  `topic` so the event can be published on any topic, defaulting to `internal.ingress.v1` when unset.
+  Stop hard-coding egress in executeSchedule (fall back to `system` only when the schedule does not
+  specify one) and stop hard-coding the publish topic in handleTick (use the schedule's topic).
+owner: "Lead Implementor"
+createdAt: "2026-06-28T20:31:00Z"
+status: "complete"   # Owner approved (OD-1/OD-2 Plan of Record + G4 no-back-compat), said "Start sprint" (REQ-002), and closed with "Sprint complete." (REQ-003). Implementation done; full Jest suite green. PR could not be auto-created (no gh CLI / GITHUB_TOKEN) — owner explicitly accepted the logged PR-attempt failure per Rule S13(b).
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/254"   # opened via gh CLI once it became available on PATH (REQ-004); Rule S13(a) satisfied
+  branch: "feature/sprint-329-bf2d2b-scheduler-full-event-topic"
+notes: |
+  Role: Lead Implementor (AGENTS.md §10) — produce execution plan + trackable prioritized backlog
+  first; implement only after explicit owner approval + "Start sprint" (Rule S1).
+
+  Source of the gap (owner-attached): scratch note "Expected behavior for 'Schedule an event in 5
+  minutes with a prompt Scream!!! and egress set for Twitch'". Sprint-328's Context Packs made the
+  agent UNDERSTAND the full InternalEventV2 contract (incl. that `egress` is real and `ConnectorType`
+  includes 'twitch'), but the scheduler tool can only ACT on type/payload/message/annotations + a
+  hard-coded `system` egress on a hard-coded topic. This sprint widens the tool's input surface and
+  removes the hard-coding.
+
+  Canonical seams verified in-repo (sprint-329 grounding):
+    - src/apps/scheduler-service.ts:
+        * EventDefinitionSchema (Zod, lines ~23-31): only type/payload/message/annotations — NO egress,
+          ingress, identity, candidates, qos, externalEvent, metadata, routing.
+        * CreateScheduleSchema (lines ~33-42) / UpdateScheduleSchema (line ~44, .partial()).
+        * ScheduleDoc.event (interface, lines ~60-65): partial mirror of the above.
+        * executeSchedule (lines ~305-350): builds InternalEventV2 and HARD-CODES
+          egress: { destination: 'system', connector: 'system' } (line ~324); fills correlationId/
+          traceId/ingress/identity/routing.
+        * handleTick (lines ~269-303): publisher = createMessagePublisher('internal.ingress.v1')
+          (line ~284) — topic is hard-coded for ALL schedules.
+    - src/types/events.ts: InternalEventV2 (201-221), Egress (56-67), ConnectorType (54, incl. 'twitch'),
+      Ingress (69-74), Identity (76-115), MessageV1 (121-127), AnnotationV1 (140-150),
+      InternalEventType (1-28). These are the canonical shapes the input contract must mirror.
+    - src/services/message-bus/index.ts: createMessagePublisher(subject: string) — subject IS the topic.
+    - Existing tests: tests/apps/scheduler-service.spec.ts (HTTP /tick due/once paths; mocks message-bus
+      + Firestore). New behavior must extend these, not weaken them.
+
+  Constraints:
+    - architecture.yaml is canonical (Law #2). Any new emit topic must be a governed/known topic; the
+      `topic` field is validated and defaults to `internal.ingress.v1`. No topic/version is renamed.
+    - Behavior-preserving for existing schedules: a stored ScheduleDoc with the old partial `event` and no
+      `topic` MUST keep emitting an `internal.ingress.v1` event with `system` egress (back-compat).
+    - No dependence on ./deprecated (Law #4). Backlog WIP limit = 3. Planning gate: implementation does
+      not begin until owner approval + "Start sprint" (Rule S1).
