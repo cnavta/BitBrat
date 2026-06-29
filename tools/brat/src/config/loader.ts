@@ -100,6 +100,7 @@ export interface ResolvedServiceConfig {
   cpu: string;
   memory: string;
   allowUnauth: boolean;
+  active: boolean;
   envKeys: string[];
   secrets: string[];
 }
@@ -176,9 +177,12 @@ export function resolveServices(arch: Architecture): Record<string, ResolvedServ
     const cpu = (svc.cpu ?? dRun.cpu ?? '1') as string;
     const memory = (svc.memory ?? dRun.memory ?? '512Mi') as string;
     const allowUnauth = (svc.security?.allowUnauthenticated ?? d.security?.allowUnauthenticated ?? true) as boolean;
+    // Canonical semantics (architecture.yaml defaults.services.active): an absent/false `active`
+    // means the service is DISABLED. Only an explicit `active: true` enables it.
+    const active = (svc.active ?? d.active ?? false) === true;
     const envKeys = Array.from(new Set([...(d.env || []), ...(svc.env || [])]));
     const secrets = Array.from(new Set([...(svc.secrets || [])]));
-    out[name] = { name, image, region, port, minInstances: min, maxInstances: max, cpu, memory, allowUnauth, envKeys, secrets };
+    out[name] = { name, image, region, port, minInstances: min, maxInstances: max, cpu, memory, allowUnauth, active, envKeys, secrets };
   }
   return out;
 }

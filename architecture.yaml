@@ -62,6 +62,17 @@ messaging: # Asynchronous internal event bus: contracts, conventions, and topic 
     production: pubsub               # Google Cloud Pub/Sub
     subject_prefix_env: BUS_PREFIX   # optional per-environment subject prefix (primarily NATS, e.g. "dev.")
     delivery: at-least-once          # consumers must be idempotent (dedupe on correlationId + step + attempt)
+    # Slow-Bit duplicate-response prevention (sprint-330). The consumer keeps the message lease alive
+    # while a long handler runs (so a slow-but-successful handler is not redelivered), and a per-process
+    # dedupe (keyed on correlationId+step+attempt, with a transport message-id fallback) drops any
+    # redelivery before it can produce a second egress.
+    tuning:
+      pubsub_max_ack_extension_seconds_env: PUBSUB_MAX_ACK_EXTENSION_SECONDS  # Pub/Sub lease maxExtensionTime; default 600 (0 = library default)
+      pubsub_ack_deadline_seconds_env: PUBSUB_ACK_DEADLINE_SECONDS            # subscription ack deadline at create-time; default 60
+      nats_ack_wait_seconds_env: NATS_ACK_WAIT_SECONDS                        # JetStream ackWait; default 60 (handler also calls msg.working() to extend)
+      dedupe_disable_env: MESSAGE_DEDUP_DISABLE   # set to 1 to disable the in-process idempotency dedupe
+      dedupe_ttl_ms_env: MESSAGE_DEDUP_TTL_MS     # dedupe entry TTL; default 600000 (10 min)
+      dedupe_max_env: MESSAGE_DEDUP_MAX           # max dedupe entries kept in memory; default 5000
   conventions:
     topic_naming: "internal.<domain>.<verb>.v<version>"
     versioning: "Bump v<N> on breaking payload changes; never mutate an existing version."
