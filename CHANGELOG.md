@@ -11,14 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`brat fleet restart <bit>` + universal `bit.restart` control-plane tool** (sprint-330). Every Bit now
+  exposes `bit.restart` (scope `bit:operate`), which gracefully `close(reason)`s and then exits so the
+  orchestrator (Cloud Run min-instances / local supervisor) respawns a fresh instance, returning
+  `{ restarting: true, reason }`. The fleet CLI gains a matching `restart` subcommand with the same
+  `--all` + `--confirm` and RBAC ergonomics as `drain`/`shutdown`. Set `BIT_RESTART_NO_EXIT=1` to perform
+  only the graceful close (used by tests). Conformance and fleet CLI tests cover the new verb.
 
 ### Changed
+- **`brat deploy services` now honors `active: false`** (sprint-330). `deploy services --all` skips any
+  service whose `active` is not `true` (absent `active` is disabled by default per
+  `defaults.services.active`), matching the IaC synth path — previously inactive Bits (e.g. `obs-mcp`)
+  were still built and deployed. Deploying an inactive service **by name** now fails fast with a
+  `ConfigurationError` instead of silently deploying it.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+- **Slow Bits no longer emit duplicate responses** (sprint-330). With at-least-once delivery, a Bit whose
+  processing approached the ack deadline (e.g. `image-gen-mcp`, `llm-bot`) could have its message
+  redelivered and produce a second egress. Two fixes: (1) the message-bus consumer dedupe is now keyed on
+  the canonical `correlationId+step+attempt` (per the architecture invariant) **with a transport
+  message-id fallback**, so a redelivery of the same message is dropped before the handler runs again —
+  even when the message carries no correlation attributes; this is now shared by both the Pub/Sub and NATS
+  drivers. (2) Lease/ack-deadline extension is kept alive while a slow handler runs — Pub/Sub sets an
+  explicit, configurable `maxExtensionTime` (`PUBSUB_MAX_ACK_EXTENSION_SECONDS`, default 600s) and NATS
+  sets `ackWait` (`NATS_ACK_WAIT_SECONDS`, default 60s) plus periodic `msg.working()` calls — so a
+  slow-but-successful handler is not redelivered in the first place.
 
 ### Security
 

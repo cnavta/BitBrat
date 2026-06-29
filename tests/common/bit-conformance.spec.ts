@@ -33,6 +33,7 @@ const PLATFORM_TOOLS = [
   "bit.log.level",
   "bit.drain",
   "bit.shutdown",
+  "bit.restart",
 ];
 
 describe("Bit Platform Ring conformance", () => {
@@ -91,6 +92,7 @@ describe("Bit Platform Ring conformance", () => {
     const tools = (bit as any).registeredTools as Map<string, any>;
     expect(tools.get("bit.shutdown").scopes).toEqual(["bit:operate"]);
     expect(tools.get("bit.drain").scopes).toEqual(["bit:operate"]);
+    expect(tools.get("bit.restart").scopes).toEqual(["bit:operate"]);
     expect(tools.get("bit.flags.set").scopes).toEqual(["bit:operate"]);
     expect(tools.get("bit.log.level").scopes).toEqual(["bit:operate"]);
     expect(tools.get("bit.info").scopes).toEqual(["bit:read"]);
