@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.7.3] - 2026-06-29
+### Added
 - **Scheduler can now emit ANY `InternalEventV2` on a selectable topic** (sprint-329). `create_schedule`'s
   `event` was widened from a partial `{ type, payload, message, annotations }` projection to a full
   `InternalEventV2` authoring shape (adds `egress`, `identity`, `candidates`, `qos`, `externalEvent`,

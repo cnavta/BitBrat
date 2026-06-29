@@ -7,7 +7,7 @@ description: The BitBrat Platform is an LLM powered event orchestration and exec
 project:
   name: BitBrat Platform
   # Single source of truth for the version. Kept in sync with package.json "version".
-  version: 0.7.2
+  version: 0.7.3
   # Maturity signal: pre-1.0, early/experimental. APIs, config schemas, and core architectures may
   # still change in breaking ways; not recommended for production yet (see README warning banner).
   status: experimental
