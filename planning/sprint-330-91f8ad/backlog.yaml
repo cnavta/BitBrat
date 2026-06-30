@@ -154,7 +154,7 @@ items:
   - id: BL-330-901
     title: "Validation, verification, publication (validate_deliverable.sh + PR)"
     priority: P0
-    status: in_progress
+    status: done
     effort: S
     owner: agent
     deps: [BL-330-102, BL-330-202, BL-330-203, BL-330-302, BL-330-303]
