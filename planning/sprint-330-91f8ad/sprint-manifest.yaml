@@ -1,0 +1,29 @@
+id: sprint-330-91f8ad
+title: "Deploy honors active:false, fix slow-Bit duplicate responses, add brat fleet restart"
+goal: >
+  Resolve three platform defects/features: (1) services marked active:false must not be deployed
+  by `brat deploy services`; (2) eliminate duplicate responses produced when a slow Bit (e.g.
+  image-gen-mcp, llm-bot) exceeds the message-bus ack deadline and the message is redelivered;
+  (3) add a `brat fleet restart <bit-name>` command that restarts a Bit via the universal control plane.
+owner: "Lead Implementor"
+createdAt: "2026-06-29T01:05:00Z"
+status: "complete"
+links:
+  pr: "https://github.com/cnavta/BitBrat/pull/255"
+  branch: "feature/sprint-330-91f8ad-active-deploy-dup-fleet-restart"
+notes: |
+  - architecture.yaml is canonical (defaults.services.active: false => absent means disabled).
+  - Grounded evidence (verified in repo):
+    * Deploy bug: tools/brat/src/cli/index.ts cmdDeployServices() (line ~310) iterates
+      Object.values(cfg.services) with NO active filter; the IaC synth path
+      (tools/brat/src/providers/cdktf-synth.ts ~368) DOES filter on active. Parity gap.
+    * Duplicate-response bug: at-least-once delivery (messaging.transport.delivery). Pub/Sub ack
+      deadline default 60s (src/services/message-bus/pubsub-driver.ts:294; subscriber-options.ts
+      DEFAULTS.ackDeadlineSeconds=30, clamped 10..600). Slow Bits exceed the deadline -> redelivery
+      -> duplicate egress. Candidate fixes: ack-deadline extension/lease while processing, raise
+      deadline for slow Bits, and/or consumer idempotency/dedupe (correlationId+step+attempt).
+    * Restart: fleet CLI mutate pattern exists (tools/brat/src/cli/fleet.ts dispatch/mutate;
+      drain->bit.drain, shutdown->bit.shutdown). Control-plane tools live in
+      src/common/base-server.ts (~1212). A bit.restart tool + `fleet restart` subcommand mirror these.
+  - Additional sprint items may be added later (Rule S4 / §2.4.1).
+  - Coding is FORBIDDEN until this plan is explicitly approved and the owner says "Start sprint".

@@ -103,7 +103,9 @@ npm run brat -- service bootstrap --name <name> [--mcp] [--force]
 ### Deployment
 
 #### `brat deploy services --all`
-Deploy all services defined in `architecture.yaml` to the specified environment.
+Deploy all services defined in `architecture.yaml` to the specified environment. Services marked
+`active: false` (or with no `active` flag — disabled by default per `defaults.services.active`) are
+**skipped** with a `deploy.service status=skipped reason=inactive` log, matching the IaC synth path.
 
 ```bash
 npm run brat -- deploy services --all --env <name> [--concurrency N] [--force]
@@ -111,6 +113,9 @@ npm run brat -- deploy services --all --env <name> [--concurrency N] [--force]
 - `--env`: Target environment (`local`, `dev`, `prod`).
 - `--concurrency`: Number of simultaneous deployments (default: 3).
 - `--force`: Ignore some safety checks during deployment.
+
+> Deploying an inactive service **by name** fails fast with a `ConfigurationError` (set `active: true`
+> in `architecture.yaml` to enable it) rather than silently deploying or skipping it.
 
 #### `brat deploy service <name>`
 Deploy a specific service.
@@ -175,6 +180,7 @@ npm run brat -- fleet <subcommand> [<bit> | --all] [options]
 - `fleet log <bit> --level <error|warn|info|debug>`: `bit.log.level` (elevated).
 - `fleet drain <bit> [--confirm]`: `bit.drain` (elevated).
 - `fleet shutdown <bit> [--confirm]`: `bit.shutdown` (elevated).
+- `fleet restart <bit> [--confirm]`: `bit.restart` — graceful close then exit so the orchestrator respawns a fresh instance (elevated).
 
 **Modifiers:**
 - `--all`: Fan out across every discovered Bit (READ-only; fleet-wide mutations require `--confirm`).

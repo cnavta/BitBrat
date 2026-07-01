@@ -131,6 +131,7 @@ describe('NatsSubscriber behavior', () => {
           queue: queueMock,
           manualAck: jest.fn(),
           ackExplicit: jest.fn(),
+          ackWait: jest.fn(),
           maxAckPending: jest.fn(),
         };
         o.durable.mockReturnValue(o);
@@ -138,6 +139,7 @@ describe('NatsSubscriber behavior', () => {
         o.queue.mockReturnValue(o);
         o.manualAck.mockReturnValue(o);
         o.ackExplicit.mockReturnValue(o);
+        o.ackWait.mockReturnValue(o);
         o.maxAckPending.mockReturnValue(o);
         return o;
       },

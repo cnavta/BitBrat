@@ -1220,6 +1220,32 @@ export class Bit {
       setTimeout(() => { this.close(reason).catch(() => { /* ignore */ }); }, 0);
       return ok({ shuttingDown: true, reason });
     }, { scopes: OPERATE });
+
+    // bit.restart — graceful close followed by a clean process exit so the orchestrator (Cloud Run
+    // min-instances / local supervisor) respawns a fresh instance. Same RBAC as drain/shutdown.
+    this.registerTool('bit.restart', 'Gracefully restart the Bit: close(reason) then exit for the orchestrator to respawn.', z.object({ reason: z.string().optional() }), async (args) => {
+      const reason = args.reason || 'bit.restart';
+      setTimeout(() => { this.restart(reason).catch(() => { /* ignore */ }); }, 0);
+      return ok({ restarting: true, reason });
+    }, { scopes: OPERATE });
+  }
+
+  /**
+   * Graceful restart: release resources via close(reason), then exit the process so the orchestrator
+   * (Cloud Run min-instances / local supervisor) starts a fresh instance. Overridable for tests or
+   * for environments that perform an in-process re-exec. Set BIT_RESTART_NO_EXIT=1 to skip the exit
+   * (e.g. in tests) and only perform the graceful close.
+   */
+  protected async restart(reason: string = 'bit.restart'): Promise<void> {
+    this.logger.info('base_server.restart.start', { reason });
+    try {
+      await this.close(reason);
+    } finally {
+      if (String(process.env.BIT_RESTART_NO_EXIT || '') !== '1') {
+        this.logger.info('base_server.restart.exit', { reason, code: 0 });
+        process.exit(0);
+      }
+    }
   }
 
   /**

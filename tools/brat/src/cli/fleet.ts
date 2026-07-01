@@ -30,7 +30,7 @@ const GATEWAY_CONTAINER_PORT = 3000;
  */
 
 interface FleetArgs {
-  /** Subcommand: list | info | health | config | flags | log | drain | shutdown. */
+  /** Subcommand: list | info | health | config | flags | log | drain | shutdown | restart. */
   sub: string;
   /** Positional args after the subcommand (e.g. the Bit name, or `get`/`set`). */
   positionals: string[];
@@ -54,7 +54,7 @@ interface FleetArgs {
 
 /** A read subcommand needs only bit:read; mutating subcommands need bit:operate. */
 const READ_SUBS = new Set(['list', 'info', 'health', 'config']);
-const MUTATING_SUBS = new Set(['log', 'drain', 'shutdown']);
+const MUTATING_SUBS = new Set(['log', 'drain', 'shutdown', 'restart']);
 
 /** Injectable seams so the command is unit-testable without real network / Firestore. */
 export interface FleetDeps {
@@ -99,6 +99,7 @@ Usage:
   brat fleet log      <bit> --level <error|warn|info|debug>   bit.log.level   (elevated)
   brat fleet drain    <bit> [--confirm]    bit.drain          (elevated)
   brat fleet shutdown <bit> [--confirm]    bit.shutdown       (elevated)
+  brat fleet restart  <bit> [--confirm]    bit.restart        (elevated)
 
 Global modifiers:
   --all              fan out across every discovered Bit (READ-only; mutations need --confirm)
@@ -359,6 +360,8 @@ async function dispatch(args: FleetArgs, client: FleetClient, out: (l: string) =
       return mutate(args, client, 'bit.drain', out, logger);
     case 'shutdown':
       return mutate(args, client, 'bit.shutdown', out, logger);
+    case 'restart':
+      return mutate(args, client, 'bit.restart', out, logger);
     default:
       throw new ConfigurationError(`Unknown fleet subcommand: ${args.sub}`);
   }

@@ -1,0 +1,183 @@
+meta:
+  backlog_id: sprint-330-91f8ad
+  updated_at: 2026-07-01
+  status_values: [todo, in_progress, blocked, done, deferred]
+
+sprint:
+  id: sprint-330-91f8ad
+  start: 2026-06-29
+  end: 2026-07-01
+  wip_limit: 3
+  goal: >
+    Make `brat deploy services` honor active:false, eliminate duplicate responses from slow Bits
+    (ack-deadline/redelivery), and add `brat fleet restart <bit-name>`. Additional items may be
+    appended later (Rule S4 / §2.4.1).
+
+items:
+  # ---------------- Item 1: deploy honors active ----------------
+  - id: BL-330-101
+    title: "deploy services skips inactive Bits (active filter parity with IaC synth)"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "cmdDeployServices filters to active === true (parity with cdktf-synth.ts:368)"
+      - "`deploy services --all` never builds/deploys a Bit with active:false (e.g. obs-mcp)"
+      - "Explicitly naming an inactive service fails fast with a clear ConfigurationError"
+      - "Structured skip log emitted (action=deploy.service, status=skipped, reason=inactive)"
+      - "Active services still deploy unchanged"
+    updated_at: 2026-06-29
+    log: []
+
+  - id: BL-330-102
+    title: "Tests: deploy active-filtering (unit)"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-330-101]
+    blocked_reason: null
+    acceptance:
+      - "Test: inactive Bit omitted from --all deploy task list"
+      - "Test: explicit inactive target -> ConfigurationError"
+      - "Test: active Bits still selected; npm test green"
+    updated_at: 2026-06-29
+    log: []
+
+  # ---------------- Item 2: duplicate responses on slow Bits ----------------
+  - id: BL-330-201
+    title: "Reproduce slow-Bit duplicate response (ack-deadline redelivery harness)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Deterministic test reproduces redelivery when handler exceeds ack deadline (pubsub + nats drivers)"
+      - "Root cause documented (no lease extension during long handler) with file/line evidence"
+    updated_at: 2026-06-29
+    log: []
+
+  - id: BL-330-202
+    title: "Fix: keep message lease alive during long handlers (ack-deadline extension)"
+    priority: P0
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-330-201]
+    blocked_reason: null
+    acceptance:
+      - "Pub/Sub: ack deadline is periodically extended (modAck/lease) while handler runs"
+      - "NATS: equivalent in-progress ack/ackWait handling so a slow success is not redelivered"
+      - "Defaults are safe and configurable; any new env keys documented in architecture.yaml"
+      - "A slow-but-successful handler yields exactly ONE egress (no redelivery)"
+    updated_at: 2026-06-29
+    log: []
+
+  - id: BL-330-203
+    title: "Verify/strengthen consumer idempotency so forced redelivery never double-responds"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: [BL-330-201]
+    blocked_reason: null
+    acceptance:
+      - "Forced redelivery of the same message (correlationId+step+attempt) produces a single egress"
+      - "Idempotency behavior covered by tests for image-gen-mcp/llm-bot reaction paths"
+    updated_at: 2026-06-29
+    log: []
+
+  - id: BL-330-204
+    title: "(Deferred) Persistent cross-instance dedupe store"
+    priority: P3
+    status: deferred
+    effort: L
+    owner: agent
+    deps: [BL-330-202, BL-330-203]
+    blocked_reason: "Deferred unless lease-extension + idempotency proves insufficient (Plan §10 Q2)"
+    acceptance:
+      - "Only pursued if reproduction shows in-handler lease extension cannot prevent duplicates"
+    updated_at: 2026-06-29
+    log: []
+
+  # ---------------- Item 3: brat fleet restart ----------------
+  - id: BL-330-301
+    title: "Add bit.restart universal control-plane tool (RBAC bit:operate)"
+    priority: P1
+    status: done
+    effort: M
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "base-server registers bit.restart (scope bit:operate) per drain/shutdown pattern"
+      - "Semantics: graceful close + orchestrator respawn; returns {restarting:true, reason}"
+      - "tests/common/bit-conformance.spec.ts mandatory tool set updated (bit.restart present)"
+    updated_at: 2026-06-29
+    log: []
+
+  - id: BL-330-302
+    title: "Add `brat fleet restart <bit-name>` subcommand"
+    priority: P1
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-330-301]
+    blocked_reason: null
+    acceptance:
+      - "fleet dispatch maps `restart` -> mutate(bit.restart) with --all + --confirm parity"
+      - "Help text + usage updated alongside drain/shutdown"
+      - "Fleet CLI specs: restart <bit>, restart --all --confirm, RBAC-forbidden case"
+    updated_at: 2026-06-29
+    log: []
+
+  - id: BL-330-303
+    title: "Docs: fleet restart + duplicate-fix env knobs + active-deploy behavior"
+    priority: P2
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-330-101, BL-330-202, BL-330-302]
+    blocked_reason: null
+    acceptance:
+      - "documentation/tools/brat.md, bit-control-plane.md, and CHANGELOG updated"
+      - "architecture.yaml reflects new tool/env additions (canonical)"
+    updated_at: 2026-06-29
+    log: []
+
+  # ---------------- Post-publication close-out fixes ----------------
+  - id: BL-330-902
+    title: "Close-out: docker active:false parity (obs-mcp) + gateway repro test teardown"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-330-101]
+    blocked_reason: null
+    acceptance:
+      - "REQ-004: docker deploy (local + remote) honors active:false; obs-mcp no longer deployed on --all; explicit inactive target fails fast; down/logs/ps unaffected"
+      - "REQ-003: repro_gateway_roles.spec.ts flaky stale-socket parse error fixed via idempotent afterEach teardown"
+      - "npm test green (1124 passed / 2 skipped); changes pushed to PR #255"
+    updated_at: 2026-07-01
+    log: []
+
+  # ---------------- Sprint closeout ----------------
+  - id: BL-330-901
+    title: "Validation, verification, publication (validate_deliverable.sh + PR)"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-330-102, BL-330-202, BL-330-203, BL-330-302, BL-330-303]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh logically passable (install/build/test + release:dry patch)"
+      - "verification-report.md + retro.md + key-learnings.md produced"
+      - "PR created and recorded in publication.yaml, or PR-attempt failure logged + owner-accepted (Rules S12/S13)"
+    updated_at: 2026-06-29
+    log: []
