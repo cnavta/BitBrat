@@ -43,9 +43,21 @@
 - [x] CHANGELOG.md `[Unreleased]` (Added/Changed/Fixed for the three items).
 - [x] architecture.yaml (canonical): messaging.transport.tuning env knobs documenting the duplicate fix.
 
+### Post-publication follow-ups (REQ-003, REQ-004)
+- [x] REQ-003 — Fixed intermittent `tests/repro_gateway_roles.spec.ts` failure (`Parse Error: Expected
+  HTTP/, RTSP/ or ICE/`). Added idempotent `afterEach` teardown (`server?.close('test-teardown')`); each
+  case built a fresh `ToolGatewayServer` but never tore it down, leaking handles that surfaced as a
+  stale-socket parse error under full-suite load. Not a sprint-330 logic regression.
+- [x] REQ-004 — `obs-mcp` (`active:false`) was still deployed to local/remote docker targets because the
+  Item-1 filter only covered the Cloud Run CLI path. `ComposeFactory.getComposeFiles(target?, inactive?)`
+  now omits inactive per-service compose files on `--all` and fails fast on an explicitly named inactive
+  target; `DockerOrchestrator.up()` supplies the inactive set from `resolveServices(arch)` while
+  `down`/`logs`/`ps` omit it (so disabled Bits stay tear-down/inspectable). +4 `compose-factory.spec.ts` tests.
+
 ## Validation
 - `npm run build` (tsc): clean.
-- `npm test`: **284 of 285 suites passed (1 skipped), 1120 tests passed, 2 skipped** — green.
+- `npm test` (final, incl. REQ-003/REQ-004): **284 of 285 suites passed (1 skipped), 1124 tests passed,
+  2 skipped** — green, 0 failures.
 - `npm run release:dry -- patch`: OK (0.7.3 → 0.7.4 dry-run; three version sources agree).
 
 ## Partial / Deferred
