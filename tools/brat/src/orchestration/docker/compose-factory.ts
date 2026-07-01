@@ -13,14 +13,39 @@ export class ComposeFactory {
 
   constructor(private readonly repoRoot: string) {}
 
-  public getComposeFiles(targetService?: string): ComposeFileSet {
+  /**
+   * Resolve the compose file set for a deploy/run operation.
+   *
+   * `inactiveServices` is the canonical list of services marked `active:false` in
+   * architecture.yaml (absent/false `active` => DISABLED; see defaults.services.active).
+   * When provided, those services are NEVER included:
+   *   - `--all` (no target): inactive per-service compose files are silently filtered out
+   *     (parity with the Cloud Run deploy path / selectDeployableServices).
+   *   - explicit target: an inactive named service fails fast rather than being deployed.
+   *
+   * Callers that must still address an inactive service (e.g. `down`/`logs`/`ps` to tear
+   * down or inspect a previously-deployed disabled Bit) simply omit `inactiveServices`.
+   */
+  public getComposeFiles(targetService?: string, inactiveServices?: Iterable<string>): ComposeFileSet {
     const baseFile = this.baseComposePath;
     const serviceFiles: string[] = [];
 
     const fullServicesDir = path.join(this.repoRoot, this.servicesDir);
 
+    // Compose file base names are kebab-case; normalize architecture service names to match.
+    const inactive = new Set<string>();
+    for (const name of inactiveServices ?? []) {
+      inactive.add(name.replace(/_/g, '-'));
+    }
+
     if (targetService) {
       const kebabService = targetService.replace(/_/g, '-');
+      if (inactive.has(kebabService)) {
+        throw new Error(
+          `Service '${targetService}' is inactive (active:false) in architecture.yaml and cannot be deployed. ` +
+          `Set active:true to deploy it.`
+        );
+      }
       const serviceFile = path.join(this.servicesDir, `${kebabService}.compose.yaml`);
       const fullServiceFile = path.join(this.repoRoot, serviceFile);
       if (fs.existsSync(fullServiceFile)) {
@@ -32,6 +57,7 @@ export class ComposeFactory {
       if (fs.existsSync(fullServicesDir)) {
         const files = fs.readdirSync(fullServicesDir)
           .filter(f => f.endsWith('.compose.yaml'))
+          .filter(f => !inactive.has(f.replace(/\.compose\.yaml$/, '')))
           .sort()
           .map(f => path.join(this.servicesDir, f));
         serviceFiles.push(...files);

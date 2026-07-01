@@ -7,7 +7,7 @@ goal: >
   (3) add a `brat fleet restart <bit-name>` command that restarts a Bit via the universal control plane.
 owner: "Lead Implementor"
 createdAt: "2026-06-29T01:05:00Z"
-status: "published"
+status: "complete"
 links:
   pr: "https://github.com/cnavta/BitBrat/pull/255"
   branch: "feature/sprint-330-91f8ad-active-deploy-dup-fleet-restart"

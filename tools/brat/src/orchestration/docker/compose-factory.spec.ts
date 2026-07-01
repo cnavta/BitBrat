@@ -11,6 +11,58 @@ function makeRepo(baseYaml: string): string {
   return repoRoot;
 }
 
+function writeServiceFile(repoRoot: string, name: string): void {
+  const servicesDir = path.join(repoRoot, 'infrastructure', 'docker-compose', 'services');
+  fs.mkdirSync(servicesDir, { recursive: true });
+  fs.writeFileSync(path.join(servicesDir, `${name}.compose.yaml`), `services:\n  ${name}: {}\n`, 'utf8');
+}
+
+function baseName(serviceFile: string): string {
+  return path.basename(serviceFile, '.compose.yaml');
+}
+
+describe('ComposeFactory.getComposeFiles – honors active:false', () => {
+  it('omits inactive per-service compose files on a full (--all) deploy', () => {
+    const repoRoot = makeRepo('services: {}\n');
+    ['llm-bot', 'obs-mcp', 'ingress-egress'].forEach((s) => writeServiceFile(repoRoot, s));
+
+    const factory = new ComposeFactory(repoRoot);
+    const { serviceFiles } = factory.getComposeFiles(undefined, ['obs-mcp']);
+    const names = serviceFiles.map(baseName);
+
+    expect(names).toEqual(['ingress-egress', 'llm-bot']);
+    expect(names).not.toContain('obs-mcp');
+  });
+
+  it('includes all services when no inactive list is provided (down/logs/ps parity)', () => {
+    const repoRoot = makeRepo('services: {}\n');
+    ['llm-bot', 'obs-mcp'].forEach((s) => writeServiceFile(repoRoot, s));
+
+    const factory = new ComposeFactory(repoRoot);
+    const names = factory.getComposeFiles().serviceFiles.map(baseName);
+
+    expect(names).toContain('obs-mcp');
+    expect(names).toContain('llm-bot');
+  });
+
+  it('fails fast when an explicitly named target is inactive', () => {
+    const repoRoot = makeRepo('services: {}\n');
+    writeServiceFile(repoRoot, 'obs-mcp');
+
+    const factory = new ComposeFactory(repoRoot);
+    expect(() => factory.getComposeFiles('obs-mcp', ['obs-mcp'])).toThrow(/inactive/i);
+  });
+
+  it('still deploys an explicitly named active target', () => {
+    const repoRoot = makeRepo('services: {}\n');
+    ['llm-bot', 'obs-mcp'].forEach((s) => writeServiceFile(repoRoot, s));
+
+    const factory = new ComposeFactory(repoRoot);
+    const names = factory.getComposeFiles('llm-bot', ['obs-mcp']).serviceFiles.map(baseName);
+    expect(names).toEqual(['llm-bot']);
+  });
+});
+
 describe('ComposeFactory.getBuildableBaseServices', () => {
   it('returns base-file services that declare a build section', () => {
     const repoRoot = makeRepo(`services:

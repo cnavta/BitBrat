@@ -53,6 +53,18 @@ describe('Tool Gateway RBAC Repro', () => {
     });
   });
 
+  afterEach(async () => {
+    // Each test constructs a fresh ToolGatewayServer (which builds an MCP client manager and
+    // other resources). Without tearing it down, handles accumulate across the suite and can
+    // intermittently surface as a supertest "Parse Error: Expected HTTP/..." on a reused/stale
+    // socket. Gracefully closing the server after every case keeps these tests deterministic.
+    try {
+      await server?.close('test-teardown');
+    } catch {
+      // close() is idempotent and safe even when the server was never started.
+    }
+  });
+
   it('GET /v1/tools without roles returns only public tools', async () => {
     const res = await request(app).get('/v1/tools');
     expect(res.status).toBe(200);
