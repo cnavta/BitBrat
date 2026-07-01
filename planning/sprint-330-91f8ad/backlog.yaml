@@ -1,12 +1,12 @@
 meta:
   backlog_id: sprint-330-91f8ad
-  updated_at: 2026-06-29
-  status_values: [todo, in_progress, blocked, done]
+  updated_at: 2026-07-01
+  status_values: [todo, in_progress, blocked, done, deferred]
 
 sprint:
   id: sprint-330-91f8ad
   start: 2026-06-29
-  end: null
+  end: 2026-07-01
   wip_limit: 3
   goal: >
     Make `brat deploy services` honor active:false, eliminate duplicate responses from slow Bits
@@ -95,7 +95,7 @@ items:
   - id: BL-330-204
     title: "(Deferred) Persistent cross-instance dedupe store"
     priority: P3
-    status: todo
+    status: deferred
     effort: L
     owner: agent
     deps: [BL-330-202, BL-330-203]
@@ -148,6 +148,22 @@ items:
       - "documentation/tools/brat.md, bit-control-plane.md, and CHANGELOG updated"
       - "architecture.yaml reflects new tool/env additions (canonical)"
     updated_at: 2026-06-29
+    log: []
+
+  # ---------------- Post-publication close-out fixes ----------------
+  - id: BL-330-902
+    title: "Close-out: docker active:false parity (obs-mcp) + gateway repro test teardown"
+    priority: P0
+    status: done
+    effort: S
+    owner: agent
+    deps: [BL-330-101]
+    blocked_reason: null
+    acceptance:
+      - "REQ-004: docker deploy (local + remote) honors active:false; obs-mcp no longer deployed on --all; explicit inactive target fails fast; down/logs/ps unaffected"
+      - "REQ-003: repro_gateway_roles.spec.ts flaky stale-socket parse error fixed via idempotent afterEach teardown"
+      - "npm test green (1124 passed / 2 skipped); changes pushed to PR #255"
+    updated_at: 2026-07-01
     log: []
 
   # ---------------- Sprint closeout ----------------
