@@ -307,16 +307,46 @@ export async function cmdTrigger(action: 'create' | 'update' | 'delete', flags: 
   }
 }
 
+/**
+ * Select which services should be built/deployed.
+ *
+ * Parity with the IaC synth path (cdktf-synth.ts): only services with `active === true` are
+ * deployable. An absent/false `active` means the service is DISABLED
+ * (architecture.yaml defaults.services.active).
+ *
+ * - `--all` (no target): inactive services are silently filtered out (with a structured skip log).
+ * - explicit target: an unknown name OR an inactive service fails fast with a ConfigurationError,
+ *   so a directly requested service is never silently dropped.
+ */
+export function selectDeployableServices(
+  allServices: ResolvedServiceConfig[],
+  targetService?: string,
+): ResolvedServiceConfig[] {
+  if (targetService) {
+    const matches = allServices.filter((s) => s.name === targetService);
+    if (matches.length === 0) {
+      throw new ConfigurationError(`Service not found in architecture.yaml: ${targetService}`);
+    }
+    // An explicitly named target that is inactive must fail fast rather than silently deploy or skip.
+    if (!matches[0].active) {
+      throw new ConfigurationError(
+        `Service '${targetService}' is inactive (active:false) and cannot be deployed. ` +
+        `Set active:true in architecture.yaml to deploy it.`
+      );
+    }
+    return matches;
+  }
+  return allServices.filter((svc) => {
+    if (svc.active) return true;
+    log.info({ service: svc.name, action: 'deploy.service', status: 'skipped', reason: 'inactive' }, 'Skipping inactive service');
+    return false;
+  });
+}
+
 async function cmdDeployServices(flags: GlobalFlags, targetService?: string) {
   const root = process.cwd();
   const cfg = resolveConfig(root);
-  let services = Object.values(cfg.services);
-  if (targetService) {
-    services = services.filter((s) => s.name === targetService);
-    if (services.length === 0) {
-      throw new ConfigurationError(`Service not found in architecture.yaml: ${targetService}`);
-    }
-  }
+  let services = selectDeployableServices(Object.values(cfg.services), targetService);
   const concurrency = flags.concurrency || cfg.maxConcurrency || 1;
   const queue = new Queue(concurrency);
   const tag = flags.imageTag || deriveTag();

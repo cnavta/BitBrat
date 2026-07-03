@@ -37,9 +37,10 @@ carries an RBAC [scope](#rbac-scopes).
 | `bit.log.level` | Change the runtime log level (`error` \| `warn` \| `info` \| `debug`). | `bit:operate` |
 | `bit.drain` | Gracefully drain and release resources (alias of shutdown) via `close(reason)`. | `bit:operate` |
 | `bit.shutdown` | Gracefully shut the Bit down via `close(reason)`. | `bit:operate` |
+| `bit.restart` | Gracefully restart: `close(reason)` then exit so the orchestrator (Cloud Run min-instances / local supervisor) respawns a fresh instance. Returns `{ restarting: true, reason }`. | `bit:operate` |
 
 > These map 1:1 onto the [`brat fleet`](../guides/brat-fleet.md) subcommands (`info`, `health`, `config`,
-> `flags`, `log`, `drain`, `shutdown`).
+> `flags`, `log`, `drain`, `shutdown`, `restart`).
 
 ## LLM admin tools (`bit.llm.*`)
 
@@ -62,7 +63,7 @@ Tools are gated by two scopes (`src/common/mcp/rbac.ts` + the `{ scopes }` optio
 - **`bit:read`** — low-privilege, read-only tools (`bit.info`, `bit.health`, `bit.readiness`,
   `bit.config.*`, `bit.flags.get`, `bit.llm.promptPreview`).
 - **`bit:operate`** — elevated operator tools that change state or lifecycle (`bit.flags.set`,
-  `bit.log.level`, `bit.drain`, `bit.shutdown`, `bit.llm.model`, `bit.llm.toolFilter`).
+  `bit.log.level`, `bit.drain`, `bit.shutdown`, `bit.restart`, `bit.llm.model`, `bit.llm.toolFilter`).
 
 RBAC is **server-authoritative**: clients (including Brat) only forward identity (user id / roles) and
 never self-authorize.

@@ -351,6 +351,41 @@ describe('brat fleet — mutating commands (bit:operate)', () => {
     const bits = results.map((r: any) => r.bit).sort();
     expect(bits).toEqual(['auth', 'persistence']);
   });
+
+  it('restart <bit> maps to bit.restart on the single target', async () => {
+    const t = new FakeTransport('gateway', [], () => ({ restarting: true, reason: 'bit.restart' }));
+    const out: string[] = [];
+    await runFleet(parseFleetArgs(['fleet', 'restart', 'auth'], [], {}), {}, silentLogger(), deps(t, out, silentLogger()));
+    expect(t.calls.length).toBe(1);
+    expect(t.calls[0].toolId).toBe('mcp:auth/bit.restart');
+  });
+
+  it('fleet-wide restart is NOT implied by --all without --confirm', async () => {
+    const t = new FakeTransport('gateway', [{ id: 'mcp:auth/bit.health' }], () => ({}));
+    const out: string[] = [];
+    await expect(
+      runFleet(parseFleetArgs(['fleet', 'restart'], ['--all'], {}), {}, silentLogger(), deps(t, out, silentLogger())),
+    ).rejects.toThrow(ConfigurationError);
+    expect(t.calls.length).toBe(0); // refused before any call
+  });
+
+  it('fleet-wide restart with --confirm runs sequentially across discovered Bits', async () => {
+    const t = new FakeTransport('gateway', [{ id: 'mcp:auth/bit.info' }], () => ({ restarting: true }));
+    const out: string[] = [];
+    const results = await runFleet(parseFleetArgs(['fleet', 'restart'], ['--all', '--confirm'], { json: true }), {}, silentLogger(), deps(t, out, silentLogger()));
+    const bits = results.map((r: any) => r.bit).sort();
+    expect(bits).toEqual(['auth', 'persistence']);
+    expect(t.calls.every((c) => c.toolId.endsWith('/bit.restart'))).toBe(true);
+  });
+
+  it('surfaces Forbidden from an insufficient-scope restart and does not retry', async () => {
+    const t = new FakeTransport('gateway', [], () => { throw new Error('Forbidden'); });
+    const out: string[] = [];
+    await expect(
+      runFleet(parseFleetArgs(['fleet', 'restart', 'auth'], [], {}), {}, silentLogger(), deps(t, out, silentLogger())),
+    ).rejects.toThrow('Forbidden');
+    expect(t.calls.length).toBe(1); // single attempt, no retry
+  });
 });
 
 describe('brat fleet — break-glass (--direct) guardrails', () => {

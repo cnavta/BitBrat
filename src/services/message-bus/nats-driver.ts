@@ -15,8 +15,22 @@
  */
 import { connect, StringCodec, NatsConnection, JetStreamClient, consumerOpts, createInbox, headers as natsHeaders, JetStreamManager } from 'nats';
 import { logger } from '../../common/logging';
+import { counters } from '../../common/counters';
 import type { AttributeMap, MessageHandler, MessagePublisher, MessageSubscriber, SubscribeOptions, UnsubscribeFn } from './index';
 import { normalizeAttributes } from './attributes';
+import { buildDedupeKey, dedupeShouldDrop, getDedupeTtlMs, isDedupeDisabled } from './dedupe';
+
+/**
+ * JetStream ack-wait (seconds): how long the server waits for an ack before redelivering. While a
+ * slow handler runs we additionally call `msg.working()` periodically to reset this timer (lease
+ * extension), so a slow-but-successful handler is not redelivered -> no duplicate egress.
+ */
+function getAckWaitSeconds(): number {
+  const raw = process.env.NATS_ACK_WAIT_SECONDS;
+  if (raw == null || raw === '') return 60;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 60;
+}
 
 // NATS string codec used for JSON payload encoding/decoding
 const sc = StringCodec();
@@ -155,6 +169,8 @@ export class NatsSubscriber implements MessageSubscriber {
     opts.durable(durable);
     opts.manualAck();
     opts.ackExplicit();
+    const ackWaitSeconds = getAckWaitSeconds();
+    opts.ackWait(ackWaitSeconds * 1000); // milliseconds
     if (options.maxInFlight) opts.maxAckPending(options.maxInFlight);
 
     // Push consumers require a delivery subject.
@@ -191,7 +207,30 @@ export class NatsSubscriber implements MessageSubscriber {
           bytes: dataBuf?.length || 0,
           attrCount: Object.keys(attrs || {}).length,
         });
+
+        // Idempotency dedupe (correlationId+step+attempt, with stream-sequence fallback). Drops a
+        // redelivery of the SAME logical message before the handler runs again -> exactly one egress.
+        try {
+          if (!isDedupeDisabled()) {
+            const seq = (m as any)?.seq ?? (m as any)?.info?.streamSequence;
+            const key = buildDedupeKey(attrs as any, seq != null ? String(seq) : null);
+            if (key && dedupeShouldDrop(key, Date.now())) {
+              logger.warn('message_consumer.dedupe.drop', { driver: 'nats', subject: subj, dedupeKey: key, ttlMs: getDedupeTtlMs() });
+              try { counters.increment('message_consumer.dedupe.drop'); } catch {}
+              await ack();
+              continue;
+            }
+          }
+        } catch (e: any) {
+          logger.debug('message_consumer.dedupe.error', { subject: subj, error: e?.message || String(e) });
+        }
+
         const started = Date.now();
+        // Keep the lease alive while a slow handler runs by periodically resetting the ack-wait timer.
+        const workingMs = Math.max(1000, Math.floor((ackWaitSeconds * 1000) / 2));
+        const keepAlive = setInterval(() => {
+          try { (m as any).working?.(); } catch {}
+        }, workingMs);
         try {
           await handler(dataBuf, attrs, { ack, nack });
           logger.trace('message_consumer.process.ok', { driver: 'nats', subject: subj, durationMs: Date.now() - started });
@@ -199,6 +238,8 @@ export class NatsSubscriber implements MessageSubscriber {
         } catch (e: any) {
           logger.error('message_consumer.process.error', { driver: 'nats', subject: subj, error: e?.message || String(e), durationMs: Date.now() - started });
           await nack();
+        } finally {
+          clearInterval(keepAlive);
         }
       }
     })();
