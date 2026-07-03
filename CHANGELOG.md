@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`brat bit create` command for modern Bit scaffolding** (sprint-331). New `brat bit create <name> [options]`
+  replaces `brat service bootstrap` with profile-aware scaffolding, MCP exposure validation, and optional
+  architecture.yaml registration. Profiles (`core`, `gateway`, `llm`, `mcp-domain`) generate appropriate imports
+  and setup code. Enforces profile/exposure contract (e.g., mcp-domain requires platform+domain). Flags include
+  `--profile`, `--exposure`, `--kind`, `--port`, `--register`, `--active`, `--force`. Generates app source, test,
+  Dockerfile, and docker-compose config. 110 unit + integration tests. See updated CLAUDE.md and README.md.
+
 - **`brat fleet restart <bit>` + universal `bit.restart` control-plane tool** (sprint-330). Every Bit now
   exposes `bit.restart` (scope `bit:operate`), which gracefully `close(reason)`s and then exits so the
   orchestrator (Cloud Run min-instances / local supervisor) respawns a fresh instance, returning
@@ -28,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 ### Removed
+- **BREAKING: `brat service bootstrap` command removed** (sprint-331). The legacy `brat service bootstrap --name <name> [--mcp]`
+  command and all variants (`brat bootstrap service`) have been removed. Use `brat bit create <name> [options]` instead.
+  Migration: `brat service bootstrap --name foo --mcp` → `brat bit create foo --profile mcp-domain --register`.
+  Also removed legacy `infrastructure/scripts/bootstrap-service.js` and associated test file.
 
 ### Fixed
 - **Slow Bits no longer emit duplicate responses** (sprint-330). With at-least-once delivery, a Bit whose

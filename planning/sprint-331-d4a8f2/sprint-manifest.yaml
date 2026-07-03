@@ -1,0 +1,38 @@
+id: sprint-331-d4a8f2
+title: "Modernize Bit creation with brat bit create command"
+goal: >
+  Replace the current `brat service bootstrap` command with a modern `brat bit create` command
+  that reflects current BitBrat nomenclature (Bit vs service), offers comprehensive configuration
+  options (kind, profile, MCP exposure), and makes Bit lifecycle management integral to the brat
+  CLI tooling.
+owner: "Lead Implementor"
+createdAt: "2026-07-03T00:00:00Z"
+status: "complete"
+startedAt: "2026-07-03T03:30:00Z"
+completedAt: "2026-07-03T14:00:00Z"
+links:
+  pr: "" # Will be populated during publication phase
+  branch: "feature/sprint-331-d4a8f2-brat-bit-create"
+notes: |
+  Current state analysis:
+  - Existing command: `brat service bootstrap --name <name> [--mcp]`
+  - Located in: tools/brat/src/cli/index.ts (service management section)
+  - Uses older "service" terminology instead of "Bit"
+  - Limited configuration options (only --mcp flag)
+  - Does not expose kind, profile, or mcp.exposure configuration
+
+  Sprint scope:
+  - Phase 1 (Architecture): Create Technical Architecture document
+  - Phase 2 (Implementation): Implement brat bit create command
+  - Phase 3 (Validation): Update documentation and validate end-to-end
+
+  Requirements update (2026-07-03):
+  - NO backward compatibility required
+  - `brat service bootstrap` will be completely replaced (not deprecated)
+  - Clean removal of old implementation
+  - No migration period or deprecation notices needed
+  - Include removal of legacy scripts (infrastructure/scripts/bootstrap-service.js)
+  - Comprehensive cleanup of all bootstrap implementations (~700 LOC removed)
+
+  This sprint follows AGENTS.md protocol v2.5.
+  Architect role: produce Technical Architecture document before implementation begins.
