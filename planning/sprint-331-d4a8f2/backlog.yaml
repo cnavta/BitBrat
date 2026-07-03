@@ -1,0 +1,1107 @@
+# Sprint 331 Backlog: brat bit create Command
+# Generated: 2026-07-03
+# Status: Planning (awaiting approval)
+
+metadata:
+  sprint_id: sprint-331-d4a8f2
+  sprint_title: "Modernize Bit creation with brat bit create command"
+  total_items: 27
+  estimated_duration_days: 2-3
+  priority_scheme: "Phase-based (1=highest)"
+
+# ============================================================================
+# PHASE 1: CORE IMPLEMENTATION
+# Priority: 1 (must complete first)
+# Duration: 1 day
+# ============================================================================
+
+backlog:
+  - id: BL-331-101
+    title: "Create module structure for brat bit command"
+    description: |
+      Set up the foundational directory structure and stub files for the new
+      brat bit command group. Create tools/brat/src/cli/bit/ directory with
+      create.ts, templates.ts, validation.ts, and registry.ts modules.
+    priority: 1
+    phase: 1
+    estimated_hours: 0.5
+    status: complete
+    completed_at: "2026-07-03T03:35:00Z"
+    dependencies: []
+    acceptance_criteria:
+      - Directory tools/brat/src/cli/bit/ exists
+      - Files create.ts, templates.ts, validation.ts, registry.ts created
+      - All files have basic structure and compile without errors
+      - Exports configured in index files
+    implementation_notes: |
+      - Create directory: mkdir -p tools/brat/src/cli/bit
+      - Create stub files with TypeScript interfaces
+      - Add to tsconfig.json include paths if needed
+      - Verify compilation: npm run build
+    verification:
+      - command: "ls tools/brat/src/cli/bit/"
+        expected: "create.ts templates.ts validation.ts registry.ts"
+      - command: "npm run build"
+        expected: "Build succeeds without errors"
+
+  - id: BL-331-102
+    title: "Implement validation logic (names, profiles, exposure)"
+    description: |
+      Implement comprehensive validation functions for Bit creation:
+      validateBitName() for kebab-case validation, validateProfileExposure()
+      for profile ↔ exposure contract enforcement, and validateBitDoesNotExist()
+      for uniqueness checking.
+    priority: 1
+    phase: 1
+    estimated_hours: 2
+    status: complete
+    completed_at: "2026-07-03T03:35:00Z"
+    dependencies: [BL-331-101]
+    acceptance_criteria:
+      - validateBitName() rejects invalid names (non-kebab-case, special chars)
+      - validateBitName() accepts valid names (lowercase, hyphens)
+      - validateProfileExposure() enforces mcp-domain → platform+domain
+      - validateProfileExposure() rejects core/llm with platform+domain
+      - validateBitDoesNotExist() detects existing services in architecture.yaml
+      - All validation functions return ValidationResult with errors array
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/validation.ts
+
+      Validation rules:
+      - Name: must be kebab-case (lowercase, hyphens only)
+      - Profile mcp-domain: MUST use exposure platform+domain
+      - Profile core/llm: CANNOT use exposure platform+domain
+      - Uniqueness: check architecture.services[name] doesn't exist
+
+      Return type:
+      interface ValidationResult {
+        valid: boolean;
+        errors: string[];
+      }
+    verification:
+      - test: "validateBitName('my-service')"
+        expected: "{ valid: true, errors: [] }"
+      - test: "validateBitName('MyService')"
+        expected: "{ valid: false, errors: ['...'] }"
+      - test: "validateProfileExposure('mcp-domain', 'platform-only')"
+        expected: "{ valid: false, errors: ['...'] }"
+
+  - id: BL-331-103
+    title: "Implement template generators for all profiles"
+    description: |
+      Port and enhance template generation functions from bootstrap.ts. Implement
+      profile-aware scaffolding (core, gateway, llm, mcp-domain), exposure-aware
+      constructor arguments, and kind-aware structure. Generate app source, test,
+      Dockerfile, and docker-compose files.
+    priority: 1
+    phase: 1
+    estimated_hours: 3
+    status: complete
+    completed_at: "2026-07-03T03:45:00Z"
+    dependencies: [BL-331-101]
+    acceptance_criteria:
+      - generateAppSource() produces correct code for all 4 profiles
+      - Exposure controls mcpExposure constructor argument
+      - MCP-domain profile includes registerTool example
+      - Gateway profile includes HTTP route examples
+      - LLM profile includes provider initialization comment
+      - generateTest() produces passing unit test
+      - generateDockerfile() produces valid Dockerfile
+      - generateCompose() produces valid docker-compose YAML
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/templates.ts
+
+      Template variations:
+      - Profile core: Minimal Bit with setup() method
+      - Profile gateway: HTTP routes via this.getApp()
+      - Profile llm: LLM provider comment/stub
+      - Profile mcp-domain: this.registerTool() example
+
+      Exposure handling:
+      - platform-only: super({ mcpExposure: 'platform-only' })
+      - platform+domain: super({ mcpExposure: 'platform+domain' })
+      - none: super() (no arg)
+
+      Functions to implement:
+      - generateAppSource(name, profile, exposure, kind, ...): string
+      - generateTest(name, entry): string
+      - generateDockerfile(name, entry): string
+      - generateCompose(name, port, env, secrets): string
+    verification:
+      - test: "Generated code for profile=mcp-domain compiles"
+      - test: "Generated test passes"
+      - test: "Dockerfile builds successfully"
+
+  - id: BL-331-104
+    title: "Implement architecture.yaml registration"
+    description: |
+      Implement registerBitInArchitecture() function to safely add new service
+      entries to architecture.yaml. Use js-yaml to load, validate uniqueness,
+      insert entry, and write back while preserving formatting.
+    priority: 1
+    phase: 1
+    estimated_hours: 2
+    status: complete
+    completed_at: "2026-07-03T03:50:00Z"
+    dependencies: [BL-331-101, BL-331-102]
+    acceptance_criteria:
+      - Loads architecture.yaml correctly
+      - Validates service name doesn't already exist
+      - Inserts service entry with all required fields
+      - Preserves YAML formatting and comments
+      - Handles malformed YAML gracefully with error message
+      - Does NOT corrupt existing services
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/registry.ts
+
+      Implementation:
+      1. Load architecture.yaml with js-yaml.load()
+      2. Check if services[name] exists → error if yes
+      3. Create service entry object with:
+         - profile, mcp.exposure, active, description, kind, entry, port
+         - optional: stage (if provided)
+      4. Insert into arch.services[name]
+      5. Write back with js-yaml.dump() options:
+         - indent: 2
+         - lineWidth: 120
+         - noRefs: true
+         - sortKeys: false (preserve order)
+
+      interface RegistrationOptions {
+        name: string;
+        profile: string;
+        exposure: string;
+        kind: string;
+        entry: string;
+        port: number;
+        description: string;
+        active: boolean;
+        stage?: string;
+      }
+    verification:
+      - test: "Load architecture.yaml successfully"
+      - test: "Reject duplicate service name"
+      - test: "Insert new service and verify YAML valid"
+      - test: "Formatting preserved (manual diff check)"
+
+  - id: BL-331-105
+    title: "Implement brat bit create command logic"
+    description: |
+      Implement the main cmdBitCreate() function that orchestrates argument
+      parsing, validation, file generation, and optional architecture.yaml
+      registration. Handle all error cases with clear user feedback.
+    priority: 1
+    phase: 1
+    estimated_hours: 2
+    status: complete
+    completed_at: "2026-07-03T04:00:00Z"
+    dependencies: [BL-331-102, BL-331-103, BL-331-104]
+    acceptance_criteria:
+      - Parses all command-line arguments correctly
+      - Validates all inputs before proceeding
+      - Generates 4 files (app, test, Dockerfile, compose)
+      - Optionally registers in architecture.yaml if --register
+      - Provides clear success/skip messages for each file
+      - Error messages are actionable (tell user how to fix)
+      - Respects --force flag to overwrite existing files
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/create.ts
+
+      Argument parsing:
+      - name (positional, required)
+      - --kind (default: pipeline-service)
+      - --profile (default: core)
+      - --exposure (default: platform-only)
+      - --stage (optional)
+      - --port (default: 3000)
+      - --entry (default: src/apps/<name>-service.ts)
+      - --description (default: "Generated Bit: <name>")
+      - --active (flag, default: false)
+      - --force (flag, default: false)
+      - --register (flag, default: false)
+
+      Flow:
+      1. Parse arguments
+      2. Validate name, profile/exposure, uniqueness
+      3. Generate templates
+      4. Write files (respect --force)
+      5. If --register, call registerBitInArchitecture()
+      6. Print summary
+
+      Error handling:
+      - Validation errors: print errors array, exit 2
+      - File write errors: print clear message, exit 1
+      - YAML errors: print error, exit 1
+    verification:
+      - command: "brat bit create test --profile core"
+        expected: "4 files created"
+      - command: "brat bit create test"
+        expected: "Files exist, skipped (or overwritten with --force)"
+      - command: "brat bit create test --register"
+        expected: "Files created + architecture.yaml updated"
+
+  - id: BL-331-106
+    title: "Create command group entry point (brat bit)"
+    description: |
+      Implement tools/brat/src/cli/bit.ts as the command group entry point.
+      Route subcommands (currently only 'create'), provide help text for the
+      command group, and handle unknown subcommands gracefully.
+    priority: 1
+    phase: 1
+    estimated_hours: 1
+    status: complete
+    completed_at: "2026-07-03T04:05:00Z"
+    dependencies: [BL-331-105]
+    acceptance_criteria:
+      - cmdBit() function routes 'create' subcommand
+      - Help text displays when no subcommand provided
+      - Help text displays with --help flag
+      - Unknown subcommands show error + help text
+      - Exports cmdBit for use by main CLI
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit.ts
+
+      Structure:
+      export async function cmdBit(
+        cmd: string[],
+        rest: string[],
+        flags: Record<string, any>
+      ): Promise<void> {
+        const [subcommand] = cmd.slice(1); // cmd[0] is 'bit'
+
+        if (!subcommand || flags.help) {
+          printBitHelp();
+          return;
+        }
+
+        if (subcommand === 'create') {
+          await cmdBitCreate(cmd, rest, flags);
+          return;
+        }
+
+        console.error(`Unknown subcommand: ${subcommand}`);
+        printBitHelp();
+        process.exit(2);
+      }
+
+      Help text:
+      - Brief description of command group
+      - List of subcommands (create)
+      - Future subcommands noted (list, describe, validate)
+    verification:
+      - command: "brat bit"
+        expected: "Help text displayed"
+      - command: "brat bit --help"
+        expected: "Help text displayed"
+      - command: "brat bit create --help"
+        expected: "Create command help displayed"
+
+  - id: BL-331-107
+    title: "Integrate brat bit into main CLI"
+    description: |
+      Add command handler for 'bit' in tools/brat/src/cli/index.ts. Update
+      main help text to include the new command group. Ensure integration
+      doesn't break existing commands.
+    priority: 1
+    phase: 1
+    estimated_hours: 1
+    status: complete
+    completed_at: "2026-07-03T04:10:00Z"
+    dependencies: [BL-331-106]
+    acceptance_criteria:
+      - 'brat bit' command accessible from main CLI
+      - Main help text includes 'brat bit' command group
+      - Existing commands still work (fleet, config, deploy, etc.)
+      - No compilation errors
+      - Command routing works correctly
+    implementation_notes: |
+      Location: tools/brat/src/cli/index.ts
+
+      Add near other command handlers:
+      if (c1 === 'bit') {
+        const { cmdBit } = require('./bit');
+        await cmdBit(cmd, rest, flags);
+        return;
+      }
+
+      Update help text (printHelp function):
+      Add line:
+      brat bit create <name> [options]    # Create a new Bit with modern configuration
+
+      Position: After 'config' commands, before 'deploy' commands
+    verification:
+      - command: "brat bit create test"
+        expected: "Command executes (may fail validation, but routes correctly)"
+      - command: "brat fleet list"
+        expected: "Existing command still works"
+      - command: "brat --help"
+        expected: "Help includes 'brat bit' command"
+
+# ============================================================================
+# PHASE 2: TESTING
+# Priority: 2 (after Phase 1 complete)
+# Duration: 0.5 days
+# ============================================================================
+
+  - id: BL-331-201
+    title: "Unit tests for validation logic"
+    description: |
+      Create comprehensive unit tests for all validation functions. Test valid
+      and invalid inputs, edge cases, and error messages.
+    priority: 2
+    phase: 2
+    estimated_hours: 1
+    status: complete
+    completed_at: "2026-07-03T04:20:00Z"
+    test_results: "25 tests passed"
+    dependencies: [BL-331-102]
+    acceptance_criteria:
+      - validateBitName tested with 10+ test cases
+      - validateProfileExposure tested for all profile/exposure combinations
+      - validateBitDoesNotExist tested with existing and new services
+      - All edge cases covered (empty strings, special chars, etc.)
+      - Error messages validated for clarity
+      - Test coverage for validation.ts: 100%
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/__tests__/validation.test.ts
+
+      Test cases for validateBitName:
+      - Valid: 'my-service', 'api-gateway', 'llm-bot'
+      - Invalid: 'MyService', 'my_service', 'my service', '123service', '-service', 'service-'
+
+      Test cases for validateProfileExposure:
+      - Valid: (core, platform-only), (gateway, platform+domain), (mcp-domain, platform+domain)
+      - Invalid: (mcp-domain, platform-only), (core, platform+domain), (llm, platform+domain)
+
+      Mock loadArchitecture for uniqueness tests
+    verification:
+      - command: "npm test -- validation.test.ts"
+        expected: "All tests pass"
+
+  - id: BL-331-202
+    title: "Unit tests for template generation"
+    description: |
+      Create unit tests for all template generation functions. Verify templates
+      for each profile, exposure, and kind combination produce correct output.
+    priority: 2
+    phase: 2
+    estimated_hours: 2
+    status: complete
+    completed_at: "2026-07-03T04:25:00Z"
+    test_results: "21 tests passed"
+    dependencies: [BL-331-103]
+    acceptance_criteria:
+      - generateAppSource tested for all 4 profiles
+      - Exposure variations tested (platform-only, platform+domain, none)
+      - Kind variations tested (pipeline-service, gateway, mcp-server)
+      - Generated code structure validated (imports, class name, methods)
+      - MCP tool example present for mcp-domain profile
+      - HTTP routes present for gateway profile
+      - generateTest, generateDockerfile, generateCompose tested
+      - Test coverage for templates.ts: 90%+
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/__tests__/templates.test.ts
+
+      Test strategy:
+      - Generate templates for each combination
+      - Verify output contains expected patterns (e.g., 'registerTool' for mcp-domain)
+      - Optionally: compile generated code (heavy test, maybe integration)
+
+      Snapshot testing:
+      - Consider using Jest snapshots for template output
+      - Update snapshots when intentionally changing templates
+    verification:
+      - command: "npm test -- templates.test.ts"
+        expected: "All tests pass"
+
+  - id: BL-331-203
+    title: "Unit tests for architecture.yaml registration"
+    description: |
+      Create unit tests for architecture.yaml registration logic. Test parsing,
+      insertion, formatting preservation, and error handling.
+    priority: 2
+    phase: 2
+    estimated_hours: 1.5
+    status: pending
+    dependencies: [BL-331-104]
+    acceptance_criteria:
+      - YAML loading tested
+      - Service insertion tested
+      - Duplicate detection tested
+      - Malformed YAML error handling tested
+      - Formatting preservation validated (compare before/after)
+      - Test coverage for registry.ts: 90%+
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/__tests__/registry.test.ts
+
+      Test approach:
+      - Create temp architecture.yaml for each test
+      - Call registerBitInArchitecture()
+      - Parse result and verify structure
+      - Clean up temp files
+
+      Formatting test:
+      - Create YAML with specific formatting
+      - Register new service
+      - Verify indentation, line width, key order preserved
+    verification:
+      - command: "npm test -- registry.test.ts"
+        expected: "All tests pass"
+
+  - id: BL-331-204
+    title: "Unit tests for command logic"
+    description: |
+      Create unit tests for cmdBitCreate main function. Test argument parsing,
+      orchestration, error handling, and user feedback.
+    priority: 2
+    phase: 2
+    estimated_hours: 1.5
+    status: pending
+    dependencies: [BL-331-105]
+    acceptance_criteria:
+      - Argument parsing tested for all flags
+      - File generation orchestration tested
+      - Error handling tested (validation failures, file errors)
+      - --register flag tested (mocked)
+      - --force flag tested (overwrite behavior)
+      - User feedback messages validated
+      - Test coverage for create.ts: 85%+
+    implementation_notes: |
+      Location: tools/brat/src/cli/bit/__tests__/create.test.ts
+
+      Mocking strategy:
+      - Mock fs for file operations
+      - Mock validation functions
+      - Mock template generators
+      - Mock registry functions
+
+      Test scenarios:
+      - Successful creation (all files)
+      - Validation failure (invalid name)
+      - File already exists (with and without --force)
+      - Registration (with --register)
+    verification:
+      - command: "npm test -- create.test.ts"
+        expected: "All tests pass"
+
+  - id: BL-331-205
+    title: "Integration test for end-to-end flow"
+    description: |
+      Create integration test that runs the full brat bit create command in
+      a temporary environment. Verify files created, code compiles, tests pass.
+    priority: 2
+    phase: 2
+    estimated_hours: 2
+    status: pending
+    dependencies: [BL-331-107]
+    acceptance_criteria:
+      - Test creates temp directory
+      - Runs actual brat bit create command
+      - Verifies 4 files created with correct names
+      - Optionally compiles generated code (may be slow)
+      - Optionally runs generated test (may be slow)
+      - Cleans up temp directory after test
+      - Test passes in CI environment
+    implementation_notes: |
+      Location: tools/brat/src/cli/__tests__/bit-create.integration.test.ts
+
+      Setup:
+      - Create temp directory with minimal architecture.yaml
+      - Set up package.json, tsconfig.json if needed
+
+      Execution:
+      - Run: npm run brat -- bit create test-bit --profile core
+      - Verify files exist
+      - Optionally: npm run build (compile check)
+      - Optionally: npm test (run generated test)
+
+      Cleanup:
+      - Remove temp directory
+      - Use afterAll() hook
+    verification:
+      - command: "npm test -- bit-create.integration.test.ts"
+        expected: "Test passes"
+
+  - id: BL-331-206
+    title: "Execute manual testing checklist"
+    description: |
+      Manually test all profile, exposure, and kind combinations. Verify
+      generated code compiles, tests pass, Docker builds work, and all flags
+      behave correctly. Document results.
+    priority: 2
+    phase: 2
+    estimated_hours: 1
+    status: pending
+    dependencies: [BL-331-107]
+    acceptance_criteria:
+      - Tested with profile: core, gateway, llm, mcp-domain
+      - Tested with exposure: platform-only, platform+domain, none
+      - Tested with kind: pipeline-service, gateway, mcp-server
+      - Generated code compiles for all combinations
+      - Generated tests pass for all combinations
+      - Docker build works for at least one combination
+      - --register updates architecture.yaml correctly
+      - --force overwrites existing files
+      - Validation errors display correctly
+      - Help text is clear and accurate
+      - All manual test results documented in sprint artifacts
+    implementation_notes: |
+      Create temporary test directory outside main project.
+
+      Test matrix (sample, not exhaustive):
+      1. core + platform-only + pipeline-service
+      2. gateway + platform+domain + gateway
+      3. llm + platform-only + pipeline-service
+      4. mcp-domain + platform+domain + mcp-server
+
+      For each:
+      - npm run brat -- bit create test-<n> --profile <p> --kind <k> --exposure <e>
+      - npm run build
+      - npm test -- test-<n>.test.ts
+
+      Test --register:
+      - Create minimal architecture.yaml
+      - npm run brat -- bit create reg-test --register
+      - Verify architecture.yaml has new entry
+
+      Test --force:
+      - Create bit
+      - Modify generated file
+      - npm run brat -- bit create <name> --force
+      - Verify file overwritten
+
+      Document in: planning/sprint-331-d4a8f2/manual-testing-results.md
+    verification:
+      - artifact: "manual-testing-results.md created"
+      - result: "All tests pass"
+
+# ============================================================================
+# PHASE 3: DOCUMENTATION
+# Priority: 3 (after Phase 2 complete)
+# Duration: 0.5 days
+# ============================================================================
+
+  - id: BL-331-301
+    title: "Update CLAUDE.md with new command"
+    description: |
+      Update CLAUDE.md to replace all references to 'brat service bootstrap'
+      with 'brat bit create'. Update command examples, options reference, and
+      common development patterns.
+    priority: 3
+    phase: 3
+    estimated_hours: 0.5
+    status: pending
+    dependencies: [BL-331-107]
+    acceptance_criteria:
+      - "Creating a New Bit" section updated
+      - All examples use 'brat bit create'
+      - Command options documented
+      - Profile/exposure/kind explained
+      - No references to 'brat service bootstrap'
+      - Examples verified working
+    implementation_notes: |
+      Location: CLAUDE.md
+
+      Sections to update:
+      - Common Development Commands → Service Management
+      - Common Development Patterns → Creating a New Bit
+
+      Replace:
+      npm run brat -- service bootstrap --name <name> [--mcp]
+
+      With:
+      npm run brat -- bit create <name> [options]
+
+      Add examples for:
+      - Default creation
+      - Gateway with domain tools
+      - MCP tool server
+      - With registration (--register --active)
+    verification:
+      - command: "grep 'service bootstrap' CLAUDE.md"
+        expected: "No matches found"
+      - command: "Test examples from CLAUDE.md"
+        expected: "All work as documented"
+
+  - id: BL-331-302
+    title: "Update README.md with new command"
+    description: |
+      Update README.md to reflect the new brat bit create command in the
+      service management section and command reference.
+    priority: 3
+    phase: 3
+    estimated_hours: 0.33
+    status: pending
+    dependencies: [BL-331-107]
+    acceptance_criteria:
+      - Service management section updated
+      - Command reference includes 'brat bit create'
+      - Examples updated
+      - No references to old command
+      - README examples verified working
+    implementation_notes: |
+      Location: README.md
+
+      Likely sections:
+      - Getting Started → Creating Services
+      - Command Reference
+
+      Add brief example:
+      # Create a new Bit
+      npm run brat -- bit create my-service --profile core
+
+      Link to CLAUDE.md for comprehensive docs
+    verification:
+      - command: "grep 'service bootstrap' README.md"
+        expected: "No matches (or only in historical sections)"
+
+  - id: BL-331-303
+    title: "Update architecture.yaml extension_points"
+    description: |
+      Update the extension_points.add_service section in architecture.yaml
+      to use the new 'brat bit create' command instead of old command.
+    priority: 3
+    phase: 3
+    estimated_hours: 0.25
+    status: pending
+    dependencies: [BL-331-107]
+    acceptance_criteria:
+      - extension_points.add_service CLI example updated
+      - Steps updated to reflect new command
+      - Examples accurate
+      - YAML remains valid
+    implementation_notes: |
+      Location: architecture.yaml
+
+      Find extension_points section (usually near end of file).
+
+      Update example from:
+      brat service bootstrap --name <name>
+
+      To:
+      brat bit create <name> --profile <profile> --kind <kind>
+
+      Update steps to mention profile, exposure, kind options.
+    verification:
+      - command: "npm run brat -- config validate"
+        expected: "Valid"
+
+  - id: BL-331-304
+    title: "Update/create brat tooling documentation"
+    description: |
+      Check if documentation/tools/brat.md exists. Create or update with
+      comprehensive 'brat bit' command group documentation including all
+      options, examples, and reference tables.
+    priority: 3
+    phase: 3
+    estimated_hours: 0.5
+    status: pending
+    dependencies: [BL-331-107]
+    acceptance_criteria:
+      - documentation/tools/brat.md exists
+      - 'brat bit' command group documented
+      - All options explained with examples
+      - Profile/exposure/kind reference table included
+      - Examples for common scenarios
+      - Validation rules documented
+    implementation_notes: |
+      Location: documentation/tools/brat.md (create if doesn't exist)
+
+      Structure:
+      # Brat CLI Reference
+
+      ## brat bit
+      Bit lifecycle management commands.
+
+      ### brat bit create
+      Create a new Bit with modern configuration.
+
+      Options:
+      - name (required): Bit name in kebab-case
+      - --kind: Service kind (pipeline-service, gateway, mcp-server)
+      - --profile: Capability profile (core, gateway, llm, mcp-domain)
+      - --exposure: MCP exposure (platform-only, platform+domain, none)
+      - --stage: Dataflow stage (optional)
+      - --port: HTTP port (default 3000)
+      - --description: Human-readable description
+      - --active: Mark as active (deployable)
+      - --register: Also register in architecture.yaml
+      - --force: Overwrite existing files
+
+      Examples:
+      [Add 5-6 comprehensive examples]
+
+      Reference Tables:
+      - Profile/Exposure compatibility matrix
+      - Kind descriptions
+      - Common combinations
+    verification:
+      - file: "documentation/tools/brat.md exists"
+      - content: "Comprehensive and accurate"
+
+  - id: BL-331-305
+    title: "Create comprehensive Bit creation guide (optional)"
+    description: |
+      Create documentation/guides/creating-bits.md as a comprehensive
+      walkthrough for creating Bits, with examples, troubleshooting, and
+      best practices. This is optional but recommended.
+    priority: 3
+    phase: 3
+    estimated_hours: 1
+    status: pending
+    dependencies: [BL-331-304]
+    acceptance_criteria:
+      - documentation/guides/creating-bits.md created
+      - Walkthrough for first Bit creation
+      - Examples for each profile
+      - Troubleshooting section
+      - Best practices documented
+      - Links to reference documentation
+    implementation_notes: |
+      Location: documentation/guides/creating-bits.md
+
+      Structure:
+      # Creating Bits: A Comprehensive Guide
+
+      ## Introduction
+      [What is a Bit, why create one]
+
+      ## Quick Start
+      [Simple example: create a basic Bit]
+
+      ## Understanding Profiles
+      [Deep dive on core, gateway, llm, mcp-domain]
+
+      ## Understanding MCP Exposure
+      [platform-only vs platform+domain]
+
+      ## Examples by Use Case
+      - Creating a pipeline service
+      - Creating a gateway
+      - Creating an MCP tool server
+      - Creating an LLM-enabled service
+
+      ## Registering in architecture.yaml
+      [When to use --register, manual registration]
+
+      ## Troubleshooting
+      [Common errors and solutions]
+
+      ## Best Practices
+      [Naming conventions, testing, documentation]
+    verification:
+      - file: "documentation/guides/creating-bits.md exists"
+      - quality: "Helpful for new developers"
+    notes: "Optional: Can defer if time constrained"
+
+# ============================================================================
+# PHASE 4: CLEANUP & REMOVAL
+# Priority: 4 (after Phase 3 complete)
+# Duration: 0.5 days
+# ============================================================================
+
+  - id: BL-331-401
+    title: "Remove brat service bootstrap command from CLI"
+    description: |
+      Remove command handlers for 'brat service bootstrap' from
+      tools/brat/src/cli/index.ts. Remove from help text. Remove import
+      of bootstrap module.
+    priority: 4
+    phase: 4
+    estimated_hours: 0.5
+    status: pending
+    dependencies: [BL-331-107, BL-331-301]
+    acceptance_criteria:
+      - Command handlers removed from index.ts (~lines 723-742)
+      - Import statement removed
+      - Help text updated (no reference to service bootstrap)
+      - 'brat service bootstrap' no longer works
+      - Code compiles without errors
+      - No references to removed command in index.ts
+    implementation_notes: |
+      Location: tools/brat/src/cli/index.ts
+
+      Remove:
+      1. Line 24: import { cmdServiceBootstrap } from './bootstrap';
+      2. Lines ~723-742: Both command handlers for 'service bootstrap'
+      3. Help text line referencing the command
+
+      Verify:
+      - npm run build (should succeed)
+      - brat service bootstrap (should show unknown command)
+    verification:
+      - command: "npm run build"
+        expected: "Success"
+      - command: "brat service bootstrap --name test"
+        expected: "Error: unknown command"
+
+  - id: BL-331-402
+    title: "Delete tools/brat/src/cli/bootstrap.ts"
+    description: |
+      Delete the legacy bootstrap.ts file completely.
+    priority: 4
+    phase: 4
+    estimated_hours: 0.08
+    status: pending
+    dependencies: [BL-331-401]
+    acceptance_criteria:
+      - File tools/brat/src/cli/bootstrap.ts deleted
+      - File no longer in git
+      - No compilation errors
+      - No test failures
+    implementation_notes: |
+      Commands:
+      rm tools/brat/src/cli/bootstrap.ts
+      git rm tools/brat/src/cli/bootstrap.ts
+
+      Verify:
+      npm run build
+      npm test
+    verification:
+      - command: "ls tools/brat/src/cli/bootstrap.ts"
+        expected: "No such file"
+
+  - id: BL-331-403
+    title: "Delete infrastructure/scripts/bootstrap-service.js"
+    description: |
+      Delete the legacy standalone bootstrap-service.js script.
+    priority: 4
+    phase: 4
+    estimated_hours: 0.08
+    status: pending
+    dependencies: [BL-331-401]
+    acceptance_criteria:
+      - File infrastructure/scripts/bootstrap-service.js deleted
+      - File no longer in git
+      - No broken dependencies
+    implementation_notes: |
+      Commands:
+      rm infrastructure/scripts/bootstrap-service.js
+      git rm infrastructure/scripts/bootstrap-service.js
+
+      Verify no references:
+      grep -r "bootstrap-service.js" . --exclude-dir=node_modules --exclude-dir=.git
+    verification:
+      - command: "ls infrastructure/scripts/bootstrap-service.js"
+        expected: "No such file"
+
+  - id: BL-331-404
+    title: "Delete infrastructure/scripts/bootstrap-service.test.js"
+    description: |
+      Delete the legacy bootstrap-service test file.
+    priority: 4
+    phase: 4
+    estimated_hours: 0.08
+    status: pending
+    dependencies: [BL-331-403]
+    acceptance_criteria:
+      - File infrastructure/scripts/bootstrap-service.test.js deleted
+      - File no longer in git
+      - Test suite still passes (no broken imports)
+    implementation_notes: |
+      Commands:
+      rm infrastructure/scripts/bootstrap-service.test.js
+      git rm infrastructure/scripts/bootstrap-service.test.js
+
+      Verify:
+      npm test
+    verification:
+      - command: "ls infrastructure/scripts/bootstrap-service.test.js"
+        expected: "No such file"
+      - command: "npm test"
+        expected: "All tests pass"
+
+  - id: BL-331-405
+    title: "Update CI/CD scripts for new command"
+    description: |
+      Search for and update any CI/CD configuration files that reference the
+      old bootstrap command. Update GitHub workflows, deployment scripts, etc.
+    priority: 4
+    phase: 4
+    estimated_hours: 0.5
+    status: pending
+    dependencies: [BL-331-401]
+    acceptance_criteria:
+      - All CI/CD configs searched for old command
+      - Any references updated to new command
+      - GitHub workflows updated (if any)
+      - Deployment scripts updated (if any)
+      - CI passes with new command
+    implementation_notes: |
+      Search locations:
+      - .github/workflows/*.yml
+      - infrastructure/scripts/*.sh
+      - Any deploy-*.sh files
+
+      Search command:
+      grep -r "service bootstrap" .github/ infrastructure/ --include="*.yml" --include="*.yaml" --include="*.sh"
+
+      Update any matches to use:
+      brat bit create
+
+      If no matches found, document in verification.
+    verification:
+      - search: "CI/CD files for 'service bootstrap'"
+        expected: "No matches or all updated"
+      - ci: "GitHub Actions pass (if applicable)"
+
+  - id: BL-331-406
+    title: "Update sprint templates for new command"
+    description: |
+      Check planning/ directory for sprint templates or examples that reference
+      the old bootstrap command. Update to use new command.
+    priority: 4
+    phase: 4
+    estimated_hours: 0.33
+    status: pending
+    dependencies: [BL-331-401]
+    acceptance_criteria:
+      - Sprint templates searched
+      - Any references to old command updated
+      - Future sprints will use correct command
+      - Documentation about sprint process updated if needed
+    implementation_notes: |
+      Search command:
+      grep -r "service bootstrap" planning/ --include="*.md" --include="*.yaml"
+
+      Common locations:
+      - planning/templates/ (if exists)
+      - AGENTS.md (if has examples)
+      - documentation/reference/execution-implementation-plan-template.md
+
+      Update matches to reference:
+      brat bit create
+
+      Note: Historical sprint docs (completed sprints) can remain unchanged.
+      Only update templates and active references.
+    verification:
+      - search: "Active templates for 'service bootstrap'"
+        expected: "No matches or all updated"
+
+  - id: BL-331-407
+    title: "Update CHANGELOG.md with breaking changes"
+    description: |
+      Add comprehensive entry to CHANGELOG.md documenting the breaking change,
+      removed commands, and new command introduction.
+    priority: 4
+    phase: 4
+    estimated_hours: 0.33
+    status: pending
+    dependencies: [BL-331-401, BL-331-402, BL-331-403, BL-331-404]
+    acceptance_criteria:
+      - CHANGELOG.md updated with sprint changes
+      - Breaking changes clearly marked
+      - Migration guidance provided
+      - New command documented
+      - Version number updated (if applicable)
+    implementation_notes: |
+      Location: CHANGELOG.md
+
+      Add entry (adjust version as appropriate):
+
+      ## [0.8.0] - 2026-07-03
+
+      ### BREAKING CHANGES
+      - **Removed**: `brat service bootstrap` command (replaced by `brat bit create`)
+      - **Removed**: Legacy `infrastructure/scripts/bootstrap-service.js` script
+
+      ### Added
+      - **New**: `brat bit create` command for modern Bit creation
+        - Supports `--profile` (core, gateway, llm, mcp-domain)
+        - Supports `--exposure` (platform-only, platform+domain, none)
+        - Supports `--kind` (pipeline-service, gateway, mcp-server)
+        - Supports `--register` to auto-register in architecture.yaml
+        - Comprehensive validation and error messages
+
+      ### Migration Guide
+      Old command:
+      ```bash
+      npm run brat -- service bootstrap --name my-service --mcp
+      ```
+
+      New command:
+      ```bash
+      npm run brat -- bit create my-service --profile mcp-domain --kind mcp-server
+      ```
+
+      For more details, see `CLAUDE.md` or run `npm run brat -- bit create --help`.
+
+      ### Changed
+      - Bit creation now uses modern nomenclature and comprehensive options
+      - All documentation updated to reflect new command
+    verification:
+      - file: "CHANGELOG.md updated"
+      - content: "Comprehensive and accurate"
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+summary:
+  total_backlog_items: 27
+  phase_breakdown:
+    phase_1_core_implementation:
+      item_count: 7
+      estimated_hours: 11.5
+      items: [BL-331-101, BL-331-102, BL-331-103, BL-331-104, BL-331-105, BL-331-106, BL-331-107]
+    phase_2_testing:
+      item_count: 6
+      estimated_hours: 9
+      items: [BL-331-201, BL-331-202, BL-331-203, BL-331-204, BL-331-205, BL-331-206]
+    phase_3_documentation:
+      item_count: 5
+      estimated_hours: 2.58
+      items: [BL-331-301, BL-331-302, BL-331-303, BL-331-304, BL-331-305]
+    phase_4_cleanup:
+      item_count: 7
+      estimated_hours: 1.9
+      items: [BL-331-401, BL-331-402, BL-331-403, BL-331-404, BL-331-405, BL-331-406, BL-331-407]
+
+  total_estimated_hours: 24.98
+  total_estimated_days: 2.5 # Assuming 10-hour working days
+
+  critical_path:
+    - BL-331-101 # Module structure (all depends on this)
+    - BL-331-102 # Validation (needed by registry and command)
+    - BL-331-103 # Templates (needed by command)
+    - BL-331-104 # Registry (needed by command)
+    - BL-331-105 # Command logic (orchestrates everything)
+    - BL-331-106 # Command group entry
+    - BL-331-107 # CLI integration
+    - BL-331-201-206 # Testing (all phases)
+    - BL-331-301-305 # Documentation
+    - BL-331-401-407 # Cleanup
+
+  risk_items:
+    high_risk:
+      - BL-331-104 # YAML manipulation could corrupt file
+      - BL-331-405 # CI/CD updates might break deployment
+    medium_risk:
+      - BL-331-103 # Template bugs affect generated code
+      - BL-331-105 # Command orchestration is complex
+    low_risk:
+      - BL-331-401-404 # File deletions (easy to revert)
+
+  optional_items:
+    - BL-331-305 # Comprehensive guide (nice to have)
+
+  acceptance_gates:
+    phase_1_complete:
+      - All BL-331-1xx items marked complete
+      - Command accessible via brat bit create
+      - Manual smoke test passes
+    phase_2_complete:
+      - All BL-331-2xx items marked complete
+      - Test coverage ≥ 80%
+      - All tests green
+    phase_3_complete:
+      - All BL-331-3xx items marked complete
+      - Documentation reviewed
+    phase_4_complete:
+      - All BL-331-4xx items marked complete
+      - Legacy code removed
+      - Build and tests pass
+    sprint_complete:
+      - All phases complete
+      - Validation script passes
+      - User approves deliverable

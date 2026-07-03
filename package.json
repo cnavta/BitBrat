@@ -1,6 +1,6 @@
 {
   "name": "bitbrat-platform",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/src/common/prompt-assembly/index.d.ts",
@@ -27,7 +27,6 @@
     "local:down": "npm run brat -- docker down --env local",
     "local:logs": "npm run brat -- docker logs --env local",
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
-    "bootstrap:service": "node ./infrastructure/scripts/bootstrap-service.js",
     "brat": "node dist/tools/brat/src/cli/index.js",
     "release": "node dist/tools/brat/src/cli/index.js release",
     "release:dry": "node dist/tools/brat/src/cli/index.js release --dry-run",

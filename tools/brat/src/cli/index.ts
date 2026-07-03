@@ -21,7 +21,6 @@ import { assertVpcPreconditions } from '../providers/gcp/preflight';
 import { renderAndWrite } from '../lb/urlmap';
 import { importUrlMap } from '../lb/importer';
 import { enableApis, getRequiredApis } from '../providers/gcp/apis';
-import { cmdServiceBootstrap } from './bootstrap';
 import { cmdSetup } from './setup';
 import { cmdBackup } from './backup';
 
@@ -104,7 +103,7 @@ Usage:
   brat config show [--json]
   brat config validate [--json]
 
-  brat service bootstrap --name <name> [--mcp] [--force]
+  brat bit create <name> [--profile <p>] [--exposure <e>] [--kind <k>] [--register] [--active] [--force]
 
   # The following commands REQUIRE an environment: pass --env <name> or set BITBRAT_ENV
   brat deploy services --all --env <name> [--project-id <id>] [--region <r>] [--dry-run] [--concurrency N] [--allow-no-vpc] [--image-tag <t>] [--repo <name>]
@@ -715,32 +714,6 @@ Options:
     await cmdConfigValidate(flags);
     return;
   }
-  if (c1 === 'bootstrap' && c2 === 'service') {
-    const m = parseKeyValueFlags(rest);
-    const name = m['name'] || cmd[2];
-    if (!name) {
-      console.error('Usage: brat bootstrap service <name> [--mcp] [--force]');
-      process.exit(2);
-    }
-    const force = m['force'] === 'true' || rest.includes('--force');
-    const mcp = m['mcp'] === 'true' || rest.includes('--mcp');
-
-    await cmdServiceBootstrap({ name, force, mcp }, log);
-    return;
-  }
-  if (c1 === 'service' && c2 === 'bootstrap') {
-    const m = parseKeyValueFlags(rest);
-    const name = m['name'];
-    if (!name) {
-      console.error('Usage: brat service bootstrap --name <name> [--mcp] [--force]');
-      process.exit(2);
-    }
-    const force = m['force'] === 'true' || rest.includes('--force');
-    const mcp = m['mcp'] === 'true' || rest.includes('--mcp');
-
-    await cmdServiceBootstrap({ name, force, mcp }, log);
-    return;
-  }
   if (c1 === 'deploy' && c2 === 'services') {
     requireEnv('deploy services');
     await cmdDeployServices(flags);
@@ -789,6 +762,11 @@ Options:
   if (c1 === 'chat') {
     const { cmdChat } = require('./chat');
     await cmdChat(flags);
+    return;
+  }
+  if (c1 === 'bit') {
+    const { cmdBit } = require('./bit');
+    await cmdBit(cmd, rest, flags);
     return;
   }
   if (c1 === 'fleet') {
