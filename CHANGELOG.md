@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.7.4] - 2026-07-03
+### Added
 - **`brat bit create` command for modern Bit scaffolding** (sprint-331). New `brat bit create <name> [options]`
   replaces `brat service bootstrap` with profile-aware scaffolding, MCP exposure validation, and optional
   architecture.yaml registration. Profiles (`core`, `gateway`, `llm`, `mcp-domain`) generate appropriate imports
