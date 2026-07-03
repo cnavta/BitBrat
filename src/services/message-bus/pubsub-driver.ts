@@ -16,10 +16,11 @@
  * - Do not import this file directly from business code; import via '../services/message-bus'.
  * - Pub/Sub delivers at-least-once. Your handlers must be idempotent.
  */
-import { PubSub } from '@google-cloud/pubsub';
+import { PubSub, Duration } from '@google-cloud/pubsub';
 import { logger } from '../../common/logging';
 import { counters } from '../../common/counters';
 import { normalizeAttributes } from './attributes';
+import { buildDedupeKey, dedupeShouldDrop, getDedupeTtlMs, isDedupeDisabled } from './dedupe';
 import type {
   AttributeMap,
   MessageHandler,
@@ -107,48 +108,17 @@ function getPublishTimeoutMs(): number {
 
 const ensuredTopics = new Set<string>();
 
-/** Lightweight in-memory idempotency dedupe (per-process). */
-const DEDUPE_DISABLED = String(process.env.MESSAGE_DEDUP_DISABLE || '').toLowerCase() === '1';
-function getDedupeTtlMs(): number {
-  const n = Number(process.env.MESSAGE_DEDUP_TTL_MS || '600000'); // 10 minutes default
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 600000;
-}
-function getDedupeMax(): number {
-  const n = Number(process.env.MESSAGE_DEDUP_MAX || '5000');
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 5000;
-}
-const __dedupe = {
-  map: new Map<string, number>() as Map<string, number>,
-  lastPrune: 0,
-};
-function dedupeShouldDrop(key: string, now: number): boolean {
-  const ttl = getDedupeTtlMs();
-  const max = getDedupeMax();
-  // Prune periodically or when size exceeds max
-  if (__dedupe.map.size > max || now - __dedupe.lastPrune > Math.min(ttl, 30000)) {
-    for (const [k, ts] of __dedupe.map) {
-      if (now - ts > ttl) __dedupe.map.delete(k);
-    }
-    // If still above max, drop oldest entries until at 90% of max
-    if (__dedupe.map.size > max) {
-      const target = Math.floor(max * 0.9);
-      const it = __dedupe.map.keys();
-      while (__dedupe.map.size > target) {
-        const next = it.next();
-        if (next.done) break;
-        __dedupe.map.delete(next.value);
-      }
-    }
-    __dedupe.lastPrune = now;
-  }
-  const prev = __dedupe.map.get(key);
-  if (prev && now - prev <= ttl) {
-    // Update timestamp to extend TTL window and drop
-    __dedupe.map.set(key, now);
-    return true;
-  }
-  __dedupe.map.set(key, now);
-  return false;
+/**
+ * Maximum total time (seconds) the client may keep extending a message's ack deadline (lease) while a
+ * slow handler runs. Keeping the lease alive prevents at-least-once redelivery (and the resulting
+ * duplicate egress) for slow Bits such as image-gen-mcp / llm-bot. Default 600s; 0 leaves the client
+ * library default (3600s) in place.
+ */
+function getMaxAckExtensionSeconds(): number {
+  const raw = process.env.PUBSUB_MAX_ACK_EXTENSION_SECONDS;
+  if (raw == null || raw === '') return 600;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 600;
 }
 
 function isNotFoundError(e: any): boolean {
@@ -300,10 +270,18 @@ export class PubSubSubscriber implements MessageSubscriber {
     } else {
       logger.debug('pubsub.ensure.skip', { reason: 'test_or_disabled', subscription: subName });
     }
-    const subscription = this.pubsub.subscription(subName, {
+    // Keep the message lease alive while a (possibly slow) handler runs: the client library
+    // periodically extends the ack deadline (modAck) up to maxExtensionTime. This prevents
+    // at-least-once redelivery -> duplicate egress for slow Bits (image-gen-mcp, llm-bot).
+    const maxAckExtensionSeconds = getMaxAckExtensionSeconds();
+    const subscriberOptions: any = {
       flowControl: options.maxInFlight ? { maxMessages: options.maxInFlight } : undefined,
-    });
-    logger.info('message_consumer.subscribe.ready', { driver: 'pubsub', subscription: subName });
+    };
+    if (maxAckExtensionSeconds > 0 && typeof (Duration as any)?.from === 'function') {
+      subscriberOptions.maxExtensionTime = Duration.from({ seconds: maxAckExtensionSeconds });
+    }
+    const subscription = this.pubsub.subscription(subName, subscriberOptions);
+    logger.info('message_consumer.subscribe.ready', { driver: 'pubsub', subscription: subName, maxAckExtensionSeconds });
 
     const onMessage = async (message: any) => {
       const data: Buffer = message.data as Buffer;
@@ -334,24 +312,15 @@ export class PubSubSubscriber implements MessageSubscriber {
         attrCount: Object.keys(attrs || {}).length,
       });
 
-      // Lightweight idempotency dedupe (based on idempotencyKey or correlationId attribute)
+      // Idempotency dedupe (correlationId+step+attempt, with messageId fallback). Drops a redelivery
+      // of the SAME logical message before the handler runs a second time -> exactly one egress.
       try {
-        if (!DEDUPE_DISABLED) {
-          const key = String(
-            (attrs as any).idempotencyKey ||
-            (attrs as any).IdempotencyKey ||
-            (attrs as any)['idempotency-key'] ||
-            (attrs as any)['Idempotency-Key'] ||
-            (attrs as any).correlationId ||
-            (attrs as any).CorrelationId ||
-            (attrs as any)['correlation-id'] ||
-            (attrs as any)['Correlation-Id'] ||
-            ''
-          );
+        if (!isDedupeDisabled()) {
+          const key = buildDedupeKey(attrs as any, msgId);
           if (key) {
             const now = Date.now();
             if (dedupeShouldDrop(key, now)) {
-              logger.warn('message_consumer.dedupe.drop', { driver: 'pubsub', subscription: subName, idempotencyKey: key, ttlMs: getDedupeTtlMs() });
+              logger.warn('message_consumer.dedupe.drop', { driver: 'pubsub', subscription: subName, dedupeKey: key, messageId: msgId, ttlMs: getDedupeTtlMs() });
               try { counters.increment('message_consumer.dedupe.drop'); } catch {}
               await ack();
               return;

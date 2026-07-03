@@ -1,0 +1,9 @@
+pr_url: https://github.com/cnavta/BitBrat/pull/255
+branch: feature/sprint-330-91f8ad-active-deploy-dup-fleet-restart
+base: main
+status: created
+created_at: 2026-06-29
+commit: 5a4637e
+notes: |
+  Sprint-330 deliverables. Build clean; npm test 1120 passed / 2 skipped (284/285 suites);
+  release:dry -- patch OK (0.7.3 -> 0.7.4, three version sources agree).

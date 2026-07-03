@@ -2,7 +2,7 @@ import { execCmd } from '../exec';
 import { EnvironmentResolver } from './environment-resolver';
 import { ComposeFactory } from './compose-factory';
 import { PortManager } from './port-manager';
-import { loadArchitecture } from '../../config/loader';
+import { loadArchitecture, resolveServices } from '../../config/loader';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -36,8 +36,17 @@ export class DockerOrchestrator {
   public async up(): Promise<void> {
     const { arch, targetConfig, envName } = this.prepare();
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
-    
-    const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
+
+    // Deploy must honor architecture.yaml `active`. Services marked active:false (or absent,
+    // which defaults to DISABLED) are never built/started here: on `--all` they are silently
+    // filtered out, and an explicitly named inactive service fails fast inside getComposeFiles.
+    // This mirrors the Cloud Run deploy path (selectDeployableServices) so e.g. obs-mcp with
+    // active:false is no longer deployed to local or remote docker targets.
+    const inactiveServices = Object.values(resolveServices(arch))
+      .filter((s) => !s.active)
+      .map((s) => s.name);
+
+    const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service, inactiveServices);
 
     try {
       const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
