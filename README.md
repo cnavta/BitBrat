@@ -59,7 +59,7 @@ reasoning/tool/memory planes are reused unchanged.
 
 Adding a new agent capability is a matter of adding a service, an MCP tool, or a routing rule:
 
-- **New service / MCP tool:** scaffold it with `npm run brat -- service bootstrap --name <name> [--mcp]`, then register it under `services:` in [`architecture.yaml`](./architecture.yaml). See the [`brat service bootstrap` reference](./documentation/tools/brat.md#service-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
+- **New service / MCP tool:** scaffold it with `npm run brat -- bit create <name> [--profile <p>] [--exposure <e>] [--register]`. Profiles: `core`, `gateway`, `llm`, `mcp-domain`. Use `--register` to auto-add to [`architecture.yaml`](./architecture.yaml). See the [`brat bit create` reference](./documentation/tools/brat.md#bit-lifecycle-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
 - **New rule / behavior:** add a JsonLogic rule following [Event Router & Rules](./documentation/concepts/event-router-rules.md).
 - **Agent-assisted contributors:** BitBrat ships a machine-readable collaboration protocol in **[AGENTS.md](./AGENTS.md)** (a `Plan → Approve → Implement → Validate → Verify → Publish → Retro` sprint workflow) and treats [`architecture.yaml`](./architecture.yaml) as the canonical source of truth. Start there before making changes.
 
@@ -329,8 +329,14 @@ npm run brat -- <command> [options]
 - `brat docker logs --env local`: Tail local logs (aliased as `npm run local:logs`).
 - `brat docker down --env local`: Stop the local stack (aliased as `npm run local:down`).
 
-#### Service Management
-- `brat service bootstrap --name <name> [--mcp] [--force]`: Scaffold a new **Bit** from a template. Every Bit serves the universal `bit.*` control plane; use `--mcp` to also scaffold domain tools (`mcp.exposure: platform+domain`).
+#### Bit Lifecycle Management
+- `brat bit create <name> [options]`: Create a new **Bit** with profile-aware scaffolding. Every Bit serves the universal `bit.*` control plane.
+  - `--profile <p>`: core | gateway | llm | mcp-domain (default: core)
+  - `--exposure <e>`: platform-only | platform+domain | none (default: platform-only)
+  - `--kind <k>`: pipeline-service | gateway | mcp-server (default: pipeline-service)
+  - `--register`: Auto-register in architecture.yaml
+  - `--active`: Mark as active (deployable)
+  - `--force`: Overwrite existing files
 
 #### Deployment
 - `brat deploy services --all`: Deploy all services defined in `architecture.yaml`.
