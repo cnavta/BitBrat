@@ -1,0 +1,58 @@
+id: sprint-332-reflex
+title: "Reflex Bit: Deterministic Event Orchestration"
+goal: >
+  Develop the Reflex bit to handle simple, deterministic event-driven behaviors with minimal latency
+  and cost. Position reflex immediately after auth in the analysis stage to intercept patterns before
+  expensive LLM analysis. Enable fast pattern matching (regex, exact, contains, etc.) and orchestrate
+  single MCP tool invocations with templated parameters. Provide MCP tools for LLM-driven reflex
+  management.
+owner: "Lead Implementor"
+createdAt: "2026-07-03T21:30:00Z"
+startedAt: "2026-07-04"
+status: "in-progress"
+links:
+  pr: "" # Will be populated during publication phase
+  branch: "feature/sprint-332-reflex-deterministic-orchestration"
+notes: |
+  Sprint Scope:
+  - Reflex bit already exists as skeleton (created in sprint-331)
+  - Current: mcp-domain profile, platform+domain exposure, analyze stage
+  - Goal: Fast (<150ms p99) deterministic pattern matching and orchestration
+
+  Key Requirements:
+  1. Position: After auth, before query-analyzer in analysis stage
+  2. Matching: 5 types (exact, contains, regex, prefix, suffix) + conditions
+  3. Orchestration: Single MCP tool call with {{field}} template interpolation
+  4. Storage: Firestore 'reflexes' collection with real-time cache sync
+  5. Management: MCP tools (reflex.create, list, update, delete, test)
+  6. Error Handling: Never block event flow, always pass through
+
+  Reference Use Case:
+  - Chat message "!fail" → obs.set_source_visibility(FailOverlay, visible=true)
+  - Replaces expensive LLM call with <150ms deterministic execution
+
+  Phase 1 Limitations (accepted):
+  - Single tool invocation only (no multi-tool chains)
+  - Simple AND conditions only (no OR logic or JsonLogic)
+  - No state management (stateless reflexes)
+  - No scripting/DSL
+
+  Future Phases:
+  - Phase 2: Multi-tool chains
+  - Phase 3: Scripting/DSL support
+  - Phase 4: State management (cooldowns, rate limits)
+
+  Technical Architecture:
+  - Document: planning/sprint-332-reflex/technical-architecture.md
+  - Comprehensive 40+ page architecture covering all aspects
+  - Includes data model, matching engine, orchestration, integration, testing
+
+  This sprint follows AGENTS.md protocol v2.5.
+
+  Implementation Planning (Completed 2026-07-04):
+  - Implementation Plan: planning/sprint-332-reflex/implementation-plan.md
+  - Backlog: planning/sprint-332-reflex/backlog.yaml (56 tasks, ~94 hours)
+  - Status: Ready to begin implementation
+
+  Current Phase: Phase 1 - Core Foundation
+  Next: Begin BL-332-001 (Define Reflex TypeScript interfaces)
