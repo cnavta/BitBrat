@@ -36,5 +36,14 @@ service cloud.firestore {
       allow read: if true; // For auditability
       allow write: if false; // All writes MUST go through State Engine (Admin SDK)
     }
+
+    // Sprint 332: Reflex Bit
+    // Reflexes are pattern-action rules for deterministic event handling
+    match /reflexes/{doc} {
+      allow read: if true; // Reflex service needs read access via Admin SDK
+      allow write: if false; // All writes MUST go through Reflex MCP tools (Admin SDK)
+      // Production: In production, restrict client read access or use Admin SDK exclusively
+      // Production: MCP tools use Admin SDK with service account credentials
+    }
   }
 }

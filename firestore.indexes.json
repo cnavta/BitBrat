@@ -16,6 +16,14 @@
         { "fieldPath": "active", "order": "ASCENDING" },
         { "fieldPath": "trigger.type", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "reflexes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "priority", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
