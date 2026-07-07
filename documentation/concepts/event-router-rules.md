@@ -4,12 +4,26 @@ The **Event Router** is the heart of the BitBrat Platform's event orchestration.
 
 ## 1. Role of the Event Router
 
-When an event (e.g., a Twitch chat message, a subscription, or a webhook) enters the platform via the `ingress-egress` service, it is published to the `internal.ingress.v1` topic. 
+When an event (e.g., a Twitch chat message, a subscription, or a webhook) enters the platform via the `ingress-egress` service, it is published to the `internal.ingress.v1` topic.
 
 The Event Router consumes these events and:
 1.  **Matches**: Runs the event data through all enabled rules.
 2.  **Enriches**: Adds metadata, annotations, or response candidates to the event.
-3.  **Routes**: Assigns a `routingSlip`—a sequence of topics the event must visit (e.g., LLM Bot, State Engine).
+3.  **Routes**: Assigns a `routingSlip`—a sequence of topics the event must visit (e.g., Reflex, LLM Bot, State Engine).
+
+### Dual Execution Paths
+
+The Event Router orchestrates two distinct execution paths in the Act stage:
+
+- **Deterministic Path (Reflex)**: Routes to `internal.reflex.v1` for pattern-match execution (<150ms, no LLM overhead)
+  - Use for repeated, predictable behaviors (chat commands, simple automations)
+  - Reflex matches stored definitions and directly executes MCP tools
+
+- **LLM-Based Path**: Routes to `internal.llmbot.v1` or `internal.query.analysis.v1` for AI reasoning (2-10s)
+  - Use for novel situations, complex reasoning, creative responses
+  - LLM selects and calls tools via full inference
+
+Rules determine which path (or both) an event takes by specifying routing slip topics. See [Platform Flow Overview](./platform-flow.md) for details on dual paths.
 
 ## 2. Rule Format
 

@@ -30,9 +30,9 @@ If you are evaluating BitBrat as an **AI agent framework**, this is where "the a
 
 | Agent-loop stage | BitBrat realization | Service(s) |
 |---|---|---|
-| **Perceive** (ingest) | Normalize external events into an internal `Envelope v1` | `ingress-egress` |
-| **Plan** (decide) | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** describing the remaining steps | `event-router` (+ routing slip) |
-| **Act** (reason & use tools) | Run LLM reasoning and call tools via the Model Context Protocol (MCP) | `llm-bot`, `query-analyzer`, `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`) |
+| **Perceive** (ingest) | Normalize external events into an internal `Envelope v1` | `ingress-egress`, `api-gateway` |
+| **Plan** (decide) | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** describing the remaining steps | `event-router` (+ routing slip), `auth` |
+| **Act** (reason & use tools) | Run LLM reasoning OR deterministic pattern-match execution, call tools via the Model Context Protocol (MCP) | `llm-bot`, `query-analyzer`, **`reflex`**, `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`) |
 | **Observe / Memory** | Persist state, selections, and short-term behavior for auditing and long-term memory | `persistence`, `state-engine`, `disposition-service` |
 
 The **routing slip** is BitBrat's plan representation: an ordered, self-describing list of steps that
@@ -59,7 +59,10 @@ reasoning/tool/memory planes are reused unchanged.
 
 Adding a new agent capability is a matter of adding a service, an MCP tool, or a routing rule:
 
-- **New service / MCP tool:** scaffold it with `npm run brat -- bit create <name> [--profile <p>] [--exposure <e>] [--register]`. Profiles: `core`, `gateway`, `llm`, `mcp-domain`. Use `--register` to auto-add to [`architecture.yaml`](./architecture.yaml). See the [`brat bit create` reference](./documentation/tools/brat.md#bit-lifecycle-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
+- **New service / MCP tool:** scaffold it with `npm run brat -- bit create <name> [--profile <p>] [--category <c>] [--exposure <e>] [--register]`.
+  - **Profiles**: `core`, `gateway`, `llm`, `mcp-server`
+  - **Categories**: `platform` (core orchestration) or `domain` (optional extensions)
+  - Use `--register` to auto-add to [`architecture.yaml`](./architecture.yaml). See the [`brat bit create` reference](./documentation/tools/brat.md#bit-lifecycle-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
 - **New rule / behavior:** add a JsonLogic rule following [Event Router & Rules](./documentation/concepts/event-router-rules.md).
 - **Agent-assisted contributors:** BitBrat ships a machine-readable collaboration protocol in **[AGENTS.md](./AGENTS.md)** (a `Plan → Approve → Implement → Validate → Verify → Publish → Retro` sprint workflow) and treats [`architecture.yaml`](./architecture.yaml) as the canonical source of truth. Start there before making changes.
 
@@ -102,16 +105,35 @@ For the canonical system definition, see [architecture.yaml](./architecture.yaml
 
 Under the **[Bit model](./documentation/concepts/bit-model.md)**, every service is a **Bit** built on a
 single base abstraction. Each Bit always serves a universal [`bit.*` control plane](./documentation/reference/bit-control-plane.md)
-(the Platform Ring) that Brat administers uniformly, and composes optional capability
+(the Platform Ring) that Brat administers uniformly, and has a `category` (**platform** or **domain**), composes optional capability
 [profiles](./documentation/concepts/capability-profiles.md) (`profile:`) and an `mcp.exposure:` level
-declared in [`architecture.yaml`](./architecture.yaml). The platform consists of several core Bits:
+declared in [`architecture.yaml`](./architecture.yaml).
 
-- **Ingress-Egress**: The gateway for external platforms. Normalizes inbound events and delivers outbound responses.
-- **Auth Service**: Handles user enrichment (roles, tags, `displayName`) and authorization during the analysis stage.
-- **Event Router**: Matches incoming events against rules, attaches a routing slip, and advances events through the platform.
-- **LLM Bot**: The brain of the platform, processing events using LLMs and MCP tools.
-- **Persistence**: Ensures events and states are stored reliably for auditing and long-term memory.
-- **Scheduler**: Manages periodic tasks and ticks.
+### Platform Bits (Core Orchestration)
+
+The **Platform Bits** form the essential **perceive → plan → act → observe** agent loop and cannot be removed without breaking core orchestration:
+
+- **ingress-egress** & **api-gateway**: Perceive & Observe — normalize external events, deliver responses
+- **event-router**: Plan — matches rules, attaches routing slips, orchestrates flow
+- **auth**: Plan — enriches events with user identity and roles
+- **llm-bot**: Act — LLM-based reasoning and tool selection (2-10s, higher cost)
+- **query-analyzer**: Act — fast pre-analysis for routing hints
+- **reflex**: Act — deterministic pattern-match execution (<150ms, low cost)
+- **tool-gateway**: Act — MCP tool fabric proxy and RBAC enforcement
+- **state-engine**: Observe — persistent state mutations
+- **persistence**: Observe — durable event audit trail
+- **disposition-service**: Observe — short-term user behavior pattern analysis
+
+### Domain Bits (Optional Extensions)
+
+The **Domain Bits** extend the platform with optional, domain-specific capabilities:
+
+- **obs-mcp**: OBS Studio control tools (streaming)
+- **image-gen-mcp**: DALL-E image generation (creative)
+- **story-engine-mcp**: Collaborative storytelling tools (narrative)
+- **stream-analyst**: Stream analytics and summarization
+- **scheduler**: Periodic task scheduling
+- **oauth-flow**: OAuth2 authentication flows
 
 For a detailed view, see [architecture.yaml](./architecture.yaml) and the [Platform Flow Overview](./documentation/concepts/platform-flow.md).
 A standalone diagram asset is also available at [`assets/architecture-overview.md`](./assets/architecture-overview.md).
@@ -128,24 +150,35 @@ flowchart LR
 
   IE -->|internal.ingress.v1| ER["event-router<br/>+ routing slip"]
   ER --> AU[auth]
-  ER -->|analysis| LB[llm-bot]
-  ER -->|analysis| QA[query-analyzer]
-  LB <--> TG[tool-gateway]
+
+  subgraph Act["Act (Dual Paths)"]
+    ER -->|deterministic<br/>&lt;150ms| RFX[reflex]
+    ER -->|LLM-based<br/>2-10s| LB[llm-bot]
+    ER -->|analysis| QA[query-analyzer]
+    LB <--> TG[tool-gateway]
+    RFX <--> TG
+  end
+
   TG <--> MCP["MCP servers<br/>obs / image-gen / story-engine"]
   ER -->|reaction| SE[state-engine]
   ER -->|reaction| DS[disposition-service]
   ER -->|internal.egress.v1| IE
   LB -.-> PE[persistence]
+  RFX -.-> PE
   SE -.-> PE
   PE --> FS[(Firestore)]
 
   classDef store fill:#eef,stroke:#669;
+  classDef platform fill:#e8f5e9,stroke:#4caf50;
+  classDef domain fill:#fff3e0,stroke:#ff9800;
   class FS store;
+  class IE,ER,AU,LB,QA,RFX,TG,SE,DS,PE platform;
+  class MCP domain;
 ```
 
 *Perceive → plan → act → observe: `ingress-egress` ingests, `event-router` plans via the routing slip,
-`llm-bot`/`query-analyzer` + `tool-gateway`/MCP act, and `state-engine`/`disposition-service`/`persistence`
-observe & remember (in Firestore).*
+dual act paths (`reflex` for deterministic <150ms patterns, `llm-bot`/`query-analyzer` for LLM reasoning) + `tool-gateway`/MCP, and `state-engine`/`disposition-service`/`persistence`
+observe & remember (in Firestore). **Green = Platform Bits, Orange = Domain Bits.***
 
 ### Capabilities Matrix
 

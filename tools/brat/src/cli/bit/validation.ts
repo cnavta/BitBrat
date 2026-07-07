@@ -35,10 +35,10 @@ export function validateBitName(name: string): ValidationResult {
 export function validateProfileExposure(profile: string, exposure: string): ValidationResult {
   const errors: string[] = [];
 
-  // Profile: mcp-domain MUST use exposure: platform+domain
-  if (profile === 'mcp-domain' && exposure !== 'platform+domain') {
+  // Profile: mcp-server MUST use exposure: platform+domain
+  if (profile === 'mcp-server' && exposure !== 'platform+domain') {
     errors.push(
-      `Profile 'mcp-domain' requires exposure 'platform+domain'. You specified '${exposure}'.`
+      `Profile 'mcp-server' requires exposure 'platform+domain'. You specified '${exposure}'.`
     );
   }
 

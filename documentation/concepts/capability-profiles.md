@@ -9,6 +9,19 @@ bundles. A Bit **composes** profiles rather than deepening an inheritance tree, 
 rings it needs (e.g. LLM + eventing + MCP-client) without diamond problems. This is
 composition-over-inheritance (ADR-002), idiomatic for TypeScript.
 
+## Profile vs Category
+
+**Important distinction:**
+- **`profile:`** describes *technical capabilities* (what the Bit can do) — `core`, `llm`, `mcp-server`, `gateway`
+- **`category:`** describes *architectural role* (platform vs domain) — `platform` (core orchestration) or `domain` (optional extensions)
+
+Both Platform Bits and Domain Bits can have any profile. For example:
+- `reflex`: `category: platform`, `profile: mcp-server` (Platform Bit serving MCP tools)
+- `obs-mcp`: `category: domain`, `profile: mcp-server` (Domain Bit serving MCP tools)
+- `llm-bot`: `category: platform`, `profile: llm` (Platform Bit with LLM capabilities)
+
+See [Choosing Platform vs Domain](../guides/choosing-platform-vs-domain.md) for the decision framework.
+
 ## Composition with `applyProfiles`
 
 Profiles are applied to a Bit subclass as a class-level decoration (no new inheritance depth). At
@@ -51,9 +64,9 @@ runtime capability can never diverge.
 
 | `profile:` value | Composed capabilities | Representative Bits |
 |---|---|---|
-| `core` (default) | Platform Ring only (no extra mixins required) | `persistence`, `disposition`, a Hello-World Bit |
+| `core` (default) | Platform Ring only (no extra mixins required) | `persistence`, `disposition-service`, a Hello-World Bit |
 | `llm` | `EventingProfile` + `LlmProfile` + `McpClientProfile` (the `llm` mixin is **required**) | `llm-bot`, `query-analyzer`, `stream-analyst` |
-| `mcp-domain` | `EventingProfile` + `ResourcesProfile` (+ domain tools) | `obs-mcp`, `image-gen-mcp`, `story-engine-mcp`, `state-engine` |
+| `mcp-server` | `EventingProfile` + `ResourcesProfile` (+ domain tools; exposure: `platform+domain` required) | `reflex`, `obs-mcp`, `image-gen-mcp`, `story-engine-mcp`, `state-engine`, `scheduler` |
 | `gateway` | `McpClientProfile` + fabric/aggregation | `api-gateway`, `tool-gateway`, `event-router`, `ingress-egress` |
 
 > **Enforcement detail.** Only `profile: llm` currently *requires* a specific mixin (`llm`). The other

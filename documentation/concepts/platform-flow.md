@@ -12,17 +12,25 @@ graph LR
     B -->|Routing Slip| C{Analysis/Enrichment}
     C -->|internal.enriched.v1| B
     B -->|internal.egress.v1| D[Egress]
-    
-    subgraph Analysis Services
-    C --- LLM[LLM Bot]
+
+    subgraph Analysis Services - Dual Paths
+    C --- RFX[Reflex - Deterministic <150ms]
+    C --- LLM[LLM Bot - AI 2-10s]
     C --- QA[Query Analyzer]
     end
-    
+
     subgraph Reactive Services
     B -.-> SE[State Engine]
     B -.-> DS[Disposition Svc]
     end
+
+    RFX & LLM <-.-> TG[Tool Gateway]
+    TG <-.-> MCP[MCP Servers]
 ```
+
+**Key Insight:** BitBrat offers **two execution paths** in the Act stage:
+- **Deterministic Path** (Reflex): Pattern-match and execute MCP tools in <150ms, no LLM overhead
+- **LLM-Based Path**: Full AI reasoning with tool selection, 2-10 seconds, higher capability and cost
 
 ## 2. Stage-by-Stage Breakdown
 
@@ -34,11 +42,27 @@ The **Event Router** consumes the ingress event. It evaluates the event against 
 - If no rules match, the event may be ignored or just persisted for logs.
 - If a rule matches, a **Routing Slip** is attached to the event.
 
-### Stage 3: Analysis & Enrichment (Optional)
-If the routing slip includes an analysis step (e.g., sending the event to the **LLM Bot**), the Event Router publishes the event to the specified topic (e.g., `internal.llmbot.v1`).
-- The analysis service processes the event (e.g., generates a response using AI).
-- The result is published back to `internal.enriched.v1`.
-- The Event Router picks it up again to determine the next step in the routing slip.
+### Stage 3: Analysis & Enrichment (Optional) — Dual Execution Paths
+
+BitBrat offers **two paths** for the Act stage, chosen based on routing rules:
+
+#### Path A: Deterministic (Reflex)
+If the routing slip includes a reflex step, the Event Router publishes to `internal.reflex.v1`:
+- **Reflex service** pattern-matches the event against stored reflex definitions
+- On match, directly executes MCP tools via `tool-gateway` (no LLM inference)
+- **Performance**: <150ms end-to-end, low cost
+- **Use case**: Repeated, predictable behaviors (chat commands, simple automations)
+- Publishes results to `internal.reflex.executed.v1` (success) or `internal.reflex.failed.v1` (errors)
+
+#### Path B: LLM-Based (Traditional)
+If the routing slip includes an LLM analysis step, the Event Router publishes to `internal.llmbot.v1` or `internal.query.analysis.v1`:
+- **LLM Bot** or **Query Analyzer** processes the event using AI reasoning
+- The LLM selects and calls tools via `tool-gateway`
+- **Performance**: 2-10 seconds, higher cost
+- **Use case**: Novel situations, complex reasoning, creative responses
+- Publishes results back to `internal.enriched.v1`
+
+Both paths share the same infrastructure (ingress, router, tool-gateway, persistence) but differ in the analysis mechanism. The Event Router picks up the results and advances the routing slip.
 
 ### Stage 4: Reaction
 Once enrichment is complete, the Event Router continues the routing slip. This often involves notifying reactive services:

@@ -88,8 +88,8 @@ export async function cmdBitCreate(
   // Auto-default exposure based on profile if not explicitly provided
   let exposure = parsedFlags.exposure;
   if (!exposure) {
-    // mcp-domain MUST use platform+domain
-    exposure = profile === 'mcp-domain' ? 'platform+domain' : 'platform-only';
+    // mcp-server MUST use platform+domain
+    exposure = profile === 'mcp-server' ? 'platform+domain' : 'platform-only';
   }
   const stage = parsedFlags.stage;
   const port = parseInt(parsedFlags.port || '3000', 10);
@@ -122,7 +122,7 @@ export async function cmdBitCreate(
     console.error('  - core: platform-only | none');
     console.error('  - gateway: platform-only | platform+domain | none');
     console.error('  - llm: platform-only | none');
-    console.error('  - mcp-domain: platform+domain (required)');
+    console.error('  - mcp-server: platform+domain (required)');
     console.error('');
     process.exit(2);
   }
@@ -234,7 +234,7 @@ Options:
                         Options: pipeline-service | gateway | mcp-server
 
   --profile <p>         Capability profile (default: core)
-                        Options: core | gateway | llm | mcp-domain
+                        Options: core | gateway | llm | mcp-server
 
   --exposure <e>        MCP exposure (default: platform-only)
                         Options: platform-only | platform+domain | none
@@ -264,7 +264,7 @@ Examples:
   brat bit create api-gateway --profile gateway --exposure platform+domain --kind gateway
 
   # Create an MCP tool server
-  brat bit create custom-tools --profile mcp-domain --kind mcp-server
+  brat bit create custom-tools --profile mcp-server --kind mcp-server
 
   # Create and register in one step
   brat bit create my-service --register --active
@@ -273,7 +273,7 @@ Profile/Exposure Compatibility:
   core       → platform-only | none
   gateway    → platform-only | platform+domain | none
   llm        → platform-only | none
-  mcp-domain → platform+domain (required)
+  mcp-server → platform+domain (required)
 
 For more information, see CLAUDE.md or documentation/tools/brat.md
 `);
