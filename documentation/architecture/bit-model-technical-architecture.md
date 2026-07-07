@@ -212,7 +212,10 @@ Per `AGENTS.md` precedence, `architecture.yaml` wins, so the Bit model must **ex
 ### 6.1 Proposed canonical changes
 
 1. **Re-intent, don't rename the key.** Treat the `services:` section as conceptually "Bits" but keep the YAML key `services:` for back-compat (avoids a breaking parse change against `documentation/schemas/architecture.v1.json` and `npm run brat -- config validate`). Document the alias in `llm_guidance.glossary` (a `bit:` entry alongside the existing `brat:` entry).
-2. **Add an optional `profile:` field per Bit:** one of `[core | llm | mcp-domain | gateway]`. This replaces the implicit `extends BaseServer` / `extends McpServer` choice with *declarative intent* in the canonical file. Absent ⇒ `core`.
+2. **Add optional `category:` and `profile:` fields per Bit:**
+   - `category:` one of `[platform | domain]` — architectural role (core orchestration vs optional extension)
+   - `profile:` one of `[core | llm | mcp-server | gateway]` — capability intent (which mixins the Bit composes)
+   This replaces the implicit `extends BaseServer` / `extends McpServer` choice with *declarative intent* in the canonical file. Absent ⇒ `core`.
 3. **Make MCP capability implicit for every Bit.** `MCP_AUTH_TOKEN` becomes a *default* secret (most Bits already list it) rather than per-service boilerplate, with an `mcp.exposure` knob: `[platform-only | platform+domain]` (Hello-World = `platform-only`).
 4. **Surface the conflict explicitly (mandatory).** See §6.3 — this is a real behavioral change that must be justified in `architecture.yaml` *before* implementation, not silently introduced.
 
@@ -222,13 +225,21 @@ Per `AGENTS.md` precedence, `architecture.yaml` wins, so the Bit model must **ex
 services:                 # canonical key retained; conceptually "Bits"
   hello-bit:
     description: "Minimal logging Bit"
-    profile: core         # [core | llm | mcp-domain | gateway]; default core
+    category: platform    # [platform | domain]; architectural role
+    profile: core         # [core | llm | mcp-server | gateway]; default core
     mcp:
       exposure: platform-only   # [platform-only | platform+domain]
     # MCP_AUTH_TOKEN now a platform default secret, not per-service boilerplate
 
   llm-bot:
+    category: platform    # core act stage
     profile: llm          # composes LlmProfile + EventingProfile + McpClientProfile
+    mcp:
+      exposure: platform-only
+
+  reflex:
+    category: platform    # deterministic act stage
+    profile: mcp-server   # serves domain tools
     mcp:
       exposure: platform+domain
 ```
@@ -345,9 +356,9 @@ Aligns with the project-wide DoD in `AGENTS.md` §3. This is a planning/design a
 
 | `profile:` value | Composed mixins | Representative Bits |
 |---|---|---|
-| `core` | (Platform Ring only) | `persistence`, `disposition`, `hello-bit` |
+| `core` | (Platform Ring only) | `persistence`, `disposition-service`, `hello-bit` |
 | `llm` | `EventingProfile` + `LlmProfile` + `McpClientProfile` | `llm-bot`, `query-analyzer`, `stream-analyst` |
-| `mcp-domain` | `EventingProfile` + `ResourcesProfile` (+ domain tools) | `obs-mcp`, `image-gen-mcp`, `story-engine-mcp`, `state-engine` |
+| `mcp-server` | `EventingProfile` + `ResourcesProfile` (+ domain tools; exposure: `platform+domain` required) | `reflex`, `obs-mcp`, `image-gen-mcp`, `story-engine-mcp`, `state-engine`, `scheduler` |
 | `gateway` | `McpClientProfile` + fabric/aggregation | `api-gateway`, `tool-gateway`, `event-router`, `ingress-egress` |
 
 > The mapping is the contract between the canonical `profile:` declaration and the code-side composition; it is enforced at `Bit` bootstrap so declared intent and runtime capability can never diverge.

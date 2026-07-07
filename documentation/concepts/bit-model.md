@@ -71,19 +71,35 @@ accordingly.
 services:                 # canonical key retained; each entry is conceptually a "Bit"
   hello-bit:
     description: "Minimal logging Bit"
-    profile: core              # [core | llm | mcp-domain | gateway]; default: core
+    category: platform         # [platform | domain]; architectural role
+    profile: core              # [core | llm | mcp-server | gateway]; default: core
     mcp:
       exposure: platform-only  # [platform-only | platform+domain]; default: platform-only
 
   llm-bot:
+    category: platform
     profile: llm               # composes the LLM capability mixins
     mcp:
       exposure: platform-only
+
+  reflex:
+    category: platform         # deterministic act stage
+    profile: mcp-server        # serves MCP tools
+    mcp:
+      exposure: platform+domain
 ```
+
+### `category:` — architectural role
+
+`category:` is either `platform` or `domain`. It declares the Bit's architectural role:
+- **`platform`** — Core agent orchestration (perceive → plan → act → observe). Cannot be removed without breaking the agent loop.
+- **`domain`** — Optional extension providing domain-specific capabilities. Can be removed; agent still functions.
+
+See [Choosing Platform vs Domain](../guides/choosing-platform-vs-domain.md) for the decision framework.
 
 ### `profile:` — capability intent
 
-`profile:` is one of `core`, `llm`, `mcp-domain`, or `gateway`. It declares which Capability-Ring
+`profile:` is one of `core`, `llm`, `mcp-server`, or `gateway`. It declares which Capability-Ring
 mixins the Bit composes. Absent ⇒ `core` (Platform Ring only). The declared profile is enforced against
 the code's composition at Bit bootstrap, so declared intent can never silently diverge from runtime
 capability. See [Capability Profiles](./capability-profiles.md) for the `profile:` → mixin mapping.
