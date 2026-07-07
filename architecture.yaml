@@ -27,9 +27,17 @@ llm_guidance:
     bit: >-
       A platform service unit under the Bit model. Every Bit speaks MCP, exposing a mandatory bit.* control plane (the
       Platform Ring) that Brat administers fleet-wide. The YAML services key is retained for back-compat (each service
-      entry is conceptually a Bit). A Bit's optional profile declares its capability mixins (core, llm, mcp-domain,
+      entry is conceptually a Bit). A Bit's optional profile declares its capability mixins (core, llm, mcp-server,
       gateway) and mcp.exposure controls whether it serves only the platform control plane (platform-only, the default)
       or also its domain tools (platform+domain). See documentation/architecture/bit-model-technical-architecture.md.
+    platform_bit: >-
+      A Bit that forms part of the core agent orchestration loop (perceive → plan → act → observe). Platform Bits are
+      required for the minimal viable agent and provide infrastructure other Bits depend on. Examples: ingress-egress,
+      event-router, llm-bot, reflex, tool-gateway, persistence.
+    domain_bit: >-
+      A Bit that extends the platform with optional, domain-specific capabilities or tools. Domain Bits can be removed
+      without breaking core orchestration. Examples: obs-mcp (OBS control), image-gen-mcp (image generation),
+      story-engine-mcp (storytelling), scheduler (periodic tasks).
   invariants:
     - Never import from or depend on ./deprecated in deliverables.
     - Every message must carry a correlationId (see messaging.envelope.required).
@@ -409,11 +417,12 @@ extension_points:
     deploys. See references.* and documentation/tools/brat.md.
   add_service:
     summary: Scaffold and register a new Bit service.
-    cli: brat bit create <name> [--profile <p>] [--exposure <e>] [--register]
+    cli: brat bit create <name> [--profile <p>] [--exposure <e>] [--category <c>] [--register]
     steps:
       - Run the CLI to scaffold src/apps/<name>-service.ts, test, Dockerfile, and docker-compose config.
-      - Use --register to auto-add to architecture.yaml, or manually register under `services:` (set active: true; choose profile:, mcp.exposure:, kind:, stage:, env:, secrets:).
-      - Profile options: core, gateway, llm, mcp-domain (each scaffolds appropriate imports/setup).
+      - Use --register to auto-add to architecture.yaml, or manually register under `services:` (set active: true; choose category:, profile:, mcp.exposure:, kind:, stage:, env:, secrets:).
+      - Profile options: core, gateway, llm, mcp-server (each scaffolds appropriate imports/setup).
+      - Category options: platform (core orchestration), domain (optional extensions).
       - Generates per-service Dockerfile.<name> and docker-compose service definition.
     files_changed:
       - architecture.yaml
@@ -423,12 +432,14 @@ extension_points:
       - infrastructure/docker-compose/services/<name>.compose.yaml
   add_mcp_tool:
     summary: Scaffold and register an MCP tool server.
-    cli: brat bit create <name> --profile mcp-domain [--register]
+    cli: brat bit create <name> --profile mcp-server [--category domain] [--register]
     steps:
       - >-
-        Run the CLI with --profile mcp-domain to scaffold an MCP server (automatically sets exposure to
+        Run the CLI with --profile mcp-server to scaffold an MCP server (automatically sets exposure to
         platform+domain).
-      - Use --register to auto-add to architecture.yaml with kind: mcp-server, or manually register; it is proxied/secured by tool-gateway.
+      - >-
+        Use --register to auto-add to architecture.yaml with kind: mcp-server, category: domain (typically), or
+        manually register; it is proxied/secured by tool-gateway.
       - Template includes registerTool() examples and zod imports.
       - Existing examples: obs-mcp (Dockerfile.obs-mcp), image-gen-mcp, story-engine-mcp.
     files_changed:
@@ -451,6 +462,7 @@ extension_points:
 defaults:
   services:
     active: false
+    category: platform  # platform | domain - see llm_guidance.glossary.platform_bit and domain_bit
     implementation: cloud-run
     runtime:
       node: 24.x
@@ -466,9 +478,9 @@ defaults:
         enabled: false
         sampler_ratio: 0.1
     port: 3000
-    profile: core
+    profile: core  # core | gateway | llm | mcp-server - capability mixin (see llm_guidance.glossary.bit)
     mcp:
-      exposure: platform-only
+      exposure: platform-only  # platform-only | platform+domain | none
     build:
       dockerfile: Dockerfile.service
       source_of_truth: architecture.yaml
@@ -496,6 +508,7 @@ defaults:
       - BUS_PREFIX
 services:
   oauth-flow:
+    category: domain  # OAuth flows are optional; core auth is handled by auth service
     profile: gateway
     mcp:
       exposure: platform-only
@@ -524,6 +537,7 @@ services:
       - DISCORD_OAUTH_PERMISSIONS
       - TWITCH_OAUTH_SCOPES
   ingress-egress:
+    category: platform  # Core perceive/observe stage; required for agent loop
     profile: gateway
     mcp:
       exposure: platform-only
@@ -577,6 +591,7 @@ services:
       - TWILIO_ENABLED
       - K_REVISION
   auth:
+    category: platform  # Core plan stage; enriches events with identity/roles
     profile: gateway
     mcp:
       exposure: platform+domain
@@ -594,6 +609,7 @@ services:
       - TWITCH_CLIENT_SECRET
       - MCP_AUTH_TOKEN
   query-analyzer:
+    category: platform  # Core act stage; fast pre-analysis for routing
     profile: llm
     mcp:
       exposure: platform-only
@@ -613,6 +629,7 @@ services:
     secrets:
       - OPENAI_API_KEY
   event-router:
+    category: platform  # Core plan stage; orchestrates routing slip-driven flow
     profile: gateway
     mcp:
       exposure: platform+domain
@@ -629,6 +646,7 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
   llm-bot:
+    category: platform  # Core act stage; LLM-based reasoning and tool selection
     profile: llm
     mcp:
       exposure: platform-only
@@ -664,6 +682,7 @@ services:
       - LLM_BOT_INSTANCE_MEM_MAX_CHARS
       - LLM_BOT_INSTANCE_MEM_TTL_MS
   persistence:
+    category: platform  # Core observe stage; durable event audit trail
     profile: core
     mcp:
       exposure: platform-only
@@ -687,7 +706,8 @@ services:
       - PERSISTENCE_MAX_SNAPSHOT_BYTES
       - PERSISTENCE_TTL_DAYS
   obs-mcp:
-    profile: mcp-domain
+    category: domain  # Optional OBS Studio control tools
+    profile: mcp-server
     mcp:
       exposure: platform+domain
       requiredRoles:
@@ -707,7 +727,8 @@ services:
       - OBS_WEBSOCKET_PASSWORD
       - MCP_AUTH_TOKEN
   scheduler:
-    profile: mcp-domain
+    category: domain  # Optional periodic task scheduling
+    profile: mcp-server
     mcp:
       exposure: platform+domain
     active: true
@@ -724,6 +745,7 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
   api-gateway:
+    category: platform  # Core perceive/observe stage; HTTP/WebSocket ingress/egress
     profile: gateway
     mcp:
       exposure: platform+domain
@@ -751,7 +773,8 @@ services:
       - PERSISTENCE_TTL_DAYS
       - API_GATEWAY_ALLOW_ANONYMOUS_WS
   state-engine:
-    profile: mcp-domain
+    category: platform  # Core observe stage; persistent state mutations
+    profile: mcp-server
     mcp:
       exposure: platform+domain
     active: true
@@ -767,6 +790,7 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
   disposition-service:
+    category: platform  # Core observe stage; user behavior pattern analysis
     profile: core
     mcp:
       exposure: platform-only
@@ -795,6 +819,7 @@ services:
       - DISPOSITION_PROMPT_INJECTION_ENABLED
       - DISPOSITION_MODERATION_ASSIST_ENABLED
   tool-gateway:
+    category: platform  # Core act stage; MCP tool fabric proxy and RBAC enforcement
     profile: gateway
     mcp:
       exposure: platform+domain
@@ -805,7 +830,8 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
   image-gen-mcp:
-    profile: mcp-domain
+    category: domain  # Optional DALL-E image generation tools
+    profile: mcp-server
     mcp:
       exposure: platform+domain
     active: true
@@ -822,6 +848,7 @@ services:
       - GCS_BUCKET_NAME
       - IMAGE_GEN_RATE_LIMIT_MS
   stream-analyst-service:
+    category: domain  # Optional stream analytics and summarization
     profile: llm
     mcp:
       exposure: platform+domain
@@ -834,7 +861,8 @@ services:
     secrets:
       - MCP_AUTH_TOKEN
   story-engine-mcp:
-    profile: mcp-domain
+    category: domain  # Optional collaborative storytelling tools
+    profile: mcp-server
     mcp:
       exposure: platform+domain
     active: true
@@ -849,7 +877,8 @@ services:
       - MCP_AUTH_TOKEN
 
   reflex:
-    profile: mcp-domain
+    category: platform  # Core act stage; deterministic pattern-match execution (<150ms)
+    profile: mcp-server
     mcp:
       exposure: platform+domain
     active: true

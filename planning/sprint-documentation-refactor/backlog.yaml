@@ -1,0 +1,708 @@
+# Documentation Refactor Backlog
+# Sprint: Platform vs Domain Bits Architecture
+# Created: 2026-07-07
+# Status: Active
+
+metadata:
+  sprint: documentation-refactor
+  start_date: 2026-07-07
+  estimated_completion: 2026-07-21
+  total_effort_hours: 60
+  assignee: technical-writer
+  priority_levels:
+    P0: Blocker - Must complete before other work
+    P1: High - Core deliverables
+    P2: Medium - Important but not blocking
+    P3: Low - Nice to have
+
+# Phase 1: Foundation (Architecture & Core Concepts)
+phase_1_foundation:
+  name: Foundation - Architecture & Core Concepts
+  description: Establish authoritative definitions and update canonical sources
+  effort_hours: 13
+  dependencies: []
+  tasks:
+    - id: DOC-001
+      title: Update architecture.yaml with category field
+      priority: P0
+      status: pending
+      effort_hours: 1
+      dependencies: []
+      assignee: technical-writer
+      deliverables:
+        - architecture.yaml with category: platform|domain for all active services
+        - Updated llm_guidance.glossary with category definitions
+        - Comments explaining categorization rationale
+      acceptance_criteria:
+        - All active services have category field
+        - Glossary defines platform_bit and domain_bit
+        - Comments explain each categorization decision
+      validation:
+        - Run: npm run brat -- config validate
+        - Verify all services parse correctly
+        - Check glossary is comprehensive
+
+    - id: DOC-002
+      title: Create Platform vs Domain Bits concept page
+      priority: P0
+      status: pending
+      effort_hours: 3
+      dependencies: [DOC-001]
+      assignee: technical-writer
+      deliverables:
+        - documentation/concepts/platform-vs-domain-bits.md
+      acceptance_criteria:
+        - Clear definitions with examples
+        - Table listing all bits with categorization rationale
+        - Decision criteria for choosing category
+        - Cross-references to bit-model.md and capability-profiles.md
+      outline:
+        - Introduction - Why this distinction matters
+        - Platform Bits definition & characteristics
+        - Domain Bits definition & characteristics
+        - Current categorization table
+        - Decision criteria & examples
+        - Gray areas & evolution
+        - Relationship to profiles and exposure
+
+    - id: DOC-003
+      title: Create Reflex Deterministic Execution concept page
+      priority: P0
+      status: pending
+      effort_hours: 4
+      dependencies: []
+      assignee: technical-writer
+      deliverables:
+        - documentation/concepts/reflex-deterministic-execution.md
+      acceptance_criteria:
+        - Clear explanation of deterministic execution model
+        - Performance benchmarks documented (<150ms)
+        - Decision tree for reflex vs LLM
+        - Code examples of reflex definitions
+        - Cross-references to platform-flow.md and event-router-rules.md
+      outline:
+        - Introduction - What reflexes are
+        - Architecture - Pattern matching, MCP tool execution
+        - Performance characteristics
+        - When to use reflexes vs LLM
+        - Reflex lifecycle
+        - Integration with Event Router
+        - Examples
+        - Limitations & trade-offs
+
+    - id: DOC-004
+      title: Create Dual Execution Paths concept page
+      priority: P0
+      status: pending
+      effort_hours: 3
+      dependencies: [DOC-003]
+      assignee: technical-writer
+      deliverables:
+        - documentation/concepts/dual-execution-paths.md
+      acceptance_criteria:
+        - Side-by-side flow diagrams
+        - Performance and cost comparison tables
+        - Clear guidance on when to use each path
+        - Examples of routing rules selecting each path
+      outline:
+        - Introduction - Two paths through the platform
+        - Deterministic path (Reflex) - flow, characteristics
+        - LLM-based path (Traditional) - flow, characteristics
+        - Routing decision points
+        - Performance comparison table
+        - Cost comparison table
+        - Use case matrix
+        - Shared infrastructure
+
+    - id: DOC-005
+      title: Update Bit Model concept page
+      priority: P0
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/concepts/bit-model.md
+      acceptance_criteria:
+        - Clear distinction between profile and category
+        - Examples from both Platform and Domain categories
+        - No confusion between orthogonal concepts
+      changes:
+        - Add "Platform vs Domain Categorization" section
+        - Clarify profile is capability, category is role
+        - Add examples from both categories
+        - Update "Declaring a Bit" section
+        - Add cross-reference to platform-vs-domain-bits.md
+
+# Phase 2: Core Documentation (README & Primary Flows)
+phase_2_core_docs:
+  name: Core Documentation - README & Primary Flows
+  description: Update the most-read documentation with new architecture
+  effort_hours: 11
+  dependencies: [phase_1_foundation]
+  tasks:
+    - id: DOC-006
+      title: Update README architecture section
+      priority: P0
+      status: pending
+      effort_hours: 3
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - Updated README.md architecture section
+      acceptance_criteria:
+        - Services clearly categorized
+        - Rationale for categorization provided
+        - Links to detailed concept pages
+      changes:
+        - Revise "Architecture" section to categorize services
+        - Add Platform Bits subsection with table
+        - Add Domain Bits subsection with table
+        - Update intro paragraph to mention dual paths
+        - Add cross-references to new concept pages
+
+    - id: DOC-007
+      title: Update README agent-loop mapping table
+      priority: P0
+      status: pending
+      effort_hours: 1
+      dependencies: [DOC-003, DOC-004]
+      assignee: technical-writer
+      deliverables:
+        - Updated agent-loop mapping table in README.md
+      acceptance_criteria:
+        - Reflex appears in agent-loop table
+        - Dual paths clearly shown for "Act" stage
+        - Performance characteristics documented
+      changes:
+        - Add reflex row to mapping table
+        - Update "Act" stage description for dual paths
+        - Add performance notes (deterministic <150ms, LLM 2-10s)
+        - Link to dual-execution-paths.md
+
+    - id: DOC-008
+      title: Update README mermaid diagram
+      priority: P1
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-004]
+      assignee: technical-writer
+      deliverables:
+        - Updated mermaid diagram in README.md
+      acceptance_criteria:
+        - Diagram shows dual execution paths
+        - Reflex clearly visible
+        - Legend explains colors/shapes
+        - Diagram remains readable
+      changes:
+        - Add reflex node parallel to llm-bot
+        - Show router routing to both reflex and llm-bot
+        - Add visual distinction for Platform vs Domain Bits
+        - Update legend
+        - Show paths converging at tool-gateway
+
+    - id: DOC-009
+      title: Update README Extending BitBrat section
+      priority: P1
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - Updated "Extending BitBrat" section in README.md
+      acceptance_criteria:
+        - Clear guidance on category selection
+        - Examples show both categories
+        - Cross-reference to detailed guide
+      changes:
+        - Add guidance on choosing Platform vs Domain
+        - Update brat bit create examples with category context
+        - Add link to choosing-platform-vs-domain.md guide
+        - Show examples of creating both categories
+
+    - id: DOC-010
+      title: Update Platform Flow concept page
+      priority: P0
+      status: pending
+      effort_hours: 3
+      dependencies: [DOC-003, DOC-004]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/concepts/platform-flow.md
+      acceptance_criteria:
+        - Diagram shows both paths clearly
+        - Reflex integrated into existing flow
+        - Decision logic explained
+        - Cross-references to dual-execution-paths.md
+      changes:
+        - Add "Dual Execution Paths" section
+        - Create split diagram (deterministic and LLM paths)
+        - Update stage descriptions to mention reflex
+        - Add decision flowchart for routing
+        - Update examples with reflex scenarios
+
+# Phase 3: Developer Documentation (CLAUDE.md & Guides)
+phase_3_developer_docs:
+  name: Developer Documentation - CLAUDE.md & Guides
+  description: Update developer-facing docs and LLM guidance
+  effort_hours: 10
+  dependencies: [phase_1_foundation]
+  tasks:
+    - id: DOC-011
+      title: Update CLAUDE.md terminology and glossary
+      priority: P1
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - Updated CLAUDE.md
+      acceptance_criteria:
+        - Glossary includes all new terms
+        - Definitions consistent with concept pages
+        - LLM has clear guidance on terminology
+      changes:
+        - Add platform_bit and domain_bit to glossary
+        - Update bit definition to mention category
+        - Add reflex to glossary
+        - Update invariants if needed
+        - Add cross-references to new concept pages
+
+    - id: DOC-012
+      title: Update brat bit create documentation
+      priority: P1
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/tools/brat.md
+      acceptance_criteria:
+        - Developers understand when to create Platform vs Domain
+        - Examples cover both categories
+        - Command reference is accurate
+      changes:
+        - Add category selection guidance
+        - Show examples for both Platform and Domain creation
+        - Update command reference
+        - Explain relationship between profile and category
+
+    - id: DOC-013
+      title: Create Choosing Platform vs Domain guide
+      priority: P1
+      status: pending
+      effort_hours: 3
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - documentation/guides/choosing-platform-vs-domain.md
+      acceptance_criteria:
+        - Clear decision-making process
+        - Actionable checklist
+        - Real examples from platform
+        - Guidance on category migration
+      outline:
+        - Decision tree flowchart
+        - Checklist of questions to ask
+        - Examples of each category
+        - Common mistakes to avoid
+        - When to refactor category
+        - Architecture review process
+
+    - id: DOC-014
+      title: Update Quickstart with reflex mention
+      priority: P2
+      status: pending
+      effort_hours: 1
+      dependencies: [DOC-003]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/getting-started/quickstart.md
+      acceptance_criteria:
+        - Reflex mentioned in context
+        - Example shows deterministic execution
+        - Link to detailed docs
+      changes:
+        - Mention reflex in architecture overview
+        - Add reflex example to chat session
+        - Link to reflex concept page
+
+    - id: DOC-015
+      title: Update Evaluating BitBrat guide
+      priority: P2
+      status: pending
+      effort_hours: 1
+      dependencies: [DOC-003]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/getting-started/evaluating-bitbrat.md
+      acceptance_criteria:
+        - Reflex mentioned in evaluation path
+        - Example shows deterministic execution
+      changes:
+        - Add reflex to "what to try" section
+        - Show quick reflex example
+        - Link to reflex tutorial
+
+# Phase 4: Reference Documentation
+phase_4_reference_docs:
+  name: Reference Documentation
+  description: Ensure all supporting docs are consistent
+  effort_hours: 11
+  dependencies: [phase_2_core_docs, phase_3_developer_docs]
+  tasks:
+    - id: DOC-016
+      title: Update Capability Profiles page
+      priority: P1
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/concepts/capability-profiles.md
+      acceptance_criteria:
+        - Clear that profile is capability, category is role
+        - Examples from both categories
+        - No confusion between concepts
+      changes:
+        - Add clarification - profile ≠ category
+        - Show examples from both Platform and Domain Bits
+        - Add cross-reference to platform-vs-domain-bits.md
+        - Update tables with category column
+
+    - id: DOC-017
+      title: Update Event Router & Rules page
+      priority: P1
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-003]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/concepts/event-router-rules.md
+      acceptance_criteria:
+        - Reflex routing documented
+        - Examples show reflex rules
+        - Clear when router chooses reflex vs llm-bot
+      changes:
+        - Add section on routing to reflex
+        - Show example rules that trigger reflex
+        - Explain reflex routing vs llm-bot routing
+        - Update rule examples
+
+    - id: DOC-018
+      title: Update Bit Control-Plane reference
+      priority: P2
+      status: pending
+      effort_hours: 1
+      dependencies: []
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/reference/bit-control-plane.md
+      acceptance_criteria:
+        - Examples represent both categories
+        - No bias toward one category
+      changes:
+        - Add examples from both Platform and Domain Bits
+        - Show bit.info output from reflex
+        - Clarify RBAC applies to both categories
+
+    - id: DOC-019
+      title: Create Reflex MCP Tools reference
+      priority: P1
+      status: pending
+      effort_hours: 3
+      dependencies: [DOC-003]
+      assignee: technical-writer
+      deliverables:
+        - documentation/reference/reflex-mcp-tools.md
+      acceptance_criteria:
+        - All MCP tools documented
+        - Schema details accurate
+        - Examples show common use cases
+        - Error messages explained
+      outline:
+        - reflex.create - Full schema and examples
+        - reflex.list - Query and filtering
+        - reflex.update - Modifying reflexes
+        - reflex.delete - Removal
+        - reflex.test - Testing reflexes
+        - reflex.stats - Performance metrics
+        - Error handling
+        - Best practices
+
+    - id: DOC-020
+      title: Cross-reference audit and fixes
+      priority: P2
+      status: pending
+      effort_hours: 3
+      dependencies: [DOC-001, DOC-002, DOC-003, DOC-004, DOC-005, DOC-006, DOC-007, DOC-008, DOC-009, DOC-010, DOC-011, DOC-012, DOC-013, DOC-016, DOC-017, DOC-018, DOC-019]
+      assignee: technical-writer
+      deliverables:
+        - Cross-reference consistency report
+        - Fixed documentation links
+      acceptance_criteria:
+        - All internal links work
+        - Related pages cross-reference each other
+        - No orphaned pages
+        - Cross-reference map generated
+      process:
+        - Extract all internal links from markdown files
+        - Verify each link resolves
+        - Check for broken references
+        - Update outdated cross-references
+        - Add missing cross-references
+        - Generate cross-reference map
+
+# Phase 5: Tutorials & Examples
+phase_5_tutorials:
+  name: Tutorials & Examples
+  description: Provide practical examples of both categories
+  effort_hours: 11
+  dependencies: [phase_4_reference_docs]
+  tasks:
+    - id: DOC-021
+      title: Update Creating a !lurk Command tutorial
+      priority: P2
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-003]
+      assignee: technical-writer
+      deliverables:
+        - Updated documentation/tutorials/lurk-command.md
+      acceptance_criteria:
+        - Tutorial updated with reflex context
+        - Comparison helps reader choose
+        - Links to reflex tutorial
+      changes:
+        - Mention this could be done with reflex
+        - Add comparison section - Event Router rule vs Reflex
+        - Show when to use each approach
+
+    - id: DOC-022
+      title: Create Creating a Reflex tutorial
+      priority: P1
+      status: pending
+      effort_hours: 4
+      dependencies: [DOC-003, DOC-019]
+      assignee: technical-writer
+      deliverables:
+        - documentation/tutorials/creating-a-reflex.md
+      acceptance_criteria:
+        - Step-by-step walkthrough
+        - Complete example from start to finish
+        - Debugging guidance
+        - Cross-references to concept and reference pages
+      outline:
+        - Introduction & use case
+        - Designing the pattern match
+        - Using reflex.create MCP tool
+        - Testing with reflex.test
+        - Monitoring with reflex.stats
+        - Debugging common issues
+        - Performance optimization
+
+    - id: DOC-023
+      title: Create Creating a Domain MCP Server tutorial
+      priority: P2
+      status: pending
+      effort_hours: 4
+      dependencies: [DOC-002]
+      assignee: technical-writer
+      deliverables:
+        - documentation/tutorials/creating-domain-mcp-server.md
+      acceptance_criteria:
+        - Complete example MCP server
+        - Shows integration with tool-gateway
+        - Deployment process documented
+        - Best practices for Domain Bits
+      outline:
+        - Introduction & use case
+        - Using brat bit create --profile mcp-server
+        - Implementing domain tools
+        - Testing with tool-gateway
+        - Deploying and registering
+        - Best practices for Domain Bits
+
+# Phase 6: Validation & Polish
+phase_6_validation:
+  name: Validation & Polish
+  description: Ensure quality and consistency
+  effort_hours: 9
+  dependencies: [phase_5_tutorials]
+  tasks:
+    - id: DOC-024
+      title: Terminology consistency check
+      priority: P1
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-001, DOC-002, DOC-003, DOC-004, DOC-005, DOC-006, DOC-007, DOC-008, DOC-009, DOC-010, DOC-011, DOC-012, DOC-013, DOC-016, DOC-017, DOC-018, DOC-019, DOC-021, DOC-022, DOC-023]
+      assignee: technical-writer
+      deliverables:
+        - Terminology consistency report
+        - Style guide documentation
+        - Fixed inconsistencies
+      acceptance_criteria:
+        - Terminology used consistently
+        - Style guide documented
+        - Consistency report shows <5 violations
+      process:
+        - Extract all uses of key terms
+        - Check for inconsistent capitalization
+        - Check for inconsistent phrasing
+        - Check for outdated terminology
+        - Create consistency report
+        - Fix inconsistencies
+
+    - id: DOC-025
+      title: Diagram visual consistency
+      priority: P2
+      status: pending
+      effort_hours: 2
+      dependencies: [DOC-008, DOC-010]
+      assignee: technical-writer
+      deliverables:
+        - Consistent diagram style across all docs
+        - Diagram style guide
+      acceptance_criteria:
+        - Consistent visual language across diagrams
+        - Legends explain all symbols
+        - Diagrams are accessible (color-blind friendly)
+      process:
+        - Review all diagrams
+        - Standardize colors and shapes
+        - Ensure legend consistency
+        - Check visual clarity
+        - Update to match style guide
+
+    - id: DOC-026
+      title: Fresh eyes review and feedback incorporation
+      priority: P1
+      status: pending
+      effort_hours: 4
+      dependencies: [DOC-024, DOC-025]
+      assignee: external-reviewer
+      deliverables:
+        - Fresh reader feedback report
+        - Implemented fixes
+      acceptance_criteria:
+        - Fresh reader can understand Platform vs Domain
+        - Fresh reader can explain dual execution paths
+        - Fresh reader can create a simple reflex
+        - Feedback incorporated
+      process:
+        - Recruit developer unfamiliar with changes
+        - Ask them to read docs and build understanding
+        - Collect feedback on clarity
+        - Identify remaining gaps
+        - Implement fixes
+
+    - id: DOC-027
+      title: Update CHANGELOG.md
+      priority: P1
+      status: pending
+      effort_hours: 1
+      dependencies: [DOC-026]
+      assignee: technical-writer
+      deliverables:
+        - Updated CHANGELOG.md
+      acceptance_criteria:
+        - CHANGELOG reflects all documentation updates
+        - Entry follows project conventions
+      changes:
+        - Add sprint entry for documentation refactor
+        - List all major documentation changes
+        - Note breaking changes (if any)
+        - Credit contributors
+
+# Sprint Metrics
+metrics:
+  total_tasks: 27
+  p0_tasks: 8
+  p1_tasks: 12
+  p2_tasks: 7
+  p3_tasks: 0
+
+  effort_by_phase:
+    phase_1: 13 hours
+    phase_2: 11 hours
+    phase_3: 10 hours
+    phase_4: 11 hours
+    phase_5: 11 hours
+    phase_6: 9 hours
+
+  critical_path:
+    - DOC-001  # architecture.yaml
+    - DOC-002  # Platform vs Domain concept
+    - DOC-006  # README architecture
+    - DOC-020  # Cross-reference audit
+    - DOC-024  # Terminology consistency
+    - DOC-026  # Fresh eyes review
+    - DOC-027  # CHANGELOG
+
+  parallel_opportunities:
+    - [DOC-003, DOC-002]  # Reflex and Platform concepts independent
+    - [DOC-011, DOC-006]  # CLAUDE.md can be done with README
+    - [DOC-021, DOC-022, DOC-023]  # All tutorials can be parallel
+
+# Success Criteria
+success_criteria:
+  documentation:
+    - All active services categorized in architecture.yaml
+    - 3 new concept pages created
+    - 2 new tutorials created
+    - 1 new reference page created
+    - All diagrams updated with dual paths
+    - README reflects current architecture
+    - CLAUDE.md updated for LLMs
+
+  quality:
+    - 100% of internal links functional
+    - Terminology consistency >95%
+    - Fresh reader can explain Platform vs Domain
+    - Fresh reader can explain dual execution paths
+    - Fresh reader can create a reflex
+    - Zero architectural inaccuracies
+    - CHANGELOG updated
+
+  validation:
+    - All phases completed
+    - All P0 and P1 tasks completed
+    - All acceptance criteria met
+    - Fresh eyes review passed
+    - Cross-reference audit clean
+
+# Risks
+risks:
+  - id: RISK-001
+    description: Architecture changes during sprint
+    probability: medium
+    impact: high
+    mitigation: Freeze architecture decisions at sprint start; defer to next sprint
+
+  - id: RISK-002
+    description: Scope creep
+    probability: high
+    impact: medium
+    mitigation: Strict adherence to backlog; maintain out-of-scope list; timebox tasks
+
+  - id: RISK-003
+    description: Terminology debates
+    probability: medium
+    impact: medium
+    mitigation: Get stakeholder sign-off on Phase 1 definitions first
+
+  - id: RISK-004
+    description: Fresh eyes reviewer unavailable
+    probability: low
+    impact: low
+    mitigation: Use AI assistant to simulate fresh reader; self-review with time gap
+
+# Notes for LLM Agents
+llm_guidance:
+  task_selection: Always complete dependencies before starting a task
+  validation: Run brat config validate after architecture.yaml changes
+  cross_references: Update all related docs when changing terminology
+  examples: Use real platform services in all examples
+  diagrams: Keep mermaid diagrams simple and readable
+  style: Follow existing documentation style and tone
+  commits: One commit per task with clear message referencing task ID

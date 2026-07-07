@@ -17,7 +17,8 @@ BitBrat is an event-driven LLM orchestration engine built as microservices. The 
 Every service is a **Bit** that:
 - Extends the `Bit` base class (src/common/base-server.ts)
 - Always serves a mandatory `bit.*` control-plane (Platform Ring) via MCP
-- Composes optional capability profiles (core, gateway, llm, mcp-domain)
+- Has a `category`: `platform` (core orchestration) or `domain` (optional extensions)
+- Composes optional capability profiles (core, gateway, llm, mcp-server)
 - Has an `mcp.exposure` level: `platform-only` (just control plane) or `platform+domain` (control plane + domain tools)
 - Can be administered uniformly via `brat fleet` commands
 
@@ -61,7 +62,7 @@ npm run brat -- chat                 # Interactive chat with the platform
 ```bash
 npm run brat -- bit create <name>                                      # Create a basic core Bit
 npm run brat -- bit create <name> --profile gateway --exposure platform+domain  # Create API gateway
-npm run brat -- bit create <name> --profile mcp-domain                 # Create MCP tool server
+npm run brat -- bit create <name> --profile mcp-server                 # Create MCP tool server
 npm run brat -- bit create <name> --register --active                  # Create and register in architecture.yaml
 ```
 
@@ -205,7 +206,8 @@ All sprint artifacts live in `planning/sprint-<id>/`.
 
 ### Creating a New Bit (Service)
 1. Run `npm run brat -- bit create <name> [options]`
-   - `--profile <p>`: Capability profile (core, gateway, llm, mcp-domain) [default: core]
+   - `--profile <p>`: Capability profile (core, gateway, llm, mcp-server) [default: core]
+   - `--category <c>`: Architectural category (platform, domain) [default: platform]
    - `--exposure <e>`: MCP exposure (platform-only, platform+domain, none) [default: platform-only]
    - `--kind <k>`: Service kind (pipeline-service, gateway, mcp-server) [default: pipeline-service]
    - `--port <p>`: HTTP port [default: 3000]
@@ -217,7 +219,7 @@ All sprint artifacts live in `planning/sprint-<id>/`.
    - `core` → platform-only | none
    - `gateway` → platform-only | platform+domain | none
    - `llm` → platform-only | none
-   - `mcp-domain` → platform+domain (required)
+   - `mcp-server` → platform+domain (required)
 
 3. Generated files:
    - `src/apps/<name>-service.ts`: Service implementation extending `Bit`
@@ -227,6 +229,7 @@ All sprint artifacts live in `planning/sprint-<id>/`.
 
 4. If not using `--register`, manually add to architecture.yaml under `services:` with:
    - `active: true` (required to enable)
+   - `category:` platform or domain
    - `profile:`, `mcp.exposure:`, `kind:`, `entry:`, `port:`
    - Optional: `stage:`, `env:`, `secrets:`
 
@@ -234,7 +237,7 @@ All sprint artifacts live in `planning/sprint-<id>/`.
 6. Deploy via `npm run brat -- deploy service <name>`
 
 ### Adding a New MCP Tool
-- For domain tools, use `--profile mcp-domain` when creating the Bit (automatically sets exposure to platform+domain)
+- For domain tools, use `--profile mcp-server` when creating the Bit (automatically sets exposure to platform+domain)
 - Implement tools using `this.registerTool(name, description, zodSchema, handler)`
 - Tool-context binding: `this.registerToolWithContext(name, description, schema, handler, packIds)`
 - All Bits automatically get `bit.*` control-plane tools (bit.info, bit.health, bit.config.get, bit.flags.get, bit.log.level, etc.)
