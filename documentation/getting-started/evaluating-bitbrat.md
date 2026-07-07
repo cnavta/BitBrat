@@ -51,12 +51,17 @@ for more detail, or the [full Quickstart](./quickstart.md).
 
 BitBrat decomposes the classic agent loop into independent, message-passing services:
 
-- **Perceive** — `ingress-egress` normalizes external events into an `Envelope v1`.
+- **Perceive** — `ingress-egress` and `api-gateway` normalize external events into an `Envelope v1`.
 - **Plan** — `event-router` matches [JsonLogic](https://jsonlogic.com/) rules and attaches a **routing
-  slip** (the plan) that travels with the message.
-- **Act** — `llm-bot` / `query-analyzer` reason and call tools via MCP servers behind `tool-gateway`.
+  slip** (the plan) that travels with the message. `auth` enriches with identity/roles.
+- **Act (Dual Paths)** — Two execution mechanisms:
+  - **Deterministic**: `reflex` pattern-matches and executes MCP tools in <150ms (no LLM overhead)
+  - **LLM-Based**: `llm-bot` / `query-analyzer` reason and select tools via full AI inference (2-10s)
+  - Both paths call tools via MCP servers behind `tool-gateway`
 - **Observe / Memory** — `state-engine`, `disposition-service`, and `persistence` store state and
   history in Firestore.
+
+**Key Insight**: The dual execution paths let you choose speed/cost vs. reasoning capability per event type.
 
 The same primitives apply beyond streaming (chat-ops, webhooks, support triage, telephony): swap the
 `ingress-egress` adapters and the Event Router rules, and reuse the reasoning/tool/memory planes.

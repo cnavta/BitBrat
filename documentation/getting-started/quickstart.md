@@ -89,6 +89,18 @@ npm run local:logs
 
 ## 7. Next Steps
 
+### Understanding the Platform
+
+BitBrat offers **two execution paths** in the Act stage:
+- **Reflex (Deterministic)**: Pattern-match and execute tools in <150ms, no LLM overhead — perfect for repeated behaviors like chat commands
+- **LLM-Based**: Full AI reasoning with tool selection, 2-10 seconds — for novel situations and complex responses
+
+Both paths share the same infrastructure and tool ecosystem. See [Platform Flow Overview](../concepts/platform-flow.md) for details.
+
+### Learn More
+
+- [Platform Flow Overview](../concepts/platform-flow.md): Understand the agent loop and dual execution paths.
 - [Managing Seed Data](../guides/seed-data.md): Learn how to load initial rules and state.
 - [Brat Chat Introduction](../tools/brat.md#brat-chat): Start interacting with your bot locally.
 - [Creating your first command](../tutorials/lurk-command.md): A step-by-step tutorial.
+- [Choosing Platform vs Domain](../guides/choosing-platform-vs-domain.md): Decision framework for extending the platform.
