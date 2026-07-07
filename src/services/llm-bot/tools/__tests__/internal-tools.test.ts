@@ -68,6 +68,7 @@ describe('Internal Tools', () => {
       registerTool: jest.fn(),
       unregisterTool: jest.fn(),
       getTool: jest.fn(),
+      getToolBySanitizedName: jest.fn(),
       registerResource: jest.fn(),
       unregisterResource: jest.fn(),
       getResources: jest.fn().mockReturnValue({}),

@@ -137,6 +137,31 @@ messaging:
       consumers:
         - auth
       schema: documentation/schemas/envelope.v1.json
+    internal.reflex.v1:
+      description: >
+        Deterministic event-driven behavior execution (Sprint 332). Reflexes are pattern-matched
+        rules that execute MCP tools in <150ms, bypassing LLM analysis when triggered.
+      producers:
+        - event-router
+      consumers:
+        - reflex
+      schema: documentation/schemas/envelope.v1.json
+    internal.reflex.executed.v1:
+      description: >
+        Execution success events published by reflex service. Contains tool results, latency,
+        and triggeredBy context for observability and future reactive systems.
+      producers:
+        - reflex
+      consumers: []
+      schema: documentation/schemas/reflex-executed-event.v1.json
+    internal.reflex.failed.v1:
+      description: >
+        Execution failure events published by reflex service. Contains error details, latency,
+        and triggeredBy context for observability and alerting.
+      producers:
+        - reflex
+      consumers: []
+      schema: documentation/schemas/reflex-failed-event.v1.json
     internal.story.enrich.v1:
       description: Collaborative-storytelling enrichment requests for the story-engine MCP server.
       producers:
@@ -665,6 +690,9 @@ services:
     profile: mcp-domain
     mcp:
       exposure: platform+domain
+      requiredRoles:
+        - reflex
+        - admin
     active: true
     description: MCP server for controlling OBS
     kind: mcp-server
@@ -825,7 +853,7 @@ services:
     mcp:
       exposure: platform+domain
     active: true
-    description: 'Generated Bit: reflex'
+    description: 'The Reflex bit is responsible for matching and orchestrating repeated deterministic behavior in a low-cost manner'
     kind: mcp-server
     entry: src/apps/reflex-service.ts
     port: 3000

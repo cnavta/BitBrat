@@ -102,6 +102,7 @@ export interface IToolRegistry {
   unregisterTool(id: string): void;
   getTools(): Record<string, BitBratTool>;
   getTool(id: string): BitBratTool | undefined;
+  getToolBySanitizedName(sanitizedName: string): BitBratTool | undefined;
 
   registerResource(resource: BitBratResource): void;
   unregisterResource(uri: string): void;

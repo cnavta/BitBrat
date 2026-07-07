@@ -1423,6 +1423,11 @@ export class Bit {
     const defaultUrl = `http://${this.serviceName}.bitbrat.local:${port}/sse`;
     const externalUrl = process.env.MCP_EXTERNAL_URL || defaultUrl;
 
+    // Read requiredRoles from architecture.yaml if present
+    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+    const serviceConfig = arch?.services?.[this.serviceName];
+    const requiredRoles = serviceConfig?.mcp?.requiredRoles;
+
     // Just-in-Time Context Provisioning (sprint-328): advertise this Bit's context packs + bindings
     // ADDITIVELY. Older consumers ignore unknown fields; the field is only present when non-empty so
     // a Bit with no packs produces a byte-for-byte unchanged payload (back-compat / envelope rules).
@@ -1444,6 +1449,7 @@ export class Bit {
         env: process.env.MCP_AUTH_TOKEN ? {
           Authorization: `Bearer ${process.env.MCP_AUTH_TOKEN}`
         } : {},
+        ...(requiredRoles && { requiredRoles }),
         ...contextAdvertisement,
       },
       ingress: {
