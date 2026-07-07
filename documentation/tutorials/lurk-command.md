@@ -69,8 +69,28 @@ The easiest way to test your new command is using the `brat chat` CLI.
 
 ## Summary
 
-Congratulations! You've just created and deployed your first custom command to the BitBrat Platform. You can now experiment with more complex enrichments or even add analysis steps to your routing slip.
+Congratulations! You've just created and deployed your first custom command to the BitBrat Platform using Event Router rules. You can now experiment with more complex enrichments or even add analysis steps to your routing slip.
+
+## Alternative: The Reflex Approach
+
+This tutorial showed you how to create a command using **Event Router rules** — the traditional, flexible approach that routes through the full event pipeline. However, for repeated, predictable commands like `!lurk`, there's a **faster alternative**: **Reflexes**.
+
+**Reflexes** provide deterministic pattern-match execution with <150ms latency (vs 2-10s for LLM-based routing). They:
+- Match patterns directly against events (exact, contains, prefix, suffix, regex)
+- Skip the LLM/analysis overhead entirely
+- Optionally execute MCP tools with parameter interpolation
+- Generate candidates just like Event Router rules
+
+**When to use which:**
+- **Event Router Rules** (this tutorial): Flexible routing, multi-step analysis, LLM reasoning, complex orchestration
+- **Reflexes**: Fast, repeated commands with predictable responses (<150ms execution)
+
+See the [Creating a Reflex tutorial](./creating-a-reflex.md) to learn how to implement `!lurk` as a reflex for sub-150ms responses.
 
 ## Next Steps
 
-Ready to make `!lurk` smarter? Continue with [Part 2: Routing to the LLM Bot, Prompts & Personalities](./lurk-command-part-2.md), where you replace the static responses with LLM-generated replies and give your command a distinct personality.
+1. **Add LLM reasoning**: Continue with [Part 2: Routing to the LLM Bot, Prompts & Personalities](./lurk-command-part-2.md), where you replace the static responses with LLM-generated replies and give your command a distinct personality.
+
+2. **Make it faster**: Learn how to implement this as a reflex in [Creating a Reflex](./creating-a-reflex.md) for <150ms execution.
+
+3. **Understand the architecture**: Read [Platform Flow Overview](../concepts/platform-flow.md) to understand the dual execution paths (Event Router rules vs Reflexes).
