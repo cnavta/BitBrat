@@ -16,7 +16,8 @@ export const DeploymentDefaultsSchema = z.object({
 
 // Bit model (sprint-324): declarative capability profile + MCP control-plane exposure.
 // Additive/optional so existing service definitions stay valid. Absent profile => 'core'.
-export const BitProfileEnum = z.enum(['core', 'llm', 'mcp-domain', 'gateway']);
+export const BitProfileEnum = z.enum(['core', 'llm', 'mcp-server', 'gateway']);
+export const BitCategoryEnum = z.enum(['platform', 'domain']);
 export const McpExposureEnum = z.enum(['platform-only', 'platform+domain']);
 export const McpConfigSchema = z.object({
   exposure: McpExposureEnum.optional(),
@@ -24,6 +25,7 @@ export const McpConfigSchema = z.object({
 
 export const ServiceSchema = z.object({
   active: z.boolean().optional(),
+  category: BitCategoryEnum.optional(),
   description: z.string().optional(),
   image: z.string().optional(),
   entry: z.string().optional(),
@@ -54,6 +56,7 @@ export const DeploymentTargetSchema = z.discriminatedUnion('type', [
 
 export const DefaultsServicesSchema = z.object({
   implementation: z.string().optional(),
+  category: BitCategoryEnum.optional(),
   image: z.string().optional(),
   runtime: z.object({ node: z.string().optional() }).optional(),
   region: z.string().optional(),
