@@ -87,11 +87,31 @@ export class ToolRegistry implements IToolRegistry {
 
   /**
    * Helper to derive a valid tool name for the AI SDK key.
+   *
+   * AI SDK requires tool names to match pattern ^[a-zA-Z0-9_-]+$ (no colons or dots).
+   * We sanitize the tool ID for the AI SDK, but preserve the original ID in tool.id
+   * for lookups and execution.
+   *
+   * Examples:
+   * - mcp:obs.set_scene_item_enabled → mcp_obs_set_scene_item_enabled
+   * - internal:get_bot_status → internal_get_bot_status
    */
   private getToolName(tool: BitBratTool): string {
-    // If the tool ID is already a valid function name, use it.
-    // Otherwise, we might need to sanitize or map it.
-    // For now, we'll assume the ID is unique and mostly valid.
+    // Sanitize for AI SDK: replace colons and dots with underscores
     return tool.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  /**
+   * Get a tool by its sanitized AI SDK name.
+   * Maps from the sanitized name back to the original tool ID.
+   */
+  getToolBySanitizedName(sanitizedName: string): BitBratTool | undefined {
+    // Find tool by checking if sanitized version of tool.id matches
+    for (const tool of this.tools.values()) {
+      if (this.getToolName(tool) === sanitizedName) {
+        return tool;
+      }
+    }
+    return undefined;
   }
 }

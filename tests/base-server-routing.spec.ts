@@ -61,7 +61,7 @@ describe('BaseServer routing helpers', () => {
 
     await server.nextPublic(evt);
 
-    const pub = getPublisher('local.internal.bot.requests.v1');
+    const pub = getPublisher('internal.bot.requests.v1');
     expect(pub.publishJson).toHaveBeenCalledTimes(1);
     // payload shape depends on upstream; presence of a call is sufficient here
   });
@@ -76,7 +76,7 @@ describe('BaseServer routing helpers', () => {
     await server.nextPublic(evt, 'OK');
 
     // After marking step1 OK, next() should publish to step2 (first pending)
-    const pub = getPublisher('local.internal.step2.v1');
+    const pub = getPublisher('internal.step2.v1');
     expect(pub.publishJson).toHaveBeenCalledTimes(1);
     expect((evt.routing?.slip as RoutingStep[])[0].status).toBe('OK');
     expect(typeof (evt.routing?.slip as RoutingStep[])[0].endedAt).toBe('string');
@@ -94,14 +94,14 @@ describe('BaseServer routing helpers', () => {
 
     await server.nextPublic(evt);
 
-    const pub = getPublisher('local.internal.egress.v1');
+    const pub = getPublisher('internal.egress.v1');
     expect(pub.publishJson).toHaveBeenCalledTimes(1);
   });
 
   test('complete() publishes to egressDestination', async () => {
     const evt = makeEvent({ egress: { connector: 'system', destination: 'internal.egress.v1' } });
     await server.completePublic(evt);
-    expect(getPublisher('local.internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
+    expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
   });
 
   test('complete(status) updates current step then publishes to egress', async () => {
@@ -113,7 +113,7 @@ describe('BaseServer routing helpers', () => {
       egress: { connector: 'system', destination: 'internal.egress.v1' } 
     });
     await server.completePublic(evt, 'SKIP');
-    expect(getPublisher('local.internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
+    expect(getPublisher('internal.egress.v1').publishJson).toHaveBeenCalledTimes(1);
     expect((evt.routing?.slip as RoutingStep[])[0].status).toBe('SKIP');
     expect(typeof (evt.routing?.slip as RoutingStep[])[0].endedAt).toBe('string');
   });
@@ -123,13 +123,13 @@ describe('BaseServer routing helpers', () => {
     const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] } });
     await server.nextPublic(evt);
     await server.nextPublic(evt);
-    expect(getPublisher('local.internal.bot.requests.v1').publishJson).toHaveBeenCalledTimes(1);
+    expect(getPublisher('internal.bot.requests.v1').publishJson).toHaveBeenCalledTimes(1);
   });
 
   test('idempotency marker cleared on publish failure allowing retry', async () => {
     const steps: RoutingStep[] = [{ id: 'bot', status: 'PENDING', nextTopic: 'internal.bot.requests.v1' }] as any;
     const evt = makeEvent({ routing: { stage: 'analysis', slip: steps, history: [] } });
-    const pub = getPublisher('local.internal.bot.requests.v1');
+    const pub = getPublisher('internal.bot.requests.v1');
     pub.publishJson.mockImplementationOnce(async () => { throw new Error('boom'); });
     await expect(server.nextPublic(evt)).rejects.toThrow('boom');
     // Next call should attempt again (marker cleared on failure)

@@ -690,6 +690,9 @@ services:
     profile: mcp-domain
     mcp:
       exposure: platform+domain
+      requiredRoles:
+        - reflex
+        - admin
     active: true
     description: MCP server for controlling OBS
     kind: mcp-server

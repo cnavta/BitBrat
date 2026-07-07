@@ -58,9 +58,9 @@ describe('ToolRegistry', () => {
     expect(tools['tool2']).toBe(tool2);
   });
 
-  it('should sanitize tool names in getTools', () => {
+  it('should sanitize tool names for AI SDK compatibility', () => {
     const tool: BitBratTool = {
-      id: 'mcp-server:my-tool',
+      id: 'mcp:server.my-tool',
       source: 'mcp',
       inputSchema: z.object({}),
       execute: async () => 'test',
@@ -68,6 +68,9 @@ describe('ToolRegistry', () => {
 
     registry.registerTool(tool);
     const tools = registry.getTools();
-    expect(tools['mcp-server_my-tool']).toBe(tool);
+    // Tool name should be sanitized (colons and dots replaced with underscores)
+    expect(tools['mcp_server_my-tool']).toBe(tool);
+    // Original ID preserved in tool.id
+    expect(tools['mcp_server_my-tool'].id).toBe('mcp:server.my-tool');
   });
 });

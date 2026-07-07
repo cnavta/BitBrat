@@ -80,17 +80,17 @@ export interface ReflexCondition {
  *
  * @example
  * {
- *   tool: 'obs.set_source_visibility',
+ *   tool: 'mcp:obs.set_scene_item_enabled',
  *   parameters: {
- *     sourceName: 'FailOverlay',
- *     visible: true,
- *     sceneName: '{{scene}}'
+ *     sceneName: 'MainScene',
+ *     sceneItemId: 5,
+ *     sceneItemEnabled: true
  *   },
  *   timeout: 3000
  * }
  */
 export interface ToolInvocation {
-  /** Fully qualified MCP tool name (e.g., 'obs.set_source_visibility') */
+  /** Fully qualified MCP tool ID (e.g., 'mcp:obs.set_scene_item_enabled') */
   tool: string;
 
   /**
@@ -194,21 +194,37 @@ export interface Reflex {
 
   // ===== Action Configuration =====
 
-  /** MCP tool invocation configuration */
-  action: ToolInvocation;
+  /**
+   * Optional MCP tool invocation configuration.
+   * If omitted, the reflex will only generate a candidate response without tool execution.
+   * At least one of action or candidateTemplate must be provided.
+   */
+  action?: ToolInvocation;
 
   // ===== Response Configuration =====
 
   /**
-   * Optional template for generating candidate responses.
+   * Optional template(s) for generating candidate responses.
+   * Can be a single string or an array of strings.
+   *
+   * When an array is provided, all templates will be interpolated and added as candidates,
+   * allowing the egress to randomly select one from the set.
+   *
    * Supports dual-context interpolation:
    * - {{event.field.path}} - Access event data
    * - {{result.field.path}} - Access MCP tool call results
    *
-   * @example
+   * @example Single template
    * "Fail overlay activated by {{event.identity.user.displayName}}! Status: {{result.visible}}"
+   *
+   * @example Multiple templates (random selection at egress)
+   * [
+   *   "Pong!",
+   *   "Pong! {{event.identity.user.displayName}} is alive!",
+   *   "🏓 Pong from the void!"
+   * ]
    */
-  candidateTemplate?: string;
+  candidateTemplate?: string | string[];
 
   // ===== Metadata =====
 
@@ -240,8 +256,11 @@ export interface ReflexExecutionResult {
   /** Tool execution result (on success) */
   result?: any;
 
-  /** Generated candidate (if candidateTemplate was provided) */
-  candidate?: any; // InternalCandidate type from events.ts
+  /**
+   * Generated candidate(s) (if candidateTemplate was provided).
+   * When candidateTemplate is an array, multiple candidates are generated.
+   */
+  candidates?: any[]; // Array of InternalCandidate from events.ts
 
   /** Error details (on failure) */
   error?: {

@@ -154,7 +154,15 @@ export class ReflexServer extends Bit {
             });
 
             this.updateCurrentStep(event, { status: 'OK', notes: 'No matching reflex' });
-            await this.next(event);
+            try {
+              await this.next(event);
+            } catch (nextError) {
+              logger.error('reflex.event.next_error', {
+                correlationId: event.correlationId,
+                error: nextError instanceof Error ? nextError.message : String(nextError),
+              });
+            }
+            // Always acknowledge the message to prevent redelivery
             await ctx.ack();
             return;
           }
@@ -190,14 +198,21 @@ export class ReflexServer extends Bit {
               reflexName: reflex.name,
               executionLatency: result.latency,
               totalLatency,
-              candidateGenerated: !!result.candidate,
+              candidatesGenerated: result.candidates?.length || 0,
             });
 
             // Enrich event with reflex metadata
             this.enrichEvent(event, reflex, result, totalLatency);
 
-            // Publish execution success event
-            await this.publishExecutedEvent(event, reflex, result);
+            // Publish execution success event (best effort, don't fail on publish errors)
+            try {
+              await this.publishExecutedEvent(event, reflex, result);
+            } catch (publishError) {
+              logger.error('reflex.event.publish_executed_error', {
+                correlationId: event.correlationId,
+                error: publishError instanceof Error ? publishError.message : String(publishError),
+              });
+            }
 
             this.updateCurrentStep(event, {
               status: 'OK',
@@ -205,7 +220,16 @@ export class ReflexServer extends Bit {
             });
 
             // Complete routing (skip remaining analysis)
-            await this.complete(event);
+            try {
+              await this.complete(event);
+            } catch (completeError) {
+              logger.error('reflex.event.complete_error', {
+                correlationId: event.correlationId,
+                error: completeError instanceof Error ? completeError.message : String(completeError),
+              });
+            }
+
+            // Always acknowledge the message to prevent redelivery
             await ctx.ack();
           } else {
             // Record failure metrics
@@ -221,8 +245,15 @@ export class ReflexServer extends Bit {
               totalLatency,
             });
 
-            // Publish execution failure event
-            await this.publishFailedEvent(event, reflex, result);
+            // Publish execution failure event (best effort, don't fail on publish errors)
+            try {
+              await this.publishFailedEvent(event, reflex, result);
+            } catch (publishError) {
+              logger.error('reflex.event.publish_failed_error', {
+                correlationId: event.correlationId,
+                error: publishError instanceof Error ? publishError.message : String(publishError),
+              });
+            }
 
             this.updateCurrentStep(event, {
               status: 'ERROR',
@@ -235,7 +266,16 @@ export class ReflexServer extends Bit {
             });
 
             // Complete in degraded mode (never block event flow)
-            await this.complete(event);
+            try {
+              await this.complete(event);
+            } catch (completeError) {
+              logger.error('reflex.event.complete_error', {
+                correlationId: event.correlationId,
+                error: completeError instanceof Error ? completeError.message : String(completeError),
+              });
+            }
+
+            // Always acknowledge the message to prevent redelivery
             await ctx.ack();
           }
         } catch (error) {
@@ -261,8 +301,17 @@ export class ReflexServer extends Bit {
             },
           });
 
-          // Complete in degraded mode
-          await this.complete(event);
+          // Complete in degraded mode (best effort)
+          try {
+            await this.complete(event);
+          } catch (completeError) {
+            logger.error('reflex.event.complete_error', {
+              correlationId: event.correlationId,
+              error: completeError instanceof Error ? completeError.message : String(completeError),
+            });
+          }
+
+          // Always acknowledge the message to prevent redelivery
           await ctx.ack();
         }
       },
@@ -326,21 +375,24 @@ export class ReflexServer extends Bit {
       annotation,
     });
 
-    // Add candidate if generated
-    if (result.candidate) {
+    // Add candidate(s) if generated
+    if (result.candidates && result.candidates.length > 0) {
       // Initialize candidates array if not present
       if (!event.candidates) {
         event.candidates = [];
       }
 
-      // Add candidate to beginning of array (reflex candidates have priority: 0)
-      event.candidates.unshift(result.candidate);
+      // Add all candidates to beginning of array (reflex candidates have priority: 0)
+      // Reverse order so they maintain their original order after unshift
+      for (let i = result.candidates.length - 1; i >= 0; i--) {
+        event.candidates.unshift(result.candidates[i]);
+      }
 
-      this.getLogger().debug('reflex.event.candidate_added', {
+      this.getLogger().debug('reflex.event.candidates_added', {
         correlationId: event.correlationId,
-        candidateId: result.candidate.id,
-        candidateText: result.candidate.text,
-        candidatesCount: event.candidates.length,
+        candidatesAdded: result.candidates.length,
+        candidateTexts: result.candidates.map((c: any) => c.text),
+        totalCandidatesCount: event.candidates.length,
       });
     }
   }
@@ -384,8 +436,8 @@ export class ReflexServer extends Bit {
         v: '1',
         reflexId: reflex.id,
         reflexName: reflex.name,
-        tool: reflex.action.tool,
-        parameters: reflex.action.parameters,
+        tool: reflex.action?.tool,
+        parameters: reflex.action?.parameters,
         result: result.result,
         latency: result.latency,
         triggeredBy,
@@ -451,8 +503,8 @@ export class ReflexServer extends Bit {
         v: '1',
         reflexId: reflex.id,
         reflexName: reflex.name,
-        tool: reflex.action.tool,
-        parameters: reflex.action.parameters,
+        tool: reflex.action?.tool,
+        parameters: reflex.action?.parameters,
         error: result.error || { message: 'Unknown error' },
         latency: result.latency,
         triggeredBy,
@@ -506,7 +558,7 @@ export class ReflexServer extends Bit {
   private registerDomainTools() {
     // reflex.create - Create a new reflex
     this.registerTool(
-      'create',
+      'reflex.create',
       'Create a new reflex with pattern matching and MCP tool invocation',
       z.object({
         name: z.string().describe('Human-readable name for the reflex'),
@@ -521,27 +573,71 @@ export class ReflexServer extends Bit {
           caseSensitive: z.boolean().optional().describe('Case-sensitive matching (for non-regex types)'),
         }).describe('Pattern matching configuration'),
         conditions: z.object({
-          eventTypes: z.array(z.string()).optional().describe('Allowed event types (e.g., ["twitch.chat.message"])'),
+          eventTypes: z.array(z.string()).optional().describe('Allowed event types. Use internal event types like "chat.message.v1", "chat.command.v1", "moderation.action.v1", etc. NOT platform-specific types like "twitch.chat.message".'),
           channels: z.array(z.string()).optional().describe('Allowed channel IDs'),
           platforms: z.array(z.string()).optional().describe('Allowed platform IDs (e.g., ["twitch", "discord"])'),
           userRoles: z.array(z.string()).optional().describe('Required user roles'),
           minAuthLevel: z.number().int().min(0).max(3).optional().describe('Minimum auth level (0=anonymous, 1=external, 2=matched user, 3=user with roles)'),
         }).optional().describe('Optional conditions for reflex execution'),
         action: z.object({
-          tool: z.string().describe('Fully qualified MCP tool name (e.g., "obs.set_source_visibility")'),
+          tool: z.string().describe('Sanitized MCP tool name as shown in your tools list (e.g., "mcp_obs-set-scene-item-enabled"). IMPORTANT: Tool names preserve hyphens from the original tool name. Only colons and dots are replaced with underscores. Use the EXACT name from your available tools list.'),
           parameters: z.record(z.any()).describe('Tool parameters template (supports {{field.path}} interpolation)'),
           timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds (default: 5000)'),
-        }).describe('MCP tool invocation configuration'),
-        candidateTemplate: z.string().optional().describe('Template for generating candidate response (supports {{event.path}} and {{result.path}})'),
+        }).optional().describe('Optional MCP tool invocation configuration. If omitted, reflex will only generate candidate response.'),
+        candidateTemplate: z.union([
+          z.string(),
+          z.array(z.string())
+        ]).optional().describe('Template(s) for generating candidate response(s). Single string or array of strings for multiple variations. Supports {{event.path}} and {{result.path}} interpolation.'),
         tags: z.array(z.string()).optional().describe('Tags for organization and filtering'),
       }),
       async (args) => {
         try {
+          // Validate that at least one of action or candidateTemplate is provided
+          if (!args.action && !args.candidateTemplate) {
+            throw new Error('Must provide at least one of action or candidateTemplate');
+          }
+
           // Validate regex pattern if type is regex
           if (args.match.type === 'regex') {
             const validation = validateRegexPattern(args.match.pattern);
             if (!validation.isValid) {
               throw new Error(`Invalid regex pattern: ${validation.error}`);
+            }
+          }
+
+          // Validate event types if provided
+          if (args.conditions?.eventTypes) {
+            for (const eventType of args.conditions.eventTypes) {
+              // Check for common mistake: platform-specific event types
+              if (eventType.includes('twitch.') || eventType.includes('discord.') || eventType.includes('platform.')) {
+                throw new Error(
+                  `Invalid event type: "${eventType}". ` +
+                  `Use internal event types (e.g., "chat.message.v1", "chat.command.v1", "moderation.action.v1"), ` +
+                  `NOT platform-specific types like "twitch.chat.message". ` +
+                  `The platform is already normalized in the event structure.`
+                );
+              }
+            }
+          }
+
+          // Validate tool name format if action is provided
+          if (args.action?.tool) {
+            // Tool names should be sanitized (alphanumeric, underscores, hyphens only)
+            if (!/^[a-zA-Z0-9_-]+$/.test(args.action.tool)) {
+              throw new Error(
+                `Invalid tool name format: "${args.action.tool}". ` +
+                `Tool names must contain only letters, numbers, underscores, and hyphens. ` +
+                `Use the exact tool name as shown in your available tools list.`
+              );
+            }
+            // Warn about double mcp_ prefix (common mistake)
+            if (args.action.tool.startsWith('mcp_mcp_')) {
+              throw new Error(
+                `Tool name has double "mcp_" prefix: "${args.action.tool}". ` +
+                `This usually means the tool is named incorrectly. ` +
+                `Tool names from MCP servers are automatically prefixed - use the name exactly as shown in your tools list. ` +
+                `Example: If the MCP server provides "obs-set-scene-item-enabled", it becomes "mcp_obs-set-scene-item-enabled" in your tools list (note: hyphens are preserved, only colons and dots become underscores).`
+              );
             }
           }
 
@@ -558,10 +654,18 @@ export class ReflexServer extends Bit {
             tags: args.tags,
           });
 
+          // Build success message based on what was provided
+          let actionDescription = '';
+          if (args.action) {
+            actionDescription = `and execute tool "${args.action.tool}"`;
+          } else {
+            actionDescription = 'and generate candidate response (no tool execution)';
+          }
+
           return {
             content: [{
               type: 'text',
-              text: `Reflex created successfully:\n\nID: ${reflex.id}\nName: ${reflex.name}\nPriority: ${reflex.priority}\nActive: ${reflex.active}\n\nThe reflex will match "${args.match.pattern}" (${args.match.type}) in field "${args.match.field}" and execute tool "${args.action.tool}".`,
+              text: `Reflex created successfully:\n\nID: ${reflex.id}\nName: ${reflex.name}\nPriority: ${reflex.priority}\nActive: ${reflex.active}\n\nThe reflex will match "${args.match.pattern}" (${args.match.type}) in field "${args.match.field}" ${actionDescription}.`,
             }],
           };
         } catch (error) {
@@ -578,7 +682,7 @@ export class ReflexServer extends Bit {
 
     // reflex.list - List all reflexes
     this.registerTool(
-      'list',
+      'reflex.list',
       'List all reflexes with optional filtering',
       z.object({
         active: z.boolean().optional().describe('Filter by active status (omit for all)'),
@@ -610,7 +714,7 @@ export class ReflexServer extends Bit {
               `Active: ${reflex.active}`,
               `Priority: ${reflex.priority}`,
               `Match: ${reflex.match.type} "${reflex.match.pattern}" in ${reflex.match.field}`,
-              `Tool: ${reflex.action.tool}`,
+              `Tool: ${reflex.action?.tool || '(none - candidate only)'}`,
               `Stats: ${reflex.stats?.successCount || 0} successes, ${reflex.stats?.errorCount || 0} errors`,
               ''
             );
@@ -636,7 +740,7 @@ export class ReflexServer extends Bit {
 
     // reflex.update - Update an existing reflex
     this.registerTool(
-      'update',
+      'reflex.update',
       'Update an existing reflex',
       z.object({
         id: z.string().describe('Reflex ID to update'),
@@ -659,11 +763,14 @@ export class ReflexServer extends Bit {
           minAuthLevel: z.number().int().min(0).max(3).optional(),
         }).optional().describe('Updated conditions'),
         action: z.object({
-          tool: z.string().optional(),
-          parameters: z.record(z.any()).optional(),
-          timeout: z.number().int().min(1000).max(60000).optional(),
+          tool: z.string().optional().describe('Sanitized MCP tool name (e.g., "mcp_obs-set-scene-item-enabled"). Note: hyphens are preserved, only colons and dots become underscores.'),
+          parameters: z.record(z.any()).optional().describe('Tool parameters template'),
+          timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds'),
         }).optional().describe('Updated action configuration'),
-        candidateTemplate: z.string().optional().describe('Updated candidate template'),
+        candidateTemplate: z.union([
+          z.string(),
+          z.array(z.string())
+        ]).optional().describe('Updated candidate template(s). Single string or array of strings for multiple variations.'),
         tags: z.array(z.string()).optional().describe('Updated tags'),
       }),
       async (args) => {
@@ -685,6 +792,42 @@ export class ReflexServer extends Bit {
             const validation = validateRegexPattern(updates.match.pattern);
             if (!validation.isValid) {
               throw new Error(`Invalid regex pattern: ${validation.error}`);
+            }
+          }
+
+          // Validate event types if updating conditions
+          if (updates.conditions?.eventTypes) {
+            for (const eventType of updates.conditions.eventTypes) {
+              // Check for common mistake: platform-specific event types
+              if (eventType.includes('twitch.') || eventType.includes('discord.') || eventType.includes('platform.')) {
+                throw new Error(
+                  `Invalid event type: "${eventType}". ` +
+                  `Use internal event types (e.g., "chat.message.v1", "chat.command.v1", "moderation.action.v1"), ` +
+                  `NOT platform-specific types like "twitch.chat.message". ` +
+                  `The platform is already normalized in the event structure.`
+                );
+              }
+            }
+          }
+
+          // Validate tool name format if updating action
+          if (updates.action?.tool) {
+            // Tool names should be sanitized (alphanumeric, underscores, hyphens only)
+            if (!/^[a-zA-Z0-9_-]+$/.test(updates.action.tool)) {
+              throw new Error(
+                `Invalid tool name format: "${updates.action.tool}". ` +
+                `Tool names must contain only letters, numbers, underscores, and hyphens. ` +
+                `Use the exact tool name as shown in your available tools list.`
+              );
+            }
+            // Warn about double mcp_ prefix (common mistake)
+            if (updates.action.tool.startsWith('mcp_mcp_')) {
+              throw new Error(
+                `Tool name has double "mcp_" prefix: "${updates.action.tool}". ` +
+                `This usually means the tool is named incorrectly. ` +
+                `Tool names from MCP servers are automatically prefixed - use the name exactly as shown in your tools list. ` +
+                `Example: If the MCP server provides "obs-set-scene-item-enabled", it becomes "mcp_obs-set-scene-item-enabled" in your tools list (note: hyphens are preserved, only colons and dots become underscores).`
+              );
             }
           }
 
@@ -711,7 +854,7 @@ export class ReflexServer extends Bit {
 
     // reflex.delete - Delete a reflex (soft delete)
     this.registerTool(
-      'delete',
+      'reflex.delete',
       'Delete a reflex (soft delete by setting active=false)',
       z.object({
         id: z.string().describe('Reflex ID to delete'),
@@ -740,7 +883,7 @@ export class ReflexServer extends Bit {
 
     // reflex.test - Test a reflex against a mock event
     this.registerTool(
-      'test',
+      'reflex.test',
       'Test a reflex against a mock event to verify pattern matching and execution',
       z.object({
         id: z.string().describe('Reflex ID to test'),
@@ -771,7 +914,7 @@ export class ReflexServer extends Bit {
           return {
             content: [{
               type: 'text',
-              text: `Pattern match SUCCESS:\n\nReflex: ${reflex.name}\nPattern: ${reflex.match.type} "${reflex.match.pattern}" in ${reflex.match.field}\nMatched value: ${JSON.stringify((mockEvent as any)[reflex.match.field])}\n\nNote: Tool execution is not performed in test mode. The reflex would execute: ${reflex.action.tool}`,
+              text: `Pattern match SUCCESS:\n\nReflex: ${reflex.name}\nPattern: ${reflex.match.type} "${reflex.match.pattern}" in ${reflex.match.field}\nMatched value: ${JSON.stringify((mockEvent as any)[reflex.match.field])}\n\nNote: Tool execution is not performed in test mode.${reflex.action ? ` The reflex would execute: ${reflex.action.tool}` : ' This is a candidate-only reflex (no tool execution).'}`,
             }],
           };
         } catch (error) {
@@ -788,7 +931,7 @@ export class ReflexServer extends Bit {
 
     // reflex.stats - Get reflex statistics
     this.registerTool(
-      'stats',
+      'reflex.stats',
       'Get statistics for a reflex or overall cache stats',
       z.object({
         id: z.string().optional().describe('Reflex ID (omit for overall cache stats)'),

@@ -96,4 +96,32 @@ describe('McpBridge', () => {
     // jsonSchema(schema) returns { jsonSchema: schema }
     expect((tool.inputSchema as any).jsonSchema.type).toBe('object');
   });
+
+  it('should not double-prefix tool names that already have mcp: prefix', () => {
+    const mcpTool = {
+      name: 'mcp:obs-set-scene-item-enabled',
+      description: 'Already prefixed tool',
+      inputSchema: { type: 'object' },
+    };
+
+    const tool = bridge.translateTool(mcpTool);
+
+    // Should preserve the original prefix, not add another one
+    expect(tool.id).toBe('mcp:obs-set-scene-item-enabled');
+    expect(tool.displayName).toBe('mcp:obs-set-scene-item-enabled');
+  });
+
+  it('should not double-prefix tool names that have internal: prefix', () => {
+    const mcpTool = {
+      name: 'internal:some-tool',
+      description: 'Internal tool',
+      inputSchema: { type: 'object' },
+    };
+
+    const tool = bridge.translateTool(mcpTool);
+
+    // Should preserve the original prefix, not add another one
+    expect(tool.id).toBe('internal:some-tool');
+    expect(tool.displayName).toBe('internal:some-tool');
+  });
 });

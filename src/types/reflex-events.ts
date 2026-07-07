@@ -73,14 +73,14 @@ export interface ReflexExecutedEvent {
   /** Name of the reflex (for human readability) */
   reflexName: string;
 
-  /** MCP tool that was called */
-  tool: string;
+  /** MCP tool that was called (undefined for candidate-only reflexes) */
+  tool?: string;
 
-  /** Resolved parameters after template interpolation */
-  parameters: Record<string, any>;
+  /** Resolved parameters after template interpolation (undefined for candidate-only reflexes) */
+  parameters?: Record<string, any>;
 
-  /** Tool execution result */
-  result: any;
+  /** Tool execution result (undefined for candidate-only reflexes) */
+  result?: any;
 
   /** Execution time in milliseconds */
   latency: number;
@@ -135,11 +135,11 @@ export interface ReflexFailedEvent {
   /** Name of the reflex (for human readability) */
   reflexName: string;
 
-  /** MCP tool that was called */
-  tool: string;
+  /** MCP tool that was called (undefined for candidate-only reflexes) */
+  tool?: string;
 
-  /** Resolved parameters after template interpolation */
-  parameters: Record<string, any>;
+  /** Resolved parameters after template interpolation (undefined for candidate-only reflexes) */
+  parameters?: Record<string, any>;
 
   /** Error details */
   error: {
