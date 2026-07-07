@@ -8,7 +8,7 @@
  */
 export interface TemplateOptions {
   name: string;
-  profile: 'core' | 'gateway' | 'llm' | 'mcp-domain';
+  profile: 'core' | 'gateway' | 'llm' | 'mcp-server';
   exposure: 'platform-only' | 'platform+domain' | 'none';
   kind: 'pipeline-service' | 'gateway' | 'mcp-server';
   port?: number;
@@ -48,7 +48,7 @@ export function generateAppSource(opts: TemplateOptions): string {
 
   // Determine imports based on profile
   const needsExpress = opts.profile === 'gateway' || (opts.paths && opts.paths.length > 0);
-  const needsZod = opts.profile === 'mcp-domain';
+  const needsZod = opts.profile === 'mcp-server';
 
   const expressImport = needsExpress ? "import { Request, Response } from 'express';\n" : "";
   const zodImport = needsZod ? "import { z } from 'zod';\n" : "";
@@ -73,8 +73,8 @@ ${explicitHandlers}
   }`;
   }
 
-  if (opts.profile === 'mcp-domain') {
-    // MCP-domain profile: include MCP tool registration example
+  if (opts.profile === 'mcp-server') {
+    // MCP-server profile: include MCP tool registration example
     setupContent = `  private registerDomainTools() {
     // Example MCP tool registration
     this.registerTool(
@@ -112,7 +112,7 @@ ${explicitHandlers}
     constructorContent += `\n    this.setupRoutes();`;
   }
 
-  if (opts.profile === 'mcp-domain') {
+  if (opts.profile === 'mcp-server') {
     constructorContent += `\n    this.registerDomainTools();`;
   }
 

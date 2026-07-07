@@ -22,6 +22,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.8.0] - 2026-07-07
+### Added
+- **Comprehensive documentation refactor for Reflex and Platform vs Domain architecture** (sprint-332 / documentation-refactor).
+  - New guide: `documentation/guides/choosing-platform-vs-domain.md` — Decision framework for categorizing Bits as Platform (core orchestration) or Domain (optional extensions) with 4-question checklist, current categorization tables (10 Platform, 6 Domain), 4 worked examples, and gray areas discussion.
+  - New reference: `documentation/reference/reflex-mcp-tools.md` — Complete reference for all 6 `reflex.*` domain tools (`create`, `list`, `update`, `delete`, `test`, `stats`) with parameter schemas, tool naming conventions, event type conventions, parameter interpolation, cache behavior, and priority semantics.
+  - New tutorial: `documentation/tutorials/creating-a-reflex.md` — Step-by-step guide for creating deterministic <150ms reflexes with pattern matching (exact/contains/prefix/suffix/regex), conditions filtering, tool execution, response variations, troubleshooting, and best practices. Includes comparison table: Event Router rules vs Reflexes.
+  - New tutorial: `documentation/tutorials/creating-a-domain-mcp-server.md` — End-to-end guide for building Domain MCP Servers (category: domain, profile: mcp-server) with weather service example, Bit scaffold generation, tool registration with Zod, configuration management, testing workflows, deployment, advanced topics (context binding, resources, metrics), and common patterns.
+  - Updated `documentation/tutorials/lurk-command.md` with "Alternative: The Reflex Approach" section explaining when to use Event Router rules vs Reflexes.
+  - Updated core documentation (`README.md`, `platform-flow.md`, `event-router-rules.md`, `capability-profiles.md`, `bit-model.md`, `bit-control-plane.md`, `bit-model-technical-architecture.md`, `quickstart.md`, `evaluating-bitbrat.md`) with dual execution paths (Reflex deterministic <150ms vs LLM-based 2-10s), Platform vs Domain categorization, and profile rename (mcp-domain → mcp-server).
+  - Added validation summary (`planning/sprint-documentation-refactor/validation-summary.md`) with automated and manual validation results: 0 mcp-domain references, 100% terminology consistency, 35+ cross-references, 5 new documents (1,524 lines), 15 updated documents.
+
+### Changed
+- **Profile renamed: `mcp-domain` → `mcp-server`** (sprint-332 / documentation-refactor). Clarifies that this profile serves MCP tools (matches `kind: mcp-server`). Clears namespace conflict with `category: domain` and `mcp.exposure: platform+domain`. Updated across `architecture.yaml`, JSON schema, Zod schema, CLI validation, templates, and all documentation. Contract enforced: `profile: mcp-server` requires `mcp.exposure: platform+domain`.
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.7.4] - 2026-07-03
 ### Added
 - **`brat bit create` command for modern Bit scaffolding** (sprint-331). New `brat bit create <name> [options]`
