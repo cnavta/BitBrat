@@ -27,7 +27,7 @@ carries an RBAC [scope](#rbac-scopes).
 
 | Tool | Purpose | Scope |
 |---|---|---|
-| `bit.info` | Bit identity: name, version, declared `profile`, `exposure`, declared topics, and secret **names** (never values). | `bit:read` |
+| `bit.info` | Bit identity: name, version, declared `category` (platform\|domain), `profile`, `exposure`, declared topics, and secret **names** (never values). | `bit:read` |
 | `bit.health` | Structured health status (mirrors `/healthz`). | `bit:read` |
 | `bit.readiness` | Structured readiness status (mirrors `/readyz`). | `bit:read` |
 | `bit.config.get` | Effective configuration, **secrets redacted**. | `bit:read` |
