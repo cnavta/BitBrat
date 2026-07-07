@@ -23,10 +23,11 @@ describe('Candidate Builder', () => {
       field: 'message.text',
     },
     action: {
-      tool: 'obs.set_source_visibility',
+      tool: 'mcp_obs_set_scene_item_enabled',
       parameters: {
-        sourceName: 'FailOverlay',
-        visible: true,
+        sceneName: 'MainScene',
+        sceneItemId: 5,
+        sceneItemEnabled: true,
       },
     },
     createdAt: '2026-07-04T12:00:00Z',
@@ -35,10 +36,9 @@ describe('Candidate Builder', () => {
 
   const mockEvent: InternalEventV2 = {
     v: '2',
-    eventType: 'twitch.chat.message',
+    type: 'twitch.chat.message',
     correlationId: 'test-123',
     traceId: 'trace-123',
-    source: 'twitch-ingress',
     ingress: {
       ingressAt: '2026-07-04T12:00:00Z',
       source: 'twitch-ingress',
@@ -50,12 +50,24 @@ describe('Candidate Builder', () => {
       text: '!fail',
     },
     identity: {
-      platform: { id: 'twitch', name: 'Twitch' },
-      externalUser: { id: 'user123', displayName: 'TestUser' },
+      external: {
+        id: 'user123',
+        platform: 'twitch',
+        displayName: 'TestUser',
+      },
       user: {
         id: 'user-123',
         displayName: 'TestUser',
       },
+    },
+    egress: {
+      destination: 'twitch',
+      connector: 'twitch',
+    },
+    routing: {
+      stage: 'analysis',
+      slip: [],
+      history: [],
     },
   };
 
@@ -131,10 +143,10 @@ describe('Candidate Builder', () => {
     });
 
     it('should handle complex nested paths', () => {
-      const template = 'Platform: {{event.identity.platform.name}}';
+      const template = 'Platform: {{event.identity.external.platform}}';
       const candidate = buildCandidate(template, mockReflex, mockEvent, mockToolResult);
 
-      expect(candidate.text).toBe('Platform: Twitch');
+      expect(candidate.text).toBe('Platform: twitch');
     });
 
     it('should handle templates with no placeholders', () => {

@@ -214,9 +214,31 @@ export class ToolGatewayServer extends Bit {
     this.onHTTPRequest({ path: '/v1/tools/:id', method: 'POST' }, async (req: Request, res: Response) => {
       const toolId = req.params.id;
       const context = this.extractSessionContext(req);
-      const tool = this.registry.getTool(toolId);
 
-      if (!tool) return res.status(404).json({ error: 'Tool not found' });
+      // Try direct lookup first (by original ID), then by sanitized name
+      let tool = this.registry.getTool(toolId);
+      if (!tool) {
+        this.getLogger().debug('tool_gateway.rest.tool_not_found_by_id', { toolId, attemptingSanitizedLookup: true });
+        tool = this.registry.getToolBySanitizedName(toolId);
+        if (tool) {
+          this.getLogger().debug('tool_gateway.rest.tool_found_by_sanitized_name', {
+            toolId,
+            actualToolId: tool.id,
+            displayName: tool.displayName
+          });
+        }
+      }
+
+      if (!tool) {
+        // List available tools for debugging
+        const availableTools = Object.keys(this.registry.getTools());
+        this.getLogger().warn('tool_gateway.rest.tool_not_found', {
+          requestedTool: toolId,
+          availableToolCount: availableTools.length,
+          sampleTools: availableTools.slice(0, 10)
+        });
+        return res.status(404).json({ error: 'Tool not found' });
+      }
       
       const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, context);
       if (!allowed) return res.status(403).json({ error: 'Forbidden' });

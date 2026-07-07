@@ -17,7 +17,7 @@ import { logger } from '../../common/logging';
 import { InternalEventV2, CandidateV1 } from '../../types/events.js';
 import { buildParameters } from './parameter-builder.js';
 import { executeTool, ToolExecutionTimeoutError, ToolExecutionError } from './tool-executor.js';
-import { buildCandidate } from './candidate-builder.js';
+import { buildCandidates } from './candidate-builder.js';
 
 /**
  * Executes a reflex: builds parameters, calls tool, generates candidate.
@@ -66,42 +66,50 @@ export async function executeReflex(
     logger.info('[reflex-executor] Starting reflex execution:', {
       reflexId: reflex.id,
       reflexName: reflex.name,
-      tool: reflex.action.tool,
+      tool: reflex.action?.tool,
+      hasAction: !!reflex.action,
       correlationId,
     });
 
-    // Step 1: Build parameters from template + event
-    const parameters = buildParameters(reflex.action.parameters, event);
+    // Step 1 & 2: Execute MCP tool if action is defined
+    let toolResult: any = undefined;
+    if (reflex.action) {
+      // Build parameters from template + event
+      const parameters = buildParameters(reflex.action.parameters, event);
 
-    logger.debug('[reflex-executor] Parameters built:', {
-      reflexId: reflex.id,
-      tool: reflex.action.tool,
-      parameters,
-    });
+      logger.debug('[reflex-executor] Parameters built:', {
+        reflexId: reflex.id,
+        tool: reflex.action.tool,
+        parameters,
+      });
 
-    // Step 2: Execute MCP tool
-    const toolResult = await executeTool(reflex.action.tool, parameters, {
-      authToken,
-      timeout: reflex.action.timeout || 5000,
-      correlationId,
-    });
+      // Execute MCP tool
+      toolResult = await executeTool(reflex.action.tool, parameters, {
+        authToken,
+        timeout: reflex.action.timeout || 5000,
+        correlationId,
+      });
+    } else {
+      logger.debug('[reflex-executor] No action defined, skipping tool execution');
+    }
 
-    // Step 3: Build candidate if template provided
-    let candidate: CandidateV1 | undefined;
+    // Step 3: Build candidate(s) if template(s) provided
+    let candidates: CandidateV1[] | undefined;
     if (reflex.candidateTemplate) {
       try {
-        candidate = buildCandidate(reflex.candidateTemplate, reflex, event, toolResult);
-        logger.debug('[reflex-executor] Candidate generated:', {
+        candidates = buildCandidates(reflex.candidateTemplate, reflex, event, toolResult || {});
+        logger.debug('[reflex-executor] Candidate(s) generated:', {
           reflexId: reflex.id,
-          candidateText: candidate.text,
+          candidateCount: candidates.length,
+          candidateTexts: candidates.map(c => c.text),
         });
       } catch (error) {
         // Log error but don't fail execution
-        logger.warn('[reflex-executor] Failed to build candidate:', {
+        logger.warn('[reflex-executor] Failed to build candidate(s):', {
           reflexId: reflex.id,
           error: error instanceof Error ? error.message : String(error),
         });
-        // candidate remains undefined
+        // candidates remains undefined
       }
     }
 
@@ -112,9 +120,10 @@ export async function executeReflex(
     logger.info('[reflex-executor] Reflex execution successful:', {
       reflexId: reflex.id,
       reflexName: reflex.name,
-      tool: reflex.action.tool,
+      tool: reflex.action?.tool,
+      hasAction: !!reflex.action,
       latency: `${latency}ms`,
-      candidateGenerated: !!candidate,
+      candidatesGenerated: candidates?.length || 0,
       correlationId,
     });
 
@@ -122,7 +131,7 @@ export async function executeReflex(
     return {
       status: 'success',
       result: toolResult,
-      candidate,
+      candidates,
       latency,
     };
   } catch (error) {
@@ -163,7 +172,8 @@ export async function executeReflex(
     logger.error('[reflex-executor] Reflex execution failed:', {
       reflexId: reflex.id,
       reflexName: reflex.name,
-      tool: reflex.action.tool,
+      tool: reflex.action?.tool,
+      hasAction: !!reflex.action,
       error: errorDetails.message,
       code: errorDetails.code,
       latency: `${latency}ms`,
@@ -202,9 +212,13 @@ export function validateReflexForExecution(reflex: Reflex): {
     errors.push('Missing reflex name');
   }
 
-  if (!reflex.action) {
-    errors.push('Missing action configuration');
-  } else {
+  // Require at least one of action or candidateTemplate
+  if (!reflex.action && !reflex.candidateTemplate) {
+    errors.push('Must provide at least one of action or candidateTemplate');
+  }
+
+  // Validate action if provided
+  if (reflex.action) {
     if (!reflex.action.tool) {
       errors.push('Missing tool name in action');
     }
@@ -250,6 +264,11 @@ export function validateReflexForExecution(reflex: Reflex): {
  * @returns Estimated execution time in milliseconds
  */
 export function estimateExecutionTime(reflex: Reflex): number {
+  // If no action, execution is just candidate building (very fast)
+  if (!reflex.action) {
+    return 10; // Estimate 10ms for candidate-only reflexes
+  }
+
   // Use configured timeout if available, otherwise default
   const timeout = reflex.action.timeout || 5000;
 
@@ -270,8 +289,8 @@ export function estimateExecutionTime(reflex: Reflex): number {
 export function getExecutionStatusDescription(result: ReflexExecutionResult): string {
   if (result.status === 'success') {
     const parts = ['Execution successful'];
-    if (result.candidate) {
-      parts.push('candidate generated');
+    if (result.candidates && result.candidates.length > 0) {
+      parts.push(`${result.candidates.length} candidate(s) generated`);
     }
     parts.push(`(${result.latency}ms)`);
     return parts.join(', ');

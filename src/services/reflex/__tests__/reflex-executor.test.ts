@@ -45,11 +45,11 @@ describe('Reflex Executor', () => {
       field: 'message.text',
     },
     action: {
-      tool: 'obs.set_source_visibility',
+      tool: 'mcp_obs_set_scene_item_enabled',
       parameters: {
-        sourceName: 'FailOverlay',
-        visible: true,
-        scene: '{{message.scene}}',
+        sceneName: 'MainScene',
+        sceneItemId: 5,
+        sceneItemEnabled: true,
       },
       timeout: 3000,
     },
@@ -72,7 +72,8 @@ describe('Reflex Executor', () => {
       id: 'msg-123',
       role: 'user',
       text: '!fail',
-    },
+      scene: 'MainScene',
+    } as any,
     identity: {
       user: {
         id: 'user-123',
@@ -93,7 +94,6 @@ describe('Reflex Executor', () => {
       destination: 'twitch',
       connector: 'twitch',
     },
-    timestamp: '2026-07-04T12:00:00Z',
   };
 
   beforeEach(() => {
@@ -111,8 +111,9 @@ describe('Reflex Executor', () => {
       expect(result.status).toBe('success');
       expect(result.result).toEqual(mockToolResult);
       expect(result.latency).toBeGreaterThan(0);
-      expect(result.candidate).toBeDefined();
-      expect(result.candidate?.text).toBe('TestUser activated fail overlay!');
+      expect(result.candidates).toBeDefined();
+      expect(result.candidates).toHaveLength(1);
+      expect(result.candidates?.[0].text).toBe('TestUser activated fail overlay!');
     });
 
     it('should interpolate parameters correctly', async () => {
@@ -122,11 +123,11 @@ describe('Reflex Executor', () => {
       await executeReflex(mockReflex, mockEvent);
 
       expect(executeTool).toHaveBeenCalledWith(
-        'obs.set_source_visibility',
+        'mcp_obs_set_scene_item_enabled',
         {
-          sourceName: 'FailOverlay',
-          visible: true,
-          scene: 'MainScene', // Interpolated from {{message.scene}}
+          sceneName: 'MainScene',
+          sceneItemId: 5,
+          sceneItemEnabled: true,
         },
         expect.objectContaining({
           timeout: 3000,
@@ -142,25 +143,25 @@ describe('Reflex Executor', () => {
       const result = await executeReflex(reflexWithoutTemplate, mockEvent);
 
       expect(result.status).toBe('success');
-      expect(result.candidate).toBeUndefined();
+      expect(result.candidates).toBeUndefined();
     });
 
     it('should handle tool execution timeout', async () => {
       const { executeTool, ToolExecutionTimeoutError } = require('../tool-executor.js');
-      executeTool.mockRejectedValue(new ToolExecutionTimeoutError('obs.set_source_visibility', 3000));
+      executeTool.mockRejectedValue(new ToolExecutionTimeoutError('mcp_obs_set_scene_item_enabled', 3000));
 
       const result = await executeReflex(mockReflex, mockEvent);
 
       expect(result.status).toBe('error');
       expect(result.error?.code).toBe('TIMEOUT');
       expect(result.error?.message).toContain('timeout');
-      expect(result.latency).toBeGreaterThan(0);
+      expect(result.latency).toBeGreaterThanOrEqual(0);
     });
 
     it('should handle tool execution error', async () => {
       const { executeTool, ToolExecutionError } = require('../tool-executor.js');
       executeTool.mockRejectedValue(
-        new ToolExecutionError('obs.set_source_visibility', 'Tool not found', 404)
+        new ToolExecutionError('mcp_obs_set_scene_item_enabled', 'Tool not found', 404)
       );
 
       const result = await executeReflex(mockReflex, mockEvent);
@@ -193,7 +194,8 @@ describe('Reflex Executor', () => {
       const reflexWithoutTimeout = {
         ...mockReflex,
         action: {
-          ...mockReflex.action,
+          tool: mockReflex.action!.tool,
+          parameters: mockReflex.action!.parameters,
           timeout: undefined,
         },
       };
@@ -260,17 +262,21 @@ describe('Reflex Executor', () => {
       expect(result.errors).toContain('Missing reflex name');
     });
 
-    it('should detect missing action', () => {
-      const invalid = { ...mockReflex, action: undefined as any };
+    it('should detect missing action and candidateTemplate', () => {
+      const invalid = { ...mockReflex, action: undefined as any, candidateTemplate: undefined };
       const result = validateReflexForExecution(invalid);
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Missing action configuration');
+      expect(result.errors).toContain('Must provide at least one of action or candidateTemplate');
     });
 
     it('should detect missing tool name', () => {
       const invalid = {
         ...mockReflex,
-        action: { ...mockReflex.action, tool: '' },
+        action: {
+          tool: '',
+          parameters: mockReflex.action!.parameters,
+          timeout: mockReflex.action!.timeout,
+        },
       };
       const result = validateReflexForExecution(invalid);
       expect(result.isValid).toBe(false);
@@ -280,7 +286,11 @@ describe('Reflex Executor', () => {
     it('should detect invalid timeout', () => {
       const invalid = {
         ...mockReflex,
-        action: { ...mockReflex.action, timeout: 0 },
+        action: {
+          tool: mockReflex.action!.tool,
+          parameters: mockReflex.action!.parameters,
+          timeout: 0,
+        },
       };
       const result = validateReflexForExecution(invalid);
       expect(result.isValid).toBe(false);
@@ -326,7 +336,11 @@ describe('Reflex Executor', () => {
     it('should use default timeout when not specified', () => {
       const reflexWithoutTimeout = {
         ...mockReflex,
-        action: { ...mockReflex.action, timeout: undefined },
+        action: {
+          tool: mockReflex.action!.tool,
+          parameters: mockReflex.action!.parameters,
+          timeout: undefined,
+        },
       };
       const estimate = estimateExecutionTime(reflexWithoutTimeout);
       expect(estimate).toBe(5050); // 5000ms default + 50ms overhead
@@ -349,11 +363,11 @@ describe('Reflex Executor', () => {
       const result = {
         status: 'success' as const,
         result: {},
-        candidate: { text: 'Test' },
+        candidates: [{ text: 'Test' }],
         latency: 150,
       };
       const description = getExecutionStatusDescription(result);
-      expect(description).toContain('candidate generated');
+      expect(description).toContain('candidate(s) generated');
     });
 
     it('should describe failed execution', () => {

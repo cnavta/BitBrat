@@ -26,6 +26,10 @@ export class McpBridge {
 
   /** Build the (possibly Bit-qualified) discovery id for a tool name. */
   qualifyToolId(name: string): string {
+    // If the tool name already has a prefix (mcp: or internal:), don't add another one
+    if (name.startsWith('mcp:') || name.startsWith('internal:')) {
+      return name;
+    }
     return this.isPlatformToolName(name) ? `mcp:${this.serverName}/${name}` : `mcp:${name}`;
   }
 

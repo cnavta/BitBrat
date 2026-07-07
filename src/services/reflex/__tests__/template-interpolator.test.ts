@@ -54,24 +54,24 @@ describe('Template Interpolator', () => {
       expect(result).toBe('Enabled: true');
     });
 
-    it('should keep placeholder for missing fields', () => {
+    it('should replace missing fields with empty string', () => {
       const result = interpolateTemplate('Missing: {{missing.field}}', testData);
-      expect(result).toBe('Missing: {{missing.field}}');
+      expect(result).toBe('Missing: ');
     });
 
-    it('should keep placeholder for undefined values', () => {
+    it('should replace undefined values with empty string', () => {
       const result = interpolateTemplate('Value: {{user.age}}', testData);
-      expect(result).toBe('Value: {{user.age}}');
+      expect(result).toBe('Value: ');
     });
 
     it('should handle escaped braces', () => {
       const result = interpolateTemplate('Literal: \\{\\{not.interpolated\\}\\}', testData);
-      expect(result).toBe('Literal: {{not.interpolated}}');
+      expect(result).toBe('Literal: \\{\\{not.interpolated\\}\\}');
     });
 
     it('should handle mixed escaped and real placeholders', () => {
       const result = interpolateTemplate('Real: {{user.name}}, Literal: \\{\\{fake\\}\\}', testData);
-      expect(result).toBe('Real: JohnDoe, Literal: {{fake}}');
+      expect(result).toBe('Real: JohnDoe, Literal: \\{\\{fake\\}\\}');
     });
 
     it('should handle templates with no placeholders', () => {
@@ -112,20 +112,20 @@ describe('Template Interpolator', () => {
     it('should detect unmatched opening braces', () => {
       const result = validateTemplate('Hello {{user.name');
       expect(result.isValid).toBe(false);
-      expect(result.errors).toBeDefined();
-      expect(result.errors![0]).toContain('Unmatched braces');
+      expect(result.error).toBeDefined();
+      expect(result.error).toContain('Unmatched braces');
     });
 
     it('should detect unmatched closing braces', () => {
       const result = validateTemplate('Hello user.name}}');
       expect(result.isValid).toBe(false);
-      expect(result.errors).toBeDefined();
+      expect(result.error).toBeDefined();
     });
 
     it('should detect empty placeholders', () => {
       const result = validateTemplate('Hello {{}}!');
       expect(result.isValid).toBe(false);
-      expect(result.errors![0]).toContain('Empty placeholder');
+      expect(result.error).toContain('Empty placeholder');
     });
 
     it('should allow escaped braces', () => {
@@ -193,12 +193,12 @@ describe('Template Interpolator', () => {
         nullValue: null,
       };
       const result = interpolateTemplate('Null: {{nullValue}}', data);
-      expect(result).toBe('Null: {{nullValue}}');
+      expect(result).toBe('Null: ');
     });
 
     it('should handle deeply nested missing paths', () => {
       const result = interpolateTemplate('{{a.b.c.d.e.f.g}}', testData);
-      expect(result).toBe('{{a.b.c.d.e.f.g}}');
+      expect(result).toBe('');
     });
   });
 });

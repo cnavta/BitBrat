@@ -14,27 +14,34 @@ import {
 import type { Reflex } from '../../../types/reflex.js';
 
 // Mock Firestore SDK
-const mockGet = jest.fn();
-const mockSet = jest.fn();
-const mockUpdate = jest.fn();
-const mockOnSnapshot = jest.fn();
-const mockDoc = jest.fn();
-const mockWhere = jest.fn();
-const mockOrderBy = jest.fn();
-const mockCollection = jest.fn();
+const mockGet: any = jest.fn();
+const mockSet: any = jest.fn();
+const mockUpdate: any = jest.fn();
+const mockOnSnapshot: any = jest.fn();
+const mockDoc: any = jest.fn();
+const mockWhere: any = jest.fn();
+const mockOrderBy: any = jest.fn();
+const mockCollection: any = jest.fn();
 
 const mockFirestore = {
   collection: mockCollection,
 } as any;
 
 // Mock Firestore module
-jest.mock('firebase-admin/firestore', () => ({
-  getFirestore: jest.fn(() => mockFirestore),
-  Timestamp: {
-    now: jest.fn(() => ({ toDate: () => new Date('2026-07-04T12:00:00Z') })),
-    fromDate: (date: Date) => ({ toDate: () => date }),
-  },
-}));
+jest.mock('firebase-admin/firestore', () => {
+  // Mock Timestamp class
+  class MockTimestamp {
+    constructor(private date: Date) {}
+    toDate() { return this.date; }
+    static now() { return new MockTimestamp(new Date('2026-07-04T12:00:00Z')); }
+    static fromDate(date: Date) { return new MockTimestamp(date); }
+  }
+
+  return {
+    getFirestore: jest.fn(() => mockFirestore),
+    Timestamp: MockTimestamp,
+  };
+});
 
 describe('ReflexRepository', () => {
   let repository: ReflexRepository;
@@ -50,10 +57,11 @@ describe('ReflexRepository', () => {
       field: 'message.text',
     },
     action: {
-      tool: 'obs.set_source_visibility',
+      tool: 'mcp_obs_set_scene_item_enabled',
       parameters: {
-        sourceName: 'FailOverlay',
-        visible: true,
+        sceneName: 'MainScene',
+        sceneItemId: 5,
+        sceneItemEnabled: true,
       },
     },
     createdAt: '2026-07-04T12:00:00.000Z',
@@ -113,7 +121,7 @@ describe('ReflexRepository', () => {
         },
       ];
 
-      (mockGet as any).mockResolvedValue({ docs: mockDocs });
+      mockGet.mockResolvedValue({ docs: mockDocs });
 
       const result = await repository.getAll();
 
@@ -127,7 +135,7 @@ describe('ReflexRepository', () => {
     });
 
     it('should return empty array when no reflexes found', async () => {
-      (mockGet as any).mockResolvedValue({ docs: [] });
+      mockGet.mockResolvedValue({ docs: [] });
 
       const result = await repository.getAll();
 
@@ -147,7 +155,7 @@ describe('ReflexRepository', () => {
         },
       ];
 
-      (mockGet as any).mockResolvedValue({ docs: mockDocs });
+      mockGet.mockResolvedValue({ docs: mockDocs });
 
       const result = await repository.getAll();
 
@@ -187,7 +195,7 @@ describe('ReflexRepository', () => {
     });
 
     it('should return undefined when reflex not found', async () => {
-      (mockGet as any).mockResolvedValue({ exists: false });
+      mockGet.mockResolvedValue({ exists: false });
 
       const result = await repository.getById('missing-id');
 
@@ -287,7 +295,7 @@ describe('ReflexRepository', () => {
       const result = await repository.create(newReflex);
 
       expect(result.match.type).toBe('regex');
-      expect(result.action.timeout).toBe(3000);
+      expect(result.action?.timeout).toBe(3000);
       expect(result.conditions).toEqual(newReflex.conditions);
       expect(result.candidateTemplate).toBe(newReflex.candidateTemplate);
     });
@@ -342,7 +350,7 @@ describe('ReflexRepository', () => {
     });
 
     it('should throw ReflexNotFoundError when reflex does not exist', async () => {
-      (mockGet as any).mockResolvedValue({ exists: false });
+      mockGet.mockResolvedValue({ exists: false });
 
       await expect(repository.update('missing-id', { active: false })).rejects.toThrow(ReflexNotFoundError);
       await expect(repository.update('missing-id', { active: false })).rejects.toThrow('Reflex not found: missing-id');
@@ -406,7 +414,7 @@ describe('ReflexRepository', () => {
     });
 
     it('should throw ReflexNotFoundError when reflex does not exist', async () => {
-      (mockGet as any).mockResolvedValue({ exists: false });
+      mockGet.mockResolvedValue({ exists: false });
 
       await expect(repository.delete('missing-id')).rejects.toThrow(ReflexNotFoundError);
     });
@@ -554,7 +562,7 @@ describe('ReflexRepository', () => {
 
       snapshotCallback(mockSnapshot);
 
-      const receivedReflexes = callback.mock.calls[0][0];
+      const receivedReflexes = callback.mock.calls[0][0] as Reflex[];
       expect(receivedReflexes[0].createdAt).toBe('2026-07-04T12:30:00.000Z');
       expect(receivedReflexes[0].updatedAt).toBe('2026-07-04T12:30:00.000Z');
     });

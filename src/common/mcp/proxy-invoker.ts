@@ -141,8 +141,9 @@ export class ProxyInvoker {
     // Set up timeout and invocation
     const invokePromise = callFn();
 
+    let timeoutTimer: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      const timer = setTimeout(() => {
+      timeoutTimer = setTimeout(() => {
         const error = new Error(`Upstream Timeout: Invoking ${operationId} on server ${serverName} exceeded ${timeoutMs}ms`);
         logger?.error?.('mcp.proxy_invoker.upstream_timeout', { serverName, operationId, timeoutMs });
         reject(error);
@@ -150,11 +151,11 @@ export class ProxyInvoker {
 
       if (context?.signal) {
         if (context.signal.aborted) {
-          clearTimeout(timer);
+          clearTimeout(timeoutTimer);
           reject(new Error(`Caller Abort: Invocation of ${operationId} on server ${serverName} was already aborted`));
         } else {
           context.signal.addEventListener('abort', () => {
-            clearTimeout(timer);
+            if (timeoutTimer) clearTimeout(timeoutTimer);
             const error = new Error(`Caller Abort: Invocation of ${operationId} on server ${serverName} aborted by caller`);
             logger?.warn?.('mcp.proxy_invoker.caller_abort', { serverName, operationId });
             reject(error);
@@ -167,6 +168,9 @@ export class ProxyInvoker {
       // Race against timeout
       const result = await Promise.race([invokePromise, timeoutPromise]);
 
+      // Clear the timeout since the invocation completed successfully
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+
       // Reset on success or handle tool-reported error
       if (result && typeof result === 'object' && (result as any).isError) {
         this.recordFailure(serverName, failureThreshold);
@@ -176,6 +180,9 @@ export class ProxyInvoker {
 
       return result as T;
     } catch (error: any) {
+      // Clear the timeout since we're handling an error
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+
       // Transport failure, timeout, or server crash
       this.recordFailure(serverName, failureThreshold);
       throw error;

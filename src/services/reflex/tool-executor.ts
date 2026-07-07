@@ -52,6 +52,9 @@ export interface ToolExecutionConfig {
 
   /** Correlation ID for request tracing */
   correlationId?: string;
+
+  /** Service name / role to use for RBAC (defaults to SERVICE_NAME env var) */
+  serviceName?: string;
 }
 
 /**
@@ -64,7 +67,7 @@ export interface ToolExecutionConfig {
  * 4. POST request with tool name and parameters
  * 5. Parse and return result
  *
- * @param tool - Fully qualified MCP tool name (e.g., 'obs.set_source_visibility')
+ * @param tool - Fully qualified MCP tool ID (e.g., 'mcp:obs.set_scene_item_enabled')
  * @param parameters - Tool parameters (already interpolated)
  * @param config - Execution configuration
  * @returns Tool execution result
@@ -73,8 +76,8 @@ export interface ToolExecutionConfig {
  *
  * @example
  * const result = await executeTool(
- *   'obs.set_source_visibility',
- *   { sourceName: 'FailOverlay', visible: true },
+ *   'mcp:obs.set_scene_item_enabled',
+ *   { sceneName: 'MainScene', sceneItemId: 5, sceneItemEnabled: true },
  *   { timeout: 3000, correlationId: '...' }
  * );
  */
@@ -84,10 +87,11 @@ export async function executeTool(
   config: ToolExecutionConfig = {}
 ): Promise<any> {
   const {
-    gatewayUrl = process.env.TOOL_GATEWAY_URL || 'http://tool-gateway:3000',
+    gatewayUrl = process.env.MCP_GATEWAY_URL || 'http://tool-gateway:3000',
     authToken = process.env.MCP_AUTH_TOKEN,
     timeout = 5000,
     correlationId,
+    serviceName = process.env.SERVICE_NAME || 'reflex',
   } = config;
 
   if (!authToken) {
@@ -103,9 +107,10 @@ export async function executeTool(
 
   try {
     // Build request
-    const url = `${gatewayUrl}/mcp/invoke`;
+    // Strip /sse or any trailing path from gatewayUrl to get base URL
+    const baseUrl = gatewayUrl.replace(/\/sse\/?$/, '').replace(/\/$/, '');
+    const url = `${baseUrl}/v1/tools/${encodeURIComponent(tool)}`;
     const body = {
-      tool,
       arguments: parameters,
     };
 
@@ -128,6 +133,7 @@ export async function executeTool(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authToken}`,
+          'X-Roles': serviceName, // Send service name as role for RBAC
           ...(correlationId && { 'X-Correlation-ID': correlationId }),
         },
         body: JSON.stringify(body),
@@ -142,9 +148,17 @@ export async function executeTool(
       if (!response.ok) {
         let errorBody: any;
         try {
-          errorBody = await response.json();
+          // Read body as text first (only consumes stream once)
+          const bodyText = await response.text();
+          try {
+            // Try to parse as JSON
+            errorBody = JSON.parse(bodyText);
+          } catch {
+            // Fall back to raw text if not valid JSON
+            errorBody = bodyText;
+          }
         } catch {
-          errorBody = await response.text();
+          errorBody = 'Unable to read response body';
         }
 
         logger.error('[tool-executor] Tool invocation failed:', {
@@ -159,7 +173,7 @@ export async function executeTool(
       }
 
       // Parse successful response
-      const result = await response.json();
+      const responseData = (await response.json()) as any;
 
       logger.info('[tool-executor] Tool invocation successful:', {
         tool,
@@ -167,7 +181,8 @@ export async function executeTool(
         ...(correlationId && { correlationId }),
       });
 
-      return result;
+      // Tool-gateway returns { result: ... }, extract the result field
+      return responseData.result !== undefined ? responseData.result : responseData;
     } catch (error) {
       clearTimeout(timeoutId);
 
@@ -246,7 +261,7 @@ export function validateToolConfig(config: ToolExecutionConfig): {
  * @returns Tool-gateway URL
  */
 export function getToolGatewayUrl(): string {
-  return process.env.TOOL_GATEWAY_URL || 'http://tool-gateway:3000';
+  return process.env.MCP_GATEWAY_URL || 'http://tool-gateway:3000';
 }
 
 /**

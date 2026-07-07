@@ -34,13 +34,14 @@ describe('Web Search MCP Integration', () => {
     await manager.connectServer(config);
 
     const tools = registry.getTools();
-    console.log('mcp_search_web schema:', JSON.stringify(tools.mcp_search_web.inputSchema, null, 2));
-    
-    // The ToolRegistry replaces ':' with '_'
+
+    // Tool names are sanitized for AI SDK (colons replaced with underscores)
     expect(tools).toHaveProperty('mcp_search_web');
     expect(tools).toHaveProperty('mcp_fetch_page');
-    
-    expect(tools.mcp_search_web.description).toContain('Search the web');
-    expect(tools.mcp_fetch_page.description).toContain('Fetch a page');
+
+    console.log('mcp_search_web schema:', JSON.stringify(tools['mcp_search_web'].inputSchema, null, 2));
+
+    expect(tools['mcp_search_web'].description).toContain('Search the web');
+    expect(tools['mcp_fetch_page'].description).toContain('Fetch a page');
   });
 });
