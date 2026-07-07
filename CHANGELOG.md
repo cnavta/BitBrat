@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.8.0] - 2026-07-07
+### Added
 - **Comprehensive documentation refactor for Reflex and Platform vs Domain architecture** (sprint-332 / documentation-refactor).
   - New guide: `documentation/guides/choosing-platform-vs-domain.md` — Decision framework for categorizing Bits as Platform (core orchestration) or Domain (optional extensions) with 4-question checklist, current categorization tables (10 Platform, 6 Domain), 4 worked examples, and gray areas discussion.
   - New reference: `documentation/reference/reflex-mcp-tools.md` — Complete reference for all 6 `reflex.*` domain tools (`create`, `list`, `update`, `delete`, `test`, `stats`) with parameter schemas, tool naming conventions, event type conventions, parameter interpolation, cache behavior, and priority semantics.
