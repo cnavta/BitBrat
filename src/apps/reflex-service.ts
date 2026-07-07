@@ -1,5 +1,15 @@
 import { z } from 'zod';
 import { Bit } from '../common/base-server';
+import type { PublisherResource } from '../common/resources/publisher-manager';
+import { ReflexRepository, createReflexRepository } from '../services/reflex/reflex-repository.js';
+import { ReflexCache, createReflexCache } from '../services/reflex/reflex-cache.js';
+import { selectReflexes } from '../services/reflex/reflex-selector.js';
+import { executeReflex } from '../services/reflex/reflex-executor.js';
+import { validateRegexPattern } from '../services/reflex/pattern-matcher.js';
+import { metrics } from '../services/reflex/reflex-metrics.js';
+import type { InternalEventV2 } from '../types/events.js';
+import type { ReflexExecutedEvent, ReflexFailedEvent, ReflexTriggeredBy } from '../types/reflex-events.js';
+import type { Reflex, ReflexExecutionResult, PatternMatchType } from '../types/reflex.js';
 
 /**
  * ReflexServer
@@ -7,41 +17,998 @@ import { Bit } from '../common/base-server';
  * Profile: mcp-domain
  * MCP Exposure: platform+domain
  * Kind: mcp-server
+ *
+ * Sprint 332: Implements deterministic event-driven behaviors via reflexes
  */
 export class ReflexServer extends Bit {
+  private repository!: ReflexRepository;
+  private cache!: ReflexCache;
+
   constructor() {
-    super({ mcpExposure: 'platform+domain' });
+    super({
+      mcpExposure: 'platform+domain',
+      setup: (app) => {
+        // Register metrics endpoint
+        app.get('/metrics', (req, res) => {
+          res.set('Content-Type', 'text/plain');
+          res.send(metrics.getPrometheusMetrics());
+        });
+
+        // Register health endpoint
+        app.get('/health', (req, res) => {
+          const summary = metrics.getSummary();
+          const cacheStats = this.cache ? this.cache.getStats() : null;
+
+          const health = {
+            status: 'healthy',
+            cache: {
+              size: cacheStats?.size || 0,
+              initialized: this.cache?.isInitialized() || false,
+              lastSync: cacheStats?.lastSyncAt,
+            },
+            metrics: {
+              endToEnd: {
+                p50: summary.endToEnd.p50,
+                p95: summary.endToEnd.p95,
+                p99: summary.endToEnd.p99,
+                avg: Math.round(summary.endToEnd.avg * 10) / 10,
+              },
+              counts: {
+                total: summary.counts.matched + summary.counts.noMatch,
+                matched: summary.counts.matched,
+                success: summary.counts.success,
+                failure: summary.counts.failure,
+                errors: summary.counts.messageErrors + summary.counts.cacheErrors,
+              },
+            },
+            timestamp: new Date().toISOString(),
+          };
+
+          res.json(health);
+        });
+      },
+    });
     this.registerDomainTools();
   }
 
-  private registerDomainTools() {
-    // Example MCP tool registration
-    this.registerTool(
-      'echo',
-      'Echoes back the input message',
-      z.object({
-        message: z.string().describe('The message to echo'),
-      }),
-      async (args) => {
-        return {
-          content: [{ type: 'text', text: args.message }],
-        };
+  /**
+   * Initializes the reflex service with cache warming.
+   *
+   * Loads all active reflexes into memory before accepting messages.
+   * This ensures sub-150ms response times for reflex matching.
+   */
+  async initialize(): Promise<void> {
+    const logger = this.getLogger();
+    logger.info('reflex.initialize.start');
+
+    try {
+      // Step 1: Initialize Firestore repository
+      logger.info('reflex.initialize.repository');
+      this.repository = createReflexRepository();
+
+      // Step 2: Initialize cache with real-time sync
+      logger.info('reflex.initialize.cache');
+      this.cache = await createReflexCache(this.repository);
+
+      // Update cache size metric
+      metrics.setCacheSize(this.cache.size);
+
+      logger.info('reflex.initialize.cache_warmed', {
+        reflexCount: this.cache.size,
+        stats: this.cache.getStats(),
+      });
+
+      // Step 3: Register message handler for internal.reflex.v1
+      logger.info('reflex.initialize.register_handler');
+      await this.registerMessageHandler();
+
+      logger.info('reflex.initialize.complete');
+    } catch (error) {
+      logger.error('reflex.initialize.failed', { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  /**
+   * Registers the message handler for internal.reflex.v1 topic.
+   *
+   * Implements complete()/next() pattern:
+   * - Match found: execute reflex → complete() (skip remaining analysis)
+   * - No match: next() (continue routing slip)
+   * - Error: complete() in degraded mode (never block)
+   */
+  private async registerMessageHandler(): Promise<void> {
+    const logger = this.getLogger();
+
+    await this.onMessage<InternalEventV2>(
+      'internal.reflex.v1',
+      async (event, attributes, ctx) => {
+        const startTime = Date.now();
+
+        try {
+          logger.info('reflex.event.processing', {
+            correlationId: event.correlationId,
+            eventType: event.type,
+          });
+
+          // Step 1: Select matching reflexes from cache
+          const matchStart = Date.now();
+          const reflexes = this.cache.getAll();
+          const matchedReflexes = selectReflexes(event, reflexes);
+          const matchLatency = Date.now() - matchStart;
+
+          // Record match latency
+          metrics.recordMatchLatency(matchLatency);
+
+          // Path 1: No match → next()
+          if (matchedReflexes.length === 0) {
+            const latency = Date.now() - startTime;
+
+            // Record no-match metric
+            metrics.incrementMatchCount(false);
+            metrics.recordEndToEndLatency(latency);
+
+            logger.info('reflex.event.no_match', {
+              correlationId: event.correlationId,
+              latency,
+            });
+
+            this.updateCurrentStep(event, { status: 'OK', notes: 'No matching reflex' });
+            try {
+              await this.next(event);
+            } catch (nextError) {
+              logger.error('reflex.event.next_error', {
+                correlationId: event.correlationId,
+                error: nextError instanceof Error ? nextError.message : String(nextError),
+              });
+            }
+            // Always acknowledge the message to prevent redelivery
+            await ctx.ack();
+            return;
+          }
+
+          // Record match found
+          metrics.incrementMatchCount(true);
+
+          // Path 2: Match found → execute reflex → complete()
+          const reflex = matchedReflexes[0]; // Phase 1: only first match
+          logger.info('reflex.event.matched', {
+            correlationId: event.correlationId,
+            reflexId: reflex.id,
+            reflexName: reflex.name,
+            priority: reflex.priority,
+          });
+
+          // Execute reflex
+          const result = await executeReflex(reflex, event, {
+            correlationId: event.correlationId,
+          });
+
+          const totalLatency = Date.now() - startTime;
+
+          if (result.status === 'success') {
+            // Record success metrics
+            metrics.recordExecuteLatency(result.latency);
+            metrics.recordEndToEndLatency(totalLatency);
+            metrics.incrementExecuteCount(true);
+
+            logger.info('reflex.event.executed', {
+              correlationId: event.correlationId,
+              reflexId: reflex.id,
+              reflexName: reflex.name,
+              executionLatency: result.latency,
+              totalLatency,
+              candidatesGenerated: result.candidates?.length || 0,
+            });
+
+            // Enrich event with reflex metadata
+            this.enrichEvent(event, reflex, result, totalLatency);
+
+            // Publish execution success event (best effort, don't fail on publish errors)
+            try {
+              await this.publishExecutedEvent(event, reflex, result);
+            } catch (publishError) {
+              logger.error('reflex.event.publish_executed_error', {
+                correlationId: event.correlationId,
+                error: publishError instanceof Error ? publishError.message : String(publishError),
+              });
+            }
+
+            this.updateCurrentStep(event, {
+              status: 'OK',
+              notes: `Reflex executed: ${reflex.name} (${result.latency}ms)`,
+            });
+
+            // Complete routing (skip remaining analysis)
+            try {
+              await this.complete(event);
+            } catch (completeError) {
+              logger.error('reflex.event.complete_error', {
+                correlationId: event.correlationId,
+                error: completeError instanceof Error ? completeError.message : String(completeError),
+              });
+            }
+
+            // Always acknowledge the message to prevent redelivery
+            await ctx.ack();
+          } else {
+            // Record failure metrics
+            metrics.recordExecuteLatency(result.latency);
+            metrics.recordEndToEndLatency(totalLatency);
+            metrics.incrementExecuteCount(false);
+
+            // Execution failed, but still complete() in degraded mode
+            logger.warn('reflex.event.execution_failed', {
+              correlationId: event.correlationId,
+              reflexId: reflex.id,
+              error: result.error?.message,
+              totalLatency,
+            });
+
+            // Publish execution failure event (best effort, don't fail on publish errors)
+            try {
+              await this.publishFailedEvent(event, reflex, result);
+            } catch (publishError) {
+              logger.error('reflex.event.publish_failed_error', {
+                correlationId: event.correlationId,
+                error: publishError instanceof Error ? publishError.message : String(publishError),
+              });
+            }
+
+            this.updateCurrentStep(event, {
+              status: 'ERROR',
+              error: {
+                code: result.error?.code || 'REFLEX_EXECUTION_ERROR',
+                message: result.error?.message,
+                retryable: false,
+              },
+              notes: `Reflex failed: ${reflex.name}`,
+            });
+
+            // Complete in degraded mode (never block event flow)
+            try {
+              await this.complete(event);
+            } catch (completeError) {
+              logger.error('reflex.event.complete_error', {
+                correlationId: event.correlationId,
+                error: completeError instanceof Error ? completeError.message : String(completeError),
+              });
+            }
+
+            // Always acknowledge the message to prevent redelivery
+            await ctx.ack();
+          }
+        } catch (error) {
+          // Path 3: Error → complete() in degraded mode (never block)
+          const latency = Date.now() - startTime;
+
+          // Record error metrics
+          metrics.incrementMessageErrors();
+          metrics.recordEndToEndLatency(latency);
+
+          logger.error('reflex.event.processing_error', {
+            correlationId: event.correlationId,
+            error: error instanceof Error ? error.message : String(error),
+            latency,
+          });
+
+          this.updateCurrentStep(event, {
+            status: 'ERROR',
+            error: {
+              code: 'REFLEX_PROCESSING_ERROR',
+              message: error instanceof Error ? error.message : String(error),
+              retryable: false,
+            },
+          });
+
+          // Complete in degraded mode (best effort)
+          try {
+            await this.complete(event);
+          } catch (completeError) {
+            logger.error('reflex.event.complete_error', {
+              correlationId: event.correlationId,
+              error: completeError instanceof Error ? completeError.message : String(completeError),
+            });
+          }
+
+          // Always acknowledge the message to prevent redelivery
+          await ctx.ack();
+        }
+      },
+      {
+        ack: 'explicit', // Explicit ack after processing
       }
     );
 
-    // Add more tools here as needed
+    logger.info('reflex.handler.registered');
+  }
+
+  /**
+   * Enriches an event with reflex execution metadata and candidate.
+   *
+   * Adds:
+   * - Reflex annotation with reflexId, reflexName, matchedPattern, latency
+   * - Candidate to event.candidates array (if generated)
+   *
+   * Preserves existing annotations and candidates.
+   *
+   * @param event - Event to enrich
+   * @param reflex - Executed reflex
+   * @param result - Execution result
+   * @param totalLatency - Total processing latency (ms)
+   */
+  private enrichEvent(
+    event: InternalEventV2,
+    reflex: any,
+    result: any,
+    totalLatency: number
+  ): void {
+    // Initialize annotations if not present
+    if (!event.annotations) {
+      event.annotations = [];
+    }
+
+    // Add reflex annotation as AnnotationV1
+    const annotation = {
+      id: `reflex-${reflex.id}-${Date.now()}`,
+      kind: 'custom' as const,
+      source: 'reflex',
+      createdAt: new Date().toISOString(),
+      label: 'reflex-execution',
+      payload: {
+        reflexId: reflex.id,
+        reflexName: reflex.name,
+        matchedPattern: {
+          type: reflex.match.type,
+          pattern: reflex.match.pattern,
+          field: reflex.match.field,
+        },
+        executionLatency: result.latency,
+        totalLatency,
+      },
+    };
+
+    event.annotations.push(annotation);
+
+    this.getLogger().debug('reflex.event.annotation_added', {
+      correlationId: event.correlationId,
+      annotation,
+    });
+
+    // Add candidate(s) if generated
+    if (result.candidates && result.candidates.length > 0) {
+      // Initialize candidates array if not present
+      if (!event.candidates) {
+        event.candidates = [];
+      }
+
+      // Add all candidates to beginning of array (reflex candidates have priority: 0)
+      // Reverse order so they maintain their original order after unshift
+      for (let i = result.candidates.length - 1; i >= 0; i--) {
+        event.candidates.unshift(result.candidates[i]);
+      }
+
+      this.getLogger().debug('reflex.event.candidates_added', {
+        correlationId: event.correlationId,
+        candidatesAdded: result.candidates.length,
+        candidateTexts: result.candidates.map((c: any) => c.text),
+        totalCandidatesCount: event.candidates.length,
+      });
+    }
+  }
+
+  /**
+   * Publishes a ReflexExecutedEvent to internal.reflex.executed.v1.
+   *
+   * Handles publishing errors gracefully (log but don't fail).
+   *
+   * @param event - Original event
+   * @param reflex - Executed reflex
+   * @param result - Execution result
+   */
+  private async publishExecutedEvent(
+    event: InternalEventV2,
+    reflex: Reflex,
+    result: ReflexExecutionResult
+  ): Promise<void> {
+    const logger = this.getLogger();
+    try {
+      const publisher = this.getResource<PublisherResource>('publisher');
+      if (!publisher) {
+        logger.warn('reflex.publish.no_publisher', { correlationId: event.correlationId });
+        return;
+      }
+
+      const triggeredBy: ReflexTriggeredBy = {
+        correlationId: event.correlationId,
+        eventType: event.type,
+        user: event.identity?.user
+          ? {
+              id: event.identity.user.id,
+              displayName: event.identity.user.displayName || event.identity.user.id,
+            }
+          : undefined,
+        channel: event.ingress?.channel,
+        platform: event.identity?.external?.platform,
+      };
+
+      const executedEvent: ReflexExecutedEvent = {
+        v: '1',
+        reflexId: reflex.id,
+        reflexName: reflex.name,
+        tool: reflex.action?.tool,
+        parameters: reflex.action?.parameters,
+        result: result.result,
+        latency: result.latency,
+        triggeredBy,
+        timestamp: new Date().toISOString(),
+      };
+
+      const topicPublisher = publisher.create('internal.reflex.executed.v1');
+      await topicPublisher.publishJson(executedEvent, {
+        correlationId: event.correlationId,
+        type: 'reflex.executed',
+      });
+
+      logger.debug('reflex.event.executed_published', {
+        correlationId: event.correlationId,
+        reflexId: reflex.id,
+      });
+    } catch (error) {
+      // Log but don't fail (graceful degradation)
+      logger.error('reflex.event.executed_publish_failed', {
+        correlationId: event.correlationId,
+        reflexId: reflex.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Publishes a ReflexFailedEvent to internal.reflex.failed.v1.
+   *
+   * Handles publishing errors gracefully (log but don't fail).
+   *
+   * @param event - Original event
+   * @param reflex - Failed reflex
+   * @param result - Execution result
+   */
+  private async publishFailedEvent(
+    event: InternalEventV2,
+    reflex: Reflex,
+    result: ReflexExecutionResult
+  ): Promise<void> {
+    const logger = this.getLogger();
+    try {
+      const publisher = this.getResource<PublisherResource>('publisher');
+      if (!publisher) {
+        logger.warn('reflex.publish.no_publisher', { correlationId: event.correlationId });
+        return;
+      }
+
+      const triggeredBy: ReflexTriggeredBy = {
+        correlationId: event.correlationId,
+        eventType: event.type,
+        user: event.identity?.user
+          ? {
+              id: event.identity.user.id,
+              displayName: event.identity.user.displayName || event.identity.user.id,
+            }
+          : undefined,
+        channel: event.ingress?.channel,
+        platform: event.identity?.external?.platform,
+      };
+
+      const failedEvent: ReflexFailedEvent = {
+        v: '1',
+        reflexId: reflex.id,
+        reflexName: reflex.name,
+        tool: reflex.action?.tool,
+        parameters: reflex.action?.parameters,
+        error: result.error || { message: 'Unknown error' },
+        latency: result.latency,
+        triggeredBy,
+        timestamp: new Date().toISOString(),
+      };
+
+      const topicPublisher = publisher.create('internal.reflex.failed.v1');
+      await topicPublisher.publishJson(failedEvent, {
+        correlationId: event.correlationId,
+        type: 'reflex.failed',
+      });
+
+      logger.debug('reflex.event.failed_published', {
+        correlationId: event.correlationId,
+        reflexId: reflex.id,
+      });
+    } catch (error) {
+      // Log but don't fail (graceful degradation)
+      logger.error('reflex.event.failed_publish_failed', {
+        correlationId: event.correlationId,
+        reflexId: reflex.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Gets the reflex cache (for event processing).
+   *
+   * @returns ReflexCache instance
+   */
+  getCache(): ReflexCache {
+    if (!this.cache) {
+      throw new Error('ReflexServer not initialized. Call initialize() first.');
+    }
+    return this.cache;
+  }
+
+  /**
+   * Gets the reflex repository (for MCP tools).
+   *
+   * @returns ReflexRepository instance
+   */
+  getRepository(): ReflexRepository {
+    if (!this.repository) {
+      throw new Error('ReflexServer not initialized. Call initialize() first.');
+    }
+    return this.repository;
+  }
+
+  private registerDomainTools() {
+    // reflex.create - Create a new reflex
+    this.registerTool(
+      'reflex.create',
+      'Create a new reflex with pattern matching and MCP tool invocation',
+      z.object({
+        name: z.string().describe('Human-readable name for the reflex'),
+        description: z.string().optional().describe('Description of what this reflex does'),
+        active: z.boolean().optional().default(true).describe('Whether the reflex is active (default: true)'),
+        priority: z.number().int().min(0).max(1000).optional().default(100).describe('Priority for execution (lower = higher priority, default: 100)'),
+        match: z.object({
+          type: z.enum(['exact', 'contains', 'prefix', 'suffix', 'regex']).describe('Pattern match type'),
+          pattern: z.string().describe('Pattern to match'),
+          field: z.string().describe('Event field path to match against (e.g., "message.text", "identity.user.displayName")'),
+          flags: z.string().optional().describe('Regex flags (only for regex type, e.g., "i" for case-insensitive)'),
+          caseSensitive: z.boolean().optional().describe('Case-sensitive matching (for non-regex types)'),
+        }).describe('Pattern matching configuration'),
+        conditions: z.object({
+          eventTypes: z.array(z.string()).optional().describe('Allowed event types. Use internal event types like "chat.message.v1", "chat.command.v1", "moderation.action.v1", etc. NOT platform-specific types like "twitch.chat.message".'),
+          channels: z.array(z.string()).optional().describe('Allowed channel IDs'),
+          platforms: z.array(z.string()).optional().describe('Allowed platform IDs (e.g., ["twitch", "discord"])'),
+          userRoles: z.array(z.string()).optional().describe('Required user roles'),
+          minAuthLevel: z.number().int().min(0).max(3).optional().describe('Minimum auth level (0=anonymous, 1=external, 2=matched user, 3=user with roles)'),
+        }).optional().describe('Optional conditions for reflex execution'),
+        action: z.object({
+          tool: z.string().describe('Sanitized MCP tool name as shown in your tools list (e.g., "mcp_obs-set-scene-item-enabled"). IMPORTANT: Tool names preserve hyphens from the original tool name. Only colons and dots are replaced with underscores. Use the EXACT name from your available tools list.'),
+          parameters: z.record(z.any()).describe('Tool parameters template (supports {{field.path}} interpolation)'),
+          timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds (default: 5000)'),
+        }).optional().describe('Optional MCP tool invocation configuration. If omitted, reflex will only generate candidate response.'),
+        candidateTemplate: z.union([
+          z.string(),
+          z.array(z.string())
+        ]).optional().describe('Template(s) for generating candidate response(s). Single string or array of strings for multiple variations. Supports {{event.path}} and {{result.path}} interpolation.'),
+        tags: z.array(z.string()).optional().describe('Tags for organization and filtering'),
+      }),
+      async (args) => {
+        try {
+          // Validate that at least one of action or candidateTemplate is provided
+          if (!args.action && !args.candidateTemplate) {
+            throw new Error('Must provide at least one of action or candidateTemplate');
+          }
+
+          // Validate regex pattern if type is regex
+          if (args.match.type === 'regex') {
+            const validation = validateRegexPattern(args.match.pattern);
+            if (!validation.isValid) {
+              throw new Error(`Invalid regex pattern: ${validation.error}`);
+            }
+          }
+
+          // Validate event types if provided
+          if (args.conditions?.eventTypes) {
+            for (const eventType of args.conditions.eventTypes) {
+              // Check for common mistake: platform-specific event types
+              if (eventType.includes('twitch.') || eventType.includes('discord.') || eventType.includes('platform.')) {
+                throw new Error(
+                  `Invalid event type: "${eventType}". ` +
+                  `Use internal event types (e.g., "chat.message.v1", "chat.command.v1", "moderation.action.v1"), ` +
+                  `NOT platform-specific types like "twitch.chat.message". ` +
+                  `The platform is already normalized in the event structure.`
+                );
+              }
+            }
+          }
+
+          // Validate tool name format if action is provided
+          if (args.action?.tool) {
+            // Tool names should be sanitized (alphanumeric, underscores, hyphens only)
+            if (!/^[a-zA-Z0-9_-]+$/.test(args.action.tool)) {
+              throw new Error(
+                `Invalid tool name format: "${args.action.tool}". ` +
+                `Tool names must contain only letters, numbers, underscores, and hyphens. ` +
+                `Use the exact tool name as shown in your available tools list.`
+              );
+            }
+            // Warn about double mcp_ prefix (common mistake)
+            if (args.action.tool.startsWith('mcp_mcp_')) {
+              throw new Error(
+                `Tool name has double "mcp_" prefix: "${args.action.tool}". ` +
+                `This usually means the tool is named incorrectly. ` +
+                `Tool names from MCP servers are automatically prefixed - use the name exactly as shown in your tools list. ` +
+                `Example: If the MCP server provides "obs-set-scene-item-enabled", it becomes "mcp_obs-set-scene-item-enabled" in your tools list (note: hyphens are preserved, only colons and dots become underscores).`
+              );
+            }
+          }
+
+          // Create reflex via repository
+          const reflex = await this.repository.create({
+            name: args.name,
+            description: args.description,
+            active: args.active ?? true,
+            priority: args.priority ?? 100,
+            match: args.match as any,
+            conditions: args.conditions,
+            action: args.action as any,
+            candidateTemplate: args.candidateTemplate,
+            tags: args.tags,
+          });
+
+          // Build success message based on what was provided
+          let actionDescription = '';
+          if (args.action) {
+            actionDescription = `and execute tool "${args.action.tool}"`;
+          } else {
+            actionDescription = 'and generate candidate response (no tool execution)';
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: `Reflex created successfully:\n\nID: ${reflex.id}\nName: ${reflex.name}\nPriority: ${reflex.priority}\nActive: ${reflex.active}\n\nThe reflex will match "${args.match.pattern}" (${args.match.type}) in field "${args.match.field}" ${actionDescription}.`,
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Failed to create reflex: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // reflex.list - List all reflexes
+    this.registerTool(
+      'reflex.list',
+      'List all reflexes with optional filtering',
+      z.object({
+        active: z.boolean().optional().describe('Filter by active status (omit for all)'),
+        limit: z.number().int().min(1).max(100).optional().default(50).describe('Maximum number of results (default: 50)'),
+      }),
+      async (args) => {
+        try {
+          // Get reflexes from cache
+          let reflexes = this.cache.getAll();
+
+          // Apply active filter if specified
+          if (args.active !== undefined) {
+            reflexes = reflexes.filter(r => r.active === args.active);
+          }
+
+          // Apply limit
+          reflexes = reflexes.slice(0, args.limit ?? 50);
+
+          // Format output
+          const stats = this.cache.getStats();
+          const lines = [
+            `Found ${reflexes.length} reflex(es) (cache size: ${stats.size})\n`,
+          ];
+
+          for (const reflex of reflexes) {
+            lines.push(
+              `ID: ${reflex.id}`,
+              `Name: ${reflex.name}`,
+              `Active: ${reflex.active}`,
+              `Priority: ${reflex.priority}`,
+              `Match: ${reflex.match.type} "${reflex.match.pattern}" in ${reflex.match.field}`,
+              `Tool: ${reflex.action?.tool || '(none - candidate only)'}`,
+              `Stats: ${reflex.stats?.successCount || 0} successes, ${reflex.stats?.errorCount || 0} errors`,
+              ''
+            );
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: lines.join('\n'),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Failed to list reflexes: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // reflex.update - Update an existing reflex
+    this.registerTool(
+      'reflex.update',
+      'Update an existing reflex',
+      z.object({
+        id: z.string().describe('Reflex ID to update'),
+        name: z.string().optional().describe('New name'),
+        description: z.string().optional().describe('New description'),
+        active: z.boolean().optional().describe('New active status'),
+        priority: z.number().int().min(0).max(1000).optional().describe('New priority'),
+        match: z.object({
+          type: z.enum(['exact', 'contains', 'prefix', 'suffix', 'regex']).optional(),
+          pattern: z.string().optional(),
+          field: z.string().optional(),
+          flags: z.string().optional(),
+          caseSensitive: z.boolean().optional(),
+        }).optional().describe('Updated pattern matching configuration'),
+        conditions: z.object({
+          eventTypes: z.array(z.string()).optional(),
+          channels: z.array(z.string()).optional(),
+          platforms: z.array(z.string()).optional(),
+          userRoles: z.array(z.string()).optional(),
+          minAuthLevel: z.number().int().min(0).max(3).optional(),
+        }).optional().describe('Updated conditions'),
+        action: z.object({
+          tool: z.string().optional().describe('Sanitized MCP tool name (e.g., "mcp_obs-set-scene-item-enabled"). Note: hyphens are preserved, only colons and dots become underscores.'),
+          parameters: z.record(z.any()).optional().describe('Tool parameters template'),
+          timeout: z.number().int().min(1000).max(60000).optional().describe('Tool execution timeout in milliseconds'),
+        }).optional().describe('Updated action configuration'),
+        candidateTemplate: z.union([
+          z.string(),
+          z.array(z.string())
+        ]).optional().describe('Updated candidate template(s). Single string or array of strings for multiple variations.'),
+        tags: z.array(z.string()).optional().describe('Updated tags'),
+      }),
+      async (args) => {
+        try {
+          // Build updates object (omit undefined fields)
+          const updates: any = {};
+          if (args.name !== undefined) updates.name = args.name;
+          if (args.description !== undefined) updates.description = args.description;
+          if (args.active !== undefined) updates.active = args.active;
+          if (args.priority !== undefined) updates.priority = args.priority;
+          if (args.match !== undefined) updates.match = args.match;
+          if (args.conditions !== undefined) updates.conditions = args.conditions;
+          if (args.action !== undefined) updates.action = args.action;
+          if (args.candidateTemplate !== undefined) updates.candidateTemplate = args.candidateTemplate;
+          if (args.tags !== undefined) updates.tags = args.tags;
+
+          // Validate regex if updating pattern
+          if (updates.match?.type === 'regex' && updates.match?.pattern) {
+            const validation = validateRegexPattern(updates.match.pattern);
+            if (!validation.isValid) {
+              throw new Error(`Invalid regex pattern: ${validation.error}`);
+            }
+          }
+
+          // Validate event types if updating conditions
+          if (updates.conditions?.eventTypes) {
+            for (const eventType of updates.conditions.eventTypes) {
+              // Check for common mistake: platform-specific event types
+              if (eventType.includes('twitch.') || eventType.includes('discord.') || eventType.includes('platform.')) {
+                throw new Error(
+                  `Invalid event type: "${eventType}". ` +
+                  `Use internal event types (e.g., "chat.message.v1", "chat.command.v1", "moderation.action.v1"), ` +
+                  `NOT platform-specific types like "twitch.chat.message". ` +
+                  `The platform is already normalized in the event structure.`
+                );
+              }
+            }
+          }
+
+          // Validate tool name format if updating action
+          if (updates.action?.tool) {
+            // Tool names should be sanitized (alphanumeric, underscores, hyphens only)
+            if (!/^[a-zA-Z0-9_-]+$/.test(updates.action.tool)) {
+              throw new Error(
+                `Invalid tool name format: "${updates.action.tool}". ` +
+                `Tool names must contain only letters, numbers, underscores, and hyphens. ` +
+                `Use the exact tool name as shown in your available tools list.`
+              );
+            }
+            // Warn about double mcp_ prefix (common mistake)
+            if (updates.action.tool.startsWith('mcp_mcp_')) {
+              throw new Error(
+                `Tool name has double "mcp_" prefix: "${updates.action.tool}". ` +
+                `This usually means the tool is named incorrectly. ` +
+                `Tool names from MCP servers are automatically prefixed - use the name exactly as shown in your tools list. ` +
+                `Example: If the MCP server provides "obs-set-scene-item-enabled", it becomes "mcp_obs-set-scene-item-enabled" in your tools list (note: hyphens are preserved, only colons and dots become underscores).`
+              );
+            }
+          }
+
+          // Update via repository
+          const reflex = await this.repository.update(args.id, updates);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `Reflex updated successfully:\n\nID: ${reflex.id}\nName: ${reflex.name}\nPriority: ${reflex.priority}\nActive: ${reflex.active}`,
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Failed to update reflex: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // reflex.delete - Delete a reflex (soft delete)
+    this.registerTool(
+      'reflex.delete',
+      'Delete a reflex (soft delete by setting active=false)',
+      z.object({
+        id: z.string().describe('Reflex ID to delete'),
+      }),
+      async (args) => {
+        try {
+          const reflex = await this.repository.delete(args.id);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `Reflex deleted successfully (soft delete):\n\nID: ${reflex.id}\nName: ${reflex.name}\nActive: ${reflex.active}`,
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Failed to delete reflex: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // reflex.test - Test a reflex against a mock event
+    this.registerTool(
+      'reflex.test',
+      'Test a reflex against a mock event to verify pattern matching and execution',
+      z.object({
+        id: z.string().describe('Reflex ID to test'),
+        mockEvent: z.record(z.any()).describe('Mock event object for testing (must include fields referenced by reflex)'),
+      }),
+      async (args) => {
+        try {
+          // Get reflex
+          const reflex = await this.repository.getById(args.id);
+          if (!reflex) {
+            throw new Error(`Reflex not found: ${args.id}`);
+          }
+
+          // Test pattern matching
+          const mockEvent = args.mockEvent as InternalEventV2;
+          const matches = selectReflexes(mockEvent, [reflex]);
+
+          if (matches.length === 0) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Pattern match FAILED:\n\nReflex: ${reflex.name}\nPattern: ${reflex.match.type} "${reflex.match.pattern}" in ${reflex.match.field}\n\nThe pattern did not match the provided mock event. Check that the event contains the field "${reflex.match.field}" with a value matching the pattern.`,
+              }],
+            };
+          }
+
+          // Pattern matched - show success (not executing actual tool in test mode)
+          return {
+            content: [{
+              type: 'text',
+              text: `Pattern match SUCCESS:\n\nReflex: ${reflex.name}\nPattern: ${reflex.match.type} "${reflex.match.pattern}" in ${reflex.match.field}\nMatched value: ${JSON.stringify((mockEvent as any)[reflex.match.field])}\n\nNote: Tool execution is not performed in test mode.${reflex.action ? ` The reflex would execute: ${reflex.action.tool}` : ' This is a candidate-only reflex (no tool execution).'}`,
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Failed to test reflex: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // reflex.stats - Get reflex statistics
+    this.registerTool(
+      'reflex.stats',
+      'Get statistics for a reflex or overall cache stats',
+      z.object({
+        id: z.string().optional().describe('Reflex ID (omit for overall cache stats)'),
+      }),
+      async (args) => {
+        try {
+          if (args.id) {
+            // Get stats for specific reflex
+            const reflex = await this.repository.getById(args.id);
+            if (!reflex) {
+              throw new Error(`Reflex not found: ${args.id}`);
+            }
+
+            const stats = reflex.stats || {
+              successCount: 0,
+              errorCount: 0,
+              lastExecutedAt: undefined,
+            };
+
+            return {
+              content: [{
+                type: 'text',
+                text: `Reflex Statistics:\n\nID: ${reflex.id}\nName: ${reflex.name}\nActive: ${reflex.active}\n\nExecution Stats:\n- Successes: ${stats.successCount}\n- Errors: ${stats.errorCount}\n- Last Executed: ${stats.lastExecutedAt || 'Never'}`,
+              }],
+            };
+          } else {
+            // Get overall cache stats
+            const cacheStats = this.cache.getStats();
+            const reflexes = this.cache.getAll();
+
+            const totalSuccesses = reflexes.reduce((sum, r) => sum + (r.stats?.successCount || 0), 0);
+            const totalErrors = reflexes.reduce((sum, r) => sum + (r.stats?.errorCount || 0), 0);
+
+            return {
+              content: [{
+                type: 'text',
+                text: `Overall Cache Statistics:\n\nCache:\n- Size: ${cacheStats.size} active reflexes\n- Hits: ${cacheStats.hits}\n- Misses: ${cacheStats.misses}\n- Updates: ${cacheStats.updates}\n- Last Sync: ${cacheStats.lastSyncAt || 'Never'}\n\nExecution Totals:\n- Total Successes: ${totalSuccesses}\n- Total Errors: ${totalErrors}`,
+              }],
+            };
+          }
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Failed to get stats: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
   }
 
   public async close(reason: string = 'manual'): Promise<void> {
+    const logger = this.getLogger();
+    logger.info('reflex.close.start', { reason });
+
+    // Close cache subscription
+    if (this.cache) {
+      this.cache.close();
+    }
+
     await super.close(reason);
+    logger.info('reflex.close.complete');
   }
 }
 
 if (require.main === module) {
   const server = new ReflexServer();
   const port = parseInt(process.env.PORT || '3000', 10);
-  server.start(port).catch((err) => {
-    console.error('Failed to start reflex:', err);
-    process.exit(1);
-  });
+
+  // Initialize cache before starting server
+  server
+    .initialize()
+    .then(() => server.start(port))
+    .catch((err) => {
+      server.getLogger().error('reflex.startup.failed', { error: err instanceof Error ? err.message : String(err) });
+      process.exit(1);
+    });
 }

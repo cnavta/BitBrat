@@ -77,12 +77,13 @@ export const getInitialRoutingRules = (botName: string) => [
     id: 'initial-analysis',
     enabled: true,
     priority: 100,
-    description: 'Route initial events to auth, query-analysis, and event-router for analysis stage',
+    description: 'Route initial events to auth, reflex, query-analysis, and event-router for analysis stage',
     logic: JSON.stringify({ "==": [ { "var": "routing.stage" }, "initial" ] }),
     routing: {
       stage: 'analysis',
       slip: [
         { id: 'auth', v: '1', nextTopic: 'internal.auth.v1' },
+        { id: 'reflex', v: '1', nextTopic: 'internal.reflex.v1' },
         { id: 'query-analysis', v: '1', nextTopic: 'internal.query.analysis.v1' },
         { id: 'event-router', v: '1', nextTopic: 'internal.enriched.v1' }
       ]

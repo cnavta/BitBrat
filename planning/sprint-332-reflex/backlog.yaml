@@ -1,0 +1,1335 @@
+sprint: sprint-332-reflex
+title: "Reflex Bit: Deterministic Event Orchestration - Implementation Backlog"
+created: "2026-07-04"
+owner: "Lead Implementor"
+status: "active"
+
+# Task Status Values: todo | in-progress | blocked | done
+# Priority Values: critical | high | medium | low
+
+tasks:
+  # =========================================================================
+  # PHASE 1: CORE FOUNDATION
+  # =========================================================================
+
+  # Task Group 1.1: Data Model & Types
+
+  - id: BL-332-001
+    title: "Define Reflex TypeScript interfaces"
+    description: |
+      Create comprehensive TypeScript type definitions for Reflex data model in src/types/reflex.ts.
+      Include Reflex, ReflexCondition, PatternMatch, ToolInvocation interfaces with JSDoc comments.
+      Include candidateTemplate optional field for response generation.
+    phase: "1.1"
+    priority: critical
+    status: done
+    estimatedHours: 1
+    dependencies: []
+    tags: [types, foundation]
+    acceptanceCriteria:
+      - All interfaces defined with proper types
+      - candidateTemplate field included as optional string
+      - JSDoc comments with examples added
+      - Exports all types for use in other modules
+      - Types compile without errors
+
+  - id: BL-332-002
+    title: "Define execution event interfaces"
+    description: |
+      Create TypeScript interfaces for reflex execution events in src/types/reflex-events.ts.
+      Include ReflexExecutedEvent, ReflexFailedEvent, ReflexTriggeredBy with version literals.
+    phase: "1.1"
+    priority: critical
+    status: done
+    estimatedHours: 0.5
+    dependencies: []
+    tags: [types, events, foundation]
+    acceptanceCriteria:
+      - ReflexExecutedEvent interface matches schema from architecture
+      - ReflexFailedEvent interface matches schema from architecture
+      - Version literals set to '1'
+      - All exports defined
+
+  - id: BL-332-003
+    title: "Create Firestore schema validator"
+    description: |
+      Add Firestore security rules for 'reflexes' collection.
+      Add indexes for 'active' and 'priority' fields for query optimization.
+    phase: "1.1"
+    priority: high
+    status: done
+    estimatedHours: 0.5
+    dependencies: [BL-332-001]
+    tags: [firestore, schema, security]
+    acceptanceCriteria:
+      - Security rules validate required fields
+      - Indexes created for active and priority
+      - Rules documented in firestore.rules
+
+  # Task Group 1.2: Matching Engine
+
+  - id: BL-332-010
+    title: "Implement pattern matcher"
+    description: |
+      Create pattern-matcher.ts with support for 5 match types: exact, contains, prefix, suffix, regex.
+      Include ReDoS protection using safe-regex library. Target <10ms performance.
+    phase: "1.2"
+    priority: critical
+    status: done
+    estimatedHours: 3
+    dependencies: [BL-332-001]
+    tags: [matching, performance, security]
+    acceptanceCriteria:
+      - All 5 match types implemented
+      - ReDoS protection using safe-regex
+      - Throws error on unsafe regex patterns
+      - Performance <10ms for pattern matching
+      - Comprehensive error messages
+
+  - id: BL-332-011
+    title: "Implement field accessor"
+    description: |
+      Create field-accessor.ts to extract values from events using JSONPath-like syntax.
+      Support nested object traversal (e.g., message.text, identity.user.id).
+    phase: "1.2"
+    priority: critical
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-001]
+    tags: [matching, utilities]
+    acceptanceCriteria:
+      - Supports nested path access with dot notation
+      - Returns undefined for missing paths
+      - Handles null/undefined gracefully
+      - Unit tests for edge cases
+
+  - id: BL-332-012
+    title: "Implement condition evaluator"
+    description: |
+      Create condition-evaluator.ts to evaluate reflex conditions (eventTypes, channels, platforms, userRoles, minAuthLevel).
+      Use AND logic - all conditions must match.
+    phase: "1.2"
+    priority: critical
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-001]
+    tags: [matching, conditions]
+    acceptanceCriteria:
+      - Evaluates all condition types
+      - AND logic (all must match)
+      - Returns true if no conditions specified
+      - Handles missing event fields
+
+  - id: BL-332-013
+    title: "Implement reflex matcher"
+    description: |
+      Create reflex-matcher.ts to determine if a single reflex matches an event.
+      Combine condition evaluation and pattern matching.
+    phase: "1.2"
+    priority: critical
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-010, BL-332-011, BL-332-012]
+    tags: [matching, orchestration]
+    acceptanceCriteria:
+      - Evaluates conditions first (early exit)
+      - Applies pattern matching if conditions pass
+      - Returns boolean match result
+      - Logs match attempts at debug level
+
+  - id: BL-332-014
+    title: "Implement reflex selector"
+    description: |
+      Create reflex-selector.ts to find the first matching reflex from a list.
+      Filter active reflexes, sort by priority, return first match.
+    phase: "1.2"
+    priority: critical
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-013]
+    tags: [matching, priority]
+    acceptanceCriteria:
+      - Filters only active reflexes
+      - Sorts by priority ascending (lower = higher priority)
+      - Returns first match (Phase 1 behavior)
+      - Returns empty array if no matches
+      - Logs selection process
+
+  # Task Group 1.3: Orchestration Engine
+
+  - id: BL-332-020
+    title: "Implement template interpolator"
+    description: |
+      Create template-interpolator.ts to parse and replace {{field.path}} placeholders.
+      Support escaped braces, handle missing fields, stringify objects/arrays.
+    phase: "1.3"
+    priority: critical
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-011]
+    tags: [orchestration, templating]
+    acceptanceCriteria:
+      - Parses {{field.path}} syntax using regex
+      - Replaces placeholders with field values
+      - Handles missing fields (empty string + warning)
+      - Stringifies non-string values
+      - Supports escaped braces
+
+  - id: BL-332-021
+    title: "Implement parameter builder"
+    description: |
+      Create parameter-builder.ts to build tool parameters from templates.
+      Interpolate string values, preserve non-string types.
+    phase: "1.3"
+    priority: critical
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-020]
+    tags: [orchestration, parameters]
+    acceptanceCriteria:
+      - Iterates over parameter template object
+      - Interpolates string values
+      - Preserves non-string values as-is
+      - Returns final parameter object
+
+  - id: BL-332-022
+    title: "Implement candidate builder"
+    description: |
+      Create candidate-builder.ts to generate candidate responses from templates.
+      Support {{event.path}} and {{result.path}} interpolation for reflex responses.
+    phase: "1.3"
+    priority: critical
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-011, BL-332-020]
+    tags: [orchestration, candidate, templating]
+    acceptanceCriteria:
+      - Interpolates {{event.path}} placeholders with event field values
+      - Interpolates {{result.path}} placeholders with tool result values
+      - Uses field accessor for nested path traversal
+      - Builds InternalCandidate object with source, text, confidence, metadata
+      - Handles missing fields gracefully
+      - Returns candidate object
+
+  - id: BL-332-023
+    title: "Implement tool executor"
+    description: |
+      Create tool-executor.ts to invoke MCP tools via tool-gateway.
+      HTTP POST with MCP_AUTH_TOKEN, timeout protection, error handling.
+    phase: "1.3"
+    priority: critical
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-001]
+    tags: [orchestration, mcp, http]
+    acceptanceCriteria:
+      - POSTs to tool-gateway /mcp/invoke endpoint
+      - Includes Authorization header with MCP_AUTH_TOKEN
+      - Respects timeout (default 5000ms)
+      - Throws error on non-2xx status
+      - Returns tool result
+
+  - id: BL-332-024
+    title: "Implement reflex executor"
+    description: |
+      Create reflex-executor.ts to orchestrate full reflex execution.
+      Build parameters, execute tool, build candidate if template defined, track latency, update statistics.
+    phase: "1.3"
+    priority: critical
+    status: done
+    estimatedHours: 3
+    dependencies: [BL-332-021, BL-332-022, BL-332-023]
+    tags: [orchestration, execution]
+    acceptanceCriteria:
+      - Builds parameters using parameter builder
+      - Executes tool via tool executor
+      - Builds candidate if candidateTemplate is defined
+      - Includes candidate in execution result
+      - Tracks latency (start/end timestamps)
+      - Updates reflex statistics (successCount, errorCount)
+      - Returns success/failure result with candidate
+      - Logs execution at INFO level (includes candidateGenerated flag)
+
+  # =========================================================================
+  # PHASE 2: STORAGE & CACHING
+  # =========================================================================
+
+  # Task Group 2.1: Firestore Integration
+
+  - id: BL-332-030
+    title: "Implement Firestore repository"
+    description: |
+      Create reflex-repository.ts with CRUD operations for reflexes collection.
+      Support getAll, getById, create, update, delete, and real-time subscription.
+    phase: "2.1"
+    priority: critical
+    status: done
+    estimatedHours: 3
+    dependencies: [BL-332-001, BL-332-003]
+    tags: [firestore, storage, repository]
+    acceptanceCriteria:
+      - All CRUD methods implemented
+      - onSnapshot subscription for real-time updates
+      - Firestore timestamp conversion to ISO strings
+      - Error handling for Firestore operations
+      - Soft delete (sets active=false)
+
+  - id: BL-332-031
+    title: "Implement reflex cache"
+    description: |
+      Create reflex-cache.ts with in-memory Map for fast rule access.
+      Subscribe to repository updates, keep cache synchronized.
+    phase: "2.1"
+    priority: critical
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-030]
+    tags: [cache, performance, memory]
+    acceptanceCriteria:
+      - In-memory Map storage
+      - Initialize method loads from repository
+      - Subscribes to repository changes
+      - Updates cache on add/update/delete
+      - Logs synchronization events
+      - Thread-safe operations
+
+  - id: BL-332-032
+    title: "Implement cache warming on service startup"
+    description: |
+      Update reflex-service.ts to initialize cache on startup.
+      Wait for initial load before accepting messages.
+    phase: "2.1"
+    priority: critical
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-031]
+    tags: [cache, startup, reliability]
+    acceptanceCriteria:
+      - Initializes repository on startup
+      - Initializes cache with repository
+      - Waits for initial cache load
+      - Logs cache status (reflex count)
+      - Retry logic for initialization failures
+
+  # =========================================================================
+  # PHASE 3: EVENT FLOW INTEGRATION
+  # =========================================================================
+
+  # Task Group 3.1: Message Handling
+
+  - id: BL-332-040
+    title: "Implement message handler with complete()/next() pattern"
+    description: |
+      Update reflex-service.ts to handle internal.reflex.v1 messages.
+      Implement 3 paths: match→complete, no-match→next, error→complete.
+    phase: "3.1"
+    priority: critical
+    status: done
+    estimatedHours: 4
+    dependencies: [BL-332-014, BL-332-023, BL-332-032]
+    tags: [event-flow, routing, core]
+    acceptanceCriteria:
+      - Subscribes to internal.reflex.v1
+      - No match: calls next() to continue routing slip
+      - Match: calls complete() to skip remaining analysis
+      - Error: calls complete() in degraded mode (never blocks)
+      - Structured logging at all decision points
+      - Tracks end-to-end latency (<150ms target)
+
+  - id: BL-332-041
+    title: "Implement event enrichment"
+    description: |
+      Add reflex metadata to event annotations after successful execution.
+      Include reflexId, reflexName, matchedPattern, executionLatency.
+      Add generated candidate to event.candidates array if present.
+    phase: "3.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-040]
+    tags: [event-flow, metadata, annotations, candidate]
+    acceptanceCriteria:
+      - Adds reflex annotation to event
+      - Includes reflexId, reflexName, matchedPattern, latency
+      - Preserves existing annotations
+      - Adds timestamp
+      - Adds candidate to event.candidates if generated
+      - Preserves existing candidates
+
+  - id: BL-332-042
+    title: "Implement execution event publishing"
+    description: |
+      Publish ReflexExecutedEvent to internal.reflex.executed.v1 on success.
+      Publish ReflexFailedEvent to internal.reflex.failed.v1 on failure.
+    phase: "3.1"
+    priority: critical
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-002, BL-332-040]
+    tags: [event-flow, events, pub-sub]
+    acceptanceCriteria:
+      - Publishes to internal.reflex.executed.v1 on success
+      - Publishes to internal.reflex.failed.v1 on failure
+      - Includes triggeredBy context (correlationId, eventType, user, channel, platform)
+      - Logs publishing at debug level
+      - Handles publishing errors gracefully (log but don't fail)
+
+  # Task Group 3.2: Topic Configuration
+
+  - id: BL-332-050
+    title: "Update architecture.yaml with reflex topics"
+    description: |
+      Add 3 topic definitions: internal.reflex.v1, internal.reflex.executed.v1, internal.reflex.failed.v1.
+      Set reflex service active: true.
+    phase: "3.2"
+    priority: critical
+    status: done
+    estimatedHours: 0.5
+    dependencies: [BL-332-042]
+    tags: [configuration, topics, deployment]
+    acceptanceCriteria:
+      - internal.reflex.v1 defined (producers: event-router, consumers: reflex)
+      - internal.reflex.executed.v1 defined (producers: reflex, consumers: [])
+      - internal.reflex.failed.v1 defined (producers: reflex, consumers: [])
+      - Reflex service active: true
+
+  - id: BL-332-051
+    title: "Update event-router routing slip"
+    description: |
+      Insert internal.reflex.v1 step in routing slip after internal.auth.v1.
+      Update event-router configuration to include reflex in analysis stage.
+    phase: "3.2"
+    priority: critical
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-050]
+    tags: [event-router, routing-slip, integration]
+    acceptanceCriteria:
+      - Reflex step inserted after auth step
+      - Routing slip JSON updated in event-router config
+      - Routing slip generation logic tested
+
+  - id: BL-332-052
+    title: "Create Pub/Sub topics and subscriptions"
+    description: |
+      Update Terraform to create 3 topics and 1 subscription.
+      Configure message retention, ack deadline. Apply infrastructure changes.
+    phase: "3.2"
+    priority: critical
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-050]
+    tags: [infrastructure, pub-sub, terraform]
+    acceptanceCriteria:
+      - Topics created: internal-reflex-v1, internal-reflex-executed-v1, internal-reflex-failed-v1
+      - Subscription created: reflex-service-reflex-v1-sub (pull)
+      - Message retention: 7 days
+      - Ack deadline: 60 seconds
+      - Infrastructure applied successfully
+
+  # =========================================================================
+  # PHASE 4: MCP MANAGEMENT TOOLS
+  # =========================================================================
+
+  # Task Group 4.1: MCP Tool Implementation
+
+  - id: BL-332-060
+    title: "Implement reflex.create MCP tool"
+    description: |
+      Create MCP tool to create new reflexes. Validate inputs, generate ID,
+      set defaults, save to Firestore. Include safe-regex validation.
+    phase: "4.1"
+    priority: high
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-030]
+    tags: [mcp, tools, create]
+    acceptanceCriteria:
+      - Accepts name, description, pattern, conditions, toolInvocation
+      - Validates all required fields
+      - Validates regex patterns using safe-regex
+      - Generates unique ID (Firestore auto-ID)
+      - Sets defaults (active=true, priority=100, etc.)
+      - Returns created reflex object
+      - Comprehensive error messages
+
+  - id: BL-332-061
+    title: "Implement reflex.list MCP tool"
+    description: |
+      Create MCP tool to list reflexes with optional filtering.
+      Use cache for speed, apply filters, return sorted results.
+    phase: "4.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-031]
+    tags: [mcp, tools, list]
+    acceptanceCriteria:
+      - Accepts optional active filter (boolean)
+      - Accepts optional limit (default 50)
+      - Fetches from cache (not Firestore)
+      - Applies active filter if specified
+      - Sorts by priority ascending
+      - Applies limit
+      - Includes statistics in response
+
+  - id: BL-332-062
+    title: "Implement reflex.update MCP tool"
+    description: |
+      Create MCP tool to update existing reflexes.
+      Validate id exists, validate updates, set updatedAt timestamp.
+    phase: "4.1"
+    priority: high
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-030]
+    tags: [mcp, tools, update]
+    acceptanceCriteria:
+      - Accepts id and partial updates object
+      - Validates id exists
+      - Validates updates (e.g., regex if changing pattern)
+      - Updates updatedAt timestamp
+      - Returns updated reflex object
+      - Prevents updating id, createdAt, stats
+
+  - id: BL-332-063
+    title: "Implement reflex.delete MCP tool"
+    description: |
+      Create MCP tool to soft delete reflexes (set active=false).
+      Validate id exists, set deletedAt timestamp.
+    phase: "4.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-030]
+    tags: [mcp, tools, delete]
+    acceptanceCriteria:
+      - Accepts id
+      - Validates id exists
+      - Soft delete: sets active=false, deletedAt=now
+      - Returns success confirmation
+      - Note: Hard delete option deferred to future
+
+  - id: BL-332-064
+    title: "Implement reflex.test MCP tool"
+    description: |
+      Create MCP tool to test pattern matching without creating reflex.
+      Useful for testing regex before committing. Read-only operation.
+    phase: "4.1"
+    priority: medium
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-010]
+    tags: [mcp, tools, testing, utilities]
+    acceptanceCriteria:
+      - Accepts pattern (field, matchType, value) and testInput
+      - Creates temporary reflex (not saved)
+      - Applies pattern matching
+      - Returns match result with explanation
+      - No side effects (read-only)
+
+  - id: BL-332-065
+    title: "Register all MCP tools in reflex-service"
+    description: |
+      Wire up all 5 MCP tools to MCP server in reflex-service.ts.
+      Add schemas, descriptions, connect to repository.
+    phase: "4.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-060, BL-332-061, BL-332-062, BL-332-063, BL-332-064]
+    tags: [mcp, registration, integration]
+    acceptanceCriteria:
+      - All 5 tools registered with MCP SDK
+      - Descriptions and schemas defined
+      - Wired to repository/cache
+      - Authorization checks added (if needed)
+
+  # =========================================================================
+  # PHASE 5: ERROR HANDLING & OBSERVABILITY
+  # =========================================================================
+
+  # Task Group 5.1: Structured Logging
+
+  - id: BL-332-070
+    title: "Add structured logging to matching engine"
+    description: |
+      Add comprehensive logging to matcher components.
+      Log evaluation attempts, condition results, match decisions.
+    phase: "5.1"
+    priority: high
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-014]
+    tags: [logging, observability, debugging]
+    acceptanceCriteria:
+      - Logs reflex evaluation started (reflexId, reflexName)
+      - Logs condition evaluation results
+      - Logs pattern match attempts and results
+      - Uses debug level for details, info for matches
+
+  - id: BL-332-071
+    title: "Add structured logging to orchestration engine"
+    description: |
+      Add comprehensive logging to executor components.
+      Log tool invocations, results, failures, statistics updates.
+    phase: "5.1"
+    priority: high
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-023]
+    tags: [logging, observability, debugging]
+    acceptanceCriteria:
+      - Logs tool invocation started (tool, parameters)
+      - Logs tool completion (result, latency)
+      - Logs tool failures (error, latency)
+      - Logs statistics updates
+      - Uses info for execution, error for failures
+
+  - id: BL-332-072
+    title: "Add structured logging to message handler"
+    description: |
+      Add comprehensive logging to main message handler.
+      Log routing decisions, execution events, end-to-end latency.
+    phase: "5.1"
+    priority: high
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-040]
+    tags: [logging, observability, debugging]
+    acceptanceCriteria:
+      - Logs message received (correlationId, eventType)
+      - Logs match decision (matched/no-match, reflexId)
+      - Logs routing decision (next/complete)
+      - Logs execution event publishing
+      - Logs end-to-end latency
+      - Uses info level for key events
+
+  - id: BL-332-073
+    title: "Add correlation ID propagation"
+    description: |
+      Ensure correlationId from event propagates to all logs and tool calls.
+      Include in execution events for traceability.
+    phase: "5.1"
+    priority: high
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-072]
+    tags: [logging, tracing, observability]
+    acceptanceCriteria:
+      - correlationId included in all log statements
+      - correlationId passed in tool invocation headers
+      - correlationId included in execution events
+      - Links related logs for debugging
+
+  # Task Group 5.2: Metrics & Monitoring
+
+  - id: BL-332-080
+    title: "Implement performance metrics"
+    description: |
+      Add metrics for pattern matching latency, execution latency, end-to-end latency,
+      match counts, execution counts. Use OpenTelemetry or Cloud Monitoring.
+    phase: "5.2"
+    priority: high
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-040]
+    tags: [metrics, monitoring, performance]
+    acceptanceCriteria:
+      - reflex.match.latency histogram (ms)
+      - reflex.execute.latency histogram (ms)
+      - reflex.end_to_end.latency histogram (ms)
+      - reflex.match.count counter (labels: matched/no-match)
+      - reflex.execute.count counter (labels: success/failure)
+
+  - id: BL-332-081
+    title: "Implement health metrics"
+    description: |
+      Add metrics for cache size, cache sync errors, message errors.
+      Expose health endpoint returning cache status.
+    phase: "5.2"
+    priority: high
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-031]
+    tags: [metrics, health, monitoring]
+    acceptanceCriteria:
+      - reflex.cache.size gauge (reflex count)
+      - reflex.cache.sync.errors counter
+      - reflex.message.errors counter
+      - /health endpoint returns cache status
+      - Health endpoint returns 200 when healthy
+
+  - id: BL-332-082
+    title: "Create monitoring dashboard"
+    description: |
+      Create Cloud Monitoring dashboard with latency, match rate, success rate panels.
+      Configure alerts for p99 latency >150ms and error rate >5%.
+    phase: "5.2"
+    priority: medium
+    status: todo
+    estimatedHours: 2
+    dependencies: [BL-332-080, BL-332-081]
+    tags: [monitoring, dashboard, alerts]
+    acceptanceCriteria:
+      - Panels for p50/p95/p99 latency
+      - Panel for match rate (matches/sec)
+      - Panel for success vs failure rate
+      - Panel for cache size over time
+      - Alert: p99 latency >150ms
+      - Alert: Error rate >5%
+
+  # =========================================================================
+  # PHASE 6: TESTING & VALIDATION
+  # =========================================================================
+
+  # Task Group 6.1: Unit Tests
+
+  - id: BL-332-090
+    title: "Write pattern matcher unit tests"
+    description: |
+      Comprehensive tests for all 5 match types, ReDoS protection, edge cases.
+      Benchmark 10,000 matches for performance validation.
+    phase: "6.1"
+    priority: critical
+    status: done
+    estimatedHours: 2
+    dependencies: [BL-332-010]
+    tags: [testing, unit-tests, security]
+    acceptanceCriteria:
+      - Tests for all 5 match types
+      - Tests for ReDoS protection (reject evil regex)
+      - Tests for edge cases (empty, special chars)
+      - Performance benchmark (10,000 matches)
+      - All tests pass
+
+  - id: BL-332-091
+    title: "Write field accessor unit tests"
+    description: |
+      Test nested path access, missing paths, edge cases.
+    phase: "6.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-011]
+    tags: [testing, unit-tests]
+    acceptanceCriteria:
+      - Tests for nested paths
+      - Tests for missing paths (return undefined)
+      - Tests for null/undefined handling
+      - All tests pass
+
+  - id: BL-332-092
+    title: "Write condition evaluator unit tests"
+    description: |
+      Test each condition type individually and combined (AND logic).
+    phase: "6.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-012]
+    tags: [testing, unit-tests]
+    acceptanceCriteria:
+      - Tests for each condition type
+      - Tests for combined conditions
+      - Tests for empty conditions (match all)
+      - All tests pass
+
+  - id: BL-332-093
+    title: "Write template interpolator unit tests"
+    description: |
+      Test placeholder replacement, missing fields, escaped braces.
+    phase: "6.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-020]
+    tags: [testing, unit-tests]
+    acceptanceCriteria:
+      - Tests for single/multiple placeholders
+      - Tests for missing fields
+      - Tests for escaped braces
+      - All tests pass
+
+  - id: BL-332-093A
+    title: "Write candidate builder unit tests"
+    description: |
+      Test candidate template interpolation with {{event.path}} and {{result.path}} placeholders.
+      Test missing field handling and InternalCandidate object construction.
+    phase: "6.1"
+    priority: high
+    status: done
+    estimatedHours: 1
+    dependencies: [BL-332-022]
+    tags: [testing, unit-tests, candidate]
+    acceptanceCriteria:
+      - Tests for {{event.path}} interpolation
+      - Tests for {{result.path}} interpolation
+      - Tests for missing fields (graceful handling)
+      - Tests for InternalCandidate object structure
+      - All tests pass
+
+  - id: BL-332-094
+    title: "Write executor unit tests"
+    description: |
+      Mock tool-gateway HTTP calls, test success, timeout, errors.
+      Test candidate building when candidateTemplate is present.
+    phase: "6.1"
+    priority: high
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-024]
+    tags: [testing, unit-tests, mocking]
+    acceptanceCriteria:
+      - Mock tool-gateway HTTP calls
+      - Test successful execution
+      - Test timeout handling
+      - Test error handling
+      - Test candidate included in result when template defined
+      - Test no candidate when template not defined
+      - All tests pass
+
+  - id: BL-332-095
+    title: "Write repository unit tests"
+    description: |
+      Mock Firestore, test CRUD operations and subscriptions.
+    phase: "6.1"
+    priority: high
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-030]
+    tags: [testing, unit-tests, firestore]
+    acceptanceCriteria:
+      - Mock Firestore operations
+      - Test all CRUD methods
+      - Test subscription updates
+      - All tests pass
+
+  - id: BL-332-096
+    title: "Write cache unit tests"
+    description: |
+      Test cache initialization, synchronization, concurrent access.
+    phase: "6.1"
+    priority: high
+    status: done
+    estimatedHours: 1.5
+    dependencies: [BL-332-031]
+    tags: [testing, unit-tests, cache]
+    acceptanceCriteria:
+      - Test initialization from repository
+      - Test synchronization on Firestore updates
+      - Test concurrent access (if needed)
+      - All tests pass
+
+  - id: BL-332-097
+    title: "Run test coverage report"
+    description: |
+      Execute npm run test:coverage, verify >80% line and branch coverage.
+      Add tests for any uncovered code.
+    phase: "6.1"
+    priority: critical
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-090, BL-332-091, BL-332-092, BL-332-093, BL-332-093A, BL-332-094, BL-332-095, BL-332-096]
+    tags: [testing, coverage, quality]
+    acceptanceCriteria:
+      - Coverage report generated
+      - Line coverage >80%
+      - Branch coverage >80%
+      - Uncovered code has tests added
+
+  # Task Group 6.2: Integration Tests
+
+  - id: BL-332-100
+    title: "Write event flow integration test (match path)"
+    description: |
+      End-to-end test: Create reflex, publish matching event, verify complete() called,
+      verify execution event published.
+    phase: "6.2"
+    priority: critical
+    status: todo
+    estimatedHours: 2
+    dependencies: [BL-332-042]
+    tags: [testing, integration-tests, e2e]
+    acceptanceCriteria:
+      - Test reflex created in Firestore
+      - Matching event published to internal.reflex.v1
+      - Event enriched with reflex annotation
+      - complete() called (verified by routing)
+      - Execution event published to internal.reflex.executed.v1
+      - Test reflex deleted after test
+
+  - id: BL-332-101
+    title: "Write event flow integration test (no-match path)"
+    description: |
+      End-to-end test: Create reflex, publish non-matching event, verify next() called,
+      verify no execution event published.
+    phase: "6.2"
+    priority: critical
+    status: todo
+    estimatedHours: 1.5
+    dependencies: [BL-332-042]
+    tags: [testing, integration-tests, e2e]
+    acceptanceCriteria:
+      - Non-matching event published
+      - next() called (verified by routing)
+      - No execution event published
+      - Event continues to query-analyzer
+
+  - id: BL-332-102
+    title: "Write event flow integration test (error path)"
+    description: |
+      End-to-end test: Create reflex with invalid tool, publish matching event,
+      verify complete() called in degraded mode, verify failure event published.
+    phase: "6.2"
+    priority: critical
+    status: todo
+    estimatedHours: 1.5
+    dependencies: [BL-332-042]
+    tags: [testing, integration-tests, error-handling]
+    acceptanceCriteria:
+      - Reflex with non-existent tool created
+      - Matching event published
+      - complete() called (degraded mode)
+      - Failure event published to internal.reflex.failed.v1
+      - Event not blocked
+
+  - id: BL-332-103
+    title: "Write MCP tools integration test"
+    description: |
+      End-to-end test: Start MCP server, call all 5 tools via MCP Inspector,
+      verify CRUD operations work correctly.
+    phase: "6.2"
+    priority: high
+    status: todo
+    estimatedHours: 2
+    dependencies: [BL-332-065]
+    tags: [testing, integration-tests, mcp]
+    acceptanceCriteria:
+      - reflex.create creates in Firestore
+      - reflex.list returns created reflex
+      - reflex.update updates in Firestore
+      - reflex.delete marks inactive
+      - reflex.test returns match result
+
+  - id: BL-332-104
+    title: "Write cache synchronization integration test"
+    description: |
+      Test cache updates when reflexes are created/updated via Firestore directly.
+      Verify <1 second synchronization.
+    phase: "6.2"
+    priority: high
+    status: todo
+    estimatedHours: 1.5
+    dependencies: [BL-332-032]
+    tags: [testing, integration-tests, cache]
+    acceptanceCriteria:
+      - Start reflex-service
+      - Create reflex via Firestore Admin SDK
+      - Verify cache updated within 1 second
+      - Update reflex via Firestore
+      - Verify cache reflects update
+
+  # Task Group 6.3: Manual Testing
+
+  - id: BL-332-110
+    title: "Manual test: Reference use case (!fail → OBS toggle)"
+    description: |
+      Create and test the primary reference use case: !fail chat message toggles OBS source.
+      Verify <150ms response, no LLM call, execution event published.
+    phase: "6.3"
+    priority: critical
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-104]
+    tags: [testing, manual-testing, use-case]
+    acceptanceCriteria:
+      - Reflex created with exact match on "!fail"
+      - Chat message "!fail" sent in test channel
+      - OBS source visibility toggled
+      - Response time <150ms
+      - No LLM call made (verified in logs)
+      - Execution event published
+
+  - id: BL-332-111
+    title: "Manual test: Regex pattern (!timer <duration>)"
+    description: |
+      Test regex matching with parameter extraction for timer command.
+    phase: "6.3"
+    priority: high
+    status: todo
+    estimatedHours: 0.5
+    dependencies: [BL-332-110]
+    tags: [testing, manual-testing, regex]
+    acceptanceCriteria:
+      - Reflex created with regex pattern
+      - Timer command sent
+      - Duration extracted correctly
+      - Tool invoked with correct parameters
+
+  - id: BL-332-112
+    title: "Manual test: Authorization (admin-only command)"
+    description: |
+      Test condition-based filtering using minAuthLevel condition.
+    phase: "6.3"
+    priority: high
+    status: todo
+    estimatedHours: 0.5
+    dependencies: [BL-332-110]
+    tags: [testing, manual-testing, authorization]
+    acceptanceCriteria:
+      - Reflex created with minAuthLevel=admin
+      - Non-admin user triggers pattern: no match
+      - Admin user triggers pattern: match and execute
+
+  - id: BL-332-113
+    title: "Manual test: Performance with 100 reflexes"
+    description: |
+      Load test matching engine with 100 reflexes to verify <150ms p99.
+    phase: "6.3"
+    priority: high
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-110]
+    tags: [testing, manual-testing, performance]
+    acceptanceCriteria:
+      - 100 reflexes created with varying priorities
+      - Message matches reflex #100 (lowest priority)
+      - End-to-end latency <150ms
+      - Correct reflex selected (highest priority)
+
+  - id: BL-332-114
+    title: "Manual test: Error scenarios"
+    description: |
+      Test various error conditions: timeouts, invalid tools, malformed parameters.
+      Verify degraded mode and graceful handling.
+    phase: "6.3"
+    priority: high
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-110]
+    tags: [testing, manual-testing, error-handling]
+    acceptanceCriteria:
+      - Tool-gateway timeout tested
+      - Invalid tool name tested
+      - Malformed parameters tested
+      - All errors handled gracefully
+      - Events not blocked
+      - Failure events published
+
+  # =========================================================================
+  # PHASE 7: DOCUMENTATION & DEPLOYMENT
+  # =========================================================================
+
+  # Task Group 7.1: Documentation
+
+  - id: BL-332-120
+    title: "Create reflex user guide"
+    description: |
+      Comprehensive user documentation with quick start, examples, troubleshooting.
+      Target: 10+ real-world reflex recipes.
+    phase: "7.1"
+    priority: medium
+    status: todo
+    estimatedHours: 3
+    dependencies: [BL-332-114]
+    tags: [documentation, user-guide]
+    acceptanceCriteria:
+      - Overview and when to use reflex
+      - Quick start guide
+      - Pattern matching examples (all 5 types)
+      - Condition filtering examples
+      - Template interpolation guide
+      - MCP tool usage examples
+      - 10+ real-world recipes
+      - Troubleshooting section
+
+  - id: BL-332-121
+    title: "Create reflex developer guide"
+    description: |
+      Developer documentation with architecture, code structure, testing, extensibility.
+    phase: "7.1"
+    priority: medium
+    status: todo
+    estimatedHours: 2
+    dependencies: [BL-332-114]
+    tags: [documentation, developer-guide]
+    acceptanceCriteria:
+      - Architecture overview (link to tech arch)
+      - Code structure explained
+      - Testing instructions
+      - Local development guide
+      - Extensibility guide (adding match types)
+      - Performance tuning tips
+
+  - id: BL-332-122
+    title: "Update CHANGELOG.md"
+    description: |
+      Document version 0.7.5 with reflex features, changes, migration notes.
+    phase: "7.1"
+    priority: medium
+    status: todo
+    estimatedHours: 0.5
+    dependencies: [BL-332-114]
+    tags: [documentation, changelog]
+    acceptanceCriteria:
+      - Version 0.7.5 section added
+      - New features documented
+      - Breaking changes noted (none expected)
+      - Migration notes if needed
+
+  - id: BL-332-123
+    title: "Update README.md"
+    description: |
+      Add Reflex to service list, link to user guide.
+    phase: "7.1"
+    priority: low
+    status: todo
+    estimatedHours: 0.25
+    dependencies: [BL-332-120]
+    tags: [documentation, readme]
+    acceptanceCriteria:
+      - Reflex added to service list
+      - Link to user guide
+      - Brief description
+
+  # Task Group 7.2: Deployment Preparation
+
+  - id: BL-332-130
+    title: "Configure staging environment"
+    description: |
+      Add reflex environment variables to env/staging/reflex.yaml.
+      Set TOOL_GATEWAY_URL, MCP_AUTH_TOKEN, LOG_LEVEL=debug.
+    phase: "7.2"
+    priority: critical
+    status: todo
+    estimatedHours: 0.5
+    dependencies: [BL-332-052]
+    tags: [deployment, configuration, staging]
+    acceptanceCriteria:
+      - env/staging/reflex.yaml created
+      - TOOL_GATEWAY_URL configured
+      - MCP_AUTH_TOKEN from Secret Manager
+      - LOG_LEVEL set to debug
+
+  - id: BL-332-131
+    title: "Configure production environment"
+    description: |
+      Add reflex environment variables to env/production/reflex.yaml.
+      Set TOOL_GATEWAY_URL, MCP_AUTH_TOKEN, LOG_LEVEL=info.
+    phase: "7.2"
+    priority: critical
+    status: todo
+    estimatedHours: 0.5
+    dependencies: [BL-332-052]
+    tags: [deployment, configuration, production]
+    acceptanceCriteria:
+      - env/production/reflex.yaml created
+      - TOOL_GATEWAY_URL configured
+      - MCP_AUTH_TOKEN from Secret Manager
+      - LOG_LEVEL set to info
+
+  - id: BL-332-132
+    title: "Create deployment runbook"
+    description: |
+      Document deployment process, verification steps, rollback procedure, monitoring.
+    phase: "7.2"
+    priority: high
+    status: todo
+    estimatedHours: 2
+    dependencies: [BL-332-130, BL-332-131]
+    tags: [deployment, documentation, operations]
+    acceptanceCriteria:
+      - Pre-deployment checklist
+      - Deployment steps documented
+      - Verification steps documented
+      - Rollback procedure documented
+      - Monitoring guidance
+
+  - id: BL-332-133
+    title: "Deploy to staging"
+    description: |
+      Deploy reflex service to staging, create test reflex, run integration tests,
+      performance test with 1000 events/sec.
+    phase: "7.2"
+    priority: critical
+    status: todo
+    estimatedHours: 2
+    dependencies: [BL-332-130, BL-332-132]
+    tags: [deployment, staging, testing]
+    acceptanceCriteria:
+      - Service deployed to staging
+      - Health check passes
+      - Test reflex created
+      - Integration tests pass
+      - Performance test: 1000 events/sec handled
+      - Metrics visible in dashboard
+
+  - id: BL-332-134
+    title: "Create rollback plan"
+    description: |
+      Document emergency rollback procedures: disable service, drain queue, revert routing slip.
+    phase: "7.2"
+    priority: high
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-132]
+    tags: [deployment, rollback, operations]
+    acceptanceCriteria:
+      - Disable procedure documented
+      - Queue draining procedure documented
+      - Routing slip revert procedure documented
+      - Emergency contact info
+
+  # Task Group 7.3: Production Deployment
+
+  - id: BL-332-140
+    title: "Deploy infrastructure to production"
+    description: |
+      Apply Terraform changes to create Pub/Sub topics and subscriptions in production.
+    phase: "7.3"
+    priority: critical
+    status: todo
+    estimatedHours: 0.5
+    dependencies: [BL-332-133]
+    tags: [deployment, production, infrastructure]
+    acceptanceCriteria:
+      - Terraform applied to production
+      - Topics created successfully
+      - Subscriptions created successfully
+      - IAM permissions verified
+
+  - id: BL-332-141
+    title: "Deploy reflex service to production"
+    description: |
+      Build Docker image, deploy to Cloud Run, verify health, verify cache initialization.
+    phase: "7.3"
+    priority: critical
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-140]
+    tags: [deployment, production, cloud-run]
+    acceptanceCriteria:
+      - Docker image built
+      - Deployed to Cloud Run
+      - Health check passes
+      - Cache initialized successfully
+      - Logs show no errors
+
+  - id: BL-332-142
+    title: "Update event-router in production"
+    description: |
+      Deploy updated event-router with reflex step in routing slip.
+    phase: "7.3"
+    priority: critical
+    status: todo
+    estimatedHours: 0.5
+    dependencies: [BL-332-141]
+    tags: [deployment, production, event-router]
+    acceptanceCriteria:
+      - Updated routing slip deployed
+      - Reflex step included
+      - Event flow verified
+
+  - id: BL-332-143
+    title: "Enable reflex in production"
+    description: |
+      Update architecture.yaml to set reflex active: true, commit and push.
+    phase: "7.3"
+    priority: critical
+    status: todo
+    estimatedHours: 0.25
+    dependencies: [BL-332-142]
+    tags: [deployment, production, configuration]
+    acceptanceCriteria:
+      - architecture.yaml updated
+      - Committed and pushed
+      - Configuration applied
+      - Service actively processing events
+
+  - id: BL-332-144
+    title: "Monitor production deployment"
+    description: |
+      Watch logs, metrics, send test messages, verify execution events, monitor for 24 hours.
+    phase: "7.3"
+    priority: critical
+    status: todo
+    estimatedHours: 2
+    dependencies: [BL-332-143]
+    tags: [deployment, production, monitoring]
+    acceptanceCriteria:
+      - Logs monitored for errors
+      - Metrics show <150ms p99 latency
+      - Test messages sent successfully
+      - Execution events published
+      - No critical errors for 24 hours
+
+  - id: BL-332-145
+    title: "Create production reflexes"
+    description: |
+      Create !fail reflex and 2-3 additional useful reflexes for production use.
+      Document in wiki or user guide.
+    phase: "7.3"
+    priority: medium
+    status: todo
+    estimatedHours: 1
+    dependencies: [BL-332-144]
+    tags: [deployment, production, configuration]
+    acceptanceCriteria:
+      - !fail reflex created (reference use case)
+      - 2-3 additional reflexes created
+      - All reflexes tested
+      - Documented in wiki/guide
+
+# =========================================================================
+# SUMMARY
+# =========================================================================
+
+summary:
+  totalTasks: 58
+  phases:
+    - phase: "1: Core Foundation"
+      tasks: 15
+      estimatedHours: 30.5
+    - phase: "2: Storage & Caching"
+      tasks: 3
+      estimatedHours: 6
+    - phase: "3: Event Flow Integration"
+      tasks: 6
+      estimatedHours: 9
+    - phase: "4: MCP Management Tools"
+      tasks: 6
+      estimatedHours: 8
+    - phase: "5: Error Handling & Observability"
+      tasks: 7
+      estimatedHours: 9.5
+    - phase: "6: Testing & Validation"
+      tasks: 14
+      estimatedHours: 20
+    - phase: "7: Documentation & Deployment"
+      tasks: 13
+      estimatedHours: 13.25
+
+  priorityBreakdown:
+    critical: 29
+    high: 21
+    medium: 7
+    low: 1
+
+  estimatedTotalHours: 96.25
+  estimatedDuration: "12-14 work days (assuming 1 developer)"
+
+  criticalPath:
+    - "Phase 1: Data Model → Matching Engine → Orchestration Engine"
+    - "Phase 2: Firestore Integration → Cache"
+    - "Phase 3: Message Handler → Event Publishing → Topic Configuration"
+    - "Phase 6: Unit Tests → Integration Tests → Manual Tests"
+    - "Phase 7: Staging Deployment → Production Deployment"
+
+notes: |
+  - Tasks are organized sequentially by phase and dependencies
+  - Critical path tasks should be prioritized to avoid blocking downstream work
+  - Integration tests (Phase 6) cannot proceed until core implementation is complete
+  - Production deployment (Phase 7.3) requires successful staging validation
+  - Monitoring task (BL-332-144) includes 24-hour observation period
+  - Total estimate assumes single developer; can be parallelized with team

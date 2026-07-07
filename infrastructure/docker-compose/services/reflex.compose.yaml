@@ -22,7 +22,9 @@ services:
       firebase-emulator:
         condition: service_healthy
     networks:
-      - bitbrat-network
+      bitbrat-network:
+        aliases:
+          - reflex.bitbrat.local
 
 networks:
   bitbrat-network:
