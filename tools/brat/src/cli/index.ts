@@ -142,6 +142,9 @@ Usage:
   brat docker logs [--target <name>] [--service <name>] [--follow]
   brat docker ps [--target <name>] [--service <name>]
 
+  # MCP server setup for LLM agents (Claude Code, etc.)
+  brat mcp setup [--target <name>] [--scope local|user|project] [--server-name <name>] [--log-level <level>] [--dry-run] [--json]
+
   # Firestore config backup/restore (config collections only; events & log collections are NEVER exported)
   brat backup list [--json]
   brat backup export [--project-id <id> | --target <name>] [--out <path>] [--collections a,b] [--include-secrets] [--pretty] [--json]
@@ -940,6 +943,37 @@ Options:
       follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true'
     };
     await cmdDocker(action, dockerFlags);
+    return;
+  }
+  if (c1 === 'dev-mcp') {
+    const { cmdDevMcp } = await import('./dev-mcp.js');
+    const action = c2;
+    if (!action) {
+      console.error('Usage: brat dev-mcp start [--target <name>] [--log-level <level>] [--audit-log <path>]');
+      process.exit(2);
+    }
+    const m = parseKeyValueFlags(rest);
+    const devMcpFlags = {
+      target: m['target'],
+      logLevel: m['log-level'] || m['logLevel'] as any,
+      auditLog: m['audit-log'] || m['auditLog'],
+    };
+    await cmdDevMcp(action, devMcpFlags);
+    return;
+  }
+  if (c1 === 'mcp' && c2 === 'setup') {
+    const { cmdMcpSetup } = await import('./mcp-setup.js');
+    const m = parseKeyValueFlags(rest);
+    const mcpSetupFlags = {
+      target: m['target'],
+      scope: (m['scope'] || 'user') as 'local' | 'user' | 'project',
+      serverName: m['server-name'] || m['name'],
+      logLevel: (m['log-level'] || m['logLevel'] || 'info') as any,
+      auditLog: m['audit-log'] || m['auditLog'],
+      dryRun: flags.dryRun,
+      json: flags.json,
+    };
+    await cmdMcpSetup(mcpSetupFlags);
     return;
   }
   printHelp();
