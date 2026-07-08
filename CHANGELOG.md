@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.9.0] - 2026-07-08
+### Added
 - **Dev MCP Server for unified development tooling access** (sprint-333). New `brat dev-mcp start` command exposes 9 read-only MCP tools for coding agents to inspect and query BitBrat platforms across all deployment targets (local Docker, remote SSH, GCP Cloud Run):
   - **Config tools (4)**: `config.show` (resolved architecture), `config.validate` (schema validation), `config.doctor` (environment diagnostics), `schema.read` (JSON schema access)
   - **Fleet tools (2)**: `fleet.list` (enumerate Bits), `fleet.info` (detailed Bit metadata)
