@@ -22,6 +22,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.9.0] - 2026-07-08
+### Added
+- **Dev MCP Server for unified development tooling access** (sprint-333). New `brat dev-mcp start` command exposes 9 read-only MCP tools for coding agents to inspect and query BitBrat platforms across all deployment targets (local Docker, remote SSH, GCP Cloud Run):
+  - **Config tools (4)**: `config.show` (resolved architecture), `config.validate` (schema validation), `config.doctor` (environment diagnostics), `schema.read` (JSON schema access)
+  - **Fleet tools (2)**: `fleet.list` (enumerate Bits), `fleet.info` (detailed Bit metadata)
+  - **Persistence tools (3)**: `db.collections` (list collections), `db.get` (retrieve document), `db.query` (query with filters/ordering/pagination)
+  - All tools are **read-only** (no mutations), **fail-closed** (requires MCP_DEV_TOKEN or MCP_AUTH_TOKEN), **target-aware** (--target parameter), with **audit logging** (.brat/dev-mcp-audit.log) and **secret redaction**
+  - Server implemented at `tools/brat/src/dev-mcp/` with MCP stdio transport, target connection manager, tool router, and comprehensive test suite (46 tests passing)
+  - Documentation: `documentation/guides/mcp-dev-tools-reference.md` (complete tool reference), `documentation/guides/mcp-setup.md` (Claude Code integration guide), `tools/brat/README-MCP-SETUP.md` (quick reference)
+  - Validation script: `planning/sprint-333-dev-mcp-server/validate_deliverable.sh` (build, tests, read-only enforcement, fail-closed checks, security audits)
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.8.0] - 2026-07-07
 ### Added
 - **Comprehensive documentation refactor for Reflex and Platform vs Domain architecture** (sprint-332 / documentation-refactor).

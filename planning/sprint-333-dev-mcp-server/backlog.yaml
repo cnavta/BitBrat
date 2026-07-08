@@ -1,0 +1,860 @@
+meta:
+  backlog_id: sprint-333-dev-mcp-server
+  updated_at: 2026-07-07T12:00:00Z
+  status_values: [todo, in_progress, blocked, done]
+  priority_values: [P0, P1, P2, P3]
+  effort_values: [S, M, L, XL]
+  source: planning/sprint-333-dev-mcp-server/execution-plan.md
+  design: planning/sprint-333-dev-mcp-server/technical-architecture.md
+  approval_required: true
+  notes: |
+    Prioritized Trackable YAML Backlog for Sprint 333: Dev MCP Server Implementation.
+
+    This sprint implements a local development MCP server integrated into the brat CLI that provides
+    unified access to BitBrat development tooling across all deployment targets (local Docker, remote
+    Docker, GCP Cloud Run).
+
+    CORE DELIVERABLE: `brat dev-mcp start` command exposing 13 Phase 1 tools via MCP stdio transport.
+
+    GUIDING CONSTRAINTS:
+    - Read-only posture: Every tool is read-only or dry-run (idempotent)
+    - Fail-closed security: No token → refuse to operate
+    - Target awareness: All tools work on local, SSH, and GCP targets
+    - Code reuse priority: Maximize reuse of existing fleet/, backup/, config/ code
+    - Test-driven development: Unit + integration + E2E tests
+
+    PHASES:
+    - Phase 0: Foundation & Infrastructure (MCP server skeleton, target manager)
+    - Phase 1: Config & Validation Tools (4 tools, offline-capable)
+    - Phase 2: Basic Fleet Tools (2 tools, fleet enumeration/inspection)
+    - Phase 3: Persistence Abstraction Tools (3 tools, Firestore queries)
+    - Phase 4: Integration & Validation (E2E tests, docs, validation script)
+    - Phase 5: Publication & Close-Out (commit, PR, sprint artifacts)
+
+    OUT OF SCOPE (deferred to Sprint 334):
+    - SSE transport, fleet.call, fleet.logs, fleet.trace, db.watch, dev utilities
+
+    STATUS: PRE-SPRINT (AGENTS.md Rule S1). Awaiting explicit "Start sprint" approval.
+
+sprint:
+  id: 333
+  start: null
+  end: null
+  wip_limit: 3
+  goal: "Implement a local development MCP server (brat dev-mcp) that provides unified, read-only access to BitBrat development tooling across all deployment targets, enabling coding agents to enumerate the fleet, query Firestore, and validate configuration via 13 MCP tools."
+
+items:
+  # ============================================================================
+  # PHASE 0: FOUNDATION & INFRASTRUCTURE
+  # ============================================================================
+
+  - id: DM-001
+    title: "Create dev-mcp directory structure and initial files"
+    phase: 0
+    section: "§4 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: []
+    blocked_reason: null
+    acceptance:
+      - "Directory created: tools/brat/src/dev-mcp/"
+      - "Subdirectories: tools/, __tests__/, __tests__/tools/"
+      - "Empty stub files: server.ts, target-manager.ts, tool-router.ts, audit-logger.ts, types.ts"
+      - "Empty test stubs: server.test.ts, target-manager.test.ts"
+      - "Git commit with initial structure"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-002
+    title: "Implement TargetConnectionManager using existing resolveBackupConnection logic"
+    phase: 0
+    section: "§2.2.2, §4 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-001]
+    blocked_reason: null
+    acceptance:
+      - "TargetConnectionManager class created in target-manager.ts"
+      - "connect(targetName?) resolves target from architecture.yaml"
+      - "Reuses resolveBackupConnection() from tools/brat/src/backup/connection.ts"
+      - "Returns TargetConnection with { name, type, firestore, gateway?, cleanup }"
+      - "Supports local (unix socket), remote SSH (tunnel), and GCP targets"
+      - "Connection pooling: caches active connections per target"
+      - "healthCheck(connection) verifies Firestore and gateway reachability"
+      - "disconnect(connection) runs cleanup (closes SSH tunnels)"
+      - "Unit tests cover all three target types (local real, SSH mocked, GCP mocked)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-003
+    title: "Implement ToolRouter for tool registration and dispatch"
+    phase: 0
+    section: "§4 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-001]
+    blocked_reason: null
+    acceptance:
+      - "ToolRouter class created in tool-router.ts"
+      - "registerTool(name, description, schema, handler) registers a tool"
+      - "listTools() returns array of MCP tool definitions"
+      - "callTool(name, args) dispatches to registered handler"
+      - "Validates args against tool schema (Zod)"
+      - "Returns CallToolResult { content: [...] }"
+      - "Handles errors gracefully (returns error content block)"
+      - "Unit tests cover registration, listing, calling, error handling"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-004
+    title: "Implement AuditLogger for tool invocation tracking"
+    phase: 0
+    section: "§2.3, §4 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-001]
+    blocked_reason: null
+    acceptance:
+      - "AuditLogger class created in audit-logger.ts"
+      - "logToolCall(tool, args, target, identity, duration, result) writes to log file"
+      - "Default log path: .brat/dev-mcp-audit.log (configurable via DEV_MCP_AUDIT_LOG)"
+      - "Log format: JSON lines with { timestamp, tool, args, target, identity, duration, success }"
+      - "Redacts sensitive args (token, password, secret keys)"
+      - "Creates .brat/ directory if missing"
+      - "Unit tests verify log writes and redaction"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-005
+    title: "Implement basic MCP server with stdio transport (no tools yet)"
+    phase: 0
+    section: "§2.2.1, §3.3, §4 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-002, DM-003, DM-004]
+    blocked_reason: null
+    acceptance:
+      - "DevMcpServer class created in server.ts"
+      - "Uses @modelcontextprotocol/sdk Server and StdioServerTransport"
+      - "Implements initialize handler (returns server info)"
+      - "Implements tools/list handler (returns registered tools from ToolRouter)"
+      - "Implements tools/call handler (dispatches to ToolRouter)"
+      - "Constructor accepts { target?, logLevel?, auditLog? }"
+      - "start() connects transport and enters message loop"
+      - "shutdown() closes connections and cleans up"
+      - "Integrates TargetConnectionManager, ToolRouter, AuditLogger"
+      - "Unit tests verify MCP protocol compliance (initialize, list, call)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-006
+    title: "Wire CLI command: brat dev-mcp start [--target] [--log-level]"
+    phase: 0
+    section: "§2.2.1, §4 Phase 0"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-005]
+    blocked_reason: null
+    acceptance:
+      - "CLI command handler created in tools/brat/src/cli/dev-mcp.ts"
+      - "Registered in tools/brat/src/cli/index.ts parseArgs() switch"
+      - "Accepts flags: --target <name>, --log-level <error|warn|info|debug>"
+      - "Reads MCP_AUTH_TOKEN or MCP_DEV_TOKEN from env (fail-closed if missing)"
+      - "Instantiates DevMcpServer and calls start()"
+      - "Handles SIGINT/SIGTERM for graceful shutdown"
+      - "Prints startup message: 'Dev MCP server started on stdio (target: <name>)'"
+      - "Manual test: npm run brat -- dev-mcp start (launches server, responds to initialize)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-007
+    title: "Set up test infrastructure (Jest config, mocks, fixtures)"
+    phase: 0
+    section: "§4 Phase 0, §7"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-001]
+    blocked_reason: null
+    acceptance:
+      - "Jest config includes tools/brat/src/dev-mcp/ in test paths"
+      - "Mock factories created for Firestore, SSH, FleetClient"
+      - "Test fixtures: sample architecture.yaml, mocked registry data"
+      - "Helper functions: createMockConnection(), createMockServer()"
+      - "npm test runs dev-mcp tests successfully"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-008
+    title: "Phase 0 gate: MCP server operational, target connection proven, testing harness ready"
+    phase: 0
+    section: "§4 Phase 0 exit"
+    gate: G0
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-001, DM-002, DM-003, DM-004, DM-005, DM-006, DM-007]
+    blocked_reason: null
+    acceptance:
+      - "brat dev-mcp start launches successfully and responds to MCP protocol"
+      - "tools/list returns empty array (no tools registered yet)"
+      - "TargetConnectionManager resolves local, SSH, GCP targets"
+      - "AuditLogger writes to .brat/dev-mcp-audit.log"
+      - "npm run build succeeds"
+      - "npm test passes all dev-mcp tests"
+      - "Manual test: echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}' | npm run brat -- dev-mcp start"
+    updated_at: 2026-07-07
+    log: []
+
+  # ============================================================================
+  # PHASE 1: CONFIG & VALIDATION TOOLS
+  # ============================================================================
+
+  - id: DM-101
+    title: "Implement config.show tool (resolved configuration with redaction)"
+    phase: 1
+    section: "§2.2.3.A, §4 Phase 1"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-008]
+    blocked_reason: null
+    acceptance:
+      - "config.show tool registered in tools/config.ts"
+      - "Schema: z.object({ target: z.string().optional(), redact: z.boolean().default(true) })"
+      - "Reuses loadArchitecture() from tools/brat/src/config/loader.ts"
+      - "Reuses resolveConfig() to merge environment overlays"
+      - "Redacts secrets by default (MCP_AUTH_TOKEN, API keys, provider secrets)"
+      - "Returns resolved config as JSON resource"
+      - "Fail-closed: no token → return error content block"
+      - "Unit tests: valid config (redacted), valid config (unredacted with redact:false), missing token"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-102
+    title: "Implement config.validate tool (architecture.yaml schema validation)"
+    phase: 1
+    section: "§2.2.3.A, §4 Phase 1"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-008]
+    blocked_reason: null
+    acceptance:
+      - "config.validate tool registered in tools/config.ts"
+      - "Schema: z.object({ showErrors: z.boolean().default(true) })"
+      - "Validates architecture.yaml against documentation/schemas/architecture.v1.json"
+      - "Returns { valid: boolean, errors?: [...] }"
+      - "Honors Law #2: agent can verify config is schema-legal BEFORE proposing changes"
+      - "Unit tests: valid architecture.yaml (pass), invalid file (structured errors)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-103
+    title: "Implement config.doctor tool (environment prerequisites check)"
+    phase: 1
+    section: "§2.2.3.A, §4 Phase 1"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-008]
+    blocked_reason: null
+    acceptance:
+      - "config.doctor tool registered in tools/config.ts"
+      - "Schema: z.object({ checks: z.array(z.enum(['docker', 'gcloud', 'terraform', 'node'])).optional() })"
+      - "Reuses doctor logic from tools/brat/src/cli/doctor.ts"
+      - "Checks: docker (version, running), gcloud (installed, auth), terraform (version), node (version)"
+      - "Returns typed diagnostic report: { docker: { installed, version, running }, ... }"
+      - "Runs non-interactively (CI mode, no prompts)"
+      - "Unit tests: healthy environment, degraded environment (missing tools)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-104
+    title: "Implement schema.read tool (read JSON schema definitions)"
+    phase: 1
+    section: "§2.2.3.A, §4 Phase 1"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-008]
+    blocked_reason: null
+    acceptance:
+      - "schema.read tool registered in tools/config.ts"
+      - "Schema: z.object({ schema: z.enum(['architecture', 'envelope', 'routing-rule', 'reflex']) })"
+      - "Reads schema files from documentation/schemas/ directory"
+      - "Mapping: architecture → architecture.v1.json, envelope → envelope.v1.json, etc."
+      - "Returns full schema JSON as resource"
+      - "Unit tests: all four schema types, non-existent schema (error)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-105
+    title: "Phase 1 gate: Config tools production-ready, tested, documented"
+    phase: 1
+    section: "§4 Phase 1 exit"
+    gate: G1
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-101, DM-102, DM-103, DM-104]
+    blocked_reason: null
+    acceptance:
+      - "All four config tools callable via brat dev-mcp"
+      - "tools/list returns 4 tools"
+      - "config.show returns resolved config with secrets redacted"
+      - "config.validate detects invalid architecture.yaml"
+      - "config.doctor returns typed diagnostic report"
+      - "schema.read returns full schema JSON for all types"
+      - "All tools fail closed without token"
+      - "Unit tests >80% coverage for config tools"
+      - "Tools work offline (no external API calls)"
+      - "npm run build + npm test green"
+    updated_at: 2026-07-07
+    log: []
+
+  # ============================================================================
+  # PHASE 2: BASIC FLEET TOOLS
+  # ============================================================================
+
+  - id: DM-201
+    title: "Implement fleet.list tool (enumerate all live Bits)"
+    phase: 2
+    section: "§2.2.3.B, §4 Phase 2"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-105]
+    blocked_reason: null
+    acceptance:
+      - "fleet.list tool registered in tools/fleet.ts"
+      - "Schema: z.object({ target: z.string().optional() })"
+      - "Instantiates FleetClient from tools/brat/src/fleet/fleet-client.ts"
+      - "Uses GatewayTransport or DirectTransport based on target type"
+      - "Calls fleetClient.list() to enumerate Bits"
+      - "Returns array of Bits: { name, profile, exposure, url, status }"
+      - "Respects target parameter (local, staging, prod)"
+      - "Fail-closed: resolveIdentity() throws if no token"
+      - "Integration test with mocked registry (3 Bits: llm-bot, event-router, tool-gateway)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-202
+    title: "Implement fleet.info tool (get detailed Bit info)"
+    phase: 2
+    section: "§2.2.3.B, §4 Phase 2"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-201]
+    blocked_reason: null
+    acceptance:
+      - "fleet.info tool registered in tools/fleet.ts"
+      - "Schema: z.object({ bit: z.string().optional(), target: z.string().optional() })"
+      - "If bit provided: calls fleetClient.call(bit, 'bit.info') for single Bit"
+      - "If bit omitted (--all): fan-out to all Bits via fleetClient.callAll('bit.info')"
+      - "Returns bit.info result: { name, version, profile, exposure, topics, secrets, uptime }"
+      - "Partial failure tolerance: if one Bit unreachable in --all, others still return"
+      - "Respects target parameter"
+      - "Integration test with mocked gateway (single Bit and fan-out)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-203
+    title: "Phase 2 gate: Fleet enumeration and inspection working across targets"
+    phase: 2
+    section: "§4 Phase 2 exit"
+    gate: G2
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-201, DM-202]
+    blocked_reason: null
+    acceptance:
+      - "fleet.list returns all Bits with metadata"
+      - "fleet.info with bit parameter returns single Bit details"
+      - "fleet.info with --all returns info for all Bits (tolerates partial failure)"
+      - "Tools respect target parameter (tested on local, mocked SSH/GCP)"
+      - "Fail-closed verified: no token → error"
+      - "Integration test with local Docker target (real registry)"
+      - "npm run build + npm test green"
+    updated_at: 2026-07-07
+    log: []
+
+  # ============================================================================
+  # PHASE 3: PERSISTENCE ABSTRACTION TOOLS
+  # ============================================================================
+
+  - id: DM-301
+    title: "Implement db.collections tool (list Firestore collections)"
+    phase: 3
+    section: "§2.2.3.C, §4 Phase 3"
+    gate: G3
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-203]
+    blocked_reason: null
+    acceptance:
+      - "db.collections tool registered in tools/persistence.ts"
+      - "Schema: z.object({ target: z.string().optional() })"
+      - "Connects to Firestore via TargetConnectionManager"
+      - "Uses getFirestore() from src/common/firebase.ts"
+      - "Lists all top-level collections via listCollections()"
+      - "Returns array of collection names: ['events', 'users', 'reflexes', ...]"
+      - "Respects target parameter (emulator or production)"
+      - "Integration test with Firestore emulator"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-302
+    title: "Implement db.get tool (get document by ID)"
+    phase: 3
+    section: "§2.2.3.C, §4 Phase 3"
+    gate: G3
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-203]
+    blocked_reason: null
+    acceptance:
+      - "db.get tool registered in tools/persistence.ts"
+      - "Schema: z.object({ collection: z.string(), id: z.string(), target: z.string().optional() })"
+      - "Retrieves document: db.collection(collection).doc(id).get()"
+      - "Returns document data as JSON (or null if not exists)"
+      - "Strips undefined values using stripUndefinedDeep() from src/services/persistence/model.ts"
+      - "Returns as MCP resource: { uri: 'firestore://target/collection/id', mimeType: 'application/json', text: JSON }"
+      - "Integration test with Firestore emulator (existing doc, non-existent doc)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-303
+    title: "Implement db.query tool (query with filters, ordering, pagination)"
+    phase: 3
+    section: "§2.2.3.C, §2.3.4, §4 Phase 3"
+    gate: G3
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-302]
+    blocked_reason: null
+    acceptance:
+      - "db.query tool registered in tools/persistence.ts"
+      - "Schema: z.object({ collection, filters?, orderBy?, limit?, offset?, target? })"
+      - "Filter ops: ==, !=, <, <=, >, >=, in, array-contains"
+      - "Builds Firestore query: collection(c).where(...).orderBy(...).limit(N).offset(O)"
+      - "Default limit: 50, max limit: 1000"
+      - "Returns array of documents with IDs"
+      - "Strips undefined values from results"
+      - "Returns as MCP resource with JSON array"
+      - "Read-only: no writes, updates, or deletes"
+      - "Integration tests: simple query, filters, ordering, pagination, empty result"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-304
+    title: "Phase 3 gate: Persistence abstraction tools operational with full query support"
+    phase: 3
+    section: "§4 Phase 3 exit"
+    gate: G3
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-301, DM-302, DM-303]
+    blocked_reason: null
+    acceptance:
+      - "db.collections lists all collections"
+      - "db.get retrieves single document by ID"
+      - "db.query supports filters, ordering, pagination"
+      - "All tools respect target parameter"
+      - "Results never contain undefined values"
+      - "Queries are read-only (verified in tests)"
+      - "Integration test with Firestore emulator (seed test data)"
+      - "Performance: queries respect default/max limits"
+      - "npm run build + npm test green"
+    updated_at: 2026-07-07
+    log: []
+
+  # ============================================================================
+  # PHASE 4: INTEGRATION & VALIDATION
+  # ============================================================================
+
+  - id: DM-401
+    title: "End-to-end test: Agent workflow simulation (config → fleet → db queries)"
+    phase: 4
+    section: "§4 Phase 4, §7"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-304]
+    blocked_reason: null
+    acceptance:
+      - "E2E test simulates agent calling multiple tools in sequence"
+      - "Workflow: config.show → config.validate → fleet.list → fleet.info → db.collections → db.query"
+      - "Test uses real MCP protocol (stdio transport, JSON-RPC messages)"
+      - "Verifies tool responses are correctly formatted (MCP content blocks)"
+      - "Verifies audit log captures all tool calls"
+      - "Test runs with local Docker target (Firestore emulator)"
+      - "Test completes successfully in <30 seconds"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-402
+    title: "Target parity assertions (all tools work on local, SSH, GCP)"
+    phase: 4
+    section: "§4 Phase 4, §7"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-304]
+    blocked_reason: null
+    acceptance:
+      - "Integration tests verify all 9 tools on local target (real)"
+      - "Integration tests verify all 9 tools on SSH target (mocked)"
+      - "Integration tests verify all 9 tools on GCP target (mocked)"
+      - "Tests assert identical behavior across targets (no target-specific bugs)"
+      - "SSH tunnel mocking verified (connection cleanup tested)"
+      - "GCP mocking verified (Firestore + Cloud Logging API stubs)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-403
+    title: "Read-only enforcement tests (no tool can mutate state)"
+    phase: 4
+    section: "§2, §4 Phase 4, §7"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-304]
+    blocked_reason: null
+    acceptance:
+      - "Grep codebase for write operations in tools/dev-mcp/tools/"
+      - "Assert no calls to: .set(), .update(), .delete(), .create(), .write()"
+      - "Assert db.query only uses .get(), never .set() or .update()"
+      - "Test: attempt to call db.query with write-like args → should fail gracefully"
+      - "Test: verify Firestore write permissions NOT granted (emulator config)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-404
+    title: "Fail-closed enforcement tests (missing token scenarios)"
+    phase: 4
+    section: "§2.3, §4 Phase 4, §7"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-304]
+    blocked_reason: null
+    acceptance:
+      - "Test: unset MCP_AUTH_TOKEN and MCP_DEV_TOKEN → brat dev-mcp start fails with error"
+      - "Test: call config.show without token → returns error content block"
+      - "Test: call fleet.list without token → resolveIdentity() throws PermissionError"
+      - "Test: call db.query without token → returns error content block"
+      - "All tests verify audit log records failed auth attempts"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-405
+    title: "Redaction verification tests (no secret leaks)"
+    phase: 4
+    section: "§2.3, §4 Phase 4, §7"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-304]
+    blocked_reason: null
+    acceptance:
+      - "Test: config.show with real secrets in architecture.yaml → output redacted"
+      - "Assert raw MCP_AUTH_TOKEN never appears in tool output"
+      - "Assert raw API keys (OpenAI, Google, etc.) never appear"
+      - "Test: db.query on oauth collection → tokens returned as hashes only"
+      - "Test: audit log redacts sensitive tool args (token, password, secret)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-406
+    title: "Create validate_deliverable.sh script for CI/CD"
+    phase: 4
+    section: "§4 Phase 4, §7"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-401, DM-402, DM-403, DM-404, DM-405]
+    blocked_reason: null
+    acceptance:
+      - "Script created: planning/sprint-333-dev-mcp-server/validate_deliverable.sh"
+      - "Script runs: npm run build (exits on error)"
+      - "Script runs: npm test (exits on error)"
+      - "Script greps for imports from ./deprecated (fails if found)"
+      - "Script greps for write operations in tools/ (warns if found)"
+      - "Script runs read-only enforcement tests"
+      - "Script runs fail-closed enforcement tests"
+      - "Script generates coverage report (target: >80%)"
+      - "Script is executable and documented"
+      - "Manual test: ./validate_deliverable.sh passes locally"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-407
+    title: "Write comprehensive documentation (tool reference, integration guide, architecture)"
+    phase: 4
+    section: "§4 Phase 4"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    deps: [DM-304]
+    blocked_reason: null
+    acceptance:
+      - "Tool reference guide: documentation/tools/dev-mcp-tools.md"
+      - "Lists all 9 tools with schemas, examples, usage notes"
+      - "Integration guide: documentation/guides/dev-mcp-integration.md"
+      - "Example .claude/mcp.json configuration for Claude Code"
+      - "Example agent workflows (debugging, config validation, Firestore queries)"
+      - "Architecture overview: references technical-architecture.md"
+      - "Troubleshooting guide: common errors and solutions"
+      - "All documentation reviewed for clarity and completeness"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-408
+    title: "Phase 4 gate: System production-ready, fully tested, documented"
+    phase: 4
+    section: "§4 Phase 4 exit"
+    gate: G4
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-401, DM-402, DM-403, DM-404, DM-405, DM-406, DM-407]
+    blocked_reason: null
+    acceptance:
+      - "validate_deliverable.sh passes all checks"
+      - "Target parity verified: all tools tested on local + mocked SSH/GCP"
+      - "Read-only assertions pass: no tool writes to Firestore or filesystem"
+      - "Fail-closed assertions pass: missing token → all tools refuse"
+      - "Redaction assertions pass: no raw secrets in any tool output"
+      - "Test coverage >80% (check coverage report)"
+      - "Documentation complete: tool reference, integration guide, troubleshooting"
+      - "Example .claude/mcp.json provided and tested"
+      - "Example agent workflows documented with expected outputs"
+      - "npm run build + npm test green"
+    updated_at: 2026-07-07
+    log: []
+
+  # ============================================================================
+  # PHASE 5: PUBLICATION & CLOSE-OUT
+  # ============================================================================
+
+  - id: DM-501
+    title: "Commit all code with descriptive commit message"
+    phase: 5
+    section: "§4 Phase 5"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-408]
+    blocked_reason: null
+    acceptance:
+      - "All code committed to feature branch: feature/sprint-333-dev-mcp-server"
+      - "Commit message follows convention: 'feat(brat): implement dev-mcp server with 9 tools'"
+      - "Commit includes: server code, tests, docs, validation script"
+      - "No uncommitted changes (git status clean)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-502
+    title: "Update CHANGELOG.md with new feature"
+    phase: 5
+    section: "§4 Phase 5"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-501]
+    blocked_reason: null
+    acceptance:
+      - "CHANGELOG.md updated with Sprint 333 entry"
+      - "Entry format: ## [Unreleased] ### Added - Dev MCP Server (brat dev-mcp) ..."
+      - "Lists all 9 tools implemented"
+      - "Notes target awareness and fail-closed security"
+      - "References documentation/tools/dev-mcp-tools.md"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-503
+    title: "Create feature branch PR to main"
+    phase: 5
+    section: "§4 Phase 5"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-502]
+    blocked_reason: null
+    acceptance:
+      - "PR created: feature/sprint-333-dev-mcp-server → main"
+      - "PR title: 'feat(brat): Dev MCP Server - unified development tooling access'"
+      - "PR description includes: summary, tools list, testing notes, usage examples"
+      - "PR references technical-architecture.md and execution-plan.md"
+      - "PR includes validation results (validate_deliverable.sh output)"
+      - "PR tagged with labels: feature, mcp, sprint-333"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-504
+    title: "Generate verification-report.md (completed items summary)"
+    phase: 5
+    section: "§4 Phase 5, AGENTS.md §2.8"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-503]
+    blocked_reason: null
+    acceptance:
+      - "verification-report.md created in planning/sprint-333-dev-mcp-server/"
+      - "Lists all completed backlog items (DM-001 through DM-503)"
+      - "Notes any deferred items (Phase 2+ tools)"
+      - "Summarizes test results (coverage, assertions)"
+      - "References PR and commit SHA"
+      - "Confirms all acceptance criteria met"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-505
+    title: "Generate retro.md (what went well, what could improve)"
+    phase: 5
+    section: "§4 Phase 5, AGENTS.md §2.10"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-503]
+    blocked_reason: null
+    acceptance:
+      - "retro.md created in planning/sprint-333-dev-mcp-server/"
+      - "What went well: code reuse, target abstraction, testing rigor"
+      - "What could improve: areas of complexity, potential refactors"
+      - "Process feedback: estimation accuracy, gate effectiveness"
+      - "Lessons learned for future sprints"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-506
+    title: "Generate key-learnings.md (technical insights)"
+    phase: 5
+    section: "§4 Phase 5, AGENTS.md §2.10"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-503]
+    blocked_reason: null
+    acceptance:
+      - "key-learnings.md created in planning/sprint-333-dev-mcp-server/"
+      - "Technical insights: MCP protocol patterns, target abstraction, Firestore query translation"
+      - "Reusable patterns: ToolRouter, AuditLogger, connection pooling"
+      - "Security considerations: fail-closed enforcement, redaction strategies"
+      - "Performance notes: query limits, caching opportunities"
+      - "Recommendations for Phase 2 (logs, SSE transport)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-507
+    title: "Record PR in publication.yaml"
+    phase: 5
+    section: "§4 Phase 5, AGENTS.md §2.12"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-503]
+    blocked_reason: null
+    acceptance:
+      - "publication.yaml updated with Sprint 333 entry"
+      - "Entry includes: sprint ID, PR number, commit SHA, date"
+      - "References all sprint artifacts (architecture, execution plan, backlog, verification, retro, learnings)"
+    updated_at: 2026-07-07
+    log: []
+
+  - id: DM-508
+    title: "Phase 5 gate: Sprint complete, code merged (or PR open for review)"
+    phase: 5
+    section: "§4 Phase 5 exit"
+    gate: G5
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    deps: [DM-501, DM-502, DM-503, DM-504, DM-505, DM-506, DM-507]
+    blocked_reason: null
+    acceptance:
+      - "All code committed and pushed"
+      - "PR created and open for review (or merged)"
+      - "CHANGELOG updated"
+      - "Sprint artifacts complete: verification-report.md, retro.md, key-learnings.md"
+      - "publication.yaml updated"
+      - "Sprint 333 marked as complete in backlog.yaml"
+    updated_at: 2026-07-07
+    log: []
