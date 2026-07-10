@@ -84,23 +84,23 @@ describe('validateProfileExposure', () => {
       expect(validateProfileExposure('llm', 'none').valid).toBe(true);
     });
 
-    it('should accept mcp-domain with platform+domain', () => {
-      expect(validateProfileExposure('mcp-domain', 'platform+domain').valid).toBe(true);
+    it('should accept mcp-server with platform+domain', () => {
+      expect(validateProfileExposure('mcp-server', 'platform+domain').valid).toBe(true);
     });
   });
 
   describe('invalid combinations', () => {
-    it('should reject mcp-domain with platform-only', () => {
-      const result = validateProfileExposure('mcp-domain', 'platform-only');
+    it('should reject mcp-server with platform-only', () => {
+      const result = validateProfileExposure('mcp-server', 'platform-only');
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('mcp-domain');
+      expect(result.errors[0]).toContain('mcp-server');
       expect(result.errors[0]).toContain('platform+domain');
     });
 
-    it('should reject mcp-domain with none', () => {
-      const result = validateProfileExposure('mcp-domain', 'none');
+    it('should reject mcp-server with none', () => {
+      const result = validateProfileExposure('mcp-server', 'none');
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('mcp-domain');
+      expect(result.errors[0]).toContain('mcp-server');
       expect(result.errors[0]).toContain('platform+domain');
     });
 

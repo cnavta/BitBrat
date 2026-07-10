@@ -25,6 +25,13 @@ export interface TargetConnection {
     url: string;
     authToken?: string;
   };
+  /** SSH connection details (for remote-ssh type) */
+  ssh?: {
+    /** SSH target (user@host) */
+    target: string;
+    /** Remote working directory */
+    remoteDir?: string;
+  };
   /** Cleanup function to close connections/tunnels */
   cleanup: () => Promise<void>;
 }

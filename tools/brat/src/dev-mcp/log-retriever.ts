@@ -207,13 +207,21 @@ export class LogRetriever {
     const serviceName = request.bit.replace(/_/g, '-');
     args.push(serviceName);
 
-    // Execute docker compose logs
+    // Execute docker compose logs (local or remote)
     try {
-      const output = execSync(`docker ${args.join(' ')}`, {
-        encoding: 'utf-8',
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
+      let output: string;
+
+      if (this.connection.type === 'remote-ssh' && this.connection.ssh) {
+        // Remote SSH execution
+        output = this.executeRemoteDockerCommand(args);
+      } else {
+        // Local execution
+        output = execSync(`docker ${args.join(' ')}`, {
+          encoding: 'utf-8',
+          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+      }
 
       // Parse docker compose log output
       let logs = parseDockerLogs(output, request.bit);
@@ -234,6 +242,108 @@ export class LogRetriever {
         return [];
       }
       throw new Error(`Failed to retrieve Docker logs: ${error.message}`);
+    }
+  }
+
+  /**
+   * Execute a docker command on a remote host via SSH
+   *
+   * For remote hosts, we prefer `docker logs` over `docker compose logs`
+   * since compose files may not be readily accessible or configured.
+   */
+  private executeRemoteDockerCommand(dockerArgs: string[]): string {
+    if (!this.connection.ssh) {
+      throw new Error('SSH connection details not available');
+    }
+
+    const { target, remoteDir } = this.connection.ssh;
+
+    // Try docker compose logs first, but fall back to docker logs if it fails
+    const composeCommand = remoteDir
+      ? `cd ${remoteDir} && docker ${dockerArgs.join(' ')}`
+      : `docker ${dockerArgs.join(' ')}`;
+
+    const sshCommand = `ssh ${target} "${composeCommand}"`;
+
+    try {
+      return execSync(sshCommand, {
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    } catch (composeError: any) {
+      // If docker compose logs failed (no config file), fall back to docker logs on running container
+      if (composeError.message?.includes('no configuration file') ||
+          composeError.message?.includes('no such service')) {
+
+        // Extract service name from docker compose logs command
+        // dockerArgs is like: ['compose', 'logs', '--no-color', '--tail', '50', '--since', '1h', 'llm-bot']
+        const serviceName = dockerArgs[dockerArgs.length - 1];
+
+        // First, find the container name for this service
+        const findContainerCmd = `ssh ${target} "docker ps --filter 'name=${serviceName}' --format '{{.Names}}' | head -1"`;
+
+        try {
+          const containerName = execSync(findContainerCmd, {
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe']
+          }).trim();
+
+          if (!containerName) {
+            throw new Error(`No running container found for service '${serviceName}'`);
+          }
+
+          // Build docker logs command with same options (but adapted for docker logs vs compose logs)
+          const logsArgs: string[] = ['logs'];
+
+          // Map compose log options to docker logs options
+          // Note: docker logs doesn't support --no-color (it's a docker compose logs option)
+          for (let i = 0; i < dockerArgs.length; i++) {
+            const arg = dockerArgs[i];
+
+            // Skip 'compose' and 'logs' from original command
+            if (arg === 'compose' || (arg === 'logs' && i === 1)) {
+              continue;
+            }
+
+            // Skip --no-color (docker logs doesn't support it, docker compose logs does)
+            if (arg === '--no-color') {
+              continue;
+            }
+
+            // Copy over compatible options (--tail, --since, --until, etc.)
+            if (arg.startsWith('--') || arg.startsWith('-')) {
+              logsArgs.push(arg);
+              // If this option takes a value, include the next arg
+              if (['--tail', '--since', '--until'].includes(arg) && i + 1 < dockerArgs.length) {
+                logsArgs.push(dockerArgs[++i]);
+              }
+            }
+          }
+
+          // Add container name
+          logsArgs.push(containerName);
+
+          // Execute docker logs command
+          const dockerLogsCmd = `ssh ${target} "docker ${logsArgs.join(' ')}"`;
+
+          return execSync(dockerLogsCmd, {
+            encoding: 'utf-8',
+            maxBuffer: 10 * 1024 * 1024,
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+
+        } catch (fallbackError: any) {
+          throw new Error(
+            `Failed to retrieve logs via both docker compose and docker logs. ` +
+            `Compose error: ${composeError.message}. ` +
+            `Fallback error: ${fallbackError.message}`
+          );
+        }
+      }
+
+      // Re-throw original error if it wasn't a "no config file" issue
+      throw new Error(`SSH command failed: ${composeError.message}`);
     }
   }
 

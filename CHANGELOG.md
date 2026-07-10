@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.10.0] - 2026-07-10
+### Added
 - **Fleet observability tools for Dev MCP Server** (sprint-334). Added `fleet.logs` and `fleet.trace` tools providing comprehensive log access and distributed tracing across all deployment targets:
   - **fleet.logs**: Multi-target log retrieval supporting Cloud Run (Google Cloud Logging API) and Docker (docker compose logs) with filtering by level, time range, correlation ID, and bit name. Supports `--all` mode for fleet-wide queries. Output formats: text (human-readable), json (structured), raw (unmodified). Includes client-side filtering, partial failure tolerance, and graceful error handling.
   - **fleet.trace**: Correlation-based distributed request tracing aggregates logs from all services by correlation ID, sorts chronologically, calculates duration, and renders as timeline (HH:MM:SS.mmm relative timestamps) or JSON. Enables debugging complex multi-service flows.
