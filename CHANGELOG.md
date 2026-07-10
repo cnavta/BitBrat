@@ -22,6 +22,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.10.0] - 2026-07-10
+### Added
+- **Fleet observability tools for Dev MCP Server** (sprint-334). Added `fleet.logs` and `fleet.trace` tools providing comprehensive log access and distributed tracing across all deployment targets:
+  - **fleet.logs**: Multi-target log retrieval supporting Cloud Run (Google Cloud Logging API) and Docker (docker compose logs) with filtering by level, time range, correlation ID, and bit name. Supports `--all` mode for fleet-wide queries. Output formats: text (human-readable), json (structured), raw (unmodified). Includes client-side filtering, partial failure tolerance, and graceful error handling.
+  - **fleet.trace**: Correlation-based distributed request tracing aggregates logs from all services by correlation ID, sorts chronologically, calculates duration, and renders as timeline (HH:MM:SS.mmm relative timestamps) or JSON. Enables debugging complex multi-service flows.
+  - Infrastructure: `LogRetriever` with deployment type auto-detection (queries mcp_servers registry to determine cloud-run vs docker), `log-parser` utilities (JSON/text parsing, duration strings, filtering), `log-formatter` utilities (text/json/raw/timeline formats).
+  - Dependencies: Added `@google-cloud/logging@^11.0.0` for Cloud Run log access.
+  - Tests: 139 total tests passing (36 log-parser, 29 log-formatter, 12 log-retriever, 24 fleet tools, 38 other dev-mcp tests). Full test coverage for both deployment targets, all filters, all formats, partial failures, and error scenarios.
+  - Validation: `planning/sprint-334-fleet-logs-trace/validate_deliverable.sh` verifies file structure, TypeScript compilation, dependencies, test execution (>130 tests), code quality (no deprecated imports, no console.log), security (read-only posture, no write operations), tool registration, schema validation, and sprint artifacts.
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.9.0] - 2026-07-08
 ### Added
 - **Dev MCP Server for unified development tooling access** (sprint-333). New `brat dev-mcp start` command exposes 9 read-only MCP tools for coding agents to inspect and query BitBrat platforms across all deployment targets (local Docker, remote SSH, GCP Cloud Run):
