@@ -9,6 +9,9 @@ import { TargetConnection } from './types.js';
 import { Logger } from '../orchestration/logger';
 import { resolveBackupConnection } from '../backup/connection';
 import { getBackupFirestore } from '../providers/gcp/firestore';
+import { loadArchitecture } from '../config/loader';
+import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * Manages target connections with pooling and cleanup
@@ -48,6 +51,33 @@ export class TargetConnectionManager {
   }
 
   /**
+   * Find root directory by walking up to find architecture.yaml
+   */
+  private findRootDir(): string {
+    let currentDir = process.cwd();
+    const maxDepth = 10;
+    let depth = 0;
+
+    while (depth < maxDepth) {
+      const archPath = path.join(currentDir, 'architecture.yaml');
+      if (fs.existsSync(archPath)) {
+        return currentDir;
+      }
+
+      const parent = path.dirname(currentDir);
+      if (parent === currentDir) {
+        // Reached root
+        break;
+      }
+      currentDir = parent;
+      depth++;
+    }
+
+    // Default to current directory if not found
+    return process.cwd();
+  }
+
+  /**
    * Connect to a deployment target
    */
   private async connect(targetName?: string): Promise<TargetConnection> {
@@ -69,6 +99,43 @@ export class TargetConnectionManager {
         ? 'local'
         : 'gcp';
 
+      // Load architecture.yaml to get gateway URL and SSH details
+      let gateway: TargetConnection['gateway'];
+      let ssh: TargetConnection['ssh'];
+
+      if (targetName) {
+        try {
+          // Determine root directory (walk up to find architecture.yaml)
+          const rootDir = this.findRootDir();
+          const arch = loadArchitecture(rootDir);
+          const deploymentTarget = arch?.deploymentTargets?.[targetName];
+
+          if (deploymentTarget) {
+            // Extract gateway configuration
+            if (deploymentTarget.gateway?.url) {
+              gateway = {
+                url: deploymentTarget.gateway.url,
+                authToken: deploymentTarget.gateway.authToken
+              };
+              this.logger.debug({ target: targetName, gatewayUrl: gateway.url }, 'Resolved gateway URL from architecture.yaml');
+            }
+
+            // Extract SSH details for remote targets
+            if (type === 'remote-ssh' && deploymentTarget.host?.startsWith('ssh://')) {
+              const sshTarget = deploymentTarget.host.replace('ssh://', '');
+              ssh = {
+                target: sshTarget,
+                remoteDir: deploymentTarget.remoteDir
+              };
+              this.logger.debug({ target: targetName, sshTarget: ssh.target, remoteDir: ssh.remoteDir }, 'Resolved SSH connection details');
+            }
+          }
+        } catch (error: any) {
+          this.logger.warn({ target: targetName, error: error.message }, 'Failed to load gateway/SSH config from architecture.yaml');
+          // Continue without gateway/SSH details - not fatal
+        }
+      }
+
       // Build TargetConnection
       const connection: TargetConnection = {
         name: targetName || 'default',
@@ -78,6 +145,8 @@ export class TargetConnectionManager {
           projectId: target.projectId,
           databaseId: target.databaseId,
         },
+        gateway,
+        ssh,
         cleanup: async () => {
           if (resolved.cleanup) {
             await resolved.cleanup();
@@ -85,14 +154,12 @@ export class TargetConnectionManager {
         },
       };
 
-      // TODO: Resolve gateway URL for fleet operations
-      // This would involve reading the registry to find tool-gateway URL
-      // For now, we'll add this in DM-201 when implementing fleet tools
-
       this.logger.info({
         target: connection.name,
         type: connection.type,
         projectId: connection.firestore.projectId,
+        hasGateway: !!connection.gateway,
+        hasSsh: !!connection.ssh
       }, 'Connection established');
 
       return connection;
