@@ -43,7 +43,7 @@ export function createTestToolRouter(): {
     level: 'error', // Quiet during tests
   });
 
-  const targetManager = new TargetConnectionManager(undefined, logger);
+  const targetManager = new TargetConnectionManager(undefined, undefined, logger);
   const router = new ToolRouter(targetManager, logger);
 
   return { router, targetManager };
@@ -52,13 +52,13 @@ export function createTestToolRouter(): {
 /**
  * Create a test target connection manager
  */
-export function createTestTargetManager(defaultTarget?: string): TargetConnectionManager {
+export function createTestTargetManager(defaultTarget?: string, authToken?: string): TargetConnectionManager {
   const logger = createLogger({
     base: { component: 'test' },
     level: 'error',
   });
 
-  return new TargetConnectionManager(defaultTarget, logger);
+  return new TargetConnectionManager(defaultTarget, authToken, logger);
 }
 
 /**

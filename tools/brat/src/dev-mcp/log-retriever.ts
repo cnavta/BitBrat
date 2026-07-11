@@ -191,7 +191,10 @@ export class LogRetriever {
     const args: string[] = ['compose', 'logs', '--no-color'];
 
     // Add tail limit
-    args.push('--tail', (request.limit || 100).toString());
+    // When filtering by correlation ID, use a much larger tail to ensure we capture the event
+    // Default to 2000 lines for Docker (each event generates ~58 log lines, so 2000 ≈ 34 events)
+    const tailLimit = request.correlationId ? 5000 : (request.limit || 2000);
+    args.push('--tail', tailLimit.toString());
 
     // Add time range filters
     if (request.since) {

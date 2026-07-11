@@ -32,23 +32,34 @@ export function parseDockerLogs(output: string, serviceName: string): LogEntry[]
  */
 export function parseDockerLogLine(line: string, serviceName: string): LogEntry | null {
   try {
-    // Docker compose log format: "service-name | {...}"
     // Try to extract JSON from the line
-    const match = line.match(/\|\s*(\{.*\})/);
+    // Format 1: docker compose logs format: "service-name | {...}"
+    const composeMatch = line.match(/\|\s*(\{.*\})/);
 
-    if (match) {
-      // Parse JSON log
-      return parseJsonLog(match[1], serviceName);
-    } else {
-      // Plain text log - extract timestamp if present
-      const timestampMatch = line.match(/(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/);
-      return {
-        timestamp: timestampMatch ? timestampMatch[1] : new Date().toISOString(),
-        level: 'info',
-        service: serviceName,
-        message: line.replace(/^[^\|]+\|\s*/, '') // Remove service prefix
-      };
+    if (composeMatch) {
+      // Parse JSON log with pipe delimiter (docker compose logs)
+      return parseJsonLog(composeMatch[1], serviceName);
     }
+
+    // Format 2: docker logs format (raw JSON, no pipe delimiter)
+    // Check if line itself is valid JSON
+    const trimmed = line.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        return parseJsonLog(trimmed, serviceName);
+      } catch (jsonError) {
+        // Not valid JSON, fall through to plain text handling
+      }
+    }
+
+    // Plain text log - extract timestamp if present
+    const timestampMatch = line.match(/(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/);
+    return {
+      timestamp: timestampMatch ? timestampMatch[1] : new Date().toISOString(),
+      level: 'info',
+      service: serviceName,
+      message: line.replace(/^[^\|]+\|\s*/, '') // Remove service prefix
+    };
   } catch (e) {
     // Skip malformed lines
     return null;

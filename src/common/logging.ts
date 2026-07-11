@@ -1,5 +1,6 @@
 import { LogLevel } from '../types';
 import { getLogCorrelationFields } from './tracing';
+import { getEventContext } from './event-context';
 
 /**
  * Redact secrets from log context objects. Keys that look sensitive (key|token|secret|password|authorization|cookie|auth)
@@ -99,12 +100,52 @@ export class Logger {
       service: Logger.getServiceName(),
       ...entry,
     };
+
+    // Try OpenTelemetry correlation first (for Cloud Logging linkage)
     try {
       const corr = getLogCorrelationFields();
       if (corr) {
         Object.assign(base, corr);
       }
     } catch {}
+
+    // Always add event context (correlationId, sessionId, userId, etc.)
+    // This provides correlation even outside of OpenTelemetry spans
+    try {
+      const eventCtx = getEventContext();
+      if (eventCtx) {
+        // Add correlationId if present and not already set
+        if (eventCtx.correlationId && !base.correlationId) {
+          base.correlationId = eventCtx.correlationId;
+        }
+
+        // Add traceId if present (and not already from OTel)
+        if (eventCtx.traceId && !base['logging.googleapis.com/trace']) {
+          base.traceId = eventCtx.traceId;
+        }
+
+        // Add sessionId if present
+        if (eventCtx.sessionId) {
+          base.sessionId = eventCtx.sessionId;
+        }
+
+        // Add userId if present
+        if (eventCtx.userId) {
+          base.userId = eventCtx.userId;
+        }
+
+        // Add stage if present (reactive agent loop stage)
+        if (eventCtx.stage) {
+          base.stage = eventCtx.stage;
+        }
+
+        // Add requestId if present
+        if (eventCtx.requestId) {
+          base.requestId = eventCtx.requestId;
+        }
+      }
+    } catch {}
+
     return base;
   }
 

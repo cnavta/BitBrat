@@ -118,3 +118,18 @@ export interface ITokenStore {
 
 //export * from './gateways';
 export * from './events';
+
+/**
+ * Event Context Types
+ *
+ * AsyncLocalStorage-based context propagation for automatic correlation
+ * across async operations. See documentation/technical-architecture/agent-centric-logging-v1.md
+ */
+export type { EventContext } from '../common/event-context';
+export {
+  runWithEventContext,
+  getEventContext,
+  getContextField,
+  updateEventContext,
+  hasEventContext,
+} from '../common/event-context';
