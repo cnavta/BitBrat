@@ -5,9 +5,11 @@
 import { LogRetriever } from '../log-retriever.js';
 import { TargetConnection, DeploymentType } from '../types.js';
 import { FirestoreRegistryReader } from '../../fleet/firestore-registry.js';
+import { LokiClient } from '../loki-client.js';
 
-// Mock FirestoreRegistryReader
+// Mock FirestoreRegistryReader and LokiClient
 jest.mock('../../fleet/firestore-registry.js');
+jest.mock('../loki-client.js');
 
 describe('LogRetriever', () => {
   let mockConnection: TargetConnection;

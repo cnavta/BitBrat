@@ -19,7 +19,7 @@ epics:
     name: LogRetriever Loki Client Integration
     description: Add Loki query support to LogRetriever with automatic fallback to Docker logs
     priority: critical
-    status: not_started
+    status: completed
     estimated_hours: 12
     dependencies: [epic-1]
 
@@ -156,7 +156,7 @@ stories:
       Create LokiClient class to query Loki HTTP API, build LogQL queries,
       and parse responses into LogEntry format.
     priority: critical
-    status: not_started
+    status: completed
     estimated_hours: 3
     acceptance_criteria:
       - tools/brat/src/dev-mcp/loki-client.ts created
@@ -185,7 +185,7 @@ stories:
       Implement isLokiAvailable() method to detect if Loki is running and
       reachable, with fast timeout for fallback scenarios.
     priority: critical
-    status: not_started
+    status: completed
     estimated_hours: 2
     acceptance_criteria:
       - LogRetriever.isLokiAvailable() method exists
@@ -212,7 +212,7 @@ stories:
       Add getLokiLogs() method to LogRetriever to query Loki using LokiClient,
       with proper error handling and logging.
     priority: critical
-    status: not_started
+    status: completed
     estimated_hours: 3
     acceptance_criteria:
       - LogRetriever.getLokiLogs() method exists
@@ -241,7 +241,7 @@ stories:
       Update LogRetriever.getLogs() to detect Loki availability and
       automatically fall back to Docker logs if Loki is unavailable.
     priority: critical
-    status: not_started
+    status: completed
     estimated_hours: 2
     acceptance_criteria:
       - LogRetriever.getLogs() calls isLokiAvailable() first
@@ -268,7 +268,7 @@ stories:
       Implement comprehensive error handling for Loki client with proper
       logging, timeout handling, and graceful degradation.
     priority: high
-    status: not_started
+    status: completed
     estimated_hours: 2
     acceptance_criteria:
       - Loki query timeouts handled (5s default)
