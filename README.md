@@ -248,7 +248,28 @@ npm run local:logs   # Tail service logs
 npm run local:down   # Stop the local environment
 ```
 
-### 6. Chat with your bot
+### 6. (Optional) Enable Loki Observability Stack
+
+For enhanced local development and debugging, you can optionally deploy the Loki + Promtail centralized logging stack. This provides unlimited log retention (vs ~34 events with Docker logs) and <100ms correlation ID trace queries across the entire fleet.
+
+```bash
+# Start with observability stack
+docker compose \
+  -f docker-compose.yaml \
+  -f infrastructure/docker-compose/observability/docker-compose.observability.yaml \
+  up
+```
+
+**Benefits:**
+- 📊 7-day log retention (configurable) vs 2000-line Docker buffer
+- ⚡ <100ms distributed trace queries (vs 2-5 seconds)
+- 🔍 Indexed correlation ID lookups across all services
+- 💾 Logs persist across container restarts
+- 🎯 100% trace completeness (no buffer overflow)
+
+The stack auto-detects and uses Loki when available, falling back gracefully to Docker logs if not running. See the [Loki Setup Guide](./documentation/guides/loki-setup.md) for details.
+
+### 7. Chat with your bot
 
 Once the platform is running, start an interactive chat session to test rules and interactions locally:
 

@@ -1,0 +1,14 @@
+# Loki data volumes
+loki-data/
+/loki
+
+# Promtail positions file
+promtail-positions/
+promtail-positions.yaml
+positions.yaml
+
+# Docker volume mounts
+/var/lib/docker/
+
+# Logs
+*.log
