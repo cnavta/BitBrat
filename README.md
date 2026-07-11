@@ -422,8 +422,24 @@ never hand-edit the version in multiple files.
 ```bash
 npm run release:dry -- patch     # preview 0.7.0 -> 0.7.1, writes nothing
 npm run release -- patch         # bump everywhere + roll the CHANGELOG
-brat release 1.0.0 --tag         # explicit version + local git tag (no push)
+brat release 1.0.0 --tag         # explicit version + local git tag (local only, no push)
 ```
+
+**Automated GitHub Releases:**
+When a PR with a version bump is merged to `main`, a GitHub Actions workflow automatically creates a GitHub Release with LLM-enhanced release notes:
+
+- **Version detection**: Compares `architecture.yaml` `project.version` between commits
+- **LLM enhancement**: Uses GPT-4o-mini to generate professional release notes with:
+  - **Highlights**: AI-generated 2-3 sentence summary
+  - **Categorization**: Features, Fixes, and Breaking Changes automatically sorted
+  - **Intelligent fallback**: Uses CHANGELOG.md if LLM unavailable, or generates from git commits if CHANGELOG missing
+- **Tag creation**: Creates and pushes `v<version>` git tag
+- **Release publication**: Creates GitHub Release with formatted notes
+
+**Setup**:
+Configure `OPENAI_API_KEY` as a GitHub repository secret (Settings → Secrets and variables → Actions). If not configured, releases are created using CHANGELOG.md content only.
+
+See `documentation/guides/automated-releases.md` for full workflow details.
 
 ## Event Messaging & Flow
 
