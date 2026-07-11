@@ -16,7 +16,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Need at least 2 commits to compare versions
+          fetch-depth: 0  # Fetch all history including tags
+          fetch-tags: true  # Explicitly fetch tags
 
       - name: Detect version change
         id: version
@@ -123,18 +124,41 @@ jobs:
         run: |
           TAG="v${{ steps.version.outputs.new }}"
 
-          # Check if tag already exists
+          # Check if tag already exists locally
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "⚠️  Tag $TAG already exists, skipping tag creation"
+            echo "⚠️  Tag $TAG already exists locally, skipping tag creation"
+            exit 0
+          fi
+
+          # Check if tag exists on remote
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
+            echo "⚠️  Tag $TAG already exists on remote, skipping tag creation"
+            exit 0
+          fi
+
+          # Configure git user
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create annotated tag with release notes
+          if git tag -a "$TAG" -m "Release ${{ steps.version.outputs.new }}"; then
+            echo "✅ Created tag: $TAG"
+
+            # Push tag (non-fatal if already exists on remote)
+            if git push origin "$TAG" 2>&1 | tee /tmp/push-output.txt; then
+              echo "✅ Pushed tag to remote: $TAG"
+            else
+              if grep -q "already exists" /tmp/push-output.txt; then
+                echo "⚠️  Tag already exists on remote (race condition), continuing"
+              else
+                echo "❌ Failed to push tag"
+                cat /tmp/push-output.txt
+                exit 1
+              fi
+            fi
           else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-
-            # Create annotated tag with release notes
-            git tag -a "$TAG" -m "Release ${{ steps.version.outputs.new }}"
-            git push origin "$TAG"
-
-            echo "✅ Created and pushed tag: $TAG"
+            echo "❌ Failed to create tag $TAG"
+            exit 1
           fi
 
       - name: Create GitHub Release
