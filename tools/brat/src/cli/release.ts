@@ -38,7 +38,7 @@ function parseFlagMap(rest: string[]): Record<string, string> {
 const HELP = `brat release — cut a platform version (single source of truth: architecture.yaml project.version)
 
 Usage:
-  brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--github-release] [--yes]
+  brat release <patch|minor|major|x.y.z> [--dry-run] [--no-tag] [--no-push] [--no-pr] [--yes]
 
 Arguments:
   patch|minor|major   Bump the current version (pre-1.0 SemVer; major is an explicit 0.x -> 1.0.0).
@@ -46,19 +46,20 @@ Arguments:
 
 Flags:
   --dry-run          Compute and report the planned changes; write NOTHING (CI-safe).
-  --tag              Also create a local 'git tag v<version>' (never pushes). Off by default.
-  --github-release   Create a GitHub Release via gh CLI (requires --tag). Off by default.
-                     Release notes are auto-extracted from CHANGELOG.md.
-                     Requires: GitHub CLI (gh) installed and authenticated.
-  --yes              Skip the interactive confirmation prompt (non-interactive / CI use).
+  --no-tag           Skip creating a local 'git tag v<version>' (tagging is default).
+  --no-push          Skip pushing changes to remote (pushing is default).
+  --no-pr            Skip creating a GitHub PR for the release (PR creation is default).
+  --yes              Skip all interactive confirmation prompts (non-interactive / CI use).
 
 Effects (non-dry-run):
   - architecture.yaml project.version  (ONLY that field; re-validated — Law #2)
   - package.json "version"
   - package-lock.json "version"        (npm install --package-lock-only)
   - CHANGELOG.md: roll '## [Unreleased]' -> '## [<version>] - <date>' + fresh empty Unreleased
-  - (optional) Local git tag v<version> (with --tag)
-  - (optional) GitHub Release (with --github-release --tag)
+  - Commit any uncommitted changes (with prompt if not --yes)
+  - Create local git tag v<version> (unless --no-tag)
+  - Push changes and tag to remote (unless --no-push)
+  - Create GitHub PR for release (unless --no-pr)
 `;
 
 /**
@@ -76,20 +77,24 @@ export async function cmdRelease(cmd: string[], rest: string[], flags: ReleaseCl
 
   const bump = cmd[1];
   if (!bump) {
-    console.error('Usage: brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--github-release] [--yes]');
+    console.error('Usage: brat release <patch|minor|major|x.y.z> [--dry-run] [--no-tag] [--no-push] [--no-pr] [--yes]');
     throw new ConfigurationError('Missing bump argument. Provide one of: patch | minor | major | <explicit x.y.z>.');
   }
 
   const dryRun = !!flags.dryRun || m['dry-run'] === 'true';
-  const tag = m['tag'] === 'true';
-  const githubRelease = m['github-release'] === 'true';
+  const tag = m['no-tag'] !== 'true'; // Default to true, disable with --no-tag
+  const push = m['no-push'] !== 'true'; // Default to true, disable with --no-push
+  const createPr = m['no-pr'] !== 'true'; // Default to true, disable with --no-pr
+  const yes = m['yes'] === 'true';
 
   const result = await runRelease({
     rootDir: process.cwd(),
     bump,
     dryRun,
     tag,
-    githubRelease,
+    push,
+    createPr,
+    yes,
     logger: log,
   });
 
@@ -104,14 +109,18 @@ export async function cmdRelease(cmd: string[], rest: string[], flags: ReleaseCl
     console.log('  • architecture.yaml project.version (would update)');
     console.log('  • package.json + package-lock.json version (would update)');
     console.log(`  • CHANGELOG.md [Unreleased] -> [${result.nextVersion}] (${result.changelogRolled ? 'would roll' : 'already rolled — no-op'})`);
-    if (tag) console.log(`  • git tag v${result.nextVersion} (would create, not push)`);
-    if (githubRelease) console.log(`  • GitHub Release v${result.nextVersion} (would create)`);
+    if (result.uncommittedChanges) console.log('  • Uncommitted changes (would commit)');
+    if (tag) console.log(`  • git tag v${result.nextVersion} (would create)`);
+    if (push) console.log('  • Changes and tags (would push to remote)');
+    if (createPr) console.log(`  • GitHub PR for release/${result.nextVersion} (would create)`);
     console.log('  Wrote nothing.');
     return;
   }
   console.log(`Released ${arrow}`);
   console.log(`  • architecture.yaml / package.json / package-lock.json -> ${result.nextVersion}`);
   console.log(`  • CHANGELOG.md ${result.changelogRolled ? `rolled -> [${result.nextVersion}]` : 'already rolled (no-op)'}`);
-  if (result.tagged) console.log(`  • git tag v${result.nextVersion} created (not pushed)`);
-  if (result.githubReleaseCreated) console.log(`  • GitHub Release v${result.nextVersion} created`);
+  if (result.changesCommitted) console.log('  • Uncommitted changes committed');
+  if (result.tagged) console.log(`  • git tag v${result.nextVersion} created`);
+  if (result.pushed) console.log('  • Changes and tags pushed to remote');
+  if (result.prCreated) console.log(`  • GitHub PR created: ${result.prUrl || 'success'}`);
 }
