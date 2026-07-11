@@ -10,6 +10,9 @@ server:
 
 # Ingestion limits
 ingester:
+  wal:
+    enabled: true
+    dir: /loki/wal
   lifecycler:
     address: 127.0.0.1
     ring:
