@@ -32,10 +32,14 @@ export interface ReleaseOptions {
   bump: string;
   /** When true, compute and report but write NOTHING. */
   dryRun: boolean;
-  /** When true, create a local annotated-less `git tag v<version>` (never pushes). Off by default. */
+  /** When true, create a local `git tag v<version>`. Default: true. */
   tag?: boolean;
-  /** When true, create a GitHub Release via gh CLI (requires tag to be true). Off by default. */
-  githubRelease?: boolean;
+  /** When true, push changes and tags to remote. Default: true. */
+  push?: boolean;
+  /** When true, create a GitHub PR for the release. Default: true. */
+  createPr?: boolean;
+  /** When true, skip all interactive prompts (auto-approve). Default: false. */
+  yes?: boolean;
   /** Date used for the CHANGELOG dated heading (injectable for deterministic tests). */
   now?: Date;
   /** Optional logger facade. */
@@ -47,8 +51,12 @@ export interface ReleaseResult {
   previousVersion: string;
   nextVersion: string;
   dryRun: boolean;
+  uncommittedChanges: boolean;
+  changesCommitted: boolean;
   tagged: boolean;
-  githubReleaseCreated: boolean;
+  pushed: boolean;
+  prCreated: boolean;
+  prUrl?: string;
   changelogRolled: boolean;
   consistency: VersionConsistency | null;
 }
@@ -71,6 +79,31 @@ export async function runRelease(opts: ReleaseOptions): Promise<ReleaseResult> {
     `Release ${previousVersion} -> ${nextVersion}${dryRun ? ' (dry-run)' : ''}`,
   );
 
+  // 0) Check for uncommitted changes BEFORE making any changes
+  const uncommittedChanges = await hasUncommittedChanges(rootDir, log);
+  let changesCommitted = false;
+
+  if (uncommittedChanges && !dryRun) {
+    log?.info({ action: 'release.uncommitted', status: 'detected' }, 'Detected uncommitted changes');
+
+    // Prompt user if not in --yes mode
+    let shouldCommit = opts.yes || false;
+    if (!opts.yes) {
+      shouldCommit = await promptUser('Uncommitted changes detected. Commit them as part of the release?');
+    }
+
+    if (shouldCommit) {
+      // Commit changes BEFORE version bump so they're included in the release
+      changesCommitted = await commitChanges(rootDir, nextVersion, dryRun, log);
+      if (!changesCommitted) {
+        throw new Error('Failed to commit uncommitted changes');
+      }
+    } else if (!opts.yes) {
+      // User declined to commit, fail the release
+      throw new Error('Uncommitted changes detected. Commit or stash them before releasing, or use --yes to auto-commit');
+    }
+  }
+
   // 1) architecture.yaml (authoritative; only project.version; re-validated) + 2) package.json.
   writeArchitectureVersion(rootDir, nextVersion, dryRun);
   writePackageJsonVersion(rootDir, nextVersion, dryRun);
@@ -89,50 +122,50 @@ export async function runRelease(opts: ReleaseOptions): Promise<ReleaseResult> {
   // 5) CHANGELOG rollover (idempotent).
   const changelogRolled = rollChangelogFile(rootDir, nextVersion, now, dryRun, log);
 
-  // 6) Optional git tag (local only; never pushes).
+  // 6) Commit the version bump changes if there are any
+  const postBumpChanges = await hasUncommittedChanges(rootDir, log);
+  if (postBumpChanges && !dryRun && !changesCommitted) {
+    changesCommitted = await commitChanges(rootDir, nextVersion, dryRun, log);
+    if (!changesCommitted) {
+      log?.warn({ action: 'release.commit-post-bump', status: 'failed' }, 'Failed to commit version bump changes');
+    }
+  }
+
+  // 7) Optional git tag (default: true, disable with --no-tag).
   let tagged = false;
-  if (opts.tag) {
+  if (opts.tag !== false) {
     tagged = await createGitTag(rootDir, nextVersion, dryRun, log);
   }
 
-  // 7) Optional GitHub Release creation (requires tag).
-  let githubReleaseCreated = false;
-  if (opts.githubRelease) {
-    if (!opts.tag) {
-      log?.error(
-        { action: 'release.github', status: 'validation-failed', reason: 'tag-required' },
-        'GitHub releases require git tags. Use --tag with --github-release',
-      );
-      throw new Error('GitHub releases require git tags. Use --tag with --github-release');
-    }
-
-    // Read CHANGELOG to extract release notes
-    const changelogPath = `${rootDir}/${CHANGELOG_FILE}`;
-    let releaseNotes = `Release ${nextVersion}`;
-    if (fs.existsSync(changelogPath)) {
-      const changelogContent = fs.readFileSync(changelogPath, 'utf8');
-      const { extractReleaseNotes } = await import('./changelog');
-      releaseNotes = extractReleaseNotes(changelogContent, nextVersion);
-    } else {
-      log?.warn(
-        { action: 'release.github', status: 'changelog-not-found' },
-        'CHANGELOG.md not found — using default release notes',
-      );
-    }
-
-    const success = await createGitHubRelease(rootDir, nextVersion, releaseNotes, dryRun, log);
-    // In dry-run mode, nothing was actually created; in normal mode, set based on success
-    githubReleaseCreated = dryRun ? false : success;
-    if (!success && !dryRun) {
-      // Non-fatal: version bump succeeded, but GitHub release failed
-      log?.warn(
-        { action: 'release.github', status: 'failed-non-fatal' },
-        'GitHub release creation failed, but version bump completed successfully',
-      );
-    }
+  // 8) Optional push to remote (default: true, disable with --no-push).
+  let pushed = false;
+  if (opts.push !== false && !dryRun) {
+    pushed = await pushChanges(rootDir, nextVersion, dryRun, log);
   }
 
-  return { previousVersion, nextVersion, dryRun, tagged, githubReleaseCreated, changelogRolled, consistency };
+  // 9) Optional GitHub PR creation (default: true, disable with --no-pr).
+  let prCreated = false;
+  let prUrl: string | undefined;
+  if (opts.createPr !== false) {
+    const currentBranch = await getCurrentBranch(rootDir);
+    const prResult = await createGitHubPR(rootDir, nextVersion, currentBranch, dryRun, log);
+    prCreated = prResult.created;
+    prUrl = prResult.url;
+  }
+
+  return {
+    previousVersion,
+    nextVersion,
+    dryRun,
+    uncommittedChanges,
+    changesCommitted,
+    tagged,
+    pushed,
+    prCreated,
+    prUrl,
+    changelogRolled,
+    consistency,
+  };
 }
 
 /** Roll the CHANGELOG file on disk. Returns true if a change was (or would be) applied. */
@@ -285,6 +318,194 @@ async function createGitHubRelease(
   );
 
   return true;
+}
+
+/**
+ * Check if there are uncommitted changes in the working directory.
+ * Returns true if there are unstaged or uncommitted changes.
+ */
+async function hasUncommittedChanges(
+  rootDir: string,
+  log?: Pick<Logger, 'info' | 'debug'>,
+): Promise<boolean> {
+  const res = await execCmd('git', ['status', '--porcelain'], { cwd: rootDir });
+  if (res.code !== 0) {
+    log?.info({ action: 'release.git-status', status: 'failed' }, 'Failed to check git status');
+    return false;
+  }
+  const hasChanges = res.stdout?.trim().length > 0;
+  log?.debug({ action: 'release.git-status', hasChanges }, `Uncommitted changes: ${hasChanges}`);
+  return hasChanges;
+}
+
+/**
+ * Prompt user for confirmation. Returns true if user confirms (y/yes).
+ * If stdin is not a TTY, returns false.
+ */
+async function promptUser(message: string): Promise<boolean> {
+  // Check if stdin is a TTY (interactive terminal)
+  if (!process.stdin.isTTY) {
+    return false;
+  }
+
+  const readline = await import('readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(`${message} [y/N]: `, (answer) => {
+      rl.close();
+      const normalized = answer.trim().toLowerCase();
+      resolve(normalized === 'y' || normalized === 'yes');
+    });
+  });
+}
+
+/**
+ * Commit all uncommitted changes with a release commit message.
+ * Returns true if changes were committed successfully.
+ */
+async function commitChanges(
+  rootDir: string,
+  version: string,
+  dryRun: boolean,
+  log?: Pick<Logger, 'info' | 'warn' | 'error'>,
+): Promise<boolean> {
+  if (dryRun) {
+    log?.info({ action: 'release.commit', status: 'dry-run', version }, 'DRY-RUN: would commit uncommitted changes');
+    return true;
+  }
+
+  // Add all changes
+  const addRes = await execCmd('git', ['add', '-A'], { cwd: rootDir });
+  if (addRes.code !== 0) {
+    log?.error({ action: 'release.commit', status: 'add-failed', stderr: addRes.stderr }, 'Failed to stage changes');
+    return false;
+  }
+
+  // Commit with release message
+  const commitMsg = `Release ${version}
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>`;
+
+  const commitRes = await execCmd('git', ['commit', '-m', commitMsg], { cwd: rootDir });
+  if (commitRes.code !== 0) {
+    log?.error({ action: 'release.commit', status: 'commit-failed', stderr: commitRes.stderr }, 'Failed to commit changes');
+    return false;
+  }
+
+  log?.info({ action: 'release.commit', status: 'committed', version }, `Committed release ${version}`);
+  return true;
+}
+
+/**
+ * Push changes and tags to remote.
+ * Returns true if push was successful.
+ */
+async function pushChanges(
+  rootDir: string,
+  version: string,
+  dryRun: boolean,
+  log?: Pick<Logger, 'info' | 'warn' | 'error'>,
+): Promise<boolean> {
+  const tag = `v${version}`;
+
+  if (dryRun) {
+    log?.info({ action: 'release.push', status: 'dry-run', tag }, 'DRY-RUN: would push changes and tags to remote');
+    return true;
+  }
+
+  // Push commits
+  const pushRes = await execCmd('git', ['push'], { cwd: rootDir });
+  if (pushRes.code !== 0) {
+    log?.error({ action: 'release.push', status: 'push-failed', stderr: pushRes.stderr }, 'Failed to push commits');
+    return false;
+  }
+
+  // Push tags
+  const pushTagRes = await execCmd('git', ['push', 'origin', tag], { cwd: rootDir });
+  if (pushTagRes.code !== 0) {
+    log?.warn({ action: 'release.push', status: 'tag-push-failed', stderr: pushTagRes.stderr }, `Failed to push tag ${tag}`);
+    // Don't return false here - commits were pushed successfully
+  }
+
+  log?.info({ action: 'release.push', status: 'pushed', tag }, 'Pushed changes and tags to remote');
+  return true;
+}
+
+/**
+ * Get the current git branch name.
+ */
+async function getCurrentBranch(rootDir: string): Promise<string> {
+  const res = await execCmd('git', ['branch', '--show-current'], { cwd: rootDir });
+  if (res.code !== 0) {
+    return 'main'; // fallback
+  }
+  return res.stdout?.trim() || 'main';
+}
+
+/**
+ * Create a GitHub PR for the release using gh CLI.
+ * Returns { created: boolean, url?: string }
+ */
+async function createGitHubPR(
+  rootDir: string,
+  version: string,
+  currentBranch: string,
+  dryRun: boolean,
+  log?: Pick<Logger, 'info' | 'warn' | 'error'>,
+): Promise<{ created: boolean; url?: string }> {
+  if (dryRun) {
+    log?.info(
+      { action: 'release.pr', status: 'dry-run', version, branch: currentBranch },
+      `DRY-RUN: would create GitHub PR from ${currentBranch} to main`,
+    );
+    return { created: true };
+  }
+
+  // Check if gh is installed
+  const ghCheckRes = await execCmd('gh', ['--version']);
+  if (ghCheckRes.code !== 0) {
+    log?.error({ action: 'release.pr', status: 'gh-not-found' }, 'GitHub CLI (gh) not found. Install from https://cli.github.com');
+    return { created: false };
+  }
+
+  // Check if we're on main - if so, no PR needed
+  if (currentBranch === 'main' || currentBranch === 'master') {
+    log?.info({ action: 'release.pr', status: 'skipped', branch: currentBranch }, 'Already on main branch, skipping PR creation');
+    return { created: false };
+  }
+
+  // Create PR
+  const title = `Release ${version}`;
+  const body = `Automated release for version ${version}
+
+This PR bumps the platform version to ${version} and updates:
+- architecture.yaml
+- package.json
+- package-lock.json
+- CHANGELOG.md
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)`;
+
+  const prRes = await execCmd(
+    'gh',
+    ['pr', 'create', '--title', title, '--body', body, '--base', 'main', '--head', currentBranch],
+    { cwd: rootDir },
+  );
+
+  if (prRes.code !== 0) {
+    log?.error({ action: 'release.pr', status: 'failed', stderr: prRes.stderr }, 'Failed to create GitHub PR');
+    return { created: false };
+  }
+
+  const prUrl = prRes.stdout?.trim() || '';
+  log?.info({ action: 'release.pr', status: 'created', url: prUrl }, `Created GitHub PR: ${prUrl}`);
+  return { created: true, url: prUrl };
 }
 
 // Keep `versionFilePaths` reachable for callers importing from the orchestrator surface.
