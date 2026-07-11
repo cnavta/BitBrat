@@ -191,7 +191,9 @@ export class LogRetriever {
     const args: string[] = ['compose', 'logs', '--no-color'];
 
     // Add tail limit
-    args.push('--tail', (request.limit || 100).toString());
+    // When filtering by correlation ID, use a much larger tail to ensure we capture the event
+    const tailLimit = request.correlationId ? 5000 : (request.limit || 100);
+    args.push('--tail', tailLimit.toString());
 
     // Add time range filters
     if (request.since) {
