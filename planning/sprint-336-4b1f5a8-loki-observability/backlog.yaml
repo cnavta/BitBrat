@@ -1,0 +1,577 @@
+sprint:
+  id: sprint-336-4b1f5a8-loki-observability
+  number: 336
+  name: Loki + Promtail Centralized Logging
+  start_date: 2026-07-11
+  target_end_date: 2026-07-15
+  branch: feature/sprint-336-4b1f5a8-loki-observability
+
+epics:
+  - id: epic-1
+    name: Loki + Promtail Infrastructure Setup
+    description: Deploy Loki and Promtail as optional Docker Compose services with proper configuration
+    priority: critical
+    status: completed
+    estimated_hours: 8
+    dependencies: []
+
+  - id: epic-2
+    name: LogRetriever Loki Client Integration
+    description: Add Loki query support to LogRetriever with automatic fallback to Docker logs
+    priority: critical
+    status: not_started
+    estimated_hours: 12
+    dependencies: [epic-1]
+
+  - id: epic-3
+    name: Fleet Trace Performance Optimization
+    description: Optimize fleet.trace to leverage Loki's indexed queries
+    priority: high
+    status: not_started
+    estimated_hours: 4
+    dependencies: [epic-2]
+
+  - id: epic-4
+    name: Testing, Validation & Documentation
+    description: Comprehensive testing, validation scripts, and user documentation
+    priority: high
+    status: not_started
+    estimated_hours: 8
+    dependencies: [epic-2, epic-3]
+
+stories:
+  # ============================================================================
+  # EPIC 1: Loki + Promtail Infrastructure Setup
+  # ============================================================================
+
+  - id: story-1.1
+    epic: epic-1
+    title: Create Loki Docker Compose configuration
+    description: |
+      Create docker-compose.observability.yaml with Loki service definition,
+      local storage configuration, and 7-day retention policy.
+    priority: critical
+    status: completed
+    estimated_hours: 2
+    acceptance_criteria:
+      - infrastructure/docker-compose/observability/docker-compose.observability.yaml exists
+      - infrastructure/docker-compose/observability/loki-config.yaml exists
+      - Loki service defined with resource limits (128M memory)
+      - Local storage configured with 7-day retention
+      - Loki starts successfully via docker compose
+      - Loki /ready endpoint responds 200 OK
+    tasks:
+      - Create infrastructure/docker-compose/observability/ directory
+      - Write loki-config.yaml with local storage and retention
+      - Write docker-compose.observability.yaml with Loki service
+      - Add volume for Loki data persistence
+      - Test Loki startup and health check
+    assignee: Lead Implementor
+    labels: [infrastructure, docker, loki]
+
+  - id: story-1.2
+    epic: epic-1
+    title: Create Promtail Docker Compose configuration
+    description: |
+      Add Promtail service to docker-compose.observability.yaml with Docker
+      log scraping configuration and BitBrat container filtering.
+    priority: critical
+    status: completed
+    estimated_hours: 2
+    acceptance_criteria:
+      - infrastructure/docker-compose/observability/promtail-config.yaml exists
+      - Promtail service defined in docker-compose.observability.yaml
+      - Promtail mounts Docker socket and container logs
+      - Promtail filters to only BitBrat containers
+      - Promtail starts successfully
+      - Promtail connects to Loki successfully
+    tasks:
+      - Write promtail-config.yaml with Docker SD config
+      - Add relabel configs to filter BitBrat containers
+      - Add relabel configs to extract service name from container name
+      - Configure Promtail to ship to Loki
+      - Test Promtail startup and Loki connection
+    dependencies: [story-1.1]
+    assignee: Lead Implementor
+    labels: [infrastructure, docker, promtail]
+
+  - id: story-1.3
+    epic: epic-1
+    title: Configure Promtail JSON log parsing pipeline
+    description: |
+      Implement Promtail pipeline stages to parse BitBrat's JSON structured
+      logs and extract correlationId, traceId, service, and level as labels.
+    priority: critical
+    status: completed
+    estimated_hours: 3
+    acceptance_criteria:
+      - Promtail pipeline_stages defined in promtail-config.yaml
+      - JSON parser extracts correlationId, traceId, level, severity, msg, ts
+      - Labels created for correlationId, traceId, level, service
+      - Timestamp extracted from ts field
+      - Test event logs appear in Loki with correct labels
+      - LogQL query {correlationId="test-id"} returns matching logs
+    tasks:
+      - Add json stage to parse log structure
+      - Add labels stage to promote fields to labels
+      - Add timestamp stage to use log timestamp
+      - Generate test event with known correlationId
+      - Query Loki to verify label extraction
+      - Validate all 4 labels are present and correct
+    dependencies: [story-1.2]
+    assignee: Lead Implementor
+    labels: [configuration, promtail, labels]
+
+  - id: story-1.4
+    epic: epic-1
+    title: Add .gitignore and documentation for observability stack
+    description: |
+      Add .gitignore to exclude Loki/Promtail data volumes, and create
+      basic setup instructions in README.
+    priority: low
+    status: completed
+    estimated_hours: 1
+    acceptance_criteria:
+      - infrastructure/docker-compose/observability/.gitignore exists
+      - Loki data volumes excluded from git
+      - Promtail positions file excluded from git
+      - README updated with optional Loki setup instructions
+    tasks:
+      - Create .gitignore in observability directory
+      - Add loki-data/ to .gitignore
+      - Add promtail-positions.yaml to .gitignore
+      - Update README.md with Loki setup section
+    dependencies: [story-1.1, story-1.2]
+    assignee: Lead Implementor
+    labels: [documentation, housekeeping]
+
+  # ============================================================================
+  # EPIC 2: LogRetriever Loki Client Integration
+  # ============================================================================
+
+  - id: story-2.1
+    epic: epic-2
+    title: Implement Loki HTTP client
+    description: |
+      Create LokiClient class to query Loki HTTP API, build LogQL queries,
+      and parse responses into LogEntry format.
+    priority: critical
+    status: not_started
+    estimated_hours: 3
+    acceptance_criteria:
+      - tools/brat/src/dev-mcp/loki-client.ts created
+      - LokiClient class with query() method
+      - buildQuery() method builds LogQL from LogRequest
+      - parseResponse() converts Loki JSON to LogEntry[]
+      - Supports correlationId, traceId, service, level filters
+      - Supports since/until time range filters
+      - Supports limit parameter
+      - Unit tests for query builder
+      - Unit tests for response parser
+    tasks:
+      - Create tools/brat/src/dev-mcp/loki-client.ts
+      - Implement LokiClient constructor with baseUrl
+      - Implement buildQuery() for LogQL generation
+      - Implement query() to call /loki/api/v1/query_range
+      - Implement parseResponse() to convert to LogEntry[]
+      - Write unit tests for LokiClient
+    assignee: Lead Implementor
+    labels: [backend, loki, client]
+
+  - id: story-2.2
+    epic: epic-2
+    title: Add Loki availability detection to LogRetriever
+    description: |
+      Implement isLokiAvailable() method to detect if Loki is running and
+      reachable, with fast timeout for fallback scenarios.
+    priority: critical
+    status: not_started
+    estimated_hours: 2
+    acceptance_criteria:
+      - LogRetriever.isLokiAvailable() method exists
+      - Checks Loki /ready endpoint with 1s timeout
+      - Returns true if Loki responds 200 OK
+      - Returns false if Loki unreachable or timeout
+      - Uses LOKI_URL environment variable (default http://localhost:3100)
+      - Logs detection result at debug level
+      - Unit tests for available and unavailable scenarios
+    tasks:
+      - Add isLokiAvailable() method to LogRetriever
+      - Implement /ready endpoint check with timeout
+      - Add LOKI_URL environment variable support
+      - Add debug logging for detection result
+      - Write unit tests with mocked fetch
+    dependencies: [story-2.1]
+    assignee: Lead Implementor
+    labels: [backend, detection]
+
+  - id: story-2.3
+    epic: epic-2
+    title: Implement Loki query path in LogRetriever
+    description: |
+      Add getLokiLogs() method to LogRetriever to query Loki using LokiClient,
+      with proper error handling and logging.
+    priority: critical
+    status: not_started
+    estimated_hours: 3
+    acceptance_criteria:
+      - LogRetriever.getLokiLogs() method exists
+      - Uses LokiClient to query Loki
+      - Passes all LogRequest parameters to LokiClient
+      - Returns LogEntry[] from Loki response
+      - Handles Loki errors gracefully (throws with context)
+      - Logs query performance metrics (query time)
+      - Unit tests for successful queries
+      - Unit tests for error scenarios
+    tasks:
+      - Add getLokiLogs() method to LogRetriever
+      - Instantiate LokiClient with LOKI_URL
+      - Map LogRequest to LokiClient.query() params
+      - Add performance logging (start/end timestamps)
+      - Add error handling and logging
+      - Write unit tests
+    dependencies: [story-2.1, story-2.2]
+    assignee: Lead Implementor
+    labels: [backend, query]
+
+  - id: story-2.4
+    epic: epic-2
+    title: Implement automatic fallback from Loki to Docker logs
+    description: |
+      Update LogRetriever.getLogs() to detect Loki availability and
+      automatically fall back to Docker logs if Loki is unavailable.
+    priority: critical
+    status: not_started
+    estimated_hours: 2
+    acceptance_criteria:
+      - LogRetriever.getLogs() calls isLokiAvailable() first
+      - If Loki available, calls getLokiLogs()
+      - If Loki unavailable, calls getDockerLogs()
+      - Logs which backend is being used (info level)
+      - No breaking changes to existing callers
+      - Integration test with Loki running
+      - Integration test with Loki stopped
+    tasks:
+      - Update LogRetriever.getLogs() with detection logic
+      - Add logging for backend selection
+      - Test with Loki running (uses Loki)
+      - Test with Loki stopped (uses Docker)
+      - Verify backward compatibility
+    dependencies: [story-2.2, story-2.3]
+    assignee: Lead Implementor
+    labels: [backend, fallback]
+
+  - id: story-2.5
+    epic: epic-2
+    title: Add error handling and logging for Loki queries
+    description: |
+      Implement comprehensive error handling for Loki client with proper
+      logging, timeout handling, and graceful degradation.
+    priority: high
+    status: not_started
+    estimated_hours: 2
+    acceptance_criteria:
+      - Loki query timeouts handled (5s default)
+      - Network errors handled gracefully
+      - Loki 4xx/5xx errors handled with context
+      - Empty result sets handled (no logs found)
+      - All errors logged with correlation context
+      - Errors don't crash dev-mcp server
+      - Unit tests for all error scenarios
+    tasks:
+      - Add timeout handling to LokiClient.query()
+      - Add network error handling
+      - Add HTTP error handling (4xx, 5xx)
+      - Add empty result handling
+      - Enhance error logging with context
+      - Write error scenario tests
+    dependencies: [story-2.1]
+    assignee: Lead Implementor
+    labels: [reliability, error-handling]
+
+  # ============================================================================
+  # EPIC 3: Fleet Trace Performance Optimization
+  # ============================================================================
+
+  - id: story-3.1
+    epic: epic-3
+    title: Optimize fleet.trace to use single Loki query
+    description: |
+      Update fleet.trace to leverage Loki's ability to query across all
+      services in a single query, eliminating per-Bit sequential queries.
+    priority: high
+    status: not_started
+    estimated_hours: 2
+    acceptance_criteria:
+      - fleet.trace detects if Loki is available
+      - If Loki available, uses single query without bit filter
+      - Single query returns logs from all services with correlationId
+      - If Loki unavailable, falls back to current per-Bit logic
+      - Trace query completes in <100ms with Loki
+      - Logs performance metrics (query time, log count)
+      - Integration test validates trace completeness
+    tasks:
+      - Update fleetTraceHandler in fleet.ts
+      - Add Loki availability detection
+      - Implement single-query path for Loki
+      - Keep existing per-Bit path for Docker fallback
+      - Add performance logging
+      - Test with multi-service trace
+    dependencies: [story-2.4]
+    assignee: Lead Implementor
+    labels: [performance, optimization]
+
+  - id: story-3.2
+    epic: epic-3
+    title: Remove hardcoded limit: 1000 for Loki queries
+    description: |
+      Remove or increase the hardcoded limit: 1000 in fleet.trace when
+      using Loki, since Loki handles large result sets efficiently.
+    priority: medium
+    status: not_started
+    estimated_hours: 1
+    acceptance_criteria:
+      - fleet.trace uses higher limit for Loki (5000 or no limit)
+      - fleet.trace uses existing limit for Docker fallback
+      - No performance degradation with larger limits
+      - Documentation updated with limit behavior
+    tasks:
+      - Update fleet.trace to use different limits for Loki vs Docker
+      - Test with large trace (100+ log lines)
+      - Verify performance is acceptable
+      - Update comments explaining limit strategy
+    dependencies: [story-3.1]
+    assignee: Lead Implementor
+    labels: [optimization, configuration]
+
+  - id: story-3.3
+    epic: epic-3
+    title: Add performance benchmarks for trace queries
+    description: |
+      Create benchmarking script to measure and compare trace query
+      performance between Docker logs and Loki.
+    priority: low
+    status: not_started
+    estimated_hours: 1
+    acceptance_criteria:
+      - Benchmark script in planning/sprint-336-*/benchmark-trace.sh
+      - Measures Docker logs trace time (baseline)
+      - Measures Loki trace time (with Loki running)
+      - Outputs comparison report
+      - Documents expected <100ms Loki performance
+    tasks:
+      - Create benchmark-trace.sh script
+      - Generate test event with known correlationId
+      - Time Docker logs trace query
+      - Time Loki trace query
+      - Output comparison report
+    dependencies: [story-3.1]
+    assignee: Lead Implementor
+    labels: [testing, performance]
+
+  # ============================================================================
+  # EPIC 4: Testing, Validation & Documentation
+  # ============================================================================
+
+  - id: story-4.1
+    epic: epic-4
+    title: Create Loki deployment validation script
+    description: |
+      Create automated validation script to verify Loki + Promtail are
+      running, ingesting logs, and labels are being extracted correctly.
+    priority: high
+    status: not_started
+    estimated_hours: 2
+    acceptance_criteria:
+      - planning/sprint-336-*/validate-loki.sh script exists
+      - Checks Loki /ready endpoint
+      - Checks Promtail is running
+      - Generates test event with known correlationId
+      - Queries Loki for test event
+      - Validates correlationId, traceId, service, level labels present
+      - Exits 0 on success, 1 on failure
+      - Outputs clear success/failure messages
+    tasks:
+      - Create validate-loki.sh script
+      - Implement Loki health check
+      - Implement Promtail status check
+      - Generate test event via Twitch !ping or API
+      - Query Loki for test event
+      - Validate label extraction
+      - Add clear output messages
+    dependencies: [story-1.3, story-2.4]
+    assignee: Lead Implementor
+    labels: [testing, validation]
+
+  - id: story-4.2
+    epic: epic-4
+    title: Write integration tests for LogRetriever with Loki
+    description: |
+      Create integration tests that run against live Loki instance to
+      validate query behavior and fallback logic.
+    priority: high
+    status: not_started
+    estimated_hours: 3
+    acceptance_criteria:
+      - Integration test suite in tools/brat/src/dev-mcp/__tests__/log-retriever-loki.integration.test.ts
+      - Test: Query logs with correlationId from Loki
+      - Test: Query logs with time range from Loki
+      - Test: Query logs with service filter from Loki
+      - Test: Fallback to Docker when Loki unavailable
+      - Test: Handle empty result sets gracefully
+      - All tests pass with Loki running
+      - All tests pass with Loki stopped (fallback)
+    tasks:
+      - Create log-retriever-loki.integration.test.ts
+      - Set up test fixtures (Loki URL, test data)
+      - Write correlationId query test
+      - Write time range query test
+      - Write service filter test
+      - Write fallback test
+      - Write empty result test
+    dependencies: [story-2.4]
+    assignee: Lead Implementor
+    labels: [testing, integration]
+
+  - id: story-4.3
+    epic: epic-4
+    title: Write end-to-end fleet.trace test with Loki
+    description: |
+      Create end-to-end test that generates a real event, waits for
+      ingestion, and validates fleet.trace returns complete timeline.
+    priority: high
+    status: not_started
+    estimated_hours: 2
+    acceptance_criteria:
+      - E2E test in tools/brat/src/dev-mcp/__tests__/fleet-trace-e2e.test.ts
+      - Generates test event via platform API
+      - Waits for Promtail ingestion (5s max)
+      - Calls fleet.trace with event correlationId
+      - Validates trace includes logs from multiple services
+      - Validates trace timeline is complete and ordered
+      - Test passes with Loki running
+    tasks:
+      - Create fleet-trace-e2e.test.ts
+      - Implement test event generation
+      - Add ingestion delay (sleep or poll)
+      - Call fleet.trace via dev-mcp
+      - Validate trace completeness
+      - Validate timeline ordering
+    dependencies: [story-3.1]
+    assignee: Lead Implementor
+    labels: [testing, e2e]
+
+  - id: story-4.4
+    epic: epic-4
+    title: Write Loki setup and usage documentation
+    description: |
+      Create comprehensive documentation for setting up Loki locally and
+      using it with BitBrat dev-mcp tools.
+    priority: high
+    status: not_started
+    estimated_hours: 2
+    acceptance_criteria:
+      - documentation/guides/loki-setup.md exists
+      - Prerequisites documented (Docker, Compose)
+      - Step-by-step setup instructions
+      - How to start with observability stack
+      - How to verify Loki is working
+      - How to query Loki directly (LogQL examples)
+      - How to use fleet.trace with Loki
+      - Troubleshooting section
+    tasks:
+      - Create documentation/guides/loki-setup.md
+      - Write prerequisites section
+      - Write setup instructions
+      - Write verification steps
+      - Add LogQL query examples
+      - Add fleet.trace usage examples
+      - Write troubleshooting section
+    dependencies: [story-1.3, story-2.4]
+    assignee: Lead Implementor
+    labels: [documentation]
+
+  - id: story-4.5
+    epic: epic-4
+    title: Write Loki troubleshooting guide
+    description: |
+      Create troubleshooting guide for common Loki + Promtail issues.
+    priority: medium
+    status: not_started
+    estimated_hours: 1
+    acceptance_criteria:
+      - documentation/guides/loki-troubleshooting.md exists
+      - Covers Loki not starting
+      - Covers Promtail not connecting to Loki
+      - Covers logs not appearing in Loki
+      - Covers labels not being extracted
+      - Covers disk space issues
+      - Covers port conflicts
+      - Each issue has diagnosis steps and solution
+    tasks:
+      - Create documentation/guides/loki-troubleshooting.md
+      - Document common issues based on testing
+      - Add diagnosis commands for each issue
+      - Add resolution steps for each issue
+      - Add links to Loki/Promtail docs
+    dependencies: [story-4.4]
+    assignee: Lead Implementor
+    labels: [documentation, support]
+
+  - id: story-4.6
+    epic: epic-4
+    title: Update README.md with optional Loki setup
+    description: |
+      Update main README.md to document the optional Loki observability
+      stack and link to detailed setup guide.
+    priority: medium
+    status: not_started
+    estimated_hours: 0.5
+    acceptance_criteria:
+      - README.md updated with Loki section
+      - Brief description of Loki benefits
+      - Quick start command for Loki deployment
+      - Link to detailed setup guide
+      - Notes that it's optional (degrades gracefully)
+    tasks:
+      - Add Observability section to README.md
+      - Document quick start command
+      - Add link to loki-setup.md
+      - Note optional nature and fallback behavior
+    dependencies: [story-4.4]
+    assignee: Lead Implementor
+    labels: [documentation]
+
+metadata:
+  total_stories: 20
+  total_estimated_hours: 40
+  critical_stories: 11
+  high_stories: 6
+  medium_stories: 2
+  low_stories: 1
+
+  epic_breakdown:
+    epic-1: 4 stories, 8 hours
+    epic-2: 5 stories, 12 hours
+    epic-3: 3 stories, 4 hours
+    epic-4: 6 stories, 10.5 hours (rounded to 11)
+
+velocity_assumptions:
+  - 8 productive hours per day
+  - 5 working days (2026-07-11 to 2026-07-15)
+  - Single implementor
+  - 20% buffer for unexpected issues
+
+notes: |
+  This backlog follows the execution plan and breaks down all implementation
+  work into trackable, accomplishable tasks. Each story has clear acceptance
+  criteria and can be completed independently (respecting dependencies).
+
+  Priority is based on:
+  - Critical: Must-have for core functionality
+  - High: Important for complete solution
+  - Medium: Enhances usability
+  - Low: Nice-to-have improvements
+
+  Stories are ordered within epics to minimize blocking and enable
+  early validation (e.g., infrastructure before client code).
