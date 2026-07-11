@@ -29,7 +29,7 @@ ingester:
 # Storage configuration - local filesystem for development
 schema_config:
   configs:
-    - from: 2026-07-11
+    - from: 2020-01-01
       store: boltdb-shipper
       object_store: filesystem
       schema: v11
