@@ -2,13 +2,25 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-// Mock the exec facade so tests never touch real npm/git.
+// Mock the exec facade so tests never touch real npm/git/gh.
 // - npm install --package-lock-only -> code 1 forces the deterministic direct-patch lockfile fallback.
 // - git tag -> code 0 (success).
+// - gh --version -> code 0 (installed).
+// - gh release create -> code 0 (success), outputs a mock URL.
 jest.mock('../../orchestration/exec', () => ({
-  execCmd: jest.fn(async (cmd: string) => {
+  execCmd: jest.fn(async (cmd: string, args?: string[]) => {
     if (cmd === 'npm') return { code: 1, stdout: '', stderr: 'mocked: npm not run in tests' };
     if (cmd === 'git') return { code: 0, stdout: '', stderr: '' };
+    if (cmd === 'gh') {
+      if (args?.[0] === '--version') {
+        return { code: 0, stdout: 'gh version 2.40.0 (2024-01-01)', stderr: '' };
+      }
+      if (args?.[0] === 'release' && args?.[1] === 'create') {
+        const tag = args[2];
+        return { code: 0, stdout: `https://github.com/test/repo/releases/tag/${tag}`, stderr: '' };
+      }
+      return { code: 0, stdout: '', stderr: '' };
+    }
     return { code: 0, stdout: '', stderr: '' };
   }),
 }));
@@ -111,5 +123,175 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
     const before = snapshot(dir);
     await expect(runRelease({ rootDir: dir, bump: 'nonsense', dryRun: false, now: DATE })).rejects.toThrow();
     expect(snapshot(dir)).toEqual(before);
+  });
+
+  describe('GitHub Release integration', () => {
+    it('--github-release creates a GitHub release via gh CLI', async () => {
+      const dir = copyRealRepoFixtures();
+      const result = await runRelease({
+        rootDir: dir,
+        bump: 'patch',
+        dryRun: false,
+        tag: true,
+        githubRelease: true,
+        now: DATE,
+      });
+
+      expect(result.tagged).toBe(true);
+      expect(result.githubReleaseCreated).toBe(true);
+
+      const calls = (execCmd as jest.Mock).mock.calls;
+      // Should check gh version
+      const ghVersionCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === '--version');
+      expect(ghVersionCall).toBeTruthy();
+
+      // Should create release
+      const ghReleaseCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'release');
+      expect(ghReleaseCall).toBeTruthy();
+      expect(ghReleaseCall[1]).toContain('create');
+      expect(ghReleaseCall[1]).toContain(`v${result.nextVersion}`);
+    });
+
+    it('--github-release in dry-run mode does not call gh CLI', async () => {
+      const dir = copyRealRepoFixtures();
+      const result = await runRelease({
+        rootDir: dir,
+        bump: 'patch',
+        dryRun: true,
+        tag: true,
+        githubRelease: true,
+        now: DATE,
+      });
+
+      expect(result.dryRun).toBe(true);
+      expect(result.githubReleaseCreated).toBe(false);
+
+      // No gh calls in dry-run
+      const calls = (execCmd as jest.Mock).mock.calls;
+      const ghCalls = calls.filter((c) => c[0] === 'gh');
+      expect(ghCalls.length).toBe(0);
+    });
+
+    it('--github-release without --tag throws error', async () => {
+      const dir = copyRealRepoFixtures();
+      await expect(
+        runRelease({
+          rootDir: dir,
+          bump: 'patch',
+          dryRun: false,
+          tag: false,
+          githubRelease: true,
+          now: DATE,
+        }),
+      ).rejects.toThrow('GitHub releases require git tags');
+    });
+
+    it('--github-release extracts notes from CHANGELOG', async () => {
+      const dir = copyRealRepoFixtures();
+      const result = await runRelease({
+        rootDir: dir,
+        bump: 'patch',
+        dryRun: false,
+        tag: true,
+        githubRelease: true,
+        now: DATE,
+      });
+
+      expect(result.githubReleaseCreated).toBe(true);
+
+      const calls = (execCmd as jest.Mock).mock.calls;
+      const ghReleaseCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'release');
+      expect(ghReleaseCall).toBeTruthy();
+
+      // Release notes should be passed via --notes flag
+      const notesIndex = ghReleaseCall[1].indexOf('--notes');
+      expect(notesIndex).toBeGreaterThan(-1);
+      const releaseNotes = ghReleaseCall[1][notesIndex + 1];
+      expect(releaseNotes).toBeTruthy();
+      expect(typeof releaseNotes).toBe('string');
+    });
+
+    it('handles gh CLI failure gracefully (non-fatal)', async () => {
+      // Temporarily override mock to simulate gh failure
+      const originalMock = (execCmd as jest.Mock).getMockImplementation();
+      (execCmd as jest.Mock).mockImplementation(async (cmd: string, args?: string[]) => {
+        if (cmd === 'gh' && args?.[0] === 'release') {
+          return { code: 1, stdout: '', stderr: 'gh: authentication required' };
+        }
+        return originalMock?.(cmd, args) || { code: 0, stdout: '', stderr: '' };
+      });
+
+      const dir = copyRealRepoFixtures();
+      const result = await runRelease({
+        rootDir: dir,
+        bump: 'patch',
+        dryRun: false,
+        tag: true,
+        githubRelease: true,
+        now: DATE,
+      });
+
+      // Version bump should succeed even though GitHub release failed
+      expect(result.tagged).toBe(true);
+      expect(result.githubReleaseCreated).toBe(false);
+      expect(result.nextVersion).toBeTruthy();
+
+      // Restore original mock
+      (execCmd as jest.Mock).mockImplementation(originalMock);
+    });
+
+    it('handles gh CLI not installed gracefully (non-fatal)', async () => {
+      // Temporarily override mock to simulate gh not installed
+      const originalMock = (execCmd as jest.Mock).getMockImplementation();
+      (execCmd as jest.Mock).mockImplementation(async (cmd: string, args?: string[]) => {
+        if (cmd === 'gh') {
+          return { code: 127, stdout: '', stderr: 'command not found: gh' };
+        }
+        return originalMock?.(cmd, args) || { code: 0, stdout: '', stderr: '' };
+      });
+
+      const dir = copyRealRepoFixtures();
+      const result = await runRelease({
+        rootDir: dir,
+        bump: 'patch',
+        dryRun: false,
+        tag: true,
+        githubRelease: true,
+        now: DATE,
+      });
+
+      // Version bump should succeed even though gh is not installed
+      expect(result.tagged).toBe(true);
+      expect(result.githubReleaseCreated).toBe(false);
+      expect(result.nextVersion).toBeTruthy();
+
+      // Restore original mock
+      (execCmd as jest.Mock).mockImplementation(originalMock);
+    });
+
+    it('uses default notes when CHANGELOG.md is missing', async () => {
+      const dir = copyRealRepoFixtures();
+      // Delete CHANGELOG.md to test default notes
+      fs.unlinkSync(path.join(dir, 'CHANGELOG.md'));
+
+      const result = await runRelease({
+        rootDir: dir,
+        bump: '1.5.0',
+        dryRun: false,
+        tag: true,
+        githubRelease: true,
+        now: DATE,
+      });
+
+      expect(result.githubReleaseCreated).toBe(true);
+
+      const calls = (execCmd as jest.Mock).mock.calls;
+      const ghReleaseCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'release');
+      const notesIndex = ghReleaseCall[1].indexOf('--notes');
+      const releaseNotes = ghReleaseCall[1][notesIndex + 1];
+
+      // Should use default notes format
+      expect(releaseNotes).toBe('Release 1.5.0');
+    });
   });
 });

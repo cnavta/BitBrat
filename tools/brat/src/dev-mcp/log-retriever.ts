@@ -22,6 +22,7 @@ import {
   filterByLevel,
   filterByCorrelation
 } from './log-parser.js';
+import { LokiClient } from './loki-client.js';
 
 /**
  * LogRetriever class
@@ -31,6 +32,9 @@ import {
 export class LogRetriever {
   private connection: TargetConnection;
   private registry: FirestoreRegistryReader;
+  private lokiClient?: LokiClient;
+  private lokiAvailable: boolean = false;
+  private lokiChecked: boolean = false;
 
   constructor(connection: TargetConnection) {
     this.connection = connection;
@@ -38,6 +42,77 @@ export class LogRetriever {
       projectId: connection.firestore.projectId,
       databaseId: connection.firestore.databaseId
     });
+
+    // Initialize Loki client (default to localhost:3100 for Docker deployments)
+    if (connection.type === 'local' || connection.type === 'remote-ssh') {
+      this.lokiClient = new LokiClient({
+        url: 'http://localhost:3100',
+        timeout: 5000
+      });
+    }
+  }
+
+  /**
+   * Check if Loki is available for log queries
+   *
+   * Caches the result to avoid repeated health checks.
+   */
+  private async checkLokiAvailability(): Promise<boolean> {
+    if (this.lokiChecked) {
+      return this.lokiAvailable;
+    }
+
+    if (!this.lokiClient) {
+      this.lokiChecked = true;
+      this.lokiAvailable = false;
+      return false;
+    }
+
+    try {
+      this.lokiAvailable = await this.lokiClient.isAvailable();
+      this.lokiChecked = true;
+      return this.lokiAvailable;
+    } catch (error) {
+      this.lokiChecked = true;
+      this.lokiAvailable = false;
+      return false;
+    }
+  }
+
+  /**
+   * Query logs across all services for a given correlation ID
+   *
+   * This is optimized for distributed tracing - when Loki is available,
+   * it uses a single query without service filtering to get logs from
+   * all Bits in one request.
+   *
+   * @param correlationId - Correlation ID to trace
+   * @param limit - Maximum number of logs to return (default: 5000)
+   * @returns Array of log entries from all services
+   */
+  async getTraceLogsByCorrelationId(correlationId: string, limit: number = 5000): Promise<LogEntry[]> {
+    // Check if Loki is available
+    const lokiAvailable = await this.checkLokiAvailability();
+
+    if (lokiAvailable && this.lokiClient) {
+      try {
+        // Use Loki to query across all services in a single request
+        const logs = await this.lokiClient.query({
+          correlationId,
+          limit
+        });
+        return logs;
+      } catch (error: any) {
+        // Loki query failed - caller will need to fall back to per-Bit queries
+        if (process.env.LOG_LEVEL === 'debug') {
+          console.error(`[LogRetriever] Loki trace query failed: ${error.message}`);
+        }
+        throw error; // Throw to signal caller to use fallback
+      }
+    }
+
+    // Loki not available - caller should use per-Bit queries
+    throw new Error('Loki not available - use per-Bit queries for tracing');
   }
 
   /**
@@ -180,9 +255,41 @@ export class LogRetriever {
   }
 
   /**
-   * Retrieve logs from Docker using docker compose logs
+   * Retrieve logs from Docker using Loki (if available) or docker compose logs (fallback)
    */
   private async getDockerLogs(request: LogRequest): Promise<LogEntry[]> {
+    if (!request.bit) {
+      throw new Error('Bit name is required for log retrieval');
+    }
+
+    // Check if Loki is available and try to use it first
+    const lokiAvailable = await this.checkLokiAvailability();
+
+    if (lokiAvailable && this.lokiClient) {
+      try {
+        // Try Loki first
+        const logs = await this.lokiClient.query(request);
+        return logs;
+      } catch (error: any) {
+        // Loki query failed, fall back to Docker logs
+        // Note: We silently fall back to ensure graceful degradation
+        // Only log at debug level to avoid noise
+        if (process.env.LOG_LEVEL === 'debug') {
+          console.error(`[LogRetriever] Loki query failed, falling back to Docker logs: ${error.message}`);
+        }
+      }
+    }
+
+    // Fallback to Docker compose logs
+    return this.getDockerComposeLogs(request);
+  }
+
+  /**
+   * Retrieve logs directly from Docker using docker compose logs
+   *
+   * This is the fallback when Loki is unavailable or fails.
+   */
+  private async getDockerComposeLogs(request: LogRequest): Promise<LogEntry[]> {
     if (!request.bit) {
       throw new Error('Bit name is required for log retrieval');
     }

@@ -91,3 +91,70 @@ export function rollChangelog(source: string, version: string, date: Date): stri
   // Reconstruct: <before><new empty Unreleased>\n\n<dated heading><preserved entries...>
   return `${before}${UNRELEASED_SKELETON}\n${datedHeading}${afterHeading}`;
 }
+
+/**
+ * Extracts release notes for a specific version from a Keep-a-Changelog formatted CHANGELOG.md.
+ *
+ * Searches for a dated version heading (e.g., `## [1.2.3] - 2026-07-11`) and extracts all content
+ * until the next `## [` heading or end of file. Returns a default message if the version section
+ * is not found or is empty.
+ *
+ * @param source - The full CHANGELOG.md content
+ * @param version - The version to extract notes for (e.g., "1.2.3")
+ * @returns The extracted release notes, or a default message if not found/empty
+ *
+ * @example
+ * ```typescript
+ * const notes = extractReleaseNotes(changelogContent, '1.2.3');
+ * // Returns the content between ## [1.2.3] and the next ## [ heading
+ * ```
+ */
+export function extractReleaseNotes(source: string, version: string): string {
+  // Match the dated version heading: ## [version] - YYYY-MM-DD
+  // This regex is tolerant of spacing (including inside brackets) and captures the heading line
+  const versionHeadingRe = new RegExp(
+    `^##\\s*\\[\\s*${escapeRegExp(version)}\\s*\\]\\s*-\\s*\\d{4}-\\d{2}-\\d{2}\\s*$`,
+    'im',
+  );
+  const match = versionHeadingRe.exec(source);
+
+  if (!match) {
+    // Version section not found — return default message
+    return `Release ${version}`;
+  }
+
+  const headingEnd = match.index + match[0].length;
+  const afterHeading = source.slice(headingEnd);
+
+  // Find the next ## [ heading (next version section) or use end of file
+  const nextHeadingMatch = /^##\s*\[/im.exec(afterHeading);
+  const nextHeadingStart = nextHeadingMatch ? nextHeadingMatch.index : afterHeading.length;
+
+  // Extract content between this version heading and the next
+  const content = afterHeading.slice(0, nextHeadingStart).trim();
+
+  // If content is empty or only contains whitespace/empty Keep-a-Changelog headers, use default
+  if (!content || !hasNonEmptyContent(content)) {
+    return `Release ${version}`;
+  }
+
+  return content;
+}
+
+/**
+ * Returns true if the content has actual release notes (not just empty Keep-a-Changelog section headers).
+ * @internal
+ */
+function hasNonEmptyContent(content: string): boolean {
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Skip empty lines and Keep-a-Changelog section headers (### Added, ### Changed, etc.)
+    if (trimmed === '' || /^###\s/.test(trimmed)) {
+      continue;
+    }
+    // Found actual content
+    return true;
+  }
+  return false;
+}

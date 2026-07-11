@@ -51,24 +51,34 @@ export function formatRaw(logs: LogEntry[]): string {
  * Correlation ID: evt-123-456-789
  * Duration: 234ms
  * Services: 4 (ingress-egress, event-router, llm-bot, disposition)
+ * Query Time: 87ms (Loki)
  *
  * 00:00:000 [ingress-egress] INFO  Event received from Twitch
  * 00:00:012 [event-router]   INFO  Matched rule: default-llm-routing
  * 00:00:015 [event-router]   DEBUG Attached routing slip with 3 steps
  * ...
  */
-export function formatTimeline(trace: TraceTimeline): string {
+export function formatTimeline(trace: TraceTimeline, queryTimeMs?: number, backend?: string): string {
   if (!trace.timeline || trace.timeline.length === 0) {
     return `Correlation ID: ${trace.correlationId}\nNo logs found for this correlation ID.`;
   }
 
   // Build header
-  const header = [
+  const headerLines = [
     `Correlation ID: ${trace.correlationId}`,
     `Duration: ${trace.duration}ms`,
-    `Services: ${trace.services.length} (${trace.services.join(', ')})`,
-    ''
-  ].join('\n');
+    `Services: ${trace.services.length} (${trace.services.join(', ')})`
+  ];
+
+  // Add query performance metrics if provided
+  if (queryTimeMs !== undefined) {
+    const backendLabel = backend ? ` (${backend})` : '';
+    headerLines.push(`Query Time: ${queryTimeMs}ms${backendLabel}`);
+  }
+
+  headerLines.push(''); // Empty line before timeline
+
+  const header = headerLines.join('\n');
 
   // Build timeline entries
   const entries = trace.timeline.map(entry => {
