@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "build": "tsc -p tsconfig.json",
     "test": "jest",
-    "local": "npm run brat -- docker up --env local",
+    "local": "npm run brat -- docker up --env local --loki",
     "local:down": "npm run brat -- docker down --env local",
     "local:logs": "npm run brat -- docker logs --env local",
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
