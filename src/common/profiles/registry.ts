@@ -21,7 +21,7 @@ const PROFILES_KEY = '__bitProfiles__';
 export const PROFILE_REQUIREMENTS: Record<string, string[]> = {
   core: [],
   llm: ['llm'],
-  'mcp-domain': [],
+  'mcp-server': [],
   gateway: [],
 };
 

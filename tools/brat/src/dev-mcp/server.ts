@@ -37,12 +37,16 @@ export class DevMcpServer {
   private auditLogger: AuditLogger;
   private logger: Logger;
   private transport?: StdioServerTransport;
+  private authToken?: string;
 
   constructor(options: DevMcpServerOptions = {}) {
     this.logger = createLogger({
       base: { component: 'dev-mcp-server' },
       level: options.logLevel || 'info'
     });
+
+    // Store auth token for use in target connections
+    this.authToken = options.authToken;
 
     // Initialize MCP server
     this.server = new Server(
@@ -58,7 +62,7 @@ export class DevMcpServer {
     );
 
     // Initialize components
-    this.targetManager = new TargetConnectionManager(options.target, this.logger);
+    this.targetManager = new TargetConnectionManager(options.target, this.authToken, this.logger);
     this.toolRouter = new ToolRouter(this.targetManager, this.logger);
     this.auditLogger = new AuditLogger(options.auditLogPath, this.logger);
 

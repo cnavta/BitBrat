@@ -126,9 +126,9 @@ describe('brat bit create - Integration', () => {
       expect(appSource).toContain("import { Request, Response } from 'express'");
     });
 
-    it('should create mcp-domain Bit with registerTool example', async () => {
+    it('should create mcp-server Bit with registerTool example', async () => {
       const cmd = ['bit', 'create', 'custom-tools'];
-      const rest = ['--profile', 'mcp-domain', '--exposure', 'platform+domain', '--kind', 'mcp-server'];
+      const rest = ['--profile', 'mcp-server', '--exposure', 'platform+domain', '--kind', 'mcp-server'];
       const flags = {};
 
       await cmdBitCreate(cmd, rest, flags, mockLogger);

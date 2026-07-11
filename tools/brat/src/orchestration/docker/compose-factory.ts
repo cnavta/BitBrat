@@ -5,11 +5,13 @@ import yaml from 'js-yaml';
 export interface ComposeFileSet {
   baseFile: string;
   serviceFiles: string[];
+  observabilityFile?: string; // Optional Loki + Promtail stack
 }
 
 export class ComposeFactory {
   private readonly baseComposePath = 'infrastructure/docker-compose/docker-compose.local.yaml';
   private readonly servicesDir = 'infrastructure/docker-compose/services';
+  private readonly observabilityPath = 'infrastructure/docker-compose/observability/docker-compose.observability.yaml';
 
   constructor(private readonly repoRoot: string) {}
 
@@ -25,8 +27,10 @@ export class ComposeFactory {
    *
    * Callers that must still address an inactive service (e.g. `down`/`logs`/`ps` to tear
    * down or inspect a previously-deployed disabled Bit) simply omit `inactiveServices`.
+   *
+   * `enableLoki` adds the optional observability stack (Loki + Promtail) for centralized logging.
    */
-  public getComposeFiles(targetService?: string, inactiveServices?: Iterable<string>): ComposeFileSet {
+  public getComposeFiles(targetService?: string, inactiveServices?: Iterable<string>, enableLoki?: boolean): ComposeFileSet {
     const baseFile = this.baseComposePath;
     const serviceFiles: string[] = [];
 
@@ -64,7 +68,16 @@ export class ComposeFactory {
       }
     }
 
-    return { baseFile, serviceFiles };
+    // Add observability file if Loki is enabled
+    let observabilityFile: string | undefined;
+    if (enableLoki) {
+      const fullObservabilityPath = path.join(this.repoRoot, this.observabilityPath);
+      if (fs.existsSync(fullObservabilityPath)) {
+        observabilityFile = this.observabilityPath;
+      }
+    }
+
+    return { baseFile, serviceFiles, observabilityFile };
   }
 
   /**
@@ -105,6 +118,10 @@ export class ComposeFactory {
     args.push('-f', fileSet.baseFile);
     for (const f of fileSet.serviceFiles) {
       args.push('-f', f);
+    }
+    // Add observability file if present
+    if (fileSet.observabilityFile) {
+      args.push('-f', fileSet.observabilityFile);
     }
     for (const envFile of envFiles) {
       args.push('--env-file', envFile);

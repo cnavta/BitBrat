@@ -5,10 +5,12 @@
  */
 
 import { z } from 'zod';
-import { ToolDefinition, TargetConnection } from '../types.js';
+import { ToolDefinition, TargetConnection, LogEntry, TraceTimeline, TimelineEntry } from '../types.js';
 import { FleetClient } from '../../fleet/fleet-client.js';
 import { GatewayTransport } from '../../fleet/transports/gateway-transport.js';
 import { FirestoreRegistryReader } from '../../fleet/firestore-registry.js';
+import { LogRetriever } from '../log-retriever.js';
+import { formatText, formatJson, formatRaw, formatTimeline, formatTraceJson } from '../log-formatter.js';
 
 /**
  * fleet.list - Enumerate all live Bits in the fleet
@@ -47,9 +49,22 @@ async function fleetListHandler(
       databaseId: connection.firestore.databaseId
     });
 
+    if (!connection.gateway.authToken) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No auth token configured',
+            message: 'MCP_AUTH_TOKEN or MCP_DEV_TOKEN environment variable is required for fleet operations.',
+            hint: 'Set MCP_AUTH_TOKEN=<token> or MCP_DEV_TOKEN=<token> when starting the dev-mcp server.'
+          }, null, 2)
+        }]
+      };
+    }
+
     const identity = {
-      token: connection.gateway.authToken || 'dev-mcp-token',
-      roles: ['bit:read'],
+      token: connection.gateway.authToken,
+      roles: ['bit:read', 'discovery'],
       agentName: 'brat-dev-mcp'
     };
 
@@ -144,9 +159,22 @@ async function fleetInfoHandler(
       databaseId: connection.firestore.databaseId
     });
 
+    if (!connection.gateway.authToken) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No auth token configured',
+            message: 'MCP_AUTH_TOKEN or MCP_DEV_TOKEN environment variable is required for fleet operations.',
+            hint: 'Set MCP_AUTH_TOKEN=<token> or MCP_DEV_TOKEN=<token> when starting the dev-mcp server.'
+          }, null, 2)
+        }]
+      };
+    }
+
     const identity = {
-      token: connection.gateway.authToken || 'dev-mcp-token',
-      roles: ['bit:read'],
+      token: connection.gateway.authToken,
+      roles: ['bit:read', 'discovery'],
       agentName: 'brat-dev-mcp'
     };
 
@@ -225,9 +253,439 @@ export const fleetInfoTool: ToolDefinition = {
 };
 
 /**
+ * fleet.logs - Retrieve logs from specific Bit(s)
+ *
+ * Supports Cloud Run (Cloud Logging API) and Docker (docker compose logs) targets.
+ * Provides filtering by level, time range, and correlation ID.
+ */
+const fleetLogsSchema = z.object({
+  bit: z.string().optional().describe('Name of the Bit to query logs from (omit for all Bits)'),
+  level: z.array(z.enum(['error', 'warn', 'info', 'debug', 'trace'])).optional()
+    .describe('Log levels to include (if empty, all levels)'),
+  since: z.string().optional()
+    .describe('Start time (ISO timestamp or duration like "1h", "30m")'),
+  until: z.string().optional()
+    .describe('End time (ISO timestamp)'),
+  limit: z.number().default(100)
+    .describe('Maximum number of log entries to return'),
+  correlationId: z.string().optional()
+    .describe('Filter by correlation ID'),
+  format: z.enum(['text', 'json', 'raw']).default('text')
+    .describe('Output format')
+});
+
+async function fleetLogsHandler(
+  args: Record<string, any>,
+  connection: TargetConnection
+): Promise<any> {
+  try {
+    // Parse and validate args
+    const parsed = fleetLogsSchema.parse(args);
+    // Create LogRetriever
+    const logRetriever = new LogRetriever(connection);
+
+    if (parsed.bit) {
+      // Single-bit query
+      const response = await logRetriever.getLogs({
+        bit: parsed.bit,
+        level: parsed.level,
+        since: parsed.since,
+        until: parsed.until,
+        limit: parsed.limit,
+        correlationId: parsed.correlationId
+      });
+
+      // Check for errors
+      if (response.error) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              error: 'Log retrieval failed',
+              message: response.error,
+              bit: parsed.bit,
+              target: connection.name
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+
+      // Format output
+      let formattedOutput: string;
+      switch (parsed.format) {
+        case 'json':
+          formattedOutput = formatJson(response.logs);
+          break;
+        case 'raw':
+          formattedOutput = formatRaw(response.logs);
+          break;
+        case 'text':
+        default:
+          formattedOutput = formatText(response.logs);
+          break;
+      }
+
+      const header = `Retrieved ${response.count} log entries from ${args.bit} (${response.deploymentType})\nTarget: ${connection.name}\n\n`;
+
+      return {
+        content: [{
+          type: 'text' as const,
+          text: header + formattedOutput
+        }]
+      };
+    } else {
+      // Fleet-wide query (--all mode)
+      // Get all Bits from fleet
+      const transport = new GatewayTransport({
+        baseUrl: connection.gateway?.url || ''
+      });
+
+      const registry = new FirestoreRegistryReader({
+        projectId: connection.firestore.projectId,
+        databaseId: connection.firestore.databaseId
+      });
+
+      const identity = {
+        token: connection.gateway?.authToken || 'dev-mcp-token',
+        roles: ['bit:read', 'discovery'],
+        agentName: 'brat-dev-mcp'
+      };
+
+      const fleetClient = new FleetClient({
+        transport,
+        identity,
+        registry,
+        concurrency: 5
+      });
+
+      const bits = await fleetClient.list();
+
+      // Query logs from each Bit in parallel with concurrency limit
+      const concurrency = 5;
+      const allResults: Array<{ bit: string; response: any; error?: string }> = [];
+
+      for (let i = 0; i < bits.length; i += concurrency) {
+        const batch = bits.slice(i, i + concurrency);
+        const batchResults = await Promise.all(
+          batch.map(async (bit) => {
+            try {
+              const response = await logRetriever.getLogs({
+                bit: bit.name,
+                level: args.level,
+                since: args.since,
+                until: args.until,
+                limit: args.limit,
+                correlationId: args.correlationId
+              });
+              return { bit: bit.name, response };
+            } catch (error: any) {
+              return { bit: bit.name, response: null, error: error.message };
+            }
+          })
+        );
+        allResults.push(...batchResults);
+      }
+
+      // Clean up
+      await transport.close();
+
+      // Aggregate results
+      const successful = allResults.filter(r => !r.error && !r.response?.error);
+      const failed = allResults.filter(r => r.error || r.response?.error);
+
+      let output = `Fleet-wide log query (${bits.length} Bits)\nTarget: ${connection.name}\n\n`;
+      output += `Successful: ${successful.length}, Failed: ${failed.length}\n\n`;
+
+      // Show logs from successful queries
+      for (const result of successful) {
+        if (result.response && result.response.count > 0) {
+          output += `=== ${result.bit} (${result.response.count} entries, ${result.response.deploymentType}) ===\n`;
+
+          let formattedLogs: string;
+          switch (parsed.format) {
+            case 'json':
+              formattedLogs = formatJson(result.response.logs);
+              break;
+            case 'raw':
+              formattedLogs = formatRaw(result.response.logs);
+              break;
+            case 'text':
+            default:
+              formattedLogs = formatText(result.response.logs);
+              break;
+          }
+
+          output += formattedLogs + '\n\n';
+        }
+      }
+
+      // Show failures
+      if (failed.length > 0) {
+        output += `\n=== Failures ===\n`;
+        for (const result of failed) {
+          output += `${result.bit}: ${result.error || result.response?.error}\n`;
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text' as const,
+          text: output
+        }]
+      };
+    }
+  } catch (error: any) {
+    return {
+      content: [{
+        type: 'text' as const,
+        text: JSON.stringify({
+          error: 'Fleet logs query failed',
+          message: error.message || String(error),
+          bit: args.bit,
+          target: connection.name
+        }, null, 2)
+      }],
+      isError: true
+    };
+  }
+}
+
+export const fleetLogsTool: ToolDefinition = {
+  name: 'fleet.logs',
+  description: 'Retrieve logs from specific Bit(s) - supports Cloud Run and Docker targets with filtering by level, time range, and correlation ID',
+  inputSchema: fleetLogsSchema,
+  handler: fleetLogsHandler
+};
+
+/**
+ * Build timeline from collected logs
+ *
+ * Merges logs from multiple services, sorts by timestamp,
+ * calculates relative timings, and builds TraceTimeline structure.
+ */
+function buildTimeline(logs: LogEntry[], correlationId: string): TraceTimeline {
+  // Sort logs by timestamp (ascending)
+  const sortedLogs = [...logs].sort((a, b) => {
+    return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+  });
+
+  // Calculate relative timestamps from first log
+  const firstTimestamp = new Date(sortedLogs[0].timestamp).getTime();
+  const lastTimestamp = new Date(sortedLogs[sortedLogs.length - 1].timestamp).getTime();
+  const duration = lastTimestamp - firstTimestamp;
+
+  // Extract unique service names
+  const services = Array.from(new Set(sortedLogs.map(log => log.service).filter(Boolean))) as string[];
+
+  // Build timeline entries
+  const timeline: TimelineEntry[] = sortedLogs.map(log => {
+    const logTimestamp = new Date(log.timestamp).getTime();
+    const relativeMs = logTimestamp - firstTimestamp;
+
+    return {
+      relativeMs,
+      service: log.service || 'unknown',
+      level: log.level,
+      message: log.message || log.msg || '',
+      timestamp: log.timestamp
+    };
+  });
+
+  return {
+    correlationId,
+    duration,
+    services,
+    timeline
+  };
+}
+
+/**
+ * fleet.trace - Distributed trace reconstruction by correlation ID
+ *
+ * Queries all Bits in the fleet for logs matching a correlation ID,
+ * then reconstructs the request flow across services with timing information.
+ */
+const fleetTraceSchema = z.object({
+  correlationId: z.string().describe('Correlation ID to trace across the fleet'),
+  format: z.enum(['timeline', 'json']).default('timeline')
+    .describe('Output format (timeline or json)')
+});
+
+async function fleetTraceHandler(
+  args: Record<string, any>,
+  connection: TargetConnection
+): Promise<any> {
+  try {
+    // Parse and validate args
+    const parsed = fleetTraceSchema.parse(args);
+
+    // Check if gateway is configured for this target
+    if (!connection.gateway || !connection.gateway.url) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No gateway configured',
+            message: `Target '${connection.name}' does not have a gateway URL configured. Fleet operations require gateway access.`,
+            hint: 'Configure gateway.url in architecture.yaml targets section.'
+          }, null, 2)
+        }]
+      };
+    }
+
+    // Create FleetClient to discover Bits
+    const transport = new GatewayTransport({
+      baseUrl: connection.gateway.url
+    });
+
+    const registry = new FirestoreRegistryReader({
+      projectId: connection.firestore.projectId,
+      databaseId: connection.firestore.databaseId
+    });
+
+    if (!connection.gateway.authToken) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No auth token configured',
+            message: 'MCP_AUTH_TOKEN or MCP_DEV_TOKEN environment variable is required for fleet operations.',
+            hint: 'Set MCP_AUTH_TOKEN=<token> or MCP_DEV_TOKEN=<token> when starting the dev-mcp server.'
+          }, null, 2)
+        }]
+      };
+    }
+
+    const identity = {
+      token: connection.gateway.authToken,
+      roles: ['bit:read', 'discovery'],
+      agentName: 'brat-dev-mcp'
+    };
+
+    const fleetClient = new FleetClient({
+      transport,
+      identity,
+      registry,
+      concurrency: 5
+    });
+
+    // Discover all Bits in the fleet
+    const bits = await fleetClient.list();
+
+    // Create LogRetriever
+    const logRetriever = new LogRetriever(connection);
+
+    // Try Loki first for optimized single-query trace
+    let allLogs: LogEntry[] = [];
+    let queryTimeMs = 0;
+    let usedLoki = false;
+
+    try {
+      const startTime = Date.now();
+      allLogs = await logRetriever.getTraceLogsByCorrelationId(
+        parsed.correlationId,
+        5000  // Higher limit for Loki (handles large result sets efficiently)
+      );
+      queryTimeMs = Date.now() - startTime;
+      usedLoki = true;
+    } catch (error: any) {
+      // Loki not available or failed - fall back to per-Bit queries
+      const startTime = Date.now();
+      const concurrency = 5;
+
+      for (let i = 0; i < bits.length; i += concurrency) {
+        const batch = bits.slice(i, i + concurrency);
+        const batchResults = await Promise.all(
+          batch.map(async (bit) => {
+            try {
+              const response = await logRetriever.getLogs({
+                bit: bit.name,
+                correlationId: parsed.correlationId,
+                limit: 1000  // Conservative limit for Docker logs
+              });
+              return response.logs || [];
+            } catch (error: any) {
+              // Silently ignore errors - some Bits may not have logs
+              return [];
+            }
+          })
+        );
+
+        // Flatten and collect logs
+        for (const logs of batchResults) {
+          allLogs.push(...logs);
+        }
+      }
+
+      queryTimeMs = Date.now() - startTime;
+    }
+
+    // Clean up
+    await transport.close();
+
+    // Check if any logs were found
+    if (allLogs.length === 0) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No logs found',
+            message: `No logs found for correlation ID '${parsed.correlationId}' across ${bits.length} Bits`,
+            correlationId: parsed.correlationId,
+            target: connection.name
+          }, null, 2)
+        }]
+      };
+    }
+
+    // Build timeline from collected logs
+    const timeline = buildTimeline(allLogs, parsed.correlationId);
+
+    // Format output based on format parameter
+    let formattedOutput: string;
+    if (parsed.format === 'json') {
+      formattedOutput = formatTraceJson(timeline);
+    } else {
+      const backend = usedLoki ? 'Loki' : 'Docker logs';
+      formattedOutput = formatTimeline(timeline, queryTimeMs, backend);
+    }
+
+    return {
+      content: [{
+        type: 'text' as const,
+        text: formattedOutput
+      }]
+    };
+  } catch (error: any) {
+    return {
+      content: [{
+        type: 'text' as const,
+        text: JSON.stringify({
+          error: 'Fleet trace query failed',
+          message: error.message || String(error),
+          correlationId: args.correlationId,
+          target: connection.name
+        }, null, 2)
+      }],
+      isError: true
+    };
+  }
+}
+
+export const fleetTraceTool: ToolDefinition = {
+  name: 'fleet.trace',
+  description: 'Reconstruct distributed trace across all Bits by correlation ID',
+  inputSchema: fleetTraceSchema,
+  handler: fleetTraceHandler
+};
+
+/**
  * Export all fleet tools
  */
 export const fleetTools: ToolDefinition[] = [
   fleetListTool,
-  fleetInfoTool
+  fleetInfoTool,
+  fleetLogsTool,
+  fleetTraceTool
 ];

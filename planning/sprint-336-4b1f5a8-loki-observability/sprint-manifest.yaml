@@ -1,0 +1,319 @@
+sprint:
+  id: sprint-336-4b1f5a8-loki-observability
+  number: 336
+  name: Loki + Promtail Centralized Logging
+  status: in_progress
+  start_date: 2026-07-11
+  target_end_date: 2026-07-15
+  branch: feature/sprint-336-4b1f5a8-loki-observability
+
+goal: |
+  Implement Grafana Loki + Promtail as an optional centralized logging backend
+  for Docker Compose deployments to solve fundamental log buffer limitations,
+  enable reliable distributed tracing, and achieve <100ms correlation ID lookups
+  across the entire BitBrat fleet.
+
+problem_statement: |
+  Current Docker log-based observability has critical limitations:
+  - Buffer limited to 2000 lines (~34 events worth of logs)
+  - Correlation ID traces fail for events older than buffer window
+  - No log persistence across container restarts
+  - Log spam from one Bit affects trace completeness across fleet
+  - Sequential queries across 14 Bits take 2-5 seconds
+  - Cannot investigate issues from more than ~30 minutes ago
+
+  This makes distributed tracing unreliable and debugging historical
+  issues nearly impossible in local/staging environments.
+
+proposed_solution: |
+  Deploy Grafana Loki + Promtail as optional Docker Compose services:
+  - Loki: Lightweight log aggregation with label-based indexing
+  - Promtail: Docker log scraper with JSON parsing pipeline
+  - Index by: correlationId, traceId, service, level
+  - Enable unlimited log retention (7 days default, configurable)
+  - Maintain backward compatibility via auto-fallback to Docker logs
+  - Achieve <100ms trace queries via indexed correlation IDs
+
+scope:
+  in_scope:
+    - Loki + Promtail Docker Compose configuration
+    - Promtail JSON log parsing and label extraction
+    - LokiClient HTTP query implementation
+    - LogRetriever Loki integration with auto-fallback
+    - fleet.trace performance optimization
+    - Validation scripts and integration tests
+    - Setup and troubleshooting documentation
+
+  out_of_scope:
+    - Grafana dashboard creation (future sprint)
+    - Alert rule configuration (future sprint)
+    - Production Loki deployment (future sprint)
+    - OpenTelemetry integration (future sprint)
+    - Log-based metrics extraction (future sprint)
+    - Removing existing Docker log support
+
+deliverables:
+  configuration:
+    - infrastructure/docker-compose/observability/docker-compose.observability.yaml
+    - infrastructure/docker-compose/observability/loki-config.yaml
+    - infrastructure/docker-compose/observability/promtail-config.yaml
+    - infrastructure/docker-compose/observability/.gitignore
+
+  code:
+    - tools/brat/src/dev-mcp/loki-client.ts (new)
+    - tools/brat/src/dev-mcp/log-retriever.ts (updated)
+    - tools/brat/src/dev-mcp/tools/fleet.ts (updated)
+
+  tests:
+    - tools/brat/src/dev-mcp/__tests__/loki-client.test.ts
+    - tools/brat/src/dev-mcp/__tests__/log-retriever-loki.integration.test.ts
+    - tools/brat/src/dev-mcp/__tests__/fleet-trace-e2e.test.ts
+
+  validation:
+    - planning/sprint-336-4b1f5a8-loki-observability/validate-loki.sh
+    - planning/sprint-336-4b1f5a8-loki-observability/benchmark-trace.sh
+
+  documentation:
+    - documentation/guides/loki-setup.md
+    - documentation/guides/loki-troubleshooting.md
+    - Updated README.md (Loki section)
+
+success_criteria:
+  must_have:
+    - Loki + Promtail start successfully via docker compose
+    - Promtail extracts correlationId, traceId, service, level labels
+    - LogRetriever auto-detects Loki and uses it when available
+    - LogRetriever falls back to Docker logs when Loki unavailable
+    - fleet.trace completes in <100ms with Loki (vs 2-5s with Docker)
+    - Logs persist across container restarts
+    - 7-day log retention (vs ~34 events with Docker)
+    - Zero breaking changes to existing functionality
+    - All tests pass
+    - Documentation complete and accurate
+
+  nice_to_have:
+    - Grafana integration (future sprint)
+    - Alert rules configured (future sprint)
+    - Log volume metrics per service
+    - Automatic old log cleanup working
+
+technical_architecture: planning/sprint-336-4b1f5a8-loki-observability/execution-plan.md
+execution_plan: planning/sprint-336-4b1f5a8-loki-observability/execution-plan.md
+backlog: planning/sprint-336-4b1f5a8-loki-observability/backlog.yaml
+
+epics:
+  - id: epic-1
+    name: Loki + Promtail Infrastructure Setup
+    status: not_started
+    stories: 4
+    completed: 0
+    estimated_hours: 8
+
+  - id: epic-2
+    name: LogRetriever Loki Client Integration
+    status: not_started
+    stories: 5
+    completed: 0
+    estimated_hours: 12
+
+  - id: epic-3
+    name: Fleet Trace Performance Optimization
+    status: not_started
+    stories: 3
+    completed: 0
+    estimated_hours: 4
+
+  - id: epic-4
+    name: Testing, Validation & Documentation
+    status: not_started
+    stories: 6
+    completed: 0
+    estimated_hours: 11
+
+milestones:
+  - name: Loki Infrastructure Deployed
+    target_date: 2026-07-11
+    status: pending
+    criteria:
+      - docker-compose.observability.yaml complete
+      - Loki starts and responds to /ready
+      - Promtail scrapes Docker logs
+      - JSON parsing pipeline extracts labels
+      - Validation script passes
+
+  - name: LogRetriever Integration Complete
+    target_date: 2026-07-12
+    status: pending
+    criteria:
+      - LokiClient implemented and tested
+      - LogRetriever detects and uses Loki
+      - Auto-fallback to Docker logs working
+      - Integration tests passing
+
+  - name: Fleet Trace Optimized
+    target_date: 2026-07-13
+    status: pending
+    criteria:
+      - fleet.trace uses single Loki query
+      - Trace queries complete in <100ms
+      - Benchmark shows 20-50x improvement
+      - E2E tests passing
+
+  - name: Documentation & Validation Complete
+    target_date: 2026-07-14
+    status: pending
+    criteria:
+      - Setup guide complete
+      - Troubleshooting guide complete
+      - README updated
+      - All validation scripts pass
+      - All tests passing
+
+  - name: Sprint Review & Close-out
+    target_date: 2026-07-15
+    status: pending
+    criteria:
+      - All must-have criteria met
+      - Demo to product owner
+      - Retro document created
+      - Branch ready for merge
+
+team:
+  lead_implementor: Claude (AI Assistant)
+  architect: Claude (AI Assistant)
+  product_owner: Christopher Navta
+
+risks:
+  - id: risk-1
+    name: Label Cardinality Explosion
+    description: Too many unique label values could degrade Loki performance
+    likelihood: low
+    impact: medium
+    mitigation: Limit to 4 labels only (correlationId, traceId, service, level)
+    status: monitoring
+
+  - id: risk-2
+    name: Promtail Missing Logs
+    description: Promtail might miss logs during high-volume periods
+    likelihood: low
+    impact: high
+    mitigation: Validation script checks coverage; fallback to Docker logs
+    status: monitoring
+
+  - id: risk-3
+    name: Disk Space Exhaustion
+    description: 7-day retention could fill disk in high-volume scenarios
+    likelihood: low
+    impact: medium
+    mitigation: Retention policy configurable; volume size monitoring
+    status: monitoring
+
+  - id: risk-4
+    name: Port Conflicts
+    description: Loki port 3100 might conflict with existing services
+    likelihood: low
+    impact: low
+    mitigation: Port configurable via environment variable
+    status: monitoring
+
+  - id: risk-5
+    name: Performance Degradation
+    description: Loki/Promtail might impact container performance
+    likelihood: low
+    impact: low
+    mitigation: Resource limits defined; performance benchmarking
+    status: monitoring
+
+dependencies:
+  external:
+    - Grafana Loki 2.9.0+ Docker image
+    - Grafana Promtail 2.9.0+ Docker image
+    - Docker Compose 2.0+
+
+  internal:
+    - JSON structured logging (already implemented)
+    - LogRetriever architecture (already implemented)
+    - Fleet client infrastructure (already implemented)
+    - Dev-mcp server (already implemented)
+
+performance_targets:
+  trace_query_time:
+    current: 2-5 seconds
+    target: <100 milliseconds
+    improvement: 20-50x faster
+
+  log_retention:
+    current: ~34 events (2000 lines ÷ 58 lines/event)
+    target: 7 days (configurable)
+    improvement: unlimited vs buffer-limited
+
+  trace_completeness:
+    current: ~60% (buffer overflow)
+    target: 100% (indexed persistence)
+    improvement: reliable distributed tracing
+
+  resource_footprint:
+    loki_memory: ~50MB
+    promtail_memory: ~20MB
+    total_overhead: ~70MB (acceptable)
+
+timeline:
+  day_1:
+    date: 2026-07-11
+    focus: Epic 1 - Infrastructure Setup
+    deliverables:
+      - Loki + Promtail configuration
+      - JSON parsing pipeline
+      - Local deployment validated
+
+  day_2:
+    date: 2026-07-12
+    focus: Epic 2 - LogRetriever Integration (Part 1)
+    deliverables:
+      - LokiClient implementation
+      - Loki availability detection
+      - Unit tests
+
+  day_3:
+    date: 2026-07-13
+    focus: Epic 2 + Epic 3 - Integration Complete
+    deliverables:
+      - Auto-fallback logic
+      - fleet.trace optimization
+      - Integration tests
+
+  day_4:
+    date: 2026-07-14
+    focus: Epic 4 - Testing & Documentation
+    deliverables:
+      - Validation scripts
+      - E2E tests
+      - Documentation
+
+  day_5:
+    date: 2026-07-15
+    focus: Final validation and close-out
+    deliverables:
+      - All tests passing
+      - Sprint review
+      - Retro and key learnings
+
+notes: |
+  Sprint 336 focuses on adding optional centralized logging infrastructure
+  to solve critical observability limitations in local/staging environments.
+
+  Key principles:
+  - Optional and additive (zero breaking changes)
+  - Graceful degradation (auto-fallback to Docker logs)
+  - Performance-focused (<100ms trace queries)
+  - Developer-friendly (docker compose up and it works)
+
+  This sprint delivers immediate value for local development and staging
+  while laying foundation for future production observability improvements.
+
+  Follow-up sprints may include:
+  - Grafana dashboard creation
+  - Alert rule configuration
+  - Production Loki deployment strategy
+  - OpenTelemetry integration
+  - Log-based metrics extraction

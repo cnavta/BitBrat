@@ -20,6 +20,7 @@ export interface DockerOrchestratorOptions {
   env?: string;
   service?: string;
   dryRun?: boolean;
+  loki?: boolean; // Enable Loki + Promtail observability stack
 }
 
 export class DockerOrchestrator {
@@ -46,10 +47,10 @@ export class DockerOrchestrator {
       .filter((s) => !s.active)
       .map((s) => s.name);
 
-    const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service, inactiveServices);
+    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, inactiveServices, this.options.loki);
 
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
       const isRemote = targetConfig.host?.startsWith('ssh://');
 
       await this.ensureRemoteSynced(targetConfig);
@@ -59,8 +60,8 @@ export class DockerOrchestrator {
       if (isRemote && !targetConfig.maxConcurrent) {
         maxConcurrent = 1; // Default to 1 for SSH if not specified, to avoid "only one connection allowed"
       }
-      
-      const services = serviceFiles.map(f => path.basename(f, '.compose.yaml'));
+
+      const services = composeFileSet.serviceFiles.map(f => path.basename(f, '.compose.yaml'));
 
       // Base-file services with their own `build:` (e.g. firebase-emulator) are NOT part of
       // the per-service compose set, so `docker compose build <service>` never builds them.
@@ -94,9 +95,9 @@ export class DockerOrchestrator {
   public async down(): Promise<void> {
     const { targetConfig, envName } = this.prepare();
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
-    const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
+    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
       await this.ensureRemoteSynced(targetConfig);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'down']);
     } finally {
@@ -107,9 +108,9 @@ export class DockerOrchestrator {
   public async logs(follow: boolean = false): Promise<void> {
     const { targetConfig, envName } = this.prepare();
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
-    const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
+    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
       await this.ensureRemoteSynced(targetConfig);
       const args = [...composeArgs, 'logs'];
       if (follow) args.push('-f');
@@ -123,9 +124,9 @@ export class DockerOrchestrator {
   public async ps(): Promise<void> {
     const { targetConfig, envName } = this.prepare();
     const tempEnvPath = this.writeEnvFile(envName, targetConfig);
-    const { baseFile, serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
+    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs({ baseFile, serviceFiles }, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
       await this.ensureRemoteSynced(targetConfig);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'ps']);
     } finally {
@@ -135,8 +136,8 @@ export class DockerOrchestrator {
 
   private writeEnvFile(envName: string, targetConfig: any): string {
     const env = this.envResolver.resolve(envName);
-    const { serviceFiles } = this.composeFactory.getComposeFiles(this.options.service);
-    const assignments = this.portManager.resolvePorts(serviceFiles, env);
+    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
+    const assignments = this.portManager.resolvePorts(composeFileSet.serviceFiles, env);
     const portOverrides = this.portManager.getEnvOverrides(assignments);
     const mergedEnv: Record<string, string | number | boolean> = { 
       ...env, 

@@ -1,0 +1,171 @@
+sprint:
+  id: sprint-335-23602df-agent-centric-logging
+  number: 335
+  name: Agent-Centric Logging Implementation
+  status: active
+  start_date: 2026-07-10
+  target_end_date: 2026-07-22
+  branch: feature/sprint-335-23602df-agent-centric-logging
+
+goal: |
+  Implement AsyncLocalStorage-based automatic correlationId propagation to solve the 60% missing
+  correlationId problem and enable reliable fleet observability. Deliver 100% correlationId coverage
+  with zero developer burden.
+
+scope:
+  in_scope:
+    - Event context infrastructure (AsyncLocalStorage)
+    - Enhanced Logger with automatic context injection
+    - BaseServer message handler integration
+    - HTTP middleware for API routes
+    - Unit and integration tests
+    - Staged deployment to staging → production
+    - Documentation updates
+
+  out_of_scope:
+    - Removing all manual correlationId passing (cleanup sprint)
+    - Stage-level policy logging (depends on policy engine)
+    - Enhanced context fields beyond correlationId/traceId/sessionId
+    - Learning and introspection integration
+
+deliverables:
+  - src/common/event-context.ts
+  - Enhanced src/common/logging.ts
+  - Updated src/common/base-server.ts (message and HTTP handlers)
+  - Comprehensive unit tests (>95% coverage)
+  - Integration tests (>90% coverage)
+  - End-to-end fleet trace validation test
+  - Staging validation script
+  - Documentation updates
+  - Production deployment
+
+success_criteria:
+  must_have:
+    - 100% of logs include correlationId when event context is available
+    - fleet.trace returns complete timelines for test events
+    - No performance degradation (AsyncLocalStorage overhead < 1%)
+    - All existing tests pass
+    - Backward compatible with existing services
+
+  nice_to_have:
+    - sessionId and userId in logs where available
+    - Stage annotations in routing slip logs
+    - HTTP request correlation works end-to-end
+
+technical_architecture: documentation/technical-architecture/agent-centric-logging-v1.md
+execution_plan: planning/agent-centric-logging-execution-plan.md
+backlog: planning/agent-centric-logging-backlog.yaml
+
+epics:
+  - id: epic-1
+    name: Foundation Infrastructure
+    status: in_progress
+    stories: 5
+    completed: 0
+
+  - id: epic-2
+    name: Message Handler Integration
+    status: not_started
+    stories: 4
+    completed: 0
+
+  - id: epic-3
+    name: HTTP Request Integration
+    status: not_started
+    stories: 3
+    completed: 0
+
+  - id: epic-4
+    name: Validation & Testing
+    status: not_started
+    stories: 3
+    completed: 0
+
+  - id: epic-5
+    name: Documentation & Rollout
+    status: not_started
+    stories: 3
+    completed: 0
+
+  - id: epic-6
+    name: Service Cleanup (Optional)
+    status: not_started
+    stories: 2
+    completed: 0
+
+milestones:
+  - name: Foundation Complete
+    target_date: 2026-07-12
+    status: pending
+    criteria:
+      - All Epic 1 stories done
+      - Unit tests passing
+      - No breaking changes
+
+  - name: Core Integration Complete
+    target_date: 2026-07-15
+    status: pending
+    criteria:
+      - Epic 1 and Epic 2 done
+      - Message handlers auto-inject context
+      - Integration tests passing
+
+  - name: HTTP Integration Complete
+    target_date: 2026-07-16
+    status: pending
+    criteria:
+      - Epic 3 done
+      - HTTP requests auto-inject context
+      - End-to-end tests passing
+
+  - name: Staging Validated
+    target_date: 2026-07-19
+    status: pending
+    criteria:
+      - Deployed to staging
+      - Validation script passing
+      - >95% correlationId coverage
+
+  - name: Production Deployed
+    target_date: 2026-07-22
+    status: pending
+    criteria:
+      - Deployed to production
+      - 24-hour monitoring clean
+      - Zero incidents
+      - fleet.trace working
+
+team:
+  lead_implementor: Claude (AI Assistant)
+  architect: Claude (AI Assistant)
+  product_owner: Christopher Navta
+
+risks:
+  - id: risk-1
+    name: Context Propagation Bugs
+    likelihood: medium
+    impact: high
+    status: monitoring
+
+  - id: risk-2
+    name: Performance Degradation
+    likelihood: low
+    impact: medium
+    status: monitoring
+
+  - id: risk-3
+    name: OpenTelemetry Interaction
+    likelihood: medium
+    impact: medium
+    status: monitoring
+
+  - id: risk-4
+    name: Memory Leaks
+    likelihood: low
+    impact: high
+    status: monitoring
+
+notes: |
+  Sprint started 2026-07-10. Following AGENTS.md sprint protocol.
+  Using incremental, backward-compatible implementation with continuous validation.
+  Critical path: Foundation → Message Handlers → HTTP → Validation → Rollout
