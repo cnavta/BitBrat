@@ -19,10 +19,12 @@ import * as fs from 'fs';
 export class TargetConnectionManager {
   private connections: Map<string, TargetConnection> = new Map();
   private defaultTarget?: string;
+  private defaultAuthToken?: string;
   private logger: Logger;
 
-  constructor(defaultTarget: string | undefined, logger: Logger) {
+  constructor(defaultTarget: string | undefined, defaultAuthToken: string | undefined, logger: Logger) {
     this.defaultTarget = defaultTarget;
+    this.defaultAuthToken = defaultAuthToken;
     this.logger = logger;
   }
 
@@ -115,9 +117,9 @@ export class TargetConnectionManager {
             if (deploymentTarget.gateway?.url) {
               gateway = {
                 url: deploymentTarget.gateway.url,
-                authToken: deploymentTarget.gateway.authToken
+                authToken: deploymentTarget.gateway.authToken || this.defaultAuthToken
               };
-              this.logger.debug({ target: targetName, gatewayUrl: gateway.url }, 'Resolved gateway URL from architecture.yaml');
+              this.logger.debug({ target: targetName, gatewayUrl: gateway.url, hasToken: !!gateway.authToken }, 'Resolved gateway URL from architecture.yaml');
             }
 
             // Extract SSH details for remote targets
@@ -134,6 +136,15 @@ export class TargetConnectionManager {
           this.logger.warn({ target: targetName, error: error.message }, 'Failed to load gateway/SSH config from architecture.yaml');
           // Continue without gateway/SSH details - not fatal
         }
+      }
+
+      // For local connections without explicit gateway config, use default local gateway
+      if (!gateway && type === 'local' && this.defaultAuthToken) {
+        gateway = {
+          url: 'http://tool-gateway.bitbrat.local:3000',
+          authToken: this.defaultAuthToken
+        };
+        this.logger.debug({ gatewayUrl: gateway.url }, 'Using default local gateway URL');
       }
 
       // Build TargetConnection

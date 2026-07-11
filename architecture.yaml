@@ -4,7 +4,7 @@ description: >-
   Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.10.0
+  version: 0.10.1
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
@@ -1009,6 +1009,7 @@ deploymentTargets:
     remoteDir: /opt/BitBratPlatform
     gateway:
       url: http://bitbrat.lan:3017
+      authToken: ${MCP_AUTH_TOKEN}
 networking:
   cloud_nat:
     enabled: false

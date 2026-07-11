@@ -22,6 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.10.1] - 2026-07-11
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.10.0] - 2026-07-10
 ### Added
 - **Fleet observability tools for Dev MCP Server** (sprint-334). Added `fleet.logs` and `fleet.trace` tools providing comprehensive log access and distributed tracing across all deployment targets:
