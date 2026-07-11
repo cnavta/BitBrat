@@ -430,21 +430,27 @@ AGENTS.md §0, and the runtime value every Bit reports via `bit.info` / `brat fl
 and `package-lock.json` mirror it. Use the release tool to bump all three at once and roll the CHANGELOG —
 never hand-edit the version in multiple files.
 
-- `brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--yes]`: Cut a version. Computes the next
-  SemVer (the bump type is always explicit — never guessed; pre-1.0 SemVer), writes `architecture.yaml`
-  (only `project.version`, re-validated — Law #2) + `package.json`, syncs `package-lock.json`, asserts all
-  three agree, and rolls `CHANGELOG.md` `## [Unreleased]` into a dated `## [<version>]` block with a fresh
-  empty `## [Unreleased]`. `--tag` creates a local `git tag v<version>` (never pushes); `--dry-run` writes
-  nothing.
+- `brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--github-release] [--yes]`: Cut a version.
+  Computes the next SemVer (the bump type is always explicit — never guessed; pre-1.0 SemVer), writes
+  `architecture.yaml` (only `project.version`, re-validated — Law #2) + `package.json`, syncs
+  `package-lock.json`, asserts all three agree, and rolls `CHANGELOG.md` `## [Unreleased]` into a dated
+  `## [<version>]` block with a fresh empty `## [Unreleased]`. `--tag` creates a local `git tag v<version>`
+  (never pushes); `--github-release` creates a GitHub Release via `gh` CLI (requires `--tag`; auto-extracts
+  release notes from CHANGELOG.md); `--dry-run` writes nothing.
 - `npm run release -- <bump>` / `npm run release:dry -- <bump>`: npm aliases (note the `--`). The dry-run is
   idempotent and CI-safe — it is wired into `validate_deliverable.sh` so every sprint proves a bump is
   mechanically possible before close.
 
 ```bash
-npm run release:dry -- patch     # preview 0.7.0 -> 0.7.1, writes nothing
-npm run release -- patch         # bump everywhere + roll the CHANGELOG
-brat release 1.0.0 --tag         # explicit version + local git tag (no push)
+npm run release:dry -- patch                       # preview 0.7.0 -> 0.7.1, writes nothing
+npm run release -- patch                           # bump everywhere + roll the CHANGELOG
+brat release 1.0.0 --tag                           # explicit version + local git tag (no push)
+brat release patch --tag --github-release          # bump + tag + create GitHub Release
 ```
+
+**GitHub Release:** The `--github-release` flag automates GitHub Release creation. Requires the GitHub CLI
+(`gh`) installed and authenticated. Release notes are automatically extracted from the new version's section
+in CHANGELOG.md. GitHub release creation is non-fatal: if it fails, the version bump still succeeds.
 
 ## Event Messaging & Flow
 
