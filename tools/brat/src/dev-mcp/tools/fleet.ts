@@ -576,32 +576,49 @@ async function fleetTraceHandler(
     // Create LogRetriever
     const logRetriever = new LogRetriever(connection);
 
-    // Query logs from each Bit with correlation ID filter
-    const concurrency = 5;
-    const allLogs: LogEntry[] = [];
+    // Try Loki first for optimized single-query trace
+    let allLogs: LogEntry[] = [];
+    let queryTimeMs = 0;
+    let usedLoki = false;
 
-    for (let i = 0; i < bits.length; i += concurrency) {
-      const batch = bits.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map(async (bit) => {
-          try {
-            const response = await logRetriever.getLogs({
-              bit: bit.name,
-              correlationId: parsed.correlationId,
-              limit: 1000  // Higher limit for traces
-            });
-            return response.logs || [];
-          } catch (error: any) {
-            // Silently ignore errors - some Bits may not have logs
-            return [];
-          }
-        })
+    try {
+      const startTime = Date.now();
+      allLogs = await logRetriever.getTraceLogsByCorrelationId(
+        parsed.correlationId,
+        5000  // Higher limit for Loki (handles large result sets efficiently)
       );
+      queryTimeMs = Date.now() - startTime;
+      usedLoki = true;
+    } catch (error: any) {
+      // Loki not available or failed - fall back to per-Bit queries
+      const startTime = Date.now();
+      const concurrency = 5;
 
-      // Flatten and collect logs
-      for (const logs of batchResults) {
-        allLogs.push(...logs);
+      for (let i = 0; i < bits.length; i += concurrency) {
+        const batch = bits.slice(i, i + concurrency);
+        const batchResults = await Promise.all(
+          batch.map(async (bit) => {
+            try {
+              const response = await logRetriever.getLogs({
+                bit: bit.name,
+                correlationId: parsed.correlationId,
+                limit: 1000  // Conservative limit for Docker logs
+              });
+              return response.logs || [];
+            } catch (error: any) {
+              // Silently ignore errors - some Bits may not have logs
+              return [];
+            }
+          })
+        );
+
+        // Flatten and collect logs
+        for (const logs of batchResults) {
+          allLogs.push(...logs);
+        }
       }
+
+      queryTimeMs = Date.now() - startTime;
     }
 
     // Clean up
@@ -630,7 +647,8 @@ async function fleetTraceHandler(
     if (parsed.format === 'json') {
       formattedOutput = formatTraceJson(timeline);
     } else {
-      formattedOutput = formatTimeline(timeline);
+      const backend = usedLoki ? 'Loki' : 'Docker logs';
+      formattedOutput = formatTimeline(timeline, queryTimeMs, backend);
     }
 
     return {

@@ -27,7 +27,7 @@ epics:
     name: Fleet Trace Performance Optimization
     description: Optimize fleet.trace to leverage Loki's indexed queries
     priority: high
-    status: not_started
+    status: completed
     estimated_hours: 4
     dependencies: [epic-2]
 
@@ -300,7 +300,7 @@ stories:
       Update fleet.trace to leverage Loki's ability to query across all
       services in a single query, eliminating per-Bit sequential queries.
     priority: high
-    status: not_started
+    status: completed
     estimated_hours: 2
     acceptance_criteria:
       - fleet.trace detects if Loki is available
@@ -328,7 +328,7 @@ stories:
       Remove or increase the hardcoded limit: 1000 in fleet.trace when
       using Loki, since Loki handles large result sets efficiently.
     priority: medium
-    status: not_started
+    status: completed
     estimated_hours: 1
     acceptance_criteria:
       - fleet.trace uses higher limit for Loki (5000 or no limit)
@@ -351,7 +351,7 @@ stories:
       Create benchmarking script to measure and compare trace query
       performance between Docker logs and Loki.
     priority: low
-    status: not_started
+    status: completed
     estimated_hours: 1
     acceptance_criteria:
       - Benchmark script in planning/sprint-336-*/benchmark-trace.sh
