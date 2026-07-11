@@ -1,454 +1,248 @@
-# Implementation Plan: GitHub Release Integration for `brat release`
+# Implementation Plan: Automated GitHub Releases via CI/CD
 
-**Sprint ID:** sprint-337-abb8c02
-**Objective:** Add optional GitHub Release creation to the `brat release` command
-**Estimated Complexity:** Medium
-**Target Completion:** Single sprint cycle
+**Sprint ID**: sprint-337-abb8c02
+**Lead Implementor**: Claude Code
+**Date**: 2026-07-11
 
----
+## Problem Statement
 
-## Executive Summary
+The current `brat release` command was designed with a `--github-release` flag approach that has a fundamental flaw: GitHub Releases require the tag and code to already be pushed and merged to the repository before the release can be created. The local release workflow creates tags locally but doesn't push them, making it impossible to create a GitHub Release during the release command execution.
 
-This sprint extends the existing `brat release` command to optionally create GitHub Releases after version bumping. The current command handles version bumping across `architecture.yaml`, `package.json`, `package-lock.json`, and CHANGELOG rollover, with optional local git tagging. We will add a `--github-release` flag that uses the GitHub CLI (`gh`) to create a release with auto-extracted notes from CHANGELOG.md.
+## Proposed Solution
 
----
+Implement an automated GitHub Actions workflow that:
+1. Triggers on PR merge to `main` branch
+2. Detects if the version number has been bumped (by comparing `architecture.yaml` `project.version`)
+3. Automatically creates a GitHub Release with:
+   - Tag based on the new version (e.g., `v0.11.0`)
+   - Release notes extracted from `CHANGELOG.md` for that version
+   - Proper semantic versioning metadata
 
-## Background Context
+This approach aligns with industry-standard release automation patterns and ensures releases happen AFTER code is safely merged.
 
-### Current State Analysis
+## Architecture
 
-**Existing `brat release` Flow:**
-1. Parse version bump argument (patch/minor/major or explicit x.y.z)
-2. Update `architecture.yaml project.version` (single source of truth)
-3. Sync `package.json` and `package-lock.json`
-4. Rollover CHANGELOG.md: `## [Unreleased]` → `## [<version>] - <date>`
-5. Optional: Create local git tag `v<version>` with `--tag` flag
-6. **Never** pushes to remote (user's responsibility)
+### Components
 
-**Key Files:**
-- `tools/brat/src/cli/release.ts` - CLI handler
-- `tools/brat/src/release/release.ts` - Orchestration logic
-- `tools/brat/src/release/changelog.ts` - CHANGELOG transformation
-- `tools/brat/src/release/semver.ts` - Version parsing/bumping
-- `tools/brat/src/release/version-files.ts` - File I/O operations
+1. **GitHub Actions Workflow** (`.github/workflows/auto-release.yml`)
+   - Trigger: `push` event on `main` branch
+   - Condition: Version in `architecture.yaml` has changed
+   - Actions: Create git tag, generate release notes, create GitHub Release
+   - Secrets: `OPENAI_API_KEY` for LLM-enhanced release notes
 
-**Design Principles to Preserve:**
-- ✅ Single source of truth: `architecture.yaml`
-- ✅ Law #2 compliance: only touch `project.version` in architecture.yaml
-- ✅ Idempotent operations
-- ✅ Dry-run support
-- ✅ Fail-closed error handling
-- ✅ Local-first: don't push unless explicitly requested
+2. **Version Detection Script** (`scripts/detect-version-change.sh`)
+   - Compare current `architecture.yaml` version with previous commit
+   - Exit with appropriate code to signal version change
 
-### What We're Adding
+3. **Release Notes Generator** (`scripts/generate-release-notes.sh`)
+   - **Primary**: Parse `CHANGELOG.md` to extract section for specific version
+   - **Fallback**: If CHANGELOG missing/sparse, use LLM to generate notes from git log
+   - **Enhancement**: Use LLM (GPT-4o-mini) to create polished "Highlights" section
+   - Intelligent summarization and categorization (features, fixes, breaking changes)
 
-A new optional flag `--github-release` that:
-1. Requires `--tag` to be set (GitHub releases need tags)
-2. Extracts release notes from CHANGELOG.md for the new version
-3. Uses `gh release create` to publish the release
-4. Respects `--dry-run` (shows what would be created but doesn't call GitHub)
-5. Provides clear feedback on success/failure
-6. Gracefully handles cases where `gh` CLI is not installed
+4. **LLM Integration** (Node.js script: `scripts/llm-release-notes.js`)
+   - Call OpenAI API (GPT-4o-mini for speed/cost efficiency)
+   - Parse git commits since last version tag
+   - Generate structured release notes with categorization
+   - Format output in GitHub-flavored markdown
+   - Fallback to basic extraction if API fails
 
----
+5. **Documentation Updates**
+   - Remove `--github-release` references from CLAUDE.md
+   - Update README.md to reflect CI/CD-based release process
+   - Add new workflow documentation with LLM features
 
-## Technical Design
+### Workflow Diagram
 
-### 1. New CLI Flag
-
-**Flag Specification:**
 ```
---github-release    Create a GitHub Release after version bump
-                    Requires: --tag flag must also be set
-                    Requires: gh CLI installed and authenticated
-```
-
-**Validation Rules:**
-- If `--github-release` is set without `--tag`, error: "GitHub releases require git tags. Use --tag with --github-release"
-- If `gh` CLI not found, error: "GitHub CLI (gh) not found. Install from https://cli.github.com"
-- If not authenticated, `gh` will prompt for auth (standard behavior)
-
-### 2. Release Notes Extraction
-
-**Source:** CHANGELOG.md (Keep-a-Changelog format)
-
-**Algorithm:**
-1. Read CHANGELOG.md
-2. Find section: `## [<version>] - <date>`
-3. Extract all content until next `## [` header or EOF
-4. Strip leading/trailing whitespace
-5. If section empty, use default: "Release <version>"
-
-**Edge Cases:**
-- CHANGELOG.md missing → use default notes
-- Version section not found → use default notes
-- Empty version section → use default notes
-
-**Implementation Location:**
-- New function in `tools/brat/src/release/changelog.ts`:
-  ```typescript
-  export function extractReleaseNotes(
-    content: string,
-    version: string
-  ): string
-  ```
-
-### 3. GitHub Release Creation
-
-**GitHub CLI Command:**
-```bash
-gh release create v<version> \
-  --title "v<version>" \
-  --notes "<extracted-notes>" \
-  [--draft]  # Optional: if --draft flag added
+PR Merged → main
+    ↓
+GitHub Actions Triggered
+    ↓
+Check: Version Changed?
+    ↓ (yes)
+Extract Version from architecture.yaml
+    ↓
+Get git log since last version
+    ↓
+Generate Release Notes:
+  ├─ Extract from CHANGELOG.md (if present)
+  ├─ Parse git commits
+  ├─ LLM Enhancement (GPT-4o-mini):
+  │   ├─ Summarize changes
+  │   ├─ Categorize (features/fixes/breaking)
+  │   ├─ Generate highlights
+  │   └─ Fallback if CHANGELOG missing
+  └─ Format as GitHub markdown
+    ↓
+Create Git Tag (v${VERSION})
+    ↓
+Create GitHub Release with LLM-enhanced notes
+    ↓
+Done ✓
 ```
 
-**Implementation Location:**
-- New function in `tools/brat/src/release/release.ts`:
-  ```typescript
-  async function createGitHubRelease(
-    version: string,
-    notes: string,
-    dryRun: boolean
-  ): Promise<boolean>
-  ```
+## Implementation Phases
 
-**Process:**
-1. Check if `gh` is available (using `which gh` or similar)
-2. If dry-run: log what would be created, return true
-3. Execute `gh release create v<version> --title "v<version>" --notes "<notes>"`
-4. Capture stdout/stderr
-5. Return true on success (exit code 0), false otherwise
+### Phase 1: Core Workflow (Priority: Critical)
+- Create GitHub Actions workflow file
+- Implement version detection logic
+- Implement basic changelog extraction logic
+- Basic smoke test
 
-### 4. Orchestration Flow Update
+### Phase 2: LLM Integration (Priority: Critical)
+- Create Node.js script for LLM-enhanced release notes
+- Implement OpenAI API integration (GPT-4o-mini)
+- Parse git log and commit messages
+- Generate categorized release notes (features/fixes/breaking)
+- Implement fallback for CHANGELOG missing scenarios
+- Configure OPENAI_API_KEY secret in workflow
 
-**Modified `runRelease()` in `release.ts`:**
+### Phase 3: Release Creation (Priority: Critical)
+- Integrate LLM release notes generator with workflow
+- Configure GitHub Release creation
+- Handle edge cases (no CHANGELOG entry, duplicate versions)
+- Implement graceful degradation if LLM fails
 
-```typescript
-export async function runRelease(
-  bumpArg: string,
-  options: {
-    dryRun?: boolean;
-    tag?: boolean;
-    githubRelease?: boolean;
-    yes?: boolean;
-  }
-): Promise<void> {
-  // [Existing validation]
+### Phase 4: Documentation & Cleanup (Priority: High)
+- Update CLAUDE.md
+- Update README.md
+- Remove any `--github-release` flag code or documentation
+- Add workflow usage guide with LLM features
+- Document OPENAI_API_KEY secret setup
 
-  if (options.githubRelease && !options.tag) {
-    throw new ConfigurationError(
-      'GitHub releases require git tags. Use --tag with --github-release'
-    );
-  }
+### Phase 5: Testing & Validation (Priority: Critical)
+- Test workflow with dummy version bump
+- Validate CHANGELOG parsing
+- Test LLM integration with mock commits
+- Verify release notes formatting and categorization
+- Test fallback scenarios (LLM failure, missing CHANGELOG)
+- Dry-run validation script
 
-  // [Existing version bump logic]
+## Alternative Approaches Considered
 
-  // [Existing CHANGELOG rollover]
+1. **Manual GitHub CLI in `brat release`**
+   - Rejected: Still requires push before release creation
+   - Adds complexity to local workflow
+   - Breaks if user doesn't have gh CLI configured
 
-  // [Existing git tag creation]
+2. **Post-merge hook via git hooks**
+   - Rejected: Not portable across team members
+   - Harder to maintain and debug
+   - Less visible than CI/CD
 
-  // NEW: GitHub Release creation
-  if (options.githubRelease) {
-    const changelogContent = await fs.readFile('CHANGELOG.md', 'utf-8');
-    const releaseNotes = extractReleaseNotes(changelogContent, newVersion);
-
-    const success = await createGitHubRelease(
-      newVersion,
-      releaseNotes,
-      options.dryRun
-    );
-
-    if (!success && !options.dryRun) {
-      logger.error('Failed to create GitHub release');
-      // Non-fatal: version bump already succeeded
-    }
-  }
-}
-```
-
-### 5. CLI Wiring
-
-**Update `tools/brat/src/cli/release.ts`:**
-
-```typescript
-const githubRelease = argv.includes('--github-release');
-
-await runRelease(bumpArg, {
-  dryRun,
-  tag,
-  githubRelease,
-  yes
-});
-```
-
----
-
-## Implementation Tasks
-
-### Phase 1: Release Notes Extraction (Foundational)
-1. Add `extractReleaseNotes()` function to `changelog.ts`
-2. Write unit tests for various CHANGELOG formats
-3. Handle edge cases (missing file, empty section, malformed headers)
-
-### Phase 2: GitHub CLI Integration
-4. Add `checkGhInstalled()` utility function
-5. Add `createGitHubRelease()` function to `release.ts`
-6. Implement dry-run support
-7. Add error handling for `gh` failures
-
-### Phase 3: CLI Integration
-8. Add `--github-release` flag to CLI argument parser
-9. Add validation logic (requires `--tag`)
-10. Update orchestration flow in `runRelease()`
-11. Add logging/user feedback
-
-### Phase 4: Testing
-12. Add unit tests for `extractReleaseNotes()`
-13. Add integration test for full flow (mocked `gh` calls)
-14. Add error case tests (no gh, not authenticated, etc.)
-15. Manual smoke test with real GitHub repo
-
-### Phase 5: Documentation
-16. Update `CLAUDE.md` with new flag documentation
-17. Update `README.md` release section
-18. Add inline code comments for new functions
-
----
-
-## Testing Strategy
-
-### Unit Tests
-
-**New test file:** `tools/brat/src/release/__tests__/changelog-extraction.spec.ts`
-
-Test cases:
-- ✅ Extract notes from well-formed CHANGELOG
-- ✅ Handle missing CHANGELOG.md
-- ✅ Handle missing version section
-- ✅ Handle empty version section
-- ✅ Handle multiple versions (extract correct one)
-- ✅ Strip leading/trailing whitespace
-- ✅ Preserve markdown formatting in notes
-
-**Update:** `tools/brat/src/release/__tests__/release.spec.ts`
-
-Test cases:
-- ✅ `--github-release` without `--tag` throws error
-- ✅ Dry-run logs GitHub release creation without calling `gh`
-- ✅ Successful `gh` call returns true
-- ✅ Failed `gh` call returns false and logs error
-- ✅ Missing `gh` CLI throws error
-
-### Integration Tests
-
-**Approach:** Mock `child_process.exec` for `gh` commands
-
-Test cases:
-- ✅ Full flow: bump → tag → GitHub release
-- ✅ Dry-run: no actual `gh` call made
-- ✅ gh CLI not found: graceful error
-- ✅ gh CLI fails: non-fatal error (version bump still succeeded)
-
-### Manual Testing
-
-**Checklist:**
-- [ ] Run on test repo: `npm run brat -- release patch --tag --github-release`
-- [ ] Verify GitHub Release created with correct title and notes
-- [ ] Test dry-run: no release created
-- [ ] Test without `gh` installed: clear error message
-- [ ] Test with unauthenticated `gh`: proper auth flow
-
----
-
-## Error Handling
-
-### Failure Modes and Mitigations
-
-| Failure Mode | Detection | Mitigation |
-|--------------|-----------|------------|
-| `gh` CLI not installed | `which gh` returns non-zero | Throw `ConfigurationError` with install instructions |
-| `gh` not authenticated | `gh release create` fails | Let `gh` handle auth prompt (standard behavior) |
-| `gh release create` fails | Exit code non-zero | Log error, return false (non-fatal) |
-| CHANGELOG.md missing | File read fails | Use default notes: "Release \<version\>" |
-| Version section not found | Regex match fails | Use default notes |
-| Network failure during release | `gh` returns error | Log error with helpful message |
-
-**Key Principle:** GitHub release creation is **non-fatal**. If version bump and CHANGELOG rollover succeed but GitHub release fails, the operation is still considered successful with a warning.
-
----
-
-## Rollback Strategy
-
-If issues arise during sprint:
-
-1. **Code-level:** Feature is behind a flag (`--github-release`), can be disabled by not using flag
-2. **Git-level:** Feature branch can be abandoned without affecting main
-3. **Partial delivery:** If only extraction works, can merge that; GitHub creation can be follow-up sprint
-
-**No breaking changes:** Existing `brat release` behavior is 100% preserved.
-
----
+3. **Separate manual release command**
+   - Rejected: Adds manual step prone to forgetting
+   - GitHub Actions automation is more reliable
 
 ## Success Criteria
 
-### Functional Requirements
-- ✅ `--github-release` flag available in CLI
-- ✅ Flag requires `--tag` to be set
-- ✅ Release notes extracted from CHANGELOG.md
-- ✅ `gh release create` called with correct arguments
-- ✅ Dry-run support works correctly
-- ✅ Clear error messages for common failures
+1. When a PR is merged to `main` with a version bump:
+   - GitHub Release is automatically created
+   - Release has correct version tag (e.g., `v0.11.0`)
+   - Release notes are LLM-enhanced with:
+     - "Highlights" section (AI-generated summary)
+     - Categorized changes (Features, Fixes, Breaking Changes)
+     - Clean markdown formatting
+   - Falls back to CHANGELOG extraction if LLM fails
+   - No manual intervention required
 
-### Non-Functional Requirements
-- ✅ No breaking changes to existing command behavior
-- ✅ Follows existing code patterns and architecture
-- ✅ Test coverage ≥ 80% for new code
-- ✅ Documentation updated in CLAUDE.md and README.md
-- ✅ Idempotent: re-running same release is safe
+2. When a PR is merged without version bump:
+   - No release is created
+   - Workflow completes successfully (no false failures)
 
-### Acceptance Tests
-1. Run: `npm run brat -- release patch --tag --github-release`
-   - Version bumped in all 3 files ✓
-   - CHANGELOG rolled over ✓
-   - Git tag created ✓
-   - GitHub release created ✓
-   - Release notes match CHANGELOG section ✓
+3. LLM Integration:
+   - Uses GPT-4o-mini for fast, cost-effective generation
+   - Handles API failures gracefully (degrades to basic extraction)
+   - Parses git commits intelligently
+   - Produces consistent, professional release notes
+   - OPENAI_API_KEY secret configured in GitHub
 
-2. Run: `npm run brat -- release minor --tag --github-release --dry-run`
-   - No files changed ✓
-   - No git tag created ✓
-   - No GitHub release created ✓
-   - Console shows what would happen ✓
+4. Documentation is clear and accurate:
+   - No references to `--github-release` flag
+   - Clear explanation of automated release process
+   - Documents LLM enhancement feature
+   - Explains secret configuration
+   - Developer workflow is intuitive
 
-3. Run: `npm run brat -- release major --github-release` (no --tag)
-   - Error thrown ✓
-   - Message mentions `--tag` requirement ✓
+5. Validation:
+   - `validate_deliverable.sh` includes workflow validation
+   - Workflow syntax is valid
+   - Scripts are tested and working
+   - LLM integration tested with mocked responses
 
----
+## Dependencies
 
-## Dependencies and Prerequisites
+- GitHub Actions runner (ubuntu-latest)
+- Node.js 24+ (for LLM script execution)
+- GitHub CLI (`gh`) for release creation
+- OpenAI API access (GPT-4o-mini model)
+- `OPENAI_API_KEY` GitHub secret
+- Bash for helper scripts
+- git for version comparison and log parsing
 
-### External Dependencies
-- **GitHub CLI (`gh`)**: Required for GitHub release creation
-  - Installation: https://cli.github.com
-  - Version: Any recent version (≥2.0.0)
-  - Authentication: `gh auth login` (one-time setup)
+## Risks & Mitigations
 
-### Internal Dependencies
-- No new npm packages required
-- Uses existing:
-  - `child_process` (Node.js built-in)
-  - `fs/promises` (existing)
-  - Existing `tools/brat` infrastructure
-
-### Environment Requirements
-- Git repository with remote configured
-- GitHub repository accessible by authenticated `gh` CLI
-- Write permissions to create releases
-
----
-
-## Risk Assessment
-
-### Low Risk
-- ✅ Feature is optional (behind flag)
-- ✅ No changes to existing core logic
-- ✅ Follows established patterns in codebase
-
-### Medium Risk
-- ⚠️ Dependency on external `gh` CLI tool
-  - Mitigation: Clear error messages, graceful degradation
-- ⚠️ Network dependency for GitHub API
-  - Mitigation: Non-fatal failure mode
-
-### Mitigation Strategies
-1. Make GitHub release creation **non-fatal** (log error, don't throw)
-2. Comprehensive dry-run testing before live use
-3. Validate `gh` installation before attempting release
-4. Detailed error messages with actionable instructions
-
----
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Workflow fails silently | High | Add explicit error handling and notifications |
+| CHANGELOG format changes | Medium | Robust parsing with fallback to generic message |
+| Duplicate releases | Low | Check if tag exists before creating |
+| Permissions issues | Medium | Use `GITHUB_TOKEN` with appropriate permissions |
 
 ## Timeline Estimate
 
-| Phase | Tasks | Estimated Time |
-|-------|-------|----------------|
-| Phase 1: Release Notes Extraction | Tasks 1-3 | 1-2 hours |
-| Phase 2: GitHub CLI Integration | Tasks 4-7 | 2-3 hours |
-| Phase 3: CLI Integration | Tasks 8-11 | 1-2 hours |
-| Phase 4: Testing | Tasks 12-15 | 2-3 hours |
-| Phase 5: Documentation | Tasks 16-18 | 1 hour |
-| **Total** | **18 tasks** | **7-11 hours** |
-
-**Buffer:** +20% for unexpected issues = **8.4-13.2 hours**
-
-**Expected Completion:** Single sprint (1-2 days with interruptions)
-
----
+- Phase 1: Core Workflow - 45 minutes
+- Phase 2: LLM Integration - 60 minutes
+- Phase 3: Release Creation - 45 minutes
+- Phase 4: Documentation - 30 minutes
+- Phase 5: Testing & Validation - 60 minutes
+- **Total**: ~4 hours
 
 ## Open Questions
 
-1. **Release draft option:** Should we add `--draft` flag for draft releases?
-   - **Decision:** Defer to future sprint if needed
+1. Should the workflow create a draft release for manual review, or publish immediately?
+   - **Recommendation**: Publish immediately (trust the merge to main)
 
-2. **Release assets:** Should we support attaching build artifacts?
-   - **Decision:** No, out of scope for this sprint
+2. Should we support creating releases for hotfix branches?
+   - **Recommendation**: No, only `main` for now (can extend later)
 
-3. **Pre-release flag:** Support for beta/rc versions?
-   - **Decision:** No, current SemVer only supports stable versions
+3. Should the git tag be annotated or lightweight?
+   - **Recommendation**: Annotated tags with LLM-generated release notes
 
-4. **Multiple CHANGELOG formats:** Support other formats beyond Keep-a-Changelog?
-   - **Decision:** No, Keep-a-Changelog is project standard
+4. What happens if CHANGELOG.md has no entry for the version?
+   - **Recommendation**: Use LLM to generate release notes from git commits (intelligent fallback)
 
----
+5. Which LLM model should we use?
+   - **Recommendation**: GPT-4o-mini (fast, cost-effective, good quality for summaries)
+   - Fallback: Could use gpt-3.5-turbo if 4o-mini unavailable
 
-## Appendix: Code Patterns Reference
+6. What structure should LLM-generated notes follow?
+   - **Recommendation**:
+     ```markdown
+     ## Highlights
+     [AI-generated 2-3 sentence summary]
 
-### Existing Error Handling Pattern
-```typescript
-if (!isValidCondition) {
-  throw new ConfigurationError('Clear message with actionable guidance');
-}
-```
+     ## What's New
+     ### Features
+     - [Feature 1]
+     - [Feature 2]
 
-### Existing Subprocess Pattern
-```typescript
-import { exec } from 'child_process';
-import { promisify } from 'util';
+     ### Fixes
+     - [Fix 1]
+     - [Fix 2]
 
-const execAsync = promisify(exec);
+     ### Breaking Changes
+     - [Breaking change if any]
+     ```
 
-try {
-  const { stdout, stderr } = await execAsync('command');
-  // Handle success
-} catch (error) {
-  // Handle failure
-}
-```
+7. Should we always use LLM, or only as fallback?
+   - **Recommendation**: Always enhance with LLM "Highlights" section, even if CHANGELOG exists
+   - Full LLM generation only if CHANGELOG missing
 
-### Existing Dry-Run Pattern
-```typescript
-if (dryRun) {
-  logger.info('[DRY RUN] Would execute: <action>');
-  return true;
-}
-// Actually execute action
-```
+## Approval
 
----
-
-## Post-Sprint Deliverables
-
-1. ✅ Working `--github-release` flag
-2. ✅ Test suite with ≥80% coverage
-3. ✅ Updated documentation (CLAUDE.md, README.md)
-4. ✅ Validation script confirming functionality
-5. ✅ Retro documenting learnings
-6. ✅ GitHub PR for review
-
----
-
-**Prepared by:** Lead Implementor (Claude Code)
-**Date:** 2026-07-11
-**Status:** Awaiting approval to begin execution
+- [ ] User approves implementation approach
+- [ ] User approves GitHub Actions strategy
+- [ ] User approves documentation updates
+- [ ] Ready to proceed with implementation
