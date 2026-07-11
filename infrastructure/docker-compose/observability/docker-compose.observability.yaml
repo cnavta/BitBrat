@@ -39,7 +39,7 @@ services:
       - loki-data:/loki
 
     networks:
-      - bitbrat
+      - bitbrat-network
 
     deploy:
       resources:
@@ -79,7 +79,7 @@ services:
       - promtail-positions:/positions
 
     networks:
-      - bitbrat
+      - bitbrat-network
 
     depends_on:
       loki:
@@ -119,5 +119,5 @@ volumes:
 # Networks
 # ==============================================================================
 networks:
-  bitbrat:
+  bitbrat-network:
     external: true
