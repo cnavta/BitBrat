@@ -69,27 +69,33 @@ function parseCommits(gitLog) {
   const commits = gitLog.trim().split('\n').filter(line => line.trim());
 
   return commits.map(line => {
-    const [hash, subject, body] = line.split('|');
+    const parts = line.split('|');
+    const hash = parts[0] || '';
+    const subject = parts[1] || '';
+    const body = parts[2] || '';
 
     // Detect conventional commit type
     let type = 'other';
     let scope = '';
     let breaking = false;
 
-    const conventionalMatch = subject.match(/^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)(\(([^)]+)\))?(!)?:/);
+    // Only attempt to match if subject exists
+    if (subject && subject.trim()) {
+      const conventionalMatch = subject.match(/^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)(\(([^)]+)\))?(!)?:/);
 
-    if (conventionalMatch) {
-      type = conventionalMatch[1];
-      scope = conventionalMatch[3] || '';
-      breaking = !!conventionalMatch[4] || (body && body.includes('BREAKING CHANGE'));
-    } else if (subject.toLowerCase().includes('break')) {
-      breaking = true;
+      if (conventionalMatch) {
+        type = conventionalMatch[1];
+        scope = conventionalMatch[3] || '';
+        breaking = !!conventionalMatch[4] || (body && body.includes('BREAKING CHANGE'));
+      } else if (subject.toLowerCase().includes('break')) {
+        breaking = true;
+      }
     }
 
     return {
-      hash: hash?.trim() || '',
-      subject: subject?.trim() || '',
-      body: body?.trim() || '',
+      hash: hash.trim(),
+      subject: subject.trim(),
+      body: body.trim(),
       type,
       scope,
       breaking
@@ -168,16 +174,27 @@ Rules:
  * Main execution
  */
 async function main() {
+  const fs = require('fs');
   const args = process.argv.slice(2);
 
   if (args.length < 2) {
-    console.error('Usage: node llm-release-notes.js <new-version> <old-version> [changelog-content]');
+    console.error('Usage: node llm-release-notes.js <new-version> <old-version> [changelog-content-or-file]');
     process.exit(1);
   }
 
   const newVersion = args[0];
   const oldVersion = args[1];
-  const changelogContent = args[2] || '';
+  let changelogContent = args[2] || '';
+
+  // If arg[2] looks like a file path, try to read it
+  if (changelogContent && fs.existsSync(changelogContent)) {
+    try {
+      changelogContent = fs.readFileSync(changelogContent, 'utf8');
+    } catch (error) {
+      console.error(`Warning: Could not read file ${changelogContent}:`, error.message);
+      changelogContent = '';
+    }
+  }
 
   try {
     // Get git log
