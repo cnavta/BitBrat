@@ -1,0 +1,609 @@
+# Sprint Backlog: GitHub Release Integration
+# Sprint ID: sprint-337-abb8c02
+# Objective: Add --github-release flag to brat release command
+# Priority Legend: P0 (Critical) → P4 (Nice-to-have)
+
+sprint:
+  id: sprint-337-abb8c02
+  name: "GitHub Release Integration for brat release"
+  objective: "Add optional GitHub Release creation to the brat release command"
+  status: completed
+  started: 2026-07-11
+  completed: 2026-07-11
+
+backlog:
+  # ============================================================================
+  # PHASE 1: Release Notes Extraction (Foundational)
+  # ============================================================================
+
+  - id: TASK-001
+    title: "Add extractReleaseNotes() function to changelog.ts"
+    description: |
+      Implement a pure function that extracts release notes for a specific
+      version from a Keep-a-Changelog formatted CHANGELOG.md file.
+
+      Function signature:
+      export function extractReleaseNotes(content: string, version: string): string
+
+      Algorithm:
+      1. Find section: ## [<version>] - <date>
+      2. Extract all content until next ## [ header or EOF
+      3. Strip leading/trailing whitespace
+      4. If not found or empty, return default: "Release <version>"
+    priority: P0
+    phase: 1
+    estimated_hours: 1.5
+    dependencies: []
+    acceptance_criteria:
+      - Function exported from changelog.ts
+      - Correctly extracts notes from well-formed CHANGELOG
+      - Returns default message when section not found
+      - Preserves markdown formatting in extracted notes
+    files:
+      - tools/brat/src/release/changelog.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-002
+    title: "Write unit tests for extractReleaseNotes()"
+    description: |
+      Create comprehensive test suite for release notes extraction covering:
+      - Standard Keep-a-Changelog format
+      - Missing CHANGELOG.md (error handling)
+      - Missing version section (default fallback)
+      - Empty version section (default fallback)
+      - Multiple versions (extract correct one)
+      - Whitespace handling
+      - Markdown preservation
+    priority: P0
+    phase: 1
+    estimated_hours: 1.0
+    dependencies:
+      - TASK-001
+    acceptance_criteria:
+      - New test file created
+      - All edge cases covered
+      - Tests pass with 100% coverage of new function
+    files:
+      - tools/brat/src/release/__tests__/changelog-extraction.spec.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-003
+    title: "Handle edge cases in extractReleaseNotes()"
+    description: |
+      Ensure robust error handling for:
+      - Malformed CHANGELOG headers
+      - Non-standard date formats
+      - Missing closing header (extract to EOF)
+      - Unicode characters in notes
+      - Very long notes (no truncation)
+    priority: P1
+    phase: 1
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-001
+      - TASK-002
+    acceptance_criteria:
+      - All edge cases handled gracefully
+      - No exceptions thrown (return default on error)
+      - Tests demonstrate resilience
+    files:
+      - tools/brat/src/release/changelog.ts
+      - tools/brat/src/release/__tests__/changelog-extraction.spec.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  # ============================================================================
+  # PHASE 2: GitHub CLI Integration
+  # ============================================================================
+
+  - id: TASK-004
+    title: "Add checkGhInstalled() utility function"
+    description: |
+      Create a utility to verify GitHub CLI (gh) is installed and accessible.
+
+      Implementation:
+      - Use 'which gh' (Unix) or 'where gh' (Windows)
+      - Return boolean: true if found, false otherwise
+      - Cache result to avoid repeated checks
+
+      Location: tools/brat/src/release/release.ts or new utils file
+    priority: P0
+    phase: 2
+    estimated_hours: 0.5
+    dependencies: []
+    acceptance_criteria:
+      - Function returns true when gh is installed
+      - Function returns false when gh is not installed
+      - Works on macOS, Linux, Windows
+      - Result is cached for performance
+    files:
+      - tools/brat/src/release/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-005
+    title: "Add createGitHubRelease() function"
+    description: |
+      Implement async function to create GitHub release via gh CLI.
+
+      Signature:
+      async function createGitHubRelease(
+        version: string,
+        notes: string,
+        dryRun: boolean
+      ): Promise<boolean>
+
+      Process:
+      1. Check if gh is installed (use TASK-004)
+      2. If dryRun: log what would be created, return true
+      3. Execute: gh release create v<version> --title "v<version>" --notes "<notes>"
+      4. Return true on success (exit code 0), false otherwise
+    priority: P0
+    phase: 2
+    estimated_hours: 1.5
+    dependencies:
+      - TASK-004
+    acceptance_criteria:
+      - Function exported from release.ts
+      - Correctly constructs gh CLI command
+      - Handles success and failure cases
+      - Dry-run logs without executing
+      - Returns boolean status
+    files:
+      - tools/brat/src/release/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-006
+    title: "Implement dry-run support for GitHub release"
+    description: |
+      Ensure createGitHubRelease() respects --dry-run flag:
+      - Log exact gh command that would be executed
+      - Show what release notes would be used
+      - Do NOT call gh CLI in dry-run mode
+      - Return true (simulated success)
+    priority: P0
+    phase: 2
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-005
+    acceptance_criteria:
+      - Dry-run logs include full gh command
+      - Dry-run logs include release notes preview
+      - No subprocess spawned in dry-run mode
+      - Logging uses existing logger facade
+    files:
+      - tools/brat/src/release/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-007
+    title: "Add error handling for gh CLI failures"
+    description: |
+      Robust error handling for:
+      - gh not installed (clear error with install URL)
+      - gh not authenticated (let gh prompt for auth)
+      - Network failures (timeout, connection refused)
+      - API errors (permissions, rate limits)
+      - Invalid arguments (malformed version, etc.)
+
+      Strategy: Non-fatal failures (log error, return false)
+    priority: P1
+    phase: 2
+    estimated_hours: 1.0
+    dependencies:
+      - TASK-005
+    acceptance_criteria:
+      - gh not found throws ConfigurationError with install link
+      - Network errors logged with helpful message
+      - API errors logged with GitHub response
+      - All errors include actionable guidance
+      - Failed release doesn't abort version bump
+    files:
+      - tools/brat/src/release/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  # ============================================================================
+  # PHASE 3: CLI Integration
+  # ============================================================================
+
+  - id: TASK-008
+    title: "Add --github-release flag to CLI parser"
+    description: |
+      Update CLI argument parser in tools/brat/src/cli/release.ts:
+      - Parse --github-release flag from argv
+      - Pass to runRelease() options
+      - Add to help text / usage documentation
+    priority: P0
+    phase: 3
+    estimated_hours: 0.5
+    dependencies: []
+    acceptance_criteria:
+      - Flag parsed correctly from command line
+      - Boolean passed to runRelease() function
+      - Help text includes new flag description
+    files:
+      - tools/brat/src/cli/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-009
+    title: "Add validation: --github-release requires --tag"
+    description: |
+      Implement validation logic in runRelease():
+
+      if (options.githubRelease && !options.tag) {
+        throw new ConfigurationError(
+          'GitHub releases require git tags. Use --tag with --github-release'
+        );
+      }
+
+      Place BEFORE version bump logic to fail fast.
+    priority: P0
+    phase: 3
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-008
+    acceptance_criteria:
+      - Error thrown when --github-release without --tag
+      - Error message is clear and actionable
+      - Validation occurs before any file mutations
+      - Test case added to release.spec.ts
+    files:
+      - tools/brat/src/release/release.ts
+      - tools/brat/src/release/__tests__/release.spec.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-010
+    title: "Update runRelease() orchestration flow"
+    description: |
+      Add GitHub release creation step to runRelease():
+
+      1. After existing git tag creation
+      2. Read CHANGELOG.md
+      3. Extract release notes for new version (TASK-001)
+      4. Call createGitHubRelease() (TASK-005)
+      5. Log success or non-fatal failure
+
+      Ensure step is idempotent and respects dry-run.
+    priority: P0
+    phase: 3
+    estimated_hours: 1.0
+    dependencies:
+      - TASK-001
+      - TASK-005
+      - TASK-008
+      - TASK-009
+    acceptance_criteria:
+      - GitHub release step added after tag creation
+      - Release notes extracted from CHANGELOG
+      - Success/failure logged appropriately
+      - Dry-run prevents actual release creation
+      - Failure is non-fatal (warning, not error)
+    files:
+      - tools/brat/src/release/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-011
+    title: "Add user feedback logging for GitHub release"
+    description: |
+      Add informative console output:
+      - Before: "Creating GitHub release v<version>..."
+      - Success: "✓ GitHub release created: <URL>"
+      - Failure: "✗ Failed to create GitHub release: <reason>"
+      - Dry-run: "[DRY RUN] Would create GitHub release v<version>"
+
+      Use existing logger facade (this.getLogger() in Bit context or CLI logger)
+    priority: P1
+    phase: 3
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-010
+    acceptance_criteria:
+      - Clear logging at each step
+      - Success message includes release URL if available
+      - Failure message includes error details
+      - Consistent with existing CLI output style
+    files:
+      - tools/brat/src/release/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  # ============================================================================
+  # PHASE 4: Testing
+  # ============================================================================
+
+  - id: TASK-012
+    title: "Add unit tests for extractReleaseNotes()"
+    description: |
+      Comprehensive test coverage (already covered in TASK-002).
+      This is a verification task to ensure all tests pass.
+    priority: P0
+    phase: 4
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-002
+    acceptance_criteria:
+      - All extractReleaseNotes() tests passing
+      - Coverage ≥ 90% for new code
+    files:
+      - tools/brat/src/release/__tests__/changelog-extraction.spec.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-013
+    title: "Add integration test for full release flow"
+    description: |
+      Update release.spec.ts with new test cases:
+      - Test: brat release patch --tag --github-release
+      - Mock gh CLI calls (intercept child_process.exec)
+      - Verify correct gh command constructed
+      - Verify release notes extracted from CHANGELOG
+      - Verify success return value
+    priority: P0
+    phase: 4
+    estimated_hours: 1.5
+    dependencies:
+      - TASK-010
+    acceptance_criteria:
+      - Integration test covers full happy path
+      - gh CLI calls are mocked
+      - Test verifies correct command arguments
+      - Test verifies release notes content
+      - Test passes reliably
+    files:
+      - tools/brat/src/release/__tests__/release.spec.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-014
+    title: "Add error case tests"
+    description: |
+      Test error scenarios:
+      - --github-release without --tag (validation error)
+      - gh CLI not installed (configuration error)
+      - gh CLI fails (non-fatal, logged)
+      - CHANGELOG.md missing (default notes used)
+      - Version section not in CHANGELOG (default notes used)
+    priority: P0
+    phase: 4
+    estimated_hours: 1.0
+    dependencies:
+      - TASK-010
+      - TASK-013
+    acceptance_criteria:
+      - All error paths covered by tests
+      - Tests verify correct error types thrown
+      - Tests verify error messages
+      - Non-fatal errors don't abort process
+    files:
+      - tools/brat/src/release/__tests__/release.spec.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-015
+    title: "Manual smoke test with real GitHub repo"
+    description: |
+      Perform end-to-end manual testing:
+      1. Create test branch
+      2. Run: npm run brat -- release patch --tag --github-release
+      3. Verify GitHub release created
+      4. Verify release notes match CHANGELOG
+      5. Test dry-run mode
+      6. Test error cases (no gh, no --tag, etc.)
+    priority: P1
+    phase: 4
+    estimated_hours: 1.0
+    dependencies:
+      - TASK-010
+      - TASK-013
+      - TASK-014
+    acceptance_criteria:
+      - GitHub release successfully created on test repo
+      - Release notes correctly extracted
+      - Dry-run prevents actual release
+      - Error messages are clear and helpful
+      - No unexpected side effects
+    files: []
+    status: pending
+    assigned_to: null
+    completed: false
+
+  # ============================================================================
+  # PHASE 5: Documentation
+  # ============================================================================
+
+  - id: TASK-016
+    title: "Update CLAUDE.md with new flag documentation"
+    description: |
+      Add documentation to CLAUDE.md:
+      - Add --github-release to "Version Management" section
+      - Include example: npm run brat -- release patch --tag --github-release
+      - Document gh CLI prerequisite
+      - Document relationship with --tag flag
+    priority: P1
+    phase: 5
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-010
+    acceptance_criteria:
+      - CLAUDE.md updated with new flag
+      - Examples are accurate
+      - Prerequisites clearly stated
+      - Consistent with existing documentation style
+    files:
+      - CLAUDE.md
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-017
+    title: "Update README.md release section"
+    description: |
+      Update README.md if it documents the release process:
+      - Add --github-release flag to release documentation
+      - Include example usage
+      - Mention gh CLI requirement
+      - Update any release workflow diagrams if present
+    priority: P2
+    phase: 5
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-010
+    acceptance_criteria:
+      - README.md reflects new functionality
+      - Examples are correct
+      - Consistent with CLAUDE.md
+    files:
+      - README.md
+    status: pending
+    assigned_to: null
+    completed: false
+
+  - id: TASK-018
+    title: "Add inline code comments for new functions"
+    description: |
+      Add JSDoc comments to new functions:
+      - extractReleaseNotes(): purpose, params, returns, edge cases
+      - createGitHubRelease(): purpose, params, returns, error handling
+      - checkGhInstalled(): purpose, returns
+
+      Follow existing code comment style in the codebase.
+    priority: P2
+    phase: 5
+    estimated_hours: 0.5
+    dependencies:
+      - TASK-001
+      - TASK-004
+      - TASK-005
+    acceptance_criteria:
+      - All new public functions have JSDoc comments
+      - Comments include param types and descriptions
+      - Return values documented
+      - Edge cases and errors mentioned
+    files:
+      - tools/brat/src/release/changelog.ts
+      - tools/brat/src/release/release.ts
+    status: pending
+    assigned_to: null
+    completed: false
+
+# ============================================================================
+# Summary Statistics
+# ============================================================================
+
+summary:
+  total_tasks: 18
+  by_priority:
+    P0: 11  # Critical path
+    P1: 6   # Important
+    P2: 1   # Nice-to-have
+  by_phase:
+    phase_1: 3   # Release Notes Extraction
+    phase_2: 4   # GitHub CLI Integration
+    phase_3: 4   # CLI Integration
+    phase_4: 5   # Testing
+    phase_5: 3   # Documentation
+  estimated_total_hours: 13.5
+  critical_path_hours: 8.5  # P0 tasks only
+
+# ============================================================================
+# Sprint Milestones
+# ============================================================================
+
+milestones:
+  - name: "Phase 1 Complete: Release Notes Extraction"
+    tasks: [TASK-001, TASK-002, TASK-003]
+    status: pending
+
+  - name: "Phase 2 Complete: GitHub CLI Integration"
+    tasks: [TASK-004, TASK-005, TASK-006, TASK-007]
+    status: pending
+
+  - name: "Phase 3 Complete: CLI Integration"
+    tasks: [TASK-008, TASK-009, TASK-010, TASK-011]
+    status: pending
+
+  - name: "Phase 4 Complete: Testing"
+    tasks: [TASK-012, TASK-013, TASK-014, TASK-015]
+    status: pending
+
+  - name: "Phase 5 Complete: Documentation"
+    tasks: [TASK-016, TASK-017, TASK-018]
+    status: pending
+
+  - name: "Sprint Complete: Feature Ready for Production"
+    tasks: []  # All tasks
+    status: pending
+
+# ============================================================================
+# Dependencies Graph (Critical Path)
+# ============================================================================
+
+critical_path:
+  - TASK-001 (no deps)
+  - TASK-002 (depends on TASK-001)
+  - TASK-004 (no deps)
+  - TASK-005 (depends on TASK-004)
+  - TASK-008 (no deps)
+  - TASK-009 (depends on TASK-008)
+  - TASK-010 (depends on TASK-001, TASK-005, TASK-008, TASK-009)
+  - TASK-013 (depends on TASK-010)
+  - TASK-014 (depends on TASK-010, TASK-013)
+
+# ============================================================================
+# Risks and Mitigations
+# ============================================================================
+
+risks:
+  - risk: "gh CLI not installed on developer machines"
+    severity: medium
+    mitigation: "Clear error message with install instructions. Non-fatal failure mode."
+
+  - risk: "GitHub API rate limits or network issues"
+    severity: low
+    mitigation: "Make GitHub release creation non-fatal. Log helpful error message."
+
+  - risk: "CHANGELOG.md in unexpected format"
+    severity: low
+    mitigation: "Robust parsing with default fallback. Extensive test coverage."
+
+  - risk: "Scope creep (requests for draft, pre-release, assets, etc.)"
+    severity: medium
+    mitigation: "Strictly adhere to implementation plan. Defer enhancements to future sprints."
+
+# ============================================================================
+# Notes
+# ============================================================================
+
+notes: |
+  This sprint follows the AGENTS.md protocol for BitBrat platform development.
+
+  Key Principles:
+  - Preserve all existing functionality (no breaking changes)
+  - Feature behind optional flag (gradual adoption)
+  - Non-fatal failure mode (GitHub release failure doesn't abort version bump)
+  - Comprehensive testing before merge
+  - Documentation updated alongside code
+
+  The implementation is designed to be idempotent, testable, and follow
+  existing code patterns in the tools/brat/src/release/ module.
