@@ -94,8 +94,22 @@ npm run release:dry -- patch           # Preview version bump (no mutation)
 npm run release -- patch               # Bump patch version, update CHANGELOG
 npm run release -- minor               # Bump minor version
 npm run release -- major               # Bump major version
-npm run brat -- release 1.0.0 --tag    # Explicit version with git tag
+npm run brat -- release 1.0.0 --tag    # Explicit version with git tag (local only, does not push)
 ```
+
+**Automated GitHub Releases:**
+When a PR with a version bump is merged to `main`, a GitHub Actions workflow automatically:
+- Detects the version change in `architecture.yaml`
+- Generates LLM-enhanced release notes using GPT-4o-mini
+- Creates categorized release notes (Highlights, Features, Fixes, Breaking Changes)
+- Creates a git tag (`v<version>`)
+- Publishes a GitHub Release
+
+**Prerequisites:**
+- `OPENAI_API_KEY` configured as a GitHub repository secret (for LLM enhancement)
+- If API key is not configured, releases are created using CHANGELOG.md content only
+
+See `documentation/guides/automated-releases.md` for full details.
 
 ### Configuration & Diagnostics
 ```bash
