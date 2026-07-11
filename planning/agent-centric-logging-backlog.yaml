@@ -1,0 +1,771 @@
+# Agent-Centric Logging Implementation Backlog
+# Format: YAML-based task tracking
+# Created: 2026-07-10
+# Reference: documentation/technical-architecture/agent-centric-logging-v1.md
+
+project:
+  name: Agent-Centric Logging v1
+  goal: Implement AsyncLocalStorage-based automatic correlationId propagation
+  duration_estimate: 8-10 days
+  priority: P0
+
+metrics:
+  correlation_coverage_target: 95%
+  performance_overhead_limit: 1%
+  test_coverage_target: 90%
+  production_incidents_target: 0
+
+epics:
+  - id: epic-1
+    name: Foundation Infrastructure
+    description: Create AsyncLocalStorage infrastructure without breaking existing code
+    priority: P0
+    estimate_hours: 14
+    estimate_days: 2
+    status: done
+    completed_at: 2026-07-10
+    dependencies: []
+    stories:
+      - id: story-1.1
+        name: Create EventContext Module
+        priority: P0
+        estimate_hours: 4
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Create src/common/event-context.ts with AsyncLocalStorage-based context management
+        acceptance_criteria:
+          - Module exports EventContext interface
+          - runWithEventContext function works correctly
+          - getEventContext retrieves current context
+          - updateEventContext merges updates
+          - Context isolated per async call chain
+        dependencies: []
+        files:
+          - action: create
+            path: src/common/event-context.ts
+        tasks:
+          - Define EventContext interface
+          - Create AsyncLocalStorage instance
+          - Implement runWithEventContext function
+          - Implement getEventContext function
+          - Implement getContextField function
+          - Implement updateEventContext function
+          - Add TypeScript type exports
+          - Add JSDoc comments
+
+      - id: story-1.2
+        name: Write EventContext Unit Tests
+        priority: P0
+        estimate_hours: 3
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Comprehensive unit tests for event context propagation
+        acceptance_criteria:
+          - Test context propagation through async/await
+          - Test context isolation between calls
+          - Test updateEventContext merging
+          - Test getEventContext outside context returns undefined
+          - Test nested context calls
+          - Coverage > 95%
+        dependencies:
+          - story-1.1
+        files:
+          - action: create
+            path: src/common/event-context.test.ts
+        tasks:
+          - Write test for basic context propagation
+          - Write test for async/await propagation
+          - Write test for context isolation
+          - Write test for updateEventContext
+          - Write test for getEventContext outside context
+          - Write test for nested contexts
+          - Write test for concurrent contexts
+          - Verify coverage > 95%
+
+      - id: story-1.3
+        name: Enhance Logger with EventContext
+        priority: P0
+        estimate_hours: 3
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Update Logger.base() to automatically inject EventContext fields
+        acceptance_criteria:
+          - Logger imports and uses getEventContext
+          - correlationId added when present
+          - traceId, sessionId, userId added when present
+          - stage field added when present
+          - Backward compatible (works without context)
+          - Does not override OTel fields
+          - Handles exceptions gracefully
+        dependencies:
+          - story-1.1
+        files:
+          - action: update
+            path: src/common/logging.ts
+            lines: 96-109
+        tasks:
+          - Import getEventContext
+          - Add event context retrieval in base() method
+          - Add correlationId injection
+          - Add traceId injection (if not from OTel)
+          - Add sessionId injection
+          - Add userId injection
+          - Add stage injection
+          - Add requestId injection
+          - Add exception handling
+          - Verify OTel fields take precedence
+
+      - id: story-1.4
+        name: Write Logger Enhancement Tests
+        priority: P0
+        estimate_hours: 3
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Unit tests for Logger with EventContext integration
+        acceptance_criteria:
+          - Test Logger includes correlationId from context
+          - Test Logger works without context (backward compat)
+          - Test all context fields (traceId, sessionId, userId, stage)
+          - Test OTel fields take precedence
+          - Test exception handling
+          - Coverage > 95%
+        dependencies:
+          - story-1.3
+        files:
+          - action: update
+            path: src/common/logging.test.ts
+        tasks:
+          - Write test for correlationId injection
+          - Write test for backward compatibility
+          - Write test for all context fields
+          - Write test for OTel precedence
+          - Write test for exception handling
+          - Write test for field deduplication
+          - Verify coverage > 95%
+
+      - id: story-1.5
+        name: Update Type Definitions
+        priority: P1
+        estimate_hours: 1
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Ensure TypeScript types are correct and exported
+        acceptance_criteria:
+          - EventContext interface exported
+          - All functions properly typed
+          - No type errors in dependent code
+          - JSDoc comments added
+        dependencies:
+          - story-1.1
+          - story-1.3
+        files:
+          - action: update
+            path: src/common/event-context.ts
+          - action: update
+            path: src/types/index.ts
+            condition: if_needed
+        tasks:
+          - Verify EventContext interface exported
+          - Add JSDoc to all functions
+          - Verify type safety
+          - Update types/index.ts if needed
+          - Run TypeScript compiler to verify
+
+  - id: epic-2
+    name: Message Handler Integration
+    description: Automatic context injection for all message handlers
+    priority: P0
+    estimate_hours: 16
+    estimate_days: 2
+    status: done
+    completed_at: 2026-07-10
+    dependencies:
+      - epic-1
+    stories:
+      - id: story-2.1
+        name: Update BaseServer.onMessage() with Context Wrapping
+        priority: P0
+        estimate_hours: 6
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Wrap message handlers to automatically inject EventContext
+        acceptance_criteria:
+          - Import runWithEventContext in base-server.ts
+          - Create wrappedHandler function
+          - Extract correlationId from message data
+          - Extract traceId, sessionId, userId if present
+          - Build EventContext object
+          - Wrap handler execution with context
+          - Maintain existing message handler behavior
+          - Handle missing correlationId gracefully
+          - Preserve error handling and acknowledgment
+        dependencies:
+          - epic-1
+        files:
+          - action: update
+            path: src/common/base-server.ts
+            method: onMessage
+            lines: 500-600
+        tasks:
+          - Import runWithEventContext and EventContext
+          - Locate onMessage method
+          - Create wrappedHandler function
+          - Extract correlationId from data
+          - Extract traceId from data
+          - Extract sessionId from data
+          - Extract userId from data.identity.user
+          - Build EventContext object
+          - Wrap original handler with runWithEventContext
+          - Verify error handling preserved
+          - Verify acknowledgment preserved
+          - Test with and without correlationId
+
+      - id: story-2.2
+        name: Handle Edge Cases
+        priority: P0
+        estimate_hours: 3
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Robust handling of malformed/missing data
+        acceptance_criteria:
+          - Handle undefined/null data
+          - Handle missing correlationId
+          - Handle malformed message structure
+          - Handle type cast failures
+          - Log warnings for missing context (debug level)
+          - Never throw exceptions in context extraction
+        dependencies:
+          - story-2.1
+        files:
+          - action: update
+            path: src/common/base-server.ts
+        tasks:
+          - Add null/undefined checks
+          - Add try-catch around context extraction
+          - Add fallback for missing fields
+          - Add debug logging for missing correlationId
+          - Test with malformed messages
+          - Verify no exceptions thrown
+
+      - id: story-2.3
+        name: Write Message Handler Integration Tests
+        priority: P0
+        estimate_hours: 4
+        status: done
+        assignee: claude
+        completed_at: 2026-07-10
+        description: Integration tests for automatic context injection
+        acceptance_criteria:
+          - Test message with correlationId auto-injects context
+          - Test message without correlationId works
+          - Test nested async operations maintain context
+          - Test multiple handlers don't interfere
+          - Test error handling preserves context
+          - Test acknowledgment works correctly
+          - Coverage > 90%
+        dependencies:
+          - story-2.1
+          - story-2.2
+        files:
+          - action: create
+            path: src/common/base-server.context.test.ts
+        tasks:
+          - Setup test BaseServer instance
+          - Write test for context injection
+          - Write test for missing correlationId
+          - Write test for nested async operations
+          - Write test for multiple handlers
+          - Write test for error handling
+          - Write test for acknowledgment
+          - Verify coverage > 90%
+
+      - id: story-2.4
+        name: Performance Benchmarking
+        priority: P1
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Measure AsyncLocalStorage overhead
+        acceptance_criteria:
+          - Benchmark message handler with/without context
+          - Measure latency impact (<1ms acceptable)
+          - Measure throughput impact (<1% acceptable)
+          - Measure memory impact
+          - Document results
+          - Create performance regression test
+        dependencies:
+          - story-2.1
+        files:
+          - action: create
+            path: src/common/base-server.benchmark.ts
+          - action: create
+            path: docs/performance-benchmarks.md
+        tasks:
+          - Setup benchmark harness
+          - Benchmark baseline (no context)
+          - Benchmark with context
+          - Measure latency delta
+          - Measure throughput delta
+          - Measure memory delta
+          - Document results
+          - Create regression test
+
+  - id: epic-3
+    name: HTTP Request Integration
+    description: Automatic context injection for HTTP routes
+    priority: P1
+    estimate_hours: 9
+    estimate_days: 1
+    dependencies:
+      - epic-1
+    stories:
+      - id: story-3.1
+        name: Create HTTP Context Middleware
+        priority: P1
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: Express middleware to extract context from HTTP headers
+        acceptance_criteria:
+          - Extract x-correlation-id header
+          - Extract x-request-id header
+          - Extract x-cloud-trace-context header
+          - Extract x-session-id header
+          - Generate UUID if correlationId missing
+          - Build EventContext object
+          - Wrap next() with runWithEventContext
+          - Handle exceptions gracefully
+        dependencies:
+          - epic-1
+        files:
+          - action: update
+            path: src/common/base-server.ts
+            method: setupHttpContextMiddleware
+        tasks:
+          - Create setupHttpContextMiddleware method
+          - Extract headers from req
+          - Generate UUID for missing correlationId
+          - Build EventContext object
+          - Wrap next() with runWithEventContext
+          - Add exception handling
+          - Add debug logging
+
+      - id: story-3.2
+        name: Integrate HTTP Middleware in BaseServer
+        priority: P1
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Call middleware setup during BaseServer initialization
+        acceptance_criteria:
+          - Call setupHttpContextMiddleware in constructor/setup
+          - Middleware registered before routes
+          - Middleware applies to all routes
+          - Does not interfere with existing middleware
+          - Works with Express error handling
+        dependencies:
+          - story-3.1
+        files:
+          - action: update
+            path: src/common/base-server.ts
+            method: constructor or setup
+        tasks:
+          - Find BaseServer constructor/setup
+          - Call setupHttpContextMiddleware()
+          - Verify middleware order
+          - Test with existing middleware
+          - Verify error handling works
+
+      - id: story-3.3
+        name: Write HTTP Context Tests
+        priority: P1
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Test HTTP request context extraction end-to-end
+        acceptance_criteria:
+          - Test header extraction works
+          - Test UUID generation for missing headers
+          - Test context propagates to route handlers
+          - Test context propagates to logger
+          - Test multiple requests don't interfere
+          - Test error cases
+          - Coverage > 90%
+        dependencies:
+          - story-3.2
+        files:
+          - action: create
+            path: src/common/base-server.http-context.test.ts
+        tasks:
+          - Setup test Express app
+          - Write test for header extraction
+          - Write test for UUID generation
+          - Write test for context in handlers
+          - Write test for context in logger
+          - Write test for concurrent requests
+          - Write test for error cases
+          - Verify coverage > 90%
+
+  - id: epic-4
+    name: Validation & Testing
+    description: End-to-end validation and testing
+    priority: P0
+    estimate_hours: 9
+    estimate_days: 1
+    dependencies:
+      - epic-2
+    stories:
+      - id: story-4.1
+        name: Create End-to-End Fleet Trace Test
+        priority: P0
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: Validate fleet.trace works with automatic correlation
+        acceptance_criteria:
+          - Publish test event to ingress
+          - Wait for processing across services
+          - Query fleet.trace with correlationId
+          - Verify all services present in trace
+          - Verify timeline complete and ordered
+          - Verify every log entry has correlationId
+          - Test passes reliably
+        dependencies:
+          - epic-2
+        files:
+          - action: create
+            path: src/__tests__/integration/fleet-trace-correlation.test.ts
+        tasks:
+          - Setup test environment
+          - Create test event
+          - Publish to ingress
+          - Wait for processing
+          - Query fleet.trace
+          - Verify services list
+          - Verify timeline
+          - Verify correlationId coverage
+          - Add test to CI pipeline
+
+      - id: story-4.2
+        name: Create Staging Validation Script
+        priority: P0
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Automated validation script for staging deployment
+        acceptance_criteria:
+          - Script deploys to staging
+          - Script runs test traffic through system
+          - Script validates correlationId coverage
+          - Script queries fleet.logs and fleet.trace
+          - Script measures performance metrics
+          - Script generates validation report
+          - Script exits with proper status code
+        dependencies:
+          - epic-2
+          - epic-3
+        files:
+          - action: create
+            path: scripts/validate-logging-coverage.sh
+        tasks:
+          - Create bash script
+          - Add deployment step
+          - Add test traffic generation
+          - Add fleet.logs query
+          - Add fleet.trace query
+          - Add coverage analysis
+          - Add performance metrics
+          - Add report generation
+          - Add exit code logic
+
+      - id: story-4.3
+        name: Performance Monitoring Setup
+        priority: P1
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Add metrics to track correlation coverage and performance
+        acceptance_criteria:
+          - Metric - percentage of logs with correlationId
+          - Metric - context extraction time
+          - Metric - logger overhead
+          - Dashboard updated
+          - Alerts configured for degradation
+        dependencies: []
+        files:
+          - action: update
+            path: monitoring/dashboards/logging.json
+          - action: update
+            path: monitoring/alerts/logging.yaml
+        tasks:
+          - Define correlationId coverage metric
+          - Define context extraction time metric
+          - Define logger overhead metric
+          - Update monitoring dashboard
+          - Configure alerts
+          - Test metrics collection
+
+  - id: epic-5
+    name: Documentation & Rollout
+    description: Documentation and production deployment
+    priority: P0-P1
+    estimate_hours: 12
+    estimate_days: 2
+    dependencies:
+      - epic-2
+      - epic-3
+      - epic-4
+    stories:
+      - id: story-5.1
+        name: Update Developer Documentation
+        priority: P1
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Document the new context propagation system
+        acceptance_criteria:
+          - Update CLAUDE.md with context usage
+          - Add examples to documentation
+          - Document migration path
+          - Document troubleshooting steps
+          - Update architecture diagrams
+        dependencies:
+          - epic-2
+          - epic-3
+        files:
+          - action: update
+            path: CLAUDE.md
+          - action: create
+            path: documentation/guides/event-context-usage.md
+        tasks:
+          - Update CLAUDE.md overview
+          - Add context usage examples
+          - Document migration path
+          - Add troubleshooting section
+          - Update architecture diagrams
+
+      - id: story-5.2
+        name: Create Troubleshooting Runbook
+        priority: P1
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Runbook for diagnosing context propagation issues
+        acceptance_criteria:
+          - Document common issues
+          - Document diagnostic commands
+          - Document how to check context in logs
+          - Document how to validate fleet.trace
+          - Document rollback procedure
+        dependencies:
+          - epic-4
+        files:
+          - action: create
+            path: documentation/runbooks/event-context-troubleshooting.md
+        tasks:
+          - Document common issues
+          - Add diagnostic commands
+          - Add log checking procedures
+          - Add fleet.trace validation
+          - Add rollback procedure
+
+      - id: story-5.3
+        name: Staged Production Rollout
+        priority: P0
+        estimate_hours: 8
+        status: todo
+        assignee: null
+        description: Gradual rollout to production with monitoring
+        acceptance_criteria:
+          - Build production images
+          - Deploy to production (all services)
+          - Monitor for 24 hours
+          - Run validation tests
+          - Check correlationId coverage metrics
+          - Verify fleet.trace works
+          - Verify performance acceptable
+          - Document any issues
+          - Rollback plan ready
+        dependencies:
+          - epic-4
+        files:
+          - action: deploy
+            target: production
+        tasks:
+          - Build production images
+          - Review deployment plan
+          - Deploy to production
+          - Start 24-hour monitoring
+          - Run validation script
+          - Check coverage metrics
+          - Verify fleet.trace
+          - Check performance metrics
+          - Document issues (if any)
+          - Execute rollback if needed
+
+  - id: epic-6
+    name: Service Cleanup
+    description: Remove manual correlationId passing from services (Optional)
+    priority: P2
+    estimate_hours: 10
+    estimate_days: 1.5
+    dependencies:
+      - epic-5
+    stories:
+      - id: story-6.1
+        name: Audit Services for Manual CorrelationId
+        priority: P2
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: Find all places where correlationId is manually passed
+        acceptance_criteria:
+          - Grep/search for correlationId patterns
+          - Create checklist per service
+          - Identify routing helpers to update
+          - Prioritize by service importance
+          - Document cleanup plan
+        dependencies:
+          - epic-5
+        files:
+          - action: create
+            path: planning/service-cleanup-checklist.md
+        tasks:
+          - Grep for correlationId references
+          - Analyze each service
+          - Create cleanup checklist
+          - Prioritize services
+          - Document cleanup plan
+
+      - id: story-6.2
+        name: Clean Up High-Priority Services
+        priority: P2
+        estimate_hours: 6
+        status: todo
+        assignee: null
+        description: Remove manual correlationId from core services
+        acceptance_criteria:
+          - Remove correlationId from llm-bot logs
+          - Remove correlationId from event-router logs
+          - Remove correlationId from reflex logs
+          - Update tests
+          - Verify logs unchanged (deduplication working)
+          - Code review approval
+          - Deploy incrementally
+        dependencies:
+          - story-6.1
+        files:
+          - action: update
+            path: src/apps/llm-bot-service.ts
+          - action: update
+            path: src/apps/event-router-service.ts
+          - action: update
+            path: src/apps/reflex-service.ts
+        tasks:
+          - Clean up llm-bot-service.ts
+          - Clean up event-router-service.ts
+          - Clean up reflex-service.ts
+          - Update corresponding tests
+          - Verify logs unchanged
+          - Code review
+          - Deploy incrementally
+
+summary:
+  total_stories: 20
+  total_estimate_hours: 70
+  total_estimate_days: 9-12
+  core_stories: 18
+  core_estimate_hours: 60
+  core_estimate_days: 8-10
+  p0_stories: 12
+  p0_estimate_hours: 48
+  p1_stories: 6
+  p1_estimate_hours: 12
+  p2_stories: 2
+  p2_estimate_hours: 10
+
+milestones:
+  - name: Foundation Complete
+    date: Day 2
+    criteria:
+      - All Epic 1 stories done
+      - Unit tests passing
+      - No breaking changes
+
+  - name: Core Integration Complete
+    date: Day 5
+    criteria:
+      - Epic 1 and Epic 2 done
+      - Message handlers auto-inject context
+      - Integration tests passing
+
+  - name: HTTP Integration Complete
+    date: Day 6
+    criteria:
+      - Epic 3 done
+      - HTTP requests auto-inject context
+      - End-to-end tests passing
+
+  - name: Staging Validated
+    date: Day 9
+    criteria:
+      - Deployed to staging
+      - Validation script passing
+      - >95% correlationId coverage
+
+  - name: Production Deployed
+    date: Day 12
+    criteria:
+      - Deployed to production
+      - 24-hour monitoring clean
+      - Zero incidents
+      - fleet.trace working
+
+risks:
+  - id: risk-1
+    name: Context Propagation Bugs
+    likelihood: medium
+    impact: high
+    mitigation: Extensive tests, staged rollout, feature flag
+    contingency: Rollback mechanism, disable wrapping
+
+  - id: risk-2
+    name: Performance Degradation
+    likelihood: low
+    impact: medium
+    mitigation: Benchmark, monitor, set SLO <1%
+    contingency: Optimize or disable if >2%
+
+  - id: risk-3
+    name: OpenTelemetry Interaction
+    likelihood: medium
+    impact: medium
+    mitigation: Test both paths, OTel precedence
+    contingency: Prioritize OTel, EventContext fallback
+
+  - id: risk-4
+    name: Memory Leaks
+    likelihood: low
+    impact: high
+    mitigation: Memory profiling, monitoring
+    contingency: Fix leak or rollback
+
+success_criteria:
+  must_have:
+    - 100% logs include correlationId when context available
+    - fleet.trace returns complete timelines
+    - Performance overhead < 1%
+    - All existing tests pass
+    - Backward compatible
+
+  nice_to_have:
+    - sessionId and userId in logs
+    - Stage annotations in routing logs
+    - HTTP request correlation end-to-end
