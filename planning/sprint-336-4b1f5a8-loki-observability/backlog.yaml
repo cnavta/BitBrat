@@ -35,7 +35,7 @@ epics:
     name: Testing, Validation & Documentation
     description: Comprehensive testing, validation scripts, and user documentation
     priority: high
-    status: not_started
+    status: partially_completed
     estimated_hours: 8
     dependencies: [epic-2, epic-3]
 
@@ -380,7 +380,7 @@ stories:
       Create automated validation script to verify Loki + Promtail are
       running, ingesting logs, and labels are being extracted correctly.
     priority: high
-    status: not_started
+    status: completed
     estimated_hours: 2
     acceptance_criteria:
       - planning/sprint-336-*/validate-loki.sh script exists
