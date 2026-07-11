@@ -90,21 +90,26 @@ npm run brat -- fleet shutdown <bit> --confirm          # Shutdown Bit (requires
 
 ### Version Management
 ```bash
-npm run release:dry -- patch                            # Preview version bump (no mutation)
-npm run release -- patch                                # Bump patch version, update CHANGELOG
-npm run release -- minor                                # Bump minor version
-npm run release -- major                                # Bump major version
-npm run release -- patch --tag                          # Bump + create local git tag
-npm run release -- patch --tag --github-release         # Bump + tag + create GitHub Release
+npm run release:dry -- patch           # Preview version bump (no mutation)
+npm run release -- patch               # Bump patch version, update CHANGELOG
+npm run release -- minor               # Bump minor version
+npm run release -- major               # Bump major version
+npm run brat -- release 1.0.0 --tag    # Explicit version with git tag (local only, does not push)
 ```
 
-**GitHub Release Integration:**
-- The `--github-release` flag automatically creates a GitHub Release via the `gh` CLI
-- Requires `--tag` flag (GitHub releases need git tags)
-- Release notes are auto-extracted from CHANGELOG.md for the new version
-- Prerequisites: GitHub CLI (`gh`) installed and authenticated (`gh auth login`)
-- Install gh: https://cli.github.com
-- Non-fatal: If GitHub release fails, version bump still succeeds (logged as warning)
+**Automated GitHub Releases:**
+When a PR with a version bump is merged to `main`, a GitHub Actions workflow automatically:
+- Detects the version change in `architecture.yaml`
+- Generates LLM-enhanced release notes using GPT-4o-mini
+- Creates categorized release notes (Highlights, Features, Fixes, Breaking Changes)
+- Creates a git tag (`v<version>`)
+- Publishes a GitHub Release
+
+**Prerequisites:**
+- `OPENAI_API_KEY` configured as a GitHub repository secret (for LLM enhancement)
+- If API key is not configured, releases are created using CHANGELOG.md content only
+
+See `documentation/guides/automated-releases.md` for full details.
 
 ### Configuration & Diagnostics
 ```bash

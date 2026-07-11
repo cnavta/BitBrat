@@ -1,0 +1,171 @@
+name: Automated Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write  # Required for creating tags and releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need at least 2 commits to compare versions
+
+      - name: Detect version change
+        id: version
+        run: |
+          chmod +x scripts/detect-version-change.sh
+
+          if bash scripts/detect-version-change.sh; then
+            # Version changed
+            VERSIONS=$(bash scripts/detect-version-change.sh)
+            OLD_VERSION=$(echo $VERSIONS | awk '{print $1}')
+            NEW_VERSION=$(echo $VERSIONS | awk '{print $2}')
+
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "old=$OLD_VERSION" >> $GITHUB_OUTPUT
+            echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+            echo "✅ Version changed: $OLD_VERSION → $NEW_VERSION"
+          else
+            # Version unchanged
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  Version unchanged, skipping release"
+          fi
+
+      - name: Skip if version unchanged
+        if: steps.version.outputs.changed != 'true'
+        run: |
+          echo "No version change detected. Exiting gracefully."
+          exit 0
+
+      - name: Setup Node.js
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.version.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Extract CHANGELOG content
+        if: steps.version.outputs.changed == 'true'
+        id: changelog
+        run: |
+          chmod +x scripts/extract-changelog.sh
+
+          if bash scripts/extract-changelog.sh ${{ steps.version.outputs.new }} > /tmp/changelog.txt 2>&1; then
+            echo "has_changelog=true" >> $GITHUB_OUTPUT
+            echo "✅ CHANGELOG content extracted for v${{ steps.version.outputs.new }}"
+          else
+            echo "has_changelog=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No CHANGELOG entry found, will use LLM to generate from commits"
+            echo "" > /tmp/changelog.txt
+          fi
+
+      - name: Generate LLM-enhanced release notes
+        if: steps.version.outputs.changed == 'true'
+        id: release_notes
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          chmod +x scripts/llm-release-notes.js
+
+          CHANGELOG_CONTENT=$(cat /tmp/changelog.txt)
+
+          if [[ -n "$OPENAI_API_KEY" ]]; then
+            echo "🤖 Generating LLM-enhanced release notes..."
+
+            if node scripts/llm-release-notes.js "${{ steps.version.outputs.new }}" "${{ steps.version.outputs.old }}" "$CHANGELOG_CONTENT" > /tmp/release-notes.md 2>&1; then
+              echo "success=true" >> $GITHUB_OUTPUT
+              echo "✅ LLM release notes generated successfully"
+              cat /tmp/release-notes.md
+            else
+              echo "success=false" >> $GITHUB_OUTPUT
+              echo "⚠️  LLM generation failed, falling back to CHANGELOG only"
+
+              if [[ "${{ steps.changelog.outputs.has_changelog }}" == "true" ]]; then
+                echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+                echo "" >> /tmp/release-notes.md
+                cat /tmp/changelog.txt >> /tmp/release-notes.md
+              else
+                echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+                echo "" >> /tmp/release-notes.md
+                echo "See CHANGELOG.md for details." >> /tmp/release-notes.md
+              fi
+            fi
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "⚠️  OPENAI_API_KEY not configured, using CHANGELOG only"
+
+            if [[ "${{ steps.changelog.outputs.has_changelog }}" == "true" ]]; then
+              echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+              echo "" >> /tmp/release-notes.md
+              cat /tmp/changelog.txt >> /tmp/release-notes.md
+            else
+              echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+              echo "" >> /tmp/release-notes.md
+              echo "See CHANGELOG.md for details." >> /tmp/release-notes.md
+            fi
+          fi
+
+      - name: Create Git Tag
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          TAG="v${{ steps.version.outputs.new }}"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "⚠️  Tag $TAG already exists, skipping tag creation"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Create annotated tag with release notes
+            git tag -a "$TAG" -m "Release ${{ steps.version.outputs.new }}"
+            git push origin "$TAG"
+
+            echo "✅ Created and pushed tag: $TAG"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.version.outputs.new }}"
+
+          # Check if release already exists
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "⚠️  Release $TAG already exists, skipping"
+          else
+            gh release create "$TAG" \
+              --title "Release ${{ steps.version.outputs.new }}" \
+              --notes-file /tmp/release-notes.md
+
+            echo "✅ GitHub Release created: $TAG"
+          fi
+
+      - name: Summary
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          echo "### 🎉 Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: v${{ steps.version.outputs.new }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Previous**: v${{ steps.version.outputs.old }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **CHANGELOG**: ${{ steps.changelog.outputs.has_changelog }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **LLM Enhanced**: ${{ steps.release_notes.outputs.success }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Notes:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/release-notes.md >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

@@ -1,609 +1,408 @@
-# Sprint Backlog: GitHub Release Integration
-# Sprint ID: sprint-337-abb8c02
-# Objective: Add --github-release flag to brat release command
-# Priority Legend: P0 (Critical) → P4 (Nice-to-have)
-
+---
 sprint:
   id: sprint-337-abb8c02
-  name: "GitHub Release Integration for brat release"
-  objective: "Add optional GitHub Release creation to the brat release command"
-  status: completed
-  started: 2026-07-11
-  completed: 2026-07-11
+  title: Automated GitHub Releases via CI/CD
+  start_date: 2026-07-11
+  lead: Claude Code
+  status: planning
+
+epic:
+  id: BL-337-001
+  title: Replace local --github-release flag with automated CI/CD workflow
+  description: >
+    Implement GitHub Actions automation to create releases when PRs with version
+    bumps are merged to main, replacing the flawed local --github-release approach
 
 backlog:
-  # ============================================================================
-  # PHASE 1: Release Notes Extraction (Foundational)
-  # ============================================================================
-
-  - id: TASK-001
-    title: "Add extractReleaseNotes() function to changelog.ts"
-    description: |
-      Implement a pure function that extracts release notes for a specific
-      version from a Keep-a-Changelog formatted CHANGELOG.md file.
-
-      Function signature:
-      export function extractReleaseNotes(content: string, version: string): string
-
-      Algorithm:
-      1. Find section: ## [<version>] - <date>
-      2. Extract all content until next ## [ header or EOF
-      3. Strip leading/trailing whitespace
-      4. If not found or empty, return default: "Release <version>"
-    priority: P0
+  # Phase 1: Core Infrastructure
+  - id: BL-337-100
+    title: Create version detection script
+    priority: critical
+    status: completed
     phase: 1
-    estimated_hours: 1.5
-    dependencies: []
+    description: >
+      Create scripts/detect-version-change.sh that compares architecture.yaml
+      project.version between current commit and parent commit
     acceptance_criteria:
-      - Function exported from changelog.ts
-      - Correctly extracts notes from well-formed CHANGELOG
-      - Returns default message when section not found
-      - Preserves markdown formatting in extracted notes
-    files:
-      - tools/brat/src/release/changelog.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - Script exits 0 if version changed, 1 if unchanged
+      - Handles edge cases (no architecture.yaml, malformed YAML)
+      - Works with git history (HEAD vs HEAD~1)
+      - Outputs detected version numbers to stdout
+    estimated_effort: 30min
+    dependencies: []
+    deliverables:
+      - scripts/detect-version-change.sh
 
-  - id: TASK-002
-    title: "Write unit tests for extractReleaseNotes()"
-    description: |
-      Create comprehensive test suite for release notes extraction covering:
-      - Standard Keep-a-Changelog format
-      - Missing CHANGELOG.md (error handling)
-      - Missing version section (default fallback)
-      - Empty version section (default fallback)
-      - Multiple versions (extract correct one)
-      - Whitespace handling
-      - Markdown preservation
-    priority: P0
+  - id: BL-337-101
+    title: Create basic changelog extraction script
+    priority: critical
+    status: completed
     phase: 1
-    estimated_hours: 1.0
-    dependencies:
-      - TASK-001
+    description: >
+      Create scripts/extract-changelog.sh that parses CHANGELOG.md and extracts
+      the release notes for a specific version (basic extraction, no LLM yet)
     acceptance_criteria:
-      - New test file created
-      - All edge cases covered
-      - Tests pass with 100% coverage of new function
-    files:
-      - tools/brat/src/release/__tests__/changelog-extraction.spec.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - Accepts version as argument (e.g., "0.11.0")
+      - Extracts content between ## [VERSION] and next ## heading
+      - Handles missing version gracefully (returns empty/null)
+      - Preserves markdown formatting
+      - Removes date suffix from heading (e.g., "## [0.11.0] - 2026-07-11" → content only)
+    estimated_effort: 30min
+    dependencies: []
+    deliverables:
+      - scripts/extract-changelog.sh
 
-  - id: TASK-003
-    title: "Handle edge cases in extractReleaseNotes()"
-    description: |
-      Ensure robust error handling for:
-      - Malformed CHANGELOG headers
-      - Non-standard date formats
-      - Missing closing header (extract to EOF)
-      - Unicode characters in notes
-      - Very long notes (no truncation)
-    priority: P1
+  - id: BL-337-102
+    title: Create basic GitHub Actions workflow scaffold
+    priority: critical
+    status: completed
     phase: 1
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-001
-      - TASK-002
+    description: >
+      Create .github/workflows/auto-release.yml scaffold that triggers on push to main
+      and detects version changes (LLM integration added in Phase 2)
     acceptance_criteria:
-      - All edge cases handled gracefully
-      - No exceptions thrown (return default on error)
-      - Tests demonstrate resilience
-    files:
-      - tools/brat/src/release/changelog.ts
-      - tools/brat/src/release/__tests__/changelog-extraction.spec.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - Triggers only on push to main branch
+      - Uses detect-version-change.sh to check if version bumped
+      - Skips if version unchanged (exit gracefully)
+      - Sets up Node.js 24 environment
+      - Installs dependencies if needed
+      - Validates workflow syntax
+      - Uses GITHUB_TOKEN for authentication
+    estimated_effort: 30min
+    dependencies:
+      - BL-337-100
+    deliverables:
+      - .github/workflows/auto-release.yml (scaffold)
 
-  # ============================================================================
-  # PHASE 2: GitHub CLI Integration
-  # ============================================================================
-
-  - id: TASK-004
-    title: "Add checkGhInstalled() utility function"
-    description: |
-      Create a utility to verify GitHub CLI (gh) is installed and accessible.
-
-      Implementation:
-      - Use 'which gh' (Unix) or 'where gh' (Windows)
-      - Return boolean: true if found, false otherwise
-      - Cache result to avoid repeated checks
-
-      Location: tools/brat/src/release/release.ts or new utils file
-    priority: P0
+  # Phase 2: LLM Integration
+  - id: BL-337-200
+    title: Create LLM release notes generator (Node.js)
+    priority: critical
+    status: completed
     phase: 2
-    estimated_hours: 0.5
+    description: >
+      Create scripts/llm-release-notes.js that uses OpenAI API to generate
+      intelligent, categorized release notes from git commits
+    acceptance_criteria:
+      - Accepts version and previous version as arguments
+      - Integrates with OpenAI API (GPT-4o-mini)
+      - Parses git log between version tags
+      - Generates structured release notes with categories (Features, Fixes, Breaking Changes)
+      - Creates "Highlights" summary section
+      - Handles API failures gracefully (returns null/error)
+      - Uses environment variable OPENAI_API_KEY
+      - Outputs GitHub-flavored markdown
+      - Includes cost-efficient prompting strategy
+    estimated_effort: 60min
     dependencies: []
-    acceptance_criteria:
-      - Function returns true when gh is installed
-      - Function returns false when gh is not installed
-      - Works on macOS, Linux, Windows
-      - Result is cached for performance
-    files:
-      - tools/brat/src/release/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
+    deliverables:
+      - scripts/llm-release-notes.js
+      - package.json (add openai dependency)
 
-  - id: TASK-005
-    title: "Add createGitHubRelease() function"
-    description: |
-      Implement async function to create GitHub release via gh CLI.
-
-      Signature:
-      async function createGitHubRelease(
-        version: string,
-        notes: string,
-        dryRun: boolean
-      ): Promise<boolean>
-
-      Process:
-      1. Check if gh is installed (use TASK-004)
-      2. If dryRun: log what would be created, return true
-      3. Execute: gh release create v<version> --title "v<version>" --notes "<notes>"
-      4. Return true on success (exit code 0), false otherwise
-    priority: P0
+  - id: BL-337-201
+    title: Integrate LLM generator with workflow
+    priority: critical
+    status: completed
     phase: 2
-    estimated_hours: 1.5
-    dependencies:
-      - TASK-004
+    description: >
+      Update GitHub Actions workflow to use LLM release notes generator
     acceptance_criteria:
-      - Function exported from release.ts
-      - Correctly constructs gh CLI command
-      - Handles success and failure cases
-      - Dry-run logs without executing
-      - Returns boolean status
-    files:
-      - tools/brat/src/release/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - Workflow calls llm-release-notes.js with version info
+      - Falls back to extract-changelog.sh if LLM fails
+      - Combines CHANGELOG content with LLM-generated Highlights
+      - Configures OPENAI_API_KEY secret from GitHub Secrets
+      - Handles empty/missing CHANGELOG with full LLM generation
+      - Logs LLM usage for debugging
+      - Creates git tag with LLM-enhanced notes
+      - Creates GitHub Release with formatted notes
+    estimated_effort: 45min
+    dependencies:
+      - BL-337-102
+      - BL-337-200
+    deliverables:
+      - .github/workflows/auto-release.yml (complete)
 
-  - id: TASK-006
-    title: "Implement dry-run support for GitHub release"
-    description: |
-      Ensure createGitHubRelease() respects --dry-run flag:
-      - Log exact gh command that would be executed
-      - Show what release notes would be used
-      - Do NOT call gh CLI in dry-run mode
-      - Return true (simulated success)
-    priority: P0
+  - id: BL-337-202
+    title: Add git log parsing utility
+    priority: high
+    status: completed
     phase: 2
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-005
+    description: >
+      Create helper function/module for intelligent git commit parsing
     acceptance_criteria:
-      - Dry-run logs include full gh command
-      - Dry-run logs include release notes preview
-      - No subprocess spawned in dry-run mode
-      - Logging uses existing logger facade
-    files:
-      - tools/brat/src/release/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
-
-  - id: TASK-007
-    title: "Add error handling for gh CLI failures"
-    description: |
-      Robust error handling for:
-      - gh not installed (clear error with install URL)
-      - gh not authenticated (let gh prompt for auth)
-      - Network failures (timeout, connection refused)
-      - API errors (permissions, rate limits)
-      - Invalid arguments (malformed version, etc.)
-
-      Strategy: Non-fatal failures (log error, return false)
-    priority: P1
-    phase: 2
-    estimated_hours: 1.0
+      - Parses git log between two tags/commits
+      - Extracts commit messages, types (feat/fix/etc), and scopes
+      - Filters out merge commits and noise
+      - Groups commits by type for categorization
+      - Handles conventional commit format
+      - Returns structured data for LLM processing
+    estimated_effort: 30min
     dependencies:
-      - TASK-005
-    acceptance_criteria:
-      - gh not found throws ConfigurationError with install link
-      - Network errors logged with helpful message
-      - API errors logged with GitHub response
-      - All errors include actionable guidance
-      - Failed release doesn't abort version bump
-    files:
-      - tools/brat/src/release/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - BL-337-200
+    deliverables:
+      - scripts/parse-git-log.js or inline in llm-release-notes.js
 
-  # ============================================================================
-  # PHASE 3: CLI Integration
-  # ============================================================================
-
-  - id: TASK-008
-    title: "Add --github-release flag to CLI parser"
-    description: |
-      Update CLI argument parser in tools/brat/src/cli/release.ts:
-      - Parse --github-release flag from argv
-      - Pass to runRelease() options
-      - Add to help text / usage documentation
-    priority: P0
+  # Phase 3: Release Creation & Edge Cases
+  - id: BL-337-300
+    title: Add workflow error handling and edge cases
+    priority: high
+    status: completed
     phase: 3
-    estimated_hours: 0.5
-    dependencies: []
+    description: >
+      Enhance workflow with robust error handling, duplicate detection, and edge case handling
     acceptance_criteria:
-      - Flag parsed correctly from command line
-      - Boolean passed to runRelease() function
-      - Help text includes new flag description
-    files:
-      - tools/brat/src/cli/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - Check if tag already exists before creating
+      - Handle case where CHANGELOG has no entry for version
+      - Handle LLM API failures gracefully
+      - Add workflow notifications on failure
+      - Validate version format (SemVer)
+      - Log all steps clearly for debugging
+      - Prevent duplicate releases
+    estimated_effort: 30min
+    dependencies:
+      - BL-337-201
+    deliverables:
+      - Updated .github/workflows/auto-release.yml
 
-  - id: TASK-009
-    title: "Add validation: --github-release requires --tag"
-    description: |
-      Implement validation logic in runRelease():
-
-      if (options.githubRelease && !options.tag) {
-        throw new ConfigurationError(
-          'GitHub releases require git tags. Use --tag with --github-release'
-        );
-      }
-
-      Place BEFORE version bump logic to fail fast.
-    priority: P0
+  - id: BL-337-301
+    title: Add workflow permissions and security
+    priority: high
+    status: completed
     phase: 3
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-008
+    description: >
+      Configure minimal required permissions for workflow security
     acceptance_criteria:
-      - Error thrown when --github-release without --tag
-      - Error message is clear and actionable
-      - Validation occurs before any file mutations
-      - Test case added to release.spec.ts
-    files:
-      - tools/brat/src/release/release.ts
-      - tools/brat/src/release/__tests__/release.spec.ts
-    status: pending
-    assigned_to: null
-    completed: false
-
-  - id: TASK-010
-    title: "Update runRelease() orchestration flow"
-    description: |
-      Add GitHub release creation step to runRelease():
-
-      1. After existing git tag creation
-      2. Read CHANGELOG.md
-      3. Extract release notes for new version (TASK-001)
-      4. Call createGitHubRelease() (TASK-005)
-      5. Log success or non-fatal failure
-
-      Ensure step is idempotent and respects dry-run.
-    priority: P0
-    phase: 3
-    estimated_hours: 1.0
+      - Workflow uses minimal permissions (contents:write for tags/releases)
+      - Uses GITHUB_TOKEN for releases (not PAT)
+      - OPENAI_API_KEY configured as GitHub secret
+      - Follows GitHub Actions security best practices
+      - Secrets not logged or exposed
+    estimated_effort: 15min
     dependencies:
-      - TASK-001
-      - TASK-005
-      - TASK-008
-      - TASK-009
-    acceptance_criteria:
-      - GitHub release step added after tag creation
-      - Release notes extracted from CHANGELOG
-      - Success/failure logged appropriately
-      - Dry-run prevents actual release creation
-      - Failure is non-fatal (warning, not error)
-    files:
-      - tools/brat/src/release/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - BL-337-201
+    deliverables:
+      - Updated .github/workflows/auto-release.yml
 
-  - id: TASK-011
-    title: "Add user feedback logging for GitHub release"
-    description: |
-      Add informative console output:
-      - Before: "Creating GitHub release v<version>..."
-      - Success: "✓ GitHub release created: <URL>"
-      - Failure: "✗ Failed to create GitHub release: <reason>"
-      - Dry-run: "[DRY RUN] Would create GitHub release v<version>"
-
-      Use existing logger facade (this.getLogger() in Bit context or CLI logger)
-    priority: P1
-    phase: 3
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-010
-    acceptance_criteria:
-      - Clear logging at each step
-      - Success message includes release URL if available
-      - Failure message includes error details
-      - Consistent with existing CLI output style
-    files:
-      - tools/brat/src/release/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
-
-  # ============================================================================
-  # PHASE 4: Testing
-  # ============================================================================
-
-  - id: TASK-012
-    title: "Add unit tests for extractReleaseNotes()"
-    description: |
-      Comprehensive test coverage (already covered in TASK-002).
-      This is a verification task to ensure all tests pass.
-    priority: P0
+  # Phase 4: Documentation Updates
+  - id: BL-337-400
+    title: Update CLAUDE.md to remove --github-release references
+    priority: high
+    status: completed
     phase: 4
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-002
+    description: >
+      Remove all mentions of --github-release flag and update with CI/CD + LLM approach
     acceptance_criteria:
-      - All extractReleaseNotes() tests passing
-      - Coverage ≥ 90% for new code
-    files:
-      - tools/brat/src/release/__tests__/changelog-extraction.spec.ts
-    status: pending
-    assigned_to: null
-    completed: false
-
-  - id: TASK-013
-    title: "Add integration test for full release flow"
-    description: |
-      Update release.spec.ts with new test cases:
-      - Test: brat release patch --tag --github-release
-      - Mock gh CLI calls (intercept child_process.exec)
-      - Verify correct gh command constructed
-      - Verify release notes extracted from CHANGELOG
-      - Verify success return value
-    priority: P0
-    phase: 4
-    estimated_hours: 1.5
+      - Remove --github-release from version management section
+      - Add section explaining automated release workflow with LLM enhancement
+      - Document OPENAI_API_KEY secret requirement
+      - Update developer workflow guidance
+      - Keep --tag flag documentation (still useful for local testing)
+    estimated_effort: 15min
     dependencies:
-      - TASK-010
-    acceptance_criteria:
-      - Integration test covers full happy path
-      - gh CLI calls are mocked
-      - Test verifies correct command arguments
-      - Test verifies release notes content
-      - Test passes reliably
-    files:
-      - tools/brat/src/release/__tests__/release.spec.ts
-    status: pending
-    assigned_to: null
-    completed: false
-
-  - id: TASK-014
-    title: "Add error case tests"
-    description: |
-      Test error scenarios:
-      - --github-release without --tag (validation error)
-      - gh CLI not installed (configuration error)
-      - gh CLI fails (non-fatal, logged)
-      - CHANGELOG.md missing (default notes used)
-      - Version section not in CHANGELOG (default notes used)
-    priority: P0
-    phase: 4
-    estimated_hours: 1.0
-    dependencies:
-      - TASK-010
-      - TASK-013
-    acceptance_criteria:
-      - All error paths covered by tests
-      - Tests verify correct error types thrown
-      - Tests verify error messages
-      - Non-fatal errors don't abort process
-    files:
-      - tools/brat/src/release/__tests__/release.spec.ts
-    status: pending
-    assigned_to: null
-    completed: false
-
-  - id: TASK-015
-    title: "Manual smoke test with real GitHub repo"
-    description: |
-      Perform end-to-end manual testing:
-      1. Create test branch
-      2. Run: npm run brat -- release patch --tag --github-release
-      3. Verify GitHub release created
-      4. Verify release notes match CHANGELOG
-      5. Test dry-run mode
-      6. Test error cases (no gh, no --tag, etc.)
-    priority: P1
-    phase: 4
-    estimated_hours: 1.0
-    dependencies:
-      - TASK-010
-      - TASK-013
-      - TASK-014
-    acceptance_criteria:
-      - GitHub release successfully created on test repo
-      - Release notes correctly extracted
-      - Dry-run prevents actual release
-      - Error messages are clear and helpful
-      - No unexpected side effects
-    files: []
-    status: pending
-    assigned_to: null
-    completed: false
-
-  # ============================================================================
-  # PHASE 5: Documentation
-  # ============================================================================
-
-  - id: TASK-016
-    title: "Update CLAUDE.md with new flag documentation"
-    description: |
-      Add documentation to CLAUDE.md:
-      - Add --github-release to "Version Management" section
-      - Include example: npm run brat -- release patch --tag --github-release
-      - Document gh CLI prerequisite
-      - Document relationship with --tag flag
-    priority: P1
-    phase: 5
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-010
-    acceptance_criteria:
-      - CLAUDE.md updated with new flag
-      - Examples are accurate
-      - Prerequisites clearly stated
-      - Consistent with existing documentation style
-    files:
+      - BL-337-201
+    deliverables:
       - CLAUDE.md
-    status: pending
-    assigned_to: null
-    completed: false
 
-  - id: TASK-017
-    title: "Update README.md release section"
-    description: |
-      Update README.md if it documents the release process:
-      - Add --github-release flag to release documentation
-      - Include example usage
-      - Mention gh CLI requirement
-      - Update any release workflow diagrams if present
-    priority: P2
-    phase: 5
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-010
+  - id: BL-337-401
+    title: Update README.md with automated release workflow
+    priority: high
+    status: completed
+    phase: 4
+    description: >
+      Update README.md versioning section to reflect GitHub Actions automation with LLM
     acceptance_criteria:
-      - README.md reflects new functionality
-      - Examples are correct
-      - Consistent with CLAUDE.md
-    files:
+      - Remove --github-release flag references
+      - Document new automated workflow with LLM features
+      - Explain PR → merge → LLM-enhanced auto-release flow
+      - Provide examples and best practices
+      - Document secret setup (OPENAI_API_KEY)
+    estimated_effort: 15min
+    dependencies:
+      - BL-337-201
+    deliverables:
       - README.md
-    status: pending
-    assigned_to: null
-    completed: false
 
-  - id: TASK-018
-    title: "Add inline code comments for new functions"
-    description: |
-      Add JSDoc comments to new functions:
-      - extractReleaseNotes(): purpose, params, returns, edge cases
-      - createGitHubRelease(): purpose, params, returns, error handling
-      - checkGhInstalled(): purpose, returns
-
-      Follow existing code comment style in the codebase.
-    priority: P2
-    phase: 5
-    estimated_hours: 0.5
-    dependencies:
-      - TASK-001
-      - TASK-004
-      - TASK-005
+  - id: BL-337-402
+    title: Create workflow usage documentation
+    priority: medium
+    status: completed
+    phase: 4
+    description: >
+      Create documentation/guides/automated-releases.md explaining the workflow
     acceptance_criteria:
-      - All new public functions have JSDoc comments
-      - Comments include param types and descriptions
-      - Return values documented
-      - Edge cases and errors mentioned
-    files:
-      - tools/brat/src/release/changelog.ts
-      - tools/brat/src/release/release.ts
-    status: pending
-    assigned_to: null
-    completed: false
+      - Explains trigger conditions (version bump on main)
+      - Shows example CHANGELOG format
+      - Documents LLM enhancement features
+      - Explains Highlights generation and categorization
+      - Troubleshooting common issues (LLM failures, API limits)
+      - How to manually trigger if needed
+      - How to verify release was created
+      - How to configure OPENAI_API_KEY secret
+    estimated_effort: 30min
+    dependencies:
+      - BL-337-201
+    deliverables:
+      - documentation/guides/automated-releases.md
 
-# ============================================================================
-# Summary Statistics
-# ============================================================================
+  # Phase 5: Testing & Validation
+  - id: BL-337-500
+    title: Test version detection script
+    priority: critical
+    status: pending
+    phase: 5
+    description: >
+      Create unit tests for detect-version-change.sh script
+    acceptance_criteria:
+      - Test version changed scenario
+      - Test version unchanged scenario
+      - Test missing architecture.yaml
+      - Test malformed YAML
+      - All tests pass
+    estimated_effort: 20min
+    dependencies:
+      - BL-337-100
+    deliverables:
+      - scripts/__tests__/detect-version-change.test.sh or inline tests
+
+  - id: BL-337-501
+    title: Test changelog extraction script
+    priority: critical
+    status: pending
+    phase: 5
+    description: >
+      Create unit tests for extract-changelog.sh script
+    acceptance_criteria:
+      - Test extraction with valid version
+      - Test extraction with missing version
+      - Test extraction with multiple versions
+      - Test markdown formatting preservation
+      - All tests pass
+    estimated_effort: 20min
+    dependencies:
+      - BL-337-101
+    deliverables:
+      - scripts/__tests__/extract-changelog.test.sh or inline tests
+
+  - id: BL-337-502
+    title: Test LLM release notes generator
+    priority: critical
+    status: pending
+    phase: 5
+    description: >
+      Create tests for llm-release-notes.js with mocked OpenAI API
+    acceptance_criteria:
+      - Mock OpenAI API responses
+      - Test with various git commit patterns
+      - Test categorization logic (features, fixes, breaking)
+      - Test Highlights generation
+      - Test fallback when API fails
+      - Test with empty commit log
+      - All tests pass
+    estimated_effort: 30min
+    dependencies:
+      - BL-337-200
+    deliverables:
+      - scripts/__tests__/llm-release-notes.test.js
+
+  - id: BL-337-503
+    title: Validate GitHub Actions workflow syntax
+    priority: critical
+    status: pending
+    phase: 5
+    description: >
+      Ensure workflow YAML is valid and follows best practices
+    acceptance_criteria:
+      - Workflow passes GitHub Actions linter
+      - actionlint (if available) passes
+      - YAML syntax is valid
+      - All referenced actions use pinned versions
+      - Secrets properly configured
+    estimated_effort: 10min
+    dependencies:
+      - BL-337-201
+    deliverables:
+      - Validated .github/workflows/auto-release.yml
+
+  - id: BL-337-504
+    title: Add workflow validation to validate_deliverable.sh
+    priority: high
+    status: completed
+    phase: 5
+    description: >
+      Update validate_deliverable.sh to include workflow validation
+    acceptance_criteria:
+      - Checks that auto-release.yml exists
+      - Validates YAML syntax
+      - Validates helper scripts are executable
+      - Runs script tests (if created)
+      - Checks for required secrets documentation
+      - Documented in script output
+    estimated_effort: 15min
+    dependencies:
+      - BL-337-503
+    deliverables:
+      - validate_deliverable.sh
+
+  # Phase 6: Cleanup (Optional but Recommended)
+  - id: BL-337-600
+    title: Search and remove any --github-release flag code
+    priority: medium
+    status: completed
+    phase: 6
+    description: >
+      Ensure no remnants of --github-release flag exist in codebase
+    acceptance_criteria:
+      - Grep codebase for "github-release" or "githubRelease"
+      - Remove any flag parsing or handling code
+      - Remove from help text if present
+      - Remove from tests if present
+    estimated_effort: 15min
+    dependencies:
+      - BL-337-400
+      - BL-337-401
+    deliverables:
+      - Clean codebase (no --github-release references)
 
 summary:
-  total_tasks: 18
-  by_priority:
-    P0: 11  # Critical path
-    P1: 6   # Important
-    P2: 1   # Nice-to-have
-  by_phase:
-    phase_1: 3   # Release Notes Extraction
-    phase_2: 4   # GitHub CLI Integration
-    phase_3: 4   # CLI Integration
-    phase_4: 5   # Testing
-    phase_5: 3   # Documentation
-  estimated_total_hours: 13.5
-  critical_path_hours: 8.5  # P0 tasks only
-
-# ============================================================================
-# Sprint Milestones
-# ============================================================================
-
-milestones:
-  - name: "Phase 1 Complete: Release Notes Extraction"
-    tasks: [TASK-001, TASK-002, TASK-003]
-    status: pending
-
-  - name: "Phase 2 Complete: GitHub CLI Integration"
-    tasks: [TASK-004, TASK-005, TASK-006, TASK-007]
-    status: pending
-
-  - name: "Phase 3 Complete: CLI Integration"
-    tasks: [TASK-008, TASK-009, TASK-010, TASK-011]
-    status: pending
-
-  - name: "Phase 4 Complete: Testing"
-    tasks: [TASK-012, TASK-013, TASK-014, TASK-015]
-    status: pending
-
-  - name: "Phase 5 Complete: Documentation"
-    tasks: [TASK-016, TASK-017, TASK-018]
-    status: pending
-
-  - name: "Sprint Complete: Feature Ready for Production"
-    tasks: []  # All tasks
-    status: pending
-
-# ============================================================================
-# Dependencies Graph (Critical Path)
-# ============================================================================
-
-critical_path:
-  - TASK-001 (no deps)
-  - TASK-002 (depends on TASK-001)
-  - TASK-004 (no deps)
-  - TASK-005 (depends on TASK-004)
-  - TASK-008 (no deps)
-  - TASK-009 (depends on TASK-008)
-  - TASK-010 (depends on TASK-001, TASK-005, TASK-008, TASK-009)
-  - TASK-013 (depends on TASK-010)
-  - TASK-014 (depends on TASK-010, TASK-013)
-
-# ============================================================================
-# Risks and Mitigations
-# ============================================================================
-
-risks:
-  - risk: "gh CLI not installed on developer machines"
-    severity: medium
-    mitigation: "Clear error message with install instructions. Non-fatal failure mode."
-
-  - risk: "GitHub API rate limits or network issues"
-    severity: low
-    mitigation: "Make GitHub release creation non-fatal. Log helpful error message."
-
-  - risk: "CHANGELOG.md in unexpected format"
-    severity: low
-    mitigation: "Robust parsing with default fallback. Extensive test coverage."
-
-  - risk: "Scope creep (requests for draft, pre-release, assets, etc.)"
-    severity: medium
-    mitigation: "Strictly adhere to implementation plan. Defer enhancements to future sprints."
-
-# ============================================================================
-# Notes
-# ============================================================================
-
-notes: |
-  This sprint follows the AGENTS.md protocol for BitBrat platform development.
-
-  Key Principles:
-  - Preserve all existing functionality (no breaking changes)
-  - Feature behind optional flag (gradual adoption)
-  - Non-fatal failure mode (GitHub release failure doesn't abort version bump)
-  - Comprehensive testing before merge
-  - Documentation updated alongside code
-
-  The implementation is designed to be idempotent, testable, and follow
-  existing code patterns in the tools/brat/src/release/ module.
+  total_tasks: 20
+  critical_priority: 9
+  high_priority: 7
+  medium_priority: 4
+  estimated_total_effort: ~6 hours
+  key_features:
+    - LLM-enhanced release notes with GPT-4o-mini
+    - Automatic categorization (Features, Fixes, Breaking Changes)
+    - AI-generated Highlights summary
+    - Intelligent fallback when CHANGELOG missing
+    - Cost-efficient OpenAI API usage
+  phases:
+    - phase: 1
+      title: Core Infrastructure
+      tasks: 3
+      estimated_effort: 90min
+      description: Version detection, basic CHANGELOG extraction, workflow scaffold
+    - phase: 2
+      title: LLM Integration
+      tasks: 3
+      estimated_effort: 135min
+      description: OpenAI API integration, git log parsing, LLM release notes generator
+    - phase: 3
+      title: Release Creation & Edge Cases
+      tasks: 2
+      estimated_effort: 45min
+      description: Error handling, security, permissions
+    - phase: 4
+      title: Documentation Updates
+      tasks: 3
+      estimated_effort: 60min
+      description: Update CLAUDE.md, README.md, create usage guide
+    - phase: 5
+      title: Testing & Validation
+      tasks: 5
+      estimated_effort: 95min
+      description: Script tests, LLM mocking, workflow validation
+    - phase: 6
+      title: Cleanup
+      tasks: 1
+      estimated_effort: 15min
+      description: Remove --github-release remnants
