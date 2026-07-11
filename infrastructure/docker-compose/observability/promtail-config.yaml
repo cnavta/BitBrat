@@ -1,0 +1,125 @@
+# Promtail Configuration for BitBrat Platform
+# Scrapes Docker container logs, parses JSON structure, and ships to Loki
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+# Where to write positions file (tracks what's been read)
+positions:
+  filename: /positions/positions.yaml
+
+# Loki client configuration
+clients:
+  - url: http://loki.bitbrat.local:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576  # 1MB
+    timeout: 10s
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+
+# Scrape configuration
+scrape_configs:
+  # ============================================================================
+  # BitBrat Docker Containers
+  # ============================================================================
+  - job_name: bitbrat-services
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project"]
+
+    # ====================================
+    # Relabeling: Filter and Extract Metadata
+    # ====================================
+    relabel_configs:
+      # Only scrape BitBrat containers (filter by compose project)
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        regex: '.*bitbrat.*'
+        action: keep
+
+      # Extract service name from container name
+      # Container names are like: bitbrat-event-router-1 or event-router.bitbrat.local
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/?(.*?)[-.].*'
+        target_label: 'service'
+        replacement: '${1}'
+
+      # Extract compose service name (backup method)
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'compose_service'
+
+      # Add container ID for debugging
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+
+      # Add container image for debugging
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_image']
+        target_label: 'image'
+
+      # Set path to container log file
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: '__path__'
+        replacement: '/var/lib/docker/containers/$1/$1-json.log'
+
+    # ====================================
+    # Pipeline: Parse JSON and Extract Labels
+    # ====================================
+    pipeline_stages:
+      # Stage 1: Parse Docker JSON log format
+      - docker: {}
+
+      # Stage 2: Parse BitBrat structured JSON logs
+      - json:
+          expressions:
+            # Core fields
+            correlationId: correlationId
+            traceId: traceId
+            level: level
+            severity: severity
+            msg: msg
+            message: message
+            ts: ts
+
+            # Context fields (nice-to-have)
+            sessionId: sessionId
+            userId: userId
+            stage: stage
+
+            # Service field (fallback if not in container metadata)
+            service_from_log: service
+
+      # Stage 3: Promote key fields to labels for indexing
+      # IMPORTANT: Limit labels to avoid cardinality explosion
+      - labels:
+          correlationId:
+          traceId:
+          level:
+          # Service already set by relabel_configs
+
+      # Stage 4: Set timestamp from log entry
+      - timestamp:
+          source: ts
+          format: RFC3339Nano
+          fallback_formats:
+            - RFC3339
+            - "2006-01-02T15:04:05.999999999Z07:00"
+
+      # Stage 5: Construct log line output
+      - output:
+          source: message
+
+      # Stage 6: Drop healthcheck/debug noise (optional - uncomment if needed)
+      # - drop:
+      #     source: "msg"
+      #     expression: ".*(healthcheck|ping).*"
+
+# Limits
+limits_config:
+  readline_rate: 100
+  readline_burst: 1000
