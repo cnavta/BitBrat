@@ -49,9 +49,22 @@ async function fleetListHandler(
       databaseId: connection.firestore.databaseId
     });
 
+    if (!connection.gateway.authToken) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No auth token configured',
+            message: 'MCP_AUTH_TOKEN or MCP_DEV_TOKEN environment variable is required for fleet operations.',
+            hint: 'Set MCP_AUTH_TOKEN=<token> or MCP_DEV_TOKEN=<token> when starting the dev-mcp server.'
+          }, null, 2)
+        }]
+      };
+    }
+
     const identity = {
-      token: connection.gateway.authToken || 'dev-mcp-token',
-      roles: ['bit:read'],
+      token: connection.gateway.authToken,
+      roles: ['bit:read', 'discovery'],
       agentName: 'brat-dev-mcp'
     };
 
@@ -146,9 +159,22 @@ async function fleetInfoHandler(
       databaseId: connection.firestore.databaseId
     });
 
+    if (!connection.gateway.authToken) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No auth token configured',
+            message: 'MCP_AUTH_TOKEN or MCP_DEV_TOKEN environment variable is required for fleet operations.',
+            hint: 'Set MCP_AUTH_TOKEN=<token> or MCP_DEV_TOKEN=<token> when starting the dev-mcp server.'
+          }, null, 2)
+        }]
+      };
+    }
+
     const identity = {
-      token: connection.gateway.authToken || 'dev-mcp-token',
-      roles: ['bit:read'],
+      token: connection.gateway.authToken,
+      roles: ['bit:read', 'discovery'],
       agentName: 'brat-dev-mcp'
     };
 
@@ -322,7 +348,7 @@ async function fleetLogsHandler(
 
       const identity = {
         token: connection.gateway?.authToken || 'dev-mcp-token',
-        roles: ['bit:read'],
+        roles: ['bit:read', 'discovery'],
         agentName: 'brat-dev-mcp'
       };
 
@@ -518,9 +544,22 @@ async function fleetTraceHandler(
       databaseId: connection.firestore.databaseId
     });
 
+    if (!connection.gateway.authToken) {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'No auth token configured',
+            message: 'MCP_AUTH_TOKEN or MCP_DEV_TOKEN environment variable is required for fleet operations.',
+            hint: 'Set MCP_AUTH_TOKEN=<token> or MCP_DEV_TOKEN=<token> when starting the dev-mcp server.'
+          }, null, 2)
+        }]
+      };
+    }
+
     const identity = {
-      token: connection.gateway.authToken || 'dev-mcp-token',
-      roles: ['bit:read'],
+      token: connection.gateway.authToken,
+      roles: ['bit:read', 'discovery'],
       agentName: 'brat-dev-mcp'
     };
 
