@@ -78,15 +78,16 @@ jobs:
         id: release_notes
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+          OLD_VERSION: ${{ steps.version.outputs.old }}
         run: |
           chmod +x scripts/llm-release-notes.js
-
-          CHANGELOG_CONTENT=$(cat /tmp/changelog.txt)
 
           if [[ -n "$OPENAI_API_KEY" ]]; then
             echo "🤖 Generating LLM-enhanced release notes..."
 
-            if node scripts/llm-release-notes.js "${{ steps.version.outputs.new }}" "${{ steps.version.outputs.old }}" "$CHANGELOG_CONTENT" > /tmp/release-notes.md 2>&1; then
+            # Call script with file path instead of content to avoid argument parsing issues
+            if node scripts/llm-release-notes.js "$NEW_VERSION" "$OLD_VERSION" /tmp/changelog.txt > /tmp/release-notes.md 2>&1; then
               echo "success=true" >> $GITHUB_OUTPUT
               echo "✅ LLM release notes generated successfully"
               cat /tmp/release-notes.md
@@ -94,12 +95,16 @@ jobs:
               echo "success=false" >> $GITHUB_OUTPUT
               echo "⚠️  LLM generation failed, falling back to CHANGELOG only"
 
+              # Log the error for debugging
+              echo "Error output:"
+              cat /tmp/release-notes.md
+
               if [[ "${{ steps.changelog.outputs.has_changelog }}" == "true" ]]; then
-                echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+                echo "## Release $NEW_VERSION" > /tmp/release-notes.md
                 echo "" >> /tmp/release-notes.md
                 cat /tmp/changelog.txt >> /tmp/release-notes.md
               else
-                echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+                echo "## Release $NEW_VERSION" > /tmp/release-notes.md
                 echo "" >> /tmp/release-notes.md
                 echo "See CHANGELOG.md for details." >> /tmp/release-notes.md
               fi
@@ -109,11 +114,11 @@ jobs:
             echo "⚠️  OPENAI_API_KEY not configured, using CHANGELOG only"
 
             if [[ "${{ steps.changelog.outputs.has_changelog }}" == "true" ]]; then
-              echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+              echo "## Release $NEW_VERSION" > /tmp/release-notes.md
               echo "" >> /tmp/release-notes.md
               cat /tmp/changelog.txt >> /tmp/release-notes.md
             else
-              echo "## Release ${{ steps.version.outputs.new }}" > /tmp/release-notes.md
+              echo "## Release $NEW_VERSION" > /tmp/release-notes.md
               echo "" >> /tmp/release-notes.md
               echo "See CHANGELOG.md for details." >> /tmp/release-notes.md
             fi
