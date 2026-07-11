@@ -137,7 +137,7 @@ Usage:
   brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger delete --name <n> [--dry-run]
 
-  brat docker up [--target <name>] [--env <name>] [--service <name>] [--dry-run]
+  brat docker up [--target <name>] [--env <name>] [--service <name>] [--loki] [--dry-run]
   brat docker down [--target <name>] [--service <name>] [--dry-run]
   brat docker logs [--target <name>] [--service <name>] [--follow]
   brat docker ps [--target <name>] [--service <name>]
@@ -932,7 +932,7 @@ Options:
   if (c1 === 'docker') {
     const action = c2;
     if (!action) {
-      console.error('Usage: brat docker <up|down|logs|ps> [--target <name>] [--env <name>] [--service <name>] [--dry-run]');
+      console.error('Usage: brat docker <up|down|logs|ps> [--target <name>] [--env <name>] [--service <name>] [--loki] [--dry-run]');
       process.exit(2);
     }
     const m = parseKeyValueFlags(rest);
@@ -940,7 +940,8 @@ Options:
       ...flags,
       target: m['target'],
       service: m['service'],
-      follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true'
+      follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true',
+      loki: rest.includes('--loki') || m['loki'] === 'true'
     };
     await cmdDocker(action, dockerFlags);
     return;

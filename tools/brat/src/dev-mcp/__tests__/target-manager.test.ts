@@ -17,7 +17,7 @@ describe('TargetConnectionManager', () => {
   const logger = createLogger({ base: { component: 'test' }, level: 'error' });
 
   beforeEach(() => {
-    manager = new TargetConnectionManager(undefined, logger);
+    manager = new TargetConnectionManager(undefined, undefined, logger);
   });
 
   afterEach(async () => {
@@ -29,7 +29,7 @@ describe('TargetConnectionManager', () => {
   });
 
   it('should create manager with default target', () => {
-    const managerWithDefault = new TargetConnectionManager('local', logger);
+    const managerWithDefault = new TargetConnectionManager('local', undefined, logger);
     expect(managerWithDefault).toBeDefined();
   });
 

@@ -6,7 +6,8 @@ export async function cmdDocker(action: string, flags: any) {
     target: flags.target,
     env: flags.env,
     service: flags.service,
-    dryRun: flags.dryRun
+    dryRun: flags.dryRun,
+    loki: flags.loki
   };
 
   const orchestrator = new DockerOrchestrator(options);

@@ -19,6 +19,7 @@ function buildInterpolationContext(raw: any): InterpolationContext {
   const envPrefix = env === 'prod' ? '' : `${env}.`;
   const domainSuffix = process.env.DOMAIN_SUFFIX || 'bitbrat.ai';
   const domainPrefix = process.env.DOMAIN_PREFIX || '';
+  const mcpAuthToken = process.env.MCP_AUTH_TOKEN || '';
   return {
     ENV: env,
     PROJECT_ID: projectId,
@@ -26,6 +27,7 @@ function buildInterpolationContext(raw: any): InterpolationContext {
     ENV_PREFIX: envPrefix,
     DOMAIN_SUFFIX: domainSuffix,
     DOMAIN_PREFIX: domainPrefix,
+    MCP_AUTH_TOKEN: mcpAuthToken,
   };
 }
 

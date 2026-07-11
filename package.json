@@ -1,6 +1,6 @@
 {
   "name": "bitbrat-platform",
-  "version": "0.9.0",
+  "version": "0.10.2",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/src/common/prompt-assembly/index.d.ts",
@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "build": "tsc -p tsconfig.json",
     "test": "jest",
-    "local": "npm run brat -- docker up --env local",
+    "local": "npm run brat -- docker up --env local --loki",
     "local:down": "npm run brat -- docker down --env local",
     "local:logs": "npm run brat -- docker logs --env local",
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
@@ -42,6 +42,7 @@
   "license": "MIT",
   "dependencies": {
     "@ai-sdk/openai": "^3.0.1",
+    "@google-cloud/logging": "^11.0.0",
     "@google-cloud/pubsub": "^5.2.0",
     "@guhcostan/web-search-mcp": "^1.0.5",
     "@modelcontextprotocol/sdk": "^1.25.1",

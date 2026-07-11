@@ -71,11 +71,11 @@ describe('generateAppSource', () => {
     });
   });
 
-  describe('profile: mcp-domain', () => {
+  describe('profile: mcp-server', () => {
     it('should generate MCP tool server with registerTool example', () => {
       const opts: TemplateOptions = {
         name: 'custom-tools',
-        profile: 'mcp-domain',
+        profile: 'mcp-server',
         exposure: 'platform+domain',
         kind: 'mcp-server',
       };

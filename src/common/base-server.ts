@@ -12,6 +12,7 @@ export interface EnvGetOptions<T> {
 }
 import { buildConfig, safeConfig } from './config';
 import {logger, Logger} from './logging';
+import { runWithEventContext, type EventContext } from './event-context';
 import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
@@ -447,6 +448,62 @@ export class Bit {
 
     const subscriber = createMessageSubscriber();
     this.logger.info('base_server.message.subscribe.start', { subject, queue });
+
+    // Helper to extract EventContext from message data
+    // This function never throws - it gracefully handles malformed data
+    const extractEventContext = (parsed: any): EventContext => {
+      const eventCtx: EventContext = {};
+
+      try {
+        // Handle null/undefined parsed data
+        if (!parsed || typeof parsed !== 'object') {
+          this.logger.debug('base_server.message.context.malformed_data', { subject });
+          return eventCtx;
+        }
+
+        // Extract correlationId (required for distributed tracing)
+        if (parsed.correlationId && typeof parsed.correlationId === 'string') {
+          eventCtx.correlationId = parsed.correlationId;
+        } else {
+          // Log missing correlationId at debug level (not a critical error)
+          this.logger.debug('base_server.message.context.missing_correlation_id', { subject, type: parsed.type });
+        }
+
+        // Extract traceId (OpenTelemetry trace ID)
+        if (parsed.traceId && typeof parsed.traceId === 'string') {
+          eventCtx.traceId = parsed.traceId;
+        }
+
+        // Extract sessionId (user session identifier)
+        if (parsed.metadata?.sessionId && typeof parsed.metadata.sessionId === 'string') {
+          eventCtx.sessionId = parsed.metadata.sessionId;
+        }
+
+        // Extract userId (from identity.user.id)
+        if (parsed.identity?.user?.id && typeof parsed.identity.user.id === 'string') {
+          eventCtx.userId = parsed.identity.user.id;
+        }
+
+        // Extract requestId (HTTP request identifier)
+        if (parsed.metadata?.requestId && typeof parsed.metadata.requestId === 'string') {
+          eventCtx.requestId = parsed.metadata.requestId;
+        }
+
+        // Extract stage (reactive agent loop stage from routing)
+        if (parsed.routing?.stage && typeof parsed.routing.stage === 'string') {
+          eventCtx.stage = parsed.routing.stage;
+        }
+      } catch (e: any) {
+        // Never throw - gracefully degrade to empty context
+        this.logger.debug('base_server.message.context.extraction_error', {
+          subject,
+          error: e?.message || String(e)
+        });
+      }
+
+      return eventCtx;
+    };
+
     try {
       const unsubscribe = await subscriber.subscribe(
         subject,
@@ -465,13 +522,17 @@ export class Bit {
               await startActiveSpan(`msg ${subject}`, spanOptions, async () => {
                 // Assume JSON payloads: parse Buffer/string into object for typed handler
                 const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
-                
+
                 // Tracer logging: Log full event on reception if qos.tracer is true
                 if ((parsed as any)?.qos?.tracer) {
                   this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
                 }
 
-                const handlerPromise = Promise.resolve(handler(parsed, attributes, ctx));
+                // Extract EventContext and wrap handler execution
+                const eventCtx = extractEventContext(parsed);
+                const handlerPromise = runWithEventContext(eventCtx, () =>
+                  Promise.resolve(handler(parsed, attributes, ctx))
+                );
                 const maxResponseMs = (parsed as any)?.qos?.maxResponseMs;
 
                 if (typeof maxResponseMs === 'number' && maxResponseMs > 0) {
@@ -514,13 +575,17 @@ export class Bit {
               });
             } else {
               const parsed = JSON.parse((data as any)?.toString('utf8')) as T;
-              
+
               // Tracer logging: Log full event on reception if qos.tracer is true
               if ((parsed as any)?.qos?.tracer) {
                 this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
               }
 
-              const handlerPromise = Promise.resolve(handler(parsed, attributes, ctx));
+              // Extract EventContext and wrap handler execution
+              const eventCtx = extractEventContext(parsed);
+              const handlerPromise = runWithEventContext(eventCtx, () =>
+                Promise.resolve(handler(parsed, attributes, ctx))
+              );
               const maxResponseMs = (parsed as any)?.qos?.maxResponseMs;
 
               if (typeof maxResponseMs === 'number' && maxResponseMs > 0) {

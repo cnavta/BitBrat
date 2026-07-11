@@ -34,6 +34,8 @@ export interface ReleaseOptions {
   dryRun: boolean;
   /** When true, create a local annotated-less `git tag v<version>` (never pushes). Off by default. */
   tag?: boolean;
+  /** When true, create a GitHub Release via gh CLI (requires tag to be true). Off by default. */
+  githubRelease?: boolean;
   /** Date used for the CHANGELOG dated heading (injectable for deterministic tests). */
   now?: Date;
   /** Optional logger facade. */
@@ -46,6 +48,7 @@ export interface ReleaseResult {
   nextVersion: string;
   dryRun: boolean;
   tagged: boolean;
+  githubReleaseCreated: boolean;
   changelogRolled: boolean;
   consistency: VersionConsistency | null;
 }
@@ -92,7 +95,44 @@ export async function runRelease(opts: ReleaseOptions): Promise<ReleaseResult> {
     tagged = await createGitTag(rootDir, nextVersion, dryRun, log);
   }
 
-  return { previousVersion, nextVersion, dryRun, tagged, changelogRolled, consistency };
+  // 7) Optional GitHub Release creation (requires tag).
+  let githubReleaseCreated = false;
+  if (opts.githubRelease) {
+    if (!opts.tag) {
+      log?.error(
+        { action: 'release.github', status: 'validation-failed', reason: 'tag-required' },
+        'GitHub releases require git tags. Use --tag with --github-release',
+      );
+      throw new Error('GitHub releases require git tags. Use --tag with --github-release');
+    }
+
+    // Read CHANGELOG to extract release notes
+    const changelogPath = `${rootDir}/${CHANGELOG_FILE}`;
+    let releaseNotes = `Release ${nextVersion}`;
+    if (fs.existsSync(changelogPath)) {
+      const changelogContent = fs.readFileSync(changelogPath, 'utf8');
+      const { extractReleaseNotes } = await import('./changelog');
+      releaseNotes = extractReleaseNotes(changelogContent, nextVersion);
+    } else {
+      log?.warn(
+        { action: 'release.github', status: 'changelog-not-found' },
+        'CHANGELOG.md not found — using default release notes',
+      );
+    }
+
+    const success = await createGitHubRelease(rootDir, nextVersion, releaseNotes, dryRun, log);
+    // In dry-run mode, nothing was actually created; in normal mode, set based on success
+    githubReleaseCreated = dryRun ? false : success;
+    if (!success && !dryRun) {
+      // Non-fatal: version bump succeeded, but GitHub release failed
+      log?.warn(
+        { action: 'release.github', status: 'failed-non-fatal' },
+        'GitHub release creation failed, but version bump completed successfully',
+      );
+    }
+  }
+
+  return { previousVersion, nextVersion, dryRun, tagged, githubReleaseCreated, changelogRolled, consistency };
 }
 
 /** Roll the CHANGELOG file on disk. Returns true if a change was (or would be) applied. */
@@ -142,6 +182,108 @@ async function createGitTag(
     return false;
   }
   log?.info({ action: 'release.tag', status: 'created', tag }, `Created git tag ${tag} (not pushed)`);
+  return true;
+}
+
+/**
+ * Check if GitHub CLI (gh) is installed and available in PATH.
+ * Returns true if `gh` command is found, false otherwise.
+ *
+ * @param log - Optional logger for diagnostics
+ * @returns Promise<boolean> - true if gh is installed
+ */
+async function checkGhInstalled(log?: Partial<Pick<Logger, 'info' | 'warn' | 'error' | 'debug'>>): Promise<boolean> {
+  const res = await execCmd('gh', ['--version']);
+  const installed = res.code === 0;
+  if (!installed) {
+    log?.warn?.(
+      { action: 'release.gh-check', status: 'not-found' },
+      'GitHub CLI (gh) not found. Install from https://cli.github.com',
+    );
+  } else {
+    log?.debug?.(
+      { action: 'release.gh-check', status: 'found', version: res.stdout?.trim() },
+      `GitHub CLI found: ${res.stdout?.trim()}`,
+    );
+  }
+  return installed;
+}
+
+/**
+ * Create a GitHub Release using the GitHub CLI (gh).
+ *
+ * @param rootDir - Repository root directory
+ * @param version - Version string (e.g., "1.2.3")
+ * @param notes - Release notes (markdown formatted)
+ * @param dryRun - If true, logs what would be created but doesn't execute
+ * @param log - Optional logger
+ * @returns Promise<boolean> - true if release created successfully or dry-run, false on failure
+ *
+ * @example
+ * ```typescript
+ * const success = await createGitHubRelease(
+ *   '/path/to/repo',
+ *   '1.2.3',
+ *   '### Added\n- New feature',
+ *   false,
+ *   logger
+ * );
+ * ```
+ */
+async function createGitHubRelease(
+  rootDir: string,
+  version: string,
+  notes: string,
+  dryRun: boolean,
+  log?: Pick<Logger, 'info' | 'warn' | 'error'>,
+): Promise<boolean> {
+  const tag = `v${version}`;
+  const title = `v${version}`;
+
+  if (dryRun) {
+    log?.info(
+      { action: 'release.github', status: 'dry-run', tag, title },
+      `DRY-RUN: would create GitHub release ${tag}`,
+    );
+    log?.info(
+      { action: 'release.github', status: 'dry-run-notes', notesPreview: notes.slice(0, 200) },
+      `Release notes preview: ${notes.slice(0, 200)}${notes.length > 200 ? '...' : ''}`,
+    );
+    return true;
+  }
+
+  // Check if gh is installed
+  const ghInstalled = await checkGhInstalled(log);
+  if (!ghInstalled) {
+    log?.error(
+      { action: 'release.github', status: 'failed', reason: 'gh-not-found' },
+      'GitHub CLI (gh) not found. Install from https://cli.github.com',
+    );
+    return false;
+  }
+
+  // Create the release
+  const res = await execCmd(
+    'gh',
+    ['release', 'create', tag, '--title', title, '--notes', notes],
+    { cwd: rootDir },
+  );
+
+  if (res.code !== 0) {
+    log?.error(
+      { action: 'release.github', status: 'failed', tag, stderr: res.stderr },
+      `Failed to create GitHub release ${tag}: ${res.stderr || 'unknown error'}`,
+    );
+    return false;
+  }
+
+  // Extract URL from stdout if available (gh outputs the release URL)
+  const releaseUrl = res.stdout?.trim() || '';
+  log?.info(
+    { action: 'release.github', status: 'created', tag, url: releaseUrl },
+    `Created GitHub release ${tag}${releaseUrl ? `: ${releaseUrl}` : ''}`,
+  );
+
   return true;
 }
 
