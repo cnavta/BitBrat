@@ -10,10 +10,19 @@ import * as path from 'path';
 jest.mock('../../orchestration/exec', () => ({
   execCmd: jest.fn(async (cmd: string, args?: string[]) => {
     if (cmd === 'npm') return { code: 1, stdout: '', stderr: 'mocked: npm not run in tests' };
-    if (cmd === 'git') return { code: 0, stdout: '', stderr: '' };
+    if (cmd === 'git') {
+      // Mock git branch --show-current to return a feature branch (not main)
+      if (args?.[0] === 'branch' && args?.[1] === '--show-current') {
+        return { code: 0, stdout: 'feature/test-release', stderr: '' };
+      }
+      return { code: 0, stdout: '', stderr: '' };
+    }
     if (cmd === 'gh') {
       if (args?.[0] === '--version') {
         return { code: 0, stdout: 'gh version 2.40.0 (2024-01-01)', stderr: '' };
+      }
+      if (args?.[0] === 'pr' && args?.[1] === 'create') {
+        return { code: 0, stdout: 'https://github.com/test/repo/pull/123', stderr: '' };
       }
       if (args?.[0] === 'release' && args?.[1] === 'create') {
         const tag = args[2];
@@ -65,8 +74,18 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
     expect(result.previousVersion).toBe(current);
     // Zero filesystem mutation.
     expect(snapshot(dir)).toEqual(before);
-    // No npm/git side effects in dry-run.
-    expect(execCmd as jest.Mock).not.toHaveBeenCalled();
+    // git status and git branch are called even in dry-run to check state
+    const calls = (execCmd as jest.Mock).mock.calls;
+    const gitStatusCalls = calls.filter((c) => c[0] === 'git' && c[1]?.[0] === 'status');
+    const gitBranchCalls = calls.filter((c) => c[0] === 'git' && c[1]?.[0] === 'branch');
+    expect(gitStatusCalls.length).toBeGreaterThan(0);
+    expect(gitBranchCalls.length).toBe(1);
+    // No mutating operations (tag, commit, push, etc.)
+    const mutateCalls = calls.filter((c) =>
+      (c[0] === 'git' && ['tag', 'commit', 'push', 'add'].includes(c[1]?.[0])) ||
+      c[0] === 'npm'
+    );
+    expect(mutateCalls.length).toBe(0);
   });
 
   it('real patch bump updates all three files consistently + rolls CHANGELOG', async () => {
@@ -75,7 +94,7 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
     const [maj, min, pat] = current.split('.').map(Number);
     const expected = `${maj}.${min}.${pat + 1}`;
 
-    const result = await runRelease({ rootDir: dir, bump: 'patch', dryRun: false, now: DATE });
+    const result = await runRelease({ rootDir: dir, bump: 'patch', dryRun: false, push: false, createPr: false, now: DATE });
 
     expect(result.nextVersion).toBe(expected);
     expect(readArchitectureVersion(dir)).toBe(expected);
@@ -91,7 +110,7 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
 
   it('explicit version is honored verbatim', async () => {
     const dir = copyRealRepoFixtures();
-    const result = await runRelease({ rootDir: dir, bump: '1.2.3', dryRun: false, now: DATE });
+    const result = await runRelease({ rootDir: dir, bump: '1.2.3', dryRun: false, push: false, createPr: false, now: DATE });
     expect(result.nextVersion).toBe('1.2.3');
     expect(readArchitectureVersion(dir)).toBe('1.2.3');
     expect(readPackageJsonVersion(dir)).toBe('1.2.3');
@@ -99,72 +118,76 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
 
   it('end-to-end is idempotent on the CHANGELOG for a repeated explicit version', async () => {
     const dir = copyRealRepoFixtures();
-    await runRelease({ rootDir: dir, bump: '0.9.0', dryRun: false, now: DATE });
+    await runRelease({ rootDir: dir, bump: '0.9.0', dryRun: false, push: false, createPr: false, now: DATE });
     const afterFirst = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
-    const second = await runRelease({ rootDir: dir, bump: '0.9.0', dryRun: false, now: DATE });
+    const second = await runRelease({ rootDir: dir, bump: '0.9.0', dryRun: false, push: false, createPr: false, now: DATE });
     expect(second.changelogRolled).toBe(false);
     expect(fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8')).toBe(afterFirst);
   });
 
   it('--tag invokes git tag (mocked) without pushing', async () => {
     const dir = copyRealRepoFixtures();
-    const result = await runRelease({ rootDir: dir, bump: 'patch', dryRun: false, tag: true, now: DATE });
+    const result = await runRelease({ rootDir: dir, bump: 'patch', dryRun: false, tag: true, push: false, createPr: false, now: DATE });
     expect(result.tagged).toBe(true);
     const calls = (execCmd as jest.Mock).mock.calls;
-    const gitCall = calls.find((c) => c[0] === 'git');
-    expect(gitCall).toBeTruthy();
-    expect(gitCall[1]).toEqual(['tag', `v${result.nextVersion}`]);
-    // Never pushes.
+    // Find the git tag call specifically (not git status or git branch)
+    const gitTagCall = calls.find((c) => c[0] === 'git' && c[1]?.[0] === 'tag');
+    expect(gitTagCall).toBeTruthy();
+    expect(gitTagCall[1]).toEqual(['tag', `v${result.nextVersion}`]);
+    // Never pushes when push: false.
     expect(calls.some((c) => c[0] === 'git' && Array.isArray(c[1]) && c[1].includes('push'))).toBe(false);
   });
 
   it('fails closed on an invalid bump argument (no file mutation)', async () => {
     const dir = copyRealRepoFixtures();
     const before = snapshot(dir);
-    await expect(runRelease({ rootDir: dir, bump: 'nonsense', dryRun: false, now: DATE })).rejects.toThrow();
+    await expect(runRelease({ rootDir: dir, bump: 'nonsense', dryRun: false, push: false, createPr: false, now: DATE })).rejects.toThrow();
     expect(snapshot(dir)).toEqual(before);
   });
 
-  describe('GitHub Release integration', () => {
-    it('--github-release creates a GitHub release via gh CLI', async () => {
+  describe('GitHub PR integration', () => {
+    it('--createPr creates a GitHub PR via gh CLI (when on feature branch)', async () => {
       const dir = copyRealRepoFixtures();
       const result = await runRelease({
         rootDir: dir,
         bump: 'patch',
         dryRun: false,
         tag: true,
-        githubRelease: true,
+        push: false,
+        createPr: true,
         now: DATE,
       });
 
       expect(result.tagged).toBe(true);
-      expect(result.githubReleaseCreated).toBe(true);
+      expect(result.prCreated).toBe(true);
+      expect(result.prUrl).toBe('https://github.com/test/repo/pull/123');
 
       const calls = (execCmd as jest.Mock).mock.calls;
       // Should check gh version
       const ghVersionCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === '--version');
       expect(ghVersionCall).toBeTruthy();
 
-      // Should create release
-      const ghReleaseCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'release');
-      expect(ghReleaseCall).toBeTruthy();
-      expect(ghReleaseCall[1]).toContain('create');
-      expect(ghReleaseCall[1]).toContain(`v${result.nextVersion}`);
+      // Should create PR
+      const ghPrCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'pr');
+      expect(ghPrCall).toBeTruthy();
+      expect(ghPrCall[1]).toContain('create');
+      expect(ghPrCall[1]).toContain('--title');
+      expect(ghPrCall[1]).toContain('--body');
     });
 
-    it('--github-release in dry-run mode does not call gh CLI', async () => {
+    it('--createPr in dry-run mode does not call gh CLI but returns prCreated: true', async () => {
       const dir = copyRealRepoFixtures();
       const result = await runRelease({
         rootDir: dir,
         bump: 'patch',
         dryRun: true,
         tag: true,
-        githubRelease: true,
+        createPr: true,
         now: DATE,
       });
 
       expect(result.dryRun).toBe(true);
-      expect(result.githubReleaseCreated).toBe(false);
+      expect(result.prCreated).toBe(true); // Dry-run returns true for prCreated
 
       // No gh calls in dry-run
       const calls = (execCmd as jest.Mock).mock.calls;
@@ -172,7 +195,7 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
       expect(ghCalls.length).toBe(0);
     });
 
-    it('--github-release without --tag throws error', async () => {
+    it('--createPr without --tag throws error', async () => {
       const dir = copyRealRepoFixtures();
       await expect(
         runRelease({
@@ -180,42 +203,50 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
           bump: 'patch',
           dryRun: false,
           tag: false,
-          githubRelease: true,
+          createPr: true,
           now: DATE,
         }),
-      ).rejects.toThrow('GitHub releases require git tags');
+      ).rejects.toThrow('GitHub PRs require git tags');
     });
 
-    it('--github-release extracts notes from CHANGELOG', async () => {
+    it('--createPr generates PR with expected body structure', async () => {
       const dir = copyRealRepoFixtures();
       const result = await runRelease({
         rootDir: dir,
         bump: 'patch',
         dryRun: false,
         tag: true,
-        githubRelease: true,
+        push: false,
+        createPr: true,
         now: DATE,
       });
 
-      expect(result.githubReleaseCreated).toBe(true);
+      expect(result.prCreated).toBe(true);
 
       const calls = (execCmd as jest.Mock).mock.calls;
-      const ghReleaseCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'release');
-      expect(ghReleaseCall).toBeTruthy();
+      const ghPrCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'pr');
+      expect(ghPrCall).toBeTruthy();
 
-      // Release notes should be passed via --notes flag
-      const notesIndex = ghReleaseCall[1].indexOf('--notes');
-      expect(notesIndex).toBeGreaterThan(-1);
-      const releaseNotes = ghReleaseCall[1][notesIndex + 1];
-      expect(releaseNotes).toBeTruthy();
-      expect(typeof releaseNotes).toBe('string');
+      // PR should have --title and --body flags
+      const titleIndex = ghPrCall[1].indexOf('--title');
+      expect(titleIndex).toBeGreaterThan(-1);
+      const title = ghPrCall[1][titleIndex + 1];
+      expect(title).toContain('Release');
+      expect(title).toContain(result.nextVersion);
+
+      const bodyIndex = ghPrCall[1].indexOf('--body');
+      expect(bodyIndex).toBeGreaterThan(-1);
+      const body = ghPrCall[1][bodyIndex + 1];
+      expect(body).toBeTruthy();
+      expect(typeof body).toBe('string');
+      expect(body).toContain(result.nextVersion);
     });
 
     it('handles gh CLI failure gracefully (non-fatal)', async () => {
       // Temporarily override mock to simulate gh failure
       const originalMock = (execCmd as jest.Mock).getMockImplementation();
       (execCmd as jest.Mock).mockImplementation(async (cmd: string, args?: string[]) => {
-        if (cmd === 'gh' && args?.[0] === 'release') {
+        if (cmd === 'gh' && args?.[0] === 'pr') {
           return { code: 1, stdout: '', stderr: 'gh: authentication required' };
         }
         return originalMock?.(cmd, args) || { code: 0, stdout: '', stderr: '' };
@@ -227,13 +258,14 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
         bump: 'patch',
         dryRun: false,
         tag: true,
-        githubRelease: true,
+        push: false,
+        createPr: true,
         now: DATE,
       });
 
-      // Version bump should succeed even though GitHub release failed
+      // Version bump should succeed even though PR creation failed
       expect(result.tagged).toBe(true);
-      expect(result.githubReleaseCreated).toBe(false);
+      expect(result.prCreated).toBe(false);
       expect(result.nextVersion).toBeTruthy();
 
       // Restore original mock
@@ -256,22 +288,22 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
         bump: 'patch',
         dryRun: false,
         tag: true,
-        githubRelease: true,
+        createPr: true,
         now: DATE,
       });
 
       // Version bump should succeed even though gh is not installed
       expect(result.tagged).toBe(true);
-      expect(result.githubReleaseCreated).toBe(false);
+      expect(result.prCreated).toBe(false);
       expect(result.nextVersion).toBeTruthy();
 
       // Restore original mock
       (execCmd as jest.Mock).mockImplementation(originalMock);
     });
 
-    it('uses default notes when CHANGELOG.md is missing', async () => {
+    it('creates PR successfully even when CHANGELOG.md is missing', async () => {
       const dir = copyRealRepoFixtures();
-      // Delete CHANGELOG.md to test default notes
+      // Delete CHANGELOG.md to test that PR creation still works
       fs.unlinkSync(path.join(dir, 'CHANGELOG.md'));
 
       const result = await runRelease({
@@ -279,19 +311,22 @@ describe('release/runRelease (integration over real-file fixtures)', () => {
         bump: '1.5.0',
         dryRun: false,
         tag: true,
-        githubRelease: true,
+        push: false,
+        createPr: true,
         now: DATE,
       });
 
-      expect(result.githubReleaseCreated).toBe(true);
+      expect(result.prCreated).toBe(true);
+      expect(result.changelogRolled).toBe(false); // No CHANGELOG to roll
 
       const calls = (execCmd as jest.Mock).mock.calls;
-      const ghReleaseCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'release');
-      const notesIndex = ghReleaseCall[1].indexOf('--notes');
-      const releaseNotes = ghReleaseCall[1][notesIndex + 1];
+      const ghPrCall = calls.find((c) => c[0] === 'gh' && c[1]?.[0] === 'pr');
+      expect(ghPrCall).toBeTruthy();
 
-      // Should use default notes format
-      expect(releaseNotes).toBe('Release 1.5.0');
+      // PR should still have body with version info
+      const bodyIndex = ghPrCall[1].indexOf('--body');
+      const body = ghPrCall[1][bodyIndex + 1];
+      expect(body).toContain('1.5.0');
     });
   });
 });

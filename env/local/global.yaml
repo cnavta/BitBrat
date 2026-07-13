@@ -17,3 +17,10 @@ DEBUG_USERS: "twitch:91960688,discord:gonj_the_unjust"
 
 FF_LLM_PROMPT_LOGGING: true
 ENABLE_EVENT_RESPONSES: true
+
+# P4 RAG Scale-Out feature flag (sprint-338)
+# Enabled for local testing and validation (BL-338-305)
+RAG_CONTEXT_ENABLED: true
+RAG_CONTEXT_MAX_RESULTS: 5
+RAG_CONTEXT_MIN_SIMILARITY: 0.65
+RAG_CONTEXT_TIMEOUT_MS: 5000

@@ -72,6 +72,11 @@ export async function runRelease(opts: ReleaseOptions): Promise<ReleaseResult> {
   const now = opts.now ?? new Date();
   const log = opts.logger;
 
+  // Validate: GitHub PRs require git tags
+  if (opts.createPr && opts.tag === false) {
+    throw new Error('GitHub PRs require git tags. Use --tag with --createPr, or omit --createPr.');
+  }
+
   const previousVersion = readArchitectureVersion(rootDir);
   const nextVersion = computeNextVersion(previousVersion, bump);
   log?.info(

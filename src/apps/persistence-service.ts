@@ -54,11 +54,10 @@ class PersistenceServer extends Bit {
                 } else {
                   const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
                   
-                  // For stream events, we want BOTH SourceState (monitoring) AND IngressEvent (routing)
-                  if (msg.type === 'system.stream.online' || msg.type === 'system.stream.offline') {
+                  // For system events, we want BOTH SourceState (monitoring) AND IngressEvent (routing/snapshots)
+                  // This ensures snapshots can be applied even when PERSISTENCE_SNAPSHOT_MODE=all
+                  if (msg.type?.startsWith('system.')) {
                     await store.upsertIngressEvent(msg);
-                    await store.upsertSourceState(msg);
-                  } else if (msg.type?.startsWith('system.')) {
                     await store.upsertSourceState(msg);
                   } else {
                     await store.upsertIngressEvent(msg);

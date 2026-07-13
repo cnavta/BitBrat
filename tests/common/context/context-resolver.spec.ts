@@ -67,41 +67,41 @@ describe('resolveContextPacks', () => {
     ],
   );
 
-  it('match-by-tool resolves the bound pack', () => {
-    const packs = resolveContextPacks({ tools: ['create_schedule'] }, [provider]);
+  it('match-by-tool resolves the bound pack', async () => {
+    const packs = await resolveContextPacks({ tools: ['create_schedule'] }, [provider]);
     expect(packs.map((p) => p.id)).toEqual(['schema.internal-event-v2']);
   });
 
-  it('match-by-task resolves task-bound packs', () => {
+  it('match-by-task resolves task-bound packs', async () => {
     const taskProvider = new StaticContextProvider([schemaPack], [{ pack: 'schema.internal-event-v2', when: { tasks: ['enrichment'] } }]);
-    const packs = resolveContextPacks({ tasks: ['enrichment'] }, [taskProvider]);
+    const packs = await resolveContextPacks({ tasks: ['enrichment'] }, [taskProvider]);
     expect(packs.map((p) => p.id)).toEqual(['schema.internal-event-v2']);
   });
 
-  it('match-by-eventType resolves eventType-bound packs', () => {
+  it('match-by-eventType resolves eventType-bound packs', async () => {
     const evProvider = new StaticContextProvider([schemaPack], [{ pack: 'schema.internal-event-v2', when: { eventTypes: ['llm.request.v1'] } }]);
-    const packs = resolveContextPacks({ eventTypes: ['llm.request.v1'] }, [evProvider]);
+    const packs = await resolveContextPacks({ eventTypes: ['llm.request.v1'] }, [evProvider]);
     expect(packs.map((p) => p.id)).toEqual(['schema.internal-event-v2']);
   });
 
-  it('de-dupes a shared pack matched via multiple tools', () => {
-    const packs = resolveContextPacks({ tools: ['create_schedule', 'create_rule'] }, [provider]);
+  it('de-dupes a shared pack matched via multiple tools', async () => {
+    const packs = await resolveContextPacks({ tools: ['create_schedule', 'create_rule'] }, [provider]);
     const ids = packs.map((p) => p.id);
     expect(ids.filter((id) => id === 'schema.internal-event-v2')).toHaveLength(1);
     expect(ids).toContain('router.jsonlogic-guide');
   });
 
-  it('surfaces unknown pack ids as a warning, not a throw', () => {
+  it('surfaces unknown pack ids as a warning, not a throw', async () => {
     const warn = jest.fn();
     const badProvider = new StaticContextProvider([], [{ pack: 'does.not.exist', when: { tools: ['x'] } }]);
-    const packs = resolveContextPacks({ tools: ['x'] }, [badProvider], { onWarn: warn });
+    const packs = await resolveContextPacks({ tools: ['x'] }, [badProvider], { onWarn: warn });
     expect(packs).toEqual([]);
     expect(warn).toHaveBeenCalledWith('context.resolve.unknown_pack', { pack: 'does.not.exist' });
   });
 
-  it('returns [] for an empty active set (no-op)', () => {
-    expect(resolveContextPacks({}, [provider])).toEqual([]);
-    expect(resolveContextPacks({ tools: [] }, [provider])).toEqual([]);
+  it('returns [] for an empty active set (no-op)', async () => {
+    expect(await resolveContextPacks({}, [provider])).toEqual([]);
+    expect(await resolveContextPacks({ tools: [] }, [provider])).toEqual([]);
   });
 });
 
