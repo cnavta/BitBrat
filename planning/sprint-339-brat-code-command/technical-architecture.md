@@ -21,8 +21,9 @@ This document specifies the technical architecture for the **`brat code` command
 1. **Zero-config experience:** Works out-of-the-box with sensible defaults
 2. **Multi-agent support:** Extensible plugin architecture for any CLI coding agent
 3. **Project-aware:** Auto-configures agents with BitBrat context (CLAUDE.md, architecture.yaml, etc.)
-4. **Preference persistence:** Remembers user's agent choice across sessions
-5. **Graceful fallback:** Guides users to install an agent if none are detected
+4. **MCP-enabled:** Auto-connects agents to BitBrat's MCP tool ecosystem (fleet control, domain tools)
+5. **Preference persistence:** Remembers user's agent choice across sessions
+6. **Graceful fallback:** Guides users to install an agent if none are detected
 
 ---
 
@@ -33,8 +34,9 @@ This document specifies the technical architecture for the **`brat code` command
 Developers working on BitBrat currently:
 1. Manually launch their preferred coding agent (e.g., `claude code`, `aider`, `continue`)
 2. May need to configure project-specific context manually
-3. Must remember agent-specific CLI flags and options
-4. Have no standardized way to share agent configurations across the team
+3. Must manually configure MCP servers to access BitBrat's tool ecosystem
+4. Must remember agent-specific CLI flags and options
+5. Have no standardized way to share agent configurations across the team
 
 ### 2.2 The Problem
 
@@ -42,6 +44,7 @@ Developers working on BitBrat currently:
 - New contributors must discover which coding agent works best for BitBrat
 - Each agent requires different setup and configuration
 - Project-specific instructions (CLAUDE.md, AGENTS.md) may not be automatically loaded
+- MCP servers must be manually configured to access BitBrat tools (fleet control, domain tools)
 - No visibility into which coding agents are available/installed
 
 **Configuration drift:**
@@ -97,8 +100,25 @@ Developers working on BitBrat currently:
             │
             ▼
 ┌───────────────────────────────────────────────────────────────┐
-│ 4. Agent Launch                                                │
-│    - Invoke agent with pre-configured settings                │
+│ 4. MCP Environment Detection                                   │
+│    - Detect running BitBrat services (docker compose ps)      │
+│    - Locate tool-gateway endpoint from architecture.yaml      │
+│    - Verify MCP connectivity and authentication               │
+│    - Discover available tools via fleet API                   │
+└───────────┬───────────────────────────────────────────────────┘
+            │
+            ▼
+┌───────────────────────────────────────────────────────────────┐
+│ 5. MCP Auto-Configuration                                      │
+│    - Generate MCP server blocks for agent config              │
+│    - Configure authentication tokens                          │
+│    - Set up tool-gateway or direct Bit connections            │
+└───────────┬───────────────────────────────────────────────────┘
+            │
+            ▼
+┌───────────────────────────────────────────────────────────────┐
+│ 6. Agent Launch                                                │
+│    - Invoke agent with pre-configured settings + MCP          │
 │    - Pass BitBrat-specific CLI flags                          │
 │    - Attach to agent's interactive session                    │
 └───────────────────────────────────────────────────────────────┘
@@ -124,6 +144,11 @@ tools/brat/src/cli/code/
 │   ├── project-context.ts      # Extract BitBrat project metadata
 │   ├── template-renderer.ts    # Render agent-specific config templates
 │   └── injection-strategy.ts  # Agent-specific context injection methods
+├── mcp/
+│   ├── environment-detector.ts # Detect running BitBrat services (Docker, ports)
+│   ├── tool-discovery.ts       # Discover available MCP tools via fleet API
+│   ├── config-generator.ts     # Generate MCP server blocks for agent configs
+│   └── auth-manager.ts         # Manage MCP authentication tokens
 └── launcher.ts                 # Agent process spawning and lifecycle management
 ```
 
@@ -169,6 +194,19 @@ interface ProjectContext {
   agentsMd?: string;  // Contents of AGENTS.md if present
   gitBranch?: string;
   gitDirty?: boolean;
+  mcp?: McpEnvironment;  // MCP environment detection results
+}
+
+interface McpEnvironment {
+  available: boolean;  // Whether BitBrat services are running
+  toolGatewayUrl?: string;  // Tool gateway endpoint (e.g., http://localhost:8081)
+  authToken?: string;  // MCP authentication token
+  discoveredTools?: string[];  // List of available tool names
+  bits?: Array<{  // Running Bits detected
+    name: string;
+    url?: string;
+    mcpExposure?: string;
+  }>;
 }
 
 interface AgentConfig {
@@ -238,16 +276,88 @@ async function discoverAgents(): Promise<Map<string, AgentDetectionResult>> {
 
 ### 4.2 Context Injection Strategies
 
-Different agents support different methods for providing project context:
+Different agents support different methods for providing project context and MCP connectivity:
 
-| Agent | Context Method | Implementation |
-|-------|---------------|----------------|
-| **Claude Code** | `.claude/` directory, `CLAUDE.md` | Already supported natively ✓ |
-| **Aider** | `--read` flag for files | Pass `--read CLAUDE.md --read architecture.yaml` |
-| **Continue** | `.continuerc.json` context paths | Generate temp config with `contextFiles` array |
-| **OpenHands** | Environment variables + system prompt | Set `OPENHANDS_PROJECT_CONTEXT` env var |
+| Agent | Context Method | MCP Configuration | Implementation |
+|-------|---------------|-------------------|----------------|
+| **Claude Code** | `.claude/config.json` contextFiles | `mcpServers` block in config.json | Generate config with contextFiles + mcpServers |
+| **Aider** | `--read` flag for files | Environment variables (if supported) | Pass `--read CLAUDE.md --read architecture.yaml` + MCP env vars |
+| **Continue** | `.continuerc.json` context paths | MCP server config (TBD) | Generate temp config with contextFiles + MCP |
+| **OpenHands** | Environment variables + system prompt | Environment variables | Set `OPENHANDS_PROJECT_CONTEXT` + MCP env vars |
 
-### 4.3 Interactive Agent Selection
+**MCP Configuration Priority:**
+1. **If BitBrat services detected:** Auto-configure MCP connection to tool-gateway
+2. **If no services running:** Skip MCP configuration (document-only mode)
+3. **If MCP connection fails:** Warn but continue (graceful degradation)
+
+### 4.3 MCP Environment Detection Algorithm
+
+```typescript
+async function detectMcpEnvironment(projectRoot: string): Promise<McpEnvironment> {
+  const result: McpEnvironment = { available: false };
+
+  try {
+    // 1. Check if Docker Compose services are running
+    const { stdout } = await execAsync('docker compose ps --format json', { cwd: projectRoot });
+    const services = JSON.parse(stdout);
+    const toolGateway = services.find((s: any) => s.Service === 'tool-gateway' && s.State === 'running');
+
+    if (!toolGateway) {
+      logger.debug('tool-gateway not running, skipping MCP configuration');
+      return result;
+    }
+
+    // 2. Load architecture.yaml to get tool-gateway port
+    const arch = await loadArchitectureYaml(projectRoot);
+    const toolGatewayPort = arch.services['tool-gateway']?.port || 8081;
+    result.toolGatewayUrl = `http://localhost:${toolGatewayPort}`;
+
+    // 3. Verify connectivity via health check
+    const healthResponse = await fetch(`${result.toolGatewayUrl}/health`, { timeout: 2000 });
+    if (!healthResponse.ok) {
+      logger.warn('tool-gateway health check failed, skipping MCP');
+      return result;
+    }
+
+    // 4. Discover available tools via fleet list
+    const fleetResponse = await fetch(`${result.toolGatewayUrl}/mcp/tools/list`, {
+      headers: { 'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN || 'local-dev-token'}` },
+      timeout: 2000
+    });
+
+    if (fleetResponse.ok) {
+      const { tools } = await fleetResponse.json();
+      result.discoveredTools = tools.map((t: any) => t.name);
+      result.available = true;
+      result.authToken = process.env.MCP_AUTH_TOKEN || 'local-dev-token';
+    }
+
+    logger.info('mcp_environment_detected', {
+      toolGatewayUrl: result.toolGatewayUrl,
+      toolCount: result.discoveredTools?.length || 0
+    });
+
+  } catch (error: any) {
+    logger.debug('mcp_detection_failed', { error: error.message });
+  }
+
+  return result;
+}
+```
+
+**Detection Steps:**
+1. **Docker Compose Check:** Verify tool-gateway container is running
+2. **Port Discovery:** Read `architecture.yaml` to find tool-gateway port
+3. **Health Verification:** HTTP GET `/health` to confirm service availability
+4. **Tool Discovery:** Call `/mcp/tools/list` to enumerate available tools
+5. **Auth Token:** Use `MCP_AUTH_TOKEN` env var or default to `local-dev-token`
+
+**Failure Handling:**
+- All failures are non-fatal (log at debug level)
+- Return `available: false` if any step fails
+- Agent launches in document-only mode (no tools, just context)
+
+### 4.4 Interactive Agent Selection
 
 When multiple agents are detected and no preference is saved:
 
@@ -272,9 +382,9 @@ Which agent would you like to use? (1-3): 1
 ✓ Launching Claude Code with BitBrat context...
 ```
 
-### 4.4 Configuration Template Example (Claude Code)
+### 4.5 Configuration Template Example (Claude Code)
 
-Generated `.claude/config.json`:
+Generated `.claude/config.json` (with MCP auto-configuration):
 
 ```json
 {
@@ -290,11 +400,44 @@ Generated `.claude/config.json`:
     "AGENTS.md",
     "architecture.yaml",
     "README.md"
-  ]
+  ],
+  "mcpServers": {
+    "bitbrat-platform": {
+      "command": "node",
+      "args": [
+        "/path/to/BitBratPlatform/tools/brat/dist/mcp-proxy.js"
+      ],
+      "env": {
+        "TOOL_GATEWAY_URL": "http://localhost:8081",
+        "MCP_AUTH_TOKEN": "local-dev-token"
+      }
+    }
+  }
 }
 ```
 
-### 4.5 CLI Flags and Options
+**MCP Proxy Bridge:**
+Since Claude Code expects MCP servers to be executables (stdio protocol), but BitBrat uses HTTP-based MCP, we provide a thin proxy (`mcp-proxy.js`) that:
+1. Accepts MCP stdio protocol from Claude Code
+2. Translates to HTTP requests to tool-gateway
+3. Returns responses in MCP stdio format
+
+**Alternative (Direct Connection):**
+For agents that support HTTP-based MCP natively, skip the proxy and connect directly:
+```json
+{
+  "mcpServers": {
+    "bitbrat-platform": {
+      "url": "http://localhost:8081/mcp",
+      "auth": {
+        "token": "local-dev-token"
+      }
+    }
+  }
+}
+```
+
+### 4.6 CLI Flags and Options
 
 ```bash
 # Basic usage (interactive)
