@@ -1,0 +1,1424 @@
+# Sprint 339 Backlog: `brat code` Command - Unified Coding Agent Launcher
+# Format: Trackable YAML backlog for LLM-assisted development
+# Convention: BL-339-XXX (Backlog item IDs)
+
+meta:
+  backlog_id: sprint-339-backlog
+  sprint_id: 339
+  sprint_title: "brat code - Unified Coding Agent Launcher"
+  created: 2026-07-13
+  status: planning
+  version: 1
+
+  priority_values:
+    P0: Critical path for MVP
+    P1: Important for completeness
+    P2: Nice to have / future enhancement
+
+  effort_values:
+    S: "< 2 hours"
+    M: "2-4 hours"
+    L: "4-8 hours"
+    XL: "> 8 hours"
+
+sprint:
+  start_date: 2026-07-13
+  target_end: 2026-08-03
+  duration_weeks: 3
+  wip_limit: 3
+
+  goal: |
+    Deliver a production-ready `brat code` command that auto-detects, configures, and launches
+    CLI coding agents with full BitBrat project context. Support Claude Code (P0), Aider (P1),
+    and provide extensible plugin architecture for future agents.
+
+  references:
+    - planning/sprint-339-brat-code-command/technical-architecture.md
+    - planning/sprint-339-brat-code-command/execution-plan.md
+    - CLAUDE.md
+    - AGENTS.md
+
+items:
+  # ============================================================================
+  # PHASE 1: CORE INFRASTRUCTURE (P0)
+  # Week 1, Days 1-2
+  # ============================================================================
+
+  - id: BL-339-001
+    title: "Create CodingAgentPlugin interface and base types"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps: []
+
+    description: |
+      Define the core plugin interface that all coding agent plugins must implement.
+      Create supporting TypeScript types for detection results, project context, and agent config.
+
+    acceptance_criteria:
+      - CodingAgentPlugin interface exported from base-plugin.ts
+      - Interface includes methods: detect(), prepareConfig(), launch(), preflight?()
+      - Supporting types defined: AgentDetectionResult, ProjectContext, AgentConfig, PreflightResult
+      - All types have comprehensive JSDoc documentation
+      - Interface allows for agent-specific extensions
+
+    deliverables:
+      - tools/brat/src/cli/code/plugins/base-plugin.ts
+      - tools/brat/src/cli/code/types.ts (if types warrant separate file)
+
+    log: []
+
+  - id: BL-339-002
+    title: "Implement AgentRegistry for plugin management"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-001
+
+    description: |
+      Create a singleton registry that manages all available coding agent plugins.
+      Provides methods to register, retrieve, and query plugins.
+
+    acceptance_criteria:
+      - AgentRegistry class with singleton pattern
+      - Methods: register(plugin), getPlugin(id), getAllPlugins(), getByName(name)
+      - Plugins can be registered at module load time
+      - Registry validates plugin conformance to interface
+      - Helpful error messages if plugin not found
+
+    deliverables:
+      - tools/brat/src/cli/code/agent-registry.ts
+      - tools/brat/src/cli/code/agent-registry.test.ts
+
+    log: []
+
+  - id: BL-339-003
+    title: "Implement agent detector (PATH scanning)"
+    priority: P0
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-001
+      - BL-339-002
+
+    description: |
+      Scan system PATH for installed coding agent binaries. Execute version commands
+      to verify installations. Return map of detected agents with metadata.
+
+    acceptance_criteria:
+      - discoverAgents() function scans all registered plugins
+      - Uses 'which' package for cross-platform binary detection
+      - Executes <agent> --version to verify installation
+      - Parses version output and validates against plugin.minVersion
+      - Returns Map<string, AgentDetectionResult>
+      - Non-fatal failures (logged but continue discovery)
+      - Detection completes in < 2 seconds for 4 plugins
+
+    deliverables:
+      - tools/brat/src/cli/code/discovery/detector.ts
+      - tools/brat/src/cli/code/discovery/detector.test.ts (mocked which/exec)
+
+    log: []
+
+  - id: BL-339-004
+    title: "Implement user preference persistence (~/.bratrc)"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps: []
+
+    description: |
+      Load and save user preferences from ~/.bratrc YAML file. Supports preferred agent
+      selection and per-plugin configuration overrides.
+
+    acceptance_criteria:
+      - loadPreference() reads ~/.bratrc and returns preference object
+      - savePreference() writes to ~/.bratrc with proper formatting
+      - clearPreference() removes saved preference
+      - Handles missing file gracefully (returns null)
+      - Validates YAML structure on load
+      - File permissions set to 0600 (user-only read/write)
+      - Uses js-yaml for parsing/serialization
+
+    deliverables:
+      - tools/brat/src/cli/code/discovery/preference.ts
+      - tools/brat/src/cli/code/discovery/preference.test.ts
+
+    log: []
+
+  - id: BL-339-005
+    title: "Create project context extractor"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps: []
+
+    description: |
+      Extract BitBrat project metadata for injection into coding agents.
+      Loads architecture.yaml, CLAUDE.md, AGENTS.md, README.md, and git status.
+
+    acceptance_criteria:
+      - loadProjectContext(rootDir) returns ProjectContext object
+      - Loads architecture.yaml and parses to ArchitectureYaml type
+      - Reads CLAUDE.md, AGENTS.md, README.md contents (if present)
+      - Extracts git branch via 'git rev-parse --abbrev-ref HEAD'
+      - Detects dirty working tree via 'git status --porcelain'
+      - Handles missing files gracefully (optional fields)
+      - Caches result for performance (avoid re-reading on every call)
+
+    deliverables:
+      - tools/brat/src/cli/code/context/project-context.ts
+      - tools/brat/src/cli/code/context/project-context.test.ts
+
+    log: []
+
+  - id: BL-339-006
+    title: "Implement interactive agent selection UI"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-003
+
+    description: |
+      CLI prompts for agent selection when multiple agents detected or no preference saved.
+      Uses inquirer or prompts library for user-friendly interaction.
+
+    acceptance_criteria:
+      - promptSelectAgent(detectedAgents) displays list of agents with descriptions
+      - Shows agent name, version, and one-line description
+      - Returns selected agent ID
+      - Prompts to save choice as default (y/N)
+      - Saves to ~/.bratrc if user confirms
+      - Handles Ctrl+C gracefully (exit without error)
+      - Works in non-TTY environments (auto-select if only one agent)
+
+    deliverables:
+      - tools/brat/src/cli/code/discovery/selector.ts
+      - Manual test cases (interactive, requires human verification)
+
+    log: []
+
+  - id: BL-339-007
+    title: "Create agent launcher (child process spawning)"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-001
+
+    description: |
+      Spawn child process for selected agent with prepared configuration.
+      Attach stdin/stdout/stderr to current terminal for interactive session.
+
+    acceptance_criteria:
+      - launchAgent(agentConfig) spawns child process via child_process.spawn
+      - Inherits stdio from parent process (interactive terminal)
+      - Sets cwd and env from AgentConfig
+      - Handles SIGTERM/SIGINT and forwards to child
+      - Returns ChildProcess instance
+      - Exits with same code as child process
+      - Logs launch command (debug level)
+
+    deliverables:
+      - tools/brat/src/cli/code/launcher.ts
+      - tools/brat/src/cli/code/launcher.test.ts (mocked spawn)
+
+    log: []
+
+  - id: BL-339-008
+    title: "Create main CLI handler (brat code)"
+    priority: P0
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-002
+      - BL-339-003
+      - BL-339-004
+      - BL-339-005
+      - BL-339-006
+      - BL-339-007
+
+    description: |
+      Main entry point for 'brat code' command. Orchestrates the full flow:
+      discover → select → prepare → launch.
+
+    acceptance_criteria:
+      - Command registered with Commander.js as 'brat code'
+      - Supports flags: --list, --select, --agent=<name>, --dry-run
+      - Flow: 1) Discover agents, 2) Select agent, 3) Load project context, 4) Prepare config, 5) Launch
+      - --list shows detected agents and exits
+      - --select forces re-selection even if preference exists
+      - --agent=<name> bypasses selection
+      - --dry-run shows prepared config but doesn't launch
+      - Pass-through support: 'brat code -- --model opus' passes flags to agent
+      - Helpful error messages for all failure modes
+      - Exits with code 0 on success, non-zero on failure
+
+    deliverables:
+      - tools/brat/src/cli/code/index.ts
+      - tools/brat/src/cli/code/index.test.ts
+
+    log: []
+
+  - id: BL-339-009
+    title: "Write unit tests for core components"
+    priority: P0
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-002
+      - BL-339-003
+      - BL-339-004
+      - BL-339-005
+      - BL-339-007
+
+    description: |
+      Comprehensive unit test coverage for all core infrastructure components.
+      Target: 80%+ coverage.
+
+    acceptance_criteria:
+      - Tests for AgentRegistry (register, get, validation)
+      - Tests for detector (mocked which/exec, version parsing)
+      - Tests for preference persistence (mocked fs operations)
+      - Tests for project context extraction (mocked file reads)
+      - Tests for launcher (mocked spawn, signal handling)
+      - All tests pass with npm test
+      - Coverage >= 80% for tools/brat/src/cli/code/**/*.ts
+
+    deliverables:
+      - Multiple *.test.ts files (see individual task deliverables)
+
+    log: []
+
+  - id: BL-339-010
+    title: "Register 'brat code' command in main CLI"
+    priority: P0
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-008
+
+    description: |
+      Add 'code' command to main brat CLI registration.
+      Update help text and documentation.
+
+    acceptance_criteria:
+      - Command registered in tools/brat/src/cli/index.ts
+      - 'brat --help' shows 'code' command with description
+      - 'brat code --help' shows detailed usage
+      - Command is discoverable and executable
+
+    deliverables:
+      - tools/brat/src/cli/index.ts (modification)
+
+    log: []
+
+  # ============================================================================
+  # PHASE 2: CLAUDE CODE PLUGIN (P0)
+  # Week 1, Days 3-4
+  # ============================================================================
+
+  - id: BL-339-011
+    title: "Implement Claude Code detection"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-001
+
+    description: |
+      Implement CodingAgentPlugin for Claude Code. Start with detection logic
+      to identify installed 'claude' binary and verify version.
+
+    acceptance_criteria:
+      - ClaudeCodePlugin class implements CodingAgentPlugin
+      - detect() checks for 'claude' binary in PATH
+      - Executes 'claude --version' and parses output
+      - Validates version >= 1.0.0 (plugin.minVersion)
+      - Returns AgentDetectionResult with installed=true/false, version, path
+      - Handles missing binary gracefully (installed=false)
+      - Handles version parsing errors (includes in issues array)
+
+    deliverables:
+      - tools/brat/src/cli/code/plugins/claude-code-plugin.ts
+
+    log: []
+
+  - id: BL-339-012
+    title: "Implement Claude Code config generation"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-011
+
+    description: |
+      Generate .claude/config.json with BitBrat-specific defaults.
+      Template includes model, maxTokens, systemPrompt, and tools config.
+
+    acceptance_criteria:
+      - prepareConfig() generates .claude/config.json structure
+      - Default model: claude-sonnet-4.5
+      - Default maxTokens: 200000
+      - systemPrompt references CLAUDE.md
+      - tools.enabled: true, tools.timeout: 600000
+      - Config includes contextFiles array (empty for now, populated in BL-339-013)
+      - Returns AgentConfig with configFiles array
+      - Config marked temporary: false (persistent)
+
+    deliverables:
+      - Modification to claude-code-plugin.ts
+
+    log: []
+
+  - id: BL-339-013
+    title: "Implement Claude Code context injection"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-012
+      - BL-339-005
+
+    description: |
+      Inject BitBrat project context into Claude Code via config.json contextFiles.
+      Ensures agent has access to CLAUDE.md, AGENTS.md, architecture.yaml, README.md.
+
+    acceptance_criteria:
+      - prepareConfig() receives ProjectContext parameter
+      - contextFiles array includes: CLAUDE.md, AGENTS.md, architecture.yaml, README.md
+      - Only includes files that exist (checked via fs.existsSync)
+      - Paths are relative to project root
+      - Config generation handles missing context files gracefully
+
+    deliverables:
+      - Modification to claude-code-plugin.ts
+
+    log: []
+
+  - id: BL-339-014
+    title: "Implement Claude Code launch"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-013
+
+    description: |
+      Launch Claude Code with prepared configuration. Support flag pass-through
+      for user-specified options like --model.
+
+    acceptance_criteria:
+      - launch() builds command: 'claude code'
+      - If config file generated, writes to .claude/config.json or temp location
+      - Supports flag pass-through: args array appended to command
+      - Example: 'brat code -- --model opus' → 'claude code --model opus'
+      - Returns ChildProcess via launcher module
+      - Logs full command before execution (debug level)
+
+    deliverables:
+      - Modification to claude-code-plugin.ts
+
+    log: []
+
+  - id: BL-339-015
+    title: "Implement Claude Code preflight checks"
+    priority: P0
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-011
+
+    description: |
+      Pre-flight validation for Claude Code. Check for ANTHROPIC_API_KEY and warn if missing.
+
+    acceptance_criteria:
+      - preflight() method checks for ANTHROPIC_API_KEY env var
+      - Returns PreflightResult with success=true/false
+      - If missing, includes warning message (non-fatal)
+      - Warnings displayed to user before launch
+      - User can proceed even with warnings
+
+    deliverables:
+      - Modification to claude-code-plugin.ts
+
+    log: []
+
+  - id: BL-339-016
+    title: "Write unit tests for Claude Code plugin"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-011
+      - BL-339-012
+      - BL-339-013
+      - BL-339-014
+      - BL-339-015
+
+    description: |
+      Comprehensive unit tests for ClaudeCodePlugin covering all methods.
+
+    acceptance_criteria:
+      - Test: detect() with mocked 'which' and 'exec' (installed/missing cases)
+      - Test: detect() with various version strings (valid/invalid)
+      - Test: prepareConfig() with different ProjectContext inputs
+      - Test: prepareConfig() with missing context files
+      - Test: launch() command construction with/without pass-through args
+      - Test: preflight() with/without ANTHROPIC_API_KEY
+      - All tests pass
+      - Coverage >= 80% for claude-code-plugin.ts
+
+    deliverables:
+      - tools/brat/src/cli/code/plugins/claude-code-plugin.test.ts
+
+    log: []
+
+  - id: BL-339-017
+    title: "Integration test: Full flow with Claude Code"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-008
+      - BL-339-016
+
+    description: |
+      End-to-end integration test requiring Claude Code actually installed.
+      Verifies full flow from discovery through config generation.
+
+    acceptance_criteria:
+      - Test: 'brat code --agent=claude-code --dry-run' succeeds
+      - Verifies: Claude Code detected correctly
+      - Verifies: Project context loaded
+      - Verifies: Config file generated with correct structure
+      - Verifies: Config includes all expected context files
+      - Test can run in CI if Claude Code installed (npm install -g @anthropic-ai/claude-code)
+      - Test skipped if Claude Code not available (not a failure)
+
+    deliverables:
+      - tools/brat/src/cli/code/integration.test.ts
+
+    log: []
+
+  - id: BL-339-018
+    title: "Manual testing: Claude Code on macOS"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-017
+
+    description: |
+      Manual testing of full Claude Code flow on macOS (primary development platform).
+      Tests user experience and edge cases.
+
+    acceptance_criteria:
+      - Test: Fresh environment (no ~/.bratrc) → interactive selection
+      - Test: Agent selection UI displays Claude Code correctly
+      - Test: Preference persistence (second run skips selection)
+      - Test: Successful Claude Code launch (interactive session works)
+      - Test: Flag pass-through (--model override)
+      - Test: Dry-run mode shows config without launching
+      - Document any issues found in sprint log
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/manual-test-results.md
+
+    log: []
+
+  - id: BL-339-019
+    title: "Update documentation for Claude Code plugin"
+    priority: P0
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-018
+
+    description: |
+      Document 'brat code' command and Claude Code plugin in project documentation.
+
+    acceptance_criteria:
+      - README.md includes 'brat code' section with examples
+      - Create documentation/guides/coding-agents.md with detailed guide
+      - Document: installation, usage, flags, troubleshooting
+      - Include examples: basic usage, agent selection, flag pass-through
+      - Document Claude Code-specific features and limitations
+
+    deliverables:
+      - README.md (modification)
+      - documentation/guides/coding-agents.md (new)
+
+    log: []
+
+  - id: BL-339-020
+    title: "Code review and refinement (Phase 1+2)"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-010
+      - BL-339-019
+
+    description: |
+      Review all Phase 1 (core infrastructure) and Phase 2 (Claude Code) code.
+      Address feedback and ensure consistency.
+
+    acceptance_criteria:
+      - All code follows TypeScript style guide (kebab-case files, PascalCase classes)
+      - Consistent error handling throughout
+      - All functions have JSDoc comments
+      - No console.log (use logger)
+      - No hardcoded paths or values (use constants)
+      - npm run lint passes with no errors
+      - npm run build succeeds
+      - All tests pass
+
+    deliverables:
+      - Code refinements across all Phase 1+2 files
+
+    log: []
+
+  # ============================================================================
+  # PHASE 3: ADDITIONAL AGENT PLUGINS (P1)
+  # Week 2, Days 6-10
+  # ============================================================================
+
+  - id: BL-339-021
+    title: "Verify Aider CLI installation and behavior"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps: []
+
+    description: |
+      Research and verify Aider CLI behavior. Install locally and test context injection
+      via --read flags. Document findings.
+
+    acceptance_criteria:
+      - Aider installed locally: 'pip install aider-chat'
+      - Tested: 'aider --version' output format
+      - Tested: 'aider --read FILE' context loading
+      - Tested: Multiple --read flags in single command
+      - Documented: Aider CLI flags and behavior
+      - Documented: Context injection strategy for Aider
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/aider-research.md
+
+    log: []
+
+  - id: BL-339-022
+    title: "Implement Aider detection"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-021
+      - BL-339-001
+
+    description: |
+      Implement CodingAgentPlugin for Aider. Detection logic for 'aider' binary.
+
+    acceptance_criteria:
+      - AiderPlugin class implements CodingAgentPlugin
+      - detect() checks for 'aider' binary in PATH
+      - Executes 'aider --version' and parses output
+      - Validates version (minVersion TBD based on research)
+      - Returns AgentDetectionResult
+
+    deliverables:
+      - tools/brat/src/cli/code/plugins/aider-plugin.ts
+
+    log: []
+
+  - id: BL-339-023
+    title: "Implement Aider config preparation"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-022
+
+    description: |
+      Prepare Aider launch config. Aider uses CLI flags instead of config files,
+      so prepareConfig() returns command-line arguments.
+
+    acceptance_criteria:
+      - prepareConfig() returns AgentConfig with args array
+      - No config files generated (Aider doesn't use config files)
+      - Args prepared for context injection (populated in BL-339-024)
+      - Supports model override via environment or args
+
+    deliverables:
+      - Modification to aider-plugin.ts
+
+    log: []
+
+  - id: BL-339-024
+    title: "Implement Aider context injection"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-023
+      - BL-339-005
+
+    description: |
+      Inject BitBrat project context into Aider via --read flags.
+
+    acceptance_criteria:
+      - prepareConfig() receives ProjectContext
+      - Generates --read flag for each context file
+      - Example: --read CLAUDE.md --read architecture.yaml --read AGENTS.md --read README.md
+      - Only includes files that exist
+      - Args array includes all --read flags
+
+    deliverables:
+      - Modification to aider-plugin.ts
+
+    log: []
+
+  - id: BL-339-025
+    title: "Implement Aider launch"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-024
+
+    description: |
+      Launch Aider with prepared CLI arguments. Support flag pass-through.
+
+    acceptance_criteria:
+      - launch() builds command: 'aider' + args
+      - Supports flag pass-through (appended to args)
+      - Example: 'brat code -- --model gpt-4' → 'aider --read ... --model gpt-4'
+      - Returns ChildProcess
+      - Logs full command (debug level)
+
+    deliverables:
+      - Modification to aider-plugin.ts
+
+    log: []
+
+  - id: BL-339-026
+    title: "Implement Aider preflight checks"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-022
+
+    description: |
+      Pre-flight checks for Aider. Verify API key for selected model.
+
+    acceptance_criteria:
+      - preflight() checks for OPENAI_API_KEY or ANTHROPIC_API_KEY (depending on model)
+      - Warns if not set (non-fatal)
+      - Suggests installation of API key
+
+    deliverables:
+      - Modification to aider-plugin.ts
+
+    log: []
+
+  - id: BL-339-027
+    title: "Write unit tests for Aider plugin"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-022
+      - BL-339-023
+      - BL-339-024
+      - BL-339-025
+      - BL-339-026
+
+    description: |
+      Unit tests for AiderPlugin covering all methods.
+
+    acceptance_criteria:
+      - Test: detect() with mocked which/exec
+      - Test: prepareConfig() with different ProjectContext inputs
+      - Test: Context injection --read flags generation
+      - Test: launch() command construction
+      - Test: preflight() with/without API keys
+      - All tests pass
+      - Coverage >= 80%
+
+    deliverables:
+      - tools/brat/src/cli/code/plugins/aider-plugin.test.ts
+
+    log: []
+
+  - id: BL-339-028
+    title: "Integration test: Full flow with Aider"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-027
+
+    description: |
+      End-to-end integration test with Aider (if available).
+
+    acceptance_criteria:
+      - Test: 'brat code --agent=aider --dry-run' succeeds
+      - Verifies: Aider detected correctly
+      - Verifies: --read flags generated for all context files
+      - Test skipped if Aider not installed
+
+    deliverables:
+      - Modification to integration.test.ts
+
+    log: []
+
+  - id: BL-339-029
+    title: "Manual testing: Aider on macOS"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-028
+
+    description: |
+      Manual testing of Aider plugin flow.
+
+    acceptance_criteria:
+      - Test: Agent selection with both Claude Code and Aider available
+      - Test: Aider launches successfully
+      - Test: Context files loaded correctly (verify in Aider session)
+      - Test: Flag pass-through works
+      - Document results
+
+    deliverables:
+      - Update to manual-test-results.md
+
+    log: []
+
+  - id: BL-339-030
+    title: "Update documentation for Aider plugin"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-029
+
+    description: |
+      Add Aider documentation to coding agents guide.
+
+    acceptance_criteria:
+      - documentation/guides/coding-agents.md includes Aider section
+      - Document: installation, usage, Aider-specific features
+      - Include comparison: when to use Claude Code vs Aider
+
+    deliverables:
+      - Modification to documentation/guides/coding-agents.md
+
+    log: []
+
+  - id: BL-339-031
+    title: "Verify Continue CLI exists and behavior"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps: []
+
+    description: |
+      Research whether Continue has a standalone CLI (separate from VS Code extension).
+      If CLI exists, document behavior. If not, defer plugin and update backlog.
+
+    acceptance_criteria:
+      - Research: Continue CLI documentation
+      - Tested: If CLI exists, install and verify
+      - Documented: CLI behavior or lack thereof
+      - Decision: Proceed with plugin OR defer to future sprint
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/continue-research.md
+
+    log: []
+
+  - id: BL-339-032
+    title: "Implement Continue plugin (conditional)"
+    priority: P1
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-031
+
+    description: |
+      If Continue CLI verified in BL-339-031, implement full Continue plugin.
+      If no CLI, mark as deferred and document in backlog.
+
+    acceptance_criteria:
+      - If CLI exists: ContinuePlugin implements CodingAgentPlugin
+      - If CLI exists: Detection, config, context injection, launch implemented
+      - If CLI exists: Unit tests written
+      - If no CLI: Task marked as deferred with notes
+
+    deliverables:
+      - tools/brat/src/cli/code/plugins/continue-plugin.ts (conditional)
+      - tools/brat/src/cli/code/plugins/continue-plugin.test.ts (conditional)
+      - OR: Backlog update documenting deferral
+
+    log: []
+
+  # ============================================================================
+  # PHASE 3 (continued): PLUGIN SYSTEM REFINEMENT (P1)
+  # Week 3, Days 11-12
+  # ============================================================================
+
+  - id: BL-339-041
+    title: "Create plugin development guide"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-020
+      - BL-339-030
+
+    description: |
+      Comprehensive guide for developers to create custom coding agent plugins.
+
+    acceptance_criteria:
+      - Guide covers: plugin interface, implementation steps, testing
+      - Includes: template plugin with inline comments
+      - Includes: example for a fictional agent
+      - Documents: how to register custom plugins
+      - Documents: plugin best practices and gotchas
+
+    deliverables:
+      - documentation/guides/code-plugin-development.md
+      - tools/brat/src/cli/code/plugins/template-plugin.ts.example
+
+    log: []
+
+  - id: BL-339-042
+    title: "Add comprehensive --help documentation"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-008
+
+    description: |
+      Enhance 'brat code --help' with comprehensive usage examples.
+
+    acceptance_criteria:
+      - Help text includes: description, all flags, examples
+      - Examples cover: basic usage, agent selection, flag pass-through, dry-run
+      - Help text is well-formatted and readable
+      - Accessible via 'brat code --help'
+
+    deliverables:
+      - Modification to tools/brat/src/cli/code/index.ts
+
+    log: []
+
+  - id: BL-339-043
+    title: "Error handling improvements"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-020
+
+    description: |
+      Enhance error handling across all components with actionable messages.
+
+    acceptance_criteria:
+      - No agents detected: Show installation guide with links
+      - Agent version mismatch: Show current vs required version
+      - API key missing: Show setup instructions
+      - Config generation fails: Show clear error with file path
+      - Launch fails: Show command that failed and exit code
+      - All errors include suggestions for resolution
+
+    deliverables:
+      - Modifications across all code modules
+      - tools/brat/src/cli/code/errors.ts (error helper functions)
+
+    log: []
+
+  - id: BL-339-044
+    title: "Add logging and diagnostics"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-020
+
+    description: |
+      Comprehensive logging for debugging and observability.
+
+    acceptance_criteria:
+      - Debug logs for: agent detection, config generation, launch
+      - Logs include: detected agents, selected agent, config path, command
+      - --dry-run shows full prepared config
+      - Logs respect LOG_LEVEL environment variable
+      - No sensitive data in logs (API keys redacted)
+
+    deliverables:
+      - Modifications across all code modules
+
+    log: []
+
+  - id: BL-339-045
+    title: "Performance optimization"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-020
+
+    description: |
+      Optimize detection and launch performance.
+
+    acceptance_criteria:
+      - Agent detection cached (avoid redundant PATH scans)
+      - Cache TTL: 1 hour (invalidate on explicit --select)
+      - Project context loaded once per invocation
+      - Lazy-load plugins (don't import all on startup)
+      - Detection completes in < 2 seconds
+      - Full flow (detect → select → prepare → launch) < 5 seconds
+
+    deliverables:
+      - Modifications to detector.ts, project-context.ts
+      - tools/brat/src/cli/code/cache.ts (cache helper)
+
+    log: []
+
+  - id: BL-339-046
+    title: "Cross-platform testing (macOS, Linux, Windows)"
+    priority: P1
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-045
+
+    description: |
+      Test 'brat code' on multiple platforms to ensure compatibility.
+
+    acceptance_criteria:
+      - Test on macOS: All features work ✓
+      - Test on Linux (Ubuntu 22.04 or WSL): All features work
+      - Test on Windows (if feasible): Document any platform-specific issues
+      - Document platform-specific quirks in troubleshooting guide
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/platform-test-results.md
+
+    log: []
+
+  - id: BL-339-047
+    title: "Create installation troubleshooting guide"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-046
+
+    description: |
+      Comprehensive troubleshooting guide for common issues.
+
+    acceptance_criteria:
+      - Guide covers: agent not detected, version mismatch, API keys
+      - Platform-specific: PATH configuration on Windows, macOS, Linux
+      - Includes: version compatibility matrix for all supported agents
+      - Includes: common error messages and solutions
+
+    deliverables:
+      - documentation/guides/coding-agents-troubleshooting.md
+
+    log: []
+
+  - id: BL-339-048
+    title: "Add to CI pipeline"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-009
+      - BL-339-016
+      - BL-339-027
+
+    description: |
+      Integrate 'brat code' tests into CI pipeline.
+
+    acceptance_criteria:
+      - Unit tests run on every PR
+      - Lint checks pass for all code plugin files
+      - Integration tests run if Claude Code available in CI
+      - Coverage report generated and enforced (>= 80%)
+      - CI installs Claude Code: 'npm install -g @anthropic-ai/claude-code'
+
+    deliverables:
+      - .github/workflows/test.yml (modification)
+
+    log: []
+
+  - id: BL-339-049
+    title: "Team demo and feedback collection"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-048
+
+    description: |
+      Internal demo of 'brat code' to gather team feedback.
+
+    acceptance_criteria:
+      - Demo scheduled with core team (3+ developers)
+      - Demo covers: basic usage, agent selection, context injection
+      - Feedback collected via survey or meeting notes
+      - Backlog items created for enhancement requests
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/demo-feedback.md
+
+    log: []
+
+  - id: BL-339-050
+    title: "README.md prominent updates"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-019
+
+    description: |
+      Make 'brat code' highly visible in main README.
+
+    acceptance_criteria:
+      - 'brat code' mentioned in README quickstart section
+      - Dedicated section: "Getting Started with brat code"
+      - Includes: installation, first run, common use cases
+      - Links to detailed guide: documentation/guides/coding-agents.md
+
+    deliverables:
+      - README.md (modification)
+
+    log: []
+
+  # ============================================================================
+  # PHASE 3 (continued): ROLLOUT AND MONITORING (P1)
+  # Week 3, Days 13-15
+  # ============================================================================
+
+  - id: BL-339-051
+    title: "Soft launch to team"
+    priority: P1
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-050
+
+    description: |
+      Announce 'brat code' availability to team and monitor initial usage.
+
+    acceptance_criteria:
+      - Announcement in team Slack/Discord with quick-start guide
+      - Link to documentation and troubleshooting guide
+      - Dedicated feedback channel or thread
+      - Monitor for bug reports and questions
+      - Respond to issues within 24 hours
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/launch-announcement.md (draft)
+
+    log: []
+
+  - id: BL-339-052
+    title: "Gather adoption metrics"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-051
+
+    description: |
+      Track adoption metrics to measure success (without invasive telemetry).
+
+    acceptance_criteria:
+      - Metrics collected: Number of developers using 'brat code' (survey or manual)
+      - Metrics collected: Which agents are most popular (preference file analysis)
+      - Metrics collected: Success rate (GitHub issues / total users)
+      - Weekly report for 4 weeks post-launch
+      - Privacy-respecting (no code or prompts collected)
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/adoption-metrics.md
+
+    log: []
+
+  - id: BL-339-053
+    title: "Address early feedback"
+    priority: P1
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-051
+
+    description: |
+      Triage and address early feedback from team.
+
+    acceptance_criteria:
+      - Critical bugs fixed within 24 hours
+      - Enhancement requests added to backlog
+      - User questions answered in documentation
+      - Common issues added to troubleshooting guide
+
+    deliverables:
+      - Bug fixes (as needed)
+      - Backlog updates
+      - Documentation improvements
+
+    log: []
+
+  - id: BL-339-054
+    title: "Create video tutorial (optional)"
+    priority: P2
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-051
+
+    description: |
+      Screen recording demonstrating 'brat code' usage (optional, nice-to-have).
+
+    acceptance_criteria:
+      - 5-10 minute video showing: installation, first run, agent selection, usage
+      - Voiceover or text annotations
+      - Published to team knowledge base or YouTube (unlisted)
+
+    deliverables:
+      - Video file and link in documentation
+
+    log: []
+
+  - id: BL-339-055
+    title: "Prepare sprint retrospective"
+    priority: P1
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-053
+
+    description: |
+      Document sprint retrospective and key learnings.
+
+    acceptance_criteria:
+      - retro.md created with: what went well, challenges, improvements
+      - key-learnings.md created with: technical insights, process improvements
+      - Backlog updated with P2 items for future sprints
+
+    deliverables:
+      - planning/sprint-339-brat-code-command/retro.md
+      - planning/sprint-339-brat-code-command/key-learnings.md
+
+    log: []
+
+  # ============================================================================
+  # PHASE 4: ADVANCED FEATURES (P2 - FUTURE SPRINTS)
+  # Deferred to future sprints
+  # ============================================================================
+
+  - id: BL-339-101
+    title: "Support project-level config (.bitbrat.json)"
+    priority: P2
+    status: deferred
+    effort: M
+    owner: unassigned
+    deps: []
+
+    description: |
+      Allow project maintainers to enforce or suggest a preferred agent via .bitbrat.json.
+
+    acceptance_criteria:
+      - .bitbrat.json schema includes codingAgent.preferred field
+      - Project preference overrides user preference (with notice)
+      - Project can specify plugin-specific config overrides
+
+    deliverables:
+      - Deferred to future sprint
+
+    log: []
+
+  - id: BL-339-102
+    title: "Custom plugin loading (.brat/code-plugins/)"
+    priority: P2
+    status: deferred
+    effort: L
+    owner: unassigned
+    deps: []
+
+    description: |
+      Support loading custom plugins from .brat/code-plugins/ directory.
+
+    acceptance_criteria:
+      - Plugins can be JavaScript or TypeScript files
+      - Dynamically loaded at runtime
+      - Validated against CodingAgentPlugin interface
+
+    deliverables:
+      - Deferred to future sprint
+
+    log: []
+
+  - id: BL-339-103
+    title: "Agent health checks and diagnostics"
+    priority: P2
+    status: deferred
+    effort: M
+    owner: unassigned
+    deps: []
+
+    description: |
+      'brat code --doctor' command to diagnose agent installation issues.
+
+    acceptance_criteria:
+      - Checks: agent installed, version compatible, API keys set, network connectivity
+      - Provides: actionable recommendations for each issue
+
+    deliverables:
+      - Deferred to future sprint
+
+    log: []
+
+  - id: BL-339-104
+    title: "Usage telemetry (opt-in)"
+    priority: P2
+    status: deferred
+    effort: L
+    owner: unassigned
+    deps: []
+
+    description: |
+      Optional telemetry to understand agent usage patterns.
+
+    acceptance_criteria:
+      - Opt-in only via ~/.bratrc setting
+      - Collects: agent type, version, launch success/failure
+      - Never collects: code, prompts, file contents, API keys
+
+    deliverables:
+      - Deferred to future sprint
+
+    log: []
+
+  - id: BL-339-105
+    title: "Automatic agent installation"
+    priority: P2
+    status: deferred
+    effort: XL
+    owner: unassigned
+    deps: []
+
+    description: |
+      'brat code --install' command to automatically install a recommended agent.
+
+    acceptance_criteria:
+      - Detects OS and package manager
+      - Installs Claude Code via npm
+      - Installs Aider via pip
+      - Handles failures gracefully
+
+    deliverables:
+      - Deferred to future sprint
+
+    log: []
+
+  - id: BL-339-106
+    title: "Multi-agent workflows"
+    priority: P2
+    status: deferred
+    effort: XL
+    owner: unassigned
+    deps: []
+
+    description: |
+      Support for running multiple agents simultaneously or in sequence.
+
+    acceptance_criteria:
+      - 'brat code --agents=claude,aider' launches both
+      - Agent handoff protocol (Claude for planning, Aider for implementation)
+
+    deliverables:
+      - Deferred to future sprint
+
+    log: []
+
+  - id: BL-339-107
+    title: "Workspace presets"
+    priority: P2
+    status: deferred
+    effort: L
+    owner: unassigned
+    deps: []
+
+    description: |
+      Predefined workspace configurations for common tasks.
+
+    acceptance_criteria:
+      - 'brat code --preset=bugfix' loads recent errors, failing tests
+      - 'brat code --preset=feature' loads ADRs, architecture, sprint docs
+      - 'brat code --preset=review' loads PR diff and related files
+
+    deliverables:
+      - Deferred to future sprint
+
+    log: []
+
+# End of backlog
