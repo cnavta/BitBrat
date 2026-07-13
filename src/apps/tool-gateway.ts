@@ -17,10 +17,13 @@ import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
 import {
+  embedText,
+  buildEmbeddingText,
   StaticContextProvider,
   resolveContextPacks,
   packsToNamedContexts,
   type ContextActiveSet,
+  type ContextPack,
 } from '../common/context';
 import type { NamedContext } from '../common/prompt-assembly/types';
 
@@ -104,6 +107,11 @@ export class ToolGatewayServer extends Bit {
         packs: (ctx.packs || []).length,
         bindings: (ctx.bindings || []).length,
       });
+
+      // P4 RAG Scale-Out: Persist context packs to Firestore for vector search (sprint-338, BL-338-201)
+      if (Array.isArray(ctx.packs) && ctx.packs.length > 0) {
+        await this.upsertContextPacks(payload.name, ctx.packs, event.correlationId);
+      }
     }
 
     // Skip the Firestore write when the meaningful registration payload is unchanged from what we
@@ -144,6 +152,78 @@ export class ToolGatewayServer extends Bit {
   }
 
   /**
+   * Upsert context packs to Firestore context_packs collection for vector search (P4 RAG Scale-Out).
+   * Each pack is persisted with all its fields plus bitName, active flag, and embedding (BL-338-201/202).
+   *
+   * @param bitName - The name of the Bit advertising these packs
+   * @param packs - Array of context packs to upsert
+   * @param correlationId - Correlation ID from the registration event
+   */
+  private async upsertContextPacks(
+    bitName: string,
+    packs: any[],
+    correlationId: string
+  ): Promise<void> {
+    const db = getFirestore();
+    const updatedAt = new Date().toISOString();
+
+    for (const pack of packs) {
+      try {
+        // Build pack document with all fields + metadata
+        const packDoc: any = {
+          id: pack.id,
+          version: pack.version,
+          title: pack.title,
+          priority: pack.priority,
+          format: pack.format,
+          body: pack.body,
+          source: pack.source,
+          bitName,
+          active: true,
+          updatedAt,
+        };
+
+        // Generate embedding for this pack (BL-338-202)
+        let embeddingGenerated = false;
+        const embeddingText = buildEmbeddingText(pack);
+        const embedding = await embedText(embeddingText);
+
+        if (embedding) {
+          packDoc.embedding = embedding;
+          packDoc.embeddingText = embeddingText;
+          embeddingGenerated = true;
+        } else {
+          // OpenAI API failure: log warning and persist pack without embedding
+          // (will retry on next registration heartbeat)
+          this.getLogger().warn('tool_gateway.context.embedding_failed', {
+            packId: pack.id,
+            bitName,
+            correlationId,
+          });
+        }
+
+        // Upsert to Firestore (merge: true for idempotent updates)
+        await db.collection('context_packs').doc(pack.id).set(packDoc, { merge: true });
+
+        this.getLogger().info('tool_gateway.context.pack_registered', {
+          packId: pack.id,
+          bitName,
+          embeddingGenerated,
+          correlationId,
+        });
+      } catch (error: any) {
+        // Firestore write failure is non-fatal for registration (log and continue)
+        this.getLogger().error('tool_gateway.context.pack_upsert_failed', {
+          packId: pack.id,
+          bitName,
+          error: error.message,
+          correlationId,
+        });
+      }
+    }
+  }
+
+  /**
    * Build a stable signature over the connection-meaningful fields of a registration payload so we can
    * detect heartbeat re-registrations that carry no change. The per-event `correlationId` is excluded
    * because it varies on every publish yet has no configuration meaning; the metadata we add ourselves
@@ -174,20 +254,89 @@ export class ToolGatewayServer extends Bit {
   }
 
   /**
-   * Just-in-Time Context Provisioning (sprint-328, P2): resolve the Context Packs bound to the
-   * active tool set across all registered Bits, de-duplicated by pack id, and render them as
-   * prompt-assembly NamedContexts. Tool names may be bare ("create_schedule") or discovery-qualified
-   * ("mcp:create_schedule"); the leading "mcp:" prefix is stripped. With no bound packs this returns
-   * [] so the assembled prompt is unchanged vs. today (behavior-preserving).
+   * Just-in-Time Context Provisioning (sprint-328 P2, sprint-338 P4): resolve the Context Packs
+   * bound to the active tool set across all registered Bits, de-duplicated by pack id, and render
+   * them as prompt-assembly NamedContexts. Tool names may be bare ("create_schedule") or
+   * discovery-qualified ("mcp:create_schedule"); the leading "mcp:" prefix is stripped.
+   * P4: Made async to support VectorContextProvider (RAG retrieval via Firestore Vector Search).
+   * P4: Added semanticQuery parameter for RAG-based context augmentation.
+   * With no bound packs this returns [] so the assembled prompt is unchanged vs. today (behavior-preserving).
+   *
+   * @param toolNames - Tool names to resolve context for (strips 'mcp:' prefix if present)
+   * @param extra - Optional extra context (tasks, eventTypes)
+   * @param semanticQuery - Optional semantic query for RAG-based context retrieval (e.g., user prompt)
+   * @returns Array of named context objects for prompt injection
    */
-  public resolveContextForTools(toolNames: string[], extra?: Partial<ContextActiveSet>): NamedContext[] {
+  public async resolveContextForTools(
+    toolNames: string[],
+    extra?: Partial<ContextActiveSet>,
+    semanticQuery?: string
+  ): Promise<NamedContext[]> {
     const tools = (toolNames || []).map((n) => (n.startsWith('mcp:') ? n.slice(4) : n));
     const active: ContextActiveSet = { tools, tasks: extra?.tasks, eventTypes: extra?.eventTypes };
-    const providers = Array.from(this.contextProviders.values());
-    const packs = resolveContextPacks(active, providers, {
+
+    // Path 1: Static resolution (P2 logic, existing providers)
+    const staticProviders = Array.from(this.contextProviders.values());
+    const staticPacks = await resolveContextPacks(active, staticProviders, {
       onWarn: (message, meta) => this.getLogger().warn(message, meta),
     });
-    return packsToNamedContexts(packs);
+
+    // Collect static pack IDs for de-duplication
+    const staticPackIds = new Set(staticPacks.map((p) => p.id));
+
+    // Path 2: RAG augmentation (if enabled and semanticQuery provided)
+    let ragPacks: ContextPack[] = [];
+    if (this.isRagContextEnabled() && semanticQuery && tools.length > 0) {
+      const startMs = Date.now();
+      try {
+        const { VectorContextProvider } = await import('../common/context/vector-provider');
+        const maxResults = parseInt(this.getConfig('RAG_CONTEXT_MAX_RESULTS', { default: '5' }), 10);
+        const minSimilarity = parseFloat(this.getConfig('RAG_CONTEXT_MIN_SIMILARITY', { default: '0.7' }));
+        const timeout = parseInt(this.getConfig('RAG_CONTEXT_TIMEOUT_MS', { default: '200' }), 10);
+
+        const vectorProvider = new VectorContextProvider(semanticQuery, {
+          maxResults,
+          minSimilarity,
+          timeout,
+        });
+
+        const vectorPacks = await vectorProvider.listPacks();
+
+        // De-duplicate: filter out packs already in static results (static takes precedence)
+        ragPacks = vectorPacks.filter((p) => !staticPackIds.has(p.id));
+
+        const latencyMs = Date.now() - startMs;
+        this.getLogger().info('tool_gateway.context.rag_augmented', {
+          staticCount: staticPacks.length,
+          ragCount: ragPacks.length,
+          querySnippet: semanticQuery.slice(0, 50),
+          latencyMs,
+        });
+      } catch (err) {
+        const latencyMs = Date.now() - startMs;
+        this.getLogger().warn('tool_gateway.context.rag_failed', {
+          error: err instanceof Error ? err.message : String(err),
+          latencyMs,
+          querySnippet: semanticQuery.slice(0, 50),
+        });
+        // Non-fatal: continue with static packs only
+      }
+    }
+
+    // Merge static + RAG packs (static first, RAG appended)
+    const allPacks = [...staticPacks, ...ragPacks];
+    return packsToNamedContexts(allPacks);
+  }
+
+  /**
+   * Check if RAG context augmentation is enabled via feature flag.
+   */
+  private isRagContextEnabled(): boolean {
+    try {
+      return this.getConfig('RAG_CONTEXT_ENABLED', { default: 'false' }).toLowerCase() === 'true';
+    } catch {
+      return false;
+    }
   }
 
   private setupApp(app: Express) {

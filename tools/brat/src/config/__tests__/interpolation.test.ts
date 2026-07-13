@@ -47,6 +47,7 @@ deploymentDefaults:
 
   it('substitutes ${ENV_PREFIX} and ${DOMAIN_SUFFIX:-default}', () => {
     process.env.BITBRAT_ENV = 'dev';
+    delete process.env.DOMAIN_SUFFIX; // Ensure default is used
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-arch-'));
     const y = baseYaml(``)
       .replace('api.bitbrat.ai', 'api.${ENV_PREFIX}${DOMAIN_SUFFIX:-bitbrat.ai}');
@@ -58,6 +59,7 @@ deploymentDefaults:
 
   it('ENV_PREFIX empty for prod', () => {
     process.env.BITBRAT_ENV = 'prod';
+    delete process.env.DOMAIN_SUFFIX; // Ensure default is used
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-arch-'));
     const y = baseYaml(``)
       .replace('api.bitbrat.ai', 'api.${ENV_PREFIX}${DOMAIN_SUFFIX:-bitbrat.ai}');

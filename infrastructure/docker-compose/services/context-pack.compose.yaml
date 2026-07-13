@@ -1,0 +1,31 @@
+services:
+  context-pack:
+    build:
+      context: .
+      dockerfile: Dockerfile.context-pack
+    ports:
+      - "${CONTEXT_PACK_HOST_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=local
+      - BITBRAT_ENV=local
+      - PORT=3000
+    env_file:
+      - .env.brat
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      nats:
+        condition: service_healthy
+      firebase-emulator:
+        condition: service_healthy
+    networks:
+      bitbrat-network:
+        aliases:
+          - context-pack.bitbrat.local
+
+networks:
+  bitbrat-network:
+    external: true

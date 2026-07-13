@@ -24,6 +24,15 @@
         { "fieldPath": "active", "order": "ASCENDING" },
         { "fieldPath": "priority", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "context_packs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "bitName", "order": "ASCENDING" },
+        { "fieldPath": "id", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

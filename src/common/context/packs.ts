@@ -1,9 +1,10 @@
-// Generated Context Packs (sprint-328, ADR §5.4 — P3)
+// Generated Context Packs (sprint-328/338, ADR §5.4 — P3/P4)
 //
 // These packs are GENERATED at module-load from the source of truth, not hand-copied (Immutable
 // Law #2 / G2 / G6):
 //   - schema.internal-event-v2  <- src/types/events.ts (ANNOTATION_KINDS_V1 + the field-path specs below)
 //   - router.jsonlogic-guide    <- src/services/router/jsonlogic-evaluator.ts (CUSTOM_OPERATORS + EVAL_CONTEXT_PATHS)
+//   - scheduler.guide           <- src/apps/scheduler-service.ts (schedule types, event structure, examples)
 // Drift-guard tests (tests/common/context/*) assert every documented kind / field path / operator
 // still exists in source, so a rename or removal fails CI rather than silently rotting the docs.
 
@@ -14,10 +15,12 @@ import type { ContextPack } from './types';
 /** Stable pack ids (referenced by bindings, resources and tests). */
 export const SCHEMA_INTERNAL_EVENT_V2_PACK_ID = 'schema.internal-event-v2';
 export const ROUTER_JSONLOGIC_GUIDE_PACK_ID = 'router.jsonlogic-guide';
+export const SCHEDULER_GUIDE_PACK_ID = 'scheduler.guide';
 
 /** Stable MCP Resource URIs that expose the packs for tool turns (P0). */
 export const SCHEMA_INTERNAL_EVENT_V2_RESOURCE_URI = 'context://schema/internal-event-v2';
 export const ROUTER_JSONLOGIC_GUIDE_RESOURCE_URI = 'context://router/jsonlogic-guide';
+export const SCHEDULER_GUIDE_RESOURCE_URI = 'context://scheduler/guide';
 
 /**
  * Field paths the schema pack documents, grouped by the contract they belong to. Exported so the
@@ -105,5 +108,95 @@ export function buildRouterJsonLogicPack(): ContextPack {
     format: 'markdown',
     body: renderRouterJsonLogicMarkdown(),
     source: 'src/services/router/jsonlogic-evaluator.ts',
+  };
+}
+
+function renderSchedulerGuideMarkdown(): string {
+  return [
+    'The scheduler service allows you to create events that fire once at a specific time or',
+    'repeatedly on a cron schedule. Use the `create_schedule` tool to schedule events.',
+    '',
+    '**Schedule Types:**',
+    '- `once` — Fire once at a specific ISO timestamp (e.g., "2025-01-15T10:30:00Z")',
+    '- `cron` — Fire repeatedly on a cron schedule (e.g., "0 9 * * 1" for every Monday at 9am)',
+    '',
+    '**Creating a Schedule:**',
+    'Use `create_schedule` with:',
+    '- `title` — Descriptive name (e.g., "Daily standup reminder")',
+    '- `schedule.type` — "once" or "cron"',
+    '- `schedule.value` — ISO timestamp for "once", cron expression for "cron"',
+    '- `event` — Full InternalEventV2 to emit when the schedule fires',
+    '- `topic` — (Optional) Topic to publish on (defaults to internal.ingress.v1)',
+    '- `enabled` — (Optional) Whether active (defaults to true)',
+    '',
+    '**Event Structure:**',
+    'The `event` field is a complete InternalEventV2. The server owns envelope fields',
+    '(v, correlationId, traceId, ingress.ingressAt/source, routing). You set:',
+    '- `type` — Event type (e.g., "llm.request.v1" for LLM prompts)',
+    '- `egress` — Where to deliver (e.g., { connector: "twitch", destination: "twitch", channel: "#mychannel" })',
+    '- `message` — Optional MessageV1 (for chat events)',
+    '- `annotations` — Optional AnnotationV1[] (e.g., prompts, context)',
+    '- `payload` — Optional free-form payload',
+    '',
+    '**Common Use Cases:**',
+    '',
+    '1. **Schedule a one-time LLM prompt to Twitch:**',
+    '```json',
+    '{',
+    '  "title": "Reminder in 5 minutes",',
+    '  "schedule": { "type": "once", "value": "2025-01-15T10:35:00Z" },',
+    '  "event": {',
+    '    "type": "llm.request.v1",',
+    '    "egress": { "connector": "twitch", "destination": "twitch", "channel": "#mychannel" },',
+    '    "annotations": [{',
+    '      "id": "...",',
+    '      "kind": "prompt",',
+    '      "source": "scheduler",',
+    '      "createdAt": "...",',
+    '      "value": "Reminder: Check the oven!"',
+    '    }]',
+    '  }',
+    '}',
+    '```',
+    '',
+    '2. **Schedule a recurring daily reminder:**',
+    '```json',
+    '{',
+    '  "title": "Daily standup reminder",',
+    '  "schedule": { "type": "cron", "value": "0 9 * * 1-5" },',
+    '  "event": {',
+    '    "type": "llm.request.v1",',
+    '    "egress": { "connector": "discord", "destination": "discord", "channel": "#standup" },',
+    '    "annotations": [{',
+    '      "id": "...",',
+    '      "kind": "prompt",',
+    '      "source": "scheduler",',
+    '      "createdAt": "...",',
+    '      "value": "Daily standup time! What did you work on yesterday?"',
+    '    }]',
+    '  }',
+    '}',
+    '```',
+    '',
+    '**Important Notes:**',
+    '- A "prompt" is NOT an event type — it is an AnnotationV1 with kind="prompt"',
+    '- The event type for LLM prompts is "llm.request.v1"',
+    '- Egress defaults to { connector: "system", destination: "system" } if unset',
+    '- Once schedules auto-disable after firing; cron schedules continue until disabled',
+    '- ISO timestamps must be in the future for "once" schedules',
+    '- Cron format: minute hour day month weekday (standard Unix cron syntax)',
+  ].join('\n');
+}
+
+/** Build the generated `scheduler.guide` ContextPack. */
+export function buildSchedulerGuidePack(): ContextPack {
+  return {
+    id: SCHEDULER_GUIDE_PACK_ID,
+    version: '1',
+    title: 'Scheduler Guide (Creating Timed and Recurring Events)',
+    priority: 2,
+    format: 'markdown',
+    body: renderSchedulerGuideMarkdown(),
+    source: 'src/apps/scheduler-service.ts',
   };
 }

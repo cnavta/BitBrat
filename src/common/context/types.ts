@@ -48,6 +48,6 @@ export interface ContextBinding {
 
 /** Interface a service (Bit) implements to emit packs and their bindings. */
 export interface ContextProvider {
-  listPacks(): ContextPack[];
+  listPacks(): ContextPack[] | Promise<ContextPack[]>;  // P4: async for VectorContextProvider
   listBindings(): ContextBinding[];
 }
