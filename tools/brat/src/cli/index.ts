@@ -119,6 +119,9 @@ Usage:
 
   brat chat [--env <name>] [--project-id <id>]
 
+  # Launch a coding agent (Claude Code, Aider, Continue, OpenHands) preconfigured for this project
+  brat code [--agent <agent>] [--list] [--project-root <path>] [-- <agent-args>...]
+
   # Fleet control plane (drives the universal bit.* tools via the tool-gateway fabric; fail-closed RBAC)
   brat fleet list [--json]
   brat fleet info|health [<bit> | --all] [--json]
@@ -765,6 +768,11 @@ Options:
   if (c1 === 'chat') {
     const { cmdChat } = require('./chat');
     await cmdChat(flags);
+    return;
+  }
+  if (c1 === 'code') {
+    const { cmdCode } = require('./code/code-command');
+    await cmdCode(cmd, rest);
     return;
   }
   if (c1 === 'bit') {
