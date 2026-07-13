@@ -890,8 +890,9 @@ services:
     mcp:
       exposure: platform-only
     active: true
-    description: 'Generated Bit: context-pack'
+    description: 'Analysis-stage service for semantic context enrichment via RAG (Sprint 338)'
     kind: pipeline-service
+    stage: analysis
     entry: src/apps/context-pack-service.ts
     port: 3000
 infrastructure:

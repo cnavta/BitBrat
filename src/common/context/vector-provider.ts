@@ -77,6 +77,22 @@ export class VectorContextProvider implements ContextProvider {
       const snapshot = await vectorQuery.get();
       const packs: ContextPack[] = [];
 
+      // Log all candidates with their similarity scores for debugging
+      const candidates = snapshot.docs.map(doc => {
+        const data = doc.data() as any;
+        const distance = data._distance ?? 1;
+        const similarity = 1 - distance;
+        return { id: data.id, similarity, distance };
+      });
+
+      if (candidates.length > 0) {
+        logger.debug('context_pack.rag_candidates', {
+          querySnippet: this.query.slice(0, 50),
+          minSimilarity,
+          candidates,
+        });
+      }
+
       for (const doc of snapshot.docs) {
         const data = doc.data() as any;
 
@@ -86,6 +102,12 @@ export class VectorContextProvider implements ContextProvider {
         const similarity = 1 - distance;
 
         if (similarity < minSimilarity) {
+          logger.debug('context_pack.rag_filtered', {
+            packId: data.id,
+            similarity,
+            minSimilarity,
+            reason: 'below_threshold',
+          });
           continue;  // Below threshold, skip
         }
 

@@ -244,6 +244,13 @@ export class ContextPackServer extends Bit {
       const minSimilarity = parseFloat(this.getConfig('RAG_CONTEXT_MIN_SIMILARITY', { default: '0.7' }));
       const timeout = parseInt(this.getConfig('RAG_CONTEXT_TIMEOUT_MS', { default: '200' }), 10);
 
+      this.getLogger().debug('context_pack.rag_config', {
+        maxResults,
+        minSimilarity,
+        timeout,
+        querySnippet: semanticQuery.slice(0, 50),
+      });
+
       const vectorProvider = new VectorContextProvider(semanticQuery, {
         maxResults,
         minSimilarity,
