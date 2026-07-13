@@ -19,8 +19,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { createMessagePublisher } from '../services/message-bus';
 import {
   buildInternalEventSchemaPack,
+  buildSchedulerGuidePack,
   SCHEMA_INTERNAL_EVENT_V2_PACK_ID,
   SCHEMA_INTERNAL_EVENT_V2_RESOURCE_URI,
+  SCHEDULER_GUIDE_PACK_ID,
+  SCHEDULER_GUIDE_RESOURCE_URI,
 } from '../common/context';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'scheduler';
@@ -230,11 +233,24 @@ class SchedulerServer extends Bit {
   }
 
   private registerTools() {
-    // Just-in-Time Context Provisioning (sprint-328, P0/P1): contribute the InternalEventV2 schema
-    // pack, expose it as an MCP Resource for tool turns, and bind it to create_schedule so an agent
-    // is told a "prompt" is an AnnotationV1 of kind 'prompt' on a type: 'llm.request.v1' event.
+    // Just-in-Time Context Provisioning (sprint-328, P0/P1 + sprint-338 P4 RAG): contribute the
+    // scheduler usage guide and InternalEventV2 schema pack, expose both as MCP Resources for tool
+    // turns, and bind them to create_schedule so an agent understands both how to use the scheduler
+    // and that a "prompt" is an AnnotationV1 of kind 'prompt' on a type: 'llm.request.v1' event.
+    const schedulerPack = buildSchedulerGuidePack();
     const schemaPack = buildInternalEventSchemaPack();
+
+    this.registerContextPack(schedulerPack);
     this.registerContextPack(schemaPack);
+
+    this.registerResource(
+      SCHEDULER_GUIDE_RESOURCE_URI,
+      schedulerPack.title,
+      'Scheduler usage guide: schedule types, event structure, and common use cases.',
+      async (uri) => ({
+        contents: [{ uri, mimeType: 'text/markdown', text: String(schedulerPack.body) }],
+      })
+    );
     this.registerResource(
       SCHEMA_INTERNAL_EVENT_V2_RESOURCE_URI,
       schemaPack.title,
@@ -318,7 +334,7 @@ class SchedulerServer extends Bit {
           content: [{ type: "text", text: `Schedule created with ID: ${id}` }]
         };
       },
-      [SCHEMA_INTERNAL_EVENT_V2_PACK_ID]
+      [SCHEDULER_GUIDE_PACK_ID, SCHEMA_INTERNAL_EVENT_V2_PACK_ID]
     );
 
     this.registerTool(

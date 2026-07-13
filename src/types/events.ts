@@ -328,3 +328,5 @@ export const INTERNAL_MCP_REGISTRATION_V1 = 'internal.mcp.registration.v1';
 export const INTERNAL_AUTH_V1 = 'internal.auth.v1';
 export const INTERNAL_ENRICHED_V1 = 'internal.enriched.v1';
 export const INTERNAL_SYSTEM_EVENTS_V1 = 'internal.system.events.v1';
+// Sprint 338: Context pack enrichment topic (analysis stage)
+export const INTERNAL_CONTEXT_V1 = 'internal.context.v1';

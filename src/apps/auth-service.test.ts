@@ -1,17 +1,16 @@
 import request from 'supertest';
 import { INTERNAL_AUTH_V1 } from '../types/events';
 
-// Mock message bus
-jest.mock('../services/message-bus', () => {
-  const subscribe = jest.fn(async (_subject: string, _handler: any) => {
-    return async () => {};
-  });
-  const singleton = { subscribe };
-  return {
-    __esModule: true,
-    createMessageSubscriber: () => singleton,
-  };
-});
+// Mock message bus with singleton subscriber so tests can access the mock
+const subscribeMock = jest.fn(async () => async () => {});
+const subscriberSingleton = { subscribe: subscribeMock };
+jest.mock('../services/message-bus', () => ({
+  createMessagePublisher: jest.fn(() => ({
+    publishJson: jest.fn(async () => 'msg-id'),
+    flush: jest.fn(async () => {}),
+  })),
+  createMessageSubscriber: jest.fn(() => subscriberSingleton),
+}));
 
 // Mock Firestore to avoid real initialization in tests
 jest.mock('../common/firebase', () => {

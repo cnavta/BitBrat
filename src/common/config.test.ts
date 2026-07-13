@@ -67,8 +67,11 @@ describe('config framework', () => {
 
   it('supports override and reset of singleton config', () => {
     const originalPort = process.env.PORT;
+    const originalServicePort = process.env.SERVICE_PORT;
     try {
       resetConfig();
+      // Clear SERVICE_PORT since it takes precedence over PORT
+      delete process.env.SERVICE_PORT;
       process.env.PORT = '9999';
       expect(getConfig().port).toBe(9999);
       overrideConfig({ port: 4321 });
@@ -78,6 +81,7 @@ describe('config framework', () => {
     } finally {
       resetConfig();
       if (originalPort === undefined) delete (process.env as any).PORT; else process.env.PORT = originalPort;
+      if (originalServicePort === undefined) delete (process.env as any).SERVICE_PORT; else process.env.SERVICE_PORT = originalServicePort;
     }
   });
 });
