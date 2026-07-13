@@ -1,3 +1,14 @@
+// Mock message bus to avoid NATS connection in tests
+jest.mock('../services/message-bus', () => ({
+  createMessagePublisher: jest.fn(() => ({
+    publishJson: jest.fn(async () => 'msg-id'),
+    flush: jest.fn(async () => {}),
+  })),
+  createMessageSubscriber: jest.fn(() => ({
+    subscribe: jest.fn(async () => async () => {}),
+  })),
+}));
+
 import request from 'supertest';
 import { createApp } from './llm-bot-service';
 

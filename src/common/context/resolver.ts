@@ -39,19 +39,21 @@ function isEmptyActiveSet(active: ContextActiveSet): boolean {
 /**
  * Resolve the ContextPacks bound to the given active set across all providers, de-duplicated by id.
  * Order is stable: packs are emitted in first-seen order of their matching bindings.
+ * P4: Made async to support VectorContextProvider (Firestore Vector Search + OpenAI embeddings).
  */
-export function resolveContextPacks(
+export async function resolveContextPacks(
   active: ContextActiveSet,
   providers: ContextProvider[],
   options: ResolveOptions = {},
-): ContextPack[] {
+): Promise<ContextPack[]> {
   if (isEmptyActiveSet(active) || providers.length === 0) return [];
   const warn = options.onWarn || ((msg, meta) => console.warn(msg, meta ?? {}));
 
   // Build a pack index (last writer wins on duplicate ids across providers).
   const packsById = new Map<string, ContextPack>();
   for (const p of providers) {
-    for (const pack of p.listPacks()) packsById.set(pack.id, pack);
+    const packs = await Promise.resolve(p.listPacks());  // Handle both sync and async providers
+    for (const pack of packs) packsById.set(pack.id, pack);
   }
 
   const matchedIds: string[] = [];

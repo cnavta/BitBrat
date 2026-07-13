@@ -83,7 +83,7 @@ describe('Tool-gateway JIT resolution + de-dup (P2)', () => {
     await (gateway as any).handleMcpRegistration(regEvent('scheduler', scheduler.listContextPacks(), scheduler.listContextBindings()));
     await (gateway as any).handleMcpRegistration(regEvent('event-router', router.listContextPacks(), router.listContextBindings()));
 
-    const contexts = gateway.resolveContextForTools(['mcp:create_schedule', 'mcp:create_rule']);
+    const contexts = await gateway.resolveContextForTools(['mcp:create_schedule', 'mcp:create_rule']);
     const subheaders = contexts.map((c) => c.subheader || '');
     const schemaCount = subheaders.filter((s) => s.includes(SCHEMA_INTERNAL_EVENT_V2_PACK_ID)).length;
     expect(schemaCount).toBe(1); // shared pack de-duped
@@ -91,17 +91,17 @@ describe('Tool-gateway JIT resolution + de-dup (P2)', () => {
     await gateway.close('test');
   });
 
-  it('is a no-op when no tools are bound (behavior-preserving)', () => {
+  it('is a no-op when no tools are bound (behavior-preserving)', async () => {
     const gateway = new ToolGatewayServer();
-    expect(gateway.resolveContextForTools(['mcp:unbound_tool'])).toEqual([]);
-    expect(gateway.resolveContextForTools([])).toEqual([]);
+    expect(await gateway.resolveContextForTools(['mcp:unbound_tool'])).toEqual([]);
+    expect(await gateway.resolveContextForTools([])).toEqual([]);
   });
 
   it('parses an additive registration that omits context (back-compat)', async () => {
     const gateway = new ToolGatewayServer();
     const legacy = { v: '2', correlationId: 'reg-legacy', type: INTERNAL_MCP_REGISTRATION_V1, payload: { name: 'legacy', url: 'http://legacy/sse', transport: 'sse', status: 'active' } } as any;
     await expect((gateway as any).handleMcpRegistration(legacy)).resolves.not.toThrow();
-    expect(gateway.resolveContextForTools(['mcp:create_schedule'])).toEqual([]);
+    expect(await gateway.resolveContextForTools(['mcp:create_schedule'])).toEqual([]);
     await gateway.close('test');
   });
 });

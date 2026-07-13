@@ -381,6 +381,37 @@ function extractAdventureContexts(annotations?: AnnotationV1[]): any[] {
   }
 }
 
+/**
+ * Extract context packs from annotations (Sprint 338 P4).
+ * Context packs are added by the context-pack Bit in the analysis stage based on
+ * semantic similarity to the user's query.
+ */
+function extractContextPackAnnotations(annotations?: AnnotationV1[]): any[] {
+  if (!Array.isArray(annotations)) return [];
+
+  const contextPackAnns = annotations.filter(
+    (a) => a.kind === 'context' && a.source === 'context-pack'
+  );
+
+  if (contextPackAnns.length === 0) return [];
+
+  const contexts: any[] = [];
+
+  for (const ann of contextPackAnns) {
+    const payload = ann.payload;
+    if (!payload || !payload.content) continue;
+
+    contexts.push({
+      name: ann.label || payload.packId || 'Context Pack',
+      content: payload.content,
+      priority: payload.priority || 3,
+      subheader: payload.subheader,
+    });
+  }
+
+  return contexts;
+}
+
 export async function processEvent(
   server: Bit,
   evt: InternalEventV2,
@@ -632,11 +663,15 @@ export async function processEvent(
     const mergedConstraints = [...(resolvedConstraints || []), ...behavioralConstraints];
     const adventureContexts = extractAdventureContexts(anns as any);
 
+    // Sprint 338 P4: Extract context packs from annotations (added by context-pack Bit in analysis stage)
+    const contextPackContexts = extractContextPackAnnotations(anns as any);
+    const allContexts = [...adventureContexts, ...contextPackContexts];
+
     const spec: PromptSpec = {
       systemPrompt: sysPrompt ? { summary: 'Rules', rules: [sysPrompt], sources: ['config'] } : undefined,
       identity: resolvedIdentity ? { summary: resolvedIdentity } : undefined,
       requestingUser: buildRequestingUser(evt, anns as any),
-      contexts: adventureContexts.length ? adventureContexts : undefined,
+      contexts: allContexts.length ? allContexts : undefined,
       constraints: mergedConstraints.length ? mergedConstraints : undefined,
       task: taskAnnotations,
       input: { userQuery: evt.message?.text || combinedPrompt },

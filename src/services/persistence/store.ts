@@ -118,11 +118,45 @@ export class PersistenceStore {
 
     await this.db.runTransaction(async (transaction: any) => {
       const aggregateDoc = await transaction.get(aggregateRef);
-      if (!aggregateDoc?.exists) {
-        throw new Error('missing_aggregate');
-      }
+      let aggregate: EventAggregateV2;
 
-      const aggregate = aggregateDoc.data() as EventAggregateV2;
+      if (!aggregateDoc?.exists) {
+        // Race condition: snapshot arrived before ingress created the aggregate
+        // Create a minimal aggregate from the snapshot event data
+        this.logger.warn('persistence.snapshot.missing_aggregate.creating', {
+          correlationId: snapshotEvent.correlationId,
+          kind: snapshotEvent.kind,
+        });
+        const capturedAt = snapshotEvent.event?.ingress?.ingressAt || snapshotEvent.capturedAt;
+        aggregate = stripUndefinedDeep({
+          correlationId: snapshotEvent.correlationId,
+          eventType: snapshotEvent.event?.type || 'unknown',
+          source: snapshotEvent.event?.ingress?.source || 'unknown',
+          channel: snapshotEvent.event?.ingress?.channel,
+          status: 'INGESTED',
+          ingressAt: capturedAt,
+          latestStage: snapshotEvent.stage,
+          latestStepId: snapshotEvent.stepId,
+          initialSnapshotId: buildSnapshotId(snapshotEvent.correlationId, 1, snapshotEvent.kind),
+          latestSnapshotId: buildSnapshotId(snapshotEvent.correlationId, 1, snapshotEvent.kind),
+          snapshotCount: 0,
+          identitySummary: snapshotEvent.event?.identity ? {
+            externalId: snapshotEvent.event.identity?.external?.id,
+            platform: snapshotEvent.event.identity?.external?.platform,
+            displayName: snapshotEvent.event.identity?.user?.displayName || snapshotEvent.event.identity?.external?.displayName,
+            userId: snapshotEvent.event.identity?.user?.id,
+          } : undefined,
+          currentProjection: {
+            annotations: snapshotEvent.event?.annotations,
+            candidates: snapshotEvent.event?.candidates,
+            routing: snapshotEvent.event?.routing,
+            metadata: snapshotEvent.event?.metadata,
+          },
+          expireAt,
+        }) as EventAggregateV2;
+      } else {
+        aggregate = aggregateDoc.data() as EventAggregateV2;
+      }
       const duplicateQuery = snapshotsRef.where('idempotencyKey', '==', snapshotEvent.idempotencyKey).limit(1);
       const duplicateDoc = await transaction.get(duplicateQuery as any);
       const duplicateHit = typeof duplicateDoc?.empty === 'boolean'
