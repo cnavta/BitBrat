@@ -1,6 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import {
+  ToolListChangedNotificationSchema,
+  ResourceListChangedNotificationSchema,
+  PromptListChangedNotificationSchema
+} from '@modelcontextprotocol/sdk/types.js';
 import { McpBridge } from './bridge';
 import { IToolRegistry } from '../../types/tools';
 import { Bit } from '../base-server';
@@ -25,6 +30,10 @@ export class McpClientManager {
   // computed over the *resolved* env/args, a rotated underlying ${VAR} value yields a new signature and
   // triggers exactly one reconnect, while benign Firestore metadata rewrites do not churn the connection.
   private connectedSignatures: Map<string, string> = new Map();
+  // Debounce timers for notification-triggered re-discovery. When tool/resource/prompt list change
+  // notifications arrive from tool-gateway, we debounce the re-discovery to avoid rapid successive
+  // calls if multiple Bits register simultaneously. Key is server name, value is the pending timer.
+  private notificationDebounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
   constructor(
     private server: Bit,
@@ -277,6 +286,11 @@ export class McpClientManager {
       await this.discoverResources(config.name, config.requiredRoles);
       await this.discoverPrompts(config.name, config.requiredRoles);
 
+      // Set up notification handlers to refresh tools/resources/prompts when the server notifies us
+      // of list changes (e.g., when tool-gateway discovers new Bits). This solves the startup race
+      // condition where llm-bot connects before tool-gateway has discovered all Bits.
+      this.setupNotificationHandlers(client, config.name, config.requiredRoles);
+
       logger.info('mcp.client_manager.connected', { name: config.name });
     } catch (e) {
       this.stats.updateServerStatus(config.name, 'error');
@@ -440,6 +454,94 @@ export class McpClientManager {
     }
   }
 
+  /**
+   * Set up notification handlers on an MCP client to listen for tool/resource/prompt list changes.
+   * When the server (e.g., tool-gateway) broadcasts a list change notification, we re-discover the
+   * relevant items after a short debounce delay. This solves the startup race condition where clients
+   * connect before the gateway has discovered all Bits, and also handles runtime tool additions.
+   *
+   * @param client - The MCP client to attach handlers to
+   * @param serverName - Name of the server (for logging and lookup)
+   * @param requiredRoles - RBAC roles required for discovered items
+   */
+  private setupNotificationHandlers(client: Client, serverName: string, requiredRoles?: string[]): void {
+    const logger = (this.server as any).getLogger();
+
+    // Debounce delay in milliseconds - configurable via environment variable
+    const debounceMs = parseInt(process.env.MCP_NOTIFICATION_DEBOUNCE_MS || '500', 10);
+
+    // Helper to schedule debounced re-discovery
+    const scheduleRefresh = async (type: 'tools' | 'resources' | 'prompts') => {
+      // Clear any pending timer for this server
+      const existingTimer = this.notificationDebounceTimers.get(serverName);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      logger.info('mcp.client_manager.notification_received', {
+        server: serverName,
+        type,
+        debounceMs
+      });
+
+      // Schedule debounced refresh
+      const timer = setTimeout(async () => {
+        this.notificationDebounceTimers.delete(serverName);
+        logger.info('mcp.client_manager.notification_refresh', {
+          server: serverName,
+          type
+        });
+
+        try {
+          // Re-discover all types (tools, resources, prompts) when any notification arrives
+          // This is simpler than tracking each type separately and ensures consistency
+          await this.discoverTools(serverName, requiredRoles);
+          await this.discoverResources(serverName, requiredRoles);
+          await this.discoverPrompts(serverName, requiredRoles);
+
+          logger.info('mcp.client_manager.notification_refresh_complete', {
+            server: serverName,
+            toolCount: (this.serverTools.get(serverName) || []).length,
+            resourceCount: (this.serverResources.get(serverName) || []).length,
+            promptCount: (this.serverPrompts.get(serverName) || []).length
+          });
+        } catch (error: any) {
+          logger.error('mcp.client_manager.notification_refresh_error', {
+            server: serverName,
+            error: error.message
+          });
+        }
+      }, debounceMs);
+
+      this.notificationDebounceTimers.set(serverName, timer);
+    };
+
+    // Register handlers for each notification type
+    try {
+      client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
+        await scheduleRefresh('tools');
+      });
+
+      client.setNotificationHandler(ResourceListChangedNotificationSchema, async () => {
+        await scheduleRefresh('resources');
+      });
+
+      client.setNotificationHandler(PromptListChangedNotificationSchema, async () => {
+        await scheduleRefresh('prompts');
+      });
+
+      logger.debug('mcp.client_manager.notification_handlers_registered', {
+        server: serverName,
+        types: ['tools', 'resources', 'prompts']
+      });
+    } catch (error: any) {
+      logger.warn('mcp.client_manager.notification_handlers_failed', {
+        server: serverName,
+        error: error.message
+      });
+    }
+  }
+
   async shutdown(): Promise<void> {
     // Stop monitor
     try {
@@ -450,6 +552,9 @@ export class McpClientManager {
     for (const t of this.reconnectTimers.values()) { try { clearTimeout(t); } catch {} }
     this.reconnectTimers.clear();
     this.reconnectAttempts.clear();
+    // Clear any pending notification debounce timers
+    for (const t of this.notificationDebounceTimers.values()) { try { clearTimeout(t); } catch {} }
+    this.notificationDebounceTimers.clear();
     for (const name of Array.from(this.clients.keys())) {
       await this.disconnectServer(name);
     }

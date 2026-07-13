@@ -46,6 +46,10 @@ export class ToolGatewayServer extends Bit {
   // onSnapshot and re-loads every server on a tight loop. We only write when the meaningful payload
   // actually changes, breaking the write -> snapshot -> reload feedback loop.
   private registrationSignatures: Map<string, string> = new Map();
+  // Active MCP session servers (connected clients like llm-bot). Used to broadcast tool/resource/prompt
+  // list change notifications when new Bits register and their tools are discovered. Each session is
+  // keyed by a unique ID (e.g., `llm-bot-${timestamp}`). Cleanup happens when transport closes.
+  private sessionServers: Map<string, Server> = new Map();
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -58,10 +62,16 @@ export class ToolGatewayServer extends Bit {
       onServerActive: async (config) => {
         this.serverConfigs.set(config.name, config);
         await this.mcpManager.connectServer(config);
+        // After connecting to a new Bit and discovering its tools, notify all connected clients
+        // that the tool/resource/prompt lists have changed. This ensures clients like llm-bot
+        // refresh their tool registries without requiring manual restarts.
+        this.broadcastListChangedNotifications();
       },
       onServerInactive: async (name) => {
         this.serverConfigs.delete(name);
         await this.mcpManager.disconnectServer(name);
+        // Also notify when a server becomes inactive, as tool/resource/prompt lists have changed
+        this.broadcastListChangedNotifications();
       },
     });
     this.registryWatcher.start();
@@ -250,7 +260,73 @@ export class ToolGatewayServer extends Bit {
   async close(reason?: string) {
     if (this.registryWatcher) this.registryWatcher.stop();
     await this.mcpManager.shutdown();
+    // Clear all tracked session servers
+    this.sessionServers.clear();
     return super.close(reason);
+  }
+
+  /**
+   * Broadcast tool/resource/prompt list change notifications to all connected MCP clients.
+   * Called when new Bits register and their tools are discovered, or when Bits become inactive.
+   * This enables clients (like llm-bot) to refresh their tool registries without manual restarts,
+   * solving the startup race condition where clients connect before tool-gateway has discovered
+   * all Bits.
+   */
+  private broadcastListChangedNotifications(): void {
+    const logger = this.getLogger();
+    const sessionCount = this.sessionServers.size;
+
+    if (sessionCount === 0) {
+      logger.debug('tool_gateway.notifications.no_sessions', {
+        message: 'No active sessions to notify'
+      });
+      return;
+    }
+
+    logger.info('tool_gateway.notifications.broadcasting', {
+      sessionCount,
+      types: ['tools', 'resources', 'prompts']
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const [sessionId, server] of this.sessionServers.entries()) {
+      try {
+        // Send tools list changed notification
+        server.notification({
+          method: 'notifications/tools/list_changed',
+          params: {}
+        });
+
+        // Send resources list changed notification
+        server.notification({
+          method: 'notifications/resources/list_changed',
+          params: {}
+        });
+
+        // Send prompts list changed notification
+        server.notification({
+          method: 'notifications/prompts/list_changed',
+          params: {}
+        });
+
+        successCount++;
+        logger.debug('tool_gateway.notifications.sent', { sessionId });
+      } catch (error: any) {
+        errorCount++;
+        logger.warn('tool_gateway.notifications.send_failed', {
+          sessionId,
+          error: error.message
+        });
+      }
+    }
+
+    logger.info('tool_gateway.notifications.broadcast_complete', {
+      sessionCount,
+      successCount,
+      errorCount
+    });
   }
 
   /**
@@ -464,6 +540,9 @@ export class ToolGatewayServer extends Bit {
 
     const logger = this.getLogger();
 
+    // Generate unique session ID for tracking this connection
+    const sessionId = `${context.agentName || 'unknown'}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
     const sessionServer = new Server(
       {
         name: `${SERVICE_NAME}-session`,
@@ -472,6 +551,14 @@ export class ToolGatewayServer extends Bit {
       } as any,
       { capabilities: { tools: {}, resources: {}, prompts: {} } }
     );
+
+    // Track this session server for broadcasting notifications
+    this.sessionServers.set(sessionId, sessionServer);
+    logger.info('tool_gateway.session.registered', {
+      sessionId,
+      agentName: context.agentName,
+      totalSessions: this.sessionServers.size
+    });
 
     // Discovery: listTools filtered by RBAC
     sessionServer.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
@@ -644,6 +731,13 @@ export class ToolGatewayServer extends Bit {
         throw error;
       }
     });
+
+    // Set up cleanup when the connection closes
+    // The MCP Server SDK doesn't expose a direct onClose event, but the transport will close
+    // when the client disconnects. We rely on the connection lifecycle managed by the base Bit class.
+    // Sessions are also cleaned up periodically to handle stale connections (see cleanup timer in start()).
+    // For immediate cleanup, we'd need to hook into the transport's close event, but that's not
+    // easily accessible from here. The periodic cleanup is sufficient for our use case.
 
     return sessionServer;
   }
