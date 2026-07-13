@@ -326,7 +326,7 @@ export async function cmdSetup(opts: any, log: Logger) {
     });
 
     const bitbratJsonPath = path.join(root, '.bitbrat.json');
-    fs.writeFileSync(bitbratJsonPath, JSON.stringify({ apiToken }, null, 2), 'utf8');
+    fs.writeFileSync(bitbratJsonPath, JSON.stringify({ apiToken, codeFirstRun: true }, null, 2), 'utf8');
     secureLocalContent = updateEnv(secureLocalContent, 'BITBRAT_API_TOKEN', apiToken);
     fs.writeFileSync(secureLocalPath, secureLocalContent, 'utf8');
 

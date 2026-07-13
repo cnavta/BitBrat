@@ -7,6 +7,7 @@ import { discoverAgents } from './discovery/detector';
 import { resolveAgent, displayDetectedAgents } from './ui/selection';
 import { extractProjectContext, findProjectRoot } from './context/project-context';
 import { launchAgent, waitForAgentExit } from './launcher/agent-launcher';
+import { isCodeFirstRun, markCodeRunComplete } from './utils/bitbrat-config';
 
 /**
  * Register all available coding agent plugins.
@@ -117,10 +118,26 @@ export async function cmdCode(cmd: string[], rest: string[]): Promise<void> {
       return true;
     });
 
+    // Check if this is the first run and inject welcome prompt if no arguments provided
+    const firstRun = await isCodeFirstRun(root);
+    if (firstRun && passThrough.length === 0) {
+      console.log('Welcome to BitBrat! Starting with an overview of the project...');
+      console.log('');
+      passThrough.push('Explain the BitBrat project to me');
+    }
+
     // Launch agent
     console.log(`Launching ${plugin.name}...`);
     console.log('');
     const child = await launchAgent(config, passThrough);
+
+    // Mark first run as complete (async, no need to wait)
+    if (firstRun) {
+      markCodeRunComplete(root).catch((err) => {
+        // Silently ignore errors - not critical
+        console.debug('Failed to mark code first run complete:', err);
+      });
+    }
 
     // Wait for agent to exit
     const exitCode = await waitForAgentExit(child);
