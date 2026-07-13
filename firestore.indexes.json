@@ -33,6 +33,20 @@
         { "fieldPath": "bitName", "order": "ASCENDING" },
         { "fieldPath": "id", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "context_packs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 1536,
+            "flat": {}
+          }
+        }
+      ]
     }
   ],
   "fieldOverrides": []
