@@ -602,6 +602,285 @@ items:
     log: []
 
   # ============================================================================
+  # PHASE 2.5: MCP AUTO-CONFIGURATION (P0)
+  # Week 1, Days 5-7 (extends into Week 2)
+  # ============================================================================
+
+  - id: BL-339-060
+    title: "Implement MCP environment detector"
+    priority: P0
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-005
+
+    description: |
+      Detect running BitBrat services (Docker Compose, tool-gateway) and verify MCP connectivity.
+      This is the foundation for auto-configuring coding agents with BitBrat's MCP tooling.
+
+    acceptance_criteria:
+      - detectMcpEnvironment() checks if docker compose services are running
+      - Reads architecture.yaml to find tool-gateway port
+      - Verifies tool-gateway health via HTTP GET /health
+      - Discovers available tools via /mcp/tools/list endpoint
+      - Returns McpEnvironment object with available=true/false
+      - Non-fatal failures (logs at debug level)
+      - Timeout: 2 seconds for HTTP requests
+      - Graceful degradation if services not running
+
+    deliverables:
+      - tools/brat/src/cli/code/mcp/environment-detector.ts
+      - tools/brat/src/cli/code/mcp/environment-detector.test.ts
+
+    log: []
+
+  - id: BL-339-061
+    title: "Implement MCP stdio proxy for Claude Code"
+    priority: P0
+    status: pending
+    effort: XL
+    owner: ai
+    deps:
+      - BL-339-060
+
+    description: |
+      Create a stdio-to-HTTP proxy that allows Claude Code (which expects stdio MCP protocol)
+      to communicate with BitBrat's HTTP-based tool-gateway.
+
+    acceptance_criteria:
+      - Accepts MCP stdio protocol from Claude Code (JSON-RPC over stdin/stdout)
+      - Translates MCP requests to HTTP requests to tool-gateway
+      - Translates HTTP responses back to MCP stdio format
+      - Handles authentication (Authorization: Bearer token)
+      - Handles tool calls (tools/list, tools/call)
+      - Proper error handling and logging
+      - Process lifecycle management (graceful shutdown)
+      - Works as standalone executable: node mcp-proxy.js
+
+    deliverables:
+      - tools/brat/src/mcp-proxy.ts
+      - tools/brat/src/mcp-proxy.test.ts
+
+    log: []
+
+  - id: BL-339-062
+    title: "Implement MCP auth token management"
+    priority: P0
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-060
+
+    description: |
+      Manage MCP authentication tokens for coding agent connections to tool-gateway.
+
+    acceptance_criteria:
+      - Reads MCP_AUTH_TOKEN from environment variable
+      - Falls back to 'local-dev-token' for local development
+      - Token validation (non-empty, format check)
+      - Returns token in format suitable for Authorization header
+      - Logs warning if using default token in non-local environments
+
+    deliverables:
+      - tools/brat/src/cli/code/mcp/auth-manager.ts
+      - tools/brat/src/cli/code/mcp/auth-manager.test.ts
+
+    log: []
+
+  - id: BL-339-063
+    title: "Implement MCP tool discovery"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-060
+
+    description: |
+      Discover available MCP tools from tool-gateway for enumeration and logging.
+
+    acceptance_criteria:
+      - Calls /mcp/tools/list endpoint on tool-gateway
+      - Parses response and extracts tool names
+      - Returns array of tool names
+      - Caches results for performance (TTL: 5 minutes)
+      - Handles errors gracefully (returns empty array)
+      - Logs tool count at info level
+
+    deliverables:
+      - tools/brat/src/cli/code/mcp/tool-discovery.ts
+      - tools/brat/src/cli/code/mcp/tool-discovery.test.ts
+
+    log: []
+
+  - id: BL-339-064
+    title: "Implement MCP config generator for Claude Code"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-061
+      - BL-339-062
+
+    description: |
+      Generate mcpServers configuration block for Claude Code config.json.
+
+    acceptance_criteria:
+      - generateMcpConfig() returns mcpServers object
+      - Includes bitbrat-platform server with proxy command
+      - Command: node, Args: [path/to/mcp-proxy.js]
+      - Env vars: TOOL_GATEWAY_URL, MCP_AUTH_TOKEN
+      - Uses absolute path to mcp-proxy.js (resolved from project root)
+      - Returns null if MCP not available (graceful skip)
+
+    deliverables:
+      - tools/brat/src/cli/code/mcp/config-generator.ts
+      - tools/brat/src/cli/code/mcp/config-generator.test.ts
+
+    log: []
+
+  - id: BL-339-065
+    title: "Update project context extractor for MCP"
+    priority: P0
+    status: pending
+    effort: S
+    owner: ai
+    deps:
+      - BL-339-005
+      - BL-339-060
+
+    description: |
+      Integrate MCP environment detection into project context extraction.
+
+    acceptance_criteria:
+      - loadProjectContext() calls detectMcpEnvironment()
+      - ProjectContext interface includes mcp?: McpEnvironment field
+      - MCP detection failures are non-fatal
+      - Context loaded successfully with or without MCP
+      - Logs MCP status at debug level
+
+    deliverables:
+      - Modification to tools/brat/src/cli/code/context/project-context.ts
+
+    log: []
+
+  - id: BL-339-066
+    title: "Update Claude Code plugin for MCP"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-014
+      - BL-339-064
+      - BL-339-065
+
+    description: |
+      Integrate MCP configuration into Claude Code plugin's config generation.
+
+    acceptance_criteria:
+      - prepareConfig() checks projectContext.mcp?.available
+      - If MCP available, calls generateMcpConfig()
+      - Adds mcpServers block to .claude/config.json
+      - If MCP not available, skips mcpServers (logs info message)
+      - Config generation works with and without MCP
+      - No breaking changes to existing config generation
+
+    deliverables:
+      - Modification to tools/brat/src/cli/code/plugins/claude-code-plugin.ts
+
+    log: []
+
+  - id: BL-339-067
+    title: "Write unit tests for MCP components"
+    priority: P0
+    status: pending
+    effort: L
+    owner: ai
+    deps:
+      - BL-339-060
+      - BL-339-061
+      - BL-339-062
+      - BL-339-063
+      - BL-339-064
+
+    description: |
+      Comprehensive unit test coverage for all MCP modules.
+
+    acceptance_criteria:
+      - Tests for environment detector (mocked docker, fetch)
+      - Tests for stdio proxy (mocked stdin/stdout, HTTP)
+      - Tests for auth manager (env vars, defaults)
+      - Tests for tool discovery (mocked fetch)
+      - Tests for config generator (various McpEnvironment inputs)
+      - All tests pass
+      - Coverage >= 80% for all MCP modules
+
+    deliverables:
+      - tools/brat/src/cli/code/mcp/*.test.ts files
+      - tools/brat/src/mcp-proxy.test.ts
+
+    log: []
+
+  - id: BL-339-068
+    title: "Integration test: MCP with Claude Code"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-066
+      - BL-339-067
+
+    description: |
+      End-to-end integration test of MCP auto-configuration with Claude Code.
+
+    acceptance_criteria:
+      - Test: Start docker compose (tool-gateway running)
+      - Test: brat code --agent=claude-code --dry-run succeeds
+      - Verify: MCP environment detected (available=true)
+      - Verify: mcpServers block generated in config
+      - Verify: Proxy path correctly resolved
+      - Test: brat code --agent=claude-code --dry-run with Docker down
+      - Verify: MCP not available, config still generated (no mcpServers)
+      - Manual test: Launch Claude Code, verify tools accessible
+
+    deliverables:
+      - Modification to tools/brat/src/cli/code/integration.test.ts
+
+    log: []
+
+  - id: BL-339-069
+    title: "Documentation for MCP integration"
+    priority: P0
+    status: pending
+    effort: M
+    owner: ai
+    deps:
+      - BL-339-068
+
+    description: |
+      Document MCP auto-configuration for users and plugin developers.
+
+    acceptance_criteria:
+      - documentation/guides/coding-agents.md includes MCP section
+      - Document: How MCP auto-configuration works
+      - Document: Available BitBrat tools (bit.*, domain tools)
+      - Document: Examples of using fleet tools from coding agent
+      - Document: Troubleshooting (MCP not detected, connection failed, tools not appearing)
+      - Document: How to manually configure MCP if auto-config fails
+      - README.md mentions MCP tool access as key feature
+
+    deliverables:
+      - Modification to documentation/guides/coding-agents.md
+      - Modification to README.md
+
+    log: []
+
+  # ============================================================================
   # PHASE 3: ADDITIONAL AGENT PLUGINS (P1)
   # Week 2, Days 6-10
   # ============================================================================

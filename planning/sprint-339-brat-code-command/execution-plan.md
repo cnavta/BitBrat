@@ -101,13 +101,18 @@ A single command (`brat code`) that:
 - ✅ User preference persistence (`~/.bratrc`)
 - ✅ Interactive agent selection UI
 - ✅ Basic CLI handler (`brat code --list`, `brat code --select`)
+- ✅ MCP environment detection (Docker, tool-gateway, connectivity)
+- ✅ MCP stdio proxy for Claude Code integration
 
-**Phase 2 (P0) - Claude Code Plugin:**
+**Phase 2 (P0) - Claude Code Plugin + MCP:**
 - ✅ Full Claude Code integration
 - ✅ Auto-detection of `claude` binary
 - ✅ Version validation (require v1.0.0+)
 - ✅ Config generation (`.claude/config.json`)
 - ✅ Context injection (CLAUDE.md, architecture.yaml, AGENTS.md, README.md)
+- ✅ **MCP auto-configuration (mcpServers block in config)**
+- ✅ **MCP tool discovery and enumeration**
+- ✅ **MCP authentication token management**
 - ✅ Flag pass-through support (`brat code -- --model opus`)
 
 **Phase 3 (P1) - Additional Agents:**
