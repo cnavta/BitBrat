@@ -113,15 +113,18 @@ Observe        →             Introspection (learn)
 - Assign priority scores
 - Attach routing slips (ordered processing steps)
 - Filter out noise (ignored events, rate-limited events)
+- Call `next()` to start routing slip execution
 
 **Services:**
 - `event-router` (`src/apps/event-router-service.ts`)
 
 **Topics:**
 - **Consumes:** `internal.ingress.v1`
-- **Produces:** `internal.contextualization.v1` (if routing slip assigned)
+- **Produces:** First step's topic (via `next()`)
 
-**Stage Field:** Event enters with no `routing.stage`; router sets `stage: 'contextualization'`
+**Stage Field:** Event enters with no `routing.stage`; router assigns slip with `stage: 'contextualization'`, then calls `next()`
+
+**RULE: The Event Router is NOT a central orchestration hub. It assigns routing slips and calls `next()` like any other bit. The framework handles routing slip advancement.**
 
 **Example Rule (Attention):**
 
@@ -463,13 +466,13 @@ Is this the final processing step for this event?
 
 ### 3.3. Stage Field Management
 
-**RULE: The `event.routing.stage` field is set by the event router, NOT by services.**
+**RULE: The `event.routing.stage` field is set via the routing slip, NOT by individual services.**
 
 **How `stage` Changes:**
 
-1. **Event Router (Attention):** Sets initial `stage: 'contextualization'`
-2. **Services (Contextualization/Analysis/Reaction):** Do NOT modify `stage` field
-3. **Event Router (on re-entry):** Updates `stage` based on routing slip progress
+1. **Event Router (Attention):** Assigns routing slip with `stage: 'contextualization'`, calls `next()`
+2. **Framework (`next()` implementation):** Publishes event to next step's topic, respects slip's stage
+3. **Services (Contextualization/Analysis/Reaction):** Do NOT modify `stage` field, just call `next()`
 
 **Common Mistake:**
 
@@ -482,7 +485,7 @@ await this.next(event);
 await this.next(event);
 ```
 
-**RULE: Services enrich events and call `next()`. The routing infrastructure manages `stage` transitions.**
+**RULE: Services enrich events and call `next()`. The framework (via `next()` in the Bit base class) manages routing slip advancement and stage transitions.**
 
 ---
 
@@ -700,7 +703,7 @@ A: Yes, via routing slip configuration. If a stage isn't in the slip, it's skipp
 A: `next()` automatically routes to egress (same as `complete()`).
 
 **Q: Can I manually set routing.stage?**
-A: No. The event router manages stage transitions. Services should only enrich and call `next()`.
+A: No. The framework manages stage transitions via the routing slip. Services should only enrich and call `next()`.
 
 **Q: Is Introspection required?**
 A: No. It's optional. Most events skip directly to egress after Reaction.
