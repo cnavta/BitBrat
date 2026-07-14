@@ -19,7 +19,7 @@ Create a file named `my-lurk-rule.json`:
   "enabled": true,
   "priority": 100,
   "description": "Tutorial Lurk Command",
-  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"analysis\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
+  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"contextualization\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
   "enrichments": {
     "candidates": [
       { "id": "c1", "kind": "text", "source": "event-router", "text": "Enjoy your lurk, @{{user.displayName}}!" },
@@ -35,11 +35,11 @@ Create a file named `my-lurk-rule.json`:
 ```
 
 ### What's happening here?
-- **`logic`**: Watches for `!lurk ` but only during the `analysis` stage.
+- **`logic`**: Watches for `!lurk ` but only during the `contextualization` stage.
 - **`enrichments`**: Provides two possible responses. `{{user.displayName}}` is a placeholder for the sender's name.
-- **`routing`**: 
+- **`routing`**:
     1.  Sets the next stage to `reaction`.
-    2.  Uses an empty routing slip. In the `analysis` phase, the event has already been processed by the platform's `auth` service, so `user.displayName` is already available.
+    2.  Uses an empty routing slip. In the `contextualization` phase, the event has already been processed by the platform's `auth` service, so `user.displayName` is already available.
     3.  Because the slip is empty, the platform's default routing will send the event to the egress service after the `reaction` stage is set.
 
 ## Step 2: Load the Rule

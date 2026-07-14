@@ -24,20 +24,22 @@ but nothing about the core engine is streaming-specific.
 
 ### The agent loop, mapped to BitBrat services
 
-If you are evaluating BitBrat as an **AI agent framework**, this is where "the agent" lives. The familiar
-**perceive → plan → act → observe** loop maps directly onto real services defined in
-[`architecture.yaml`](./architecture.yaml):
+If you are evaluating BitBrat as an **AI agent framework**, this is where "the agent" lives. BitBrat uses a
+**5-stage agent flow model** that decomposes the traditional perceive → plan → act → observe loop into more
+granular stages. Each stage maps directly onto real services defined in [`architecture.yaml`](./architecture.yaml):
 
-| Agent-loop stage | BitBrat realization | Service(s) |
-|---|---|---|
-| **Perceive** (ingest) | Normalize external events into an internal `Envelope v1` | `ingress-egress`, `api-gateway` |
-| **Plan** (decide) | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** describing the remaining steps | `event-router` (+ routing slip), `auth` |
-| **Act** (reason & use tools) | Run LLM reasoning OR deterministic pattern-match execution, call tools via the Model Context Protocol (MCP) | `llm-bot`, `query-analyzer`, **`reflex`**, `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`) |
-| **Observe / Memory** | Persist state, selections, and short-term behavior for auditing and long-term memory | `persistence`, `state-engine`, `disposition-service` |
+| Stage | Purpose | BitBrat realization | Service(s) |
+|---|---|---|---|
+| **Attention** | What events are important? How important? | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** | `event-router` |
+| **Contextualization** | Reestablish context (auth, env) BEFORE analysis | Enrich with user identity, permissions, environmental state | `auth`, `query-analyzer` |
+| **Analysis** | What does this mean? What responses/actions? | LLM reasoning OR deterministic pattern-match, tool selection | `llm-bot`, **`reflex`**, `query-analyzer` |
+| **Reaction** | Execute actions, mutate state | Tool execution via MCP, state mutations, response preparation | `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`), `state-engine`, `disposition-service` |
+| **Introspection** | What did we learn? Feedback loops | Persist audit logs, collect feedback (future enhancements) | `persistence` |
 
-The **routing slip** is BitBrat's plan representation: an ordered, self-describing list of steps that
-travels *with* the message, so orchestration is decentralized and each service simply advances the slip.
-See the [Platform Flow Overview](./documentation/concepts/platform-flow.md) for the full lifecycle.
+The **routing slip** is BitBrat's orchestration mechanism: an ordered, self-describing list of steps that
+travels *with* the message, so each service simply **enriches the event and calls `next()`** to advance
+the slip. See the [5-Stage Agent Flow Model](./documentation/concepts/agent-flow-stages.md) and
+[Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for details.
 
 ### Why BitBrat (beyond streaming)
 
@@ -50,6 +52,7 @@ reasoning/tool/memory planes are reused unchanged.
 
 | Concept | In BitBrat | Where it lives |
 |---|---|---|
+| **Agent-flow pattern** | Bits participate in orchestration by **enriching events** (add annotations/candidates) and **calling `next()`** to advance the routing slip | [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md), [5-Stage Model](./documentation/concepts/agent-flow-stages.md), EventingProfile |
 | **Reasoning loop** | The Event Router evaluates rules and advances a **routing slip** step-by-step; analysis services (`llm-bot`, `query-analyzer`) add candidate responses | [Event Router & Rules](./documentation/concepts/event-router-rules.md), [Platform Flow](./documentation/concepts/platform-flow.md) |
 | **Tool use** | Tools are exposed to the LLM via **MCP servers** and brokered/secured by `tool-gateway` | `tool-gateway`, `obs-mcp`, `image-gen-mcp`, `story-engine-mcp` |
 | **Memory** | Durable state and audit history in Firestore; short-term, TTL-bounded behavior via the disposition service | `persistence`, `state-engine`, `disposition-service` |
@@ -59,11 +62,39 @@ reasoning/tool/memory planes are reused unchanged.
 
 Adding a new agent capability is a matter of adding a service, an MCP tool, or a routing rule:
 
+#### Building an Agent-Flow Bit
+
+Most bits participate in the agent loop by **enriching events** and **advancing the routing slip**:
+
+1. **Subscribe** to a stage-specific topic via `onMessage(topic, handler)`
+2. **Enrich** the event by adding annotations, candidates, or context
+3. **Advance** the routing slip by calling `next(event)`
+4. **Acknowledge** the message with `ctx.ack()`
+
+**Example:**
+```typescript
+await this.onMessage<InternalEventV2>('internal.contextualization.v1', async (event, attrs, ctx) => {
+  event.annotations.push({ kind: 'data', value: 'enrichment', source: this.name, id: randomUUID(), createdAt: new Date().toISOString() });
+  await this.next(event);  // Advance routing slip
+  await ctx.ack();
+});
+```
+
+See [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for the canonical enrich-and-next pattern and [Building an Enrichment Bit](./documentation/tutorials/building-an-enrichment-bit.md) for a step-by-step tutorial.
+
+#### Creating Services & MCP Tools
+
 - **New service / MCP tool:** scaffold it with `npm run brat -- bit create <name> [--profile <p>] [--category <c>] [--exposure <e>] [--register]`.
   - **Profiles**: `core`, `gateway`, `llm`, `mcp-server`
   - **Categories**: `platform` (core orchestration) or `domain` (optional extensions)
   - Use `--register` to auto-add to [`architecture.yaml`](./architecture.yaml). See the [`brat bit create` reference](./documentation/tools/brat.md#bit-lifecycle-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
+
+#### Adding Rules & Behaviors
+
 - **New rule / behavior:** add a JsonLogic rule following [Event Router & Rules](./documentation/concepts/event-router-rules.md).
+
+#### Agent-Assisted Development
+
 - **Agent-assisted contributors:** BitBrat ships a machine-readable collaboration protocol in **[AGENTS.md](./AGENTS.md)** (a `Plan → Approve → Implement → Validate → Verify → Publish → Retro` sprint workflow) and treats [`architecture.yaml`](./architecture.yaml) as the canonical source of truth. Start there before making changes.
 
 ## Features

@@ -35,7 +35,7 @@ Open your `my-lurk-rule.json` from Part 1 and replace its contents with the rule
   "enabled": true,
   "priority": 100,
   "description": "Tutorial Lurk Command (Part 2 - LLM powered)",
-  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"analysis\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
+  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"contextualization\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
   "enrichments": {
     "annotations": [
       {
@@ -59,7 +59,7 @@ Open your `my-lurk-rule.json` from Part 1 and replace its contents with the rule
 
 ### What changed compared to Part 1?
 
-- **`enrichments`**: We removed the `candidates` array and `randomCandidate` flag. In their place is a single **`prompt`** annotation. The `value`, `Generate a random lurk response for ${user.displayName}`, is the instruction sent to the `llm-bot`. The `${user.displayName}` placeholder is filled in from the event (the `auth` service resolved it during the `analysis` stage, just like in Part 1).
+- **`enrichments`**: We removed the `candidates` array and `randomCandidate` flag. In their place is a single **`prompt`** annotation. The `value`, `Generate a random lurk response for ${user.displayName}`, is the instruction sent to the `llm-bot`. The `${user.displayName}` placeholder is filled in from the event (the `auth` service resolved it during the `contextualization` stage, just like in Part 1).
 - **`routing.slip`**: Previously empty. Now it contains one `RoutingStep` that forwards the event to the `llm-bot` on the `internal.llmbot.v1` topic. After the bot finishes, the platform's default routing carries the enriched event on to egress for delivery.
 
 > **Why remove the candidates?** Candidates and a prompt are two competing ways to produce a reply. If you leave the static candidates in, the router may deliver one of them before the `llm-bot` ever runs. Removing them makes the `llm-bot` the single source of the response.
@@ -152,7 +152,7 @@ Now update `my-lurk-rule.json` to **attribute** this personality to the command.
   "enabled": true,
   "priority": 100,
   "description": "Tutorial Lurk Command (Part 2 - LLM powered)",
-  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"analysis\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
+  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"contextualization\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
   "enrichments": {
     "annotations": [
       {
@@ -243,4 +243,4 @@ You upgraded `!lurk` from static, router-authored text to a fully **LLM-generate
 3. You tested with the **default personality**, then introduced the **`/personalities`** collection and attributed a **personality** to the command for a consistent voice.
 4. You learned that the platform defaults to **OpenAI** (requiring an `OPENAI_API_KEY`) with a model set by `OPENAI_MODEL`, and that any personality can override the `model` and `platform` for itself.
 
-From here you can experiment with multiple personalities, richer prompts that reference more event fields, per-personality model/provider tuning, or adding `analysis`-stage steps before the `llm-bot` runs.
+From here you can experiment with multiple personalities, richer prompts that reference more event fields, per-personality model/provider tuning, or adding `contextualization`-stage steps before the `llm-bot` runs.
