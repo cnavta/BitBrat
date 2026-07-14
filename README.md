@@ -24,20 +24,22 @@ but nothing about the core engine is streaming-specific.
 
 ### The agent loop, mapped to BitBrat services
 
-If you are evaluating BitBrat as an **AI agent framework**, this is where "the agent" lives. The familiar
-**perceive → plan → act → observe** loop maps directly onto real services defined in
-[`architecture.yaml`](./architecture.yaml):
+If you are evaluating BitBrat as an **AI agent framework**, this is where "the agent" lives. BitBrat uses a
+**5-stage agent flow model** that decomposes the traditional perceive → plan → act → observe loop into more
+granular stages. Each stage maps directly onto real services defined in [`architecture.yaml`](./architecture.yaml):
 
-| Agent-loop stage | BitBrat realization | Service(s) |
-|---|---|---|
-| **Perceive** (ingest) | Normalize external events into an internal `Envelope v1` | `ingress-egress`, `api-gateway` |
-| **Plan** (decide) | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** describing the remaining steps | `event-router` (+ routing slip), `auth` |
-| **Act** (reason & use tools) | Run LLM reasoning OR deterministic pattern-match execution, call tools via the Model Context Protocol (MCP) | `llm-bot`, `query-analyzer`, **`reflex`**, `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`) |
-| **Observe / Memory** | Persist state, selections, and short-term behavior for auditing and long-term memory | `persistence`, `state-engine`, `disposition-service` |
+| Stage | Purpose | BitBrat realization | Service(s) |
+|---|---|---|---|
+| **Attention** | What events are important? How important? | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** | `event-router` |
+| **Contextualization** | Reestablish context (auth, env) BEFORE analysis | Enrich with user identity, permissions, environmental state | `auth`, `query-analyzer` |
+| **Analysis** | What does this mean? What responses/actions? | LLM reasoning OR deterministic pattern-match, tool selection | `llm-bot`, **`reflex`**, `query-analyzer` |
+| **Reaction** | Execute actions, mutate state | Tool execution via MCP, state mutations, response preparation | `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`), `state-engine`, `disposition-service` |
+| **Introspection** | What did we learn? Feedback loops | Persist audit logs, collect feedback (future enhancements) | `persistence` |
 
-The **routing slip** is BitBrat's plan representation: an ordered, self-describing list of steps that
-travels *with* the message, so orchestration is decentralized and each service simply advances the slip.
-See the [Platform Flow Overview](./documentation/concepts/platform-flow.md) for the full lifecycle.
+The **routing slip** is BitBrat's orchestration mechanism: an ordered, self-describing list of steps that
+travels *with* the message, so each service simply **enriches the event and calls `next()`** to advance
+the slip. See the [5-Stage Agent Flow Model](./documentation/concepts/agent-flow-stages.md) and
+[Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for details.
 
 ### Why BitBrat (beyond streaming)
 
@@ -50,7 +52,8 @@ reasoning/tool/memory planes are reused unchanged.
 
 | Concept | In BitBrat | Where it lives |
 |---|---|---|
-| **Reasoning loop** | The Event Router evaluates rules and advances a **routing slip** step-by-step; analysis services (`llm-bot`, `query-analyzer`) add candidate responses | [Event Router & Rules](./documentation/concepts/event-router-rules.md), [Platform Flow](./documentation/concepts/platform-flow.md) |
+| **Agent-flow pattern** | Bits participate in orchestration by **enriching events** (add annotations/candidates) and **calling `next()`** to advance the routing slip | [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md), [5-Stage Model](./documentation/concepts/agent-flow-stages.md), EventingProfile |
+| **Reasoning loop** | The Event Router matches rules and assigns a **routing slip**; the framework advances the slip step-by-step via `next()`; analysis services (`llm-bot`, `query-analyzer`) add candidate responses | [Event Router & Rules](./documentation/concepts/event-router-rules.md), [Platform Flow](./documentation/concepts/platform-flow.md) |
 | **Tool use** | Tools are exposed to the LLM via **MCP servers** and brokered/secured by `tool-gateway` | `tool-gateway`, `obs-mcp`, `image-gen-mcp`, `story-engine-mcp` |
 | **Memory** | Durable state and audit history in Firestore; short-term, TTL-bounded behavior via the disposition service | `persistence`, `state-engine`, `disposition-service` |
 | **Message contract** | Every message is an `Envelope v1` carrying `correlationId`, `routingSlip`, etc. | [`envelope.v1.json`](./documentation/schemas/envelope.v1.json), [`routing-slip.v1.json`](./documentation/schemas/routing-slip.v1.json) |
@@ -59,11 +62,39 @@ reasoning/tool/memory planes are reused unchanged.
 
 Adding a new agent capability is a matter of adding a service, an MCP tool, or a routing rule:
 
+#### Building an Agent-Flow Bit
+
+Most bits participate in the agent loop by **enriching events** and **advancing the routing slip**:
+
+1. **Subscribe** to a stage-specific topic via `onMessage(topic, handler)`
+2. **Enrich** the event by adding annotations, candidates, or context
+3. **Advance** the routing slip by calling `next(event)`
+4. **Acknowledge** the message with `ctx.ack()`
+
+**Example:**
+```typescript
+await this.onMessage<InternalEventV2>('internal.contextualization.v1', async (event, attrs, ctx) => {
+  event.annotations.push({ kind: 'data', value: 'enrichment', source: this.name, id: randomUUID(), createdAt: new Date().toISOString() });
+  await this.next(event);  // Advance routing slip
+  await ctx.ack();
+});
+```
+
+See [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for the canonical enrich-and-next pattern and [Building an Enrichment Bit](./documentation/tutorials/building-an-enrichment-bit.md) for a step-by-step tutorial.
+
+#### Creating Services & MCP Tools
+
 - **New service / MCP tool:** scaffold it with `npm run brat -- bit create <name> [--profile <p>] [--category <c>] [--exposure <e>] [--register]`.
   - **Profiles**: `core`, `gateway`, `llm`, `mcp-server`
   - **Categories**: `platform` (core orchestration) or `domain` (optional extensions)
   - Use `--register` to auto-add to [`architecture.yaml`](./architecture.yaml). See the [`brat bit create` reference](./documentation/tools/brat.md#bit-lifecycle-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
+
+#### Adding Rules & Behaviors
+
 - **New rule / behavior:** add a JsonLogic rule following [Event Router & Rules](./documentation/concepts/event-router-rules.md).
+
+#### Agent-Assisted Development
+
 - **Agent-assisted contributors:** BitBrat ships a machine-readable collaboration protocol in **[AGENTS.md](./AGENTS.md)** (a `Plan → Approve → Implement → Validate → Verify → Publish → Retro` sprint workflow) and treats [`architecture.yaml`](./architecture.yaml) as the canonical source of truth. Start there before making changes.
 
 ## Features
@@ -73,7 +104,7 @@ Adding a new agent capability is a matter of adding a service, an MCP tool, or a
 - **Microservices Architecture**: Scalable, cloud-native services deployed on Google Cloud Platform (Cloud Run). Every service is a **Bit** — see [The Bit Model](./documentation/concepts/bit-model.md).
 - **Universal Control Plane**: **Every Bit speaks MCP** and exposes a mandatory [`bit.*` control plane](./documentation/reference/bit-control-plane.md) that `brat fleet` administers fleet-wide.
 - **Event-Driven**: Built on top of a robust message bus (NATS locally / Google Cloud Pub/Sub in production) for asynchronous processing.
-- **Rule-Driven Routing**: A central Event Router uses [JsonLogic](https://jsonlogic.com/) rules to match, enrich, and route events through configurable processing stages.
+- **Rule-Driven Routing**: The Event Router uses [JsonLogic](https://jsonlogic.com/) rules to match events and assign routing slips; the framework (via `next()`) routes events through configurable processing stages.
 - **Extensible**: Easily add new event sources, command processors, or MCP tools.
 
 ## Documentation
@@ -114,7 +145,7 @@ declared in [`architecture.yaml`](./architecture.yaml).
 The **Platform Bits** form the essential **perceive → plan → act → observe** agent loop and cannot be removed without breaking core orchestration:
 
 - **ingress-egress** & **api-gateway**: Perceive & Observe — normalize external events, deliver responses
-- **event-router**: Plan — matches rules, attaches routing slips, orchestrates flow
+- **event-router**: Plan — matches rules, attaches routing slips, calls `next()`
 - **auth**: Plan — enriches events with user identity and roles
 - **llm-bot**: Act — LLM-based reasoning and tool selection (2-10s, higher cost)
 - **query-analyzer**: Act — fast pre-analysis for routing hints
@@ -139,8 +170,8 @@ For a detailed view, see [architecture.yaml](./architecture.yaml) and the [Platf
 A standalone diagram asset is also available at [`assets/architecture-overview.md`](./assets/architecture-overview.md).
 
 ```mermaid
-flowchart LR
-  subgraph External["External platforms"]
+flowchart TB
+  subgraph External["External Platforms"]
     TW[Twitch]
     DC[Discord]
     TL[Twilio]
@@ -148,37 +179,57 @@ flowchart LR
 
   TW & DC & TL <--> IE[ingress-egress]
 
-  IE -->|internal.ingress.v1| ER["event-router<br/>+ routing slip"]
-  ER --> AU[auth]
-
-  subgraph Act["Act (Dual Paths)"]
-    ER -->|deterministic<br/>&lt;150ms| RFX[reflex]
-    ER -->|LLM-based<br/>2-10s| LB[llm-bot]
-    ER -->|analysis| QA[query-analyzer]
-    LB <--> TG[tool-gateway]
-    RFX <--> TG
+  subgraph "Message Bus (NATS/Pub-Sub)"
+    BUS[("Topics:<br/>internal.ingress.v1<br/>internal.contextualization.v1<br/>internal.analysis.v1<br/>internal.egress.v1")]
   end
 
-  TG <--> MCP["MCP servers<br/>obs / image-gen / story-engine"]
-  ER -->|reaction| SE[state-engine]
-  ER -->|reaction| DS[disposition-service]
-  ER -->|internal.egress.v1| IE
-  LB -.-> PE[persistence]
-  RFX -.-> PE
-  SE -.-> PE
+  IE -.->|publish| BUS
+  BUS -.->|subscribe| IE
+
+  subgraph "Platform Bits (enrich + next())"
+    ER[event-router<br/><i>assigns routing slip</i>]
+    AU[auth<br/><i>adds user identity</i>]
+    QA[query-analyzer<br/><i>adds analysis hints</i>]
+    LB[llm-bot<br/><i>LLM reasoning</i>]
+    RFX[reflex<br/><i>pattern matching</i>]
+    SE[state-engine]
+    DS[disposition-service]
+    PE[persistence]
+  end
+
+  BUS <-.->|pub/sub| ER
+  BUS <-.->|pub/sub| AU
+  BUS <-.->|pub/sub| QA
+  BUS <-.->|pub/sub| LB
+  BUS <-.->|pub/sub| RFX
+  BUS <-.->|pub/sub| SE
+  BUS <-.->|pub/sub| DS
+  BUS <-.->|pub/sub| PE
+
+  LB <--> TG[tool-gateway]
+  RFX <--> TG
+  TG <--> MCP["MCP Servers<br/>(Domain Bits)"]
   PE --> FS[(Firestore)]
 
   classDef store fill:#eef,stroke:#669;
   classDef platform fill:#e8f5e9,stroke:#4caf50;
   classDef domain fill:#fff3e0,stroke:#ff9800;
+  classDef bus fill:#e3f2fd,stroke:#2196f3;
   class FS store;
   class IE,ER,AU,LB,QA,RFX,TG,SE,DS,PE platform;
   class MCP domain;
+  class BUS bus;
 ```
 
-*Perceive → plan → act → observe: `ingress-egress` ingests, `event-router` plans via the routing slip,
-dual act paths (`reflex` for deterministic <150ms patterns, `llm-bot`/`query-analyzer` for LLM reasoning) + `tool-gateway`/MCP, and `state-engine`/`disposition-service`/`persistence`
-observe & remember (in Firestore). **Green = Platform Bits, Orange = Domain Bits.***
+**Example Flow (dynamic, configured via routing slip):**
+1. `ingress-egress` publishes to `internal.ingress.v1`
+2. `event-router` subscribes, assigns routing slip, calls `next()` → framework publishes to first step's topic
+3. `auth` subscribes to `internal.contextualization.v1`, enriches, calls `next()` → framework publishes to next topic
+4. `llm-bot` or `reflex` subscribes to `internal.analysis.v1`, enriches, calls `next()` → framework publishes
+5. Framework eventually publishes to `internal.egress.v1`
+6. `ingress-egress` subscribes, delivers response to external platform
+
+**Key Point:** Services enrich events and call `next()`. The **message bus + framework** routes events through the slip. There is no central orchestrator. **Green = Platform Bits, Orange = Domain Bits, Blue = Message Bus.**
 
 ### Capabilities Matrix
 
@@ -518,8 +569,8 @@ The BitBrat platform follows a robust, event-driven architecture built on a unif
 Events flow through a series of decoupled stages. For the full breakdown, see the [Platform Flow Overview](./documentation/concepts/platform-flow.md).
 
 1. **Ingest**: External platforms (Twitch, Discord, Twilio) hit the `Ingress-Egress` service. It normalizes the raw payload into the internal event format and publishes to `internal.ingress.v1`.
-2. **Analysis**: The event is enriched (e.g., the `Auth Service` populates user metadata such as `displayName`) and evaluated by the **Event Router** against active rules. Matching rules attach a **routing slip** that defines the remaining processing path. Analysis services like the **LLM Bot** or **Query Analyzer** may add annotations or candidate responses, returning the event via `internal.enriched.v1`.
-3. **Reaction**: Once analysis is complete, the Event Router advances the event to the `reaction` stage, where reactive services (e.g., **State Engine**, **Disposition Service**) act on it. If a rule's routing slip is empty, `Bit.next()` automatically routes the event to egress.
+2. **Analysis**: The event is enriched (e.g., the `Auth Service` populates user metadata such as `displayName`) and evaluated by the **Event Router** against active rules. Matching rules attach a **routing slip** that defines the remaining processing path. The Event Router calls `next()`, and the framework routes the event through the slip. Analysis services like the **LLM Bot** or **Query Analyzer** may add annotations or candidate responses.
+3. **Reaction**: Once analysis is complete, services call `next()` to advance the event to the `reaction` stage, where reactive services (e.g., **State Engine**, **Disposition Service**) act on it. If a rule's routing slip is empty, `Bit.next()` automatically routes the event to egress.
 4. **Egress**: The event is delivered back to the originating `Ingress-Egress` instance, which selects the best candidate reply and sends it to the target platform.
 5. **Persistence**: The `Persistence` service stores final state, selections, and errors for auditing and long-term memory.
 

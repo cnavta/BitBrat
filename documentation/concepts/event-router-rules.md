@@ -35,13 +35,13 @@ Rules are stored in Firestore under `configs/routingRules/rules`. Each rule is a
 - **`description`** (string): A human-readable description of the rule's purpose.
 
 ### Matching Logic (`logic`)
-The `logic` field contains a [JsonLogic](https://jsonlogic.com/) expression that must evaluate to `true` for the rule to match. It is a best practice to filter by the current `routing.stage` to ensure rules only trigger at the appropriate point in the event lifecycle (e.g., `analysis` or `reaction`).
+The `logic` field contains a [JsonLogic](https://jsonlogic.com/) expression that must evaluate to `true` for the rule to match. It is a best practice to filter by the current `routing.stage` to ensure rules only trigger at the appropriate point in the event lifecycle (e.g., `contextualization` or `reaction`).
 
-Example: Match if message contains "!lurk" during the analysis stage
+Example: Match if message contains "!lurk" during the contextualization stage
 ```json
 {
   "and": [
-    { "===": [{ "var": "routing.stage" }, "analysis"] },
+    { "===": [{ "var": "routing.stage" }, "contextualization"] },
     {
       "text_contains": [
         { "var": "message.text" },
@@ -77,7 +77,7 @@ Here is a simplified version of the `!lurk` command rule:
   "id": "lurk-command",
   "enabled": true,
   "priority": 50,
-  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"analysis\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
+  "logic": "{\"and\": [{\"===\": [{\"var\": \"routing.stage\"}, \"contextualization\"]}, {\"text_contains\": [{\"var\": \"message.text\"}, \"!lurk \", true]}]}",
   "enrichments": {
     "candidates": [
       { "id": "c1", "kind": "text", "source": "event-router", "text": "@{{user.displayName}} is now lurking..." },
@@ -93,11 +93,11 @@ Here is a simplified version of the `!lurk` command rule:
 ```
 
 In this case:
-1.  The Event Router detects "!lurk" during the `analysis` stage.
+1.  The Event Router detects "!lurk" during the `contextualization` stage.
 2.  It picks a response candidate (but doesn't send it yet).
 3.  The event moves to the `reaction` stage. Since the routing slip is empty, `BaseServer.next()` automatically routes it to egress to be sent to the chat.
 
-*Note: In the standard platform flow, most command rules trigger in `analysis`, where the event has already been enriched by the `auth` service, and then proceed to `reaction` for delivery.*
+*Note: In the standard platform flow, most command rules trigger in `contextualization`, where the event has already been enriched by the `auth` service, and then proceed to `reaction` for delivery.*
 
 ## 4. Execution Order
 

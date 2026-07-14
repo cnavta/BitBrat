@@ -239,6 +239,120 @@ All sprint artifacts live in `planning/sprint-<id>/`.
 
 ## Common Development Patterns
 
+### Building Agent-Flow Bits: The Enrich-and-Next Pattern
+
+**RULE: This is THE canonical pattern for bits that participate in agent orchestration.**
+
+**The Pattern:** ENRICH → NEXT
+
+Most bits participate in the agent loop by enriching events with annotations or candidates and advancing the routing slip. This is the fundamental pattern for building services that contribute to the agent's understanding and capabilities.
+
+**Complete Example:**
+
+```typescript
+// File: src/apps/sentiment-analyzer.ts
+import { Bit } from '../common/base-server';
+import { InternalEventV2 } from '../types/events';
+import { randomUUID } from 'crypto';
+
+export class SentimentAnalyzer extends Bit {
+  async setup(): Promise<void> {
+    // Subscribe to events during contextualization or analysis stage
+    await this.onMessage<InternalEventV2>(
+      'internal.contextualization.v1',  // Topic for Stage 2: Contextualization
+      async (event, attrs, ctx) => {
+
+        // 1. ENRICH: Add your contribution to the event
+        event.annotations.push({
+          kind: 'sentiment',  // Descriptive kind
+          value: this.analyzeSentiment(event.message?.text || ''),
+          source: this.name,  // REQUIRED: provenance tracking
+          id: randomUUID(),   // REQUIRED: unique ID
+          createdAt: new Date().toISOString()  // REQUIRED: timestamp
+        });
+
+        // 2. NEXT: Advance the routing slip
+        await this.next(event);
+
+        // 3. ACKNOWLEDGE: Required (event will stall without this)
+        await ctx.ack();
+      }
+    );
+  }
+
+  private analyzeSentiment(text: string): 'positive' | 'negative' | 'neutral' {
+    if (/love|great|awesome|excellent/i.test(text)) return 'positive';
+    if (/hate|terrible|awful|bad/i.test(text)) return 'negative';
+    return 'neutral';
+  }
+}
+```
+
+**RULES: next() vs complete()**
+
+- **RULE: Use `next(event)` by default** — advances to next routing step (or egress if slip empty)
+- **RULE: Use `complete(event)` ONLY when intentionally short-circuiting** — skips remaining routing slip steps
+- **RULE: If unsure, use `next()`**
+
+**Decision Tree:**
+
+```mermaid
+flowchart TD
+    Start([Enriched the event?]) --> Question1{Is this the final<br/>processing step?}
+    Question1 -->|No| UseNext1[Use next event]
+    Question1 -->|Yes| Question2{Should downstream<br/>services still<br/>process it?}
+    Question2 -->|Yes| UseNext2[Use next event]
+    Question2 -->|No| UseComplete[Use complete event]
+
+    UseNext1 --> Result1[Event advances to<br/>next routing step]
+    UseNext2 --> Result2[Event advances to<br/>next routing step]
+    UseComplete --> Result3[Event skips to egress<br/>bypassing remaining steps]
+
+    style UseNext1 fill:#d4edda
+    style UseNext2 fill:#d4edda
+    style UseComplete fill:#fff3cd
+    style Start fill:#e1f5ff
+```
+
+**RULES: Enrichment**
+
+- **ALWAYS add annotations** for context, analysis results, or metadata
+- **ALWAYS set `source: this.name`** for provenance tracking
+- **ALWAYS include `id` (randomUUID()) and `createdAt` (ISO timestamp)**
+- **NEVER modify payload** unless you own the event type (use annotations instead)
+- **NEVER forget `ctx.ack()`** — events will stall
+
+**Stage-to-Topic Mapping:**
+
+| Stage | Topic | When to Subscribe |
+|-------|-------|-------------------|
+| Contextualization | `internal.contextualization.v1` | Your bit adds auth, env context |
+| Analysis | `internal.analysis.v1` | Your bit performs reasoning, analysis |
+| Reaction | `internal.reaction.v1` | Your bit executes actions, mutates state |
+
+**Examples in Production:**
+
+- **`auth`** (`src/apps/auth-service.ts:67`): Enriches user identity → `next()`
+- **`llm-bot`** (`src/apps/llm-bot-service.ts:123`): Enriches response candidates → `next()`
+- **`query-analyzer`** (`src/apps/query-analyzer-service.ts:45`): Enriches routing hints → `next()`
+- **`reflex`** (`src/apps/reflex-service.ts:78`): Executes action → `complete()` (special case)
+
+**Anti-Patterns (NEVER):**
+
+- ❌ Enrich without calling `next()` (event stalls)
+- ❌ Use `complete()` when `next()` is appropriate (skips downstream services)
+- ❌ Modify payload instead of adding annotations (loses provenance)
+- ❌ Forget `ctx.ack()` (causes duplicate processing)
+- ❌ Manually publish instead of using `next()` (bypasses routing slip)
+
+**Full Documentation:**
+
+- [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) — Complete pattern reference
+- [5-Stage Agent Flow Model](./documentation/concepts/agent-flow-stages.md) — Understand the stages
+- [Building an Enrichment Bit](./documentation/tutorials/building-an-enrichment-bit.md) — Step-by-step tutorial
+
+---
+
 ### Creating a New Bit (Service)
 1. Run `npm run brat -- bit create <name> [options]`
    - `--profile <p>`: Capability profile (core, gateway, llm, mcp-server) [default: core]
