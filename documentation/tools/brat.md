@@ -61,6 +61,115 @@ npm run brat -- chat [--env <name>] [--url <url>] [--project-id <id>]
     - `/clear`: Clear the terminal screen.
     - `/exit` or `/quit`: End the chat session.
 
+#### `brat code`
+Launch a coding agent with BitBrat project context automatically configured. This command auto-detects installed coding agents, configures them with full project context, and provides an AI-assisted codebase exploration experience.
+
+```bash
+npm run brat -- code [options]
+```
+
+**Features:**
+- **Auto-Detection**: Automatically discovers installed coding agents on your system
+- **Zero-Config**: Injects BitBrat context (CLAUDE.md, architecture.yaml, AGENTS.md, README.md) without manual setup
+- **MCP Integration** (Claude Code only): Auto-discovers and configures MCP servers from your local environment
+- **Preference Persistence**: Remembers your preferred agent in `~/.bratrc`
+- **First-Run Welcome**: On first use, automatically provides an interactive introduction to BitBrat
+- **Pass-Through Flags**: Forward arguments to the underlying agent
+
+**Options:**
+- `--list`, `-l`: List all detected coding agents with versions
+- `--agent <name>`, `-a <name>`: Launch a specific agent (claude-code, aider, continue, openhands)
+- `--project-root <path>`, `-p <path>`: Override the project root directory (default: auto-detected)
+
+**Examples:**
+
+```bash
+# Interactive: Select from detected agents
+npm run brat -- code
+
+# List all installed agents
+npm run brat -- code --list
+
+# Launch Claude Code specifically
+npm run brat -- code --agent claude-code
+
+# Launch Aider
+npm run brat -- code --agent aider
+
+# Pass flags to the agent (e.g., use opus model)
+npm run brat -- code -- --model opus
+
+# Use different project root
+npm run brat -- code --project-root /path/to/project
+```
+
+**Supported Agents:**
+
+| Agent | Installation | Features |
+|-------|--------------|----------|
+| **Claude Code** | `npm install -g @anthropic-ai/claude-code` | Full MCP auto-configuration, stdio proxy, tool discovery |
+| **Aider** | `pip install aider-chat` | Context injection via `--read` flags |
+| **Continue** | `npm install -g continue` | Config file generation |
+| **OpenHands** | `pip install openhands` | Environment-based configuration |
+
+**Preference File (~/.bratrc):**
+
+After first use, your preferred agent is saved:
+
+```yaml
+version: 1
+codingAgent:
+  preferred: claude-code
+  plugins:
+    claude-code:
+      model: claude-sonnet-4.5
+```
+
+**MCP Auto-Configuration (Claude Code):**
+
+For Claude Code, `brat code` automatically:
+1. Detects running MCP servers (via Docker or tool-gateway)
+2. Configures `mcpServers` block in `.claude/config.json`
+3. Sets up authentication tokens
+4. Enumerates available tools
+
+Example generated config:
+
+```json
+{
+  "mcpServers": {
+    "bitbrat-tool-gateway": {
+      "command": "node",
+      "args": ["/path/to/mcp-stdio-proxy.js"],
+      "env": {
+        "MCP_AUTH_TOKEN": "..."
+      }
+    }
+  }
+}
+```
+
+**Troubleshooting:**
+
+*Agent not detected:*
+- Ensure the agent is installed (see installation commands above)
+- Verify it's in your PATH: `which claude` or `which aider`
+- Check version compatibility: `claude --version`
+
+*MCP connection failed (Claude Code):*
+- Ensure tool-gateway is running: `npm run local`
+- Check `MCP_AUTH_TOKEN` environment variable is set
+- Verify Docker is running for local development
+
+*Preference file errors:*
+- Delete corrupted file: `rm ~/.bratrc`
+- File will be regenerated on next run
+- Check YAML syntax if editing manually
+
+**See Also:**
+- [Coding with brat code](../guides/coding-with-brat-code.md) - Comprehensive guide
+- [Coding Agent Plugins](../guides/coding-agent-plugins.md) - Plugin development guide
+
 ---
 
 ### Diagnostics & Config

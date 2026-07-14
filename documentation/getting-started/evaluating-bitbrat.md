@@ -3,9 +3,28 @@
 This guide is for **prospective adopters and technical evaluators** who want to understand, try, and
 extend BitBrat quickly — especially as an **AI agent framework** rather than only a streaming bot.
 
-## Try it in ~5 minutes (no OpenAI key, no GCP)
+## Explore interactively with `brat code` (~2 minutes)
 
-You can exercise the full agent loop locally with a free local model:
+The fastest way to understand BitBrat is to let it explain itself:
+
+1. **Install a coding agent** (if not already installed):
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   ```
+
+2. **Launch with context**:
+   ```bash
+   npm install
+   npm run brat -- code
+   ```
+
+3. **On first run**, BitBrat will automatically prompt: "Explain the BitBrat project to me" — providing an interactive architecture tour with the full codebase as reference.
+
+This gives you a guided walkthrough of the agent loop, dual execution paths, and MCP tool integration before reading static docs.
+
+## Try the full platform in ~5 minutes (no OpenAI key, no GCP)
+
+You can also exercise the full agent loop locally with a free local model:
 
 1. **Install [Ollama](https://ollama.com)** and pull a small model:
    ```bash
@@ -68,6 +87,7 @@ The same primitives apply beyond streaming (chat-ops, webhooks, support triage, 
 
 ## Evaluation checklist
 
+- [ ] Used `brat code` to get an interactive platform explanation.
 - [ ] Cloned via the correct URL and `npm install` succeeds.
 - [ ] `npm run brat -- config validate` reports the config valid against the shipped schema.
 - [ ] `npm run build` and `npm test` pass.

@@ -22,6 +22,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.13.1] - 2026-07-14
+### Added
+- **`brat code` Documentation**: Comprehensively documented the new `brat code` command for AI-assisted coding
+  - Added `brat code` to README.md Getting Started section as recommended exploration step
+  - Added comprehensive `brat code` command reference to README.md Management CLI section
+  - Updated Prerequisites to include optional coding agent installation (Claude Code, Aider, Continue, OpenHands)
+  - Updated Quickstart guide with "Explore with AI Assistance" section
+  - Updated Evaluator's Guide with interactive `brat code` introduction as fastest evaluation path
+  - Added complete `brat code` section to `documentation/tools/brat.md` with examples, options, and troubleshooting
+  - Created `documentation/guides/coding-with-brat-code.md` - comprehensive 8-section guide covering:
+    - Installing and using coding agents
+    - Agent features and comparison
+    - MCP auto-configuration (Claude Code)
+    - Configuration and preferences
+    - Advanced usage and troubleshooting
+  - Created `documentation/guides/coding-agent-plugins.md` - plugin development guide for adding custom agent support
+  - Updated CLAUDE.md with coding agent integration section for LLM context
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.12.0] - 2026-07-13
 ### Added
 
