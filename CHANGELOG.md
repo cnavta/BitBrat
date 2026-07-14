@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.13.1] - 2026-07-14
+### Added
 - **`brat code` Documentation**: Comprehensively documented the new `brat code` command for AI-assisted coding
   - Added `brat code` to README.md Getting Started section as recommended exploration step
   - Added comprehensive `brat code` command reference to README.md Management CLI section
