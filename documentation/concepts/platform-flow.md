@@ -60,10 +60,12 @@ graph TB
 1. External events from Twitch, Discord, or Twilio arrive at `ingress-egress`
 2. Events are normalized into `InternalEventV2` format and published to `internal.ingress.v1`
 3. `event-router` consumes the event and evaluates it against active rules (see [Event Router Rules](./event-router-rules.md))
-4. If a rule matches, a **routing slip** is attached with the processing pipeline
-5. If no rules match, the event may be persisted for logs or ignored
+4. If a rule matches, a **routing slip** is attached to the event
+5. `event-router` calls `next()` on the event (just like every other bit)
+6. The **framework's `next()` implementation** publishes the event to the first step's topic
+7. If no rules match, the event may be persisted for logs or ignored
 
-**Key Concept:** The routing slip defines the entire processing pipeline. Services execute steps sequentially via the **enrich-and-next pattern**.
+**Key Concept:** The Event Router is NOT a central orchestration hub. It assigns routing slips and calls `next()` like any other bit. The **framework** (the `next()` implementation in the Bit base class) handles routing slip advancement.
 
 **Typical Duration:** <50ms
 
@@ -132,7 +134,7 @@ await this.onMessage<InternalEventV2>('internal.contextualization.v1', async (ev
 **BitBrat offers TWO execution paths in Analysis:**
 
 #### Path A: Deterministic (Reflex)
-If the routing slip includes a reflex step, the Event Router publishes to `internal.reflex.v1`:
+If the routing slip includes a reflex step, the framework routes the event to `internal.reflex.v1`:
 - **Reflex service** pattern-matches the event against stored reflex definitions
 - On match, directly executes MCP tools via `tool-gateway` (no LLM inference)
 - **Performance**: <150ms end-to-end, low cost
@@ -140,7 +142,7 @@ If the routing slip includes a reflex step, the Event Router publishes to `inter
 - **Result**: Often calls `complete()` to skip remaining steps and go directly to egress
 
 #### Path B: LLM-Based
-If the routing slip includes an LLM step, the Event Router publishes to `internal.llmbot.v1`:
+If the routing slip includes an LLM step, the framework routes the event to `internal.llmbot.v1`:
 - **LLM Bot** performs full AI reasoning
 - Selects and calls tools via `tool-gateway` using function calling
 - **Performance**: 2-10 seconds, higher cost
