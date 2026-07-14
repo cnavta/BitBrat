@@ -1,0 +1,971 @@
+# Sprint 340: `brat code` Documentation Update - Backlog
+# Created: 2026-07-13
+# Status: Ready for Execution
+# Assignee: Technical Writer
+
+metadata:
+  sprint_id: 340
+  sprint_name: brat-code-documentation
+  start_date: 2026-07-13
+  estimated_completion: 2026-07-16  # 2-3 day sprint
+  total_effort_hours: 18
+  assignee: technical-writer
+  priority_levels:
+    P0: Blocker - Must complete for launch
+    P1: High - Core deliverables
+    P2: Medium - Important but not blocking
+    P3: Low - Nice to have
+  sprint_goal: |
+    Comprehensively update BitBrat documentation to reflect the new `brat code`
+    command and coding agent integration. Make `brat code` the recommended first
+    interaction for new users exploring BitBrat with AI assistance.
+
+# ============================================================================
+# PHASE 1: High-Visibility Documentation (P0)
+# Goal: Update the most-read documentation so new users discover `brat code`
+# Effort: 8 hours
+# ============================================================================
+
+phase_1_high_visibility:
+  name: High-Visibility Documentation
+  description: Update README, Quickstart, and Evaluator's Guide
+  effort_hours: 8
+  dependencies: []
+  tasks:
+
+    # ------------------------------------------------------------------------
+    # Task 1.1: Update README.md Getting Started Section
+    # ------------------------------------------------------------------------
+    - id: DOC-101
+      title: Update README.md Getting Started section
+      priority: P0
+      status: completed
+      effort_hours: 1.5
+      dependencies: []
+      assignee: technical-writer
+      file: README.md
+      section: "Getting Started (lines ~195-318)"
+      deliverables:
+        - New Step 6.5 "Explore with AI Assistance"
+        - Example commands for `brat code`
+        - Callout comparing `brat code` vs `brat chat`
+        - Link to detailed guide
+      acceptance_criteria:
+        - "`brat code` appears before 'Running the Platform'"
+        - Clear that it's optional but recommended
+        - Link to coding-with-brat-code.md present
+        - Example shows first-run experience
+      changes:
+        - Add new subsection after Step 6 (Verify environment)
+        - Include quick start: "npm run brat -- code"
+        - Explain first-run welcome prompt
+        - Link to comprehensive guide
+      validation:
+        - Read README Getting Started flow end-to-end
+        - Verify `brat code` is discoverable within 30 seconds
+        - Check all links resolve
+
+    # ------------------------------------------------------------------------
+    # Task 1.2: Update README.md Management CLI Section
+    # ------------------------------------------------------------------------
+    - id: DOC-102
+      title: Update README.md Management CLI section
+      priority: P0
+      status: completed
+      effort_hours: 1.5
+      dependencies: []
+      assignee: technical-writer
+      file: README.md
+      section: "Management CLI (brat) (lines ~351-448)"
+      deliverables:
+        - New "brat code" subsection under "Setup & Interaction"
+        - Full command syntax and options
+        - Examples for common use cases
+        - Feature highlights (auto-detection, MCP, preference memory)
+      acceptance_criteria:
+        - Comprehensive command reference
+        - All flags documented (--list, --agent, --project-root)
+        - Examples cover: interactive mode, specific agent, flag pass-through
+        - Link to detailed guide
+      content: |
+        #### `brat code`
+        Launch a coding agent with BitBrat project context automatically configured.
+
+        Features:
+        - Auto-Detection: Discovers Claude Code, Aider, Continue, OpenHands
+        - Zero-Config: Auto-loads CLAUDE.md, architecture.yaml, AGENTS.md, README.md
+        - MCP Integration: Auto-configures MCP servers (Claude Code)
+        - Preference Memory: Saves choice to ~/.bratrc
+        - First-Run Welcome: Guided introduction on first use
+
+        Options:
+        --list, -l: List detected agents
+        --agent <name>, -a: Launch specific agent
+        --project-root <path>, -p: Override project root
+
+        Examples:
+        npm run brat -- code                    # Interactive selection
+        npm run brat -- code --list             # List agents
+        npm run brat -- code --agent claude-code  # Launch Claude Code
+        npm run brat -- code -- --model opus    # Pass flags to agent
+      validation:
+        - All examples tested and working
+        - Link to guide resolves
+
+    # ------------------------------------------------------------------------
+    # Task 1.3: Update README.md Prerequisites Section
+    # ------------------------------------------------------------------------
+    - id: DOC-103
+      title: Update README.md Prerequisites section
+      priority: P0
+      status: completed
+      effort_hours: 0.5
+      dependencies: []
+      assignee: technical-writer
+      file: README.md
+      section: "Prerequisites (lines ~199-206)"
+      deliverables:
+        - New optional prerequisite for coding agents
+        - Installation commands for all 4 supported agents
+      acceptance_criteria:
+        - Clearly marked as optional
+        - All agents listed with install commands
+        - Claude Code marked as recommended
+      changes:
+        - Add bullet: "Coding Agent (optional, for brat code)"
+        - List: Claude Code (recommended), Aider, Continue, OpenHands
+        - Include install commands
+      validation:
+        - Prerequisites section updated
+        - All install commands accurate
+
+    # ------------------------------------------------------------------------
+    # Task 1.4: Update Quickstart Guide
+    # ------------------------------------------------------------------------
+    - id: DOC-104
+      title: Update Quickstart guide
+      priority: P0
+      status: completed
+      effort_hours: 1.0
+      dependencies: []
+      assignee: technical-writer
+      file: documentation/getting-started/quickstart.md
+      section: After "Health Check" (before "Running the Platform")
+      deliverables:
+        - New Step 5.5 "Explore with AI Assistance"
+        - First-run experience highlighted
+        - Link to installation and usage guide
+      acceptance_criteria:
+        - "`brat code` positioned as recommended exploration step"
+        - First-run welcome prompt mentioned
+        - Installation link provided
+        - "Next Steps" section updated
+      content: |
+        ## 5.5 (Recommended) Explore with AI Assistance
+
+        Before starting the full Docker stack, explore BitBrat with AI:
+
+        npm run brat -- code
+
+        If you have Claude Code, Aider, or another agent installed:
+        - Auto-configures agent with BitBrat project context
+        - First run: guided introduction to the platform
+        - Helps understand architecture before setup
+
+        First-time users: Interactive platform explanation
+        Developers: Code exploration and implementation help
+
+        See [Coding with brat code](../guides/coding-with-brat-code.md)
+      changes:
+        - Insert new section after Health Check
+        - Update "Next Steps" to mention `brat code` as learning tool
+      validation:
+        - Quickstart flow reads naturally
+        - Link resolves
+
+    # ------------------------------------------------------------------------
+    # Task 1.5: Update Evaluator's Guide
+    # ------------------------------------------------------------------------
+    - id: DOC-105
+      title: Update Evaluator's Guide
+      priority: P0
+      status: completed
+      effort_hours: 0.5
+      dependencies: []
+      assignee: technical-writer
+      file: documentation/getting-started/evaluating-bitbrat.md
+      section: Before "What to read first" section
+      deliverables:
+        - New section: "Explore interactively with brat code (~2 minutes)"
+        - Installation instructions
+        - First-run experience description
+        - Updated evaluation checklist
+      acceptance_criteria:
+        - "`brat code` positioned as fastest evaluation path"
+        - Installation clear (1 command)
+        - Checklist includes `brat code` usage
+      content: |
+        ## Explore interactively with `brat code` (~2 minutes)
+
+        The fastest way to understand BitBrat is to let it explain itself:
+
+        1. Install a coding agent:
+           npm install -g @anthropic-ai/claude-code
+
+        2. Launch with context:
+           npm install
+           npm run brat -- code
+
+        3. First run auto-prompts: "Explain the BitBrat project to me"
+           Provides interactive architecture tour with full codebase reference.
+
+        This gives guided walkthrough of agent loop, dual execution paths,
+        and MCP tool integration before reading static docs.
+      changes:
+        - Add new section at top
+        - Update checklist: "Used brat code for interactive explanation"
+      validation:
+        - Flow makes sense for evaluators
+        - Commands tested
+
+    # ------------------------------------------------------------------------
+    # Task 1.6: Update brat CLI Reference
+    # ------------------------------------------------------------------------
+    - id: DOC-106
+      title: Update brat CLI reference (brat.md)
+      priority: P0
+      status: completed
+      effort_hours: 2.0
+      dependencies: []
+      assignee: technical-writer
+      file: documentation/tools/brat.md
+      section: "Core Commands → Setup & Interaction"
+      deliverables:
+        - Comprehensive "brat code" section
+        - Full syntax and options
+        - Examples for all 4 agents
+        - MCP auto-configuration notes
+        - .bratrc format documentation
+        - Troubleshooting subsection
+      acceptance_criteria:
+        - Complete command reference
+        - All 4 agent plugins documented with examples
+        - MCP auto-config explained
+        - .bratrc format shown
+        - Common issues covered
+        - Links to deep-dive guide
+      outline:
+        - Command syntax and description
+        - Features overview
+        - Options and flags
+        - Examples (interactive, specific agent, flags, multi-agent)
+        - Agent-specific notes (Claude Code MCP, Aider models, etc.)
+        - Preference file format (~/.bratrc)
+        - First-run experience
+        - Troubleshooting (agent not detected, MCP issues, preference errors)
+        - Cross-reference to coding-with-brat-code.md
+      validation:
+        - All examples tested
+        - Links resolve
+        - .bratrc format accurate
+
+    # ------------------------------------------------------------------------
+    # Task 1.7: Create Dedicated Guide - coding-with-brat-code.md
+    # ------------------------------------------------------------------------
+    - id: DOC-107
+      title: Create comprehensive guide - coding-with-brat-code.md
+      priority: P0
+      status: completed
+      effort_hours: 3.0
+      dependencies: []
+      assignee: technical-writer
+      file: documentation/guides/coding-with-brat-code.md
+      deliverables:
+        - New comprehensive guide (8 sections)
+        - Installation instructions for all agents
+        - Feature explanations
+        - Configuration reference
+        - Advanced usage
+        - Troubleshooting
+      acceptance_criteria:
+        - Complete guide covering all features
+        - Examples for each agent
+        - MCP auto-configuration explained
+        - Troubleshooting comprehensive
+        - Cross-references to related docs
+      outline:
+        section_1:
+          title: Introduction
+          content:
+            - What is brat code?
+            - Why use it?
+            - Comparison with brat chat
+            - Comparison with direct IDE development
+        section_2:
+          title: Getting Started
+          content:
+            - Installing coding agents (all 4)
+            - First run experience
+            - Agent selection UI
+            - Preference persistence
+        section_3:
+          title: Supported Agents
+          content:
+            - Claude Code (with MCP details)
+            - Aider
+            - Continue
+            - OpenHands
+            - Feature comparison table
+        section_4:
+          title: Features
+          content:
+            - Auto-detection
+            - Project context injection
+            - MCP integration (Claude Code)
+            - Preference persistence
+            - Flag pass-through
+            - First-run welcome
+        section_5:
+          title: Configuration
+          content:
+            - .bratrc file format
+            - Per-agent settings
+            - MCP server discovery
+            - Project-specific overrides
+        section_6:
+          title: Advanced Usage
+          content:
+            - Switching agents
+            - Custom flags
+            - Multiple projects
+            - Plugin development (link to guide)
+        section_7:
+          title: Troubleshooting
+          content:
+            - Agent not detected
+            - MCP connection issues
+            - Preference file errors
+            - Agent-specific problems
+        section_8:
+          title: Developer Guide
+          content:
+            - Creating custom plugins (summary)
+            - Link to coding-agent-plugins.md
+      validation:
+        - All sections complete
+        - Examples tested
+        - Links resolve
+        - Troubleshooting covers common issues from Sprint 339 retro
+
+# ============================================================================
+# PHASE 2: Developer & Advanced Documentation (P1)
+# Goal: Support developers and advanced users
+# Effort: 6 hours
+# ============================================================================
+
+phase_2_developer_docs:
+  name: Developer & Advanced Documentation
+  description: CLAUDE.md, plugin guide, MCP docs, installation guide
+  effort_hours: 6
+  dependencies: [phase_1_high_visibility]
+  tasks:
+
+    # ------------------------------------------------------------------------
+    # Task 2.1: Expand CLAUDE.md for brat code
+    # ------------------------------------------------------------------------
+    - id: DOC-201
+      title: Expand CLAUDE.md with brat code context
+      priority: P1
+      status: completed
+      effort_hours: 1.0
+      dependencies: []
+      assignee: technical-writer
+      file: CLAUDE.md
+      section: "Common Development Commands"
+      deliverables:
+        - New subsection "Coding Agent Integration"
+        - Usage examples
+        - Feature summary
+        - Link to comprehensive guide
+      acceptance_criteria:
+        - LLM agents understand brat code exists
+        - Basic usage clear
+        - Features summarized
+        - Cross-reference to guide
+      content: |
+        ### Coding Agent Integration
+        npm run brat -- code                 # Launch coding agent with context
+        npm run brat -- code --list          # List detected agents
+        npm run brat -- code --agent aider   # Launch specific agent
+
+        The `brat code` command auto-configures coding agents with:
+        - Project context files (CLAUDE.md, architecture.yaml, AGENTS.md, README.md)
+        - MCP server discovery and authentication (Claude Code)
+        - First-run welcome experience
+
+        Preferences saved to ~/.bratrc.
+        See documentation/guides/coding-with-brat-code.md for details.
+      validation:
+        - Content fits CLAUDE.md style
+        - Link resolves
+
+    # ------------------------------------------------------------------------
+    # Task 2.2: Create Plugin Development Guide
+    # ------------------------------------------------------------------------
+    - id: DOC-202
+      title: Create plugin development guide
+      priority: P1
+      status: completed
+      effort_hours: 3.0
+      dependencies: [DOC-107]
+      assignee: technical-writer
+      file: documentation/guides/coding-agent-plugins.md
+      deliverables:
+        - New plugin development guide
+        - API reference
+        - Implementation examples
+        - Testing guidance
+      acceptance_criteria:
+        - Complete API documentation
+        - Working example plugin
+        - Testing patterns documented
+        - Clear contribution process
+      outline:
+        section_1:
+          title: Introduction
+          content:
+            - Plugin architecture overview
+            - When to create a custom plugin
+            - Supported vs custom agents
+        section_2:
+          title: Plugin API
+          content:
+            - CodingAgentPlugin interface
+            - detect() method - detection logic
+            - prepareConfig() method - config generation
+            - launch() method - process spawning
+            - preflight() method (optional) - pre-launch checks
+        section_3:
+          title: Implementation Guide
+          content:
+            - Step-by-step plugin creation
+            - Agent detection strategies (which, --version)
+            - Config generation patterns
+            - Launch lifecycle management
+            - Error handling
+        section_4:
+          title: Examples
+          content:
+            - Minimal plugin implementation
+            - Full-featured plugin (based on Claude Code)
+            - Agent-specific customizations
+        section_5:
+          title: Testing
+          content:
+            - Unit test patterns (mocking)
+            - Integration testing
+            - Manual testing checklist
+        section_6:
+          title: Registration & Contributing
+          content:
+            - Adding to AgentRegistry
+            - Naming conventions
+            - PR process
+      validation:
+        - API reference matches implementation
+        - Example plugin compiles
+        - Testing guidance clear
+
+    # ------------------------------------------------------------------------
+    # Task 2.3: Document MCP Auto-Configuration
+    # ------------------------------------------------------------------------
+    - id: DOC-203
+      title: Document MCP auto-configuration
+      priority: P1
+      status: completed
+      effort_hours: 1.5
+      dependencies: [DOC-107]
+      assignee: technical-writer
+      file: documentation/guides/coding-with-brat-code.md
+      section: Appendix or dedicated section in guide
+      deliverables:
+        - MCP discovery explanation
+        - Generated config structure
+        - Troubleshooting guide
+      acceptance_criteria:
+        - MCP auto-config fully explained
+        - Config structure documented
+        - Troubleshooting covers common MCP issues
+        - Config examples provided
+      content:
+        discovery:
+          - How Docker container detection works
+          - tool-gateway connectivity checks
+          - Authentication token management
+        generated_config:
+          - mcpServers block in .claude/config.json
+          - stdio proxy configuration
+          - Tool enumeration
+        troubleshooting:
+          - Token errors (MCP_AUTH_TOKEN not set)
+          - Connection failures (tool-gateway not running)
+          - Missing tools (MCP server not registered)
+          - Docker issues
+      validation:
+        - Config examples match actual output
+        - Troubleshooting tested against known issues
+
+    # ------------------------------------------------------------------------
+    # Task 2.4: Create Agent Installation Guide
+    # ------------------------------------------------------------------------
+    - id: DOC-204
+      title: Document agent installation
+      priority: P1
+      status: completed
+      effort_hours: 1.0
+      dependencies: [DOC-107]
+      assignee: technical-writer
+      file: documentation/guides/coding-with-brat-code.md
+      section: Getting Started section
+      deliverables:
+        - Installation instructions for all 4 agents
+        - Platform-specific notes
+        - Version requirements
+        - Verification steps
+      acceptance_criteria:
+        - All 4 agents covered
+        - macOS, Linux, Windows notes
+        - Version requirements clear
+        - Verification commands provided
+      content:
+        claude_code:
+          install: "npm install -g @anthropic-ai/claude-code"
+          verify: "claude --version"
+          min_version: "1.0.0"
+          platforms: [macOS, Linux, Windows]
+        aider:
+          install: "pip install aider-chat"
+          verify: "aider --version"
+          min_version: "N/A"
+          platforms: [macOS, Linux, Windows]
+        continue:
+          install: "npm install -g continue"
+          verify: "continue --version"
+          min_version: "N/A"
+          platforms: [macOS, Linux, Windows]
+        openhands:
+          install: "pip install openhands"
+          verify: "openhands --version"
+          min_version: "N/A"
+          platforms: [macOS, Linux]
+      validation:
+        - All install commands tested
+        - Version checks accurate
+
+# ============================================================================
+# PHASE 3: Supporting Materials & Quality (P1/P2)
+# Goal: Consistency, discoverability, maintainability
+# Effort: 4 hours
+# ============================================================================
+
+phase_3_supporting_materials:
+  name: Supporting Materials & Quality
+  description: Troubleshooting, CHANGELOG, cross-references, decision guide
+  effort_hours: 4
+  dependencies: [phase_1_high_visibility, phase_2_developer_docs]
+  tasks:
+
+    # ------------------------------------------------------------------------
+    # Task 3.1: Create Troubleshooting Guide
+    # ------------------------------------------------------------------------
+    - id: DOC-301
+      title: Create troubleshooting guide
+      priority: P1
+      status: completed
+      effort_hours: 1.5
+      dependencies: [DOC-107]
+      assignee: technical-writer
+      file: documentation/guides/coding-with-brat-code.md
+      section: Troubleshooting section
+      deliverables:
+        - Comprehensive troubleshooting section
+        - Common issues covered
+        - Resolution steps
+        - Error messages explained
+      acceptance_criteria:
+        - Agent detection issues covered
+        - MCP connection issues covered
+        - Preference file issues covered
+        - Agent-specific issues covered
+        - Clear resolution steps
+      issues:
+        agent_not_detected:
+          symptoms:
+            - "No coding agents detected on your system"
+          causes:
+            - Agent not installed
+            - Agent not in PATH
+            - Version too old
+          resolutions:
+            - Install agent (link to installation section)
+            - Add agent to PATH
+            - Update agent version
+        mcp_connection_failure:
+          symptoms:
+            - "Failed to connect to tool-gateway"
+            - "MCP authentication failed"
+          causes:
+            - Docker not running
+            - tool-gateway not accessible
+            - MCP_AUTH_TOKEN not set
+          resolutions:
+            - Start Docker (npm run local)
+            - Check tool-gateway health
+            - Set MCP_AUTH_TOKEN
+        preference_file_errors:
+          symptoms:
+            - "Failed to load ~/.bratrc"
+            - "Invalid YAML in preference file"
+          causes:
+            - Corrupted .bratrc
+            - Invalid YAML syntax
+          resolutions:
+            - Delete ~/.bratrc (will be recreated)
+            - Fix YAML syntax
+            - Reset: rm ~/.bratrc
+        agent_specific:
+          claude_code:
+            - API key missing (ANTHROPIC_API_KEY)
+            - Config file conflicts (.claude/config.json)
+          aider:
+            - Model selection issues
+            - API key for selected provider
+          continue:
+            - TBD (pending verification)
+          openhands:
+            - TBD (pending verification)
+      validation:
+        - All issues from Sprint 339 retro covered
+        - Resolution steps tested
+
+    # ------------------------------------------------------------------------
+    # Task 3.2: Update CHANGELOG.md
+    # ------------------------------------------------------------------------
+    - id: DOC-302
+      title: Update CHANGELOG.md
+      priority: P1
+      status: completed
+      effort_hours: 0.5
+      dependencies: [DOC-107, DOC-202, DOC-301]
+      assignee: technical-writer
+      file: CHANGELOG.md
+      section: "## [Unreleased]"
+      deliverables:
+        - CHANGELOG entry for Sprint 340
+        - List of all documentation updates
+      acceptance_criteria:
+        - CHANGELOG reflects all doc updates
+        - Follows project conventions
+        - Grouped by category (Documentation)
+      content: |
+        ### Documentation
+        - **`brat code` Integration**: Comprehensively documented the new `brat code` command in README, Quickstart, Evaluator's Guide, and CLI reference
+        - **New Guides**:
+          - Added `coding-with-brat-code.md` - comprehensive guide to coding agent integration
+          - Added `coding-agent-plugins.md` - plugin development guide
+        - **Prerequisites**: Updated to include optional coding agent installation (Claude Code, Aider, Continue, OpenHands)
+        - **Troubleshooting**: Added MCP and agent-specific troubleshooting guidance
+        - **CLI Reference**: Added complete `brat code` command reference to `tools/brat.md`
+        - **CLAUDE.md**: Updated LLM guidance to include `brat code` usage
+      validation:
+        - Entry follows existing format
+        - All major changes listed
+
+    # ------------------------------------------------------------------------
+    # Task 3.3: Cross-Reference Audit
+    # ------------------------------------------------------------------------
+    - id: DOC-303
+      title: Cross-reference audit and link fixes
+      priority: P1
+      status: completed
+      effort_hours: 1.5
+      dependencies: [DOC-101, DOC-102, DOC-103, DOC-104, DOC-105, DOC-106, DOC-107, DOC-201, DOC-202, DOC-203, DOC-204, DOC-301]
+      assignee: technical-writer
+      deliverables:
+        - Cross-reference consistency report
+        - All broken links fixed
+        - Missing cross-references added
+      acceptance_criteria:
+        - 100% of internal links functional
+        - Related pages cross-reference each other
+        - No orphaned documentation
+        - All new docs linked from at least 2 places
+      process:
+        - Extract all internal links from updated/new documentation
+        - Verify each link resolves correctly
+        - Check for orphaned pages (not linked from anywhere)
+        - Add missing cross-references
+        - Update outdated links
+        - Generate cross-reference map
+      expected_links:
+        README_to_guide: "README.md → coding-with-brat-code.md"
+        README_CLI_to_guide: "README.md (CLI section) → coding-with-brat-code.md"
+        quickstart_to_guide: "quickstart.md → coding-with-brat-code.md"
+        evaluator_to_guide: "evaluating-bitbrat.md → coding-with-brat-code.md"
+        brat_md_to_guide: "brat.md → coding-with-brat-code.md"
+        guide_to_plugin_guide: "coding-with-brat-code.md → coding-agent-plugins.md"
+        guide_to_CLAUDE: "coding-with-brat-code.md → CLAUDE.md"
+        guide_to_architecture: "coding-with-brat-code.md → architecture.yaml"
+        CLAUDE_to_guide: "CLAUDE.md → coding-with-brat-code.md"
+      validation:
+        - All links tested manually
+        - No 404s
+        - Cross-reference map complete
+
+    # ------------------------------------------------------------------------
+    # Task 3.4: Create "When to Use" Decision Guide
+    # ------------------------------------------------------------------------
+    - id: DOC-304
+      title: Create decision guide - when to use brat code
+      priority: P2
+      status: completed
+      effort_hours: 0.5
+      dependencies: [DOC-107]
+      assignee: technical-writer
+      file: documentation/guides/coding-with-brat-code.md
+      section: Introduction or dedicated section
+      deliverables:
+        - Decision matrix or flowchart
+        - Use cases for each approach
+      acceptance_criteria:
+        - Clear decision criteria
+        - Use cases for brat code, brat chat, direct IDE
+        - Flowchart or comparison table
+      content:
+        comparison_table:
+          headers: [Approach, Best For, Strengths, Limitations]
+          rows:
+            - approach: "brat code"
+              best_for: "Exploring codebase, understanding architecture, AI-assisted development"
+              strengths: "Full project context, MCP tool access, interactive exploration"
+              limitations: "Requires coding agent installed, agent-specific limitations"
+            - approach: "brat chat"
+              best_for: "Testing platform behavior, validating rules, end-to-end event flow"
+              strengths: "Tests real platform, validates routing, observes reactions"
+              limitations: "Requires platform running, focused on runtime behavior"
+            - approach: "Direct IDE"
+              best_for: "Traditional development, specific file edits, debugging"
+              strengths: "Full IDE features, debugger, git integration"
+              limitations: "No AI assistance, manual context gathering"
+        decision_flowchart: |
+          Start
+          ├─ Want to understand architecture? → brat code
+          ├─ Want to test platform behavior? → brat chat
+          ├─ Want to implement feature?
+          │  ├─ Need AI assistance? → brat code
+          │  └─ Know exactly what to do? → Direct IDE
+          └─ Want to debug runtime issue? → Direct IDE + brat chat
+      validation:
+        - Decision criteria clear
+        - Use cases realistic
+
+# ============================================================================
+# Sprint Metrics & Tracking
+# ============================================================================
+
+metrics:
+  total_tasks: 14
+  p0_tasks: 7
+  p1_tasks: 6
+  p2_tasks: 1
+
+  effort_by_phase:
+    phase_1: 8.0 hours
+    phase_2: 6.0 hours
+    phase_3: 4.0 hours
+
+  effort_by_priority:
+    p0: 10.5 hours
+    p1: 7.0 hours
+    p2: 0.5 hours
+
+  critical_path:
+    - DOC-101  # README Getting Started
+    - DOC-107  # Dedicated guide
+    - DOC-203  # MCP auto-config
+    - DOC-301  # Troubleshooting
+    - DOC-303  # Cross-reference audit
+    - DOC-302  # CHANGELOG
+
+  parallel_opportunities:
+    - [DOC-101, DOC-102, DOC-103]  # All README updates independent
+    - [DOC-104, DOC-105]           # Quickstart and Evaluator's Guide
+    - [DOC-106, DOC-201]           # brat.md and CLAUDE.md
+    - [DOC-202, DOC-204]           # Plugin guide and installation guide
+
+# ============================================================================
+# Success Criteria
+# ============================================================================
+
+success_criteria:
+  documentation_completeness:
+    - "`brat code` appears in README Getting Started (before platform setup)"
+    - "`brat code` fully documented in CLI reference"
+    - "Dedicated guide created (coding-with-brat-code.md)"
+    - "Plugin development guide created"
+    - "All 4 agent plugins documented"
+    - "Prerequisites section updated"
+    - "Quickstart includes `brat code`"
+    - "Evaluator's guide includes `brat code`"
+    - "CLAUDE.md updated"
+    - "CHANGELOG.md updated"
+
+  quality_metrics:
+    - "100% of internal links functional"
+    - "All code examples tested"
+    - "Terminology consistent across docs"
+    - "No broken references"
+    - "Cross-reference audit clean"
+
+  user_experience:
+    - "New user discovers `brat code` within 30 seconds of reading README"
+    - "Clear when to use `brat code` vs `brat chat` vs direct IDE"
+    - "Installation instructions clear for all agents"
+    - "Troubleshooting guidance comprehensive"
+
+# ============================================================================
+# Risks & Mitigation
+# ============================================================================
+
+risks:
+  - id: RISK-301
+    description: Scope creep - adding features not in Sprint 339
+    probability: medium
+    impact: medium
+    mitigation: |
+      - Document only what was delivered in Sprint 339
+      - Use Sprint 339 verification report as authoritative source
+      - Defer any "nice to have" features to future sprints
+
+  - id: RISK-302
+    description: Breaking changes to brat code during sprint
+    probability: low
+    impact: high
+    mitigation: |
+      - Coordinate with development team
+      - Freeze `brat code` changes during documentation sprint
+      - Tag Sprint 339 commit as reference
+
+  - id: RISK-303
+    description: Inconsistent terminology across docs
+    probability: low
+    impact: medium
+    mitigation: |
+      - Use Sprint 339 docs as authoritative terminology source
+      - Task 3.3 explicitly audits terminology
+      - Maintain glossary
+
+  - id: RISK-304
+    description: Link rot after future refactors
+    probability: medium
+    impact: low
+    mitigation: |
+      - Use relative paths consistently
+      - Task 3.3 audits all links
+      - Add validation to CI (future)
+
+# ============================================================================
+# Validation Checklist
+# ============================================================================
+
+validation:
+  before_completion:
+    - step: "Fresh reader test"
+      description: "Developer unfamiliar with `brat code` can discover and use it from docs alone"
+      assignee: "external-reviewer"
+
+    - step: "Link validation"
+      description: "All internal links resolve correctly"
+      assignee: "technical-writer"
+
+    - step: "Example verification"
+      description: "All command examples tested and working"
+      assignee: "technical-writer"
+
+    - step: "Terminology consistency"
+      description: "Key terms used consistently across all docs"
+      assignee: "technical-writer"
+
+  deliverable_checklist:
+    - "README.md updated (3 sections)"
+    - "quickstart.md updated"
+    - "evaluating-bitbrat.md updated"
+    - "brat.md updated (comprehensive brat code section)"
+    - "coding-with-brat-code.md created (comprehensive)"
+    - "coding-agent-plugins.md created"
+    - "CLAUDE.md updated"
+    - "CHANGELOG.md updated"
+    - "All links functional (100%)"
+    - "All examples tested"
+    - "Cross-reference audit complete"
+
+# ============================================================================
+# Notes for LLM Agents
+# ============================================================================
+
+llm_guidance:
+  terminology:
+    - "Always use 'brat code' not 'brat-code' or 'bratcode'"
+    - "Agent names: Claude Code, Aider, Continue, OpenHands (proper case)"
+    - "Preference file: ~/.bratrc (not .bratrc without path)"
+
+  style:
+    - "Follow existing documentation tone (technical but approachable)"
+    - "Use code blocks for all commands"
+    - "Use markdown tables for comparisons"
+    - "Include examples for all features"
+
+  task_execution:
+    - "Complete dependencies before starting a task"
+    - "Test all code examples before documenting"
+    - "Update cross-references when adding new docs"
+    - "Commit with clear message referencing task ID (e.g., DOC-101)"
+
+  validation:
+    - "Read updated docs end-to-end before marking complete"
+    - "Verify all links resolve"
+    - "Check for terminology consistency"
+    - "Ensure examples match actual behavior"
+
+# ============================================================================
+# Future Enhancements (Post-Sprint Backlog)
+# ============================================================================
+
+future_enhancements:
+  - id: FUT-001
+    title: "Video tutorial for brat code"
+    priority: P3
+    description: "Screen recording showing first-run experience and common workflows"
+
+  - id: FUT-002
+    title: "Advanced plugin customization guide"
+    priority: P3
+    description: "Deep dive into plugin architecture and advanced customization"
+
+  - id: FUT-003
+    title: "Multi-agent workflow documentation"
+    priority: P3
+    description: "How to use multiple agents for different tasks"
+
+  - id: FUT-004
+    title: "Agent performance comparison guide"
+    priority: P3
+    description: "Benchmark comparison of Claude Code, Aider, Continue, OpenHands"
+
+  - id: FUT-005
+    title: "Windows/WSL specific documentation"
+    priority: P2
+    description: "Platform-specific notes for Windows users (identified in Sprint 339 retro)"
+
+---
+# End of Backlog

@@ -1014,6 +1014,7 @@ deploymentTargets:
     host: ssh://root@bitbrat.lan
     env: staging
     remoteDir: /opt/BitBratPlatform
+    maxConcurrent: 3
     gateway:
       url: http://bitbrat.lan:3017
       authToken: ${MCP_AUTH_TOKEN}
