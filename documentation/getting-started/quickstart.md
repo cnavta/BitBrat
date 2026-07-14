@@ -73,6 +73,25 @@ npm run brat -- doctor
 
 Look for all "PASS" results. If any check fails, the tool will provide guidance on how to fix the issue.
 
+## 5.5 (Recommended) Explore with AI Assistance
+
+Before starting the full Docker stack, explore BitBrat with AI-powered assistance:
+
+```bash
+npm run brat -- code
+```
+
+If you have Claude Code, Aider, or another supported agent installed, this will:
+- Automatically configure the agent with BitBrat project context
+- Provide a guided introduction to the platform on first run
+- Help you understand the architecture before diving into setup
+
+**First-time users**: The agent will explain the platform concepts interactively.
+
+**Developers**: Use it to explore code, understand flows, or get help implementing features.
+
+See [Coding with brat code](../guides/coding-with-brat-code.md) for installation and usage.
+
 ## 6. Running the Platform
 
 Once setup is complete and `doctor` reports no issues, you can start the platform using Docker Compose:
@@ -99,6 +118,7 @@ Both paths share the same infrastructure and tool ecosystem. See [Platform Flow 
 
 ### Learn More
 
+- **[Coding with brat code](../guides/coding-with-brat-code.md)**: Explore BitBrat with AI-powered coding assistance.
 - [Platform Flow Overview](../concepts/platform-flow.md): Understand the agent loop and dual execution paths.
 - [Managing Seed Data](../guides/seed-data.md): Learn how to load initial rules and state.
 - [Brat Chat Introduction](../tools/brat.md#brat-chat): Start interacting with your bot locally.
