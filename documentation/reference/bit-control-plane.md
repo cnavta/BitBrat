@@ -42,6 +42,197 @@ carries an RBAC [scope](#rbac-scopes).
 > These map 1:1 onto the [`brat fleet`](../guides/brat-fleet.md) subcommands (`info`, `health`, `config`,
 > `flags`, `log`, `drain`, `shutdown`, `restart`).
 
+## Routing Helpers
+
+In addition to the MCP control plane, every Bit inheriting from the `Bit` base class has access to **routing helper methods** for participating in the agent flow. These are part of the `EventingProfile` capability and are fundamental to the [enrich-and-next pattern](../concepts/agent-flow-patterns.md).
+
+### `this.next(event, status?)`
+
+**Purpose:** Advance the routing slip to the next step. **This is the default choice for most services.**
+
+**Signature:**
+```typescript
+protected async next(event: InternalEventV2, status?: string): Promise<void>
+```
+
+**Behavior:**
+1. Marks the current routing step as complete with the given status (default: `'OK'`)
+2. Advances `routing.slip.currentIndex` to the next step
+3. Publishes the event to the `nextTopic` of the next step
+4. If no more steps remain, publishes to `internal.egress.v1` (egress)
+
+**When to use:**
+- ✅ Your service enriched the event (added annotations, candidates, etc.)
+- ✅ Downstream services should continue processing
+- ✅ You want the routing slip to progress naturally
+- ✅ **Default choice when unsure**
+
+**Example:**
+```typescript
+// File: src/apps/auth-service.ts
+await this.onMessage<InternalEventV2>('internal.contextualization.v1', async (event, attrs, ctx) => {
+  // 1. ENRICH: Add user identity
+  event.annotations.push({
+    kind: 'user',
+    value: { id: 'user-123', displayName: 'User' },
+    source: this.name,
+    id: randomUUID(),
+    createdAt: new Date().toISOString()
+  });
+
+  // 2. NEXT: Advance routing slip
+  await this.next(event);  // ← Progresses to next step (typically Analysis)
+  await ctx.ack();
+});
+```
+
+---
+
+### `this.complete(event, status?)`
+
+**Purpose:** Skip remaining routing steps and publish directly to egress. **Only use when intentionally short-circuiting.**
+
+**Signature:**
+```typescript
+protected async complete(event: InternalEventV2, status?: string): Promise<void>
+```
+
+**Behavior:**
+1. Marks the current routing step as complete with the given status (default: `'OK'`)
+2. **Skips all remaining routing steps**
+3. Publishes the event directly to `internal.egress.v1` (egress)
+
+**When to use:**
+- ✅ Your service executed the final action (e.g., Reflex executed a tool)
+- ✅ No further processing is needed
+- ✅ You want to short-circuit the routing slip
+- ⚠️ **Use sparingly — most services should use `next()`**
+
+**Example:**
+```typescript
+// File: src/apps/reflex-service.ts
+await this.onMessage<InternalEventV2>('internal.reflex.v1', async (event, attrs, ctx) => {
+  // 1. Pattern match and execute tool
+  const result = await this.executeTool(event);
+  event.candidates.push({
+    kind: 'text',
+    text: result,
+    source: this.name,
+    id: randomUUID()
+  });
+
+  // 2. COMPLETE: Skip remaining steps, go to egress
+  await this.complete(event);  // ← Skips Analysis and Reaction stages
+  await ctx.ack();
+});
+```
+
+---
+
+### Decision Tree: next() vs complete()
+
+**RULE: Use `next()` by default. Use `complete()` ONLY when intentionally short-circuiting.**
+
+```
+Is this the final processing step for this event?
+├─ No → Use next(event)
+└─ Yes
+    ├─ Should downstream services still process it? → Use next(event)
+    └─ Skip all remaining routing steps? → Use complete(event)
+```
+
+**Examples by Stage:**
+
+| Service | Stage | Method | Reason |
+|---------|-------|--------|--------|
+| `auth` | Contextualization | `next()` | Always advance to Analysis |
+| `query-analyzer` | Contextualization | `next()` | Advance to Analysis |
+| `llm-bot` | Analysis | `next()` | Allow Reaction stage to execute tools |
+| `reflex` | Analysis | `complete()` | Action executed, skip to egress |
+| `state-engine` | Reaction | `complete()` | Final mutations, ready for egress |
+| `disposition` | Reaction | `complete()` | Final transformations, ready for egress |
+
+See [Agent Flow Patterns](../concepts/agent-flow-patterns.md) for comprehensive documentation.
+
+---
+
+### Common Patterns
+
+#### Pattern 1: Enrich-and-Next (Most Common)
+
+```typescript
+// ENRICH: Add annotation
+event.annotations.push({ kind: 'data', value: data, source: this.name, id: randomUUID(), createdAt: new Date().toISOString() });
+
+// NEXT: Advance routing slip
+await this.next(event);
+
+// ACKNOWLEDGE: Required for message bus
+await ctx.ack();
+```
+
+**Use for:** Contextualization and Analysis stages, most Reaction stages
+
+#### Pattern 2: Execute-and-Complete (Terminal Actions)
+
+```typescript
+// EXECUTE: Perform final action
+await this.performAction(event);
+
+// COMPLETE: Skip to egress
+await this.complete(event);
+
+// ACKNOWLEDGE
+await ctx.ack();
+```
+
+**Use for:** Reflexes, final reaction services, short-circuit scenarios
+
+#### Pattern 3: Conditional Routing
+
+```typescript
+// Conditional: Short-circuit on spam
+if (event.annotations.some(a => a.kind === 'risk' && a.value?.level === 'high')) {
+  this.getLogger().info('short-circuit.spam', { correlationId: event.correlationId });
+  await this.complete(event);  // Skip remaining steps
+} else {
+  await this.next(event);  // Continue processing
+}
+await ctx.ack();
+```
+
+**Use for:** Risk filtering, spam detection, conditional orchestration
+
+---
+
+### Anti-Patterns
+
+**❌ NEVER: Enrich without calling next() or complete()**
+```typescript
+// BAD: Annotations added, but event never progresses
+event.annotations.push({ kind: 'data', value: data, source: this.name });
+await ctx.ack();  // ← Event stalls here!
+```
+
+**❌ NEVER: Use complete() when next() is appropriate**
+```typescript
+// BAD: Auth service skips Analysis stage
+await this.onMessage('internal.contextualization.v1', async (event, attrs, ctx) => {
+  event.annotations.push({ kind: 'user', value: user, source: this.name });
+  await this.complete(event);  // ← Skips Analysis! Should use next()
+  await ctx.ack();
+});
+```
+
+**❌ NEVER: Forget to call ctx.ack()**
+```typescript
+// BAD: Message never acknowledged, will be redelivered
+await this.next(event);
+// Missing: await ctx.ack();
+```
+
+---
+
 ## LLM admin tools (`bit.llm.*`)
 
 Bits that compose the [LLM profile](../concepts/capability-profiles.md) (`profile: llm`) additionally

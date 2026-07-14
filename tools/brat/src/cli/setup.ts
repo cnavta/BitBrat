@@ -74,13 +74,13 @@ async function wipeCollection(db: admin.firestore.Firestore, collectionPath: str
 
 export const getInitialRoutingRules = (botName: string) => [
   {
-    id: 'initial-analysis',
+    id: 'initial-contextualization',
     enabled: true,
     priority: 100,
-    description: 'Route initial events to auth, reflex, query-analysis, and event-router for analysis stage',
+    description: 'Route initial events to auth, reflex, query-analysis, and event-router for contextualization stage',
     logic: JSON.stringify({ "==": [ { "var": "routing.stage" }, "initial" ] }),
     routing: {
-      stage: 'analysis',
+      stage: 'contextualization',
       slip: [
         { id: 'auth', v: '1', nextTopic: 'internal.auth.v1' },
         { id: 'reflex', v: '1', nextTopic: 'internal.reflex.v1' },
@@ -92,13 +92,13 @@ export const getInitialRoutingRules = (botName: string) => [
     }
   },
   {
-    id: 'analysis-reaction-bot',
+    id: 'contextualization-reaction-bot',
     enabled: true,
     priority: 50,
     description: `Route bot mentions to LLM bot`,
     logic: JSON.stringify({
       "and": [
-        { "==": [ { "var": "routing.stage" }, "analysis" ] },
+        { "==": [ { "var": "routing.stage" }, "contextualization" ] },
         { "text_contains": [ { "var": "message.text" }, botName, true ] }
       ]
     }),
@@ -124,13 +124,13 @@ export const getInitialRoutingRules = (botName: string) => [
     }
   },
   {
-    id: 'analysis-reaction-adventure',
+    id: 'contextualization-reaction-adventure',
     enabled: true,
     priority: 40,
     description: 'Route !adventure commands to story engine and LLM bot',
     logic: JSON.stringify({
       "and": [
-        { "==": [ { "var": "routing.stage" }, "analysis" ] },
+        { "==": [ { "var": "routing.stage" }, "contextualization" ] },
         { "re_test": [ { "var": "message.text" }, "^!adventure", "i" ] }
       ]
     }),
@@ -157,13 +157,13 @@ export const getInitialRoutingRules = (botName: string) => [
     }
   },
   {
-    id: 'analysis-reaction-cnj',
+    id: 'contextualization-reaction-cnj',
     enabled: true,
     priority: 100,
     description: `Create a Chuck Norris Joke for the user`,
     logic: JSON.stringify({
       "and": [
-        { "==": [ { "var": "routing.stage" }, "analysis" ] },
+        { "==": [ { "var": "routing.stage" }, "contextualization" ] },
         { "re_test": [ { "var": "message.text" }, "^cnj", "i" ] }
       ]
     }),

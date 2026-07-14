@@ -1,0 +1,766 @@
+# Sprint 341: Agent Flow Pattern Documentation (Agent-First + Terminology Migration)
+# Trackable, prioritized backlog for documenting the canonical enrich-and-next pattern
+# Primary audience: AI coding agents | Secondary audience: Human developers
+
+sprint:
+  id: 341
+  title: "Agent Flow Pattern Documentation (Agent-First)"
+  branch: "feature/agent-flow-pattern-docs"
+  status: "IN_PROGRESS"
+  owner: "Technical Writer"
+  created: "2026-07-14"
+  updated: "2026-07-14"
+  started: "2026-07-14"
+  primary_audience: "AI Coding Agents (Claude, GPT, etc.)"
+  secondary_audience: "Human Developers"
+
+# New conceptual framework:
+# - Previous: perceive → plan → act → observe
+# - New: Attention → Contextualization → Analysis → Reaction → Introspection
+terminology_migration:
+  old_term: "analysis stage"
+  new_term: "contextualization stage"
+  rationale: "Contextualization better reflects the purpose: reestablishing context (auth, env) BEFORE analysis"
+  scope: "Complete migration - documentation AND code (clean cut, no backward compatibility)"
+  approach: "Clean cut - update everything at once, no dual support"
+
+priorities:
+  p0:
+    label: "Critical - Must Have"
+    description: "Agent-first standards + core pattern docs + terminology migration"
+    must_complete: true
+    target: "100%"
+
+  p1:
+    label: "High Priority - Should Have"
+    description: "Reinforces pattern in existing docs, adds hands-on tutorial"
+    target_completion: "100%"
+
+  p2:
+    label: "Medium Priority - Nice to Have"
+    description: "Polished API reference, visual diagrams"
+    target_completion: "66%"
+
+  p3:
+    label: "Low Priority - Future Enhancement"
+    description: "Deferred to future sprints; video, interactive examples"
+    target_completion: "0%"
+
+tasks:
+  # ============================================================================
+  # P0 - CRITICAL (Must Have) - AGENT-FIRST PRIORITY
+  # ============================================================================
+
+  - id: p0-1
+    title: "Create agent-first documentation standards guide"
+    priority: p0
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 3
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Establish the agent-first documentation standard FIRST, so all subsequent
+      docs follow it consistently. This is the foundation for optimizing docs
+      for AI coding agent consumption.
+
+    acceptance_criteria:
+      - Document exists at: documentation/guides/agent-first-documentation.md
+      - Contains 5 core principles (structured, code-heavy, explicit, searchable, machine-parseable)
+      - YAML frontmatter schema defined for agent-first docs
+      - Code block annotation standards (language, file path, line numbers)
+      - Terminology glossary with canonical terms
+      - Migration guide for updating existing docs to agent-first format
+      - Checklist for validating agent-first compliance
+
+    dependencies: []
+
+    deliverables:
+      - path: documentation/guides/agent-first-documentation.md
+        type: markdown
+        audience: [ai-agents, technical-writers, developers]
+        validation:
+          - Follows its own standards (dogfooding)
+          - Includes complete, runnable examples
+          - All terminology is canonical (no synonyms)
+
+    sections:
+      - title: "1. Principles"
+        content: "The 5 agent-first principles from execution plan §1.1"
+
+      - title: "2. Document Structure"
+        subsections:
+          - "2.1. YAML Frontmatter Schema"
+          - "2.2. Required Sections"
+          - "2.3. Code Block Annotations"
+
+      - title: "3. Terminology Standards"
+        content: "Canonical terms glossary, cross-reference format"
+
+      - title: "4. Agent Optimization Checklist"
+        content: "Questions to ask when writing/reviewing docs"
+
+      - title: "5. Migration Guide"
+        content: "How to update existing docs to agent-first format"
+
+  - id: p0-2
+    title: "Create 5-stage agent flow model documentation"
+    priority: p0
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 5
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Document the new 5-stage agent flow model that replaces the traditional
+      perceive→plan→act→observe framework. This is a NEW core concept doc
+      that establishes the foundation for all other agent-flow documentation.
+
+    acceptance_criteria:
+      - Document exists at: documentation/concepts/agent-flow-stages.md
+      - Defines all 5 stages: Attention, Contextualization, Analysis, Reaction, Introspection
+      - Maps to traditional perceive→plan→act→observe
+      - Documents stage transition rules
+      - Includes routing.stage field documentation
+      - Documents terminology migration (analysis → contextualization)
+      - Uses agent-first format (YAML frontmatter, code examples, etc.)
+
+    dependencies:
+      - p0-1  # Follow agent-first standards
+
+    deliverables:
+      - path: documentation/concepts/agent-flow-stages.md
+        type: markdown
+        audience: [ai-agents, developers]
+        frontmatter:
+          title: "The 5-Stage Agent Flow Model"
+          audience: [ai-agents, developers]
+          prerequisites: ["Understanding of event-driven architecture", "Basic routing slip knowledge"]
+          related: ["agent-flow-patterns.md", "platform-flow.md", "event-router-rules.md"]
+
+    sections:
+      - title: "Quick Reference"
+        content: "Table from execution plan §1.2"
+
+      - title: "Stage Definitions"
+        subsections:
+          - "Attention: What events are important?"
+          - "Contextualization: Reestablish context (auth, env)"
+          - "Analysis: What does it mean?"
+          - "Reaction: What actions?"
+          - "Introspection: What did we learn?"
+
+      - title: "Terminology Migration"
+        content: "OLD: analysis stage → NEW: contextualization stage"
+
+      - title: "Code Examples"
+        content: "Rule examples for each stage"
+
+  - id: p0-3
+    title: "Create agent-flow-patterns.md (enrich-and-next pattern)"
+    priority: p0
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 6
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      THE canonical documentation for the enrich-and-next agent-flow pattern.
+      This is the PRIMARY deliverable that closes the sprint 338 gap.
+      MUST use agent-first format.
+
+    acceptance_criteria:
+      - Document exists at: documentation/concepts/agent-flow-patterns.md
+      - Uses agent-first format (YAML frontmatter, leading code examples, explicit rules)
+      - Defines enrich-and-next pattern with complete, runnable code
+      - next() vs complete() decision guide with RULES
+      - Annotations vs payload enrichment guide
+      - Anti-patterns section (NEVER/ALWAYS statements)
+      - Links to existing implementations (auth, llm-bot, query-analyzer)
+      - Cross-references with file:line format
+      - Uses "contextualization" terminology (not "analysis")
+
+    dependencies:
+      - p0-1  # Follow agent-first standards
+      - p0-2  # Reference 5-stage model
+
+    deliverables:
+      - path: documentation/concepts/agent-flow-patterns.md
+        type: markdown
+        audience: [ai-agents, developers]
+        validation:
+          - First code example is complete and runnable
+          - All code examples include type signatures and imports
+          - Decision trees present for all branching logic
+          - All terminology is canonical
+
+    sections:
+      - title: "Quick Example"
+        content: "Complete, runnable code showing the pattern (lead with this)"
+
+      - title: "Pattern Definition"
+        content: "ENRICH → NEXT, when to use, which stages"
+
+      - title: "Rules: next() vs complete()"
+        content: |
+          RULE: Use next() by default - advances to next routing step
+          RULE: Use complete() ONLY when intentionally short-circuiting orchestration
+          RULE: If unsure, use next()
+
+      - title: "Annotation Flow"
+        content: "How annotations accumulate, provenance tracking"
+
+      - title: "Anti-Patterns"
+        subsections:
+          - "NEVER: Enrich without calling next()"
+          - "NEVER: Use complete() when next() is appropriate"
+          - "NEVER: Modify payload instead of adding annotations"
+          - "NEVER: Forget ctx.ack()"
+
+      - title: "Examples in the Wild"
+        content: "auth (src/apps/auth-service.ts:123), llm-bot, query-analyzer, reflex"
+
+  - id: p0-4
+    title: "Update README.md with 5-stage model and agent-flow pattern"
+    priority: p0
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 3
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Update README to feature the new 5-stage agent flow model and the
+      enrich-and-next pattern prominently. This is the first document most
+      developers (human and AI) encounter.
+
+    acceptance_criteria:
+      - README updated with 5-stage model (replaces perceive→plan→act→observe)
+      - Core Agent Concepts table includes agent-flow pattern row
+      - "Extending BitBrat" section includes "Building an Agent-Flow Bit"
+      - Uses "contextualization" (not "analysis") throughout
+      - Links to new agent-flow-stages.md and agent-flow-patterns.md
+      - Agent-flow diagram updated (if present)
+
+    dependencies:
+      - p0-2  # Reference agent-flow-stages.md
+      - p0-3  # Reference agent-flow-patterns.md
+
+    changes:
+      - section: "## What is BitBrat?"
+        action: "Update agent loop mapping table"
+        content: |
+          Update the table to use 5-stage model:
+          | Agent-loop stage | BitBrat realization | Service(s) |
+          | Attention | Match events against rules, assign routing slips | event-router |
+          | Contextualization | Enrich with auth, env, pre-analysis | auth, query-analyzer |
+          | Analysis | LLM reasoning, tool selection | llm-bot, reflex |
+          | Reaction | Execute actions, mutate state | state-engine, disposition, tool-gateway |
+          | Introspection | Audit, learn, improve | persistence |
+
+      - section: "### Core Agent Concepts"
+        action: "Add agent-flow pattern row"
+        content: |
+          | **Agent-flow pattern** | Bits enrich events with annotations and call `next()` to advance the routing slip | [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md), [5-Stage Model](./documentation/concepts/agent-flow-stages.md) |
+
+      - section: "### Extending BitBrat"
+        action: "Add subsection before 'New service / MCP tool'"
+        content: |
+          #### Building an Agent-Flow Bit
+
+          Most bits participate in the agent loop by **enriching events** and **advancing the routing slip**:
+
+          1. Subscribe via `onMessage(topic, handler)`
+          2. Enrich (add annotations, candidates, context)
+          3. Call `next(event)` to advance routing slip
+          4. Acknowledge with `ctx.ack()`
+
+          See [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for the canonical pattern.
+
+  - id: p0-5
+    title: "Update CLAUDE.md with agent-first pattern guidance"
+    priority: p0
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 4
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Update CLAUDE.md (AI agent guidance file) with explicit, agent-first
+      documentation of the enrich-and-next pattern. This is CRITICAL because
+      CLAUDE.md is the primary source of truth for AI coding agents.
+
+    acceptance_criteria:
+      - New section under "## Common Development Patterns"
+      - Complete code example with types and imports
+      - Explicit RULES for next() vs complete() (ALWAYS/NEVER format)
+      - Uses "contextualization" terminology
+      - Links to full documentation
+      - Agent-first format (code-heavy, explicit, searchable)
+
+    dependencies:
+      - p0-1  # Follow agent-first standards
+      - p0-2  # Reference 5-stage model
+      - p0-3  # Reference agent-flow-patterns.md
+
+    changes:
+      - section: "## Common Development Patterns"
+        action: "Add new subsection (before or after 'Creating a New Bit')"
+        title: "### Building Agent-Flow Bits: The Enrich-and-Next Pattern"
+        content: |
+          **RULE: This is THE canonical pattern for bits that participate in agent orchestration.**
+
+          ```typescript
+          // File: src/apps/your-enrichment-bit.ts
+          import { Bit } from '../common/base-server';
+          import { InternalEventV2 } from '../types/events';
+          import { randomUUID } from 'crypto';
+
+          export class YourEnrichmentBit extends Bit {
+            async setup(): Promise<void> {
+              // Subscribe to events during contextualization or analysis stage
+              await this.onMessage<InternalEventV2>('internal.your-topic.v1', async (event, attrs, ctx) => {
+
+                // 1. ENRICH: Add your contribution to the event
+                event.annotations.push({
+                  kind: 'your-annotation-kind',
+                  value: 'your-data',
+                  source: this.name,
+                  id: randomUUID(),
+                  createdAt: new Date().toISOString()
+                });
+
+                // 2. NEXT: Advance the routing slip
+                await this.next(event);
+
+                // 3. ACKNOWLEDGE: Required
+                await ctx.ack();
+              });
+            }
+          }
+          ```
+
+          **RULES: next() vs complete()**
+          - **RULE: Use `next(event)` by default** — advances to next routing step (or egress if slip empty)
+          - **RULE: Use `complete(event)` ONLY when intentionally short-circuiting** — skips remaining routing slip
+          - **RULE: If unsure, use `next()`**
+
+          **RULES: Enrichment**
+          - **ALWAYS add annotations** for context, analysis results, or metadata
+          - **ALWAYS set `source: this.name`** for provenance tracking
+          - **NEVER modify payload** unless you own the event type
+          - **NEVER forget `ctx.ack()`** — events will stall
+
+          **Examples:**
+          - `auth` (src/apps/auth-service.ts): Enriches user identity → `next()`
+          - `llm-bot` (src/apps/llm-bot-service.ts): Enriches response candidates → `next()`
+          - `query-analyzer` (src/apps/query-analyzer-service.ts): Enriches routing hints → `next()`
+
+          See [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for full details.
+
+  - id: p0-6
+    title: "Complete terminology migration (analysis → contextualization) - Docs + Code"
+    priority: p0
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 8
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      COMPLETE migration of "analysis" → "contextualization" terminology across
+      the entire codebase (documentation AND code). Clean cut, no backward
+      compatibility. Update everything at once.
+
+    acceptance_criteria:
+      - ALL documentation references updated
+      - ALL code references updated (constants, enums, validation)
+      - ALL Firestore seed data updated
+      - ALL test fixtures and assertions updated
+      - Zero remaining "analysis" stage references in codebase
+      - All tests passing after migration
+      - Migration report documenting all changes
+
+    dependencies:
+      - p0-2  # agent-flow-stages.md documents the migration
+
+    tasks:
+      - phase: "Discovery"
+        steps:
+          - "Find all 'analysis' references: grep -r 'analysis' . --include='*.ts' --include='*.md' --include='*.json'"
+          - "Find routing.stage references: grep -r 'routing.stage' . --include='*.ts'"
+          - "Find stage enum/constants: grep -r 'stage.*analysis' src/"
+          - "Document all locations to update"
+
+      - phase: "Documentation Updates"
+        steps:
+          - "Update platform-flow.md: Stage 3 → Stage 2 (Contextualization) + Stage 3 (Analysis)"
+          - "Update event-router-rules.md: Example rules use 'contextualization'"
+          - "Update README.md: All stage references"
+          - "Update CLAUDE.md: All stage references"
+          - "Update all tutorials/examples"
+          - "Update inline documentation/comments"
+
+      - phase: "Code Updates"
+        steps:
+          - "Update stage constants/enums (if any)"
+          - "Update event router stage validation"
+          - "Update routing slip stage field logic"
+          - "Update any hardcoded 'analysis' strings in source"
+          - "Verify no dynamic string construction of 'analysis'"
+
+      - phase: "Data Updates"
+        steps:
+          - "Update Firestore seed data (rule definitions in seed scripts)"
+          - "Update rule JSON files with stage filters"
+          - "Update any fixture data"
+
+      - phase: "Test Updates"
+        steps:
+          - "Update test fixtures (stage field values)"
+          - "Update test assertions (expect 'contextualization', not 'analysis')"
+          - "Update test descriptions/comments"
+          - "Run full test suite: npm test"
+          - "Verify all tests pass"
+
+      - phase: "Verification"
+        steps:
+          - "Final grep: confirm zero 'analysis' stage references remain"
+          - "Build: npm run build (must succeed)"
+          - "Test: npm test (must pass)"
+          - "Local run: npm run local (verify platform starts)"
+
+    deliverables:
+      - type: migration-report
+        content: |
+          - List of all files updated (docs + code + tests)
+          - Line counts changed
+          - Before/after samples for key changes
+          - Test results (all passing)
+          - Final verification (zero 'analysis' references)
+
+  # ============================================================================
+  # P1 - HIGH PRIORITY (Should Have)
+  # ============================================================================
+
+  - id: p1-1
+    title: "Update platform-flow.md with 5-stage model and enrich-and-next pattern"
+    priority: p1
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 5
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Enhance platform-flow.md to incorporate the 5-stage model and explicitly
+      document the enrich-and-next pattern in context of the overall event lifecycle.
+
+    acceptance_criteria:
+      - Updated to use 5-stage model (not 4-stage perceive→plan→act→observe)
+      - New section "The Enrich-and-Next Pattern" added
+      - Mermaid diagram updated to show 5 stages
+      - Sequence diagram showing annotation accumulation through routing slip
+      - Uses "contextualization" (not "analysis")
+      - Cross-references to agent-flow-stages.md and agent-flow-patterns.md
+
+    dependencies:
+      - p0-2  # agent-flow-stages.md
+      - p0-3  # agent-flow-patterns.md
+      - p0-6  # Terminology migration
+
+    changes:
+      - section: "## 1. High-Level Flow"
+        action: "Update mermaid diagram"
+        content: "Show 5 stages, annotation flow"
+
+      - section: "## 2. Stage-by-Stage Breakdown"
+        action: "Restructure to 5 stages"
+        new_subsections:
+          - "2.1. Attention"
+          - "2.2. Contextualization"
+          - "2.3. Analysis"
+          - "2.4. Reaction"
+          - "2.5. Introspection"
+          - "2.6. The Enrich-and-Next Pattern" (NEW)
+
+  - id: p1-2
+    title: "Create tutorial: building-an-enrichment-bit.md"
+    priority: p1
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 8
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Step-by-step tutorial guiding developers through building a sentiment analyzer
+      bit following the enrich-and-next pattern. Uses agent-first format.
+
+    acceptance_criteria:
+      - Tutorial exists at: documentation/tutorials/building-an-enrichment-bit.md
+      - Uses agent-first format (YAML frontmatter, code-heavy)
+      - All steps tested locally and work
+      - Code examples are complete and runnable
+      - Testing instructions included
+      - Extensions section for next steps
+      - Uses "contextualization" terminology
+
+    dependencies:
+      - p0-1  # agent-first standards
+      - p0-3  # agent-flow-patterns.md
+
+    deliverables:
+      - path: documentation/tutorials/building-an-enrichment-bit.md
+        type: markdown
+        audience: [ai-agents, developers]
+        validation:
+          - All commands execute successfully
+          - Bit builds and runs
+          - Annotations appear in logs as expected
+
+    sections:
+      - title: "Objective"
+        content: "Build a sentiment analyzer that enriches events with sentiment scores"
+
+      - title: "Prerequisites"
+        content: "Platform running, brat CLI, TypeScript knowledge"
+
+      - title: "Step 1: Create the Bit"
+        content: "brat bit create sentiment-analyzer --profile core --register"
+
+      - title: "Step 2: Implement the Enrich-and-Next Pattern"
+        content: "Complete code with sentiment logic, onMessage, enrich, next, ack"
+
+      - title: "Step 3: Test Locally"
+        content: "brat chat, verify annotations"
+
+      - title: "Extensions"
+        content: "External APIs, conditional enrichment, reaction bits"
+
+  # ============================================================================
+  # P2 - MEDIUM PRIORITY (Nice to Have)
+  # ============================================================================
+
+  - id: p2-1
+    title: "Create eventing-api.md reference documentation"
+    priority: p2
+    status: pending
+    assignee: Technical Writer
+    estimated_hours: 5
+    description: |
+      Full API reference for EventingProfile methods. Agent-first format with
+      complete type signatures, error handling, and examples.
+
+    acceptance_criteria:
+      - Document exists at: documentation/reference/eventing-api.md
+      - All EventingProfile methods documented (onMessage, next, complete, publish)
+      - Type signatures included
+      - Error handling documented
+      - Complete examples for each method
+      - Agent-first format
+
+    dependencies:
+      - p0-1  # agent-first standards
+      - p0-3  # agent-flow-patterns.md
+
+    deliverables:
+      - path: documentation/reference/eventing-api.md
+        type: markdown
+        audience: [ai-agents, developers]
+
+  - id: p2-2
+    title: "Create visual diagrams for agent-flow documentation"
+    priority: p2
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 5
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Create Mermaid diagrams to visualize the 5-stage model, enrich-and-next
+      pattern, decision trees, and annotation flow.
+
+    acceptance_criteria:
+      - 5-stage agent flow diagram (Mermaid)
+      - Enrich-and-next sequence diagram (Mermaid)
+      - next() vs complete() decision tree (Mermaid flowchart)
+      - Annotation accumulation diagram
+      - All diagrams integrated into relevant docs
+
+    dependencies:
+      - p0-2  # Integrate into agent-flow-stages.md
+      - p0-3  # Integrate into agent-flow-patterns.md
+      - p1-1  # Integrate into platform-flow.md
+
+    deliverables:
+      - diagram: "5-Stage Agent Flow"
+        type: mermaid-graph
+        location: "agent-flow-stages.md, platform-flow.md"
+
+      - diagram: "Enrich-and-Next Sequence"
+        type: mermaid-sequence
+        location: "agent-flow-patterns.md"
+
+      - diagram: "next() vs complete() Decision Tree"
+        type: mermaid-flowchart
+        location: "agent-flow-patterns.md, CLAUDE.md"
+
+      - diagram: "Annotation Accumulation"
+        type: mermaid-graph
+        location: "agent-flow-patterns.md, platform-flow.md"
+
+  - id: p2-3
+    title: "Update bit-control-plane.md with routing helpers"
+    priority: p2
+    status: completed
+    assignee: Technical Writer
+    estimated_hours: 2
+    started: "2026-07-14"
+    completed: "2026-07-14"
+    description: |
+      Add "Routing Helpers" section to bit-control-plane.md documenting next()
+      and complete() as part of the Bit base API.
+
+    acceptance_criteria:
+      - New section "Routing Helpers" added
+      - next() and complete() documented
+      - Decision tree referenced
+      - Agent-first format
+
+    dependencies:
+      - p0-3  # agent-flow-patterns.md
+      - p2-2  # Decision tree diagram
+
+  # ============================================================================
+  # P3 - LOW PRIORITY (Deferred to Future)
+  # ============================================================================
+
+  - id: p3-1
+    title: "Create video walkthrough of building enrichment bit"
+    priority: p3
+    status: deferred
+    assignee: TBD
+    estimated_hours: 10
+    description: "Video walkthrough of tutorial. Deferred to future sprint."
+
+  - id: p3-2
+    title: "Add interactive examples (CodeSandbox)"
+    priority: p3
+    status: deferred
+    assignee: TBD
+    estimated_hours: 8
+    description: "Interactive examples. Deferred to future sprint."
+
+  - id: p3-3
+    title: "Generate OpenAPI-style docs for EventingProfile"
+    priority: p3
+    status: deferred
+    assignee: TBD
+    estimated_hours: 6
+    description: "Auto-generated API docs. Deferred to future sprint."
+
+# ============================================================================
+# SUMMARY & TRACKING
+# ============================================================================
+
+summary:
+  total_tasks: 14
+  by_priority:
+    p0: 6  # Critical (NEW: +3 for agent-first standards, 5-stage model, complete terminology migration)
+    p1: 2  # High
+    p2: 3  # Medium
+    p3: 3  # Low (deferred)
+
+  estimated_hours:
+    p0: 29  # agent-first (3h) + 5-stage model (5h) + pattern doc (6h) + README (3h) + CLAUDE (4h) + migration (8h)
+    p1: 13  # platform-flow (5h) + tutorial (8h)
+    p2: 12  # API ref (5h) + diagrams (5h) + bit-control-plane (2h)
+    p3: 24  # (deferred)
+
+  target_completion:
+    p0: "100% (all must complete)"
+    p1: "100% (both tasks)"
+    p2: "66% (2 of 3 tasks)"
+    p3: "0% (deferred to future)"
+
+milestones:
+  - name: "Day 1 Complete - Agent-First Foundation"
+    date: "2026-07-15"
+    deliverables:
+      - p0-1 (agent-first-documentation.md)
+      - p0-2 (agent-flow-stages.md - draft)
+    completion_target: "Foundation established for all subsequent docs"
+
+  - name: "Week 1 Complete - Core Docs + Terminology Migration"
+    date: "2026-07-21"
+    deliverables:
+      - All P0 tasks (p0-1 through p0-6)
+      - p1-1 (platform-flow.md)
+    completion_target: "All P0 (100%), 50% P1"
+
+  - name: "Sprint Complete"
+    date: "2026-07-28"
+    deliverables:
+      - All P0 (100%)
+      - All P1 (100%)
+      - p2-2 (diagrams)
+      - p2-3 (bit-control-plane.md)
+    completion_target: "All P0+P1, 66% P2"
+
+validation:
+  agent_first_compliance:
+    - "All new docs use YAML frontmatter with audience: [ai-agents, developers]"
+    - "All code examples are complete and runnable (no pseudocode)"
+    - "All decision points have explicit RULES (ALWAYS/NEVER)"
+    - "All terminology is canonical (no synonyms)"
+    - "All cross-references use file:line format"
+
+  terminology_migration:
+    - "Zero references to 'analysis' stage in updated docs"
+    - "All docs use 'contextualization' for the stage after attention"
+    - "Deprecation notices present where appropriate"
+    - "Migration documented in agent-flow-stages.md"
+
+  content:
+    - "All code examples syntactically valid TypeScript"
+    - "All internal links resolve"
+    - "Terminology consistent across all docs"
+    - "Tutorial steps tested locally and work"
+
+  user_acceptance:
+    - "User reviews and approves all P0 docs"
+    - "User confirms sprint 338 gap is closed"
+    - "User confirms agent-first format is satisfactory"
+    - "AI agent test: Agent correctly implements pattern without additional prompting"
+
+notes: |
+  This sprint has THREE major objectives:
+
+  1. **Close sprint 338 gap**: Document the enrich-and-next agent-flow pattern
+     that is fundamental but currently undocumented.
+
+  2. **Agent-first transformation**: Prioritize AI coding agents as the primary
+     documentation audience. All docs optimized for LLM consumption.
+
+  3. **Complete terminology migration**: Rename "analysis" stage to "contextualization"
+     across the ENTIRE codebase (docs + code + tests + data). CLEAN CUT - no
+     backward compatibility. Update everything at once as part of reframing
+     BitBrat's agent flow to the 5-stage model:
+     Attention → Contextualization → Analysis → Reaction → Introspection
+
+  P0 tasks establish the foundation (agent-first standards + 5-stage model),
+  document the core pattern (enrich-and-next), update primary docs (README,
+  CLAUDE.md), and execute the complete terminology migration (docs + code).
+
+  P1 reinforces the pattern in existing docs and provides hands-on learning.
+  P2 adds polish (diagrams, API reference).
+  P3 deferred to future sprints.
+
+  Success = All P0 complete + All P1 + user approval + agent test passes +
+            all tests passing after migration.
+
+agent_first_principles_applied:
+  - "Documentation optimized for AI agent parsing and understanding"
+  - "Leading with code examples, not prose"
+  - "Explicit RULES instead of implicit best practices"
+  - "Canonical terminology (no synonyms)"
+  - "YAML frontmatter for machine-parseability"
+  - "Complete, runnable code examples (not pseudocode)"
+  - "Cross-references with file:line format"
