@@ -58,6 +58,27 @@ npm run local:down                   # Stop local stack
 npm run brat -- chat                 # Interactive chat with the platform
 ```
 
+### Coding Agent Integration
+```bash
+npm run brat -- code                 # Launch coding agent with BitBrat context
+npm run brat -- code --list          # List detected agents
+npm run brat -- code --agent aider   # Launch specific agent
+```
+
+The `brat code` command auto-configures coding agents (Claude Code, Aider, Continue, OpenHands) with:
+- **Project context files**: CLAUDE.md, architecture.yaml, AGENTS.md, README.md automatically loaded
+- **MCP server discovery** (Claude Code only): Auto-configures tool-gateway connection and authentication
+- **First-run welcome**: Interactive introduction to BitBrat on first use
+- **Preference persistence**: Saves your preferred agent to `~/.bratrc`
+
+Supported agents:
+- **Claude Code** (recommended): Full MCP integration, automatic tool discovery
+- **Aider**: Multi-provider support, git integration
+- **Continue**: IDE integration (VSCode/JetBrains) + CLI mode
+- **OpenHands**: Open-source autonomous coding assistant
+
+See [Coding with brat code](./documentation/guides/coding-with-brat-code.md) for installation, configuration, and troubleshooting.
+
 ### Service Management
 ```bash
 npm run brat -- bit create <name>                                      # Create a basic core Bit

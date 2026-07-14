@@ -204,6 +204,11 @@ observe & remember (in Firestore). **Green = Platform Bits, Orange = Domain Bits
 - **Google Cloud SDK (`gcloud`)** — some local configs depend on GCP project structure.
 - **Git**
 - **OpenAI API Key** — required for the default OpenAI provider. **Optional** if you run fully offline with a local model — see [Offline / Local-LLM Quickstart](#offline--local-llm-quickstart-no-openai-key) below.
+- **Coding Agent** (optional, for `brat code`) — one of:
+  - **Claude Code** (recommended): `npm install -g @anthropic-ai/claude-code`
+  - **Aider**: `pip install aider-chat`
+  - **Continue**: `npm install -g continue`
+  - **OpenHands**: `pip install openhands`
 
 ### 1. Clone the repository
 
@@ -239,6 +244,24 @@ npm run brat -- doctor
 ```
 
 Look for all "PASS" results. The tool provides guidance for any failed checks.
+
+### 4.5 (Optional) Explore with AI Assistance
+
+Before running the full platform, you can use `brat code` to explore BitBrat with AI-powered coding assistance:
+
+```bash
+npm run brat -- code
+```
+
+This launches a coding agent (Claude Code, Aider, etc.) with full BitBrat context automatically configured. On first run, it will explain the platform architecture and help you navigate the codebase.
+
+**What you get:**
+- Automatic project context (CLAUDE.md, architecture.yaml, AGENTS.md, README.md)
+- MCP tool integration (Claude Code only)
+- First-run welcome: interactive platform introduction
+- Zero configuration required
+
+See the [Coding with brat code](./documentation/guides/coding-with-brat-code.md) guide for installation and usage details.
 
 ### 5. Run the platform locally
 
@@ -372,6 +395,29 @@ npm run brat -- <command> [options]
 #### Setup & Interaction
 - `brat setup [--project-id <id>] [--openai-key <key>] [--bot-name <name>]`: Interactive platform initialization and local seeding.
 - `brat chat [--env <name>] [--url <url>]`: Start an interactive chat session with the platform.
+- `brat code [options]`: Launch a coding agent with BitBrat project context automatically configured.
+
+  **Features:**
+  - **Auto-Detection**: Discovers installed coding agents (Claude Code, Aider, Continue, OpenHands)
+  - **Zero-Config**: Automatically loads CLAUDE.md, architecture.yaml, AGENTS.md, README.md
+  - **MCP Integration**: Auto-configures MCP servers and tool-gateway connection (Claude Code)
+  - **Preference Memory**: Saves your preferred agent to `~/.bratrc`
+  - **First-Run Welcome**: Guided introduction to BitBrat on first use
+
+  **Options:**
+  - `--list`, `-l`: List all detected coding agents
+  - `--agent <name>`, `-a <name>`: Launch specific agent (claude-code, aider, continue, openhands)
+  - `--project-root <path>`, `-p <path>`: Override project root directory
+
+  **Examples:**
+  ```bash
+  npm run brat -- code                      # Interactive agent selection
+  npm run brat -- code --list               # List installed agents
+  npm run brat -- code --agent claude-code  # Launch Claude Code
+  npm run brat -- code -- --model opus      # Pass flags to agent
+  ```
+
+  See the [Coding with brat code](./documentation/guides/coding-with-brat-code.md) guide for installation and full documentation.
 
 #### Diagnostics & Config
 - `brat doctor`: Run diagnostic checks to ensure required tools (`gcloud`, `terraform`, `docker`) are installed.
