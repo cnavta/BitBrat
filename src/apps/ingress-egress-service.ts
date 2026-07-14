@@ -1,5 +1,6 @@
 import { Bit } from '../common/base-server';
 import express, { Express, Request, Response } from 'express';
+import crypto from 'crypto';
 import {
   TwitchIrcClient,
   TwitchEnvelopeBuilder,
@@ -9,7 +10,7 @@ import {
 } from '../services/ingress/twitch';
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
-import { ConnectorManager } from '../services/ingress/core';
+import { ConnectorManager, WebhookHandler, WebhookConnector } from '../services/ingress/core';
 import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
 import {
   TwilioEnvelopeBuilder,
@@ -57,8 +58,6 @@ export class IngressEgressServer extends Bit {
     super({ serviceName: SERVICE_NAME });
     // Perform setup after BaseServer is constructed; BaseServer's /readyz will default to ready=true
     const app = this.getApp();
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
     this.setupApp(app as any, this.getConfig() as any);
   }
 
@@ -166,11 +165,18 @@ export class IngressEgressServer extends Bit {
         this.twilioClient = new TwilioIngressClient(cfg, twilioTokenProvider, twilioBuilder, twilioPublisher, {
           egressDestinationTopic: egressTopic
         });
-        manager.register('twilio', new TwilioConnectorAdapter(this.twilioClient));
+        manager.register('twilio', new TwilioConnectorAdapter(this.twilioClient, cfg));
         logger.info('twilio.init_ok');
 
-        // Handle Twilio Webhooks
+        // DEPRECATED: Legacy Twilio webhook route (Sprint 342 - IEF-008)
+        // This route is deprecated in favor of the generic /webhooks/:platform route.
+        // Kept active temporarily for zero-downtime migration.
+        // TODO: Remove in Sprint 343 after confirming generic route works in production.
         this.onHTTPRequest({ path: '/webhooks/twilio', method: 'POST' }, async (req: Request, res: Response) => {
+          logger.warn('twilio.webhook.deprecated_route_used', {
+            url: req.originalUrl,
+            notice: 'Please migrate to POST /webhooks/twilio (generic route)'
+          });
           const signature = req.header('X-Twilio-Signature');
           if (!signature) {
             logger.warn('twilio.webhook.missing_signature');
@@ -229,6 +235,70 @@ export class IngressEgressServer extends Bit {
         logger.error('twilio.init_error', { error: e?.message || String(e) });
       }
     }
+
+    // Generic webhook routing (Sprint 342 - IEF-005)
+    // Route: POST /webhooks/:platform
+    // Delegates to platform-specific WebhookConnector via ConnectorManager
+    this.onHTTPRequest({ path: '/webhooks/:platform', method: 'POST' }, async (req: Request, res: Response) => {
+      const startTime = Date.now();
+      const platform = req.params.platform?.toLowerCase();
+      const correlationId = crypto.randomUUID();
+
+      logger.info('webhook.generic.received', {
+        correlationId,
+        platform,
+        method: req.method,
+        url: req.originalUrl
+      });
+
+      if (!platform) {
+        logger.warn('webhook.generic.missing_platform', { correlationId });
+        res.status(400).json({ error: 'missing_platform' });
+        return;
+      }
+
+      // Lookup connector from ConnectorManager
+      const connector = manager.getConnectorByPlatform(platform);
+      if (!connector) {
+        logger.warn('webhook.generic.platform_not_found', { correlationId, platform });
+        res.status(404).json({ error: 'platform_not_found', platform });
+        return;
+      }
+
+      // Check if connector implements WebhookConnector interface
+      const webhookConnector = connector as unknown as WebhookConnector;
+      if (typeof (connector as any).handleWebhook !== 'function' || typeof (connector as any).verifySignature !== 'function') {
+        logger.error('webhook.generic.connector_not_webhook', { correlationId, platform });
+        res.status(501).json({ error: 'connector_does_not_support_webhooks', platform });
+        return;
+      }
+
+      // Delegate to WebhookHandler
+      const handler = new WebhookHandler(webhookConnector, logger as any);
+      try {
+        await handler.handle(req, res);
+
+        const duration = Date.now() - startTime;
+        logger.info('webhook.generic.handled', {
+          correlationId,
+          platform,
+          durationMs: duration
+        });
+      } catch (err: any) {
+        const duration = Date.now() - startTime;
+        logger.error('webhook.generic.error', {
+          correlationId,
+          platform,
+          error: err.message,
+          durationMs: duration
+        });
+
+        // Only send error if headers not already sent
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'internal_error', correlationId });
+        }
+      }
+    });
 
     // Start connectors (individual connectors handle disabled/test guards internally)
     try {
