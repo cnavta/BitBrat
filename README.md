@@ -170,8 +170,8 @@ For a detailed view, see [architecture.yaml](./architecture.yaml) and the [Platf
 A standalone diagram asset is also available at [`assets/architecture-overview.md`](./assets/architecture-overview.md).
 
 ```mermaid
-flowchart LR
-  subgraph External["External platforms"]
+flowchart TB
+  subgraph External["External Platforms"]
     TW[Twitch]
     DC[Discord]
     TL[Twilio]
@@ -179,37 +179,57 @@ flowchart LR
 
   TW & DC & TL <--> IE[ingress-egress]
 
-  IE -->|internal.ingress.v1| ER["event-router<br/>+ routing slip"]
-  ER --> AU[auth]
-
-  subgraph Act["Act (Dual Paths)"]
-    ER -->|deterministic<br/>&lt;150ms| RFX[reflex]
-    ER -->|LLM-based<br/>2-10s| LB[llm-bot]
-    ER -->|analysis| QA[query-analyzer]
-    LB <--> TG[tool-gateway]
-    RFX <--> TG
+  subgraph "Message Bus (NATS/Pub-Sub)"
+    BUS[("Topics:<br/>internal.ingress.v1<br/>internal.contextualization.v1<br/>internal.analysis.v1<br/>internal.egress.v1")]
   end
 
-  TG <--> MCP["MCP servers<br/>obs / image-gen / story-engine"]
-  ER -->|reaction| SE[state-engine]
-  ER -->|reaction| DS[disposition-service]
-  ER -->|internal.egress.v1| IE
-  LB -.-> PE[persistence]
-  RFX -.-> PE
-  SE -.-> PE
+  IE -.->|publish| BUS
+  BUS -.->|subscribe| IE
+
+  subgraph "Platform Bits (enrich + next())"
+    ER[event-router<br/><i>assigns routing slip</i>]
+    AU[auth<br/><i>adds user identity</i>]
+    QA[query-analyzer<br/><i>adds analysis hints</i>]
+    LB[llm-bot<br/><i>LLM reasoning</i>]
+    RFX[reflex<br/><i>pattern matching</i>]
+    SE[state-engine]
+    DS[disposition-service]
+    PE[persistence]
+  end
+
+  BUS <-.->|pub/sub| ER
+  BUS <-.->|pub/sub| AU
+  BUS <-.->|pub/sub| QA
+  BUS <-.->|pub/sub| LB
+  BUS <-.->|pub/sub| RFX
+  BUS <-.->|pub/sub| SE
+  BUS <-.->|pub/sub| DS
+  BUS <-.->|pub/sub| PE
+
+  LB <--> TG[tool-gateway]
+  RFX <--> TG
+  TG <--> MCP["MCP Servers<br/>(Domain Bits)"]
   PE --> FS[(Firestore)]
 
   classDef store fill:#eef,stroke:#669;
   classDef platform fill:#e8f5e9,stroke:#4caf50;
   classDef domain fill:#fff3e0,stroke:#ff9800;
+  classDef bus fill:#e3f2fd,stroke:#2196f3;
   class FS store;
   class IE,ER,AU,LB,QA,RFX,TG,SE,DS,PE platform;
   class MCP domain;
+  class BUS bus;
 ```
 
-*Perceive → plan → act → observe: `ingress-egress` ingests, `event-router` assigns routing slips and calls `next()` (the framework advances the slip),
-dual act paths (`reflex` for deterministic <150ms patterns, `llm-bot`/`query-analyzer` for LLM reasoning) + `tool-gateway`/MCP, and `state-engine`/`disposition-service`/`persistence`
-observe & remember (in Firestore). **Green = Platform Bits, Orange = Domain Bits.***
+**Example Flow (dynamic, configured via routing slip):**
+1. `ingress-egress` publishes to `internal.ingress.v1`
+2. `event-router` subscribes, assigns routing slip, calls `next()` → framework publishes to first step's topic
+3. `auth` subscribes to `internal.contextualization.v1`, enriches, calls `next()` → framework publishes to next topic
+4. `llm-bot` or `reflex` subscribes to `internal.analysis.v1`, enriches, calls `next()` → framework publishes
+5. Framework eventually publishes to `internal.egress.v1`
+6. `ingress-egress` subscribes, delivers response to external platform
+
+**Key Point:** Services enrich events and call `next()`. The **message bus + framework** routes events through the slip. There is no central orchestrator. **Green = Platform Bits, Orange = Domain Bits, Blue = Message Bus.**
 
 ### Capabilities Matrix
 
