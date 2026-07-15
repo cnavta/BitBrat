@@ -710,15 +710,19 @@ export class ToolGatewayServer extends Bit {
     // Invocation: callTool
     sessionServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       // Request deduplication: The MCP SDK invokes this handler multiple times for the SAME request
-      // (same requestId, same args) which causes tool execution duplication. We deduplicate by
-      // creating a single Promise for the execution and having all duplicate invocations await it.
-      const jsonRpcId = (extra as any)?.requestId;
+      // CRITICAL BUG: The MCP SDK assigns DIFFERENT jsonRpcIds to duplicate invocations of the same
+      // client request (e.g., jsonRpcId 13, 14, 15... for the same search query). This means we
+      // CANNOT use requestId for deduplication. Instead, we dedupe by tool + args hash only.
+      // This is safe because:
+      // 1. Tool executions are idempotent (same args = same result)
+      // 2. Dedup keys are cleared after 60s, so repeated legitimate calls still work
+      // 3. The alternative (no dedup) causes thousands of duplicate executions
       const toolName = request.params.name;
       const args = request.params.arguments || {};
 
-      // Create deduplication key from requestId + tool + args hash
+      // Create deduplication key from tool + args hash ONLY (not requestId)
       const argsHash = JSON.stringify(args);
-      const dedupKey = `${jsonRpcId}:${toolName}:${argsHash}`;
+      const dedupKey = `${toolName}:${argsHash}`;
 
       // Check if this exact request is already being processed
       let executionPromise = this.inFlightRequests.get(dedupKey);
@@ -726,7 +730,6 @@ export class ToolGatewayServer extends Bit {
       if (executionPromise) {
         // This request is already being executed - await the same Promise
         logger.debug('tool_gateway.mcp.call_tool.duplicate_awaiting', {
-          jsonRpcId,
           toolName,
           dedupKey: dedupKey.substring(0, 100)
         });
@@ -771,13 +774,22 @@ export class ToolGatewayServer extends Bit {
           logger.error('tool_gateway.mcp.call_tool.error', { id, error: normalized.message, duration });
           throw error;
         } finally {
-          // Mark as completed after execution finishes (success or error)
+          // Remove from in-flight and mark as completed immediately
+          // This prevents duplicate error logging when thousands of awaiting handlers
+          // all receive the same rejection simultaneously
+          this.inFlightRequests.delete(dedupKey);
           this.completedRequests.set(dedupKey, Date.now());
         }
       })();
 
       this.inFlightRequests.set(dedupKey, executionPromise);
-      return await executionPromise;
+
+      try {
+        return await executionPromise;
+      } catch (error) {
+        // Don't log here - already logged in the executionPromise catch block above
+        throw error;
+      }
     });
 
     // Invocation: readResource

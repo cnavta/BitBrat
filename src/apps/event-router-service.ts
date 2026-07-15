@@ -263,7 +263,7 @@ class EventRouterServer extends Bit {
         services: z.array(z.string()).describe('A list of service names (e.g., llm-bot, auth) to form the routing slip.'),
         description: z.string().optional().describe('A description for the rule.'),
         priority: z.number().optional().default(100).describe('Rule priority.'),
-        stage: z.enum(['initial', 'analysis', 'reaction', 'response', 'error', 'meta']).optional().default('initial').describe('The routing stage to apply when the rule matches.'),
+        stage: z.enum(['initial', 'contextualization', 'analysis', 'reaction', 'response', 'error', 'meta']).optional().default('initial').describe('The routing stage to apply when the rule matches.'),
         promptTemplate: z.string().optional().describe('A template for a prompt annotation.'),
         responseTemplate: z.string().optional().describe('A template for a text candidate.'),
         personalityId: z.string().optional().describe('The ID of a personality to attach to matched events.'),

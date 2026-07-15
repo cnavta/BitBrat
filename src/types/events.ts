@@ -27,7 +27,7 @@ export type InternalEventType =
   | 'internal.mcp.registration.v1'
   | string;
 
-export type RoutingStage = 'initial' | 'analysis' | 'reaction' | 'response' | 'error' | 'meta';
+export type RoutingStage = 'initial' | 'contextualization' | 'analysis' | 'reaction' | 'response' | 'error' | 'meta';
 
 export type RoutingStatus = 'PENDING' | 'OK' | 'ERROR' | 'SKIP';
 
@@ -330,3 +330,7 @@ export const INTERNAL_ENRICHED_V1 = 'internal.enriched.v1';
 export const INTERNAL_SYSTEM_EVENTS_V1 = 'internal.system.events.v1';
 // Sprint 338: Context pack enrichment topic (analysis stage)
 export const INTERNAL_CONTEXT_V1 = 'internal.context.v1';
+// Sprint 341: 5-stage agent flow topics (Attention → Contextualization → Analysis → Reaction → Introspection)
+export const INTERNAL_CONTEXTUALIZATION_V1 = 'internal.contextualization.v1';
+export const INTERNAL_ANALYSIS_V1 = 'internal.analysis.v1';
+export const INTERNAL_REFLEX_V1 = 'internal.reflex.v1';

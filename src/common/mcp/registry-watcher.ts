@@ -27,6 +27,18 @@ export class RegistryWatcher {
 
       for (const change of snapshot.docChanges()) {
         const data = change.doc.data();
+
+        // Firestore race condition: When creating a new document, we sometimes get an "added" event
+        // with empty data, followed by a "modified" event with the actual data. Skip empty snapshots.
+        if (!data || Object.keys(data).length === 0) {
+          this.logger.debug('mcp.registry_watcher.empty_snapshot', {
+            type: change.type,
+            docId: change.doc.id,
+            message: 'Skipping empty snapshot (will process on next event)'
+          });
+          continue;
+        }
+
         const name = data.name || change.doc.id;
         const status = data.status || 'active';
 
@@ -34,6 +46,9 @@ export class RegistryWatcher {
           type: change.type,
           name,
           status,
+          dataKeys: Object.keys(data),
+          hasCommand: !!data.command,
+          command: data.command,
         });
 
         if (change.type === 'removed' || status === 'inactive') {

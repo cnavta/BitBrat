@@ -11,14 +11,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **5-Stage Agent Flow Topics**: Added topic constants for the 5-stage agent flow model (Sprint 341)
+  - `INTERNAL_CONTEXTUALIZATION_V1` = 'internal.contextualization.v1' - Stage 2: Auth, env context
+  - `INTERNAL_ANALYSIS_V1` = 'internal.analysis.v1' - Stage 3: LLM reasoning, analysis
+  - `INTERNAL_REFLEX_V1` = 'internal.reflex.v1' - Stage 3: Fast reflex matching
+  - **Context**: Sprint 341 migrated from old "analysis" terminology for stage 2 to "contextualization" to clarify that this stage is PRE-analysis context gathering (auth, env), not LLM reasoning
+  - **Modified**: `src/types/events.ts`
+
+- **Docker No-Deps Flag**: Added `--no-deps` flag to `brat docker up` command to deploy a service without starting its dependencies
+  - Use case: Quickly redeploy a single Bit without restarting infrastructure (nats, firebase-emulator)
+  - Example: `brat docker up --target staging --env staging --service tool-gateway --no-deps`
+  - Passes `--no-deps` to `docker compose up` to skip `depends_on` services
+  - Modified: `tools/brat/src/orchestration/docker/orchestrator.ts`, `tools/brat/src/cli/docker.ts`, `tools/brat/src/cli/index.ts`
+
+- **Docker Force-Recreate Flag**: Added `--force-recreate` flag to `brat docker up` command to force container recreation
+  - Use case: Fix "port already allocated" errors when redeploying without stopping first
+  - Example: `brat docker up --target staging --env staging --service tool-gateway --no-deps --force-recreate`
+  - Passes `--force-recreate` to `docker compose up` to force stop and recreate containers
+  - Works with both local and remote targets
+  - Modified: `tools/brat/src/orchestration/docker/orchestrator.ts`, `tools/brat/src/cli/docker.ts`, `tools/brat/src/cli/index.ts`
+
+- **Dynamic Port Discovery for Docker Deployments**: `brat docker up` now automatically discovers which ports are already in use on the target and avoids conflicts
+  - **Problem Solved**: Previously, deploying a single service with `--service --no-deps` would try to use default port 3001 even if already allocated by another running service, causing "port already allocated" errors
+  - **How It Works**:
+    - Before assigning ports, PortManager queries `docker ps` on the target (local or remote) to discover all active port bindings
+    - When a service doesn't have an explicit `SERVICE_NAME_HOST_PORT` configured, the next available port is found dynamically
+    - Combines discovered ports with explicitly configured ports to prevent any conflicts
+  - **Impact**: Eliminates need for manual per-environment port configuration files (e.g., `env/staging/tool-gateway.yaml`)
+  - **Example**: Deploying tool-gateway to staging where ports 3001-3017 are in use will automatically assign 3018+ instead of failing
+  - **Graceful Degradation**: If port discovery fails (Docker daemon not running, SSH error), falls back to previous behavior with a warning
+  - **Modified**: `tools/brat/src/orchestration/docker/port-manager.ts` (added `discoverUsedPorts()`, made `resolvePorts()` async), `tools/brat/src/orchestration/docker/orchestrator.ts` (made `writeEnvFile()` async and pass `targetConfig` to `resolvePorts()`)
+  - **Technical Details**: Uses `execCmd('docker', ['ps', '--format', '{{.Ports}}'])` locally or via SSH for remote targets, parses port mappings with regex `/0\.0\.0\.0:(\d+)/g`
 
 ### Changed
+- **Query Analyzer Default Stage**: Changed default routing stage from 'analysis' to 'contextualization'
+  - **Why**: Query Analyzer performs PRE-analysis context gathering (auth hints, env state), not LLM reasoning
+  - **Impact**: Aligns with 5-stage agent flow model terminology (Sprint 341)
+  - **Note**: This is part of the "analysis" → "contextualization" terminology migration for stage 2
+  - **Modified**: `src/apps/query-analyzer.ts:60`
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+- **Test Environment Variable Pollution**: Fixed intermittent test failures caused by `MCP_AUTH_TOKEN` cross-test pollution
+  - **Problem**: Multiple test suites were failing with 401 (Unauthorized) errors when they expected access to be allowed
+    - `mcp-server.spec.ts`: Test "should allow access if MCP_AUTH_TOKEN is not set" was getting 401
+    - `oauth-service.oauth-routes.test.ts`: Test "GET /oauth/twitch/broadcaster/callback exchanges code and stores token" was getting 401
+  - **Root Cause**: `MCP_AUTH_TOKEN` environment variable was not being cleaned up between tests. Since all Bit-based services now include MCP auth middleware, any test suite that doesn't clean up this variable will cause subsequent tests to fail
+  - **Solution**: Added `delete process.env.MCP_AUTH_TOKEN` to both `beforeEach` and `afterEach` hooks in affected test suites to ensure clean state
+  - **Impact**: All tests in `mcp-server.spec.ts` (12 tests) and `oauth-service.oauth-routes.test.ts` (3 tests) now pass consistently
+  - **Modified**: `tests/common/mcp-server.spec.ts`, `src/apps/oauth-service.oauth-routes.test.ts`
+
+- **Registry Watcher - Firestore Empty Snapshot Race Condition**: Fixed "Stdio transport requires a command" errors when adding new MCP servers
+  - **Problem**: New MCP server registrations were failing validation with "missing command" error even though the document had all required fields
+  - **Root Cause**: Firestore sends an "added" event with empty data first, then a "modified" event with actual data - a write race condition
+  - **Evidence**: Logs showed `dataKeys:[]` for the "added" event, then full `dataKeys:[...]` on "modified" event
+  - **Solution**: Skip processing snapshot changes that have empty data - they'll be processed on the next event with actual data
+  - **Impact**: MCP servers can now be registered without spurious validation errors
+  - **Modified**: `src/common/mcp/registry-watcher.ts` (added empty data check before processing)
+
+- **Event Router MCP Tool - Missing 'contextualization' Stage**: Added missing 'contextualization' stage to event-router MCP tool's stage enum
+  - **Problem**: Agents trying to create routing rules with `stage: 'contextualization'` were getting validation errors saying only 'analysis' was allowed
+  - **Root Cause**: The 5-stage agent flow model (Attention → Contextualization → Analysis → Reaction → Introspection) was documented but 'contextualization' was missing from the code
+  - **Fix**: Added 'contextualization' to both the `RoutingStage` type and the event-router MCP tool's stage enum
+  - **Impact**: Agents can now create rules for the contextualization stage (auth, query-analyzer, etc.)
+  - **Modified**: `src/types/events.ts` (RoutingStage type), `src/apps/event-router-service.ts` (createRoutingRule tool schema)
+
+- **MCP Message Duplication - Root Cause Fix**: Fixed deduplication strategy to actually work with SSE transport's buggy behavior
+  - **Root Cause Discovered**: The MCP SDK's SSE transport assigns DIFFERENT JSON-RPC request IDs to duplicate invocations of the same client request (e.g., IDs 13, 14, 15... for a single search query)
+  - **Previous Approach Failed**: Deduplication key included `requestId`, which was different for each duplicate, so deduplication never matched
+  - **Evidence**: Logs showed 20+ `call_tool.start` entries within milliseconds for identical tool + args, all with different `jsonRpcId` values
+  - **New Strategy**: Deduplicate by `tool + args hash` ONLY, ignoring requestId entirely
+  - **Safety**: Tool executions are idempotent (same args = same result), dedup keys expire after 60s, and the alternative (no dedup) causes thousands of duplicate executions
+  - **Impact**: SSE-based MCP servers (Tavily Search, Simple Web Search, etc.) now correctly execute once per request instead of thousands of times
+  - **Verification**: `duplicate_awaiting` debug logs now appear when duplicates are detected and properly deduplicated
+  - **Modified**: `src/apps/tool-gateway.ts` (CallToolRequestSchema handler, lines 710-737)
+
+- **Docker Single-Service Deployment**: Fixed `brat docker up --service <name>` deploying all services instead of just the specified service
+  - Root cause: `docker compose up` command was missing service name arguments for both local and remote targets
+  - Symptom: Running `brat docker up --target staging --env staging --service tool-gateway` would deploy all active services
+  - Solution: Append service names to the `docker compose up` command when `--service` flag is specified
+  - Impact: Single-service deployments now work correctly for both local and remote Docker targets
+  - Modified: `tools/brat/src/orchestration/docker/orchestrator.ts` (up method, lines 87-97)
+
 - **Tool-Gateway Session Cleanup Crash**: Fixed "Not connected" crash when MCP servers disconnect
   - Root cause: `sessionServers` Map accumulated stale sessions when connections closed
   - Symptom: `broadcastListChangedNotifications` would crash when trying to notify disconnected sessions
