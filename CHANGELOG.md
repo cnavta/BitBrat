@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+- **Tool-Gateway Session Cleanup Crash**: Fixed "Not connected" crash when MCP servers disconnect
+  - Root cause: `sessionServers` Map accumulated stale sessions when connections closed
+  - Symptom: `broadcastListChangedNotifications` would crash when trying to notify disconnected sessions
+  - Solution: Detect "Not connected" errors during broadcast and remove stale sessions from the map
+  - Impact: Tool-gateway no longer crashes when MCP servers (like Simple Web Search) disconnect
+  - Modified: `src/apps/tool-gateway.ts` (broadcastListChangedNotifications)
+
 - **MCP Message Duplication Bug**: Fixed tool-gateway executing the same tool call thousands of times due to MCP SDK message duplication
   - Root cause: MCP SDK's `SSEServerTransport` appears to invoke `setRequestHandler` callbacks thousands of times for a single client request
   - Symptom: llm-bot makes 3 tool calls, but tool-gateway receives 26,538 calls (~8,846x duplication per call)
