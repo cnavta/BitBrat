@@ -51,6 +51,10 @@ export class ToolGatewayServer extends Bit {
   // list change notifications when new Bits register and their tools are discovered. Each session is
   // keyed by a unique ID (e.g., `llm-bot-${timestamp}`). Cleanup happens when transport closes.
   private sessionServers: Map<string, Server> = new Map();
+  // Request deduplication: Track recently processed JSON-RPC request IDs to prevent duplicate execution
+  // caused by MCP SDK message duplication bug. Maps request ID (string|number) to completion timestamp.
+  // Entries expire after 60 seconds.
+  private processedRequests: Map<string | number, number> = new Map();
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -84,6 +88,23 @@ export class ToolGatewayServer extends Bit {
     }, async (event: InternalEventV2) => {
       await this.handleMcpRegistration(event);
     });
+
+    // Cleanup expired request deduplication entries every 60 seconds
+    setInterval(() => {
+      const now = Date.now();
+      const expiredKeys: (string | number)[] = [];
+      for (const [reqId, completedAt] of this.processedRequests.entries()) {
+        if (now - completedAt > 60000) {
+          expiredKeys.push(reqId);
+        }
+      }
+      for (const key of expiredKeys) {
+        this.processedRequests.delete(key);
+      }
+      if (expiredKeys.length > 0) {
+        this.getLogger().debug('tool_gateway.dedup.cleanup', { cleaned: expiredKeys.length, remaining: this.processedRequests.size });
+      }
+    }, 60000);
 
     return super.start(port);
   }
@@ -675,6 +696,24 @@ export class ToolGatewayServer extends Bit {
 
     // Invocation: callTool
     sessionServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+      // Request deduplication: Check if this JSON-RPC request ID has already been processed
+      // to prevent MCP SDK message duplication bug from executing the same tool thousands of times.
+      const jsonRpcId = (request as any).id;
+      if (jsonRpcId !== undefined && jsonRpcId !== null) {
+        if (this.processedRequests.has(jsonRpcId)) {
+          // This request was already processed - return cached "success" response to avoid re-execution
+          logger.warn('tool_gateway.mcp.call_tool.duplicate_request', {
+            jsonRpcId,
+            toolName: request.params.name,
+            dedupCacheSize: this.processedRequests.size
+          });
+          // Return empty successful result to satisfy JSON-RPC protocol without re-executing
+          return { content: [{ type: 'text', text: '[duplicate request - already processed]' }] } as any;
+        }
+        // Mark this request as being processed
+        this.processedRequests.set(jsonRpcId, Date.now());
+      }
+
       const id = request.params.name;
       const tool = this.registry.getTool(id);
       if (!tool) throw new Error(`Tool not found: ${id}`);
