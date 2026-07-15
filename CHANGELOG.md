@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+- **MCP Message Duplication Bug**: Fixed tool-gateway executing the same tool call thousands of times due to MCP SDK message duplication
+  - Root cause: MCP SDK's `SSEServerTransport` appears to invoke `setRequestHandler` callbacks thousands of times for a single client request
+  - Symptom: llm-bot makes 3 tool calls, but tool-gateway receives 26,538 calls (~8,846x duplication per call)
+  - Solution: Implemented JSON-RPC request ID deduplication in tool-gateway's `CallToolRequestSchema` handler
+  - Mechanism: Track processed request IDs in a Map with 60-second TTL, return cached response for duplicates
+  - Impact: Prevents infinite loops and service overload caused by MCP SDK bug
+  - Logging: Duplicate requests logged at WARN level with `tool_gateway.mcp.call_tool.duplicate_request`
+  - Technical Details: see investigation notes in conversation summary
+
 - **stdio MCP Error Recursion**: Resolved infinite loop where stdio MCP tool invocations resulted in recursively nested error messages (`MCP error -32603: MCP error -32603: ...` repeated 100+ times)
   - Root cause: MCP SDK wraps error messages with `MCP error {code}:` prefix, causing nesting when errors propagate through multiple layers
   - Solution: Created `error-utils.ts` with `unwrapMcpErrorMessage()` and `normalizeError()` functions to strip redundant prefixes
