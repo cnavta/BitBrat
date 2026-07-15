@@ -111,7 +111,7 @@ describe('DockerOrchestrator.writeEnvFile ADC path', () => {
     execCmdMock.mockResolvedValue({ code: 0, stdout: '', stderr: '' } as any);
   });
 
-  it('rewrites GOOGLE_APPLICATION_CREDENTIALS to the remote path for ssh targets', () => {
+  it('rewrites GOOGLE_APPLICATION_CREDENTIALS to the remote path for ssh targets', async () => {
     const repoRoot = makeRepo([
       'infrastructure/docker-compose/docker-compose.local.yaml',
     ]);
@@ -125,7 +125,7 @@ describe('DockerOrchestrator.writeEnvFile ADC path', () => {
     const orch = new DockerOrchestrator({ repoRoot, target: 'staging', env: 'staging' });
     const target = { host: 'ssh://user@example', remoteDir: '/remote/dir' };
 
-    (orch as any).writeEnvFile('staging', target);
+    await (orch as any).writeEnvFile('staging', target);
 
     const envContent = fs.readFileSync(path.join(repoRoot, '.env.brat'), 'utf8');
     expect(envContent).toContain(
@@ -134,7 +134,7 @@ describe('DockerOrchestrator.writeEnvFile ADC path', () => {
     expect(envContent).not.toContain(`GOOGLE_APPLICATION_CREDENTIALS=${keyPath}`);
   });
 
-  it('leaves GOOGLE_APPLICATION_CREDENTIALS untouched for local targets', () => {
+  it('leaves GOOGLE_APPLICATION_CREDENTIALS untouched for local targets', async () => {
     const repoRoot = makeRepo([
       'infrastructure/docker-compose/docker-compose.local.yaml',
     ]);
@@ -148,7 +148,7 @@ describe('DockerOrchestrator.writeEnvFile ADC path', () => {
     const orch = new DockerOrchestrator({ repoRoot, target: 'local', env: 'local' });
     const target = { host: 'unix:///var/run/docker.sock' };
 
-    (orch as any).writeEnvFile('local', target);
+    await (orch as any).writeEnvFile('local', target);
 
     const envContent = fs.readFileSync(path.join(repoRoot, '.env.brat'), 'utf8');
     expect(envContent).toContain(`GOOGLE_APPLICATION_CREDENTIALS=${keyPath}`);
