@@ -16,6 +16,7 @@ import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
+import { normalizeError } from '../common/mcp/error-utils';
 import {
   embedText,
   buildEmbeddingText,
@@ -50,6 +51,12 @@ export class ToolGatewayServer extends Bit {
   // list change notifications when new Bits register and their tools are discovered. Each session is
   // keyed by a unique ID (e.g., `llm-bot-${timestamp}`). Cleanup happens when transport closes.
   private sessionServers: Map<string, Server> = new Map();
+  // Request deduplication: Track in-flight tool executions to prevent duplicate execution
+  // caused by MCP SDK message duplication bug. Maps dedup key to Promise of the result.
+  // This allows multiple handler invocations to await the same execution.
+  private inFlightRequests: Map<string, Promise<any>> = new Map();
+  // Track completion timestamps for cleanup
+  private completedRequests: Map<string, number> = new Map();
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -83,6 +90,24 @@ export class ToolGatewayServer extends Bit {
     }, async (event: InternalEventV2) => {
       await this.handleMcpRegistration(event);
     });
+
+    // Cleanup expired request deduplication entries every 60 seconds
+    setInterval(() => {
+      const now = Date.now();
+      const expiredKeys: string[] = [];
+      for (const [dedupKey, completedAt] of this.completedRequests.entries()) {
+        if (now - completedAt > 60000) {
+          expiredKeys.push(dedupKey);
+        }
+      }
+      for (const key of expiredKeys) {
+        this.completedRequests.delete(key);
+        this.inFlightRequests.delete(key);
+      }
+      if (expiredKeys.length > 0) {
+        this.getLogger().debug('tool_gateway.dedup.cleanup', { cleaned: expiredKeys.length, remaining: this.completedRequests.size });
+      }
+    }, 60000);
 
     return super.start(port);
   }
@@ -137,28 +162,46 @@ export class ToolGatewayServer extends Bit {
       return;
     }
 
-    try {
-      const db = getFirestore();
-      // Upsert into mcp_servers collection, using name as doc ID
-      await db.collection('mcp_servers').doc(payload.name).set({
-        ...payload,
-        updatedAt: new Date().toISOString(),
-        discoverySource: 'auto-registration',
-        correlationId: event.correlationId
-      }, { merge: true });
-      this.registrationSignatures.set(payload.name, signature);
-      
-      this.getLogger().info('tool_gateway.registration.upserted', { 
-        name: payload.name,
-        correlationId: event.correlationId 
-      });
-    } catch (error) {
-      this.getLogger().error('tool_gateway.registration.upsert_failed', { 
-        name: payload.name, 
-        error,
-        correlationId: event.correlationId 
-      });
-    }
+    // Set signature immediately for deduplication (synchronous)
+    // This prevents duplicate writes even though the actual Firestore write is fire-and-forget
+    this.registrationSignatures.set(payload.name, signature);
+
+    // Fire-and-forget Firestore write with timeout to prevent blocking event handler
+    const firestoreWrite = (async () => {
+      try {
+        const db = getFirestore();
+        const writePromise = db.collection('mcp_servers').doc(payload.name).set({
+          ...payload,
+          updatedAt: new Date().toISOString(),
+          discoverySource: 'auto-registration',
+          correlationId: event.correlationId
+        }, { merge: true });
+
+        // Race against 5-second timeout
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Firestore write timeout (5s)')), 5000)
+        );
+
+        await Promise.race([writePromise, timeoutPromise]);
+
+        this.getLogger().info('tool_gateway.registration.upserted', {
+          name: payload.name,
+          correlationId: event.correlationId
+        });
+      } catch (error: any) {
+        // On write failure, clear signature so retry can happen
+        this.registrationSignatures.delete(payload.name);
+
+        this.getLogger().error('tool_gateway.registration.upsert_failed', {
+          name: payload.name,
+          error: error?.message || String(error),
+          correlationId: event.correlationId
+        });
+      }
+    })();
+
+    // Don't await - let it complete in background
+    firestoreWrite.catch(() => {});  // Suppress unhandled rejection warnings
   }
 
   /**
@@ -212,15 +255,33 @@ export class ToolGatewayServer extends Bit {
           });
         }
 
-        // Upsert to Firestore (merge: true for idempotent updates)
-        await db.collection('context_packs').doc(pack.id).set(packDoc, { merge: true });
+        // Fire-and-forget Firestore write with timeout to prevent blocking
+        const writePromise = (async () => {
+          try {
+            const setPromise = db.collection('context_packs').doc(pack.id).set(packDoc, { merge: true });
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Firestore write timeout (5s)')), 5000)
+            );
+            await Promise.race([setPromise, timeoutPromise]);
 
-        this.getLogger().info('tool_gateway.context.pack_registered', {
-          packId: pack.id,
-          bitName,
-          embeddingGenerated,
-          correlationId,
-        });
+            this.getLogger().info('tool_gateway.context.pack_registered', {
+              packId: pack.id,
+              bitName,
+              embeddingGenerated,
+              correlationId,
+            });
+          } catch (writeError: any) {
+            this.getLogger().error('tool_gateway.context.pack_write_failed', {
+              packId: pack.id,
+              bitName,
+              error: writeError?.message || String(writeError),
+              correlationId,
+            });
+          }
+        })();
+
+        // Don't await - let it complete in background
+        writePromise.catch(() => {});
       } catch (error: any) {
         // Firestore write failure is non-fatal for registration (log and continue)
         this.getLogger().error('tool_gateway.context.pack_upsert_failed', {
@@ -315,6 +376,16 @@ export class ToolGatewayServer extends Bit {
         logger.debug('tool_gateway.notifications.sent', { sessionId });
       } catch (error: any) {
         errorCount++;
+
+        // If session is disconnected, remove it from the map
+        if (error.message === 'Not connected') {
+          this.sessionServers.delete(sessionId);
+          logger.debug('tool_gateway.notifications.session_cleaned', {
+            sessionId,
+            reason: 'disconnected'
+          });
+        }
+
         logger.warn('tool_gateway.notifications.send_failed', {
           sessionId,
           error: error.message
@@ -638,6 +709,34 @@ export class ToolGatewayServer extends Bit {
 
     // Invocation: callTool
     sessionServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+      // Request deduplication: The MCP SDK invokes this handler multiple times for the SAME request
+      // CRITICAL BUG: The MCP SDK assigns DIFFERENT jsonRpcIds to duplicate invocations of the same
+      // client request (e.g., jsonRpcId 13, 14, 15... for the same search query). This means we
+      // CANNOT use requestId for deduplication. Instead, we dedupe by tool + args hash only.
+      // This is safe because:
+      // 1. Tool executions are idempotent (same args = same result)
+      // 2. Dedup keys are cleared after 60s, so repeated legitimate calls still work
+      // 3. The alternative (no dedup) causes thousands of duplicate executions
+      const toolName = request.params.name;
+      const args = request.params.arguments || {};
+
+      // Create deduplication key from tool + args hash ONLY (not requestId)
+      const argsHash = JSON.stringify(args);
+      const dedupKey = `${toolName}:${argsHash}`;
+
+      // Check if this exact request is already being processed
+      let executionPromise = this.inFlightRequests.get(dedupKey);
+
+      if (executionPromise) {
+        // This request is already being executed - await the same Promise
+        logger.debug('tool_gateway.mcp.call_tool.duplicate_awaiting', {
+          toolName,
+          dedupKey: dedupKey.substring(0, 100)
+        });
+        return await executionPromise;
+      }
+
+      // This is the first invocation - create the execution Promise
       const id = request.params.name;
       const tool = this.registry.getTool(id);
       if (!tool) throw new Error(`Tool not found: ${id}`);
@@ -649,26 +748,46 @@ export class ToolGatewayServer extends Bit {
       const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
-      const args = request.params.arguments || {};
       logger.debug('tool_gateway.mcp.call_tool.start', { id, args, reqContext });
       const start = Date.now();
-      try {
-        const result = await tool.execute?.(args as any, { 
-          userRoles: reqContext.roles,
-          userId: reqContext.userId,
-          agentName: reqContext.agentName
-        });
-        const duration = Date.now() - start;
-        logger.debug('tool_gateway.mcp.call_tool.success', { id, duration });
 
-        // Translate result to MCP CallToolResult-like content
-        if (typeof result === 'string') {
-          return { content: [{ type: 'text', text: result }] } as any;
+      // Create execution Promise and store it
+      executionPromise = (async () => {
+        try {
+          const result = await tool.execute?.(args as any, {
+            userRoles: reqContext.roles,
+            userId: reqContext.userId,
+            agentName: reqContext.agentName
+          });
+          const duration = Date.now() - start;
+          logger.debug('tool_gateway.mcp.call_tool.success', { id, duration });
+
+          // Translate result to MCP CallToolResult-like content
+          if (typeof result === 'string') {
+            return { content: [{ type: 'text', text: result }] } as any;
+          }
+          return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
+        } catch (error: any) {
+          const duration = Date.now() - start;
+          // Normalize error to prevent recursive "MCP error -32603: MCP error -32603: ..." in logs
+          const normalized = normalizeError(error);
+          logger.error('tool_gateway.mcp.call_tool.error', { id, error: normalized.message, duration });
+          throw error;
+        } finally {
+          // Remove from in-flight and mark as completed immediately
+          // This prevents duplicate error logging when thousands of awaiting handlers
+          // all receive the same rejection simultaneously
+          this.inFlightRequests.delete(dedupKey);
+          this.completedRequests.set(dedupKey, Date.now());
         }
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
-      } catch (error: any) {
-        const duration = Date.now() - start;
-        logger.error('tool_gateway.mcp.call_tool.error', { id, error: error.message, duration });
+      })();
+
+      this.inFlightRequests.set(dedupKey, executionPromise);
+
+      try {
+        return await executionPromise;
+      } catch (error) {
+        // Don't log here - already logged in the executionPromise catch block above
         throw error;
       }
     });

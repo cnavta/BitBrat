@@ -21,6 +21,8 @@ export interface DockerOrchestratorOptions {
   service?: string;
   dryRun?: boolean;
   loki?: boolean; // Enable Loki + Promtail observability stack
+  noDeps?: boolean; // Don't start linked services (docker compose up --no-deps)
+  forceRecreate?: boolean; // Force recreate containers (docker compose up --force-recreate)
 }
 
 export class DockerOrchestrator {
@@ -36,7 +38,7 @@ export class DockerOrchestrator {
 
   public async up(): Promise<void> {
     const { arch, targetConfig, envName } = this.prepare();
-    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
 
     // Deploy must honor architecture.yaml `active`. Services marked active:false (or absent,
     // which defaults to DISABLED) are never built/started here: on `--all` they are silently
@@ -72,7 +74,7 @@ export class DockerOrchestrator {
 
       if (isRemote) {
         console.log(`[brat] Remote target detected. Building and deploying ${buildServices.length} services...`);
-        
+
         // Build services sequentially or in small batches for SSH targets to avoid connection resets.
         // We use the target's maxConcurrent for batching.
         for (let i = 0; i < buildServices.length; i += maxConcurrent) {
@@ -80,12 +82,63 @@ export class DockerOrchestrator {
           console.log(`[brat] Building batch: ${batch.join(', ')}`);
           await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
         }
-        
+
+        // If --force-recreate was specified, explicitly stop AND remove the services first to release ports
+        // before attempting to recreate. This prevents "port already allocated" errors caused by Docker
+        // daemon caching network state. Just 'stop' is not enough - we need 'rm' to fully release ports.
+        if (this.options.forceRecreate && this.options.service) {
+          console.log(`[brat] Stopping and removing ${services.join(', ')} before force-recreate...`);
+          const stopArgs = [...composeArgs, 'stop'];
+          stopArgs.push(...services);
+          await this.executeDockerCompose(targetConfig, stopArgs);
+
+          // Remove containers to release port bindings
+          const rmArgs = [...composeArgs, 'rm', '-f'];
+          rmArgs.push(...services);
+          await this.executeDockerCompose(targetConfig, rmArgs);
+        }
+
         // Up all services in one go. Since this runs remotely via SSH (in executeDockerCompose),
         // it doesn't hit local SSH connection limits, and respects COMPOSE_PARALLEL_LIMIT on the remote host.
-        await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--no-build']);
+        // If --service was specified, pass the service names to docker compose up to start only those services.
+        // If --no-deps was specified, add --no-deps to skip starting dependencies (nats, firebase-emulator, etc.)
+        // If --force-recreate was specified, force recreation even if config unchanged (fixes port allocation issues)
+        const upArgs = [...composeArgs, 'up', '-d', '--no-build'];
+        if (this.options.forceRecreate) {
+          upArgs.push('--force-recreate');
+        }
+        if (this.options.noDeps) {
+          upArgs.push('--no-deps');
+        }
+        if (this.options.service) {
+          upArgs.push(...services);
+        }
+        await this.executeDockerCompose(targetConfig, upArgs);
       } else {
-        await this.executeDockerCompose(targetConfig, [...composeArgs, 'up', '-d', '--build']);
+        // If --force-recreate was specified, explicitly stop AND remove the services first to release ports
+        if (this.options.forceRecreate && this.options.service) {
+          console.log(`[brat] Stopping and removing ${services.join(', ')} before force-recreate...`);
+          const stopArgs = [...composeArgs, 'stop'];
+          stopArgs.push(...services);
+          await this.executeDockerCompose(targetConfig, stopArgs);
+
+          // Remove containers to release port bindings
+          const rmArgs = [...composeArgs, 'rm', '-f'];
+          rmArgs.push(...services);
+          await this.executeDockerCompose(targetConfig, rmArgs);
+        }
+
+        const upArgs = [...composeArgs, 'up', '-d', '--build'];
+        if (this.options.forceRecreate) {
+          upArgs.push('--force-recreate');
+        }
+        if (this.options.noDeps) {
+          upArgs.push('--no-deps');
+        }
+        if (this.options.service) {
+          upArgs.push(...services);
+        }
+        await this.executeDockerCompose(targetConfig, upArgs);
       }
     } finally {
       this.cleanupEnvFile(tempEnvPath);
@@ -94,7 +147,7 @@ export class DockerOrchestrator {
 
   public async down(): Promise<void> {
     const { targetConfig, envName } = this.prepare();
-    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     try {
       const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
@@ -107,7 +160,7 @@ export class DockerOrchestrator {
 
   public async logs(follow: boolean = false): Promise<void> {
     const { targetConfig, envName } = this.prepare();
-    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     try {
       const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
@@ -123,7 +176,7 @@ export class DockerOrchestrator {
 
   public async ps(): Promise<void> {
     const { targetConfig, envName } = this.prepare();
-    const tempEnvPath = this.writeEnvFile(envName, targetConfig);
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     try {
       const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
@@ -134,10 +187,10 @@ export class DockerOrchestrator {
     }
   }
 
-  private writeEnvFile(envName: string, targetConfig: any): string {
+  private async writeEnvFile(envName: string, targetConfig: any): Promise<string> {
     const env = this.envResolver.resolve(envName);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
-    const assignments = this.portManager.resolvePorts(composeFileSet.serviceFiles, env);
+    const assignments = await this.portManager.resolvePorts(composeFileSet.serviceFiles, env, targetConfig);
     const portOverrides = this.portManager.getEnvOverrides(assignments);
     const mergedEnv: Record<string, string | number | boolean> = { 
       ...env, 

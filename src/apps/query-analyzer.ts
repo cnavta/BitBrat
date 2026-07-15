@@ -57,7 +57,7 @@ class QueryAnalyzerServer extends Bit {
       : [];
 
     msg.routing = {
-      stage: pendingRoute.stage ?? msg.routing?.stage ?? 'analysis',
+      stage: pendingRoute.stage ?? msg.routing?.stage ?? 'contextualization',
       slip: pendingRoute.slip.map((step: RoutingStep) => ({ ...step })),
       history: [...previousHistory, ...previousSlip],
     };

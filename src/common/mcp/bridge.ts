@@ -3,6 +3,7 @@ import { jsonSchema } from 'ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { McpStatsCollector } from './stats-collector';
 import { ProxyInvoker, ProxyInvokerOptions } from './proxy-invoker';
+import { normalizeError } from './error-utils';
 
 export class McpBridge {
   constructor(
@@ -94,7 +95,9 @@ export class McpBridge {
           return fallback;
         } catch (e) {
           error = true;
-          throw e;
+          // Unwrap recursively nested "MCP error -32603: MCP error -32603: ..." messages
+          // that occur when errors propagate through multiple MCP layers (especially stdio)
+          throw normalizeError(e);
         } finally {
           const duration = Date.now() - start;
           if (this.stats) {
