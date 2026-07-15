@@ -699,6 +699,19 @@ export class ToolGatewayServer extends Bit {
       // Request deduplication: Check if this JSON-RPC request ID has already been processed
       // to prevent MCP SDK message duplication bug from executing the same tool thousands of times.
       const jsonRpcId = (request as any).id;
+
+      // DEBUG: Log first few requests to understand structure
+      if (!this.processedRequests.has('_debug_logged')) {
+        logger.info('tool_gateway.mcp.call_tool.DEBUG_request_structure', {
+          toolName: request.params.name,
+          hasId: jsonRpcId !== undefined && jsonRpcId !== null,
+          jsonRpcId,
+          requestKeys: Object.keys(request),
+          extraKeys: extra ? Object.keys(extra) : null
+        });
+        this.processedRequests.set('_debug_logged', Date.now());
+      }
+
       if (jsonRpcId !== undefined && jsonRpcId !== null) {
         if (this.processedRequests.has(jsonRpcId)) {
           // This request was already processed - return cached "success" response to avoid re-execution
@@ -712,6 +725,12 @@ export class ToolGatewayServer extends Bit {
         }
         // Mark this request as being processed
         this.processedRequests.set(jsonRpcId, Date.now());
+      } else {
+        // No JSON-RPC ID available - log warning but proceed with execution
+        logger.warn('tool_gateway.mcp.call_tool.no_jsonrpc_id', {
+          toolName: request.params.name,
+          message: 'Cannot deduplicate - request has no JSON-RPC ID'
+        });
       }
 
       const id = request.params.name;
