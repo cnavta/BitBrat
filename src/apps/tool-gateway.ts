@@ -16,6 +16,7 @@ import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
+import { normalizeError } from '../common/mcp/error-utils';
 import {
   embedText,
   buildEmbeddingText,
@@ -137,28 +138,46 @@ export class ToolGatewayServer extends Bit {
       return;
     }
 
-    try {
-      const db = getFirestore();
-      // Upsert into mcp_servers collection, using name as doc ID
-      await db.collection('mcp_servers').doc(payload.name).set({
-        ...payload,
-        updatedAt: new Date().toISOString(),
-        discoverySource: 'auto-registration',
-        correlationId: event.correlationId
-      }, { merge: true });
-      this.registrationSignatures.set(payload.name, signature);
-      
-      this.getLogger().info('tool_gateway.registration.upserted', { 
-        name: payload.name,
-        correlationId: event.correlationId 
-      });
-    } catch (error) {
-      this.getLogger().error('tool_gateway.registration.upsert_failed', { 
-        name: payload.name, 
-        error,
-        correlationId: event.correlationId 
-      });
-    }
+    // Set signature immediately for deduplication (synchronous)
+    // This prevents duplicate writes even though the actual Firestore write is fire-and-forget
+    this.registrationSignatures.set(payload.name, signature);
+
+    // Fire-and-forget Firestore write with timeout to prevent blocking event handler
+    const firestoreWrite = (async () => {
+      try {
+        const db = getFirestore();
+        const writePromise = db.collection('mcp_servers').doc(payload.name).set({
+          ...payload,
+          updatedAt: new Date().toISOString(),
+          discoverySource: 'auto-registration',
+          correlationId: event.correlationId
+        }, { merge: true });
+
+        // Race against 5-second timeout
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Firestore write timeout (5s)')), 5000)
+        );
+
+        await Promise.race([writePromise, timeoutPromise]);
+
+        this.getLogger().info('tool_gateway.registration.upserted', {
+          name: payload.name,
+          correlationId: event.correlationId
+        });
+      } catch (error: any) {
+        // On write failure, clear signature so retry can happen
+        this.registrationSignatures.delete(payload.name);
+
+        this.getLogger().error('tool_gateway.registration.upsert_failed', {
+          name: payload.name,
+          error: error?.message || String(error),
+          correlationId: event.correlationId
+        });
+      }
+    })();
+
+    // Don't await - let it complete in background
+    firestoreWrite.catch(() => {});  // Suppress unhandled rejection warnings
   }
 
   /**
@@ -212,15 +231,33 @@ export class ToolGatewayServer extends Bit {
           });
         }
 
-        // Upsert to Firestore (merge: true for idempotent updates)
-        await db.collection('context_packs').doc(pack.id).set(packDoc, { merge: true });
+        // Fire-and-forget Firestore write with timeout to prevent blocking
+        const writePromise = (async () => {
+          try {
+            const setPromise = db.collection('context_packs').doc(pack.id).set(packDoc, { merge: true });
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Firestore write timeout (5s)')), 5000)
+            );
+            await Promise.race([setPromise, timeoutPromise]);
 
-        this.getLogger().info('tool_gateway.context.pack_registered', {
-          packId: pack.id,
-          bitName,
-          embeddingGenerated,
-          correlationId,
-        });
+            this.getLogger().info('tool_gateway.context.pack_registered', {
+              packId: pack.id,
+              bitName,
+              embeddingGenerated,
+              correlationId,
+            });
+          } catch (writeError: any) {
+            this.getLogger().error('tool_gateway.context.pack_write_failed', {
+              packId: pack.id,
+              bitName,
+              error: writeError?.message || String(writeError),
+              correlationId,
+            });
+          }
+        })();
+
+        // Don't await - let it complete in background
+        writePromise.catch(() => {});
       } catch (error: any) {
         // Firestore write failure is non-fatal for registration (log and continue)
         this.getLogger().error('tool_gateway.context.pack_upsert_failed', {
@@ -668,7 +705,9 @@ export class ToolGatewayServer extends Bit {
         return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
       } catch (error: any) {
         const duration = Date.now() - start;
-        logger.error('tool_gateway.mcp.call_tool.error', { id, error: error.message, duration });
+        // Normalize error to prevent recursive "MCP error -32603: MCP error -32603: ..." in logs
+        const normalized = normalizeError(error);
+        logger.error('tool_gateway.mcp.call_tool.error', { id, error: normalized.message, duration });
         throw error;
       }
     });
