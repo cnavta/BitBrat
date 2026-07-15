@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.13.3] - 2026-07-15
+### Added
 - **5-Stage Agent Flow Topics**: Added topic constants for the 5-stage agent flow model (Sprint 341)
   - `INTERNAL_CONTEXTUALIZATION_V1` = 'internal.contextualization.v1' - Stage 2: Auth, env context
   - `INTERNAL_ANALYSIS_V1` = 'internal.analysis.v1' - Stage 3: LLM reasoning, analysis
