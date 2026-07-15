@@ -51,10 +51,12 @@ export class ToolGatewayServer extends Bit {
   // list change notifications when new Bits register and their tools are discovered. Each session is
   // keyed by a unique ID (e.g., `llm-bot-${timestamp}`). Cleanup happens when transport closes.
   private sessionServers: Map<string, Server> = new Map();
-  // Request deduplication: Track recently processed JSON-RPC request IDs to prevent duplicate execution
-  // caused by MCP SDK message duplication bug. Maps request ID (string|number) to completion timestamp.
-  // Entries expire after 60 seconds.
-  private processedRequests: Map<string | number, number> = new Map();
+  // Request deduplication: Track in-flight tool executions to prevent duplicate execution
+  // caused by MCP SDK message duplication bug. Maps dedup key to Promise of the result.
+  // This allows multiple handler invocations to await the same execution.
+  private inFlightRequests: Map<string, Promise<any>> = new Map();
+  // Track completion timestamps for cleanup
+  private completedRequests: Map<string, number> = new Map();
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -92,17 +94,18 @@ export class ToolGatewayServer extends Bit {
     // Cleanup expired request deduplication entries every 60 seconds
     setInterval(() => {
       const now = Date.now();
-      const expiredKeys: (string | number)[] = [];
-      for (const [reqId, completedAt] of this.processedRequests.entries()) {
+      const expiredKeys: string[] = [];
+      for (const [dedupKey, completedAt] of this.completedRequests.entries()) {
         if (now - completedAt > 60000) {
-          expiredKeys.push(reqId);
+          expiredKeys.push(dedupKey);
         }
       }
       for (const key of expiredKeys) {
-        this.processedRequests.delete(key);
+        this.completedRequests.delete(key);
+        this.inFlightRequests.delete(key);
       }
       if (expiredKeys.length > 0) {
-        this.getLogger().debug('tool_gateway.dedup.cleanup', { cleaned: expiredKeys.length, remaining: this.processedRequests.size });
+        this.getLogger().debug('tool_gateway.dedup.cleanup', { cleaned: expiredKeys.length, remaining: this.completedRequests.size });
       }
     }, 60000);
 
@@ -696,33 +699,31 @@ export class ToolGatewayServer extends Bit {
 
     // Invocation: callTool
     sessionServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      // Request deduplication: Check if this JSON-RPC request ID has already been processed
-      // to prevent MCP SDK message duplication bug from executing the same tool thousands of times.
-      // The MCP SDK passes the request ID in extra.requestId, not request.id.
+      // Request deduplication: The MCP SDK invokes this handler multiple times for the SAME request
+      // (same requestId, same args) which causes tool execution duplication. We deduplicate by
+      // creating a single Promise for the execution and having all duplicate invocations await it.
       const jsonRpcId = (extra as any)?.requestId;
+      const toolName = request.params.name;
+      const args = request.params.arguments || {};
 
-      if (jsonRpcId !== undefined && jsonRpcId !== null) {
-        if (this.processedRequests.has(jsonRpcId)) {
-          // This request was already processed - return cached "success" response to avoid re-execution
-          logger.warn('tool_gateway.mcp.call_tool.duplicate_request', {
-            jsonRpcId,
-            toolName: request.params.name,
-            dedupCacheSize: this.processedRequests.size
-          });
-          // Return empty successful result to satisfy JSON-RPC protocol without re-executing
-          return { content: [{ type: 'text', text: '[duplicate request - already processed]' }] } as any;
-        }
-        // Mark this request as being processed
-        this.processedRequests.set(jsonRpcId, Date.now());
-      } else {
-        // No JSON-RPC ID available - cannot deduplicate (should never happen)
-        logger.error('tool_gateway.mcp.call_tool.no_request_id', {
-          toolName: request.params.name,
-          message: 'Cannot deduplicate - extra.requestId is missing',
-          extraKeys: extra ? Object.keys(extra) : null
+      // Create deduplication key from requestId + tool + args hash
+      const argsHash = JSON.stringify(args);
+      const dedupKey = `${jsonRpcId}:${toolName}:${argsHash}`;
+
+      // Check if this exact request is already being processed
+      let executionPromise = this.inFlightRequests.get(dedupKey);
+
+      if (executionPromise) {
+        // This request is already being executed - await the same Promise
+        logger.debug('tool_gateway.mcp.call_tool.duplicate_awaiting', {
+          jsonRpcId,
+          toolName,
+          dedupKey: dedupKey.substring(0, 100)
         });
+        return await executionPromise;
       }
 
+      // This is the first invocation - create the execution Promise
       const id = request.params.name;
       const tool = this.registry.getTool(id);
       if (!tool) throw new Error(`Tool not found: ${id}`);
@@ -734,30 +735,39 @@ export class ToolGatewayServer extends Bit {
       const allowed = this.rbac.isAllowedTool(tool, tool.originServer ? this.serverConfigs.get(tool.originServer) : undefined, reqContext);
       if (!allowed) throw new Error('Forbidden');
 
-      const args = request.params.arguments || {};
       logger.debug('tool_gateway.mcp.call_tool.start', { id, args, reqContext });
       const start = Date.now();
-      try {
-        const result = await tool.execute?.(args as any, { 
-          userRoles: reqContext.roles,
-          userId: reqContext.userId,
-          agentName: reqContext.agentName
-        });
-        const duration = Date.now() - start;
-        logger.debug('tool_gateway.mcp.call_tool.success', { id, duration });
 
-        // Translate result to MCP CallToolResult-like content
-        if (typeof result === 'string') {
-          return { content: [{ type: 'text', text: result }] } as any;
+      // Create execution Promise and store it
+      executionPromise = (async () => {
+        try {
+          const result = await tool.execute?.(args as any, {
+            userRoles: reqContext.roles,
+            userId: reqContext.userId,
+            agentName: reqContext.agentName
+          });
+          const duration = Date.now() - start;
+          logger.debug('tool_gateway.mcp.call_tool.success', { id, duration });
+
+          // Translate result to MCP CallToolResult-like content
+          if (typeof result === 'string') {
+            return { content: [{ type: 'text', text: result }] } as any;
+          }
+          return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
+        } catch (error: any) {
+          const duration = Date.now() - start;
+          // Normalize error to prevent recursive "MCP error -32603: MCP error -32603: ..." in logs
+          const normalized = normalizeError(error);
+          logger.error('tool_gateway.mcp.call_tool.error', { id, error: normalized.message, duration });
+          throw error;
+        } finally {
+          // Mark as completed after execution finishes (success or error)
+          this.completedRequests.set(dedupKey, Date.now());
         }
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] } as any;
-      } catch (error: any) {
-        const duration = Date.now() - start;
-        // Normalize error to prevent recursive "MCP error -32603: MCP error -32603: ..." in logs
-        const normalized = normalizeError(error);
-        logger.error('tool_gateway.mcp.call_tool.error', { id, error: normalized.message, duration });
-        throw error;
-      }
+      })();
+
+      this.inFlightRequests.set(dedupKey, executionPromise);
+      return await executionPromise;
     });
 
     // Invocation: readResource
