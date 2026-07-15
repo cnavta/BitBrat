@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+- **stdio MCP Error Recursion**: Resolved infinite loop where stdio MCP tool invocations resulted in recursively nested error messages (`MCP error -32603: MCP error -32603: ...` repeated 100+ times)
+  - Root cause: MCP SDK wraps error messages with `MCP error {code}:` prefix, causing nesting when errors propagate through multiple layers
+  - Solution: Created `error-utils.ts` with `unwrapMcpErrorMessage()` and `normalizeError()` functions to strip redundant prefixes
+  - Applied normalization in `bridge.ts` (tool execution) and `tool-gateway.ts` (error logging)
+  - Added comprehensive test suite (15 tests) validating unwrapping of deeply nested errors
+  - Impact: stdio transport now fully functional for development/testing, logs readable and concise
+  - See: `documentation/fixes/stdio-mcp-error-recursion.md` for detailed analysis
+
+- **Firestore Blocking on Writes**: Fixed tool-gateway hanging when Firestore connection pool exhausted
+  - Root cause: Multiple awaited Firestore writes blocking event loop for 90+ seconds on timeout
+  - Symptom: Tool calls would hang indefinitely during high concurrency, circuit breakers would timeout, cascading failures
+  - Contributing factor: During infinite loop scenarios, hundreds of concurrent Firestore writes exhausted connection pool
+  - Solution: Made ALL Firestore writes fire-and-forget with 5-second timeout
+    - **`tool_usage` writes** (every tool call): Added backpressure limiting, drops writes when >100 pending
+    - **`mcp_servers` registration** (MCP server discovery): Fire-and-forget with timeout
+    - **`context_packs` registration** (context pack discovery): Fire-and-forget with timeout in loop
+    - All errors logged but don't block critical operations
+  - Impact: Tool gateway resilient to Firestore slowdowns and high-concurrency scenarios
+  - Modified: `src/common/mcp/observability.ts`, `src/apps/tool-gateway.ts`
 
 ### Security
 
