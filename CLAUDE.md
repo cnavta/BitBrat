@@ -353,6 +353,135 @@ flowchart TD
 
 ---
 
+### Integrating Chat Platforms: The Webhook Pattern
+
+**RULE: Use this pattern when integrating external chat platforms (Twilio, Slack, Discord, etc.).**
+
+**The Pattern:** IngressConnector + WebhookConnector
+
+Most chat platforms provide both real-time messaging (WebSocket/polling) and webhook notifications for events. The Ingress-Egress Framework standardizes integration through dual-mode connectors.
+
+**Complete Example:**
+
+```typescript
+// File: src/services/ingress/<platform>/connector-adapter.ts
+import type {
+  IngressConnector,
+  WebhookConnector,
+  WebhookRequest,
+  WebhookResponse,
+  ConnectorMetadata
+} from '../core';
+import { validatePlatformSignature } from './webhook-utils';
+
+export class PlatformConnectorAdapter implements IngressConnector, WebhookConnector {
+  constructor(
+    private readonly client: PlatformIngressClient,
+    private readonly config?: IConfig
+  ) {}
+
+  // IngressConnector: Real-time messaging
+  async start(): Promise<void> { await this.client.start(); }
+  async stop(): Promise<void> { await this.client.stop(); }
+  getSnapshot(): ConnectorSnapshot { return this.client.getSnapshot(); }
+  async sendText(text: string, target?: string): Promise<void> {
+    await this.client.sendText(text, target);
+  }
+
+  // WebhookConnector: Event notifications
+  verifySignature(req: WebhookRequest): boolean {
+    const signature = req.headers['x-platform-signature'];
+    if (!signature) return false;
+
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const url = `${protocol}://${req.headers['host']}${req.url}`;
+
+    return validatePlatformSignature(
+      this.config.platformWebhookSecret,
+      signature,
+      url,
+      req.body
+    );
+  }
+
+  async handleWebhook(req: WebhookRequest): Promise<WebhookResponse> {
+    const { event_type, event_id } = req.body;
+
+    // IMPORTANT: Return 200 OK within 3 seconds to avoid retries
+    logger.info('platform.webhook.received', { event_type, event_id });
+
+    // Defer heavy processing after response
+    setImmediate(async () => {
+      await processEvent(event_type, event_id);
+    });
+
+    return { status: 200, body: { ok: true } };
+  }
+
+  getMetadata(): ConnectorMetadata {
+    return {
+      platform: 'platform-name',
+      version: '1.0.0',
+      authMethod: 'oauth2',
+      capabilities: {
+        ingress: {
+          method: 'hybrid',  // WebSocket + webhook
+          realtime: true,
+          requiresWebhook: true,
+          requiresPublicUrl: true
+        },
+        egress: {
+          chat: true,
+          dm: true,
+          reactions: true,
+          threads: false
+        },
+        moderation: {
+          ban: false,
+          timeout: false,
+          delete: false
+        }
+      }
+    };
+  }
+}
+```
+
+**RULES: Webhook Response SLA**
+
+- **RULE: ALWAYS return 200 OK within 3 seconds** — platforms retry slow webhooks
+- **RULE: Use `setImmediate()` for async processing** — defer work after response
+- **RULE: Verify signature synchronously** — reject invalid requests before processing
+- **RULE: Use `x-forwarded-proto` for URL reconstruction** — Cloud Run terminates SSL
+
+**RULES: Connector Registration**
+
+- **ALWAYS register connector with ConnectorManager** in `ingress-egress-service.ts`
+- **ALWAYS implement both IngressConnector AND WebhookConnector** for hybrid platforms
+- **ALWAYS provide accurate ConnectorMetadata** — capabilities must match implementation
+
+**Examples in Production:**
+
+- **Twilio** (`src/services/ingress/twilio/connector-adapter.ts`): Hybrid mode (WebSocket + webhook)
+- **Slack** (Coming in Sprint 343): Socket Mode + Events API
+
+**Anti-Patterns (NEVER):**
+
+- ❌ Block webhook response with external API calls (violates 3-second SLA)
+- ❌ Process heavy logic before returning 200 OK (causes platform retries)
+- ❌ Use `req.protocol` without checking `x-forwarded-proto` (signature verification fails)
+- ❌ Skip signature verification (security vulnerability)
+- ❌ Provide incorrect metadata capabilities (breaks runtime discovery)
+
+**Full Documentation:**
+
+- [Adding a New Ingress Platform](./documentation/guides/adding-ingress-platform.md) — Step-by-step integration guide
+- [Webhook Handler Implementation](./src/services/ingress/core/webhook-handler.ts) — Generic webhook processor
+- [Twilio Integration Example](./src/services/ingress/twilio/) — Production reference implementation
+- [Architecture Validation Tool](./tools/validate-ingress-architecture.ts) — Validate connector compliance
+
+---
+
 ### Creating a New Bit (Service)
 1. Run `npm run brat -- bit create <name> [options]`
    - `--profile <p>`: Capability profile (core, gateway, llm, mcp-server) [default: core]

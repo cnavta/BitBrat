@@ -27,6 +27,8 @@ describe('oauth-service OAuth routes', () => {
 
   const origFetch = global.fetch as any;
   beforeEach(() => {
+    // Ensure MCP_AUTH_TOKEN is not set to avoid cross-test pollution
+    delete process.env.MCP_AUTH_TOKEN;
     (global as any).fetch = jest.fn(async (url: string, init?: any) => {
       if (String(url).includes('/oauth2/token')) {
         return {
@@ -56,6 +58,8 @@ describe('oauth-service OAuth routes', () => {
     (global as any).fetch = origFetch;
     botStore.value = null;
     broadcasterStore.value = null;
+    // Clean up MCP_AUTH_TOKEN after each test
+    delete process.env.MCP_AUTH_TOKEN;
   });
 
   it('GET /oauth/twitch/bot/start returns JSON url when mode=json', async () => {

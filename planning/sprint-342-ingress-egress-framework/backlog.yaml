@@ -1,0 +1,93 @@
+meta:
+  backlog_id: sprint-342-ingress-egress-framework
+  sprint_number: 342
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-342
+  name: Framework Foundation
+  goal: Establish reusable webhook infrastructure
+
+items:
+  - id: IEF-001
+    title: Create WebhookHandler
+    status: done
+    priority: P0
+    completed_at: 2026-07-14T16:15:00Z
+
+  - id: IEF-002
+    title: Enhance core interfaces
+    status: done
+    priority: P0
+    started_at: 2026-07-14T16:20:00Z
+    completed_at: 2026-07-14T16:30:00Z
+
+  - id: IEF-003
+    title: Unit tests for WebhookHandler
+    status: done
+    priority: P0
+    started_at: 2026-07-14T16:35:00Z
+    completed_at: 2026-07-14T17:00:00Z
+
+  - id: IEF-004
+    title: Add raw body middleware
+    status: blocked
+    priority: P1
+    started_at: 2026-07-14T17:00:00Z
+    blocked_reason: Requires base-server.ts refactoring (already has express.json installed)
+
+  - id: IEF-005
+    title: Generic webhook routing
+    status: done
+    priority: P0
+    started_at: 2026-07-14T17:30:00Z
+    completed_at: 2026-07-14T17:45:00Z
+
+  - id: IEF-007
+    title: Refactor TwilioConnectorAdapter
+    status: done
+    priority: P0
+    started_at: 2026-07-14T18:00:00Z
+    completed_at: 2026-07-14T18:20:00Z
+
+  - id: IEF-008
+    title: Update Twilio webhook route
+    status: done
+    priority: P0
+    started_at: 2026-07-14T18:20:00Z
+    completed_at: 2026-07-14T18:25:00Z
+
+  - id: IEF-009
+    title: Regression testing for Twilio
+    status: done
+    priority: P0
+    started_at: 2026-07-14T18:30:00Z
+    completed_at: 2026-07-14T18:45:00Z
+
+  - id: IEF-010
+    title: Architecture validation script
+    status: done
+    priority: P1
+    started_at: 2026-07-14T18:50:00Z
+    completed_at: 2026-07-14T19:15:00Z
+
+  - id: IEF-011
+    title: Update documentation
+    status: done
+    priority: P1
+    started_at: 2026-07-14T19:20:00Z
+    completed_at: 2026-07-14T19:40:00Z
+
+  - id: IEF-012
+    title: Sprint retro and handoff
+    status: done
+    priority: P1
+    started_at: 2026-07-14T19:45:00Z
+    completed_at: 2026-07-14T20:00:00Z
+
+  - id: IEF-006
+    title: Integration tests for webhook routing
+    status: done
+    priority: P1
+    started_at: 2026-07-14T20:05:00Z
+    completed_at: 2026-07-14T20:30:00Z

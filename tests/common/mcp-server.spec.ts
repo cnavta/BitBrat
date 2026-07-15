@@ -19,6 +19,8 @@ describe("McpServer", () => {
   let server: McpServer;
 
   beforeEach(() => {
+    // Ensure MCP_AUTH_TOKEN is not set before each test to avoid cross-test pollution
+    delete process.env.MCP_AUTH_TOKEN;
     server = new McpServer({ serviceName: "test-mcp-server" });
     // Mock the SDK Server connect to avoid actual SSE transport logic in some tests
     (server as any).mcpServer.connect = jest.fn().mockResolvedValue(undefined);
@@ -27,6 +29,8 @@ describe("McpServer", () => {
 
   afterEach(async () => {
     await server.close();
+    // Clean up MCP_AUTH_TOKEN after each test
+    delete process.env.MCP_AUTH_TOKEN;
   });
 
   describe("Endpoints Registration", () => {

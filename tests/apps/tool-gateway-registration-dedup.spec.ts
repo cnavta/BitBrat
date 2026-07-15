@@ -42,6 +42,9 @@ describe('Tool Gateway registration write dedup', () => {
     await (server as any).handleMcpRegistration(makeEvent({ ...basePayload }, 'reg-2'));
     await (server as any).handleMcpRegistration(makeEvent({ ...basePayload }, 'reg-3'));
 
+    // Wait for fire-and-forget writes to complete
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     expect(setMock).toHaveBeenCalledTimes(1);
   });
 
@@ -54,6 +57,9 @@ describe('Tool Gateway registration write dedup', () => {
       makeEvent({ status: 'active', transport: 'sse', url: basePayload.url, name: 'event-router' }, 'reg-2')
     );
 
+    // Wait for fire-and-forget writes to complete
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     expect(setMock).toHaveBeenCalledTimes(1);
   });
 
@@ -63,6 +69,9 @@ describe('Tool Gateway registration write dedup', () => {
     await (server as any).handleMcpRegistration(
       makeEvent({ ...basePayload, url: 'http://event-router.bitbrat.local:4000/sse' }, 'reg-2')
     );
+
+    // Wait for fire-and-forget writes to complete
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     expect(setMock).toHaveBeenCalledTimes(2);
   });
