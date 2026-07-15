@@ -376,6 +376,16 @@ export class ToolGatewayServer extends Bit {
         logger.debug('tool_gateway.notifications.sent', { sessionId });
       } catch (error: any) {
         errorCount++;
+
+        // If session is disconnected, remove it from the map
+        if (error.message === 'Not connected') {
+          this.sessionServers.delete(sessionId);
+          logger.debug('tool_gateway.notifications.session_cleaned', {
+            sessionId,
+            reason: 'disconnected'
+          });
+        }
+
         logger.warn('tool_gateway.notifications.send_failed', {
           sessionId,
           error: error.message
