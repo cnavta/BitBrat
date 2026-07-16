@@ -101,10 +101,18 @@ This file tracks all prompts, requests, and actions taken during Sprint 343 exec
    - Reports count mismatches, missing documents, and checksum differences
    - Exit code 1 if validation fails (useful for CI)
 
+10. **FND-013**: Comprehensive unit tests for PostgresDocumentStore
+   - File: `src/common/persistence/__tests__/postgres-store.test.ts`
+   - 18 test cases covering all major functionality
+   - Tests: get, set, delete, query, getAll, batch, health, watch, close
+   - Mocked pg module for isolated testing
+   - All tests passing (100% success rate)
+
 **Next Steps**:
-- Continue with FND-012 through FND-016 (remaining 5 foundation tasks)
-- Test PostgreSQL setup with Docker Compose
-- Run test migrations with sample data
+- FND-012: Refactor services to use IDocumentStore (deferred to Phase 1)
+- FND-014: Run test migration with sample data
+- FND-015: Performance benchmarking
+- FND-016: Deploy to remote Docker (staging)
 
 ---
 
@@ -114,4 +122,7 @@ Tasks will be updated in backlog.yaml as they progress through:
 - `not_started` → `in_progress` → `completed`
 
 Current focus: Phase 0 Foundation (16 tasks, ~60 hours)
-Completed: 11/16 tasks (FND-001 through FND-011, excluding FND-006 RedisKVStore)
+Completed: 12/16 tasks (75% complete)
+- Done: FND-001 through FND-011, FND-013
+- Deferred: FND-006 (RedisKVStore - optional), FND-012 (service refactoring - Phase 1)
+- Remaining: FND-014, FND-015, FND-016

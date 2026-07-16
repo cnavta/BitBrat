@@ -8,8 +8,8 @@ meta:
   duration: 3-4 weeks
   approach: Docker-first → Migrate → Deploy → GCP (optional future)
   progress:
-    phase_0_foundation: 11/16 tasks completed (FND-001 through FND-011, excluding FND-006)
-    total_completed: 11/58 tasks
+    phase_0_foundation: 12/16 tasks completed (FND-001 through FND-013, excluding FND-006 and FND-012)
+    total_completed: 12/58 tasks
 
 sprint:
   id: sprint-343
@@ -282,9 +282,10 @@ items:
     title: Write unit tests for PostgresDocumentStore
     description: |
       Comprehensive unit tests for PostgreSQL implementation.
-    status: todo
+    status: done
     priority: P0
     effort: 6h
+    completed: 2026-07-15
     acceptance_criteria:
       - Test connection pooling
       - Test CRUD operations
