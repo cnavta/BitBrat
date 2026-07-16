@@ -5,8 +5,8 @@
  * Useful for verifying migration success.
  */
 
-import { getFirestore } from '../../../src/common/firebase';
-import { PostgresDocumentStore } from '../../../src/common/persistence/postgres-store';
+import { getFirestore } from '../../../../src/common/firebase';
+import { PostgresDocumentStore } from '../../../../src/common/persistence/postgres-store';
 import type { Logger } from '../orchestration/logger';
 import * as crypto from 'crypto';
 
@@ -120,10 +120,10 @@ async function validateCollection(
   }
 
   // Check for docs in Postgres but not in Firestore
-  for (const id of postgresMap.keys()) {
+  for (const id of Array.from(postgresMap.keys())) {
     if (!firestoreDocs.has(id)) {
       missingInFirestore++;
-      differences.push({ id, issue: 'missing_in_firestore' });
+      differences.push({ id: String(id), issue: 'missing_in_firestore' });
     }
   }
 

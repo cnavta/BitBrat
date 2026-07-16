@@ -10,8 +10,8 @@
  */
 
 import * as cliProgress from 'cli-progress';
-import { getFirestore } from '../../../src/common/firebase';
-import { PostgresDocumentStore } from '../../../src/common/persistence/postgres-store';
+import { getFirestore } from '../../../../src/common/firebase';
+import { PostgresDocumentStore } from '../../../../src/common/persistence/postgres-store';
 import type { Logger } from '../orchestration/logger';
 
 export interface MigrateCliFlags {

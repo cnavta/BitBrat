@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
-import { PostgresDocumentStore } from '../../../src/common/persistence/postgres-store';
+import { PostgresDocumentStore } from '../../../../src/common/persistence/postgres-store';
 import { execCmd } from '../orchestration/exec';
 import type { Logger } from '../orchestration/logger';
 
