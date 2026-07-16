@@ -24,6 +24,8 @@ import { enableApis, getRequiredApis } from '../providers/gcp/apis';
 import { cmdSetup } from './setup';
 import { cmdBackup } from './backup';
 import { cmdMigrate } from './migrate';
+import { cmdPgBackup, cmdPgRestore } from './pg-backup';
+import { cmdDbValidate } from './db-validate';
 
 const RUN_ID = deriveTag();
 const log = createLogger({ base: { runId: RUN_ID, component: 'brat' } });
@@ -161,6 +163,13 @@ Usage:
   # Database migration (Firestore → PostgreSQL)
   brat migrate collection <name> [--dry-run] [--json]
   brat migrate all [--dry-run] [--json]
+
+  # PostgreSQL backup/restore
+  brat pg:backup [--output <path>] [--format json|sql] [--compress] [--collections a,b] [--json]
+  brat pg:restore --input <path> [--format json|sql] [--mode merge|overwrite] [--dry-run] [--json]
+
+  # Database validation (Firestore vs PostgreSQL consistency check)
+  brat db:validate [--collection <name> | --all] [--sample N] [--json]
 
 Notes:
   - Provide --env or set BITBRAT_ENV. Common values: dev, prod.
@@ -947,6 +956,18 @@ Options:
   }
   if (c1 === 'migrate') {
     await cmdMigrate(cmd, { json: flags.json, dryRun: flags.dryRun }, rest, log);
+    return;
+  }
+  if (c1 === 'pg:backup') {
+    await cmdPgBackup(cmd, { json: flags.json, dryRun: flags.dryRun }, rest, log);
+    return;
+  }
+  if (c1 === 'pg:restore') {
+    await cmdPgRestore(cmd, { json: flags.json, dryRun: flags.dryRun }, rest, log);
+    return;
+  }
+  if (c1 === 'db:validate') {
+    await cmdDbValidate(cmd, { json: flags.json }, rest, log);
     return;
   }
   if (c1 === 'docker') {

@@ -7,6 +7,9 @@ meta:
   owner: Lead Implementor
   duration: 3-4 weeks
   approach: Docker-first → Migrate → Deploy → GCP (optional future)
+  progress:
+    phase_0_foundation: 11/16 tasks completed (FND-001 through FND-011, excluding FND-006)
+    total_completed: 11/58 tasks
 
 sprint:
   id: sprint-343
@@ -44,9 +47,10 @@ items:
     description: |
       Define vendor-neutral IDocumentStore and IKVStore interfaces.
       Simple abstractions - no complex dual-write patterns.
-    status: todo
+    status: done
     priority: P0
     effort: 4h
+    completed: 2026-07-15
     acceptance_criteria:
       - IDocumentStore interface defined with CRUD + query + transaction methods
       - IKVStore interface defined for key-value operations
@@ -59,9 +63,10 @@ items:
   - id: FND-002
     title: Install PostgreSQL dependencies
     description: Install pg and @types/pg npm packages
-    status: todo
+    status: done
     priority: P0
     effort: 0.5h
+    completed: 2026-07-15
     acceptance_criteria:
       - pg@^8.11.0 in package.json
       - "@types/pg@^8.10.0" in package.json
@@ -69,13 +74,14 @@ items:
     dependencies: []
 
   - id: FND-003
-    title: Create PostgreSQL schema for events
+    title: Create PostgreSQL schema for all collections
     description: |
-      Create schema/001_events.sql with events and event_snapshots tables.
-      Include indexes, constraints, triggers, and TTL cleanup function.
-    status: todo
+      Create schema SQL for all 13 collections with JSONB storage.
+      Include indexes, constraints, and pgvector support for context_packs.
+    status: done
     priority: P0
     effort: 3h
+    completed: 2026-07-15
     acceptance_criteria:
       - events table with all required columns
       - event_snapshots table with FK to events
@@ -92,9 +98,10 @@ items:
     description: |
       Implement IDocumentStore interface using node-postgres (pg).
       Support get, set, update, delete, query, transaction, watch (polling).
-    status: todo
+    status: done
     priority: P0
     effort: 8h
+    completed: 2026-07-15
     acceptance_criteria:
       - PostgresDocumentStore class implements IDocumentStore
       - Connection pooling configured
@@ -114,9 +121,10 @@ items:
     description: |
       Simple factory pattern to select PostgreSQL or Firestore backend.
       NO dual-write complexity - just a switch.
-    status: todo
+    status: done
     priority: P0
     effort: 1h
+    completed: 2026-07-15
     acceptance_criteria:
       - Factory reads PERSISTENCE_DRIVER env var
       - Returns PostgresDocumentStore if "postgres"
@@ -151,9 +159,10 @@ items:
     description: |
       Add postgres:15-alpine service to docker-compose.local.yaml.
       Include volume for data persistence and health check.
-    status: todo
+    status: done
     priority: P0
     effort: 1h
+    completed: 2026-07-15
     acceptance_criteria:
       - postgres service in docker-compose.local.yaml
       - Environment vars for POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
@@ -170,9 +179,10 @@ items:
     description: |
       Create brat CLI command to migrate collections from Firestore to PostgreSQL.
       Support all collections, dry-run, batch processing, and progress tracking.
-    status: todo
+    status: done
     priority: P0
     effort: 8h
+    completed: 2026-07-15
     acceptance_criteria:
       - "npm run brat -- migrate collection events --from firestore --to postgres --dry-run"
       - "npm run brat -- migrate all --from firestore --to postgres"
@@ -190,11 +200,12 @@ items:
   - id: FND-009
     title: Create brat backup command for PostgreSQL
     description: |
-      Add "brat backup" command to create PostgreSQL backups.
+      Add "brat pg:backup" command to create PostgreSQL backups.
       Export to JSON or SQL format.
-    status: todo
+    status: done
     priority: P1
     effort: 4h
+    completed: 2026-07-15
     acceptance_criteria:
       - "npm run brat -- backup --env staging --output backup.json"
       - "npm run brat -- backup --env staging --format sql --output backup.sql"
@@ -209,10 +220,11 @@ items:
   - id: FND-010
     title: Create brat restore command for PostgreSQL
     description: |
-      Add "brat restore" command to restore PostgreSQL backups.
-    status: todo
+      Add "brat pg:restore" command to restore PostgreSQL backups.
+    status: done
     priority: P1
     effort: 4h
+    completed: 2026-07-15
     acceptance_criteria:
       - "npm run brat -- restore --env staging --input backup.json"
       - "npm run brat -- restore --env staging --format sql --input backup.sql"
@@ -229,9 +241,10 @@ items:
     description: |
       Add "brat db:validate" command to validate data consistency.
       Compare Firestore vs PostgreSQL data.
-    status: todo
+    status: done
     priority: P0
     effort: 5h
+    completed: 2026-07-15
     acceptance_criteria:
       - "npm run brat -- db:validate --collection events"
       - "npm run brat -- db:validate --all"

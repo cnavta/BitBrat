@@ -84,10 +84,27 @@ This file tracks all prompts, requests, and actions taken during Sprint 343 exec
    - Integrated into main CLI (`tools/brat/src/cli/index.ts`)
    - Installed `cli-progress` and `@types/cli-progress` packages
 
+8. **FND-009 & FND-010**: Implemented PostgreSQL backup/restore commands
+   - File: `tools/brat/src/cli/pg-backup.ts`
+   - Commands: `brat pg:backup`, `brat pg:restore`
+   - JSON and SQL (pg_dump/pg_restore) formats
+   - Compression support (gzip)
+   - Dry-run mode for restore
+   - Merge and overwrite modes
+   - Integrated into main CLI
+
+9. **FND-011**: Implemented database validation command
+   - File: `tools/brat/src/cli/db-validate.ts`
+   - Command: `brat db:validate [--collection <name> | --all] [--sample N]`
+   - Compares Firestore vs PostgreSQL data consistency
+   - Checksum-based validation
+   - Reports count mismatches, missing documents, and checksum differences
+   - Exit code 1 if validation fails (useful for CI)
+
 **Next Steps**:
-- Update backlog.yaml to mark FND-001 through FND-008 as completed
-- Continue with FND-009 through FND-016
-- Test PostgreSQL connection and migration tooling
+- Continue with FND-012 through FND-016 (remaining 5 foundation tasks)
+- Test PostgreSQL setup with Docker Compose
+- Run test migrations with sample data
 
 ---
 
@@ -97,4 +114,4 @@ Tasks will be updated in backlog.yaml as they progress through:
 - `not_started` → `in_progress` → `completed`
 
 Current focus: Phase 0 Foundation (16 tasks, ~60 hours)
-Completed: 8/16 tasks (FND-001 through FND-008)
+Completed: 11/16 tasks (FND-001 through FND-011, excluding FND-006 RedisKVStore)
