@@ -63,7 +63,7 @@ async function seedFirestore(count: number): Promise<number> {
 
   console.log(`📤 Uploading to Firestore...`);
   const db = getFirestore();
-  const batch = db.batch();
+  let batch = db.batch();
   let batchCount = 0;
   let totalWritten = 0;
 
@@ -77,6 +77,7 @@ async function seedFirestore(count: number): Promise<number> {
       await batch.commit();
       totalWritten += batchCount;
       console.log(`  ✓ Written ${totalWritten}/${count} events`);
+      batch = db.batch(); // Create new batch
       batchCount = 0;
     }
   }
