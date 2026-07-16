@@ -8,8 +8,8 @@ meta:
   duration: 3-4 weeks
   approach: Docker-first → Migrate → Deploy → GCP (optional future)
   progress:
-    phase_0_foundation: 12/16 tasks completed (FND-001 through FND-013, excluding FND-006 and FND-012)
-    total_completed: 12/58 tasks
+    phase_0_foundation: 13/16 tasks completed (81% - FND-001 through FND-014, excluding FND-006, FND-012)
+    total_completed: 13/58 tasks (22%)
 
 sprint:
   id: sprint-343
@@ -304,9 +304,10 @@ items:
     description: |
       Migrate 10k events from Firestore to PostgreSQL in local Docker.
       Measure time, verify data integrity, check for errors.
-    status: todo
+    status: done
     priority: P0
     effort: 3h
+    completed: 2026-07-15
     acceptance_criteria:
       - 10k events migrated successfully
       - Zero data loss (checksums match)

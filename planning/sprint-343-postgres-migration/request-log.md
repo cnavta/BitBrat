@@ -108,11 +108,20 @@ This file tracks all prompts, requests, and actions taken during Sprint 343 exec
    - Mocked pg module for isolated testing
    - All tests passing (100% success rate)
 
+11. **FND-014**: Migration testing framework
+   - File: `tools/brat/src/test-migration.ts`
+   - Test data generator (configurable event count)
+   - Automated seeding to Firestore
+   - PostgreSQL verification utility
+   - Cleanup functionality
+   - npm script: `npm run test-migration [seed|verify|cleanup|full]`
+   - Documentation: `planning/sprint-343-postgres-migration/TESTING_GUIDE.md`
+
 **Next Steps**:
-- FND-012: Refactor services to use IDocumentStore (deferred to Phase 1)
-- FND-014: Run test migration with sample data
-- FND-015: Performance benchmarking
+- FND-012: Refactor services to use IDocumentStore (deferred to Phase 1 - MIG tasks)
+- FND-015: Performance benchmarking (can be done alongside Phase 1 migration)
 - FND-016: Deploy to remote Docker (staging)
+- Begin Phase 1: Full migration (MIG-001 through MIG-035)
 
 ---
 
@@ -122,7 +131,7 @@ Tasks will be updated in backlog.yaml as they progress through:
 - `not_started` → `in_progress` → `completed`
 
 Current focus: Phase 0 Foundation (16 tasks, ~60 hours)
-Completed: 12/16 tasks (75% complete)
-- Done: FND-001 through FND-011, FND-013
-- Deferred: FND-006 (RedisKVStore - optional), FND-012 (service refactoring - Phase 1)
-- Remaining: FND-014, FND-015, FND-016
+Completed: 13/16 tasks (81% complete)
+- Done: FND-001 through FND-014 (excluding FND-006, FND-012)
+- Deferred: FND-006 (RedisKVStore - P2 optional), FND-012 (service refactoring - moved to Phase 1)
+- Remaining: FND-015 (performance benchmarking), FND-016 (remote Docker deployment)
