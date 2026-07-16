@@ -1,0 +1,1116 @@
+meta:
+  backlog_id: sprint-343-postgres-migration
+  sprint_number: 343
+  status_values: [todo, in_progress, blocked, done]
+  created: 2026-07-15
+  updated: 2026-07-15
+  owner: Lead Implementor
+  duration: 3-4 weeks
+  approach: Docker-first → Migrate → Deploy → GCP (optional future)
+
+sprint:
+  id: sprint-343
+  name: PostgreSQL Migration
+  goal: Replace Firestore with PostgreSQL for Docker-first deployment portability
+  decision_gates:
+    - gate: DOCKER_LOCAL_VALIDATED
+      timing: End of Week 1
+      criteria: Local Docker stack works with PostgreSQL, migration tooling validated
+    - gate: REMOTE_DOCKER_MIGRATED
+      timing: End of Week 3
+      criteria: All services migrated to PostgreSQL on remote Docker (staging)
+
+# ============================================================================
+# PHASE 0: Foundation (Week 1) - Docker-First PostgreSQL
+# ============================================================================
+
+phase_0_foundation:
+  name: Foundation - Docker-First PostgreSQL
+  goal: Get local and remote Docker working with PostgreSQL
+  duration: 1 week
+  tasks: 16
+  effort: 60 hours
+  deliverables:
+    - IDocumentStore abstraction
+    - PostgreSQL implementation
+    - Docker Compose PostgreSQL service (local + remote)
+    - Migration CLI (migrate, backup, restore, validate)
+    - Validated on local Docker with sample data
+
+items:
+  # --- Persistence Abstractions ---
+  - id: FND-001
+    title: Create persistence abstraction interfaces
+    description: |
+      Define vendor-neutral IDocumentStore and IKVStore interfaces.
+      Simple abstractions - no complex dual-write patterns.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - IDocumentStore interface defined with CRUD + query + transaction methods
+      - IKVStore interface defined for key-value operations
+      - QueryOptions and SetOptions types defined
+      - TypeScript strict mode passes
+    files:
+      - src/common/persistence/interfaces.ts
+    dependencies: []
+
+  - id: FND-002
+    title: Install PostgreSQL dependencies
+    description: Install pg and @types/pg npm packages
+    status: todo
+    priority: P0
+    effort: 0.5h
+    acceptance_criteria:
+      - pg@^8.11.0 in package.json
+      - "@types/pg@^8.10.0" in package.json
+      - npm install succeeds
+    dependencies: []
+
+  - id: FND-003
+    title: Create PostgreSQL schema for events
+    description: |
+      Create schema/001_events.sql with events and event_snapshots tables.
+      Include indexes, constraints, triggers, and TTL cleanup function.
+    status: todo
+    priority: P0
+    effort: 3h
+    acceptance_criteria:
+      - events table with all required columns
+      - event_snapshots table with FK to events
+      - Indexes on correlation_id, idempotency_key, expire_at
+      - update_updated_at_column() trigger function
+      - cleanup_expired_events() function for TTL
+    files:
+      - infrastructure/postgres/schema/001_events.sql
+    dependencies:
+      - FND-001
+
+  - id: FND-004
+    title: Implement PostgresDocumentStore
+    description: |
+      Implement IDocumentStore interface using node-postgres (pg).
+      Support get, set, update, delete, query, transaction, watch (polling).
+    status: todo
+    priority: P0
+    effort: 8h
+    acceptance_criteria:
+      - PostgresDocumentStore class implements IDocumentStore
+      - Connection pooling configured
+      - All CRUD operations work
+      - Transaction support with BEGIN/COMMIT/ROLLBACK
+      - Query with WHERE clauses, ORDER BY, LIMIT, OFFSET
+      - Watch method uses polling (default 5s interval)
+    files:
+      - src/common/persistence/postgres-store.ts
+    dependencies:
+      - FND-001
+      - FND-002
+      - FND-003
+
+  - id: FND-005
+    title: Create simple factory for persistence driver selection
+    description: |
+      Simple factory pattern to select PostgreSQL or Firestore backend.
+      NO dual-write complexity - just a switch.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - Factory reads PERSISTENCE_DRIVER env var
+      - Returns PostgresDocumentStore if "postgres"
+      - Returns Firestore instance if "firestore" (legacy)
+      - Simple conditional, no complex abstraction
+    files:
+      - src/common/persistence/factory.ts
+    dependencies:
+      - FND-001
+      - FND-004
+
+  - id: FND-006
+    title: Implement RedisKVStore (optional)
+    description: |
+      Implement IKVStore interface using ioredis.
+      Support get, set, delete, mget, exists with TTL.
+    status: todo
+    priority: P2
+    effort: 4h
+    acceptance_criteria:
+      - RedisKVStore class implements IKVStore
+      - get/set/delete/mget/exists all work
+      - TTL support via SETEX
+      - Connection pooling configured
+    files:
+      - src/common/persistence/redis-store.ts
+    dependencies:
+      - FND-001
+
+  - id: FND-007
+    title: Add Docker Compose PostgreSQL service
+    description: |
+      Add postgres:15-alpine service to docker-compose.local.yaml.
+      Include volume for data persistence and health check.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - postgres service in docker-compose.local.yaml
+      - Environment vars for POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+      - Volume mounted for /var/lib/postgresql/data
+      - Health check configured
+      - Port 5432 exposed
+    files:
+      - infrastructure/docker-compose/docker-compose.local.yaml
+    dependencies: []
+
+  # --- Migration Tooling ---
+  - id: FND-008
+    title: Create firestore-to-postgres migration script
+    description: |
+      Create brat CLI command to migrate collections from Firestore to PostgreSQL.
+      Support all collections, dry-run, batch processing, and progress tracking.
+    status: todo
+    priority: P0
+    effort: 8h
+    acceptance_criteria:
+      - "npm run brat -- migrate collection events --from firestore --to postgres --dry-run"
+      - "npm run brat -- migrate all --from firestore --to postgres"
+      - Batch processing (1000 docs at a time)
+      - Progress bar showing migration status (n/total docs)
+      - Validation of migrated data (checksum comparison)
+      - Collection mapping (Firestore schema → PostgreSQL schema)
+      - Support for subcollections (event_snapshots)
+    files:
+      - tools/brat/src/commands/migrate.ts
+      - tools/brat/src/migration/collection-mapper.ts
+    dependencies:
+      - FND-004
+
+  - id: FND-009
+    title: Create brat backup command for PostgreSQL
+    description: |
+      Add "brat backup" command to create PostgreSQL backups.
+      Export to JSON or SQL format.
+    status: todo
+    priority: P1
+    effort: 4h
+    acceptance_criteria:
+      - "npm run brat -- backup --env staging --output backup.json"
+      - "npm run brat -- backup --env staging --format sql --output backup.sql"
+      - Supports incremental backups (--since timestamp)
+      - Compression support (gzip)
+      - Backup metadata (timestamp, size, collections)
+    files:
+      - tools/brat/src/commands/backup.ts
+    dependencies:
+      - FND-004
+
+  - id: FND-010
+    title: Create brat restore command for PostgreSQL
+    description: |
+      Add "brat restore" command to restore PostgreSQL backups.
+    status: todo
+    priority: P1
+    effort: 4h
+    acceptance_criteria:
+      - "npm run brat -- restore --env staging --input backup.json"
+      - "npm run brat -- restore --env staging --format sql --input backup.sql"
+      - Dry-run mode (--dry-run)
+      - Validation before restore
+      - Rollback on error
+    files:
+      - tools/brat/src/commands/restore.ts
+    dependencies:
+      - FND-009
+
+  - id: FND-011
+    title: Create brat db:validate command
+    description: |
+      Add "brat db:validate" command to validate data consistency.
+      Compare Firestore vs PostgreSQL data.
+    status: todo
+    priority: P0
+    effort: 5h
+    acceptance_criteria:
+      - "npm run brat -- db:validate --collection events"
+      - "npm run brat -- db:validate --all"
+      - Compare record counts (Firestore vs Postgres)
+      - Compare checksums for sample of records
+      - Report differences with drill-down details
+      - Exit code 0 if consistent, 1 if differences found
+    files:
+      - tools/brat/src/commands/db-validate.ts
+    dependencies:
+      - FND-004
+
+  # --- Refactor Persistence Service ---
+  - id: FND-012
+    title: Refactor PersistenceStore to use IDocumentStore
+    description: |
+      Update src/services/persistence/store.ts to use IDocumentStore interface
+      instead of direct Firestore calls.
+    status: todo
+    priority: P0
+    effort: 8h
+    acceptance_criteria:
+      - PersistenceStore constructor takes IDocumentStore
+      - All Firestore direct calls replaced with IDocumentStore methods
+      - upsertIngressEvent() uses store.transaction()
+      - applySnapshot() uses store.set()
+      - Works with both Firestore and PostgreSQL via factory
+    files:
+      - src/services/persistence/store.ts
+    dependencies:
+      - FND-004
+      - FND-005
+
+  - id: FND-013
+    title: Write unit tests for PostgresDocumentStore
+    description: |
+      Comprehensive unit tests for PostgreSQL implementation.
+    status: todo
+    priority: P0
+    effort: 6h
+    acceptance_criteria:
+      - Test connection pooling
+      - Test CRUD operations
+      - Test queries with filters, ordering, pagination
+      - Test transactions (commit, rollback)
+      - Test watch() polling mechanism
+      - All tests pass
+    files:
+      - src/common/persistence/__tests__/postgres-store.test.ts
+    dependencies:
+      - FND-004
+
+  # --- POC Validation ---
+  - id: FND-014
+    title: Run migration on test dataset (10k events)
+    description: |
+      Migrate 10k events from Firestore to PostgreSQL in local Docker.
+      Measure time, verify data integrity, check for errors.
+    status: todo
+    priority: P0
+    effort: 3h
+    acceptance_criteria:
+      - 10k events migrated successfully
+      - Zero data loss (checksums match)
+      - Migration completes in <5 minutes
+      - No errors in logs
+      - Validation script confirms integrity
+    dependencies:
+      - FND-008
+      - FND-011
+
+  - id: FND-015
+    title: Performance benchmarks (Firestore vs PostgreSQL)
+    description: |
+      Benchmark key operations: get event, create event, query events.
+      Compare latency and throughput between Firestore and PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - Benchmark get event (avg latency)
+      - Benchmark create event (avg latency)
+      - Benchmark query 100 events (avg latency)
+      - Throughput test (events/second)
+      - PostgreSQL within 20% of Firestore performance
+      - Results documented
+    files:
+      - tools/benchmark/persistence-benchmark.ts
+    dependencies:
+      - FND-014
+
+  - id: FND-016
+    title: Test local Docker stack with PostgreSQL
+    description: |
+      Bring up local Docker stack with PostgreSQL, migrate test data, verify all services work.
+    status: todo
+    priority: P0
+    effort: 3h
+    acceptance_criteria:
+      - docker-compose up succeeds with postgres service
+      - Set PERSISTENCE_DRIVER=postgres in .env
+      - Migrate 1000 test events using "brat migrate"
+      - Event-router, tool-gateway, auth all connect to PostgreSQL
+      - Full message flow works end-to-end
+      - Performance acceptable (<5ms queries)
+    dependencies:
+      - FND-015
+      - FND-012
+
+# ============================================================================
+# PHASE 1: Full Migration (Weeks 2-3) - All Collections
+# ============================================================================
+
+phase_1_migration:
+  name: Full Migration - All Collections to PostgreSQL
+  goal: Migrate all 13 Firestore collections, refactor all services, deploy to remote Docker
+  duration: 2 weeks
+  tasks: 35
+  effort: 105 hours
+  prerequisites:
+    - Docker local validated (FND-016)
+  deliverables:
+    - All 13 PostgreSQL schemas
+    - All services refactored to use IDocumentStore
+    - All data migrated
+    - Deployed to remote Docker (staging)
+    - Firestore dependencies removed
+
+items:
+  # --- Routing Rules ---
+  - id: MIG-001
+    title: Create routing_rules PostgreSQL schema
+    description: |
+      Schema for routing rules with enabled, priority, logic, enrichments.
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - routing_rules table created
+      - Index on (enabled, priority)
+      - JSONB columns for logic and enrichments
+      - updated_at trigger
+    files:
+      - infrastructure/postgres/schema/002_routing_rules.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-002
+    title: Migrate RuleLoader to use IDocumentStore
+    description: |
+      Refactor src/services/router/rule-loader.ts to use IDocumentStore
+      instead of direct Firestore access.
+    status: todo
+    priority: P0
+    effort: 6h
+    acceptance_criteria:
+      - RuleLoader constructor takes IDocumentStore
+      - All collection() calls replaced with store.query()
+      - Works with both Firestore and PostgreSQL
+    files:
+      - src/services/router/rule-loader.ts
+    dependencies:
+      - MIG-001
+
+  - id: MIG-003
+    title: Replace onSnapshot with polling in RuleLoader
+    description: |
+      Replace Firestore onSnapshot with polling-based watch() method.
+      Default 5-second poll interval.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - onSnapshot calls replaced with store.watch()
+      - Poll interval configurable via env var (default 5s)
+      - Rule cache updates on changes detected
+      - Memory efficient (doesn't leak listeners)
+    files:
+      - src/services/router/rule-loader.ts
+    dependencies:
+      - MIG-002
+
+  - id: MIG-004
+    title: Test rule updates with 5s latency
+    description: |
+      Verify routing rules update correctly with 5-second polling.
+      Ensure no race conditions or missed updates.
+    status: todo
+    priority: P0
+    effort: 3h
+    acceptance_criteria:
+      - Create rule via MCP, detected within 5s
+      - Update rule, change propagates within 5s
+      - Delete rule, removed from cache within 5s
+      - No duplicate processing
+    files:
+      - src/services/router/__tests__/rule-loader-polling.spec.ts
+    dependencies:
+      - MIG-003
+
+  - id: MIG-005
+    title: Migrate routing rules data
+    description: |
+      Migrate all routing rules from Firestore to PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - All rules migrated using "brat migrate collection commands"
+      - Logic JSONB validated
+      - Enrichments JSONB validated
+      - Zero data loss verified with db:validate
+    dependencies:
+      - MIG-004
+
+  # --- MCP Server Registry ---
+  - id: MIG-006
+    title: Create mcp_servers PostgreSQL schema
+    description: Schema for MCP server registry with transport, command, url.
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - mcp_servers table created
+      - CHECK constraints on status and transport
+      - Index on status for active servers
+      - JSONB column for env vars
+    files:
+      - infrastructure/postgres/schema/003_mcp_servers.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-007
+    title: Migrate RegistryWatcher to IDocumentStore
+    description: |
+      Refactor src/common/mcp/registry-watcher.ts to use IDocumentStore.
+      Replace onSnapshot with polling.
+    status: todo
+    priority: P0
+    effort: 6h
+    acceptance_criteria:
+      - RegistryWatcher constructor takes IDocumentStore
+      - onSnapshot replaced with store.watch()
+      - Polling interval 5s
+      - Empty snapshot race condition no longer relevant
+    files:
+      - src/common/mcp/registry-watcher.ts
+    dependencies:
+      - MIG-006
+
+  - id: MIG-008
+    title: Test MCP server registration flow
+    description: |
+      Test full MCP server lifecycle: register → discovery → connection.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - Register MCP server via database insert
+      - Tool gateway discovers within 5s
+      - Connection established
+      - Tool invocation works
+    files:
+      - src/common/mcp/__tests__/registry-watcher-postgres.spec.ts
+    dependencies:
+      - MIG-007
+
+  - id: MIG-009
+    title: Migrate MCP servers data
+    description: Migrate all MCP server registrations to PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - All MCP servers migrated using "brat migrate collection mcp_servers"
+      - Transport configs valid
+      - Tool gateway reconnects successfully
+    dependencies:
+      - MIG-008
+
+  # --- Users (Auth) ---
+  - id: MIG-010
+    title: Create users PostgreSQL schema
+    description: Schema for user profiles with email, roles, status, metadata.
+    status: todo
+    priority: P0
+    effort: 3h
+    acceptance_criteria:
+      - users table created
+      - UNIQUE constraint on email
+      - TEXT[] for roles and tags
+      - JSONB for metadata
+      - Indexes on email and status
+    files:
+      - infrastructure/postgres/schema/004_users.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-011
+    title: Create UserRepository abstraction
+    description: |
+      Create repository pattern for user operations.
+      Interface + PostgreSQL implementation.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - IUserRepository interface defined
+      - PostgresUserRepository implements interface
+    files:
+      - src/services/auth/user-repository.ts
+      - src/services/auth/postgres-user-repository.ts
+    dependencies:
+      - MIG-010
+
+  - id: MIG-012
+    title: Implement PostgresUserRepository
+    description: |
+      Full implementation of user CRUD operations in PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 6h
+    acceptance_criteria:
+      - getById() retrieves user by user_id
+      - getByEmail() retrieves by email
+      - create() inserts new user
+      - update() patches user fields
+      - delete() soft-deletes (status = 'deleted')
+      - All operations use parameterized queries (SQL injection safe)
+    files:
+      - src/services/auth/postgres-user-repository.ts
+    dependencies:
+      - MIG-011
+
+  - id: MIG-013
+    title: Refactor auth service to use UserRepository
+    description: |
+      Update auth service to use repository instead of direct Firestore calls.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - Auth service constructor takes IUserRepository
+      - All Firestore user operations replaced with repository calls
+      - Works with PostgreSQL via factory
+    files:
+      - src/apps/auth-service.ts
+    dependencies:
+      - MIG-012
+
+  - id: MIG-014
+    title: Test auth flows (login, register, lookup)
+    description: |
+      Integration tests for all auth operations with PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - Register new user works
+      - Login by email works
+      - Update user profile works
+      - Lookup by external ID works
+    files:
+      - src/apps/__tests__/auth-service-postgres.spec.ts
+    dependencies:
+      - MIG-013
+
+  - id: MIG-015
+    title: Migrate users data
+    description: Migrate all users from Firestore to PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - All users migrated using "brat migrate collection users"
+      - Metadata JSONB validated
+      - Email uniqueness enforced
+      - Zero data loss verified
+    dependencies:
+      - MIG-014
+
+  # --- Context Packs (with pgvector) ---
+  - id: MIG-016
+    title: Create context_packs PostgreSQL schema with pgvector
+    description: |
+      Schema for context packs with vector embeddings for similarity search.
+      Requires pgvector extension.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - CREATE EXTENSION IF NOT EXISTS vector
+      - context_packs table with vector(1536) column
+      - Index on vector column for similarity search
+      - JSONB column for pack metadata
+    files:
+      - infrastructure/postgres/schema/005_context_packs.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-017
+    title: Migrate ContextPackManager to IDocumentStore
+    description: |
+      Refactor context pack operations to use IDocumentStore.
+    status: todo
+    priority: P0
+    effort: 6h
+    acceptance_criteria:
+      - ContextPackManager uses IDocumentStore
+      - Vector similarity search implemented via raw SQL
+      - Pack CRUD operations work
+    files:
+      - src/services/context/context-pack-manager.ts
+    dependencies:
+      - MIG-016
+
+  - id: MIG-018
+    title: Test vector similarity search
+    description: |
+      Verify pgvector similarity search works correctly.
+    status: todo
+    priority: P0
+    effort: 3h
+    acceptance_criteria:
+      - Insert packs with embeddings
+      - Query similar packs (cosine similarity)
+      - Results ranked by similarity score
+      - Performance <100ms for 10k packs
+    files:
+      - src/services/context/__tests__/vector-search.spec.ts
+    dependencies:
+      - MIG-017
+
+  - id: MIG-019
+    title: Migrate context packs data
+    description: Migrate all context packs with embeddings to PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - All packs migrated using "brat migrate collection context_packs"
+      - Vector embeddings preserved
+      - Similarity search still works
+    dependencies:
+      - MIG-018
+
+  # --- Router State ---
+  - id: MIG-020
+    title: Create router_state PostgreSQL schema
+    description: Schema for router pending actions and state tracking.
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - router_state table created
+      - Indexes on correlation_id and status
+      - TTL support via expire_at
+    files:
+      - infrastructure/postgres/schema/006_router_state.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-021
+    title: Migrate RouterStateManager to IDocumentStore
+    description: Refactor router state operations to use IDocumentStore.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - RouterStateManager uses IDocumentStore
+      - Pending actions CRUD works
+      - TTL cleanup works
+    files:
+      - src/services/router/state-manager.ts
+    dependencies:
+      - MIG-020
+
+  - id: MIG-022
+    title: Migrate router state data
+    description: Migrate pending router state to PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - Router state migrated using "brat migrate collection router_state"
+      - Zero data loss
+    dependencies:
+      - MIG-021
+
+  # --- State Engine ---
+  - id: MIG-023
+    title: Create state PostgreSQL schema
+    description: Schema for state engine storage.
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - state table created
+      - Indexes on key and updated_at
+      - JSONB column for value
+    files:
+      - infrastructure/postgres/schema/007_state.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-024
+    title: Migrate StateEngine to IDocumentStore
+    description: Refactor state engine to use IDocumentStore.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - StateEngine uses IDocumentStore
+      - get/set/delete state works
+    files:
+      - src/apps/state-engine.ts
+    dependencies:
+      - MIG-023
+
+  - id: MIG-025
+    title: Migrate state data
+    description: Migrate state engine data to PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - State migrated using "brat migrate collection state"
+      - Zero data loss
+    dependencies:
+      - MIG-024
+
+  # --- Observability (tool_usage, prompt_logs, mutation_log) ---
+  - id: MIG-026
+    title: Create observability schemas (tool_usage, prompt_logs, mutation_log)
+    description: |
+      Schemas for observability tracking.
+    status: todo
+    priority: P1
+    effort: 3h
+    acceptance_criteria:
+      - tool_usage table created
+      - prompt_logs table created
+      - mutation_log table created
+      - Indexes for time-series queries
+    files:
+      - infrastructure/postgres/schema/008_observability.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-027
+    title: Migrate observability services to IDocumentStore
+    description: Refactor tool usage, prompt logging, mutation tracking.
+    status: todo
+    priority: P1
+    effort: 6h
+    acceptance_criteria:
+      - All observability services use IDocumentStore
+      - Logging still works
+    files:
+      - src/services/observability/tool-usage-tracker.ts
+      - src/services/observability/prompt-logger.ts
+      - src/services/observability/mutation-logger.ts
+    dependencies:
+      - MIG-026
+
+  - id: MIG-028
+    title: Migrate observability data
+    description: Migrate tool usage, prompt logs, mutation logs.
+    status: todo
+    priority: P1
+    effort: 2h
+    acceptance_criteria:
+      - All observability data migrated
+      - Historical queries still work
+    dependencies:
+      - MIG-027
+
+  # --- OAuth Tokens ---
+  - id: MIG-029
+    title: Create oauth_tokens PostgreSQL schema
+    description: Schema for OAuth tokens (Twitch, Discord, etc).
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - oauth_tokens table created
+      - Indexes on user_id and provider
+      - Encrypted token storage
+    files:
+      - infrastructure/postgres/schema/009_oauth_tokens.sql
+    dependencies:
+      - FND-016
+
+  - id: MIG-030
+    title: Migrate OAuth service to IDocumentStore
+    description: Refactor OAuth token storage to use IDocumentStore.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - OAuth service uses IDocumentStore
+      - Token storage/retrieval works
+    files:
+      - src/apps/oauth-service.ts
+    dependencies:
+      - MIG-029
+
+  - id: MIG-031
+    title: Migrate OAuth tokens
+    description: Migrate OAuth tokens to PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - Tokens migrated securely
+      - Token refresh still works
+    dependencies:
+      - MIG-030
+
+  # --- Integration Testing ---
+  - id: MIG-032
+    title: Integration testing (all services with PostgreSQL)
+    description: |
+      End-to-end testing with ALL services on PostgreSQL.
+    status: todo
+    priority: P0
+    effort: 8h
+    acceptance_criteria:
+      - Ingest event → persistence works
+      - Event triggers routing rule → rule applied
+      - MCP tool invoked → registry lookup works
+      - User lookup for auth → user retrieved
+      - Context pack similarity search works
+      - Full message flow end-to-end succeeds
+      - Performance within SLAs
+    files:
+      - src/__tests__/integration/postgres-full-stack.spec.ts
+    dependencies:
+      - MIG-031
+
+  # --- Deploy to Remote Docker ---
+  - id: MIG-033
+    title: Deploy PostgreSQL to remote Docker (staging)
+    description: |
+      Deploy PostgreSQL container to remote Docker host (bitbrat.lan).
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - PostgreSQL container running on bitbrat.lan
+      - Data volume mounted and persisted
+      - Network accessible from other services
+      - Backups configured
+    files:
+      - infrastructure/docker-compose/docker-compose.staging.yaml
+    dependencies:
+      - MIG-032
+
+  - id: MIG-034
+    title: Migrate staging Firestore data to PostgreSQL
+    description: |
+      Run "brat migrate all" to migrate ALL staging data.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - "npm run brat -- migrate all --target staging" succeeds
+      - All 13 collections migrated
+      - Zero data loss (validated with db:validate)
+      - Migration log saved
+    dependencies:
+      - MIG-033
+
+  - id: MIG-035
+    title: Deploy all services to remote Docker with PostgreSQL
+    description: |
+      Deploy all services to bitbrat.lan with PERSISTENCE_DRIVER=postgres.
+    status: todo
+    priority: P0
+    effort: 4h
+    acceptance_criteria:
+      - Set PERSISTENCE_DRIVER=postgres in staging env
+      - "npm run brat -- docker up --target staging" deploys all services
+      - All services connect to PostgreSQL
+      - No Firestore reads in logs
+      - Integration tests pass on staging
+      - Full message flow works end-to-end
+    dependencies:
+      - MIG-034
+
+# ============================================================================
+# PHASE 2: Cleanup & Firestore Removal (Week 4)
+# ============================================================================
+
+phase_2_cleanup:
+  name: Cleanup - Remove Firestore Dependencies
+  goal: Remove Firestore code and dependencies after successful PostgreSQL migration
+  duration: 3-5 days
+  tasks: 7
+  effort: 15 hours
+  prerequisites:
+    - All services running on PostgreSQL in staging (MIG-035)
+    - Zero Firestore reads for 48 hours
+
+items:
+  - id: CLN-001
+    title: Verify zero Firestore reads in staging
+    description: |
+      Monitor staging for 48 hours to ensure no Firestore reads/writes.
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - Metrics show 0 Firestore operations
+      - All services reading from PostgreSQL
+      - No fallback to Firestore triggered
+    dependencies:
+      - MIG-035
+
+  - id: CLN-002
+    title: Remove firebase-admin from package.json
+    description: Uninstall firebase-admin and @types/firebase-admin.
+    status: todo
+    priority: P0
+    effort: 0.5h
+    acceptance_criteria:
+      - firebase-admin removed from package.json
+      - npm install succeeds
+      - No import errors
+    dependencies:
+      - CLN-001
+
+  - id: CLN-003
+    title: Remove src/common/firebase.ts
+    description: Delete Firestore initialization and helper code.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - src/common/firebase.ts deleted
+      - src/common/firebase.test.ts deleted
+      - All imports of firebase.ts removed
+    files:
+      - src/common/firebase.ts (delete)
+      - src/common/firebase.test.ts (delete)
+    dependencies:
+      - CLN-002
+
+  - id: CLN-004
+    title: Remove Firestore emulator from docker-compose
+    description: |
+      Remove firebase-emulator service from docker-compose.local.yaml.
+    status: todo
+    priority: P0
+    effort: 1h
+    acceptance_criteria:
+      - firebase-emulator service removed
+      - Port 8080 no longer exposed
+      - docker-compose up succeeds without emulator
+    files:
+      - infrastructure/docker-compose/docker-compose.local.yaml
+    dependencies:
+      - CLN-002
+
+  - id: CLN-005
+    title: Remove FIRESTORE_* environment variables
+    description: |
+      Remove all Firestore-related env vars from configs and documentation.
+    status: todo
+    priority: P0
+    effort: 2h
+    acceptance_criteria:
+      - FIRESTORE_EMULATOR_HOST removed
+      - GOOGLE_APPLICATION_CREDENTIALS usage reviewed
+      - .env.example updated
+      - All config files updated
+    files:
+      - .env.example
+      - env/local/global.yaml
+      - env/staging/global.yaml
+    dependencies:
+      - CLN-004
+
+  - id: CLN-006
+    title: Update documentation (README, CLAUDE.md, etc)
+    description: |
+      Update all docs to reflect PostgreSQL instead of Firestore.
+    status: todo
+    priority: P1
+    effort: 4h
+    acceptance_criteria:
+      - Firestore mentions removed from README.md
+      - PostgreSQL setup instructions added
+      - CLAUDE.md updated for AI agents
+      - docker-compose instructions updated
+      - Prerequisites updated
+    files:
+      - README.md
+      - CLAUDE.md
+      - documentation/guides/local-development.md
+    dependencies:
+      - CLN-002
+
+  - id: CLN-007
+    title: Archive deprecated Firestore code
+    description: |
+      Move Firestore-specific code to deprecated/ for historical reference.
+    status: todo
+    priority: P2
+    effort: 2h
+    acceptance_criteria:
+      - Firestore adapters moved to deprecated/
+      - Firestore migration scripts archived
+      - Git history preserved
+    dependencies:
+      - CLN-005
+
+# ============================================================================
+# PHASE 3: GCP Cloud SQL (OPTIONAL, FUTURE WORK)
+# ============================================================================
+
+phase_3_gcp:
+  name: GCP Cloud SQL Integration (Optional Future Work)
+  goal: Add Cloud SQL support for GCP production deployments
+  duration: 1 week
+  tasks: ~12
+  effort: ~40 hours
+  note: |
+    This phase is OPTIONAL and can be done later when GCP production deployment is needed.
+    Docker deployment is the primary target for now.
+
+  scope:
+    - Terraform modules for Cloud SQL
+    - Cloud SQL instance provisioning (staging, prod)
+    - Secret Manager integration (DATABASE_URL)
+    - VPC peering configuration
+    - Cloud Run deployment updates (socket mounting)
+    - Backup/restore for Cloud SQL
+    - Migration from Docker PostgreSQL to Cloud SQL
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+summary:
+  total_tasks: 58 (51 required, 7 cleanup)
+  total_effort: 180 hours (~4-5 weeks)
+  phase_breakdown:
+    phase_0_foundation: 16 tasks, 60 hours (Week 1)
+    phase_1_migration: 35 tasks, 105 hours (Weeks 2-3)
+    phase_2_cleanup: 7 tasks, 15 hours (Week 4)
+    phase_3_gcp: ~12 tasks, ~40 hours (Optional future)
+
+  key_simplifications:
+    - NO dual-write complexity (just migrate, flip switch)
+    - NO gradual rollout (no sensitive prod data yet)
+    - Docker-first (local + remote Docker primary targets)
+    - GCP optional (Cloud SQL for future production)
+
+  migration_flow: |
+    Week 1: Foundation
+      - Build abstractions, PostgreSQL implementation, Docker setup
+      - Migration tooling (migrate, backup, restore, validate)
+      - Test locally with sample data
+
+    Weeks 2-3: Full Migration
+      - Create all 13 PostgreSQL schemas
+      - Refactor all services to use IDocumentStore
+      - Migrate all data: npm run brat -- migrate all
+      - Deploy to remote Docker (staging)
+      - Set PERSISTENCE_DRIVER=postgres
+      - Verify zero Firestore reads
+
+    Week 4: Cleanup
+      - Remove Firestore dependencies
+      - Update documentation
+      - Archive deprecated code
+
+    Future (Optional): GCP Cloud SQL
+      - Terraform provisioning
+      - Cloud Run integration
+      - Production deployment
