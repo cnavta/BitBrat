@@ -61,31 +61,22 @@ async function seedFirestore(count: number): Promise<number> {
   console.log(`\n📝 Generating ${count} test events...`);
   const events = generateTestEvents(count);
 
-  console.log(`📤 Uploading to Firestore...`);
+  console.log(`📤 Uploading to Firestore (individual operations)...`);
   const db = getFirestore();
-  let batch = db.batch();
-  let batchCount = 0;
   let totalWritten = 0;
 
-  for (const event of events) {
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
     const ref = db.collection('events').doc(event.id);
-    batch.set(ref, event);
-    batchCount++;
 
-    // Firestore batch limit is 500
-    if (batchCount === 500) {
-      await batch.commit();
-      totalWritten += batchCount;
+    // Individual set operation (no batching)
+    await ref.set(event);
+    totalWritten++;
+
+    // Progress feedback every 100 events
+    if (totalWritten % 100 === 0 || totalWritten === count) {
       console.log(`  ✓ Written ${totalWritten}/${count} events`);
-      batch = db.batch(); // Create new batch
-      batchCount = 0;
     }
-  }
-
-  // Commit remaining
-  if (batchCount > 0) {
-    await batch.commit();
-    totalWritten += batchCount;
   }
 
   console.log(`✅ Successfully seeded ${totalWritten} events to Firestore\n`);
