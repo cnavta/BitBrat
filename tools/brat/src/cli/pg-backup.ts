@@ -26,7 +26,11 @@ export interface BackupCliFlags {
 
 const COLLECTIONS = [
   'events',
-  'commands',
+  'routing_rules',  // Renamed from 'commands'
+  'snapshots',      // New: event snapshots (flattened subcollection)
+  'sources',        // New: external source tracking
+  'state',          // New: state engine mutations
+  'mutation_log',   // New: mutation audit trail
   'context_packs',
   'service_registry',
   'auth_users',

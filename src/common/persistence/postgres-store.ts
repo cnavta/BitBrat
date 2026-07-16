@@ -11,7 +11,15 @@ import {
   QueryOptions,
   QueryFilter,
   BatchOperation,
+  VectorOrderBy,
 } from './interfaces';
+
+/**
+ * Type guard to detect if orderBy is VectorOrderBy
+ */
+function isVectorOrderBy(orderBy: any): orderBy is VectorOrderBy {
+  return orderBy && 'vector' in orderBy && 'distanceMeasure' in orderBy;
+}
 
 export interface PostgresStoreConfig {
   connectionString: string;
@@ -108,13 +116,31 @@ export class PostgresDocumentStore implements IDocumentStore {
 
   /**
    * Query documents with filters, ordering, and pagination
+   * Supports both regular field ordering and vector similarity search.
    */
   async query<T = any>(collection: string, options: QueryOptions): Promise<T[]> {
     const startTime = Date.now();
     try {
-      let sql = `SELECT data FROM ${this.sanitizeCollectionName(collection)}`;
       const params: any[] = [];
       let paramCount = 0;
+
+      // Check if this is a vector search query
+      const isVectorSearch = options.orderBy && isVectorOrderBy(options.orderBy);
+
+      let sql: string;
+      if (isVectorSearch) {
+        // Vector search query with distance calculation
+        const vectorOrder = options.orderBy as VectorOrderBy;
+        const distanceOp = this.getDistanceOperator(vectorOrder.distanceMeasure);
+
+        paramCount++;
+        sql = `SELECT data, (data->'${vectorOrder.field}' ${distanceOp} $${paramCount}::vector) AS distance
+               FROM ${this.sanitizeCollectionName(collection)}`;
+        params.push(JSON.stringify(vectorOrder.vector));
+      } else {
+        // Regular query
+        sql = `SELECT data FROM ${this.sanitizeCollectionName(collection)}`;
+      }
 
       // Build WHERE clause from filters
       if (options.filters && options.filters.length > 0) {
@@ -128,8 +154,15 @@ export class PostgresDocumentStore implements IDocumentStore {
 
       // ORDER BY
       if (options.orderBy) {
-        const direction = options.orderBy.direction === 'desc' ? 'DESC' : 'ASC';
-        sql += ` ORDER BY data->>'${options.orderBy.field}' ${direction}`;
+        if (isVectorSearch) {
+          // Vector search ordering by distance
+          const direction = options.orderBy.direction === 'desc' ? 'DESC' : 'ASC';
+          sql += ` ORDER BY distance ${direction}`;
+        } else {
+          // Regular field ordering
+          const direction = options.orderBy.direction === 'desc' ? 'DESC' : 'ASC';
+          sql += ` ORDER BY data->>'${options.orderBy.field}' ${direction}`;
+        }
       }
 
       // LIMIT and OFFSET
@@ -144,7 +177,7 @@ export class PostgresDocumentStore implements IDocumentStore {
       const latency = Date.now() - startTime;
 
       this.logger.debug?.(
-        `[PostgresDocumentStore] query ${collection} (${result.rows.length} rows, ${latency}ms)`
+        `[PostgresDocumentStore] query ${collection} (${result.rows.length} rows, ${latency}ms)${isVectorSearch ? ' [vector search]' : ''}`
       );
 
       return result.rows.map((row) => row.data as T);
@@ -300,6 +333,22 @@ export class PostgresDocumentStore implements IDocumentStore {
         return `data->'${field}' ?| $${paramIndex}`;
       default:
         throw new Error(`Unsupported operator: ${operator}`);
+    }
+  }
+
+  /**
+   * Get pgvector distance operator based on measure
+   */
+  private getDistanceOperator(measure: 'COSINE' | 'L2' | 'INNER_PRODUCT'): string {
+    switch (measure) {
+      case 'COSINE':
+        return '<=>'; // Cosine distance
+      case 'L2':
+        return '<->'; // Euclidean distance (L2)
+      case 'INNER_PRODUCT':
+        return '<#>'; // Negative inner product
+      default:
+        throw new Error(`Unsupported distance measure: ${measure}`);
     }
   }
 

@@ -15,11 +15,21 @@ export interface QueryFilter {
 }
 
 /**
+ * Vector ordering options for semantic search
+ */
+export interface VectorOrderBy {
+  field: string;
+  vector: number[];
+  distanceMeasure: 'COSINE' | 'L2' | 'INNER_PRODUCT';
+  direction: 'asc' | 'desc';
+}
+
+/**
  * Query options for document retrieval
  */
 export interface QueryOptions {
   filters?: QueryFilter[];
-  orderBy?: { field: string; direction: 'asc' | 'desc' };
+  orderBy?: { field: string; direction: 'asc' | 'desc' } | VectorOrderBy;
   limit?: number;
   offset?: number;
 }

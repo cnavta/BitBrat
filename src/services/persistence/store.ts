@@ -1,4 +1,5 @@
 import type { Firestore } from 'firebase-admin/firestore';
+import type { IDocumentStore } from '../../common/persistence/interfaces';
 import type {
   EventAggregateV2,
   EventSnapshotDocV1,
@@ -21,27 +22,22 @@ import {
   stripUndefinedDeep,
   SUBCOLLECTION_SNAPSHOTS,
 } from './model';
+import { createPersistenceStore, type IPersistenceStore } from './repository';
 
 export interface PersistenceStoreDeps {
-  firestore: Firestore;
+  firestore?: Firestore;
+  documentStore?: IDocumentStore;
   logger?: { info: Function; warn: Function; error: Function; debug?: Function };
 }
 
 export class PersistenceStore {
-  private db: Firestore;
+  private store: IPersistenceStore;
   private logger: Required<PersistenceStoreDeps>['logger'];
 
   constructor(deps: PersistenceStoreDeps) {
-    this.db = deps.firestore;
+    const dbOrStore = deps.firestore || deps.documentStore;
+    this.store = createPersistenceStore(dbOrStore);
     this.logger = (deps.logger || console) as any;
-  }
-
-  private docRef(correlationId: string) {
-    return this.db.collection(COLLECTION_EVENTS).doc(correlationId);
-  }
-
-  private snapshotsRef(correlationId: string) {
-    return this.docRef(correlationId).collection(SUBCOLLECTION_SNAPSHOTS);
   }
 
   /** Upsert the aggregate + initial snapshot by correlationId. Idempotent. */
@@ -50,33 +46,20 @@ export class PersistenceStore {
     const normalized = normalizeIngressEvent(evt, expireAt);
     if (!normalized.aggregate.correlationId) throw new Error('missing_correlationId');
 
-    const ref = this.docRef(normalized.aggregate.correlationId);
-    const snapshotRef = this.snapshotsRef(normalized.aggregate.correlationId).doc(normalized.snapshot.snapshotId);
-    let created = false;
-
-    await this.db.runTransaction(async (transaction: any) => {
-      const existing = await transaction.get(ref);
-      if (existing?.exists) {
-        return;
-      }
-      transaction.set(ref, stripUndefinedDeep(normalized.aggregate));
-      transaction.set(snapshotRef, stripUndefinedDeep(normalized.snapshot));
-      created = true;
-    });
+    const result = await this.store.upsertIngressEvent(normalized.aggregate, normalized.snapshot);
 
     this.logger.info('persistence.ingress.ok', {
-      correlationId: normalized.aggregate.correlationId,
-      status: normalized.aggregate.status,
-      created,
+      correlationId: result.aggregate.correlationId,
+      status: result.aggregate.status,
+      created: result.created,
     });
-    return { ...normalized, created };
+    return result;
   }
 
   /** Apply a legacy finalization patch as compatibility-only aggregate summary. */
   async applyFinalization(rawMsg: any): Promise<void> {
     const correlationId = String(rawMsg?.correlationId || '');
     if (!correlationId) throw new Error('missing_correlationId');
-    const ref = this.docRef(correlationId);
     const delivery: SnapshotDeliveryV1 = stripUndefinedDeep({
       destination: rawMsg?.destination || rawMsg?.egressDestination || rawMsg?.egress?.destination,
       deliveredAt: rawMsg?.deliveredAt || rawMsg?.finalizedAt || new Date().toISOString(),
@@ -95,7 +78,7 @@ export class PersistenceStore {
         candidates: Array.isArray(rawMsg?.candidates) ? rawMsg.candidates : undefined,
       },
     });
-    await ref.set(patch as any, { merge: true });
+    await this.store.applyFinalization(correlationId, patch as Partial<EventAggregateV2>);
     this.logger.info('persistence.finalize.compat.ok', { correlationId, status: delivery.status });
   }
 
@@ -105,75 +88,45 @@ export class PersistenceStore {
     if (!snapshotEvent.idempotencyKey) throw new Error('missing_idempotencyKey');
     if (!snapshotEvent.event) throw new Error('missing_event');
 
-    const aggregateRef = this.docRef(snapshotEvent.correlationId);
-    const snapshotsRef = this.snapshotsRef(snapshotEvent.correlationId);
     const expireAt = computeExpireAt({
       baseDate: snapshotEvent.delivery?.deliveredAt || snapshotEvent.deadletter?.at || snapshotEvent.capturedAt,
       qosTtlSeconds: snapshotEvent.event?.qos?.persistenceTtlSec,
     });
 
-    let nextAggregate: EventAggregateV2 | undefined;
-    let nextSnapshot: EventSnapshotDocV1 | undefined;
-    let duplicate = false;
+    // Build initial aggregate (for race condition case where snapshot arrives before ingress)
+    const capturedAt = snapshotEvent.event?.ingress?.ingressAt || snapshotEvent.capturedAt;
+    const initialAggregate: EventAggregateV2 = stripUndefinedDeep({
+      correlationId: snapshotEvent.correlationId,
+      eventType: snapshotEvent.event?.type || 'unknown',
+      source: snapshotEvent.event?.ingress?.source || 'unknown',
+      channel: snapshotEvent.event?.ingress?.channel,
+      status: 'INGESTED',
+      ingressAt: capturedAt,
+      latestStage: snapshotEvent.stage,
+      latestStepId: snapshotEvent.stepId,
+      initialSnapshotId: buildSnapshotId(snapshotEvent.correlationId, 1, snapshotEvent.kind),
+      latestSnapshotId: buildSnapshotId(snapshotEvent.correlationId, 1, snapshotEvent.kind),
+      snapshotCount: 0,
+      identitySummary: snapshotEvent.event?.identity ? {
+        externalId: snapshotEvent.event.identity?.external?.id,
+        platform: snapshotEvent.event.identity?.external?.platform,
+        displayName: snapshotEvent.event.identity?.user?.displayName || snapshotEvent.event.identity?.external?.displayName,
+        userId: snapshotEvent.event.identity?.user?.id,
+      } : undefined,
+      currentProjection: {
+        annotations: snapshotEvent.event?.annotations,
+        candidates: snapshotEvent.event?.candidates,
+        routing: snapshotEvent.event?.routing,
+        metadata: snapshotEvent.event?.metadata,
+      },
+      expireAt,
+    }) as EventAggregateV2;
 
-    await this.db.runTransaction(async (transaction: any) => {
-      const aggregateDoc = await transaction.get(aggregateRef);
-      let aggregate: EventAggregateV2;
-
-      if (!aggregateDoc?.exists) {
-        // Race condition: snapshot arrived before ingress created the aggregate
-        // Create a minimal aggregate from the snapshot event data
-        this.logger.warn('persistence.snapshot.missing_aggregate.creating', {
-          correlationId: snapshotEvent.correlationId,
-          kind: snapshotEvent.kind,
-        });
-        const capturedAt = snapshotEvent.event?.ingress?.ingressAt || snapshotEvent.capturedAt;
-        aggregate = stripUndefinedDeep({
-          correlationId: snapshotEvent.correlationId,
-          eventType: snapshotEvent.event?.type || 'unknown',
-          source: snapshotEvent.event?.ingress?.source || 'unknown',
-          channel: snapshotEvent.event?.ingress?.channel,
-          status: 'INGESTED',
-          ingressAt: capturedAt,
-          latestStage: snapshotEvent.stage,
-          latestStepId: snapshotEvent.stepId,
-          initialSnapshotId: buildSnapshotId(snapshotEvent.correlationId, 1, snapshotEvent.kind),
-          latestSnapshotId: buildSnapshotId(snapshotEvent.correlationId, 1, snapshotEvent.kind),
-          snapshotCount: 0,
-          identitySummary: snapshotEvent.event?.identity ? {
-            externalId: snapshotEvent.event.identity?.external?.id,
-            platform: snapshotEvent.event.identity?.external?.platform,
-            displayName: snapshotEvent.event.identity?.user?.displayName || snapshotEvent.event.identity?.external?.displayName,
-            userId: snapshotEvent.event.identity?.user?.id,
-          } : undefined,
-          currentProjection: {
-            annotations: snapshotEvent.event?.annotations,
-            candidates: snapshotEvent.event?.candidates,
-            routing: snapshotEvent.event?.routing,
-            metadata: snapshotEvent.event?.metadata,
-          },
-          expireAt,
-        }) as EventAggregateV2;
-      } else {
-        aggregate = aggregateDoc.data() as EventAggregateV2;
-      }
-      const duplicateQuery = snapshotsRef.where('idempotencyKey', '==', snapshotEvent.idempotencyKey).limit(1);
-      const duplicateDoc = await transaction.get(duplicateQuery as any);
-      const duplicateHit = typeof duplicateDoc?.empty === 'boolean'
-        ? !duplicateDoc.empty
-        : Array.isArray(duplicateDoc?.docs) && duplicateDoc.docs.length > 0;
-
-      if (duplicateHit) {
-        duplicate = true;
-        nextAggregate = aggregate;
-        const docs = duplicateDoc.docs || [];
-        nextSnapshot = docs[0]?.data?.() as EventSnapshotDocV1;
-        return;
-      }
-
+    // Helper to build snapshot from current aggregate
+    const buildSnapshot = (aggregate: EventAggregateV2) => {
       const sequence = (aggregate.snapshotCount || 0) + 1;
       const snapshotId = buildSnapshotId(snapshotEvent.correlationId, sequence, snapshotEvent.kind);
-      nextSnapshot = buildSnapshotDoc({
+      return buildSnapshotDoc({
         snapshotId,
         sequence,
         kind: snapshotEvent.kind,
@@ -190,28 +143,25 @@ export class PersistenceStore {
         deadletter: snapshotEvent.deadletter,
         expireAt,
       });
-      nextAggregate = applySnapshotToAggregate(
-        { ...aggregate, expireAt },
-        nextSnapshot,
-        sequence,
-      );
+    };
 
-      transaction.set(aggregateRef, stripUndefinedDeep(nextAggregate));
-      transaction.set(snapshotsRef.doc(snapshotId), stripUndefinedDeep(nextSnapshot));
-    });
-
-    if (!nextAggregate || !nextSnapshot) {
-      throw new Error('snapshot_apply_incomplete');
-    }
+    // Persist via repository (handles idempotency check + transaction)
+    // The repository will read the aggregate inside the transaction and handle all logic
+    const result = await this.store.applySnapshotEvent(
+      snapshotEvent,
+      initialAggregate,
+      buildSnapshot,
+      applySnapshotToAggregate
+    );
 
     this.logger.info('persistence.snapshot.ok', {
       correlationId: snapshotEvent.correlationId,
       kind: snapshotEvent.kind,
-      duplicate,
-      snapshotId: nextSnapshot.snapshotId,
-      sequence: nextSnapshot.sequence,
+      duplicate: result.duplicate,
+      snapshotId: result.snapshot.snapshotId,
+      sequence: result.snapshot.sequence,
     });
-    return { aggregate: nextAggregate, snapshot: nextSnapshot, duplicate };
+    return result;
   }
 
   /** Convert dead-letter payloads into canonical snapshot events. */
@@ -251,10 +201,7 @@ export class PersistenceStore {
     }
 
     const docId = `${patch.platform}:${patch.id}`;
-    const ref = this.db.collection(COLLECTION_SOURCES).doc(docId);
-    
-    // Use merge: true to update only the fields present in the patch
-    await ref.set(stripUndefinedDeep(patch), { merge: true });
+    await this.store.upsertSourceState(docId, patch);
     this.logger.info('persistence.upsert_source.ok', { docId, type: evt.type });
   }
 }

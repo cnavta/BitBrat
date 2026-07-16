@@ -67,6 +67,10 @@ describe('StateEngineServer', () => {
       firestore: mockFirestore,
       publisher: mockPublisher,
     };
+
+    // Re-initialize store after resources are injected (needed post-refactoring)
+    const { createStateEngineStore } = require('../../../src/apps/state-engine-repository');
+    (server as any).store = createStateEngineStore(mockFirestore);
   });
 
   describe('handleMutation', () => {
