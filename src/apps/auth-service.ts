@@ -3,7 +3,7 @@ import { Bit } from '../common/base-server';
 import { Express } from 'express';
 import { INTERNAL_AUTH_V1, InternalEventV2, INTERNAL_SYSTEM_EVENTS_V1 } from '../types/events';
 import { AttributeMap, createMessagePublisher } from '../services/message-bus';
-import { FirestoreUserRepo } from '../services/auth/user-repo';
+import { createUserRepo, type UserRepo } from '../services/auth/user-repo';
 import { enrichEvent } from '../services/auth/enrichment';
 import { logger } from '../common/logging';
 import { counters } from '../common/counters';
@@ -18,7 +18,7 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
 export class AuthServer extends Bit {
-  private userRepo?: FirestoreUserRepo;
+  private userRepo?: UserRepo;
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -34,7 +34,8 @@ export class AuthServer extends Bit {
     });
 
     const db = this.getResource<Firestore>('firestore');
-    this.userRepo = new FirestoreUserRepo('users', db);
+    // Use factory to create UserRepo - automatically selects backend based on PERSISTENCE_DRIVER
+    this.userRepo = createUserRepo('users', db);
 
     this.registerAdminTools();
 

@@ -1,5 +1,7 @@
 import { getFirestore } from '../../common/firebase';
 import type { Firestore } from 'firebase-admin/firestore';
+import type { IDocumentStore } from '../../common/persistence/interfaces';
+import { createDocumentStore, isFirestore } from '../../common/persistence/factory';
 
 export interface AuthUserDoc {
   id: string;
@@ -266,4 +268,262 @@ export class FirestoreUserRepo implements UserRepo {
       isNewSession,
     };
   }
+}
+
+/** IDocumentStore-backed user repository (vendor-neutral) */
+export class DocumentStoreUserRepo implements UserRepo {
+  private readonly collectionName: string;
+  private readonly store: IDocumentStore;
+
+  constructor(store: IDocumentStore, collectionName = 'auth_users') {
+    this.store = store;
+    this.collectionName = collectionName;
+  }
+
+  async getById(id: string): Promise<AuthUserDoc | null> {
+    if (!id) return null;
+    const data = await this.store.get<AuthUserDoc>(this.collectionName, id);
+    if (!data) return null;
+
+    return {
+      id,
+      provider: data.provider,
+      email: data.email,
+      displayName: data.displayName,
+      roles: Array.isArray(data.roles) ? data.roles : [],
+      status: data.status,
+      notes: data.notes,
+      profile: data.profile,
+      rolesMeta: data.rolesMeta,
+      firstSeenAt: data.firstSeenAt,
+      lastSeenAt: data.lastSeenAt,
+      lastMessageAt: data.lastMessageAt,
+      messageCountAllTime: data.messageCountAllTime,
+      lastSessionId: data.lastSessionId,
+      lastSessionStartedAt: data.lastSessionStartedAt,
+      lastSessionActivityAt: data.lastSessionActivityAt,
+      sessionCount: data.sessionCount,
+      tags: data.tags,
+    };
+  }
+
+  async getByEmail(email: string): Promise<AuthUserDoc | null> {
+    if (!email) return null;
+
+    const results = await this.store.query<AuthUserDoc>(this.collectionName, {
+      filters: [{ field: 'email', operator: '==', value: email }],
+      limit: 1,
+    });
+
+    if (results.length === 0) return null;
+
+    const data = results[0];
+    return {
+      id: data.id,
+      provider: data.provider,
+      email: data.email,
+      displayName: data.displayName,
+      roles: Array.isArray(data.roles) ? data.roles : [],
+      status: data.status,
+      notes: data.notes,
+      profile: data.profile,
+      rolesMeta: data.rolesMeta,
+      firstSeenAt: data.firstSeenAt,
+      lastSeenAt: data.lastSeenAt,
+      lastMessageAt: data.lastMessageAt,
+      messageCountAllTime: data.messageCountAllTime,
+      lastSessionId: data.lastSessionId,
+      lastSessionStartedAt: data.lastSessionStartedAt,
+      lastSessionActivityAt: data.lastSessionActivityAt,
+      sessionCount: data.sessionCount,
+      tags: data.tags,
+    };
+  }
+
+  async searchUsers(query: { displayName?: string; email?: string; username?: string; provider?: string }): Promise<AuthUserDoc[]> {
+    const filters: Array<{ field: string; operator: '==' | '!=' | '<' | '<=' | '>' | '>='; value: any }> = [];
+
+    if (query.email) {
+      filters.push({ field: 'email', operator: '==', value: query.email });
+    }
+    if (query.displayName) {
+      filters.push({ field: 'displayName', operator: '==', value: query.displayName });
+    }
+    if (query.username) {
+      filters.push({ field: 'profile.username', operator: '==', value: query.username });
+    }
+    if (query.provider) {
+      filters.push({ field: 'provider', operator: '==', value: query.provider });
+    }
+
+    const results = await this.store.query<AuthUserDoc>(this.collectionName, { filters });
+
+    return results.map(data => ({
+      id: data.id,
+      provider: data.provider,
+      email: data.email,
+      displayName: data.displayName,
+      roles: Array.isArray(data.roles) ? data.roles : [],
+      status: data.status,
+      notes: data.notes,
+      profile: data.profile,
+      rolesMeta: data.rolesMeta,
+      firstSeenAt: data.firstSeenAt,
+      lastSeenAt: data.lastSeenAt,
+      lastMessageAt: data.lastMessageAt,
+      messageCountAllTime: data.messageCountAllTime,
+      lastSessionId: data.lastSessionId,
+      lastSessionStartedAt: data.lastSessionStartedAt,
+      lastSessionActivityAt: data.lastSessionActivityAt,
+      sessionCount: data.sessionCount,
+      tags: data.tags,
+    }));
+  }
+
+  async updateUser(id: string, update: Partial<AuthUserDoc>): Promise<AuthUserDoc | null> {
+    if (!id) return null;
+
+    // Check if exists
+    const existing = await this.store.get<AuthUserDoc>(this.collectionName, id);
+    if (!existing) return null;
+
+    // Remove id from update if present
+    const { id: _, ...cleanUpdate } = update as any;
+
+    // Merge update with existing data
+    const merged = { ...existing, ...removeUndefined(cleanUpdate), id };
+
+    await this.store.set(this.collectionName, id, merged);
+
+    return this.getById(id);
+  }
+
+  async ensureUserOnMessage(
+    id: string,
+    data: {
+      provider?: string;
+      providerUserId?: string;
+      displayName?: string;
+      email?: string;
+      profile?: AuthUserDoc['profile'];
+      roles?: string[];
+      rolesMeta?: AuthUserDoc['rolesMeta'];
+    },
+    nowIso: string
+  ): Promise<{ doc: AuthUserDoc; created: boolean; isFirstMessage: boolean; isNewSession: boolean }> {
+    const existing = await this.store.get<AuthUserDoc>(this.collectionName, id);
+    const providerTag = data.provider ? `PROVIDER_${String(data.provider).toUpperCase()}` : undefined;
+
+    if (!existing) {
+      const initial: AuthUserDoc = {
+        id,
+        provider: data.provider,
+        email: data.email,
+        displayName: data.displayName,
+        roles: data.roles || [],
+        profile: data.profile,
+        rolesMeta: data.rolesMeta,
+        firstSeenAt: nowIso,
+        lastSeenAt: nowIso,
+        lastMessageAt: nowIso,
+        messageCountAllTime: 1,
+        sessionCount: 1,
+        lastSessionId: `sess_${id}_${Math.random().toString(36).slice(2, 8)}`,
+        lastSessionStartedAt: nowIso,
+        lastSessionActivityAt: nowIso,
+        ...(providerTag ? { tags: [providerTag] } : {}),
+      };
+
+      await this.store.set(this.collectionName, id, removeUndefined(initial) as AuthUserDoc);
+
+      return {
+        doc: initial,
+        created: true,
+        isFirstMessage: true,
+        isNewSession: true,
+      };
+    }
+
+    const lastActivityIso = existing.lastSessionActivityAt || existing.lastMessageAt || nowIso;
+    const lastActivity = Date.parse(lastActivityIso || nowIso);
+    const nowMs = Date.parse(nowIso);
+    const INACTIVITY_MS_24H = 24 * 60 * 60 * 1000;
+    const isNewSession = nowMs - lastActivity >= INACTIVITY_MS_24H;
+
+    const messageCountAllTime = (existing.messageCountAllTime || 0) + 1;
+    const sessionCount = (existing.sessionCount || 0) + (isNewSession ? 1 : 0);
+
+    // Merge roles and rolesMeta
+    const mergedRoles = new Set<string>(existing.roles || []);
+    if (data.roles) {
+      data.roles.forEach(r => mergedRoles.add(r));
+    }
+
+    const mergedRolesMeta = { ...(existing.rolesMeta || {}) };
+    if (data.rolesMeta) {
+      if (data.rolesMeta.twitch) mergedRolesMeta.twitch = data.rolesMeta.twitch;
+      if (data.rolesMeta.discord) mergedRolesMeta.discord = data.rolesMeta.discord;
+      if (data.rolesMeta.twilio) mergedRolesMeta.twilio = data.rolesMeta.twilio;
+    }
+
+    const update: Partial<AuthUserDoc> = {
+      lastSeenAt: nowIso,
+      lastMessageAt: nowIso,
+      lastSessionActivityAt: nowIso,
+      messageCountAllTime,
+      sessionCount,
+      roles: Array.from(mergedRoles),
+      rolesMeta: mergedRolesMeta,
+    };
+
+    if (data.provider) update.provider = data.provider;
+    if (data.displayName) update.displayName = data.displayName;
+    if (data.email) update.email = data.email;
+    if (data.profile) update.profile = data.profile;
+
+    if (isNewSession) {
+      update.lastSessionId = `sess_${id}_${Math.random().toString(36).slice(2, 8)}`;
+      update.lastSessionStartedAt = nowIso;
+    }
+
+    const merged = { ...existing, ...removeUndefined(update), id } as AuthUserDoc;
+    await this.store.set(this.collectionName, id, merged);
+
+    return {
+      doc: merged,
+      created: false,
+      isFirstMessage: (existing.messageCountAllTime || 0) === 0,
+      isNewSession,
+    };
+  }
+}
+
+/**
+ * Factory function to create appropriate UserRepo implementation
+ * based on PERSISTENCE_DRIVER environment variable.
+ *
+ * Usage:
+ *   const userRepo = createUserRepo('users'); // Auto-selects based on PERSISTENCE_DRIVER
+ *   const userRepo = createUserRepo('users', myFirestore); // Force Firestore with custom DB
+ *   const userRepo = createUserRepo('users', myDocumentStore); // Use custom store
+ */
+export function createUserRepo(collectionName = 'users', dbOrStore?: Firestore | IDocumentStore): UserRepo {
+  // If a custom Firestore instance is provided, use FirestoreUserRepo
+  if (dbOrStore && 'collection' in dbOrStore) {
+    return new FirestoreUserRepo(collectionName, dbOrStore as Firestore);
+  }
+
+  // If a custom IDocumentStore is provided, use DocumentStoreUserRepo
+  if (dbOrStore && 'get' in dbOrStore && 'set' in dbOrStore) {
+    return new DocumentStoreUserRepo(dbOrStore as IDocumentStore, collectionName);
+  }
+
+  // No custom instance provided - use factory pattern
+  if (isFirestore()) {
+    return new FirestoreUserRepo(collectionName);
+  }
+
+  // PostgreSQL or other IDocumentStore implementation
+  const store = createDocumentStore();
+  return new DocumentStoreUserRepo(store, collectionName);
 }
