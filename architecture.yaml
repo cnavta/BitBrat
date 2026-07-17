@@ -886,7 +886,7 @@ services:
     port: 3000
     stage: analyze
     env:
-      REFLEX_CACHE_POLL_INTERVAL_MS: "10000"  # PostgreSQL polling interval (10s = better responsiveness)
+      - REFLEX_CACHE_POLL_INTERVAL_MS  # PostgreSQL polling interval (default: 10s)
   context-pack:
     profile: core
     mcp:
