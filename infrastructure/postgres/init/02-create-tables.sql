@@ -166,4 +166,18 @@ CREATE INDEX idx_api_tokens_user_id ON api_tokens((data->>'user_id'));
 CREATE INDEX idx_api_tokens_created_at ON api_tokens(created_at);
 CREATE INDEX idx_api_tokens_hash ON api_tokens((data->>'token_hash'));
 
+-- 16. MCP tool usage tracking
+CREATE TABLE IF NOT EXISTS tool_usage (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_tool_usage_tool_name ON tool_usage((data->>'tool_name'));
+CREATE INDEX idx_tool_usage_timestamp ON tool_usage((data->>'timestamp'));
+CREATE INDEX idx_tool_usage_user_id ON tool_usage((data->>'user_id'));
+CREATE INDEX idx_tool_usage_service ON tool_usage((data->>'service'));
+CREATE INDEX idx_tool_usage_correlation_id ON tool_usage((data->>'correlation_id'));
+
 SELECT 'All tables created successfully' AS status;

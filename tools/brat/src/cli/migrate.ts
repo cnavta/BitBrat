@@ -42,6 +42,7 @@ const COLLECTIONS = [
   'llm_responses',
   'integration_configs',
   'metrics',
+  'tool_usage',           // MCP tool usage analytics
 ];
 
 /**
@@ -260,6 +261,216 @@ async function cmdMigrateAll(
 }
 
 /**
+ * brat migrate tokens [provider]
+ */
+async function cmdMigrateTokens(
+  provider: string | undefined,
+  flags: MigrateCliFlags,
+  m: Record<string, string>,
+  logger: Logger
+): Promise<void> {
+  const firestore = getFirestore();
+  const postgres = new PostgresDocumentStore({
+    connectionString: process.env.DATABASE_URL!,
+    poolSize: 10,
+  });
+  postgres.setLogger(logger);
+
+  // Check PostgreSQL connection
+  const health = await postgres.health();
+  if (!health.healthy) {
+    logger.error({ action: 'migrate.preflight.error', error: health.error }, 'PostgreSQL not healthy');
+    console.error(`PostgreSQL connection failed: ${health.error}`);
+    process.exit(1);
+  }
+
+  // Define token paths
+  const tokenPaths = [
+    { provider: 'twitch', fs: 'oauth/twitch/bot/token', pg: 'twitch:bot', name: 'Twitch Bot' },
+    { provider: 'twitch', fs: 'oauth/twitch/broadcaster/token', pg: 'twitch:broadcaster', name: 'Twitch Broadcaster' },
+    { provider: 'discord', fs: 'oauth/discord/broadcaster/token', pg: 'discord:broadcaster', name: 'Discord Broadcaster' },
+  ];
+
+  // Filter by provider if specified
+  const pathsToMigrate = provider
+    ? tokenPaths.filter(p => p.provider === provider)
+    : tokenPaths;
+
+  if (pathsToMigrate.length === 0) {
+    console.error(`Unknown provider: ${provider}`);
+    console.error('Valid providers: twitch, discord');
+    process.exit(2);
+  }
+
+  logger.info(
+    { action: 'migrate.tokens.start', provider, count: pathsToMigrate.length },
+    `Migrating ${pathsToMigrate.length} OAuth tokens`
+  );
+
+  if (flags.dryRun) {
+    console.log(`[DRY RUN] Would migrate ${pathsToMigrate.length} OAuth tokens`);
+  }
+
+  let migrated = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  for (const { fs, pg, name } of pathsToMigrate) {
+    try {
+      console.log(`\nMigrating ${name} (${fs} → twitch_tokens:${pg})...`);
+
+      const docSnap = await firestore.doc(fs).get();
+      if (!docSnap.exists) {
+        console.log(`  ⚠️  No token found, skipping`);
+        skipped++;
+        continue;
+      }
+
+      const tokenData = docSnap.data();
+      if (!tokenData || !tokenData.accessToken) {
+        console.log(`  ⚠️  Token missing accessToken, skipping`);
+        skipped++;
+        continue;
+      }
+
+      if (!flags.dryRun) {
+        await postgres.set('twitch_tokens', pg, {
+          accessToken: tokenData.accessToken,
+          refreshToken: tokenData.refreshToken || null,
+          scope: tokenData.scope || [],
+          expiresIn: tokenData.expiresIn || null,
+          obtainmentTimestamp: tokenData.obtainmentTimestamp || null,
+          userId: tokenData.userId || null,
+          updatedAt: tokenData.updatedAt || Date.now(),
+        });
+      }
+
+      console.log(`  ✅ Migrated successfully`);
+      migrated++;
+    } catch (error: any) {
+      console.error(`  ❌ Failed: ${error.message}`);
+      errors++;
+      logger.error(
+        { action: 'migrate.tokens.error', path: fs, error: error.message },
+        `Failed to migrate token ${name}`
+      );
+    }
+  }
+
+  const duration = Date.now();
+  logger.info(
+    { action: 'migrate.tokens.complete', migrated, skipped, errors },
+    `Token migration complete: ${migrated} migrated, ${skipped} skipped, ${errors} errors`
+  );
+
+  if (flags.json) {
+    console.log(JSON.stringify({ migrated, skipped, errors }, null, 2));
+  } else {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`Token Migration Summary:`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`  Migrated: ${migrated}`);
+    console.log(`  Skipped:  ${skipped}`);
+    console.log(`  Errors:   ${errors}`);
+    console.log(`${'='.repeat(60)}`);
+  }
+
+  await postgres.close();
+}
+
+/**
+ * brat migrate api-tokens
+ */
+async function cmdMigrateApiTokens(
+  flags: MigrateCliFlags,
+  m: Record<string, string>,
+  logger: Logger
+): Promise<void> {
+  const firestore = getFirestore();
+  const postgres = new PostgresDocumentStore({
+    connectionString: process.env.DATABASE_URL!,
+    poolSize: 10,
+  });
+  postgres.setLogger(logger);
+
+  // Check PostgreSQL connection
+  const health = await postgres.health();
+  if (!health.healthy) {
+    logger.error({ action: 'migrate.preflight.error', error: health.error }, 'PostgreSQL not healthy');
+    console.error(`PostgreSQL connection failed: ${health.error}`);
+    process.exit(1);
+  }
+
+  logger.info({ action: 'migrate.api_tokens.start' }, 'Starting API token migration');
+
+  if (flags.dryRun) {
+    console.log(`[DRY RUN] Would migrate API gateway tokens from gateways/api/tokens`);
+  }
+
+  try {
+    // Get all API tokens from Firestore
+    const snapshot = await firestore.collection('gateways/api/tokens').get();
+    const total = snapshot.size;
+
+    console.log(`\nFound ${total} API tokens in Firestore`);
+
+    let migrated = 0;
+    let errors = 0;
+
+    for (const doc of snapshot.docs) {
+      try {
+        const data = doc.data();
+
+        if (!flags.dryRun) {
+          await postgres.set('api_tokens', doc.id, {
+            user_id: data.user_id,
+            created_at: data.created_at?.toDate?.() || data.created_at,
+            token_hash: data.token_hash,
+          });
+        }
+
+        migrated++;
+        if (migrated % 10 === 0 || migrated === total) {
+          console.log(`  Progress: ${migrated}/${total} tokens migrated`);
+        }
+      } catch (error: any) {
+        errors++;
+        logger.error(
+          { action: 'migrate.api_tokens.error', docId: doc.id, error: error.message },
+          `Failed to migrate API token ${doc.id}`
+        );
+      }
+    }
+
+    logger.info(
+      { action: 'migrate.api_tokens.complete', migrated, errors, total },
+      `API token migration complete: ${migrated}/${total} migrated`
+    );
+
+    if (flags.json) {
+      console.log(JSON.stringify({ migrated, errors, total }, null, 2));
+    } else {
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(`API Token Migration Summary:`);
+      console.log(`${'='.repeat(60)}`);
+      console.log(`  Total:    ${total}`);
+      console.log(`  Migrated: ${migrated}`);
+      console.log(`  Errors:   ${errors}`);
+      console.log(`${'='.repeat(60)}`);
+    }
+  } catch (error: any) {
+    logger.error(
+      { action: 'migrate.api_tokens.error', error: error.message },
+      'Failed to migrate API tokens'
+    );
+    console.error(`Failed to migrate API tokens: ${error.message}`);
+    process.exit(1);
+  }
+
+  await postgres.close();
+}
+
+/**
  * Main entry point for migrate command
  */
 export async function cmdMigrate(
@@ -283,6 +494,8 @@ export async function cmdMigrate(
     console.log(`Usage:
   brat migrate collection <name> [--dry-run] [--json]
   brat migrate all [--dry-run] [--json]
+  brat migrate tokens [provider] [--dry-run] [--json]
+  brat migrate api-tokens [--dry-run] [--json]
 
 Collections:
   ${COLLECTIONS.join(', ')}
@@ -294,6 +507,9 @@ Options:
 Examples:
   brat migrate collection events --dry-run
   brat migrate all
+  brat migrate tokens                # Migrate all OAuth tokens (Twitch, Discord)
+  brat migrate tokens twitch         # Migrate only Twitch tokens
+  brat migrate api-tokens --dry-run  # Preview API token migration
 `);
     return;
   }
@@ -307,9 +523,14 @@ Examples:
       process.exit(2);
     }
     await cmdMigrateCollection(collectionName, flags, m, logger);
+  } else if (subcommand === 'tokens') {
+    const provider = cmd[2]; // Optional: 'twitch' or 'discord'
+    await cmdMigrateTokens(provider, flags, m, logger);
+  } else if (subcommand === 'api-tokens') {
+    await cmdMigrateApiTokens(flags, m, logger);
   } else {
     console.error(`Unknown subcommand: ${subcommand}`);
-    console.error('Valid subcommands: collection, all');
+    console.error('Valid subcommands: collection, all, tokens, api-tokens');
     process.exit(2);
   }
 }
