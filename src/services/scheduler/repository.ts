@@ -302,9 +302,9 @@ export function createScheduleRepository(
   // Auto-select based on PERSISTENCE_DRIVER environment variable
   const driver = process.env.PERSISTENCE_DRIVER;
   if (driver === 'postgres' || driver === 'postgresql') {
-    throw new Error(
-      'createScheduleRepository: PostgreSQL driver selected but no IDocumentStore instance provided'
-    );
+    const { createDocumentStore } = require('../../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreScheduleRepository(store, collectionOrTable || 'schedules');
   }
 
   // Default to Firestore (for test environments where Firestore is not initialized)

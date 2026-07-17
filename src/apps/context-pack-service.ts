@@ -15,6 +15,7 @@ import { embedText, buildEmbeddingText } from '../common/context/embedding';
 import type { NamedContext } from '../common/prompt-assembly/types';
 import crypto from 'crypto';
 import type { IDocumentStore } from '../common/persistence/interfaces';
+import { createDocumentStore } from '../common/persistence/factory';
 
 // =============================================================================
 // Context Pack Store Abstraction
@@ -140,9 +141,9 @@ export function createContextPackStore(
   // Auto-select based on PERSISTENCE_DRIVER environment variable
   const driver = process.env.PERSISTENCE_DRIVER;
   if (driver === 'postgres' || driver === 'postgresql') {
-    throw new Error(
-      'createContextPackStore: PostgreSQL driver selected but no IDocumentStore instance provided'
-    );
+    const { createDocumentStore } = require('../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreContextPackStore(store, collectionOrTable || 'context_packs');
   }
 
   // Default to Firestore
@@ -176,14 +177,19 @@ export class ContextPackServer extends Bit {
   constructor(store?: IContextPackStore) {
     super({ mcpExposure: 'platform-only' });
 
-    // Get Firestore or PostgreSQL document store from BaseServer resources
-    // This allows the service to work with both backends
-    const dbOrStore = store
-      ? undefined
-      : (this.getResource<any>('firestore') || this.getResource<IDocumentStore>('documentStore'));
-
-    // Use provided store or create from resources
-    this.contextPackStore = store || createContextPackStore(dbOrStore);
+    // Use provided store or create based on PERSISTENCE_DRIVER
+    if (store) {
+      this.contextPackStore = store;
+    } else {
+      const driver = process.env.PERSISTENCE_DRIVER;
+      if (driver === 'postgres' || driver === 'postgresql') {
+        const docStore = createDocumentStore();
+        this.contextPackStore = createContextPackStore(docStore);
+      } else {
+        const firestore = this.getResource<any>('firestore');
+        this.contextPackStore = createContextPackStore(firestore);
+      }
+    }
   }
 
   async start(port?: number): Promise<void> {

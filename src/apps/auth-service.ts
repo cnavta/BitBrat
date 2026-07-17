@@ -13,12 +13,14 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { buildInternalEventSchemaPack, SCHEMA_INTERNAL_EVENT_V2_PACK_ID } from '../common/context';
+import { createGatewayTokenStore, type IGatewayTokenStore } from '../services/auth/gateway-token-store';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'auth';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
 export class AuthServer extends Bit {
   private userRepo?: UserRepo;
+  private gatewayTokenStore?: IGatewayTokenStore;
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
@@ -36,6 +38,9 @@ export class AuthServer extends Bit {
     const db = this.getResource<Firestore>('firestore');
     // Use factory to create UserRepo - automatically selects backend based on PERSISTENCE_DRIVER
     this.userRepo = createUserRepo('users', db);
+
+    // Use factory to create GatewayTokenStore - automatically selects backend based on PERSISTENCE_DRIVER
+    this.gatewayTokenStore = createGatewayTokenStore(db);
 
     this.registerAdminTools();
 
@@ -416,21 +421,15 @@ export class AuthServer extends Bit {
         const rawToken = crypto.randomBytes(32).toString('hex');
         const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-        // 2. Store in Firestore
-        const db = this.getResource<Firestore>('firestore');
-        if (!db) {
-          return { content: [{ type: 'text', text: 'Firestore resource not available.' }], isError: true };
+        // 2. Store token using abstraction (supports both Firestore and PostgreSQL)
+        if (!this.gatewayTokenStore) {
+          return { content: [{ type: 'text', text: 'Gateway token store not available.' }], isError: true };
         }
 
         const now = new Date();
-        const tokenDoc = {
-          user_id: userId,
-          created_at: now,
-          token_hash: hash,
-        };
 
-        logger.debug('auth.token.persist.start', {tokenDoc})
-        await db.collection('gateways/api/tokens').doc(hash).set(tokenDoc);
+        logger.debug('auth.token.persist.start', { userId, tokenHash: hash });
+        await this.gatewayTokenStore.setToken(hash, userId);
         logger.debug('auth.token.persist.end');
 
         // 3. Publish event

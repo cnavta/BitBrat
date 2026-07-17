@@ -196,8 +196,10 @@ export function createAuthTokenStore(
   // Auto-select based on PERSISTENCE_DRIVER environment variable
   const driver = process.env.PERSISTENCE_DRIVER;
   if (driver === 'postgres' || driver === 'postgresql') {
-    // For auto-select mode, user must provide the store instance
-    throw new Error('createAuthTokenStore: PostgreSQL driver selected but no IDocumentStore instance provided');
+    // Auto-create DocumentStore for PostgreSQL
+    const { createDocumentStore } = require('../../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreAuthTokenStore(store, options?.tableName || 'auth_scopes');
   }
 
   // Default to Firestore

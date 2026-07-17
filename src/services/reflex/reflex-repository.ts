@@ -668,11 +668,18 @@ export class ReflexNotFoundError extends Error {
 }
 
 /**
- * Creates a singleton instance of ReflexRepository.
+ * Creates a singleton instance of ReflexRepository with auto-detection.
+ * Auto-detects backend from PERSISTENCE_DRIVER environment variable.
  *
- * @returns ReflexRepository instance
+ * @returns ReflexRepository instance (Firestore or PostgreSQL based)
  */
-export function createReflexRepository(): ReflexRepository {
+export function createReflexRepository(): IReflexRepository {
+  const driver = process.env.PERSISTENCE_DRIVER;
+  if (driver === 'postgres' || driver === 'postgresql') {
+    const { createDocumentStore } = require('../../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreReflexRepository(store);
+  }
   return new ReflexRepository();
 }
 
@@ -700,7 +707,9 @@ export function createReflexRepositoryWithBackend(
   // Auto-select based on PERSISTENCE_DRIVER environment variable
   const driver = process.env.PERSISTENCE_DRIVER;
   if (driver === 'postgres' || driver === 'postgresql') {
-    throw new Error('createReflexRepositoryWithBackend: PostgreSQL driver selected but no IDocumentStore instance provided');
+    const { createDocumentStore } = require('../../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreReflexRepository(store, refreshIntervalMs);
   }
 
   // Default to Firestore

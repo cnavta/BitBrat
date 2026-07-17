@@ -21,8 +21,9 @@ import {
 } from '../services/ingress/twilio';
 import { validateTwilioSignature } from '../services/ingress/twilio/webhook-utils';
 import twilio from 'twilio';
-import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
-import { FirestoreTokenStore } from '../services/firestore-token-store';
+import { createAuthTokenStore } from '../services/oauth/auth-token-store';
+import { createTokenStore } from '../services/firestore-token-store';
+import { createDocumentStore } from '../common/persistence/factory';
 import { buildConfig } from '../common/config';
 import { logger } from '../common/logging';
 import { AttributeMap } from '../services/message-bus';
@@ -95,9 +96,8 @@ export class IngressEgressServer extends Bit {
     const envelopeBuilder = new TwitchEnvelopeBuilder();
     const pubRes = this.getResource<PublisherResource>('publisher');
     const publisher = createTwitchIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
-    const db = this.getResource<Firestore>('firestore');
     const credsProvider = cfg.firestoreEnabled
-      ? new FirestoreTwitchCredentialsProvider(cfg, new FirestoreTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot', db))
+      ? new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot'))
       : new ConfigTwitchCredentialsProvider(cfg);
 
     // Create the IRC client using config-driven channels
@@ -117,7 +117,7 @@ export class IngressEgressServer extends Bit {
 
     // Twitch Broadcaster
     if (cfg.firestoreEnabled && cfg.broadcasterTokenDocPath) {
-      const broadcasterCredsProvider = new FirestoreTwitchCredentialsProvider(cfg, new FirestoreTokenStore(cfg.broadcasterTokenDocPath, db));
+      const broadcasterCredsProvider = new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.broadcasterTokenDocPath));
       this.twitchBroadcasterClient = new TwitchIrcClient(envelopeBuilder, publisher, cfg.twitchChannels, {
         cfg,
         credentialsProvider: broadcasterCredsProvider,
@@ -140,7 +140,7 @@ export class IngressEgressServer extends Bit {
     try {
       const dBuilder = new DiscordEnvelopeBuilder();
       const dPublisher = createDiscordIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
-      const dTokenStore = new FirestoreAuthTokenStore({ db });
+      const dTokenStore = createAuthTokenStore();
       const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic }, dTokenStore);
       this.discordClient = dClient;
       manager.register('discord', dClient);

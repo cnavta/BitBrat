@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Bit } from '../common/base-server';
 import type { PublisherResource } from '../common/resources/publisher-manager';
-import { ReflexRepository, createReflexRepository } from '../services/reflex/reflex-repository.js';
+import { type IReflexRepository, createReflexRepository } from '../services/reflex/reflex-repository.js';
 import { ReflexCache, createReflexCache } from '../services/reflex/reflex-cache.js';
 import { selectReflexes } from '../services/reflex/reflex-selector.js';
 import { executeReflex } from '../services/reflex/reflex-executor.js';
@@ -21,7 +21,7 @@ import type { Reflex, ReflexExecutionResult, PatternMatchType } from '../types/r
  * Sprint 332: Implements deterministic event-driven behaviors via reflexes
  */
 export class ReflexServer extends Bit {
-  private repository!: ReflexRepository;
+  private repository!: IReflexRepository;
   private cache!: ReflexCache;
 
   constructor() {
@@ -546,9 +546,9 @@ export class ReflexServer extends Bit {
   /**
    * Gets the reflex repository (for MCP tools).
    *
-   * @returns ReflexRepository instance
+   * @returns IReflexRepository instance
    */
-  getRepository(): ReflexRepository {
+  getRepository(): IReflexRepository {
     if (!this.repository) {
       throw new Error('ReflexServer not initialized. Call initialize() first.');
     }

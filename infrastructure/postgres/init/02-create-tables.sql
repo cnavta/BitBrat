@@ -154,4 +154,16 @@ CREATE TABLE IF NOT EXISTS twitch_tokens (
 CREATE INDEX idx_twitch_tokens_user_id ON twitch_tokens((data->>'userId'));
 CREATE INDEX idx_twitch_tokens_updated_at ON twitch_tokens(updated_at);
 
+-- 15. API Gateway tokens collection
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_api_tokens_user_id ON api_tokens((data->>'user_id'));
+CREATE INDEX idx_api_tokens_created_at ON api_tokens(created_at);
+CREATE INDEX idx_api_tokens_hash ON api_tokens((data->>'token_hash'));
+
 SELECT 'All tables created successfully' AS status;

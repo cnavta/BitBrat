@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import { createStateEngineStore, type IStateEngineStore } from './state-engine-repository';
+import { createDocumentStore } from '../common/persistence/factory';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'state-engine';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -51,9 +52,15 @@ export class StateEngineServer extends Bit {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
     this.stateConfig = this.loadStateConfig();
 
-    // Initialize store (will auto-detect Firestore or IDocumentStore)
-    const dbOrStore = this.getResource<Firestore | IDocumentStore>('firestore') || this.getResource<IDocumentStore>('documentStore');
-    this.store = createStateEngineStore(dbOrStore);
+    // Initialize store based on PERSISTENCE_DRIVER
+    const driver = process.env.PERSISTENCE_DRIVER;
+    if (driver === 'postgres' || driver === 'postgresql') {
+      const docStore = createDocumentStore();
+      this.store = createStateEngineStore(docStore);
+    } else {
+      const firestore = this.getResource<Firestore>('firestore');
+      this.store = createStateEngineStore(firestore);
+    }
 
     this.setupApp(this.getApp() as any, this.getConfig() as any);
     this.setupMcpTools();

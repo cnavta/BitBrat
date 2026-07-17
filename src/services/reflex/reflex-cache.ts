@@ -14,7 +14,7 @@
 
 import { logger } from '../../common/logging';
 import { Reflex } from '../../types/reflex.js';
-import { ReflexRepository, ReflexSubscriptionCallback } from './reflex-repository.js';
+import { type IReflexRepository, type ReflexSubscriptionCallback } from './reflex-repository.js';
 import { metrics } from './reflex-metrics.js';
 
 /**
@@ -44,7 +44,7 @@ export interface CacheStats {
  */
 export class ReflexCache {
   private cache: Map<string, Reflex> = new Map();
-  private repository: ReflexRepository;
+  private repository: IReflexRepository;
   private unsubscribe?: () => void;
   private stats: CacheStats = {
     size: 0,
@@ -53,7 +53,7 @@ export class ReflexCache {
     updates: 0,
   };
 
-  constructor(repository: ReflexRepository) {
+  constructor(repository: IReflexRepository) {
     this.repository = repository;
   }
 
@@ -272,7 +272,7 @@ export class ReflexCache {
  * const cache = await createReflexCache(repository);
  * console.log('Cache ready with', cache.size, 'reflexes');
  */
-export async function createReflexCache(repository: ReflexRepository): Promise<ReflexCache> {
+export async function createReflexCache(repository: IReflexRepository): Promise<ReflexCache> {
   const cache = new ReflexCache(repository);
   await cache.initialize();
   return cache;

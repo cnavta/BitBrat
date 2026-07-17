@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { Bit } from '../common/base-server';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { IDocumentStore, QueryFilter } from '../common/persistence/interfaces';
+import { createDocumentStore } from '../common/persistence/factory';
 import {
   DEFAULT_DISPOSITION_CONFIG,
   DISPOSITION_OBSERVATION_COLLECTION,
@@ -122,9 +123,9 @@ export function createDispositionObservationStore(
   // Auto-select based on PERSISTENCE_DRIVER environment variable
   const driver = process.env.PERSISTENCE_DRIVER;
   if (driver === 'postgres' || driver === 'postgresql') {
-    throw new Error(
-      'createDispositionObservationStore: PostgreSQL driver selected but no IDocumentStore instance provided'
-    );
+    const { createDocumentStore } = require('../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreDispositionObservationStore(store, collectionOrTable || 'disposition_observations');
   }
 
   // Default to Firestore (for test environments where Firestore is not initialized)
@@ -139,8 +140,14 @@ export class DispositionServiceServer extends Bit {
     super({ serviceName: SERVICE_NAME });
 
     // Initialize repository (backend auto-detection via factory)
-    const firestore = this.getResource<Firestore>('firestore');
-    this.observationStore = createDispositionObservationStore(firestore);
+    const driver = process.env.PERSISTENCE_DRIVER;
+    if (driver === 'postgres' || driver === 'postgresql') {
+      const store = createDocumentStore();
+      this.observationStore = createDispositionObservationStore(store);
+    } else {
+      const firestore = this.getResource<Firestore>('firestore');
+      this.observationStore = createDispositionObservationStore(firestore);
+    }
 
     this.dispositionConfig = getDispositionConfig(<T>(name: string, fallback: T) => {
       if (typeof fallback === 'boolean') {
