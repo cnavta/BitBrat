@@ -1,17 +1,7 @@
 import { Bit } from '../../common/base-server';
 
-function makeDocSnapshot(data: any, exists = true) {
-  return { exists, data: () => data };
-}
-
-function makeQuerySnapshot(docs: any[] = []) {
-  return {
-    empty: docs.length === 0,
-    docs: docs.map((data) => ({ data: () => data })),
-  };
-}
-
-function makeFirestoreMock() {
+// Mock getFirestore before any imports that might use it
+const mockFirestore = (() => {
   const rootSets: Record<string, any> = {};
   const snapshotSets: Record<string, any> = {};
   const collection = jest.fn((name: string) => {
@@ -44,13 +34,13 @@ function makeFirestoreMock() {
           const docs = Object.entries(snapshotSets)
             .filter(([key, data]) => key.startsWith(`${ref.correlationId}/`) && (data as any).idempotencyKey === ref.idempotencyKey)
             .map(([, data]) => data);
-          return makeQuerySnapshot(docs);
+          return { empty: docs.length === 0, docs: docs.map((data) => ({ data: () => data })) };
         }
         if (ref?.path?.startsWith('events/')) {
           const correlationId = String(ref.path).split('/')[1];
-          return makeDocSnapshot(rootSets[correlationId], !!rootSets[correlationId]);
+          return { exists: !!rootSets[correlationId], data: () => rootSets[correlationId] };
         }
-        return makeDocSnapshot(undefined, false);
+        return { exists: false, data: () => undefined };
       }),
       set: jest.fn((ref: any, data: any) => {
         if (ref?.path?.startsWith('events/') && ref.path.includes('/snapshots/')) {
@@ -65,13 +55,21 @@ function makeFirestoreMock() {
     return handler(transaction);
   });
   return { collection, runTransaction, __state: { rootSets, snapshotSets } } as any;
-}
+})();
+
+jest.mock('../../common/firebase', () => ({
+  getFirestore: () => mockFirestore,
+}));
 
 describe('persistence-service integration (mocked messaging + firestore)', () => {
   const handlers: { destination: string; handler: (msg: any, attr: any, ctx: any) => Promise<void> }[] = [];
-  const firestore = makeFirestoreMock();
+  const firestore = mockFirestore;
+  const originalPersistenceDriver = process.env.PERSISTENCE_DRIVER;
 
   beforeAll(() => {
+    // Ensure tests use Firestore, not PostgreSQL
+    delete process.env.PERSISTENCE_DRIVER;
+
     // Spy on onMessage to capture handlers instead of wiring a real subscriber
     jest
       .spyOn(Bit.prototype as any, 'onMessage')
@@ -82,7 +80,7 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
         return () => {};
       });
 
-    // Make getResource('firestore') return our mock
+    // Make getResource('firestore') return our mock (for backwards compatibility)
     jest
       .spyOn(Bit.prototype as any, 'getResource')
       .mockImplementation((...args: any[]) => (args[0] === 'firestore' ? firestore : undefined));
@@ -97,6 +95,10 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
 
   afterAll(() => {
     jest.restoreAllMocks();
+    // Restore original PERSISTENCE_DRIVER
+    if (originalPersistenceDriver) {
+      process.env.PERSISTENCE_DRIVER = originalPersistenceDriver;
+    }
   });
 
   test('ingress handler persists aggregate and initial snapshot', async () => {
