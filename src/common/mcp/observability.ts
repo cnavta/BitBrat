@@ -2,6 +2,7 @@ import { getFirestore } from '../firebase';
 import { metrics } from '@opentelemetry/api';
 import { ToolExecutionContext } from '../../types/tools';
 import type { IDocumentStore } from '../persistence/interfaces';
+import { createDocumentStore } from '../persistence/factory';
 
 // =============================================================================
 // Tool Usage Store Abstraction
@@ -91,9 +92,9 @@ export function createToolUsageStore(
   // Auto-select based on PERSISTENCE_DRIVER environment variable
   const driver = process.env.PERSISTENCE_DRIVER;
   if (driver === 'postgres' || driver === 'postgresql') {
-    throw new Error(
-      'createToolUsageStore: PostgreSQL driver selected but no IDocumentStore instance provided'
-    );
+    // Create PostgreSQL DocumentStore automatically
+    const store = createDocumentStore();
+    return new DocumentStoreToolUsageStore(store, collectionOrTable || 'tool_usage');
   }
 
   // Default to Firestore
