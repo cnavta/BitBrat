@@ -143,4 +143,15 @@ CREATE TABLE IF NOT EXISTS metrics (
 CREATE INDEX idx_metrics_timestamp ON metrics((data->>'timestamp'));
 CREATE INDEX idx_metrics_metric_name ON metrics((data->>'metricName'));
 
+-- 14. OAuth tokens collection (Twitch, Discord, etc.)
+CREATE TABLE IF NOT EXISTS twitch_tokens (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_twitch_tokens_user_id ON twitch_tokens((data->>'userId'));
+CREATE INDEX idx_twitch_tokens_updated_at ON twitch_tokens(updated_at);
+
 SELECT 'All tables created successfully' AS status;
