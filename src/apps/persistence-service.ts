@@ -3,6 +3,7 @@ import { Express, Request, Response } from 'express';
 import type { InternalEventV2, PersistenceSnapshotEventV1 } from '../types/events';
 import { INTERNAL_PERSISTENCE_SNAPSHOT_V1 } from '../types/events';
 import { PersistenceStore } from '../services/persistence/store';
+import { createDocumentStore } from '../common/persistence/factory';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'persistence';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -48,20 +49,16 @@ class PersistenceServer extends Bit {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
+                const documentStore = createDocumentStore();
+                const store = new PersistenceStore({ documentStore, logger: this.getLogger() as any });
+
+                // For system events, we want BOTH SourceState (monitoring) AND IngressEvent (routing/snapshots)
+                // This ensures snapshots can be applied even when PERSISTENCE_SNAPSHOT_MODE=all
+                if (msg.type?.startsWith('system.')) {
+                  await store.upsertIngressEvent(msg);
+                  await store.upsertSourceState(msg);
                 } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  
-                  // For system events, we want BOTH SourceState (monitoring) AND IngressEvent (routing/snapshots)
-                  // This ensures snapshots can be applied even when PERSISTENCE_SNAPSHOT_MODE=all
-                  if (msg.type?.startsWith('system.')) {
-                    await store.upsertIngressEvent(msg);
-                    await store.upsertSourceState(msg);
-                  } else {
-                    await store.upsertIngressEvent(msg);
-                  }
+                  await store.upsertIngressEvent(msg);
                 }
                 await ctx.ack();
               } catch (e: any) {
@@ -90,13 +87,9 @@ class PersistenceServer extends Bit {
                   type: (msg as any)?.kind,
                   correlationId: (msg as any)?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applySnapshotEvent(msg as any);
-                }
+                const documentStore = createDocumentStore();
+                const store = new PersistenceStore({ documentStore, logger: this.getLogger() as any });
+                await store.applySnapshotEvent(msg as any);
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -124,13 +117,9 @@ class PersistenceServer extends Bit {
                   type: (msg as any)?.type,
                   correlationId: (msg as any)?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyFinalization(msg as any);
-                }
+                const documentStore = createDocumentStore();
+                const store = new PersistenceStore({ documentStore, logger: this.getLogger() as any });
+                await store.applyFinalization(msg as any);
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -158,13 +147,9 @@ class PersistenceServer extends Bit {
                   type: msg?.type,
                   correlationId: msg?.correlationId || msg?.envelope?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyDeadLetter(msg);
-                }
+                const documentStore = createDocumentStore();
+                const store = new PersistenceStore({ documentStore, logger: this.getLogger() as any });
+                await store.applyDeadLetter(msg);
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
@@ -192,13 +177,9 @@ class PersistenceServer extends Bit {
                   type: msg?.type,
                   correlationId: msg?.correlationId || msg?.envelope?.correlationId,
                 });
-                const firestore = this.getResource<any>('firestore');
-                if (!firestore) {
-                  this.getLogger().warn('persistence.firestore.unavailable');
-                } else {
-                  const store = new PersistenceStore({ firestore, logger: this.getLogger() as any });
-                  await store.applyDeadLetter(msg);
-                }
+                const documentStore = createDocumentStore();
+                const store = new PersistenceStore({ documentStore, logger: this.getLogger() as any });
+                await store.applyDeadLetter(msg);
                 await ctx.ack();
               } catch (e: any) {
                 this.getLogger().error('persistence.message.handler_error', { destination, error: e?.message || String(e) });
