@@ -352,6 +352,9 @@ export class ReflexRepository implements IReflexRepository {
  * DocumentStoreReflexRepository – PostgreSQL implementation
  *
  * Manages reflexes in IDocumentStore with polling-based updates instead of real-time subscriptions.
+ *
+ * Polling interval can be configured via REFLEX_CACHE_POLL_INTERVAL_MS environment variable
+ * (default: 10000ms = 10 seconds for better responsiveness than Firestore's onSnapshot delay).
  */
 export class DocumentStoreReflexRepository implements IReflexRepository {
   private store: any; // IDocumentStore
@@ -361,8 +364,14 @@ export class DocumentStoreReflexRepository implements IReflexRepository {
   private nextSubscriberId = 1;
   private cachedReflexes: Reflex[] = [];
 
-  constructor(store: any, refreshIntervalMs = 60000) {
+  constructor(store: any, refreshIntervalMs = 10000) {
     this.store = store;
+
+    logger.info('reflex.repository.init', {
+      backend: 'postgres',
+      refreshIntervalMs,
+      tableName: this.tableName
+    });
 
     // Start polling if refresh interval is positive
     if (refreshIntervalMs > 0) {
@@ -671,6 +680,9 @@ export class ReflexNotFoundError extends Error {
  * Creates a singleton instance of ReflexRepository with auto-detection.
  * Auto-detects backend from PERSISTENCE_DRIVER environment variable.
  *
+ * Polling interval for PostgreSQL can be configured via REFLEX_CACHE_POLL_INTERVAL_MS
+ * environment variable (default: 10000ms = 10 seconds).
+ *
  * @returns ReflexRepository instance (Firestore or PostgreSQL based)
  */
 export function createReflexRepository(): IReflexRepository {
@@ -678,7 +690,17 @@ export function createReflexRepository(): IReflexRepository {
   if (driver === 'postgres' || driver === 'postgresql') {
     const { createDocumentStore } = require('../../common/persistence/factory');
     const store = createDocumentStore();
-    return new DocumentStoreReflexRepository(store);
+
+    // Read polling interval from env var (default: 10 seconds for better responsiveness)
+    const pollIntervalMs = parseInt(process.env.REFLEX_CACHE_POLL_INTERVAL_MS || '10000', 10);
+
+    logger.info('reflex.repository.create', {
+      backend: 'postgres',
+      pollIntervalMs,
+      source: process.env.REFLEX_CACHE_POLL_INTERVAL_MS ? 'env' : 'default'
+    });
+
+    return new DocumentStoreReflexRepository(store, pollIntervalMs);
   }
   return new ReflexRepository();
 }
@@ -687,21 +709,24 @@ export function createReflexRepository(): IReflexRepository {
  * Factory function to create the appropriate ReflexRepository based on backend
  *
  * @param dbOrStore - Firestore instance or IDocumentStore
- * @param refreshIntervalMs - Polling interval for PostgreSQL (default: 60000ms)
+ * @param refreshIntervalMs - Polling interval for PostgreSQL (default: from env or 10000ms)
  * @returns ReflexRepository instance (Firestore or DocumentStore based)
  */
 export function createReflexRepositoryWithBackend(
   dbOrStore?: any,
-  refreshIntervalMs = 60000
+  refreshIntervalMs?: number
 ): IReflexRepository {
   // Check if Firestore instance (has collection() method)
   if (dbOrStore && typeof dbOrStore.collection === 'function') {
     return new ReflexRepository(dbOrStore);
   }
 
+  // Read polling interval from env var if not explicitly provided (default: 10 seconds)
+  const pollIntervalMs = refreshIntervalMs ?? parseInt(process.env.REFLEX_CACHE_POLL_INTERVAL_MS || '10000', 10);
+
   // Check if IDocumentStore (has get/set/query methods)
   if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
-    return new DocumentStoreReflexRepository(dbOrStore, refreshIntervalMs);
+    return new DocumentStoreReflexRepository(dbOrStore, pollIntervalMs);
   }
 
   // Auto-select based on PERSISTENCE_DRIVER environment variable
@@ -709,7 +734,7 @@ export function createReflexRepositoryWithBackend(
   if (driver === 'postgres' || driver === 'postgresql') {
     const { createDocumentStore } = require('../../common/persistence/factory');
     const store = createDocumentStore();
-    return new DocumentStoreReflexRepository(store, refreshIntervalMs);
+    return new DocumentStoreReflexRepository(store, pollIntervalMs);
   }
 
   // Default to Firestore

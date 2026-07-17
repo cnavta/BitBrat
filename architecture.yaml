@@ -885,6 +885,8 @@ services:
     entry: src/apps/reflex-service.ts
     port: 3000
     stage: analyze
+    env:
+      REFLEX_CACHE_POLL_INTERVAL_MS: "10000"  # PostgreSQL polling interval (10s = better responsiveness)
   context-pack:
     profile: core
     mcp:
