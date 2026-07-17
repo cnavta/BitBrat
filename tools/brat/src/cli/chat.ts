@@ -9,6 +9,8 @@ interface ChatOptions {
   env: string;
   projectId: string;
   url?: string;
+  message?: string; // One-shot message for non-interactive mode
+  user?: string;    // Username for non-interactive mode
 }
 
 const WS = WebSocket;
@@ -22,12 +24,28 @@ const COLORS = {
   gray: '\x1b[90m'
 };
 
-export async function cmdChat(flags: any) {
+function parseFlagMap(rest: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of rest) {
+    if (!r.startsWith('-')) continue;
+    const [k, v] = r.split('=');
+    const key = k.replace(/^--?/, '');
+    out[key] = v !== undefined ? v : 'true';
+  }
+  return out;
+}
+
+export async function cmdChat(flags: any, rest: string[] = []) {
   const env = flags.env || process.env.BITBRAT_ENV || 'local';
   const projectId = flags.projectId || process.env.PROJECT_ID || 'twitch-452523';
   const url = flags.url;
 
-  const controller = new ChatController({ env, projectId, url });
+  // Parse additional flags from rest array
+  const restFlags = parseFlagMap(rest);
+  const message = restFlags.message || restFlags.m; // Support --message or -m
+  const user = restFlags.user || restFlags.u;       // Support --user or -u
+
+  const controller = new ChatController({ env, projectId, url, message, user });
   await controller.start();
 }
 
@@ -44,10 +62,17 @@ class ChatController {
   constructor(private options: ChatOptions) {}
 
   public async start() {
-    console.log(`\n--- BitBrat Chat CLI (${this.options.env}) ---`);
-    
+    const isOneShotMode = !!this.options.message;
+
+    if (!isOneShotMode) {
+      console.log(`\n--- BitBrat Chat CLI (${this.options.env}) ---`);
+    }
+
     try {
-      if (process.env.NODE_ENV !== 'test') {
+      // In one-shot mode, use provided user or default to "cli-user"
+      if (isOneShotMode) {
+        this.name = this.options.user || 'cli-user';
+      } else if (process.env.NODE_ENV !== 'test') {
         this.name = await this.promptForName();
       }
 
@@ -58,7 +83,11 @@ class ChatController {
       }
 
       const url = this.resolveUrl();
-      console.log(`Connecting to ${url}...`);
+      if (!isOneShotMode) {
+        console.log(`Connecting to ${url}...`);
+      } else if (process.env.DEBUG) {
+        console.error(`[DEBUG] Connecting to ${url}`);
+      }
 
       this.ws = new WS(url, {
         headers: {
@@ -67,8 +96,20 @@ class ChatController {
       });
 
       this.setupWebSocket();
-      if (process.env.NODE_ENV !== 'test') {
+
+      // Only setup interactive terminal if not in one-shot mode
+      if (!isOneShotMode && process.env.NODE_ENV !== 'test') {
         this.setupTerminal();
+      }
+
+      // Add timeout for one-shot mode
+      if (isOneShotMode) {
+        setTimeout(() => {
+          if (this.ws && this.ws.readyState !== 3) { // 3 = CLOSED
+            console.error('Timeout waiting for response');
+            process.exit(1);
+          }
+        }, 10000); // 10 second timeout
       }
     } catch (err: any) {
       console.error(`${COLORS.red}Initialization error: ${err.message}${COLORS.reset}`);
@@ -115,8 +156,14 @@ class ChatController {
     } else {
       const { env } = this.options;
       if (env === 'local') {
-        const port = process.env.API_GATEWAY_HOST_PORT || this.discoverLocalPort() || '3001';
+        const discoveredPort = this.discoverLocalPort();
+        const port = process.env.API_GATEWAY_HOST_PORT || discoveredPort || '3004';
         url = `ws://localhost:${port}/ws/v1`;
+
+        // Debug output in one-shot mode
+        if (this.options.message && !discoveredPort && !process.env.API_GATEWAY_HOST_PORT) {
+          console.error(`[DEBUG] Port discovery failed, using default port ${port}`);
+        }
       } else if (env === 'prod') {
         url = 'wss://api.bitbrat.ai/ws/v1';
       } else {
@@ -137,11 +184,13 @@ class ChatController {
       // or specifically named with api-gateway.
       const cmd = 'docker ps --filter "label=com.docker.compose.service=api-gateway" --filter "status=running" --format "{{.Ports}}"';
       const output = execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-      
-      // Look for something like 0.0.0.0:3006->3000/tcp or [::]:3006->3000/tcp
+
+      // Look for something like 0.0.0.0:3004->3000/tcp or [::]:3004->3000/tcp
+      // Fixed regex to work on macOS (BSD grep doesn't support -P flag)
       const lines = output.split('\n').filter(Boolean);
       for (const line of lines) {
-        const match = line.match(/:([0-9]+)->3000\/tcp/);
+        // Match port mapping: 0.0.0.0:PORT->3000/tcp or [::]:PORT->3000/tcp
+        const match = line.match(/:(\d+)->3000\/tcp/);
         if (match && match[1]) {
           return match[1];
         }
@@ -154,12 +203,26 @@ class ChatController {
 
   private setupWebSocket() {
     if (!this.ws) return;
+    const isOneShotMode = !!this.options.message;
 
     this.ws.on('open', () => {
-      console.log('Connected to BitBrat Platform.');
+      if (!isOneShotMode) {
+        console.log('Connected to BitBrat Platform.');
+      } else if (process.env.DEBUG) {
+        console.error('[DEBUG] WebSocket connected');
+      }
       this.reconnectAttempts = 0;
       this.startHeartbeat();
-      this.rl?.prompt();
+
+      // In one-shot mode, send message immediately
+      if (isOneShotMode && this.options.message) {
+        if (process.env.DEBUG) {
+          console.error(`[DEBUG] Sending message: ${this.options.message}`);
+        }
+        this.sendMessage(this.options.message);
+      } else {
+        this.rl?.prompt();
+      }
     });
 
     this.ws.on('message', (data: any) => {
@@ -183,6 +246,10 @@ class ChatController {
 
     this.ws.on('error', (err: any) => {
       console.error(`\nWebSocket Error: ${err.message}`);
+      if (this.options.message) {
+        // In one-shot mode, exit on error
+        process.exit(1);
+      }
     });
   }
 
@@ -254,22 +321,46 @@ class ChatController {
   }
 
   private handleIncomingFrame(frame: any) {
+    const isOneShotMode = !!this.options.message;
+
     if (frame.type === 'connection.ready') {
-      console.log(`${COLORS.gray}Session ready. User ID: ${frame.payload.user_id}${COLORS.reset}`);
+      if (!isOneShotMode) {
+        console.log(`${COLORS.gray}Session ready. User ID: ${frame.payload.user_id}${COLORS.reset}`);
+      }
     } else if (frame.type === 'chat.message.received') {
       const source = frame.metadata?.source || frame.payload?.source || 'platform';
       const text = frame.payload?.text || '';
+      // User echoes have source='api-gateway', bot responses have source from candidate (e.g., 'llm-bot')
       const isUser = source === 'api-gateway';
-      const color = isUser ? COLORS.cyan : COLORS.green;
-      const label = isUser ? 'You' : source;
-      process.stdout.write(`\r${color}[${label}]${COLORS.reset} ${text}\n`);
+
+      if (isOneShotMode) {
+        // In one-shot mode, only output bot responses (not user echoes)
+        if (!isUser) {
+          console.log(text);
+          // Exit after receiving first bot response
+          this.ws?.close(1000, 'one-shot complete');
+          process.exit(0);
+        }
+      } else {
+        const color = isUser ? COLORS.cyan : COLORS.green;
+        const label = isUser ? 'You' : source;
+        process.stdout.write(`\r${color}[${label}]${COLORS.reset} ${text}\n`);
+      }
     } else if (frame.type === 'chat.error') {
-      process.stdout.write(`\r${COLORS.red}[Platform Error] ${frame.payload.message}${COLORS.reset}\n`);
-    } else {
-      // Generic output for other types
+      if (isOneShotMode) {
+        console.error(frame.payload.message);
+        process.exit(1);
+      } else {
+        process.stdout.write(`\r${COLORS.red}[Platform Error] ${frame.payload.message}${COLORS.reset}\n`);
+      }
+    } else if (!isOneShotMode) {
+      // Generic output for other types (only in interactive mode)
       process.stdout.write(`\r${COLORS.yellow}[${frame.type}]${COLORS.reset} ${JSON.stringify(frame.payload)}\n`);
     }
-    this.rl?.prompt();
+
+    if (!isOneShotMode) {
+      this.rl?.prompt();
+    }
   }
 
   private handleCommand(input: string) {

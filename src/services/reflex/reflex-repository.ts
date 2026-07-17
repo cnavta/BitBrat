@@ -27,6 +27,18 @@ interface ReflexDocument extends Omit<Reflex, 'createdAt' | 'updatedAt'> {
 export type ReflexSubscriptionCallback = (reflexes: Reflex[]) => void;
 
 /**
+ * Base repository interface for reflexes
+ */
+export interface IReflexRepository {
+  getAll(): Promise<Reflex[]>;
+  getById(id: string): Promise<Reflex | undefined>;
+  create(reflex: Omit<Reflex, 'id' | 'createdAt' | 'updatedAt'>): Promise<Reflex>;
+  update(id: string, updates: Partial<Omit<Reflex, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Reflex>;
+  delete(id: string): Promise<Reflex>;
+  subscribe(callback: ReflexSubscriptionCallback): () => void;
+}
+
+/**
  * Repository for managing reflexes in Firestore.
  *
  * Provides:
@@ -36,7 +48,7 @@ export type ReflexSubscriptionCallback = (reflexes: Reflex[]) => void;
  * - Soft delete semantics (active=false)
  * - Error handling with typed exceptions
  */
-export class ReflexRepository {
+export class ReflexRepository implements IReflexRepository {
   private db: Firestore;
   private collection: string = 'reflexes';
 
@@ -337,6 +349,299 @@ export class ReflexRepository {
 }
 
 /**
+ * DocumentStoreReflexRepository – PostgreSQL implementation
+ *
+ * Manages reflexes in IDocumentStore with polling-based updates instead of real-time subscriptions.
+ */
+export class DocumentStoreReflexRepository implements IReflexRepository {
+  private store: any; // IDocumentStore
+  private tableName: string = 'reflexes';
+  private pollInterval: NodeJS.Timeout | null = null;
+  private subscribers: Map<number, ReflexSubscriptionCallback> = new Map();
+  private nextSubscriberId = 1;
+  private cachedReflexes: Reflex[] = [];
+
+  constructor(store: any, refreshIntervalMs = 60000) {
+    this.store = store;
+
+    // Start polling if refresh interval is positive
+    if (refreshIntervalMs > 0) {
+      this.pollInterval = setInterval(async () => {
+        try {
+          await this.refreshCache();
+        } catch (error) {
+          logger.error('reflex.repository.poll_error', {
+            error: error instanceof Error ? error.message : String(error),
+            backend: 'postgres'
+          });
+        }
+      }, refreshIntervalMs);
+    }
+  }
+
+  /**
+   * Refresh the cached reflexes and notify subscribers
+   */
+  private async refreshCache(): Promise<void> {
+    const reflexes = await this.getAll();
+    this.cachedReflexes = reflexes;
+
+    // Notify all subscribers
+    for (const callback of this.subscribers.values()) {
+      try {
+        callback(reflexes);
+      } catch (error) {
+        logger.error('reflex.repository.subscriber_error', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  }
+
+  /**
+   * Stop polling
+   */
+  stopPolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+  }
+
+  async getAll(): Promise<Reflex[]> {
+    try {
+      logger.debug('reflex.repository.fetch_all', { backend: 'postgres' });
+
+      const results = await this.store.query(this.tableName, {
+        filters: [
+          { field: 'active', operator: '==', value: true }
+        ]
+      });
+
+      // Sort by priority ascending
+      const reflexes = results
+        .map((doc: any) => this.documentToReflex(doc))
+        .sort((a: Reflex, b: Reflex) => a.priority - b.priority);
+
+      logger.info('reflex.repository.fetched', {
+        count: reflexes.length,
+        backend: 'postgres'
+      });
+
+      return reflexes;
+    } catch (error) {
+      logger.error('reflex.repository.fetch_error', {
+        error: error instanceof Error ? error.message : String(error),
+        backend: 'postgres'
+      });
+      throw new ReflexRepositoryError(
+        'Failed to fetch reflexes',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async getById(id: string): Promise<Reflex | undefined> {
+    try {
+      logger.debug('reflex.repository.fetch_by_id', { id, backend: 'postgres' });
+
+      const doc = await this.store.get(this.tableName, id);
+
+      if (!doc) {
+        logger.debug('reflex.repository.not_found', { id, backend: 'postgres' });
+        return undefined;
+      }
+
+      const reflex = this.documentToReflex(doc);
+
+      logger.debug('reflex.repository.found', {
+        id: reflex.id,
+        name: reflex.name,
+        active: reflex.active,
+        backend: 'postgres'
+      });
+
+      return reflex;
+    } catch (error) {
+      logger.error('reflex.repository.fetch_by_id_error', {
+        id,
+        error: error instanceof Error ? error.message : String(error),
+        backend: 'postgres'
+      });
+      throw new ReflexRepositoryError(
+        `Failed to fetch reflex: ${id}`,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async create(reflex: Omit<Reflex, 'id' | 'createdAt' | 'updatedAt'>): Promise<Reflex> {
+    try {
+      logger.debug('reflex.repository.create', {
+        name: reflex.name,
+        priority: reflex.priority,
+        backend: 'postgres'
+      });
+
+      const now = new Date().toISOString();
+      const id = `reflex-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      const document: Reflex = {
+        ...reflex,
+        id,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await this.store.set(this.tableName, id, document);
+
+      logger.info('reflex.repository.created', {
+        id: document.id,
+        name: document.name,
+        priority: document.priority,
+        backend: 'postgres'
+      });
+
+      // Trigger cache refresh to notify subscribers
+      await this.refreshCache();
+
+      return document;
+    } catch (error) {
+      logger.error('reflex.repository.create_error', {
+        error: error instanceof Error ? error.message : String(error),
+        backend: 'postgres'
+      });
+      throw new ReflexRepositoryError(
+        'Failed to create reflex',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async update(id: string, updates: Partial<Omit<Reflex, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Reflex> {
+    try {
+      logger.debug('reflex.repository.update', { id, updates, backend: 'postgres' });
+
+      const existing = await this.store.get(this.tableName, id);
+
+      if (!existing) {
+        throw new ReflexNotFoundError(id);
+      }
+
+      const now = new Date().toISOString();
+      const updated: Reflex = {
+        ...existing,
+        ...updates,
+        id, // Preserve ID
+        createdAt: existing.createdAt, // Preserve creation timestamp
+        updatedAt: now,
+      };
+
+      await this.store.set(this.tableName, id, updated);
+
+      logger.info('reflex.repository.updated', {
+        id: updated.id,
+        name: updated.name,
+        backend: 'postgres'
+      });
+
+      // Trigger cache refresh to notify subscribers
+      await this.refreshCache();
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ReflexNotFoundError) {
+        throw error;
+      }
+      logger.error('reflex.repository.update_error', {
+        id,
+        error: error instanceof Error ? error.message : String(error),
+        backend: 'postgres'
+      });
+      throw new ReflexRepositoryError(
+        `Failed to update reflex: ${id}`,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async delete(id: string): Promise<Reflex> {
+    try {
+      logger.debug('reflex.repository.delete', { id, backend: 'postgres' });
+
+      const deleted = await this.update(id, { active: false });
+
+      logger.info('reflex.repository.deleted', {
+        id: deleted.id,
+        name: deleted.name,
+        backend: 'postgres'
+      });
+
+      return deleted;
+    } catch (error) {
+      if (error instanceof ReflexNotFoundError) {
+        throw error;
+      }
+      logger.error('reflex.repository.delete_error', {
+        id,
+        error: error instanceof Error ? error.message : String(error),
+        backend: 'postgres'
+      });
+      throw new ReflexRepositoryError(
+        `Failed to delete reflex: ${id}`,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  subscribe(callback: ReflexSubscriptionCallback): () => void {
+    logger.debug('reflex.repository.subscribe', { backend: 'postgres' });
+
+    const id = this.nextSubscriberId++;
+    this.subscribers.set(id, callback);
+
+    // Immediately call with current cache
+    if (this.cachedReflexes.length > 0) {
+      try {
+        callback(this.cachedReflexes);
+      } catch (error) {
+        logger.error('reflex.repository.initial_subscriber_error', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    } else {
+      // Load initial cache
+      this.getAll().then(reflexes => {
+        this.cachedReflexes = reflexes;
+        callback(reflexes);
+      }).catch(error => {
+        logger.error('reflex.repository.initial_load_error', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      });
+    }
+
+    // Return unsubscribe function
+    return () => {
+      this.subscribers.delete(id);
+      logger.debug('reflex.repository.unsubscribed', { id, backend: 'postgres' });
+    };
+  }
+
+  /**
+   * Convert document to Reflex interface
+   */
+  private documentToReflex(data: any): Reflex {
+    return {
+      ...data,
+      id: data.id,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    };
+  }
+}
+
+/**
  * Base error for all reflex repository errors.
  */
 export class ReflexRepositoryError extends Error {
@@ -368,5 +673,36 @@ export class ReflexNotFoundError extends Error {
  * @returns ReflexRepository instance
  */
 export function createReflexRepository(): ReflexRepository {
+  return new ReflexRepository();
+}
+
+/**
+ * Factory function to create the appropriate ReflexRepository based on backend
+ *
+ * @param dbOrStore - Firestore instance or IDocumentStore
+ * @param refreshIntervalMs - Polling interval for PostgreSQL (default: 60000ms)
+ * @returns ReflexRepository instance (Firestore or DocumentStore based)
+ */
+export function createReflexRepositoryWithBackend(
+  dbOrStore?: any,
+  refreshIntervalMs = 60000
+): IReflexRepository {
+  // Check if Firestore instance (has collection() method)
+  if (dbOrStore && typeof dbOrStore.collection === 'function') {
+    return new ReflexRepository(dbOrStore);
+  }
+
+  // Check if IDocumentStore (has get/set/query methods)
+  if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
+    return new DocumentStoreReflexRepository(dbOrStore, refreshIntervalMs);
+  }
+
+  // Auto-select based on PERSISTENCE_DRIVER environment variable
+  const driver = process.env.PERSISTENCE_DRIVER;
+  if (driver === 'postgres' || driver === 'postgresql') {
+    throw new Error('createReflexRepositoryWithBackend: PostgreSQL driver selected but no IDocumentStore instance provided');
+  }
+
+  // Default to Firestore
   return new ReflexRepository();
 }

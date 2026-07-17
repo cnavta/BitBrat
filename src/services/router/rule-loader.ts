@@ -188,7 +188,11 @@ function sortRules(rules: RuleDoc[]): RuleDoc[] {
   });
 }
 
-export class RuleLoader {
+/**
+ * FirestoreRuleLoader – Original Firestore implementation
+ * Loads routing rules from Firestore with real-time updates via onSnapshot
+ */
+export class FirestoreRuleLoader {
   private cache: RuleDoc[] = [];
   private unsub: Unsubscribe | null = null;
   constructor(private readonly collectionPath = 'configs/routingRules/rules') {}
@@ -264,6 +268,129 @@ export class RuleLoader {
     }
     this.cache = sortRules(next);
   }
+}
+
+/**
+ * DocumentStoreRuleLoader – PostgreSQL implementation
+ * Loads routing rules from IDocumentStore with polling-based updates
+ */
+export class DocumentStoreRuleLoader {
+  private cache: RuleDoc[] = [];
+  private pollInterval: NodeJS.Timeout | null = null;
+  private store: any; // IDocumentStore
+
+  constructor(
+    private readonly tableName = 'routing_rules',
+    private readonly refreshIntervalMs = 60000 // 1 minute default
+  ) {}
+
+  /** Read-only snapshot of current cache */
+  getRules(): ReadonlyArray<RuleDoc> {
+    return this.cache;
+  }
+
+  /** Stop polling for updates */
+  stop() {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+  }
+
+  /**
+   * Start warm-loading and polling for updates from IDocumentStore.
+   * Accepts an IDocumentStore instance.
+   */
+  async start(store: any) {
+    this.store = store;
+
+    // Warm load
+    try {
+      await this.refresh();
+      logger.debug('rule_loader.warm_loaded', { count: this.cache.length, backend: 'postgres' });
+    } catch (e: any) {
+      logger.error('rule_loader.warm_load_error', { error: e?.message || String(e), backend: 'postgres' });
+      // Continue; cache remains empty
+    }
+
+    // Start polling for updates
+    if (this.refreshIntervalMs > 0) {
+      this.pollInterval = setInterval(async () => {
+        try {
+          await this.refresh();
+          logger.debug('rule_loader.poll_refreshed', { count: this.cache.length, backend: 'postgres' });
+        } catch (e: any) {
+          logger.error('rule_loader.poll_error', { error: e?.message || String(e), backend: 'postgres' });
+        }
+      }, this.refreshIntervalMs);
+    }
+  }
+
+  /**
+   * Manually trigger a refresh (useful for testing or on-demand updates)
+   */
+  async refresh(): Promise<void> {
+    try {
+      // Query all enabled documents from the table
+      // We filter for enabled=true at the query level for efficiency
+      const results = await this.store.query(this.tableName, {
+        filters: [
+          { field: 'enabled', operator: '==', value: true }
+        ]
+      });
+
+      const rules: RuleDoc[] = [];
+      for (const row of results) {
+        // validateRule expects the document data, not {id, data}
+        // The query returns the JSONB data field directly
+        const rule = validateRule(row, row.id || '');
+        if (rule) {
+          rules.push(rule);
+        }
+      }
+
+      this.cache = sortRules(rules);
+    } catch (e: any) {
+      logger.error('rule_loader.refresh_error', { error: e?.message || String(e) });
+      throw e;
+    }
+  }
+}
+
+// Legacy export for backward compatibility
+export class RuleLoader extends FirestoreRuleLoader {}
+
+/**
+ * Factory function to create the appropriate RuleLoader based on backend
+ *
+ * @param dbOrStore - Firestore instance or IDocumentStore
+ * @param collectionOrTable - Firestore collection path or PostgreSQL table name
+ * @param refreshIntervalMs - Polling interval for PostgreSQL (default: 60000ms)
+ * @returns RuleLoader instance (Firestore or DocumentStore based)
+ */
+export function createRuleLoader(
+  dbOrStore?: any,
+  collectionOrTable?: string,
+  refreshIntervalMs = 60000
+): FirestoreRuleLoader | DocumentStoreRuleLoader {
+  // Check if Firestore instance (has collection() method)
+  if (dbOrStore && typeof dbOrStore.collection === 'function') {
+    return new FirestoreRuleLoader(collectionOrTable || 'configs/routingRules/rules');
+  }
+
+  // Check if IDocumentStore (has get/set/query methods)
+  if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
+    return new DocumentStoreRuleLoader(collectionOrTable || 'routing_rules', refreshIntervalMs);
+  }
+
+  // Auto-select based on PERSISTENCE_DRIVER environment variable
+  const driver = process.env.PERSISTENCE_DRIVER;
+  if (driver === 'postgres' || driver === 'postgresql') {
+    return new DocumentStoreRuleLoader(collectionOrTable || 'routing_rules', refreshIntervalMs);
+  }
+
+  // Default to Firestore
+  return new FirestoreRuleLoader(collectionOrTable || 'configs/routingRules/rules');
 }
 
 export default RuleLoader;

@@ -20,16 +20,16 @@ CREATE INDEX idx_events_correlation_id ON events((data->>'correlationId'));
 CREATE INDEX idx_events_type ON events((data->>'type'));
 CREATE INDEX idx_events_source ON events((data->>'source'));
 
--- 2. Commands collection (event router rules)
-CREATE TABLE IF NOT EXISTS commands (
+-- 2. Routing rules collection (event router rules)
+CREATE TABLE IF NOT EXISTS routing_rules (
   id VARCHAR(255) PRIMARY KEY,
   data JSONB NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_commands_pattern ON commands((data->>'pattern'));
-CREATE INDEX idx_commands_active ON commands((data->>'active'));
+CREATE INDEX idx_routing_rules_pattern ON routing_rules((data->>'pattern'));
+CREATE INDEX idx_routing_rules_active ON routing_rules((data->>'active'));
 
 -- 3. Context packs collection (with vector support for similarity search)
 CREATE TABLE IF NOT EXISTS context_packs (

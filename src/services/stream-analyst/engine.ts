@@ -3,16 +3,22 @@ import { generateText } from 'ai';
 import { StreamBuffer } from './stream-buffer';
 import type { SummarizationRequest, StreamObserver } from '../../types/sessi';
 import type { InternalEventV2, AnnotationV1 } from '../../types/events';
+import type { IDocumentStore } from '../../common/persistence/interfaces';
 import { getLlmProvider } from '../../common/llm/provider-factory';
 import { assemble } from '../../common/prompt-assembly/assemble';
 import type { PromptSpec } from '../../common/prompt-assembly/types';
 import { v4 as uuidv4 } from 'uuid';
+import { createStreamAnalystStore, type IStreamAnalystStore } from './repository';
 
 export class StreamAnalystEngine {
+  private readonly store: IStreamAnalystStore;
+
   constructor(
-    private firestore: Firestore,
+    dbOrStore: Firestore | IDocumentStore,
     private logger: any
-  ) {}
+  ) {
+    this.store = createStreamAnalystStore(dbOrStore);
+  }
 
   /**
    * Main entry point for summarization requests.
@@ -21,10 +27,7 @@ export class StreamAnalystEngine {
     // BL-004: Load observer if ID provided to get source configuration
     let observer: StreamObserver | undefined;
     if (request.observerId) {
-      const doc = await this.firestore.collection('stream_observers').doc(request.observerId).get();
-      if (doc.exists) {
-        observer = { id: doc.id, ...doc.data() } as StreamObserver;
-      }
+      observer = await this.store.getStreamObserver(request.observerId) || undefined;
     }
 
     const windowMinutes = request.windowMinutes || 10;
@@ -37,10 +40,10 @@ export class StreamAnalystEngine {
     const idempotencyKey = `${observerId}:${windowStart}`;
 
     if (request.observerId) {
-      const runDoc = await this.firestore.collection('summarization_runs').doc(idempotencyKey).get();
-      if (runDoc.exists) {
+      const runDoc = await this.store.getSummarizationRun(idempotencyKey);
+      if (runDoc) {
         this.logger.info('stream.summarize.skip_duplicate', { observerId, windowStart });
-        return runDoc.data()?.summary || 'Duplicate run skipped.';
+        return runDoc.summary || 'Duplicate run skipped.';
       }
     }
 
@@ -179,7 +182,7 @@ export class StreamAnalystEngine {
 
       // Persist run for idempotency
       if (request.observerId) {
-        await this.firestore.collection('summarization_runs').doc(idempotencyKey).set({
+        await this.store.setSummarizationRun(idempotencyKey, {
           observerId,
           windowStart,
           at: new Date().toISOString(),
@@ -203,7 +206,7 @@ export class StreamAnalystEngine {
       // For simplicity, we enrich the most recent event in the window with the annotations
       // In a more complex scenario, we might map annotations to specific events
       if (events.length === 0) return;
-      
+
       const latestEvent = events[0];
       const docId = (latestEvent as any).id || (latestEvent as any)._id; // Try to find a document ID
 
@@ -212,22 +215,12 @@ export class StreamAnalystEngine {
         return;
       }
 
-      const docRef = this.firestore.collection(collectionName).doc(docId);
-      await this.firestore.runTransaction(async (transaction) => {
-        const doc = await transaction.get(docRef);
-        if (!doc.exists) return;
+      await this.store.persistAnnotations(docId, collectionName, annotations);
 
-        const currentAnnotations = doc.data()?.annotations || [];
-        transaction.update(docRef, {
-          annotations: [...currentAnnotations, ...annotations],
-          updatedAt: new Date().toISOString()
-        });
-      });
-
-      this.logger.info('stream.persist_annotations.complete', { 
-        docId, 
-        collectionName, 
-        count: annotations.length 
+      this.logger.info('stream.persist_annotations.complete', {
+        docId,
+        collectionName,
+        count: annotations.length
       });
     } catch (e: any) {
       this.logger.error('stream.persist_annotations.failed', { error: e.message });
@@ -235,60 +228,35 @@ export class StreamAnalystEngine {
   }
 
   /**
-   * Queries Firestore for events within the time window and matching filters.
+   * Queries events within the time window and matching filters.
    */
   private async queryEvents(request: SummarizationRequest, observer?: StreamObserver): Promise<InternalEventV2[]> {
     const windowMinutes = request.windowMinutes || 10;
     const startTime = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
-    
+
     // BL-004: Respect source collection from observer or request
     const collectionName = observer?.source?.collection || 'events';
     const timeField = collectionName === 'prompt_logs' ? 'createdAt' : 'ingressAt';
 
-    let query: any = this.firestore.collection(collectionName)
-      .where(timeField, '>=', startTime)
-      .orderBy(timeField, 'desc');
-      
+    let eventType: string | undefined;
     if (request.streamType) {
-       // BL-007: Make event type mappings configurable via environment or default
-       const typeMap: Record<string, string> = {
-         'chat': process.env.STREAM_TYPE_MAP_CHAT || 'chat.message.v1',
-         'logs': process.env.STREAM_TYPE_MAP_LOGS || 'llm.response.v1',
-         'errors': process.env.STREAM_TYPE_MAP_ERRORS || 'system.error.v1'
-       };
-       const eventType = typeMap[request.streamType] || request.streamType;
-       
-       // Handle schema differences
-       if (collectionName === 'events') {
-         query = query.where('eventType', '==', eventType);
-       }
+      // BL-007: Make event type mappings configurable via environment or default
+      const typeMap: Record<string, string> = {
+        'chat': process.env.STREAM_TYPE_MAP_CHAT || 'chat.message.v1',
+        'logs': process.env.STREAM_TYPE_MAP_LOGS || 'llm.response.v1',
+        'errors': process.env.STREAM_TYPE_MAP_ERRORS || 'system.error.v1'
+      };
+      eventType = typeMap[request.streamType] || request.streamType;
     }
-    
-    const filters = observer?.source?.filters || request.filters;
-    if (filters) {
-      for (const [key, value] of Object.entries(filters)) {
-        query = query.where(key, '==', value);
-      }
-    }
-    
-    const snapshot = await query.get();
-    return snapshot.docs.map((doc: any) => {
-      const data = doc.data();
-      // Ensure we keep the doc ID for persistence phase
-      const eventData = { ...data, id: doc.id };
 
-      // Normalize prompt_logs to InternalEventV2-like structure if needed for buffer
-      if (collectionName === 'prompt_logs') {
-        return {
-          ...eventData,
-          ingressAt: data.createdAt,
-          eventType: 'prompt_log.v1',
-          message: {
-            text: data.response?.text || data.prompt || JSON.stringify(data)
-          }
-        } as any;
-      }
-      return eventData as InternalEventV2;
+    const filters = observer?.source?.filters || request.filters;
+
+    return await this.store.queryEvents({
+      collectionName,
+      timeField,
+      startTime,
+      eventType,
+      filters
     });
   }
 }

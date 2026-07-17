@@ -311,6 +311,7 @@ export class PostgresDocumentStore implements IDocumentStore {
   private buildWhereClause(filter: QueryFilter, paramIndex: number): string {
     const field = filter.field;
     const operator = filter.operator;
+    const isDateValue = this.isDateString(filter.value);
 
     switch (operator) {
       case '==':
@@ -318,12 +319,24 @@ export class PostgresDocumentStore implements IDocumentStore {
       case '!=':
         return `data->>'${field}' != $${paramIndex}`;
       case '<':
+        if (isDateValue) {
+          return `(data->>'${field}')::timestamp < $${paramIndex}::timestamp`;
+        }
         return `(data->>'${field}')::numeric < $${paramIndex}`;
       case '<=':
+        if (isDateValue) {
+          return `(data->>'${field}')::timestamp <= $${paramIndex}::timestamp`;
+        }
         return `(data->>'${field}')::numeric <= $${paramIndex}`;
       case '>':
+        if (isDateValue) {
+          return `(data->>'${field}')::timestamp > $${paramIndex}::timestamp`;
+        }
         return `(data->>'${field}')::numeric > $${paramIndex}`;
       case '>=':
+        if (isDateValue) {
+          return `(data->>'${field}')::timestamp >= $${paramIndex}::timestamp`;
+        }
         return `(data->>'${field}')::numeric >= $${paramIndex}`;
       case 'in':
         return `data->>'${field}' = ANY($${paramIndex})`;
@@ -362,5 +375,18 @@ export class PostgresDocumentStore implements IDocumentStore {
       throw new Error(`Invalid collection name: ${name}`);
     }
     return name;
+  }
+
+  /**
+   * Detect if a value is an ISO 8601 date string
+   * Supports formats: YYYY-MM-DD, YYYY-MM-DDTHH:mm:ss, YYYY-MM-DDTHH:mm:ss.sssZ
+   */
+  private isDateString(value: any): boolean {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    // ISO 8601 date pattern: YYYY-MM-DD with optional time component
+    const isoDatePattern = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
+    return isoDatePattern.test(value);
   }
 }

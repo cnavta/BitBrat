@@ -19,14 +19,23 @@ export interface MigrateCliFlags {
   json?: boolean;
 }
 
+// Firestore collection → PostgreSQL table mapping
+const COLLECTION_MAPPING: Record<string, string> = {
+  'configs': 'routing_rules',     // Firestore configs → PostgreSQL routing_rules
+  'users': 'auth_users',          // Firestore users → PostgreSQL auth_users
+  'oauth': 'auth_scopes',         // Firestore oauth → PostgreSQL auth_scopes
+  'state': 'user_state',          // Firestore state → PostgreSQL user_state
+  'services': 'service_registry', // Firestore services → PostgreSQL service_registry
+};
+
 const COLLECTIONS = [
   'events',
-  'commands',
+  'configs',              // Will map to routing_rules in PostgreSQL
   'context_packs',
-  'service_registry',
-  'auth_users',
-  'auth_scopes',
-  'user_state',
+  'services',             // Will map to service_registry in PostgreSQL
+  'users',                // Will map to auth_users in PostgreSQL
+  'oauth',                // Will map to auth_scopes in PostgreSQL
+  'state',                // Will map to user_state in PostgreSQL
   'global_state',
   'sessions',
   'conversation_history',
@@ -65,13 +74,16 @@ async function migrateCollection(
   let errors = 0;
 
   try {
+    // Map Firestore collection name to PostgreSQL table name
+    const postgresTable = COLLECTION_MAPPING[collectionName] || collectionName;
+
     // Get all documents from Firestore collection
     const snapshot = await firestore.collection(collectionName).get();
     const total = snapshot.size;
 
     logger.info(
-      { action: 'migrate.collection.start', collection: collectionName, total },
-      `Migrating ${collectionName}: ${total} documents`
+      { action: 'migrate.collection.start', collection: collectionName, postgresTable, total },
+      `Migrating ${collectionName} → ${postgresTable}: ${total} documents`
     );
 
     // Create progress bar if requested
@@ -87,7 +99,7 @@ async function migrateCollection(
         const data = doc.data();
 
         if (!options.dryRun) {
-          await postgres.set(collectionName, doc.id, data);
+          await postgres.set(postgresTable, doc.id, data);
         }
 
         migrated++;
@@ -97,7 +109,7 @@ async function migrateCollection(
       } catch (error: any) {
         errors++;
         logger.error(
-          { action: 'migrate.document.error', collection: collectionName, docId: doc.id, error: error.message },
+          { action: 'migrate.document.error', collection: collectionName, postgresTable, docId: doc.id, error: error.message },
           `Failed to migrate document ${doc.id}`
         );
       }
@@ -109,8 +121,8 @@ async function migrateCollection(
 
     const duration = Date.now() - startTime;
     logger.info(
-      { action: 'migrate.collection.complete', collection: collectionName, migrated, errors, duration },
-      `Migrated ${collectionName}: ${migrated}/${total} documents in ${duration}ms`
+      { action: 'migrate.collection.complete', collection: collectionName, postgresTable, migrated, errors, duration },
+      `Migrated ${collectionName} → ${postgresTable}: ${migrated}/${total} documents in ${duration}ms`
     );
 
     return { migrated, skipped, errors };

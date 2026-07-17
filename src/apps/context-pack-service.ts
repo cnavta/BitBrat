@@ -14,6 +14,140 @@ import { getFirestore } from '../common/firebase';
 import { embedText, buildEmbeddingText } from '../common/context/embedding';
 import type { NamedContext } from '../common/prompt-assembly/types';
 import crypto from 'crypto';
+import type { IDocumentStore } from '../common/persistence/interfaces';
+
+// =============================================================================
+// Context Pack Store Abstraction
+// =============================================================================
+
+/**
+ * Interface for context pack storage operations.
+ * Supports both Firestore and PostgreSQL via IDocumentStore.
+ */
+export interface IContextPackStore {
+  /**
+   * Upsert a context pack with embedding data.
+   * @param packId - Unique identifier for the pack
+   * @param data - Pack document data
+   */
+  upsert(packId: string, data: ContextPackDocument): Promise<void>;
+}
+
+/**
+ * Document structure stored in context_packs collection/table.
+ */
+export interface ContextPackDocument {
+  id: string;
+  version: string;
+  title: string;
+  priority?: number;
+  format: 'markdown' | 'json';
+  body: string;  // Serialized JSON if original was object
+  source: string;
+  bitName: string;
+  active: boolean;
+  updatedAt: string;
+  embedding?: number[];
+  embeddingText?: string;
+}
+
+/**
+ * Firestore-based context pack store implementation.
+ */
+export class FirestoreContextPackStore implements IContextPackStore {
+  private db: FirebaseFirestore.Firestore;
+  private collectionName: string;
+
+  constructor(db?: FirebaseFirestore.Firestore, collectionName = 'context_packs') {
+    this.db = db || getFirestore();
+    this.collectionName = collectionName;
+  }
+
+  async upsert(packId: string, data: ContextPackDocument): Promise<void> {
+    const col = this.db.collection(this.collectionName);
+    await col.doc(packId).set(data, { merge: true });
+  }
+}
+
+/**
+ * PostgreSQL-based context pack store implementation via IDocumentStore.
+ */
+export class DocumentStoreContextPackStore implements IContextPackStore {
+  constructor(
+    private readonly store: IDocumentStore,
+    private readonly tableName = 'context_packs'
+  ) {}
+
+  async upsert(packId: string, data: ContextPackDocument): Promise<void> {
+    // For PostgreSQL with pgvector, we need to store the embedding separately
+    // The IDocumentStore interface doesn't yet support vector columns directly,
+    // so we'll use raw query access via (store as any) if available
+
+    const docData = { ...data };
+
+    // Check if store has raw query capability for vector operations
+    if (this.store && typeof (this.store as any).pool !== 'undefined') {
+      // Direct PostgreSQL access for vector insertion
+      const pool = (this.store as any).pool;
+      const client = await pool.connect();
+
+      try {
+        const embedding = data.embedding;
+        delete docData.embedding; // Remove from JSONB data
+
+        const query = `
+          INSERT INTO ${this.tableName} (id, data, embedding, created_at, updated_at)
+          VALUES ($1, $2, $3, NOW(), NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            data = $2,
+            embedding = $3,
+            updated_at = NOW()
+        `;
+
+        const embeddingVector = embedding ? `[${embedding.join(',')}]` : null;
+        await client.query(query, [packId, JSON.stringify(docData), embeddingVector]);
+      } finally {
+        client.release();
+      }
+    } else {
+      // Fallback: use standard IDocumentStore (no vector support)
+      await this.store.set(this.tableName, packId, docData);
+    }
+  }
+}
+
+/**
+ * Factory function to create context pack store based on backend detection.
+ *
+ * @param dbOrStore - Optional Firestore instance or IDocumentStore
+ * @param collectionOrTable - Collection name (Firestore) or table name (PostgreSQL)
+ * @returns IContextPackStore implementation
+ */
+export function createContextPackStore(
+  dbOrStore?: any,
+  collectionOrTable?: string
+): IContextPackStore {
+  // Check if Firestore instance (has collection() method)
+  if (dbOrStore && typeof dbOrStore.collection === 'function') {
+    return new FirestoreContextPackStore(dbOrStore, collectionOrTable || 'context_packs');
+  }
+
+  // Check if IDocumentStore instance
+  if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
+    return new DocumentStoreContextPackStore(dbOrStore, collectionOrTable || 'context_packs');
+  }
+
+  // Auto-select based on PERSISTENCE_DRIVER environment variable
+  const driver = process.env.PERSISTENCE_DRIVER;
+  if (driver === 'postgres' || driver === 'postgresql') {
+    throw new Error(
+      'createContextPackStore: PostgreSQL driver selected but no IDocumentStore instance provided'
+    );
+  }
+
+  // Default to Firestore
+  return new FirestoreContextPackStore(undefined, collectionOrTable || 'context_packs');
+}
 
 /**
  * ContextPackServer (Sprint 338: P4 RAG Scale-Out)
@@ -37,9 +171,19 @@ import crypto from 'crypto';
 export class ContextPackServer extends Bit {
   // Aggregated context providers from registered Bits (mirroring tool-gateway pattern)
   private contextProviders: Map<string, StaticContextProvider> = new Map();
+  private contextPackStore: IContextPackStore;
 
-  constructor() {
+  constructor(store?: IContextPackStore) {
     super({ mcpExposure: 'platform-only' });
+
+    // Get Firestore or PostgreSQL document store from BaseServer resources
+    // This allows the service to work with both backends
+    const dbOrStore = store
+      ? undefined
+      : (this.getResource<any>('firestore') || this.getResource<IDocumentStore>('documentStore'));
+
+    // Use provided store or create from resources
+    this.contextPackStore = store || createContextPackStore(dbOrStore);
   }
 
   async start(port?: number): Promise<void> {
@@ -121,19 +265,16 @@ export class ContextPackServer extends Bit {
   }
 
   /**
-   * Upsert context packs to Firestore context_packs collection with embeddings.
+   * Upsert context packs to storage (Firestore or PostgreSQL) with embeddings.
    * Reuses BL-338-201/202 embedding generation logic.
    */
   private async upsertContextPacks(bitName: string, packs: ContextPack[]) {
-    const db = getFirestore();
-    const col = db.collection('context_packs');
-
     for (const pack of packs) {
       try {
         const embeddingText = buildEmbeddingText(pack);
         const embedding = await embedText(embeddingText);
 
-        const packDoc: any = {
+        const packDoc: ContextPackDocument = {
           id: pack.id,
           version: pack.version,
           title: pack.title,
@@ -151,7 +292,7 @@ export class ContextPackServer extends Bit {
           packDoc.embeddingText = embeddingText;
         }
 
-        await col.doc(pack.id).set(packDoc, { merge: true });
+        await this.contextPackStore.upsert(pack.id, packDoc);
 
         this.getLogger().info('context_pack.upserted', {
           packId: pack.id,

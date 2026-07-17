@@ -61,9 +61,13 @@ export class EgressManager {
       return EgressResult.FAILED;
     }
 
+    // Determine if this is a bot-generated response vs user echo
+    // Bot responses have candidates array, user echoes come directly from payload without candidates
+    const isBotResponse = event.candidates && event.candidates.length > 0;
+
     const outboundFrame = {
-      type: (event.type === 'chat.message.v1' || event.type === 'egress.deliver.v1' || event.type === 'dm.message.v1') 
-        ? 'chat.message.received' 
+      type: (event.type === 'chat.message.v1' || event.type === 'egress.deliver.v1' || event.type === 'dm.message.v1')
+        ? 'chat.message.received'
         : event.type,
       // If we have extracted text from a candidate, prioritize it over event.payload
       // to avoid echoing the original user message from event.payload.
@@ -71,7 +75,7 @@ export class EgressManager {
       metadata: {
         id: event.correlationId,
         timestamp: new Date().toISOString(),
-        source: event.ingress?.source
+        source: isBotResponse ? (event.candidates?.[0]?.source || 'platform') : event.ingress?.source
       }
     };
 

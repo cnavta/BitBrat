@@ -784,7 +784,7 @@ Options:
   }
   if (c1 === 'chat') {
     const { cmdChat } = require('./chat');
-    await cmdChat(flags);
+    await cmdChat(flags, rest);
     return;
   }
   if (c1 === 'code') {
