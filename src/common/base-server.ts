@@ -1322,12 +1322,44 @@ export class Bit {
   }
 
   /**
-   * Subclasses can override this to provide a per-connection Server instance.
-   * Default: use the shared server instance.
+   * Create a new Server instance for each SSE connection.
+   * The MCP SDK requires one Server instance per transport connection.
+   *
+   * This duplicates the registration logic from initializeMcp() but is necessary
+   * because each SSE connection needs its own Server instance.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected async getMcpServerForConnection(_req: Request): Promise<Server> {
-    return this.mcpServer;
+    // Get version from architecture.yaml (same as initializeMcp)
+    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+    const svcNode = arch?.services?.[this.serviceName] || {};
+    const description = svcNode.description || 'BitBrat MCP Server';
+    const version = arch?.project?.version || '1.0.0';
+
+    // Create a new Server instance for this connection
+    const server = new Server(
+      {
+        name: this.serviceName,
+        version: version,
+        description: description,
+      } as any,
+      {
+        capabilities: {
+          tools: this.registeredTools.size > 0 ? {} : undefined,
+          resources: this.registeredResources.size > 0 ? {} : undefined,
+          prompts: this.registeredPrompts.size > 0 ? {} : undefined,
+        },
+      }
+    );
+
+    // Copy all request handlers from the main server to this connection-specific server
+    // This ensures all registered tools, resources, and prompts are available
+    const mainServer = this.mcpServer as any;
+    if (mainServer._requestHandlers) {
+      server['_requestHandlers'] = new Map(mainServer._requestHandlers);
+    }
+
+    return server;
   }
 
   /**
