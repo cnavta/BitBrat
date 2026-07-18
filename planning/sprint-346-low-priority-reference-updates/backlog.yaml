@@ -93,9 +93,17 @@ tasks:
       - Diagrams updated if showing Firestore-specific storage
       - Notes added clarifying current PostgreSQL default
     estimated_minutes: 45
-    status: pending
+    actual_minutes: 30
+    status: completed
+    completed_date: "2026-07-18"
     firestore_refs: 27
     gcp_refs: 0
+    notes: |
+      - user-context-v1.md: Updated section headers, references to backend-agnostic (5 refs)
+      - mcp-auto-discovery.md: Updated all 10 refs to "database" terminology
+      - image-gen-mcp-prompt-logging.md: Added "HISTORICAL DESIGN DOCUMENT" preamble
+      - All architectural concepts preserved
+      - Backend-agnostic language throughout
 
   - id: P1-T3
     priority: P1

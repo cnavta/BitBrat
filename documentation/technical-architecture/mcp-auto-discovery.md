@@ -13,7 +13,7 @@
 > [Bit Control-Plane Reference](../reference/bit-control-plane.md).
 
 ## 1. Problem Statement
-Currently, MCP servers must be manually added to the `mcp_servers` collection in Firestore for the `tool-gateway` to discover and connect to them. This creates manual overhead and potential for configuration drift as services are deployed or updated.
+Currently, MCP servers must be manually added to the `mcp_servers` collection/table in the database for the `tool-gateway` to discover and connect to them. This creates manual overhead and potential for configuration drift as services are deployed or updated.
 
 ## 2. Goal
 Provide a decentralized auto-discovery mechanism where any **MCP-enabled Bit** announces its presence and
@@ -23,10 +23,10 @@ this applies to every MCP-enabled Bit.)
 ## 3. Analysis of Proposed Approach
 The proposed approach involves:
 1. `McpServer` services auto-publishing registration events to a specific topic.
-2. `tool-gateway` listening to this topic and upserting the server configuration to Firestore.
-3. `tool-gateway`'s existing `RegistryWatcher` (using Firestore `onSnapshot`) applying the changes and establishing connections.
+2. `tool-gateway` listening to this topic and upserting the server configuration to the database.
+3. `tool-gateway`'s existing `RegistryWatcher` (watching database changes) applying the changes and establishing connections.
 
-**Viability:** HIGH. This approach leverages existing event-driven architecture and the proven `RegistryWatcher` mechanism. It ensures that Firestore remains the canonical source of truth for the fleet while allowing dynamic updates.
+**Viability:** HIGH. This approach leverages existing event-driven architecture and the proven `RegistryWatcher` mechanism. It ensures that the database remains the canonical source of truth for the fleet while allowing dynamic updates.
 
 **Recommendation:** RECOMMENDED. It provides good decoupling and observability.
 
@@ -68,15 +68,15 @@ The `payload` field of the `InternalEventV2` shall contain:
 - **Queue Grouping:** The subscription must use a queue group (e.g., `tool-gateway`) to ensure only one instance of the gateway processes a single registration event.
 - **Persistence Logic:**
   - Validate the registration payload.
-  - Upsert (Create or Update) the document in Firestore collection `mcp_servers`.
-  - Use the service `name` as the document ID.
+  - Upsert (Create or Update) the record in database collection/table `mcp_servers`.
+  - Use the service `name` as the document/record ID.
 
 ### 4.4 Sequencing Diagram
 1. **Service A (McpServer)** starts up.
 2. **Service A** publishes `internal.mcp.registration.v1` event.
 3. **tool-gateway** receives the event.
-4. **tool-gateway** upserts `Service A` config to Firestore `mcp_servers/service-a`.
-5. **RegistryWatcher** in **tool-gateway** detects the Firestore change.
+4. **tool-gateway** upserts `Service A` config to database `mcp_servers/service-a`.
+5. **RegistryWatcher** in **tool-gateway** detects the database change.
 6. **tool-gateway** connects to **Service A** via SSE.
 
 ## 5. Security Considerations
@@ -84,14 +84,14 @@ The `payload` field of the `InternalEventV2` shall contain:
 - **Validation:** `tool-gateway` must validate the incoming URL and ensure it matches expected patterns if possible.
 
 ## 6. Alternatives Considered
-- **Direct Firestore Writes:** `McpServer` could write directly to Firestore. 
+- **Direct Database Writes:** `McpServer` could write directly to the database.
   - *Pros:* Simpler (no topic needed).
-  - *Cons:* Tight coupling to Firestore; no event trail; hard to extend (e.g., other services wanting to know about new tools).
+  - *Cons:* Tight coupling to persistence backend; no event trail; hard to extend (e.g., other services wanting to know about new tools).
 - **Service Discovery API:** A dedicated discovery service.
   - *Pros:* More robust.
   - *Cons:* Overkill for current platform size.
 
 ## 7. Definition of Done for Implementation
 - `McpServer` publishes registration events.
-- `tool-gateway` consumes registration events and updates Firestore.
+- `tool-gateway` consumes registration events and updates the database.
 - Integration test confirms that starting an `McpServer` results in its tools appearing in `tool-gateway`.
