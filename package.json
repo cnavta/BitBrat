@@ -1,6 +1,6 @@
 {
   "name": "bitbrat-platform",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/src/common/prompt-assembly/index.d.ts",
