@@ -124,9 +124,17 @@ tasks:
       - Operational procedures remain valid for PostgreSQL and Firestore
       - No loss of technical detail
     estimated_minutes: 30
-    status: pending
+    actual_minutes: 20
+    status: completed
+    completed_date: "2026-07-18"
     firestore_refs: 15
     gcp_refs: 0
+    notes: |
+      - image-gen-mcp.md: Updated 3 refs to "database" (prompt logging, storage path, config)
+      - state-engine/technical-overview.md: Updated 7 refs (reactive layer, snapshots, transactions, diagram)
+      - state-engine/runbook.md: Updated 5 refs (logs, troubleshooting, connectivity section)
+      - All operational procedures preserved
+      - Database connectivity troubleshooting now covers PostgreSQL and Firestore
 
   # ============================================================================
   # PHASE 2: LOW-PRIORITY HISTORICAL DOCUMENTATION

@@ -14,7 +14,7 @@ the `tool-gateway`.
 - **GCS Persistence**: Generated images are uploaded to a GCS bucket and returned as a public URL.
 - **Rate Limiting**: One generation per user per `IMAGE_GEN_RATE_LIMIT_MS` window (default 5 minutes).
 - **Prompt Logging**: Logs each `generate_image` invocation (success, moderation rejection, and
-  error) to Firestore for audit and training purposes, mirroring `llm-bot` and `query-analyzer`.
+  error) to the database for audit and training purposes, mirroring `llm-bot` and `query-analyzer`.
 
 ## Tool: `generate_image`
 
@@ -31,14 +31,14 @@ each is recorded by prompt logging (when enabled) just before the tool returns.
 ### Prompt Logging
 
 When enabled, the service writes a structured, **fire-and-forget** record of each `generate_image`
-invocation to Firestore. The write is never awaited and a failure can never alter, delay, or fail the
+invocation to the database. The write is never awaited and a failure can never alter, delay, or fail the
 tool result (fail-soft); failures are surfaced via the `image_gen_mcp.prompt_logging_failed` warning
 log. This reuses the same platform-wide feature flag, sub-collection layout, and redaction discipline
 as `llm-bot` and `query-analyzer`.
 
 - **Feature Flag**: `llm.promptLogging.enabled` (env `FF_LLM_PROMPT_LOGGING`, default `false`). This
   is the single platform-wide prompt-logging switch shared by all services.
-- **Storage Path**: `services/image-gen-mcp/prompt_logs/{logId}`
+- **Storage Path (Database)**: `services/image-gen-mcp/prompt_logs/{logId}` (collection or table depending on backend)
 - **Logged Outcomes**:
     - `success`: image generated and persisted to GCS.
     - `rejected`: prompt flagged by moderation (no image generated).
@@ -76,5 +76,5 @@ See the Technical Architecture for the full design:
 | `IMAGE_GEN_RATE_LIMIT_MS` | `300000` | Per-user rate-limit window in milliseconds (default 5 min). |
 | `GCS_BUCKET_NAME` | `bitbrat-media-gen` | GCS bucket where generated images are stored. |
 | `OPENAI_API_KEY` | N/A | OpenAI API key (fetched via `getSecret`; never logged). |
-| `FF_LLM_PROMPT_LOGGING` | `false` | Feature flag to enable prompt logging to Firestore. |
+| `FF_LLM_PROMPT_LOGGING` | `false` | Feature flag to enable prompt logging to the database. |
 | `SERVICE_PORT` | `3000` | Port for the service to listen on. |

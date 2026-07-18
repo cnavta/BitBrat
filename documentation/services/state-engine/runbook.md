@@ -40,7 +40,7 @@ The service logs meaningful events to stdout/stderr, which are captured by Googl
 
 **Key Log Events**:
 - `state-engine.mutation.received`: A new mutation proposal was received.
-- `state-engine.mutation.committed`: Mutation successfully applied to Firestore.
+- `state-engine.mutation.committed`: Mutation successfully applied to the database.
 - `state-engine.mutation.commit_failed`: Mutation failed due to validation or version mismatch.
 - `state-engine.rule.eval_error`: JSON-Logic evaluation failed.
 - `state-engine.egress.publish_error`: Failed to publish egress event.
@@ -62,7 +62,7 @@ curl https://state-engine.bitbrat.ai/health
 **Symptom**: Mutation proposals are failing with a version mismatch error.
 **Resolution**: 
 1.  Verify that the proposing service/agent is providing the correct `expectedVersion`. 
-2.  Use the `get_state` MCP tool to check the current version in Firestore.
+2.  Use the `get_state` MCP tool to check the current version in the database.
 3.  If a race condition is suspected, consider if the proposing logic needs to retry or fetch the latest state first.
 
 ### Rules Not Triggering
@@ -72,9 +72,9 @@ curl https://state-engine.bitbrat.ai/health
 2.  Validate the JSON-Logic syntax in the `when` clause.
 3.  Verify that the `key` and `value` being updated match the rule's conditions.
 
-### Firestore Connectivity
-**Symptom**: Service logs indicate errors connecting to Firestore.
-**Resolution**: 
-1.  Ensure the service account has the `roles/datastore.user` IAM role.
-2.  Verify the `GOOGLE_APPLICATION_CREDENTIALS` environment variable if running locally.
-3.  Check Firestore usage limits and quotas.
+### Database Connectivity
+**Symptom**: Service logs indicate errors connecting to the database.
+**Resolution**:
+1.  **PostgreSQL**: Verify `DATABASE_URL` environment variable and network connectivity.
+2.  **Firestore (Legacy)**: Ensure the service account has the `roles/datastore.user` IAM role and verify `GOOGLE_APPLICATION_CREDENTIALS`.
+3.  Check database connection limits and resource quotas.
