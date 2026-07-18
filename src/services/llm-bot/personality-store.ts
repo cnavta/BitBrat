@@ -156,7 +156,9 @@ export class DocumentStorePersonalityStore implements IPersonalityStore {
         filters: [
           { field: 'data', operator: '==', value: { name, status } } as any,
         ],
-        orderBy: { field: "(data->>'version')::int", direction: 'desc' },
+        // FIXME: Using 'version' as string field - doesn't sort numerically
+        // Future: Add support for PostgreSQL cast expressions in QueryOptions
+        orderBy: { field: 'version', direction: 'desc' },
         limit: 1,
       });
 
@@ -199,7 +201,9 @@ export class DocumentStorePersonalityStore implements IPersonalityStore {
 
       const results = await this.store.query(this.tableName, {
         filters: queryFilters.length > 0 ? queryFilters : undefined,
-        orderBy: { field: "(data->>'version')::int", direction: 'desc' },
+        // FIXME: Using 'version' as string field - doesn't sort numerically
+        // Future: Add support for PostgreSQL cast expressions in QueryOptions
+        orderBy: { field: 'version', direction: 'desc' },
       });
 
       return results as PersonalityDoc[];
