@@ -1,10 +1,10 @@
-COMPOSE_PROFILES: firebase
+# COMPOSE_PROFILES: firebase
 
 # Firestore settings
-FIREBASE_PROJECT_ID: bitbrat-local
-GOOGLE_CLOUD_PROJECT: bitbrat-local
-GCLOUD_PROJECT: bitbrat-local
-FIRESTORE_EMULATOR_HOST: firebase-emulator:8080
+# FIREBASE_PROJECT_ID: bitbrat-local
+# GOOGLE_CLOUD_PROJECT: bitbrat-local
+# GCLOUD_PROJECT: bitbrat-local
+# FIRESTORE_EMULATOR_HOST: firebase-emulator:8080
 
 NATS_URL: nats://nats:4222
 

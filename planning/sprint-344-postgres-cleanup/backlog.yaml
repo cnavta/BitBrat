@@ -1,0 +1,614 @@
+# Sprint 344: PostgreSQL Migration Cleanup - Prioritized Backlog
+#
+# This backlog contains all trackable tasks for Sprint 344, organized by phase and priority.
+# Tasks are marked with priority (P0=critical, P1=high, P2=medium, P3=low) and dependencies.
+
+sprint:
+  id: 344
+  name: "PostgreSQL Migration Cleanup"
+  status: planning
+  created: 2026-07-18
+  lead: "Claude Code"
+  estimated_hours: 14
+
+metadata:
+  tags:
+    - postgres
+    - migration
+    - cleanup
+    - persistence
+    - data-integrity
+  objectives:
+    - Fix missing personalities table in PostgreSQL schema
+    - Resolve empty prompt_logs table issue
+    - Establish PostgreSQL as default persistence driver
+    - Remove Firestore hardcoding from codebase
+
+# =============================================================================
+# PHASE 1: Schema & Migration (Personalities Table)
+# =============================================================================
+phase_1:
+  name: "Schema & Migration"
+  estimated_hours: 2
+  dependencies: []
+
+  tasks:
+    - id: P1-T1
+      title: "Create migration 009-add-personalities-table.sql"
+      priority: P0
+      type: schema
+      estimated_minutes: 30
+      acceptance_criteria:
+        - Migration SQL file created in infrastructure/postgres/migrations/
+        - Table definition includes id, data (JSONB), created_at, updated_at columns
+        - Index on (data->>'name') for name lookups
+        - Index on (data->>'status') for status filtering
+        - Index on (data->>'version') for version sorting
+        - Composite index on ((data->>'name'), (data->>'status'), (data->>'version') DESC)
+        - Migration includes rollback SQL
+        - Migration tested on local PostgreSQL instance
+      files:
+        - infrastructure/postgres/migrations/009-add-personalities-table.sql
+      validation:
+        - Migration runs without errors
+        - psql \\d personalities shows all indexes
+
+    - id: P1-T2
+      title: "Add personalities table to 02-create-tables.sql"
+      priority: P0
+      type: schema
+      estimated_minutes: 20
+      depends_on: [P1-T1]
+      acceptance_criteria:
+        - Table definition appended to init script
+        - Comment header explains purpose and Firestore mapping
+        - Indexes match migration exactly
+        - Table numbered as "23. Personalities collection"
+        - Success message added at end
+      files:
+        - infrastructure/postgres/init/02-create-tables.sql
+      validation:
+        - Fresh database init creates personalities table
+        - Table structure matches migration output
+
+    - id: P1-T3
+      title: "Document personality schema (personality.v1.json)"
+      priority: P1
+      type: documentation
+      estimated_minutes: 30
+      depends_on: [P1-T1]
+      acceptance_criteria:
+        - JSON Schema created following envelope.v1.json format
+        - Required fields: name, text, status
+        - Optional fields: version, tags, createdAt, updatedAt, platform, model
+        - Enum for status: [active, inactive, archived]
+        - Schema validated with example personality document
+      files:
+        - documentation/schemas/personality.v1.json
+      validation:
+        - Schema validates example personality JSON
+        - Referenced in architecture.yaml schemas section
+
+    - id: P1-T4
+      title: "Test personality table migration locally"
+      priority: P0
+      type: testing
+      estimated_minutes: 40
+      depends_on: [P1-T1, P1-T2]
+      acceptance_criteria:
+        - Migration runs successfully on local PostgreSQL
+        - Can INSERT personality document into table
+        - Can query by name, status, version
+        - Indexes are used in query plans (EXPLAIN)
+        - No errors in PostgreSQL logs
+      validation:
+        - psql query returns inserted personality
+        - EXPLAIN shows index usage
+
+# =============================================================================
+# PHASE 2: Persistence Abstraction (Document Store)
+# =============================================================================
+phase_2:
+  name: "Persistence Abstraction"
+  estimated_hours: 4
+  dependencies: [phase_1]
+
+  tasks:
+    - id: P2-T1
+      title: "Create PersonalityStore abstraction interface"
+      priority: P0
+      type: feature
+      estimated_minutes: 45
+      acceptance_criteria:
+        - Interface defined in src/services/llm-bot/personality-store.ts
+        - Method: getByName(name: string) => Promise<PersonalityDoc | undefined>
+        - Method: getActive(name: string) => Promise<PersonalityDoc | undefined>
+        - Method: list(filters?: {status?: string}) => Promise<PersonalityDoc[]>
+        - Interface exported and documented
+      files:
+        - src/services/llm-bot/personality-store.ts
+      validation:
+        - TypeScript compiles without errors
+        - Interface properly exported
+
+    - id: P2-T2
+      title: "Implement FirestorePersonalityStore"
+      priority: P0
+      type: feature
+      estimated_minutes: 60
+      depends_on: [P2-T1]
+      acceptance_criteria:
+        - Class implements IPersonalityStore interface
+        - Uses Firestore collection() API
+        - getByName queries collection with where clauses
+        - Handles missing documents gracefully
+        - Returns PersonalityDoc matching schema
+        - Logs access with correlationId if available
+      files:
+        - src/services/llm-bot/personality-store.ts
+      validation:
+        - Unit tests pass for Firestore implementation
+        - Mock Firestore queries return expected data
+
+    - id: P2-T3
+      title: "Implement DocumentStorePersonalityStore"
+      priority: P0
+      type: feature
+      estimated_minutes: 60
+      depends_on: [P2-T1]
+      acceptance_criteria:
+        - Class implements IPersonalityStore interface
+        - Uses IDocumentStore.query() API
+        - Filters by name, status, version using JSONB operators
+        - Returns latest version when multiple matches
+        - Handles PostgreSQL-specific errors gracefully
+        - Logs access with correlationId if available
+      files:
+        - src/services/llm-bot/personality-store.ts
+      validation:
+        - Unit tests pass for PostgreSQL implementation
+        - Mock DocumentStore queries return expected data
+
+    - id: P2-T4
+      title: "Create PersonalityStore factory function"
+      priority: P0
+      type: feature
+      estimated_minutes: 30
+      depends_on: [P2-T2, P2-T3]
+      acceptance_criteria:
+        - Function signature: createPersonalityStore(dbOrStore: any) => IPersonalityStore
+        - Detects Firestore via .collection() method
+        - Detects IDocumentStore via .query() method
+        - Falls back to PERSISTENCE_DRIVER env var
+        - Throws clear error if no valid backend
+        - JSDoc explains usage and parameters
+      files:
+        - src/services/llm-bot/personality-store.ts
+      validation:
+        - Factory returns correct implementation based on input
+        - Error thrown for invalid inputs
+
+    - id: P2-T5
+      title: "Refactor llm-bot processor to use PersonalityStore"
+      priority: P0
+      type: refactor
+      estimated_minutes: 75
+      depends_on: [P2-T4]
+      acceptance_criteria:
+        - Remove direct getFirestore() call on line 627
+        - Accept PersonalityStore via dependencies injection
+        - Use store.getActive(name) instead of Firestore query
+        - Maintain existing caching behavior
+        - Preserve personality resolution metrics
+        - Update tests to inject mock PersonalityStore
+      files:
+        - src/services/llm-bot/processor.ts
+        - src/services/llm-bot/processor.test.ts
+      validation:
+        - All tests pass with mocked PersonalityStore
+        - No Firestore imports in processor.ts
+
+    - id: P2-T6
+      title: "Update llm-bot-service to inject PersonalityStore"
+      priority: P0
+      type: feature
+      estimated_minutes: 30
+      depends_on: [P2-T5]
+      acceptance_criteria:
+        - Create PersonalityStore in service constructor
+        - Use getResource('documentStore') or getResource('firestore')
+        - Pass store to processor via dependencies
+        - Log warning if no backend available
+        - Handle both PostgreSQL and Firestore modes
+      files:
+        - src/apps/llm-bot-service.ts
+      validation:
+        - Service starts successfully with PostgreSQL
+        - Service starts successfully with Firestore
+        - Warning logged if neither backend available
+
+# =============================================================================
+# PHASE 3: Prompt Logging Fix
+# =============================================================================
+phase_3:
+  name: "Prompt Logging Fix"
+  estimated_hours: 3
+  dependencies: [phase_2]
+
+  tasks:
+    - id: P3-T1
+      title: "Register documentStore resource in Bit base class"
+      priority: P0
+      type: feature
+      estimated_minutes: 45
+      acceptance_criteria:
+        - Update src/common/base-server.ts initializeResources()
+        - Call createDocumentStore() based on PERSISTENCE_DRIVER
+        - Register as this.resources.documentStore
+        - Ensure available before service setup() called
+        - Log which backend selected (postgres/firestore)
+        - Handle initialization errors gracefully
+      files:
+        - src/common/base-server.ts
+      validation:
+        - getResource('documentStore') returns valid store
+        - Both PostgreSQL and Firestore modes work
+        - Error handling prevents crashes
+
+    - id: P3-T2
+      title: "Fix llm-bot prompt log resource access"
+      priority: P0
+      type: bugfix
+      estimated_minutes: 30
+      depends_on: [P3-T1]
+      acceptance_criteria:
+        - Change line 743 to use getResource('documentStore') only
+        - Remove || getResource('firestore') fallback
+        - Add fallback to createDocumentStore() if resource missing
+        - Log warning if documentStore unavailable
+        - Handle errors from promptLogStore.log()
+        - Ensure fire-and-forget behavior preserved
+      files:
+        - src/services/llm-bot/processor.ts
+      validation:
+        - Prompt logs written to PostgreSQL prompt_logs table
+        - No errors logged during prompt logging
+        - Feature flag controls logging behavior
+
+    - id: P3-T3
+      title: "Fix query-analyzer prompt log resource access"
+      priority: P0
+      type: bugfix
+      estimated_minutes: 30
+      depends_on: [P3-T1]
+      acceptance_criteria:
+        - Ensure options.documentStore is always provided
+        - Add validation/error handling if missing
+        - Update caller to pass documentStore from resources
+        - Log clear error if logging fails
+        - Fire-and-forget error handling
+      files:
+        - src/services/query-analyzer/llm-provider.ts
+        - src/apps/query-analyzer-service.ts
+      validation:
+        - Prompt logs written to PostgreSQL
+        - Errors logged clearly
+        - Service doesn't crash on logging failure
+
+    - id: P3-T4
+      title: "Create integration test for prompt logging"
+      priority: P1
+      type: testing
+      estimated_minutes: 60
+      depends_on: [P3-T2, P3-T3]
+      acceptance_criteria:
+        - Test file: test/integration/prompt-logging.spec.ts
+        - Test validates llm-bot writes to prompt_logs
+        - Test validates query-analyzer writes to prompt_logs
+        - Test verifies log structure matches schema
+        - Test runs against real PostgreSQL instance
+        - Test cleanup deletes test records
+      files:
+        - test/integration/prompt-logging.spec.ts
+      validation:
+        - npm test passes
+        - Logs appear in prompt_logs table
+        - No test data leaked
+
+    - id: P3-T5
+      title: "Verify prompt logging with FF_LLM_PROMPT_LOGGING"
+      priority: P1
+      type: testing
+      estimated_minutes: 15
+      depends_on: [P3-T4]
+      acceptance_criteria:
+        - Test with FF_LLM_PROMPT_LOGGING=true writes logs
+        - Test with FF_LLM_PROMPT_LOGGING=false skips logging
+        - Test with flag unset uses default behavior
+        - Feature flag respected in both services
+      validation:
+        - Logs only appear when flag enabled
+        - No errors when flag disabled
+
+# =============================================================================
+# PHASE 4: Default Configuration Update
+# =============================================================================
+phase_4:
+  name: "Default Configuration"
+  estimated_hours: 2
+  dependencies: [phase_3]
+
+  tasks:
+    - id: P4-T1
+      title: "Add PERSISTENCE_DRIVER to env/dev/global.yaml"
+      priority: P0
+      type: config
+      estimated_minutes: 10
+      acceptance_criteria:
+        - Add line: PERSISTENCE_DRIVER: postgres
+        - Placed after ENV_PREFIX line
+        - Follows existing formatting
+      files:
+        - env/dev/global.yaml
+      validation:
+        - YAML parses successfully
+        - Config validates via brat config show
+
+    - id: P4-T2
+      title: "Add PERSISTENCE_DRIVER to env/prod/global.yaml"
+      priority: P0
+      type: config
+      estimated_minutes: 10
+      acceptance_criteria:
+        - Add line: PERSISTENCE_DRIVER: postgres
+        - Placed after ENV_PREFIX line
+        - Follows existing formatting
+      files:
+        - env/prod/global.yaml
+      validation:
+        - YAML parses successfully
+        - Production config validated
+
+    - id: P4-T3
+      title: "Update factory default to postgres"
+      priority: P0
+      type: refactor
+      estimated_minutes: 20
+      acceptance_criteria:
+        - Change line 28 default from 'firestore' to 'postgres'
+        - Add deprecation warning when firestore explicitly selected
+        - Update JSDoc to reflect postgres as default
+        - Add migration guide reference in comment
+      files:
+        - src/common/persistence/factory.ts
+      validation:
+        - Factory defaults to postgres when PERSISTENCE_DRIVER unset
+        - Warning logged for explicit firestore selection
+        - TypeScript compiles successfully
+
+    - id: P4-T4
+      title: "Update architecture.yaml persistence section"
+      priority: P1
+      type: documentation
+      estimated_minutes: 30
+      acceptance_criteria:
+        - Add PERSISTENCE_DRIVER to defaults/env section
+        - Update persistence.implementation to 'postgres'
+        - Add note about Firestore as legacy backend
+        - Update description to reflect PostgreSQL-first
+        - Reference postgres migration guide
+      files:
+        - architecture.yaml
+      validation:
+        - brat config validate passes
+        - Schema validation successful
+
+    - id: P4-T5
+      title: "Update CLAUDE.md with PostgreSQL-first guidance"
+      priority: P1
+      type: documentation
+      estimated_minutes: 40
+      acceptance_criteria:
+        - Update persistence section to mention PostgreSQL first
+        - Note Firestore as legacy/transitional backend
+        - Update common patterns to use documentStore
+        - Add troubleshooting for persistence driver issues
+        - Reference postgres migration documentation
+      files:
+        - CLAUDE.md
+      validation:
+        - Documentation accurate and complete
+        - No outdated Firestore references
+
+    - id: P4-T6
+      title: "Verify all environments have PERSISTENCE_DRIVER set"
+      priority: P0
+      type: validation
+      estimated_minutes: 20
+      depends_on: [P4-T1, P4-T2]
+      acceptance_criteria:
+        - env/local/global.yaml has PERSISTENCE_DRIVER
+        - env/dev/global.yaml has PERSISTENCE_DRIVER
+        - env/staging/global.yaml has PERSISTENCE_DRIVER
+        - env/prod/global.yaml has PERSISTENCE_DRIVER
+        - All set to 'postgres'
+      validation:
+        - Grep confirms all files have setting
+        - No environment defaults to firestore
+
+# =============================================================================
+# PHASE 5: Integration & Validation
+# =============================================================================
+phase_5:
+  name: "Integration & Validation"
+  estimated_hours: 3
+  dependencies: [phase_1, phase_2, phase_3, phase_4]
+
+  tasks:
+    - id: P5-T1
+      title: "Create validate_deliverable.sh script"
+      priority: P0
+      type: testing
+      estimated_minutes: 60
+      acceptance_criteria:
+        - Script checks personalities table exists
+        - Script checks prompt_logs table has data
+        - Script verifies PERSISTENCE_DRIVER in all envs
+        - Script tests personality CRUD operations
+        - Script validates prompt log writes
+        - Script checks factory defaults to postgres
+        - Exit 0 on success, non-zero on failure
+      files:
+        - planning/sprint-344-postgres-cleanup/validate_deliverable.sh
+      validation:
+        - Script executable (chmod +x)
+        - Script runs without errors
+        - All checks pass
+
+    - id: P5-T2
+      title: "Create PostgreSQL personalities integration test"
+      priority: P1
+      type: testing
+      estimated_minutes: 60
+      acceptance_criteria:
+        - Test file: test/integration/postgres-personalities.spec.ts
+        - Test creates personality in PostgreSQL
+        - Test retrieves personality by name
+        - Test filters by status (active/inactive)
+        - Test sorts by version descending
+        - Test validates against personality.v1.json schema
+        - Test cleanup deletes test data
+      files:
+        - test/integration/postgres-personalities.spec.ts
+      validation:
+        - npm test passes
+        - Personalities CRUD working end-to-end
+
+    - id: P5-T3
+      title: "Run local integration test with PostgreSQL"
+      priority: P0
+      type: testing
+      estimated_minutes: 40
+      depends_on: [P5-T1, P5-T2]
+      acceptance_criteria:
+        - npm run local starts successfully
+        - Seed personalities to PostgreSQL via script
+        - Trigger llm-bot interaction via brat chat
+        - Verify personality applied in logs
+        - Verify prompt logged to prompt_logs table
+        - All services healthy
+      validation:
+        - Local stack runs without Firestore
+        - Personalities work end-to-end
+        - Prompt logs captured
+
+    - id: P5-T4
+      title: "Update postgres-migration.md guide"
+      priority: P1
+      type: documentation
+      estimated_minutes: 30
+      acceptance_criteria:
+        - Document personalities table addition
+        - Explain PersonalityStore abstraction
+        - Document prompt logging fix
+        - Add troubleshooting for common issues
+        - Reference personality schema
+      files:
+        - documentation/guides/postgres-migration.md
+      validation:
+        - Guide accurate and complete
+        - Migration steps tested
+
+    - id: P5-T5
+      title: "Fix tests assuming Firestore default"
+      priority: P1
+      type: testing
+      estimated_minutes: 60
+      status: COMPLETE
+      completed_at: "2026-07-18"
+      acceptance_criteria:
+        - Identify tests with hardcoded Firestore assumptions
+        - Update to use PERSISTENCE_DRIVER env var
+        - Add PostgreSQL-specific test cases where needed
+        - Ensure test suite passes with PERSISTENCE_DRIVER=postgres
+        - Update test setup/teardown for PostgreSQL
+      validation:
+        - npm test passes with postgres driver
+        - No test failures related to persistence
+      notes:
+        - Fixed 7 prompt logging tests (processor.logging.spec.ts, prompt-logging.test.ts, mcp-visibility.test.ts)
+        - Changed from Firestore mocks (mockAdd) to documentStore mocks (mockSet)
+        - Updated test servers to inject documentStore via getResource()
+        - All prompt logging tests passing after migration
+
+    - id: P5-T6
+      title: "Final validation and smoke testing"
+      priority: P0
+      type: validation
+      estimated_minutes: 30
+      depends_on: [P5-T1, P5-T2, P5-T3, P5-T4, P5-T5]
+      acceptance_criteria:
+        - validate_deliverable.sh passes
+        - All unit tests pass
+        - All integration tests pass
+        - Local stack runs without errors
+        - Personalities work in llm-bot
+        - Prompt logs appear in PostgreSQL
+        - No Firestore dependencies in critical paths
+      validation:
+        - All acceptance criteria met
+        - Sprint ready for completion
+
+# =============================================================================
+# Summary Statistics
+# =============================================================================
+summary:
+  total_tasks: 26
+  by_priority:
+    P0: 18  # Critical - must complete
+    P1: 8   # High - should complete
+    P2: 0   # Medium - nice to have
+    P3: 0   # Low - future sprint
+
+  by_type:
+    feature: 8
+    bugfix: 2
+    refactor: 2
+    schema: 3
+    config: 2
+    documentation: 4
+    testing: 4
+    validation: 1
+
+  estimated_total_minutes: 840  # 14 hours
+
+  dependencies:
+    - Sprint 343 (PostgreSQL Migration) completed
+    - Local PostgreSQL 15+ with pgvector
+    - Docker Compose for local testing
+
+# =============================================================================
+# Risk Mitigation
+# =============================================================================
+risks:
+  - risk: "Personality data migration from Firestore not in scope"
+    mitigation: "Create separate tooling task for bulk migration in future sprint"
+
+  - risk: "Silent failures if documentStore unavailable"
+    mitigation: "Add explicit logging and error handling for resource access"
+
+  - risk: "Performance impact of PostgreSQL vs Firestore"
+    mitigation: "Benchmark critical queries; optimize indexes if needed"
+
+  - risk: "Existing personalities in Firestore not accessible"
+    mitigation: "PersonalityStore abstraction supports both backends during transition"
+
+# =============================================================================
+# Post-Sprint Cleanup
+# =============================================================================
+cleanup:
+  - "Archive Firestore personalities after migration confirmed"
+  - "Deprecate Firestore backend in Sprint 350+"
+  - "Remove Firestore dependencies from package.json"
+  - "Update CI/CD to default to PostgreSQL"
+  - "Create migration tooling for production Firestore → PostgreSQL"
