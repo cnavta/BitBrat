@@ -4,7 +4,7 @@ import { Express } from 'express';
 import { logger } from '../common/logging';
 import { InternalEventV2, INTERNAL_INGRESS_V1, INTERNAL_ENRICHED_V1, RoutingStage } from '../types/events';
 import { AttributeMap } from '../services/message-bus';
-import { RuleLoader } from '../services/router/rule-loader';
+import { createRuleLoader } from '../services/router/rule-loader';
 import { RouterEngine } from '../services/routing/router-engine';
 import { RuleMapper } from '../services/router/rule-mapper';
 import { z } from 'zod';
@@ -79,24 +79,27 @@ class EventRouterServer extends Bit {
       res.redirect(302, '/_debug/counters');
     });
     // Initialize rules and router engine
-    const ruleLoader = new RuleLoader();
+    // Use documentStore for PostgreSQL or fallback to Firestore
+    const documentStore = this.getResource('documentStore');
+    const db = this.getResource<Firestore>('firestore');
+    const dbOrStore = documentStore || db;
+    const ruleLoader = createRuleLoader(dbOrStore);
+
     const isTestEnv = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID || process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1' || !!process.env.CI;
     try {
       if (isTestEnv) {
-        // Avoid initializing Firestore listeners during Jest to prevent open handles
+        // Avoid initializing database listeners during Jest to prevent open handles
         logger.debug('event_router.rule_loader.disabled_for_tests');
       } else {
-        // Start rule loading asynchronously; do not block subscription on Firestore availability
+        // Start rule loading asynchronously; do not block subscription on database availability
         // Any errors are logged and do not prevent router startup
-        const db = this.getResource<Firestore>('firestore');
-        ruleLoader.start(db).catch((e: any) => {
+        ruleLoader.start(dbOrStore).catch((e: any) => {
           logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
         });
       }
     } catch (e: any) {
       logger.warn('event_router.rule_loader.start_error', { error: e?.message || String(e) });
     }
-    const db = this.getResource<Firestore>('firestore');
     const stateStore = db ? new FirestoreStateStore(db) : undefined;
     const engine = new RouterEngine(undefined, stateStore);
 

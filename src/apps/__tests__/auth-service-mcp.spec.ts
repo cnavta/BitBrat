@@ -11,8 +11,17 @@ const mockUser = {
 };
 
 jest.mock('../../services/auth/user-repo', () => {
+  const originalModule = jest.requireActual('../../services/auth/user-repo');
   return {
+    ...originalModule,
     FirestoreUserRepo: jest.fn().mockImplementation(() => {
+      return {
+        getById: jest.fn().mockResolvedValue(mockUser),
+        searchUsers: jest.fn().mockResolvedValue([mockUser]),
+        updateUser: jest.fn().mockResolvedValue({ ...mockUser, status: 'banned' }),
+      };
+    }),
+    createUserRepo: jest.fn().mockImplementation(() => {
       return {
         getById: jest.fn().mockResolvedValue(mockUser),
         searchUsers: jest.fn().mockResolvedValue([mockUser]),

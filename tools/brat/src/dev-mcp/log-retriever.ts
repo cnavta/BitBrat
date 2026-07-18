@@ -38,17 +38,25 @@ export class LogRetriever {
 
   constructor(connection: TargetConnection) {
     this.connection = connection;
+
+    // Use Firestore for registry
     this.registry = new FirestoreRegistryReader({
       projectId: connection.firestore.projectId,
       databaseId: connection.firestore.databaseId
     });
 
-    // Initialize Loki client (default to localhost:3100 for Docker deployments)
-    if (connection.type === 'local' || connection.type === 'remote-ssh') {
+    // Initialize Loki client with remote URL for remote-ssh targets
+    if (connection.type === 'local') {
+      // Local: use localhost
       this.lokiClient = new LokiClient({
         url: 'http://localhost:3100',
         timeout: 5000
       });
+    } else if (connection.type === 'remote-ssh' && connection.ssh) {
+      // Remote SSH: use SSH tunnel or remote Loki URL
+      // For now, disable Loki for remote targets (fall back to Docker logs via SSH)
+      // TODO: Support SSH tunneling to remote Loki (requires port forwarding)
+      this.lokiClient = undefined;
     }
   }
 
@@ -197,6 +205,10 @@ export class LogRetriever {
   private async getCloudRunLogs(request: LogRequest): Promise<LogEntry[]> {
     if (!request.bit) {
       throw new Error('Bit name is required for log retrieval');
+    }
+
+    if (!this.connection.firestore) {
+      throw new Error('Cloud Run logs require Firestore connection (not available for PostgreSQL targets)');
     }
 
     // Initialize Cloud Logging client
@@ -358,102 +370,80 @@ export class LogRetriever {
   /**
    * Execute a docker command on a remote host via SSH
    *
-   * For remote hosts, we prefer `docker logs` over `docker compose logs`
-   * since compose files may not be readily accessible or configured.
+   * For remote hosts, we use `docker logs` directly on container names
+   * since docker compose may not have configuration files accessible.
    */
   private executeRemoteDockerCommand(dockerArgs: string[]): string {
     if (!this.connection.ssh) {
       throw new Error('SSH connection details not available');
     }
 
-    const { target, remoteDir } = this.connection.ssh;
+    const { target } = this.connection.ssh;
 
-    // Try docker compose logs first, but fall back to docker logs if it fails
-    const composeCommand = remoteDir
-      ? `cd ${remoteDir} && docker ${dockerArgs.join(' ')}`
-      : `docker ${dockerArgs.join(' ')}`;
+    // Extract service name from docker compose logs command
+    // dockerArgs is like: ['compose', 'logs', '--no-color', '--tail', '50', '--since', '1h', 'llm-bot']
+    const serviceName = dockerArgs[dockerArgs.length - 1];
 
-    const sshCommand = `ssh ${target} "${composeCommand}"`;
-
+    // For remote SSH, use docker logs directly on container (skip docker compose)
+    // This avoids issues with missing compose files on remote hosts
     try {
-      return execSync(sshCommand, {
+      // Find the container name for this service
+      const findContainerCmd = `ssh ${target} "docker ps --filter 'name=${serviceName}' --format '{{.Names}}' | head -1"`;
+
+      const containerName = execSync(findContainerCmd, {
         encoding: 'utf-8',
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
         stdio: ['pipe', 'pipe', 'pipe']
-      });
-    } catch (composeError: any) {
-      // If docker compose logs failed (no config file), fall back to docker logs on running container
-      if (composeError.message?.includes('no configuration file') ||
-          composeError.message?.includes('no such service')) {
+      }).trim();
 
-        // Extract service name from docker compose logs command
-        // dockerArgs is like: ['compose', 'logs', '--no-color', '--tail', '50', '--since', '1h', 'llm-bot']
-        const serviceName = dockerArgs[dockerArgs.length - 1];
+      if (!containerName) {
+        // No running container - return empty string (expected for stopped services)
+        if (process.env.LOG_LEVEL === 'debug') {
+          console.error(`[LogRetriever] No running container found for service '${serviceName}'`);
+        }
+        return '';
+      }
 
-        // First, find the container name for this service
-        const findContainerCmd = `ssh ${target} "docker ps --filter 'name=${serviceName}' --format '{{.Names}}' | head -1"`;
+      // Build docker logs command with same options (adapted for docker logs vs compose logs)
+      const logsArgs: string[] = ['logs'];
 
-        try {
-          const containerName = execSync(findContainerCmd, {
-            encoding: 'utf-8',
-            stdio: ['pipe', 'pipe', 'pipe']
-          }).trim();
+      // Map compose log options to docker logs options
+      // Note: docker logs doesn't support --no-color (it's a docker compose logs option)
+      for (let i = 0; i < dockerArgs.length; i++) {
+        const arg = dockerArgs[i];
 
-          if (!containerName) {
-            throw new Error(`No running container found for service '${serviceName}'`);
+        // Skip 'compose' and 'logs' from original command
+        if (arg === 'compose' || (arg === 'logs' && i === 1)) {
+          continue;
+        }
+
+        // Skip --no-color (docker logs doesn't support it, docker compose logs does)
+        if (arg === '--no-color') {
+          continue;
+        }
+
+        // Copy over compatible options (--tail, --since, --until, etc.)
+        if (arg.startsWith('--') || arg.startsWith('-')) {
+          logsArgs.push(arg);
+          // If this option takes a value, include the next arg
+          if (['--tail', '--since', '--until'].includes(arg) && i + 1 < dockerArgs.length) {
+            logsArgs.push(dockerArgs[++i]);
           }
-
-          // Build docker logs command with same options (but adapted for docker logs vs compose logs)
-          const logsArgs: string[] = ['logs'];
-
-          // Map compose log options to docker logs options
-          // Note: docker logs doesn't support --no-color (it's a docker compose logs option)
-          for (let i = 0; i < dockerArgs.length; i++) {
-            const arg = dockerArgs[i];
-
-            // Skip 'compose' and 'logs' from original command
-            if (arg === 'compose' || (arg === 'logs' && i === 1)) {
-              continue;
-            }
-
-            // Skip --no-color (docker logs doesn't support it, docker compose logs does)
-            if (arg === '--no-color') {
-              continue;
-            }
-
-            // Copy over compatible options (--tail, --since, --until, etc.)
-            if (arg.startsWith('--') || arg.startsWith('-')) {
-              logsArgs.push(arg);
-              // If this option takes a value, include the next arg
-              if (['--tail', '--since', '--until'].includes(arg) && i + 1 < dockerArgs.length) {
-                logsArgs.push(dockerArgs[++i]);
-              }
-            }
-          }
-
-          // Add container name
-          logsArgs.push(containerName);
-
-          // Execute docker logs command
-          const dockerLogsCmd = `ssh ${target} "docker ${logsArgs.join(' ')}"`;
-
-          return execSync(dockerLogsCmd, {
-            encoding: 'utf-8',
-            maxBuffer: 10 * 1024 * 1024,
-            stdio: ['pipe', 'pipe', 'pipe']
-          });
-
-        } catch (fallbackError: any) {
-          throw new Error(
-            `Failed to retrieve logs via both docker compose and docker logs. ` +
-            `Compose error: ${composeError.message}. ` +
-            `Fallback error: ${fallbackError.message}`
-          );
         }
       }
 
-      // Re-throw original error if it wasn't a "no config file" issue
-      throw new Error(`SSH command failed: ${composeError.message}`);
+      // Add container name
+      logsArgs.push(containerName);
+
+      // Execute docker logs command
+      const dockerLogsCmd = `ssh ${target} "docker ${logsArgs.join(' ')}"`;
+
+      return execSync(dockerLogsCmd, {
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to retrieve Docker logs via SSH: ${error.message}`);
     }
   }
 

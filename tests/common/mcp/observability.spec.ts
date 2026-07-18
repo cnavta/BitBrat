@@ -1,22 +1,24 @@
-import { McpObservability } from '../../../src/common/mcp/observability';
-import { getFirestore } from '../../../src/common/firebase';
-
-jest.mock('../../../src/common/firebase');
+import { McpObservability, IToolUsageStore, ToolUsageRecord } from '../../../src/common/mcp/observability';
 
 describe('McpObservability', () => {
-  let mockFirestore: any;
-  let mockAdd: jest.Mock;
+  let mockStore: jest.Mocked<IToolUsageStore>;
 
   beforeEach(() => {
-    mockAdd = jest.fn().mockResolvedValue({ id: 'doc-id' });
-    mockFirestore = {
-      collection: jest.fn().mockReturnThis(),
-      add: mockAdd,
+    // Create a mock IToolUsageStore
+    mockStore = {
+      record: jest.fn().mockResolvedValue(undefined),
     };
-    (getFirestore as jest.Mock).mockReturnValue(mockFirestore);
+
+    // Inject the mock store before each test
+    McpObservability.setToolUsageStore(mockStore);
   });
 
-  it('should record a call to Firestore and OTel', async () => {
+  afterEach(() => {
+    // Reset the store to null after each test
+    McpObservability.setToolUsageStore(null as any);
+  });
+
+  it('should record a call to store and OTel', async () => {
     const context = {
       userRoles: ['admin'],
       userId: 'user-123',
@@ -32,8 +34,10 @@ describe('McpObservability', () => {
       context
     );
 
-    expect(mockFirestore.collection).toHaveBeenCalledWith('tool_usage');
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+    // Give the async fire-and-forget operation time to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(mockStore.record).toHaveBeenCalledWith(expect.objectContaining({
       server: 'test-server',
       tool: 'test-tool',
       durationMs: 150,
@@ -41,10 +45,11 @@ describe('McpObservability', () => {
       userId: 'user-123',
       agent: 'test-agent',
       correlationId: 'corr-456',
-    }));
+      errorCode: null,
+    } as Partial<ToolUsageRecord>));
   });
 
-  it('should record an error to Firestore', async () => {
+  it('should record an error to store', async () => {
     const error = new Error('Execution failed');
     (error as any).code = 'EXEC_ERR';
 
@@ -57,16 +62,19 @@ describe('McpObservability', () => {
       error
     );
 
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+    // Give the async fire-and-forget operation time to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(mockStore.record).toHaveBeenCalledWith(expect.objectContaining({
       status: 'ERROR',
       errorCode: 'EXEC_ERR',
-    }));
+    } as Partial<ToolUsageRecord>));
   });
 
-  it('should not throw if Firestore fails', async () => {
-    mockAdd.mockRejectedValue(new Error('Firestore down'));
-    
-    // Should not throw
+  it('should not throw if store fails', async () => {
+    mockStore.record.mockRejectedValue(new Error('Store down'));
+
+    // Should not throw (fire-and-forget pattern)
     await expect(McpObservability.recordCall('s', 't', 1, false)).resolves.not.toThrow();
   });
 });

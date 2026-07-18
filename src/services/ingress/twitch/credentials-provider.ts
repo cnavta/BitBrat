@@ -8,7 +8,7 @@
  * - Never log secrets; do not perform network calls in this module for scaffolding (INEG-01).
  */
 
-import type { IConfig, TwitchTokenData } from '../../../types';
+import type { IConfig, TwitchTokenData, ITokenStore } from '../../../types';
 import { FirestoreTokenStore } from '../../firestore-token-store';
 
 export interface TwitchChatAuth {
@@ -111,13 +111,13 @@ export class ConfigTwitchCredentialsProvider implements ITwitchCredentialsProvid
  * - Persists refreshed tokens via saveRefreshedToken()
  */
 export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsProvider {
-  private readonly store: FirestoreTokenStore;
-  private readonly broadcasterStore: FirestoreTokenStore;
+  private readonly store: ITokenStore;
+  private readonly broadcasterStore: ITokenStore;
   private readonly loginHint?: string;
   private botUserId?: string;
   private broadcasterUserId?: string;
 
-  constructor(private readonly cfg: IConfig, store?: FirestoreTokenStore) {
+  constructor(private readonly cfg: IConfig, store?: ITokenStore) {
     this.store = store || new FirestoreTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot');
     this.broadcasterStore = new FirestoreTokenStore('oauth/twitch/broadcaster');
     this.loginHint = cfg.twitchBotUsername;

@@ -25,6 +25,13 @@ import {
   SCHEDULER_GUIDE_PACK_ID,
   SCHEDULER_GUIDE_RESOURCE_URI,
 } from '../common/context';
+import {
+  createScheduleRepository,
+  type IScheduleRepository,
+  type ScheduleDoc,
+  type ScheduledEventInput,
+} from '../services/scheduler/repository';
+import { createDocumentStore } from '../common/persistence/factory';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'scheduler';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -166,44 +173,26 @@ const ScheduleIdSchema = z.object({
 });
 
 // --- Internal Types ---
-
-// Full InternalEventV2 authoring shape stored on a schedule (sprint-329). Server-owned envelope
-// fields (v, correlationId, traceId, ingress.ingressAt/source, routing) are NOT authored here — they
-// are filled by executeSchedule at emit time (OD-2).
-interface ScheduledEventInput {
-  type: InternalEventType;
-  egress?: Egress;
-  ingress?: Pick<Partial<Ingress>, 'connector' | 'channel'>;
-  identity?: Identity;
-  payload?: Record<string, any>;
-  message?: Partial<MessageV1>;
-  annotations?: AnnotationV1[];
-  candidates?: CandidateV1[];
-  qos?: QOSV1;
-  externalEvent?: ExternalEventV1;
-  metadata?: Record<string, any>;
-}
-
-interface ScheduleDoc {
-  id: string;
-  title: string;
-  description?: string;
-  schedule: {
-    type: 'once' | 'cron';
-    value: string;
-  };
-  event: ScheduledEventInput;
-  topic?: string;
-  enabled: boolean;
-  lastRun?: Timestamp;
-  nextRun?: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// ScheduledEventInput and ScheduleDoc are now defined in src/services/scheduler/repository.ts
 
 class SchedulerServer extends Bit {
+  private scheduleRepo: IScheduleRepository;
+
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
+
+    // Initialize repository (backend auto-detection via factory)
+    const driver = process.env.PERSISTENCE_DRIVER;
+    if (driver === 'postgres' || driver === 'postgresql') {
+      // Use PostgreSQL DocumentStore
+      const store = createDocumentStore();
+      this.scheduleRepo = createScheduleRepository(store, COLLECTION_NAME);
+    } else {
+      // Use Firestore
+      const firestore = this.getResource<Firestore>('firestore');
+      this.scheduleRepo = createScheduleRepository(firestore, COLLECTION_NAME);
+    }
+
     this.setupApp(this.getApp() as any);
     this.registerTools();
   }
@@ -267,19 +256,7 @@ class SchedulerServer extends Bit {
         enabledOnly: z.boolean().optional().default(false),
       }),
       async (args) => {
-        const firestore = this.getResource<Firestore>('firestore');
-        if (!firestore) throw new Error("Firestore not available");
-
-        let query: any = firestore.collection(COLLECTION_NAME);
-        if (args.enabledOnly) {
-          query = query.where('enabled', '==', true);
-        }
-
-        const snapshot = await query.get();
-        const schedules = snapshot.docs.map((doc: any) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        const schedules = await this.scheduleRepo.list(args.enabledOnly);
 
         return {
           content: [{ type: "text", text: JSON.stringify(schedules, null, 2) }]
@@ -292,11 +269,8 @@ class SchedulerServer extends Bit {
       "Get details of a specific scheduled event",
       ScheduleIdSchema,
       async (args) => {
-        const firestore = this.getResource<Firestore>('firestore');
-        if (!firestore) throw new Error("Firestore not available");
-
-        const doc = await firestore.collection(COLLECTION_NAME).doc(args.id).get();
-        if (!doc.exists) {
+        const schedule = await this.scheduleRepo.get(args.id);
+        if (!schedule) {
           return {
             isError: true,
             content: [{ type: "text", text: `Schedule ${args.id} not found` }]
@@ -304,7 +278,7 @@ class SchedulerServer extends Bit {
         }
 
         return {
-          content: [{ type: "text", text: JSON.stringify({ id: doc.id, ...doc.data() }, null, 2) }]
+          content: [{ type: "text", text: JSON.stringify(schedule, null, 2) }]
         };
       }
     );
@@ -314,21 +288,20 @@ class SchedulerServer extends Bit {
       "Create a new scheduled event. The 'event' is a full InternalEventV2: a 'prompt' is NOT an event type \u2014 it is an AnnotationV1 of kind 'prompt' (event.annotations[]), and the driving event type is typically 'llm.request.v1'. You may set 'event.egress' to address a delivery target, e.g. { connector: 'twitch', destination: 'twitch', channel: '#<channel>' } (egress defaults to { connector: 'system', destination: 'system' } when unset). An optional top-level 'topic' selects the publish topic (one of: internal.ingress.v1, internal.egress.v1; defaults to internal.ingress.v1). See the context://schema/internal-event-v2 resource for the full contract.",
       CreateScheduleSchema,
       async (args) => {
-        const firestore = this.getResource<Firestore>('firestore');
-        if (!firestore) throw new Error("Firestore not available");
-
         const id = uuidv4();
+        const now = new Date();
         const nextRun = this.calculateNextRun(args.schedule.type, args.schedule.value);
 
         const doc: ScheduleDoc = {
           id,
           ...args,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-          nextRun: nextRun ? Timestamp.fromDate(nextRun) : undefined,
-        } as any;
+          event: args.event as ScheduledEventInput,
+          createdAt: now,
+          updatedAt: now,
+          nextRun: nextRun || undefined,
+        };
 
-        await firestore.collection(COLLECTION_NAME).doc(id).set(doc);
+        await this.scheduleRepo.create(doc);
 
         return {
           content: [{ type: "text", text: `Schedule created with ID: ${id}` }]
@@ -343,34 +316,31 @@ class SchedulerServer extends Bit {
       UpdateScheduleSchema.extend({ id: z.string() }),
       async (args) => {
         const { id, ...updates } = args;
-        const firestore = this.getResource<Firestore>('firestore');
-        if (!firestore) throw new Error("Firestore not available");
 
-        const docRef = firestore.collection(COLLECTION_NAME).doc(id);
-        const doc = await docRef.get();
-        if (!doc.exists) {
+        const existing = await this.scheduleRepo.get(id);
+        if (!existing) {
           return {
             isError: true,
             content: [{ type: "text", text: `Schedule ${id} not found` }]
           };
         }
 
-        const data = doc.data() as ScheduleDoc;
-        const newUpdates: any = {
+        const newUpdates: Partial<ScheduleDoc> = {
           ...updates,
-          updatedAt: Timestamp.now(),
+          event: updates.event ? (updates.event as ScheduledEventInput) : undefined,
+          updatedAt: new Date(),
         };
 
         if (updates.schedule) {
           const nextRun = this.calculateNextRun(updates.schedule.type, updates.schedule.value);
-          newUpdates.nextRun = nextRun ? Timestamp.fromDate(nextRun) : null;
-        } else if (updates.enabled === true && !data.nextRun) {
-            // Re-calculate if being enabled and no nextRun exists
-            const nextRun = this.calculateNextRun(data.schedule.type, data.schedule.value);
-            newUpdates.nextRun = nextRun ? Timestamp.fromDate(nextRun) : null;
+          newUpdates.nextRun = nextRun || undefined;
+        } else if (updates.enabled === true && !existing.nextRun) {
+          // Re-calculate if being enabled and no nextRun exists
+          const nextRun = this.calculateNextRun(existing.schedule.type, existing.schedule.value);
+          newUpdates.nextRun = nextRun || undefined;
         }
 
-        await docRef.update(newUpdates);
+        await this.scheduleRepo.update(id, newUpdates);
 
         return {
           content: [{ type: "text", text: `Schedule ${id} updated` }]
@@ -383,10 +353,7 @@ class SchedulerServer extends Bit {
       "Remove a scheduled event",
       ScheduleIdSchema,
       async (args) => {
-        const firestore = this.getResource<Firestore>('firestore');
-        if (!firestore) throw new Error("Firestore not available");
-
-        await firestore.collection(COLLECTION_NAME).doc(args.id).delete();
+        await this.scheduleRepo.delete(args.id);
 
         return {
           content: [{ type: "text", text: `Schedule ${args.id} deleted` }]
@@ -411,19 +378,10 @@ class SchedulerServer extends Bit {
   }
 
   private async handleTick() {
-    const firestore = this.getResource<Firestore>('firestore');
-    if (!firestore) {
-      this.getLogger().error('scheduler.tick.firestore_missing');
-      return;
-    }
+    const now = new Date();
+    const dueSchedules = await this.scheduleRepo.getDueSchedules(now);
 
-    const now = Timestamp.now();
-    const snapshot = await firestore.collection(COLLECTION_NAME)
-      .where('enabled', '==', true)
-      .where('nextRun', '<=', now)
-      .get();
-
-    this.getLogger().info('scheduler.tick.executing', { count: snapshot.size });
+    this.getLogger().info('scheduler.tick.executing', { count: dueSchedules.length });
 
     // Publishers are created/cached per distinct topic so each schedule is emitted on its own
     // topic (default internal.ingress.v1). Subject IS the publish topic (message-bus contract).
@@ -437,22 +395,21 @@ class SchedulerServer extends Bit {
       return publisher;
     };
 
-    for (const doc of snapshot.docs) {
-      const data = doc.data() as ScheduleDoc;
+    for (const schedule of dueSchedules) {
       try {
-        const topic = data.topic ?? DEFAULT_PUBLISH_TOPIC;
-        await this.executeSchedule(data, getPublisher(topic));
-        
+        const topic = schedule.topic ?? DEFAULT_PUBLISH_TOPIC;
+        await this.executeSchedule(schedule, getPublisher(topic));
+
         // Update nextRun
-        const nextRun = this.calculateNextRun(data.schedule.type, data.schedule.value);
-        await doc.ref.update({
+        const nextRun = this.calculateNextRun(schedule.schedule.type, schedule.schedule.value);
+        await this.scheduleRepo.update(schedule.id, {
           lastRun: now,
-          nextRun: nextRun ? Timestamp.fromDate(nextRun) : null,
-          enabled: data.schedule.type === 'once' ? false : data.enabled,
+          nextRun: nextRun ?? null,
+          enabled: schedule.schedule.type === 'once' ? false : schedule.enabled,
           updatedAt: now,
         });
       } catch (e) {
-        this.getLogger().error('scheduler.execute.error', { id: doc.id, error: e });
+        this.getLogger().error('scheduler.execute.error', { id: schedule.id, error: e });
       }
     }
   }

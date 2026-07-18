@@ -95,9 +95,11 @@ export interface Identity {
     email?: string;
     displayName?: string;
     roles?: string[];
+    rolesMeta?: Record<string, string[]>;
     status?: string;
     notes?: string;
     tags?: string[];
+    profile?: Record<string, any>;
   };
 
   /** 
@@ -261,6 +263,10 @@ export interface EventAggregateV2 {
     platform?: string;
     displayName?: string;
     userId?: string;
+    roles?: string[];
+    rolesMeta?: Record<string, string[]>;
+    tags?: string[];
+    status?: string;
   };
   delivery?: SnapshotDeliveryV1;
   deadletter?: SnapshotDeadletterV1;

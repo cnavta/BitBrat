@@ -1,6 +1,7 @@
 import type { Firestore, DocumentData } from 'firebase-admin/firestore';
 import { getFirestore } from '../../common/firebase';
 import type { InternalEventV2, AnnotationV1 } from '../../types/events';
+import type { IDocumentStore, QueryFilter } from '../../common/persistence/interfaces';
 import { metrics } from '../../common/metrics';
 import { withTimeout } from '../../common/async-timeout';
 
@@ -49,6 +50,101 @@ function parsePath(db: Firestore, path: string) {
   return ref;
 }
 
+// =============================================================================
+// User Context Repository Abstraction
+// =============================================================================
+
+/**
+ * Interface for user context storage operations.
+ */
+export interface IUserContextStore {
+  /**
+   * Query enabled roles from the roles collection.
+   * @param rolesPath - Path to roles collection (e.g., "/configs/bot/roles")
+   * @returns Array of role documents
+   */
+  queryEnabledRoles(rolesPath: string): Promise<RoleDoc[]>;
+
+  /**
+   * Get user document by ID.
+   * @param userId - User ID
+   * @returns User document or null if not found
+   */
+  getUser(userId: string): Promise<any | null>;
+}
+
+/**
+ * Firestore implementation of user context store.
+ */
+export class FirestoreUserContextStore implements IUserContextStore {
+  constructor(private readonly firestore: Firestore) {}
+
+  async queryEnabledRoles(rolesPath: string): Promise<RoleDoc[]> {
+    const colRef = parsePath(this.firestore, rolesPath);
+    const snap = await colRef.where('enabled', '==', true).get();
+    return snap.docs.map((doc: any) => ({ ...doc.data(), _id: doc.id }));
+  }
+
+  async getUser(userId: string): Promise<any | null> {
+    const snap = await this.firestore.collection('users').doc(userId).get();
+    if (!snap || !snap.exists) return null;
+    return snap.data() as DocumentData;
+  }
+}
+
+/**
+ * PostgreSQL implementation of user context store via IDocumentStore.
+ */
+export class DocumentStoreUserContextStore implements IUserContextStore {
+  constructor(private readonly store: IDocumentStore) {}
+
+  async queryEnabledRoles(rolesPath: string): Promise<RoleDoc[]> {
+    // Parse roles path to extract table name
+    // For "/configs/bot/roles", we'll use "bot_roles" table
+    const parts = rolesPath.split('/').filter(Boolean);
+    const tableName = parts.length >= 3 ? `${parts[1]}_${parts[2]}` : 'roles';
+
+    const filters: QueryFilter[] = [
+      { field: 'enabled', operator: '==', value: true },
+    ];
+
+    const records = await this.store.query(tableName, { filters });
+    return records as RoleDoc[];
+  }
+
+  async getUser(userId: string): Promise<any | null> {
+    return await this.store.get('users', userId);
+  }
+}
+
+/**
+ * Factory function to create user context store based on backend detection.
+ */
+export function createUserContextStore(
+  dbOrStore?: any
+): IUserContextStore {
+  // Check if Firestore instance
+  if (dbOrStore && typeof dbOrStore.collection === 'function') {
+    return new FirestoreUserContextStore(dbOrStore);
+  }
+
+  // Check if IDocumentStore instance
+  if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
+    return new DocumentStoreUserContextStore(dbOrStore);
+  }
+
+  // Auto-select based on PERSISTENCE_DRIVER environment variable
+  const driver = process.env.PERSISTENCE_DRIVER;
+  if (driver === 'postgres' || driver === 'postgresql') {
+    throw new Error(
+      'createUserContextStore: PostgreSQL driver selected but no IDocumentStore instance provided'
+    );
+  }
+
+  // Default to Firestore (for test environments where Firestore is not initialized)
+  return new FirestoreUserContextStore(undefined as any);
+}
+
 export interface UserContextConfig {
   rolesPath: string; // e.g., "/configs/bot/roles"
   ttlMs: number; // cache ttl for roles and user
@@ -66,26 +162,31 @@ export interface ComposedUserContext {
   text?: string; // final composed text value
 }
 
-export async function loadEnabledRoles(cfg: UserContextConfig, db?: Firestore): Promise<RolesMap> {
+export async function loadEnabledRoles(cfg: UserContextConfig, dbOrStore?: Firestore | IDocumentStore): Promise<RolesMap> {
   const key = cfg.rolesPath;
   const cached = rolesCache.get(key);
   if (cached && cached.expiresAt > now()) return cached.value;
-  const database = db || getFirestore();
+
+  const store = createUserContextStore(dbOrStore || getFirestore());
+
   try {
-    const colRef = parsePath(database, cfg.rolesPath);
-    const snap = await withTimeout<any>(colRef.where('enabled', '==', true).get(), lookupTimeoutMs(), 'user-context.roles.get');
+    const roleDocs = await withTimeout<RoleDoc[]>(
+      store.queryEnabledRoles(cfg.rolesPath),
+      lookupTimeoutMs(),
+      'user-context.roles.get'
+    );
+
     const map: RolesMap = new Map();
-    for (const doc of snap.docs) {
-      const d = doc.data() as RoleDoc;
-      const id = (doc.id || d.roleId || '').toLowerCase();
+    for (const doc of roleDocs) {
+      const id = ((doc as any)._id || doc.roleId || '').toLowerCase();
       if (!id) continue;
       map.set(id, {
         id,
-        display: d.displayName || id,
-        priority: typeof d.priority === 'number' ? d.priority : 100,
-        prompt: d.prompt || undefined,
+        display: doc.displayName || id,
+        priority: typeof doc.priority === 'number' ? doc.priority : 100,
+        prompt: doc.prompt || undefined,
       });
-      const aliases = Array.isArray(d.aliases) ? d.aliases : [];
+      const aliases = Array.isArray(doc.aliases) ? doc.aliases : [];
       for (const a of aliases) {
         const aid = String(a || '').toLowerCase();
         if (!aid) continue;
@@ -99,15 +200,20 @@ export async function loadEnabledRoles(cfg: UserContextConfig, db?: Firestore): 
   }
 }
 
-export async function loadUserDoc(userId: string, cfg: UserContextConfig, db?: Firestore): Promise<any | null> {
+export async function loadUserDoc(userId: string, cfg: UserContextConfig, dbOrStore?: Firestore | IDocumentStore): Promise<any | null> {
   try {
     if (!userId) return null;
     const c = userCache.get(userId);
     if (c && c.expiresAt > now()) return c.value;
-    const database = db || getFirestore();
-    const snap = await withTimeout<any>((database as any).collection('users').doc(userId).get(), lookupTimeoutMs(), 'user-context.user.get');
-    if (!snap || !snap.exists) return null;
-    const data = snap.data() as DocumentData;
+
+    const store = createUserContextStore(dbOrStore || getFirestore());
+    const data = await withTimeout<any>(
+      store.getUser(userId),
+      lookupTimeoutMs(),
+      'user-context.user.get'
+    );
+
+    if (!data) return null;
     userCache.set(userId, { value: data, expiresAt: now() + Math.max(0, cfg.ttlMs || 0) });
     return data;
   } catch {
@@ -160,17 +266,17 @@ export function composeContextText(input: {
   return text;
 }
 
-export async function buildUserContextAnnotation(evt: InternalEventV2, cfg: UserContextConfig, db?: Firestore): Promise<AnnotationV1 | undefined> {
+export async function buildUserContextAnnotation(evt: InternalEventV2, cfg: UserContextConfig, dbOrStore?: Firestore | IDocumentStore): Promise<AnnotationV1 | undefined> {
   if (!cfg) return undefined;
   const descriptionEnabled = cfg.includeDescription;
   try {
-    const rolesMap = await loadEnabledRoles(cfg, db);
+    const rolesMap = await loadEnabledRoles(cfg, dbOrStore);
     const userId = evt.identity?.user?.id || evt.identity?.external?.id;
     let username = evt.identity?.user?.displayName || evt.identity?.external?.displayName || evt.message?.rawPlatformPayload?.username || evt.message?.rawPlatformPayload?.user || undefined;
     let roles: string[] | undefined;
     let description: string | undefined;
 
-    const userDoc = userId ? await loadUserDoc(userId, cfg, db) : null;
+    const userDoc = userId ? await loadUserDoc(userId, cfg, dbOrStore) : null;
     if (userDoc) {
       const profile = userDoc.profile || {};
       if (!username && profile.username) username = String(profile.username);

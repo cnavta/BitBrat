@@ -4,6 +4,120 @@ import { getFirestore } from '../../common/firebase';
 import { isFeatureEnabled } from '../../common/feature-flags';
 import { redactText } from '../../common/prompt-assembly/redaction';
 import { getLlmProvider } from '../../common/llm/provider-factory';
+import type { Firestore } from 'firebase-admin/firestore';
+import type { IDocumentStore } from '../../common/persistence/interfaces';
+
+// =============================================================================
+// Prompt Log Store Abstraction
+// =============================================================================
+
+/**
+ * Prompt log record structure for query-analyzer.
+ */
+export interface PromptLogRecord {
+  correlationId?: string;
+  prompt: string;
+  response: string;
+  entities?: Array<{ text: string; type: string }>; // Optional - query-analyzer specific
+  topic?: string; // Optional - query-analyzer specific
+  platform: string;
+  model: string;
+  processingTimeMs: number;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  createdAt: Date | string;
+  // Additional fields for llm-bot
+  behaviorProfile?: any;
+  personalityNames?: string[];
+  contextPacks?: Array<{ id: string; title?: string }>;
+  toolCalls?: Array<{ tool: string; args: string; result: string; error?: string }>;
+  // Allow any additional fields for extensibility
+  [key: string]: any;
+}
+
+/**
+ * Interface for prompt log storage operations.
+ * Supports both Firestore and PostgreSQL via IDocumentStore.
+ */
+export interface IPromptLogStore {
+  /**
+   * Record a prompt log entry (fire-and-forget).
+   * @param record - Prompt log record
+   */
+  log(record: PromptLogRecord): Promise<void>;
+}
+
+/**
+ * Firestore-based prompt log store implementation.
+ */
+export class FirestorePromptLogStore implements IPromptLogStore {
+  constructor(
+    private readonly firestore: Firestore,
+    private readonly serviceName: string = 'query-analyzer'
+  ) {}
+
+  async log(record: PromptLogRecord): Promise<void> {
+    await this.firestore
+      .collection('services')
+      .doc(this.serviceName)
+      .collection('prompt_logs')
+      .add(record);
+  }
+}
+
+/**
+ * PostgreSQL-based prompt log store implementation via IDocumentStore.
+ */
+export class DocumentStorePromptLogStore implements IPromptLogStore {
+  constructor(
+    private readonly store: IDocumentStore,
+    private readonly tableName: string = 'prompt_logs'
+  ) {}
+
+  async log(record: PromptLogRecord): Promise<void> {
+    const id = `${record.platform}_${record.model}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await this.store.set(this.tableName, id, {
+      ...record,
+      createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
+    });
+  }
+}
+
+/**
+ * Factory function to create prompt log store based on backend detection.
+ *
+ * @param dbOrStore - Optional Firestore instance or IDocumentStore
+ * @param serviceNameOrTable - Service name (Firestore) or table name (PostgreSQL)
+ * @returns IPromptLogStore implementation
+ */
+export function createPromptLogStore(
+  dbOrStore?: any,
+  serviceNameOrTable?: string
+): IPromptLogStore {
+  // Check if Firestore instance (has collection() method)
+  if (dbOrStore && typeof dbOrStore.collection === 'function') {
+    return new FirestorePromptLogStore(dbOrStore, serviceNameOrTable || 'query-analyzer');
+  }
+
+  // Check if IDocumentStore instance
+  if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
+    return new DocumentStorePromptLogStore(dbOrStore, serviceNameOrTable || 'prompt_logs');
+  }
+
+  // Auto-select based on PERSISTENCE_DRIVER environment variable
+  const driver = process.env.PERSISTENCE_DRIVER;
+  if (driver === 'postgres' || driver === 'postgresql') {
+    throw new Error(
+      'createPromptLogStore: PostgreSQL driver selected but no IDocumentStore instance provided'
+    );
+  }
+
+  // Default to Firestore
+  return new FirestorePromptLogStore(getFirestore(), serviceNameOrTable || 'query-analyzer');
+}
 
 /**
  * Zod schema for query analysis, matching the specification in the TA.
@@ -75,6 +189,7 @@ export async function analyzeWithLlm(
     logger?: { error: (msg: string, meta?: any) => void; info: (msg: string, meta?: any) => void };
     correlationId?: string;
     tokenCount?: number;
+    documentStore?: any; // IDocumentStore or Firestore instance for prompt logging
   } = {}
 ): Promise<QueryAnalysis | null> {
   const providerName = options.providerName || process.env.LLM_PROVIDER || 'ollama';
@@ -101,10 +216,10 @@ export async function analyzeWithLlm(
 
     // Prompt Logging (Fire and forget)
     if (isFeatureEnabled('llm.promptLogging.enabled')) {
-      const db = getFirestore();
       const usage = result.usage;
+      const promptLogStore = createPromptLogStore(options.documentStore, 'prompt_logs');
 
-      db.collection('services').doc('query-analyzer').collection('prompt_logs').add({
+      const logRecord: PromptLogRecord = {
         correlationId: corr,
         prompt: redactText(fullPrompt),
         response: redactText(JSON.stringify(object)),
@@ -119,7 +234,9 @@ export async function analyzeWithLlm(
           totalTokens: (options.tokenCount ?? usage.promptTokens) + (usage.completionTokens ?? 0),
         } : undefined,
         createdAt: new Date(),
-      }).catch((e: any) => {
+      };
+
+      promptLogStore.log(logRecord).catch((e: any) => {
         if (options.logger) {
           options.logger.error('query-analyzer.prompt_logging_failed', { correlationId: corr, error: e?.message });
         }

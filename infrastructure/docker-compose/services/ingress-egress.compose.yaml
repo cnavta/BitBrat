@@ -30,7 +30,6 @@ services:
       - "${INGRESS_EGRESS_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     depends_on:
       - nats
-      - firebase-emulator
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s

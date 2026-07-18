@@ -6,11 +6,13 @@ import { INTERNAL_EGRESS_V1 } from '../types/events';
 import { MutationProposal, StateSnapshot, MutationLogEntry, INTERNAL_STATE_MUTATION_V1 } from '../types/state';
 import jsonLogic from 'json-logic-js';
 import type { Firestore } from 'firebase-admin/firestore';
-import { FieldPath } from 'firebase-admin/firestore';
+import type { IDocumentStore } from '../common/persistence/interfaces';
 import { PublisherResource } from '../common/resources/publisher-manager';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import yaml from 'js-yaml';
+import { createStateEngineStore, type IStateEngineStore } from './state-engine-repository';
+import { createDocumentStore } from '../common/persistence/factory';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'state-engine';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -44,10 +46,22 @@ const DEFAULT_CONFIG: StateEngineConfig = {
 
 export class StateEngineServer extends Bit {
   private stateConfig: StateEngineConfig;
+  private store: IStateEngineStore;
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
     this.stateConfig = this.loadStateConfig();
+
+    // Initialize store based on PERSISTENCE_DRIVER
+    const driver = process.env.PERSISTENCE_DRIVER;
+    if (driver === 'postgres' || driver === 'postgresql') {
+      const docStore = createDocumentStore();
+      this.store = createStateEngineStore(docStore);
+    } else {
+      const firestore = this.getResource<Firestore>('firestore');
+      this.store = createStateEngineStore(firestore);
+    }
+
     this.setupApp(this.getApp() as any, this.getConfig() as any);
     this.setupMcpTools();
   }
@@ -77,17 +91,10 @@ export class StateEngineServer extends Bit {
         keys: z.array(z.string()),
       }),
       async (args) => {
-        const firestore = this.getResource<Firestore>('firestore');
-        if (!firestore) throw new Error('Firestore not available');
-
         const results: Record<string, any> = {};
         for (const key of args.keys) {
-          const doc = await firestore.collection('state').doc(key).get();
-          if (doc.exists) {
-            results[key] = doc.data();
-          } else {
-            results[key] = null;
-          }
+          const snapshot = await this.store.getState(key);
+          results[key] = snapshot || null;
         }
         return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
       }
@@ -100,19 +107,7 @@ export class StateEngineServer extends Bit {
         prefix: z.string(),
       }),
       async (args) => {
-        const firestore = this.getResource<Firestore>('firestore');
-        if (!firestore) throw new Error('Firestore not available');
-
-        const snapshot = await firestore.collection('state')
-          .where(FieldPath.documentId(), '>=', args.prefix)
-          .where(FieldPath.documentId(), '<', args.prefix + '\uf8ff')
-          .get();
-
-        const results: Record<string, any> = {};
-        snapshot.forEach(doc => {
-          results[doc.id] = doc.data();
-        });
-
+        const results = await this.store.getStateByPrefix(args.prefix);
         return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
       }
     );
@@ -232,82 +227,33 @@ export class StateEngineServer extends Bit {
   }
 
   private async handleMutation(mutation: MutationProposal) {
-    const firestore = this.getResource<Firestore>('firestore');
-    if (!firestore) throw new Error('Firestore not available');
-
     // 1. Validate
     if (!this.isAllowedKey(mutation.key)) {
-      await this.logMutation(mutation, 'rejected', 'Key not allowed');
+      await this.store.logMutation(mutation, 'rejected', 'Key not allowed');
       return;
     }
 
     // 2. Commit with Optimistic Concurrency
-    try {
-      await firestore.runTransaction(async (transaction) => {
-        const stateRef = firestore.collection('state').doc(mutation.key);
-        const doc = await transaction.get(stateRef);
+    const result = await this.store.commitMutation(mutation);
 
-        let currentVersion = 0;
-        if (doc.exists) {
-          currentVersion = doc.data()?.version || 0;
-        }
-
-        if (mutation.expectedVersion !== undefined && mutation.expectedVersion !== currentVersion) {
-          throw new Error(`Version mismatch: expected ${mutation.expectedVersion}, found ${currentVersion}`);
-        }
-
-        const nextVersion = currentVersion + 1;
-        const snapshot: StateSnapshot = {
-          value: mutation.value,
-          updatedAt: new Date().toISOString(),
-          updatedBy: mutation.actor,
-          version: nextVersion,
-          ttl: mutation.ttl || null,
-          metadata: {
-            source: mutation.reason,
-            ...mutation.metadata
-          }
-        };
-
-        transaction.set(stateRef, snapshot);
-        await this.logMutation(mutation, 'accepted', undefined, nextVersion, transaction);
+    if (result.success) {
+      this.getLogger().info('state-engine.mutation.committed', {
+        mutationId: mutation.id,
+        key: mutation.key,
+        resultingVersion: result.resultingVersion
       });
 
-      this.getLogger().info('state-engine.mutation.committed', { mutationId: mutation.id, key: mutation.key });
-      
       // 3. Evaluate Rules
       await this.evaluateRules(mutation.key, mutation.value);
-    } catch (e: any) {
-      this.getLogger().error('state-engine.mutation.commit_failed', { mutationId: mutation.id, error: e.message });
-      await this.logMutation(mutation, 'rejected', e.message);
-    }
-  }
-
-  private async logMutation(
-    mutation: MutationProposal, 
-    status: 'accepted' | 'rejected', 
-    error?: string, 
-    resultingVersion?: number,
-    transaction?: FirebaseFirestore.Transaction
-  ) {
-    const firestore = this.getResource<Firestore>('firestore');
-    if (!firestore) return;
-
-    const logEntry: MutationLogEntry = {
-      ...mutation,
-      committedAt: new Date().toISOString(),
-      status,
-      error,
-      resultingVersion
-    };
-
-    const logRef = firestore.collection('mutation_log').doc(mutation.id);
-    if (transaction) {
-      transaction.set(logRef, logEntry);
     } else {
-      await logRef.set(logEntry);
+      this.getLogger().error('state-engine.mutation.commit_failed', {
+        mutationId: mutation.id,
+        error: result.error
+      });
+      await this.store.logMutation(mutation, 'rejected', result.error);
     }
   }
+
 
   private async evaluateRules(key: string, value: any) {
     for (const rule of this.stateConfig.rules) {

@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { getFirestore } from '../../common/firebase';
 import { isFeatureEnabled } from '../../common/feature-flags';
 import { redactText } from '../../common/prompt-assembly/redaction';
+import { createPromptLogStore, type IPromptLogStore } from '../query-analyzer/llm-provider';
+import type { IDocumentStore } from '../../common/persistence/interfaces';
 
 /**
  * ImageGenMcpServer
@@ -17,6 +19,7 @@ import { redactText } from '../../common/prompt-assembly/redaction';
  */
 export class ImageGenMcpServer extends Bit {
   private lastRequestByUser: Map<string, number> = new Map();
+  private promptLogStore: IPromptLogStore;
 
   constructor() {
     super({
@@ -27,6 +30,11 @@ export class ImageGenMcpServer extends Bit {
         storage: new StorageManager(),
       },
     });
+
+    // Initialize prompt log store (uses factory for backend auto-detection)
+    // Get Firestore or PostgreSQL document store from BaseServer resources
+    const dbOrStore = this.getResource<any>('firestore') || this.getResource<IDocumentStore>('documentStore');
+    this.promptLogStore = createPromptLogStore(dbOrStore, 'image-gen-mcp');
 
     this.setupMcpTools();
   }
@@ -285,15 +293,30 @@ export class ImageGenMcpServer extends Bit {
   }) {
     if (!isFeatureEnabled('llm.promptLogging.enabled')) return;
     try {
-      const db = getFirestore();
-      db.collection('services').doc('image-gen-mcp').collection('prompt_logs').add({
-        ...entry,
+      // Use the shared prompt log store abstraction
+      // Note: PromptLogRecord expects 'entities' and 'topic' fields, which image-gen doesn't have.
+      // We'll provide empty defaults and extend the record with image-gen-specific fields.
+      const logRecord: any = {
+        correlationId: entry.correlationId,
         prompt: redactText(entry.prompt),
         response: redactText(entry.response),
-        error: entry.error ? redactText(entry.error) : undefined,
+        entities: [], // Not applicable for image generation
+        topic: 'image_generation', // Static topic for image generation
         platform: 'openai',
+        model: entry.model,
+        processingTimeMs: entry.processingTimeMs || 0,
         createdAt: new Date(),
-      }).catch((e: any) =>
+        // Image-gen-specific fields (stored in JSONB, no schema conflict)
+        status: entry.status,
+        aspectRatio: entry.aspectRatio,
+        size: entry.size,
+        userId: entry.userId,
+        image: entry.image,
+        moderation: entry.moderation,
+        error: entry.error ? redactText(entry.error) : undefined,
+      };
+
+      this.promptLogStore.log(logRecord).catch((e: any) =>
         this.getLogger().warn('image_gen_mcp.prompt_logging_failed', {
           correlationId: entry.correlationId,
           error: e?.message,

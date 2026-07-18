@@ -1,90 +1,96 @@
-import { getFirestore } from '../firebase';
 import { Bit } from '../base-server';
 import { McpServerConfig } from './types';
 
 export interface RegistryWatcherOptions {
   onServerActive: (config: McpServerConfig) => Promise<void>;
   onServerInactive: (name: string) => Promise<void>;
+  store: any; // IMcpServerStore (avoiding circular import) - required
 }
 
 export class RegistryWatcher {
   private unsubscribe?: () => void;
   private logger: any;
+  private previousConfigs: Map<string, McpServerConfig> = new Map();
+  private store: any;
 
   constructor(private server: Bit, private options: RegistryWatcherOptions) {
     this.logger = (server as any).getLogger();
+    this.store = this.options.store;
   }
 
   start() {
-    const db = getFirestore();
     this.logger.info('mcp.registry_watcher.starting');
 
-    this.unsubscribe = db.collection('mcp_servers').onSnapshot(async (snapshot) => {
+    this.unsubscribe = this.store.watch((configs: McpServerConfig[]) => {
       this.logger.debug('mcp.registry_watcher.snapshot_received', {
-        count: snapshot.size,
-        changes: snapshot.docChanges().length,
+        count: configs.length,
       });
 
-      for (const change of snapshot.docChanges()) {
-        const data = change.doc.data();
+      // Track current server names to detect removals
+      const currentNames = new Set(configs.map(c => c.name));
+      const previousNames = new Set(this.previousConfigs.keys());
 
-        // Firestore race condition: When creating a new document, we sometimes get an "added" event
-        // with empty data, followed by a "modified" event with the actual data. Skip empty snapshots.
-        if (!data || Object.keys(data).length === 0) {
-          this.logger.debug('mcp.registry_watcher.empty_snapshot', {
-            type: change.type,
-            docId: change.doc.id,
-            message: 'Skipping empty snapshot (will process on next event)'
+      // Detect removed servers
+      for (const name of previousNames) {
+        if (!currentNames.has(name)) {
+          this.logger.debug('mcp.registry_watcher.removed', { name });
+          this.options.onServerInactive(name).catch(error => {
+            this.logger.error('mcp.registry_watcher.inactive_handler_error', { name, error });
+          });
+        }
+      }
+
+      // Process current configs
+      for (const config of configs) {
+        const name = config.name;
+        const status = config.status || 'active';
+
+        this.logger.debug('mcp.registry_watcher.config', {
+          name,
+          status,
+          hasCommand: !!config.command,
+          command: config.command,
+        });
+
+        if (status === 'inactive') {
+          this.options.onServerInactive(name).catch(error => {
+            this.logger.error('mcp.registry_watcher.inactive_handler_error', { name, error });
+          });
+          this.previousConfigs.delete(name);
+          continue;
+        }
+
+        // Simple validation before calling onServerActive
+        const transport = config.transport || 'stdio';
+        if (transport === 'stdio' && !config.command) {
+          this.logger.warn('mcp.registry_watcher.invalid_config', {
+            name,
+            error: 'Stdio transport requires a command',
+            config
+          });
+          continue;
+        }
+        if (transport === 'sse' && !config.url) {
+          this.logger.warn('mcp.registry_watcher.invalid_config', {
+            name,
+            error: 'SSE transport requires a URL',
+            config
           });
           continue;
         }
 
-        const name = data.name || change.doc.id;
-        const status = data.status || 'active';
+        // Only call onServerActive if config changed
+        const previous = this.previousConfigs.get(name);
+        const configChanged = !previous || JSON.stringify(previous) !== JSON.stringify(config);
 
-        this.logger.debug('mcp.registry_watcher.change', {
-          type: change.type,
-          name,
-          status,
-          dataKeys: Object.keys(data),
-          hasCommand: !!data.command,
-          command: data.command,
-        });
-
-        if (change.type === 'removed' || status === 'inactive') {
-          await this.options.onServerInactive(name);
-        } else {
-          // data is essentially McpServerConfig
-          const config: McpServerConfig = {
-            ...data,
-            name,
-            status,
-          } as McpServerConfig;
-
-          // Simple validation before calling onServerActive
-          const transport = config.transport || 'stdio';
-          if (transport === 'stdio' && !config.command) {
-            this.logger.warn('mcp.registry_watcher.invalid_config', { 
-              name, 
-              error: 'Stdio transport requires a command',
-              config 
-            });
-            continue;
-          }
-          if (transport === 'sse' && !config.url) {
-            this.logger.warn('mcp.registry_watcher.invalid_config', { 
-              name, 
-              error: 'SSE transport requires a URL',
-              config 
-            });
-            continue;
-          }
-
-          await this.options.onServerActive(config);
+        if (configChanged) {
+          this.logger.debug('mcp.registry_watcher.config_changed', { name, isNew: !previous });
+          this.options.onServerActive(config).catch(error => {
+            this.logger.error('mcp.registry_watcher.active_handler_error', { name, error });
+          });
+          this.previousConfigs.set(name, config);
         }
       }
-    }, (error) => {
-      this.logger.error('mcp.registry_watcher.error', { error });
     });
   }
 

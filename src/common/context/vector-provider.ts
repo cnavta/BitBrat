@@ -7,7 +7,9 @@
 import type { ContextProvider, ContextPack, ContextBinding } from './types';
 import { getFirestore } from '../firebase';
 import type { Firestore } from 'firebase-admin/firestore';
+import type { IDocumentStore } from '../persistence/interfaces';
 import { logger } from '../logging';
+import { createVectorStore, type IVectorStore } from './vector-repository';
 
 export interface VectorContextProviderOptions {
   /** Maximum number of packs to retrieve per query (default: 5). */
@@ -41,19 +43,20 @@ interface CacheEntry {
  * listBindings() — it is a retrieval-only source, not a binding source.
  */
 export class VectorContextProvider implements ContextProvider {
-  private db: Firestore;
+  private store: IVectorStore;
   private embedCache = new Map<string, CacheEntry>();
 
   constructor(
     private query: string,  // The semantic query (user prompt or tool names)
-    private options: VectorContextProviderOptions = {}
+    private options: VectorContextProviderOptions = {},
+    dbOrStore?: Firestore | IDocumentStore
   ) {
-    this.db = getFirestore();
+    this.store = createVectorStore(dbOrStore || getFirestore());
   }
 
   /**
    * Retrieve context packs via vector similarity search. The query string is embedded
-   * (cached if enabled), then a Firestore Vector Search query returns the top-N most
+   * (cached if enabled), then a vector search query returns the top-N most
    * similar packs. Inactive packs are filtered out.
    */
   async listPacks(): Promise<ContextPack[]> {
@@ -64,25 +67,20 @@ export class VectorContextProvider implements ContextProvider {
       // Generate embedding (may fail, caught below as non-fatal)
       const embedding = await this.embedQuery(this.query);
 
-      // Firestore Vector Search query
-      // Note: findNearest is a Firestore Vector Search API (requires vector index on 'embedding' field)
-      const vectorQuery = this.db
-        .collection('context_packs')
-        .where('active', '==', true)
-        .findNearest('embedding', embedding, {
-          limit: maxResults,
-          distanceMeasure: 'COSINE',
-        });
+      // Vector search via repository
+      const results = await this.store.vectorSearch({
+        collection: 'context_packs',
+        embedding,
+        limit: maxResults,
+        distanceMeasure: 'COSINE',
+      });
 
-      const snapshot = await vectorQuery.get();
       const packs: ContextPack[] = [];
 
       // Log all candidates with their similarity scores for debugging
-      const candidates = snapshot.docs.map(doc => {
-        const data = doc.data() as any;
-        const distance = data._distance ?? 1;
-        const similarity = 1 - distance;
-        return { id: data.id, similarity, distance };
+      const candidates = results.map(result => {
+        const similarity = 1 - result.distance;
+        return { id: result.id, similarity, distance: result.distance };
       });
 
       if (candidates.length > 0) {
@@ -93,17 +91,14 @@ export class VectorContextProvider implements ContextProvider {
         });
       }
 
-      for (const doc of snapshot.docs) {
-        const data = doc.data() as any;
-
-        // Firestore Vector Search returns distance (0 = identical, higher = less similar)
+      for (const result of results) {
+        // Vector Search returns distance (0 = identical, higher = less similar)
         // Convert to similarity: 1 - distance (1 = identical, 0 = orthogonal)
-        const distance = data._distance ?? 1;
-        const similarity = 1 - distance;
+        const similarity = 1 - result.distance;
 
         if (similarity < minSimilarity) {
           logger.debug('context_pack.rag_filtered', {
-            packId: data.id,
+            packId: result.id,
             similarity,
             minSimilarity,
             reason: 'below_threshold',
@@ -111,15 +106,15 @@ export class VectorContextProvider implements ContextProvider {
           continue;  // Below threshold, skip
         }
 
-        // Map Firestore doc to ContextPack (exclude Firestore internal fields)
+        // Map result to ContextPack (exclude internal fields)
         packs.push({
-          id: data.id,
-          version: data.version,
-          title: data.title,
-          priority: data.priority,
-          format: data.format,
-          body: data.body,
-          source: data.source,
+          id: result.id,
+          version: result.version,
+          title: result.title,
+          priority: result.priority,
+          format: result.format,
+          body: result.body,
+          source: result.source,
         });
       }
 

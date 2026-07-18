@@ -2,6 +2,8 @@ import type { Express } from 'express';
 import type { Firestore } from 'firebase-admin/firestore';
 import { Bit } from '../common/base-server';
 import type { PublisherResource } from '../common/resources/publisher-manager';
+import type { IDocumentStore, QueryFilter } from '../common/persistence/interfaces';
+import { createDocumentStore } from '../common/persistence/factory';
 import {
   DEFAULT_DISPOSITION_CONFIG,
   DISPOSITION_OBSERVATION_COLLECTION,
@@ -21,11 +23,132 @@ import { computeDispositionSnapshot } from '../services/disposition/scoring';
 const SERVICE_NAME = process.env.SERVICE_NAME || 'disposition-service';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
 
+// =============================================================================
+// Disposition Observation Storage Abstraction
+// =============================================================================
+
+/**
+ * Interface for disposition observation storage operations.
+ */
+export interface IDispositionObservationStore {
+  /**
+   * Upsert a disposition observation.
+   * @param docId - Document ID
+   * @param observation - Stored observation data
+   */
+  upsert(docId: string, observation: StoredDispositionObservation): Promise<void>;
+
+  /**
+   * Query active observations for a user within a time window.
+   * @param userKey - User identifier
+   * @param cutoffIso - ISO timestamp for oldest observation to include
+   * @param maxEvents - Maximum number of events to return
+   * @returns Array of observations ordered by observedAt descending
+   */
+  queryActive(userKey: string, cutoffIso: string, maxEvents: number): Promise<DispositionObservationEventV1[]>;
+}
+
+/**
+ * Firestore implementation of disposition observation store.
+ */
+export class FirestoreDispositionObservationStore implements IDispositionObservationStore {
+  constructor(
+    private readonly firestore: Firestore,
+    private readonly collectionName: string = DISPOSITION_OBSERVATION_COLLECTION
+  ) {}
+
+  async upsert(docId: string, observation: StoredDispositionObservation): Promise<void> {
+    await this.firestore.collection(this.collectionName).doc(docId).set(observation, { merge: true });
+  }
+
+  async queryActive(userKey: string, cutoffIso: string, maxEvents: number): Promise<DispositionObservationEventV1[]> {
+    const snapshot = await this.firestore
+      .collection(this.collectionName)
+      .where('userKey', '==', userKey)
+      .where('observedAt', '>=', cutoffIso)
+      .orderBy('observedAt', 'desc')
+      .limit(maxEvents)
+      .get();
+
+    return snapshot.docs.map((doc) => doc.data() as DispositionObservationEventV1);
+  }
+}
+
+/**
+ * PostgreSQL implementation of disposition observation store via IDocumentStore.
+ */
+export class DocumentStoreDispositionObservationStore implements IDispositionObservationStore {
+  constructor(
+    private readonly store: IDocumentStore,
+    private readonly tableName: string = 'disposition_observations'
+  ) {}
+
+  async upsert(docId: string, observation: StoredDispositionObservation): Promise<void> {
+    await this.store.set(this.tableName, docId, observation);
+  }
+
+  async queryActive(userKey: string, cutoffIso: string, maxEvents: number): Promise<DispositionObservationEventV1[]> {
+    const filters: QueryFilter[] = [
+      { field: 'userKey', operator: '==', value: userKey },
+      { field: 'observedAt', operator: '>=', value: cutoffIso },
+    ];
+
+    const records = await this.store.query(this.tableName, {
+      filters,
+      orderBy: { field: 'observedAt', direction: 'desc' },
+      limit: maxEvents,
+    });
+
+    return records as DispositionObservationEventV1[];
+  }
+}
+
+/**
+ * Factory function to create disposition observation store based on backend detection.
+ */
+export function createDispositionObservationStore(
+  dbOrStore?: any,
+  collectionOrTable?: string
+): IDispositionObservationStore {
+  // Check if Firestore instance
+  if (dbOrStore && typeof dbOrStore.collection === 'function') {
+    return new FirestoreDispositionObservationStore(dbOrStore, collectionOrTable);
+  }
+
+  // Check if IDocumentStore instance
+  if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
+    return new DocumentStoreDispositionObservationStore(dbOrStore, collectionOrTable);
+  }
+
+  // Auto-select based on PERSISTENCE_DRIVER environment variable
+  const driver = process.env.PERSISTENCE_DRIVER;
+  if (driver === 'postgres' || driver === 'postgresql') {
+    const { createDocumentStore } = require('../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreDispositionObservationStore(store, collectionOrTable || 'disposition_observations');
+  }
+
+  // Default to Firestore (for test environments where Firestore is not initialized)
+  return new FirestoreDispositionObservationStore(undefined as any, collectionOrTable || DISPOSITION_OBSERVATION_COLLECTION);
+}
+
 export class DispositionServiceServer extends Bit {
   private readonly dispositionConfig: DispositionConfig;
+  private readonly observationStore: IDispositionObservationStore;
 
   constructor() {
     super({ serviceName: SERVICE_NAME });
+
+    // Initialize repository (backend auto-detection via factory)
+    const driver = process.env.PERSISTENCE_DRIVER;
+    if (driver === 'postgres' || driver === 'postgresql') {
+      const store = createDocumentStore();
+      this.observationStore = createDispositionObservationStore(store);
+    } else {
+      const firestore = this.getResource<Firestore>('firestore');
+      this.observationStore = createDispositionObservationStore(firestore);
+    }
+
     this.dispositionConfig = getDispositionConfig(<T>(name: string, fallback: T) => {
       if (typeof fallback === 'boolean') {
         return this.getConfig<T>(name, { default: fallback, parser: ((value: any) => value === true || value === 'true') as any });
@@ -83,10 +206,8 @@ export class DispositionServiceServer extends Bit {
 
   private async handleObservation(observation: DispositionObservationEventV1): Promise<void> {
     const nowIso = new Date().toISOString();
-    const firestore = this.getResource<Firestore>('firestore');
     const publisher = this.getResource<PublisherResource>('publisher');
 
-    if (!firestore) throw new Error('Firestore not available');
     if (!publisher) throw new Error('Publisher not available');
 
     const expireAt = new Date(Date.parse(observation.observedAt) + this.dispositionConfig.windowMs + this.dispositionConfig.snapshotTtlMs).toISOString();
@@ -98,14 +219,14 @@ export class DispositionServiceServer extends Bit {
     };
 
     const docId = dispositionObservationDocumentId(observation.userKey, observation.correlationId);
-    await firestore.collection(DISPOSITION_OBSERVATION_COLLECTION).doc(docId).set(stored, { merge: true });
+    await this.observationStore.upsert(docId, stored);
     this.getLogger().info('disposition.observation.persisted', {
       correlationId: observation.correlationId,
       userKey: observation.userKey,
       docId,
     });
 
-    const active = await this.loadActiveObservations(firestore, observation.userKey, nowIso);
+    const active = await this.loadActiveObservations(observation.userKey, nowIso);
     const snapshot = computeDispositionSnapshot(active, this.dispositionConfig, nowIso);
     if (snapshot.band === 'insufficient-signal') {
       this.getLogger().info('disposition.window.low_signal', {
@@ -149,20 +270,11 @@ export class DispositionServiceServer extends Bit {
   }
 
   private async loadActiveObservations(
-    firestore: Firestore,
     userKey: string,
     nowIso: string
   ): Promise<DispositionObservationEventV1[]> {
     const cutoff = new Date(Date.parse(nowIso) - this.dispositionConfig.windowMs).toISOString();
-    const snapshot = await firestore
-      .collection(DISPOSITION_OBSERVATION_COLLECTION)
-      .where('userKey', '==', userKey)
-      .where('observedAt', '>=', cutoff)
-      .orderBy('observedAt', 'desc')
-      .limit(this.dispositionConfig.maxEvents)
-      .get();
-
-    return snapshot.docs.map((doc) => doc.data() as DispositionObservationEventV1);
+    return await this.observationStore.queryActive(userKey, cutoff, this.dispositionConfig.maxEvents);
   }
 
   private async publishStateMutation(

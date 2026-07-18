@@ -32,7 +32,40 @@ services:
     networks:
       bitbrat-network: {}
 
+  postgres:
+    env_file:
+      - .env.brat
+    image: pgvector/pgvector:pg15
+    networks:
+      bitbrat-network:
+        aliases:
+          - postgres.bitbrat.local
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-bitbrat}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bitbrat_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-bitbrat}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bitbrat} -d ${POSTGRES_DB:-bitbrat}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=vector"
+      - "-c"
+      - "max_connections=200"
+
   firebase-emulator:
+    profiles:
+      - firestore
+      - firebase
     env_file:
       - .env.brat
     build:
@@ -79,6 +112,8 @@ networks:
 
 volumes:
   nats-data:
+    driver: local
+  postgres-data:
     driver: local
   firebase-data-v2:
     driver: local

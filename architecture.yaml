@@ -4,7 +4,7 @@ description: >-
   Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.13.3
+  version: 0.14.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
@@ -885,6 +885,8 @@ services:
     entry: src/apps/reflex-service.ts
     port: 3000
     stage: analyze
+    env:
+      - REFLEX_CACHE_POLL_INTERVAL_MS  # PostgreSQL polling interval (default: 10s)
   context-pack:
     profile: core
     mcp:

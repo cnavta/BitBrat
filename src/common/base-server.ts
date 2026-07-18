@@ -16,6 +16,7 @@ import { runWithEventContext, type EventContext } from './event-context';
 import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
+import { DocumentStoreManager } from './resources/document-store-manager';
 import { createMessageSubscriber, createMessagePublisher, type AttributeMap } from '../services/message-bus';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
@@ -648,6 +649,13 @@ export class Bit {
     if (!isJest) {
       logger.debug('base_server.resources.firestore.init');
       defaults.firestore = new FirestoreManager();
+
+      // Register documentStore when using PostgreSQL persistence
+      const persistenceDriver = process.env.PERSISTENCE_DRIVER;
+      if (persistenceDriver === 'postgres' || persistenceDriver === 'postgresql') {
+        logger.debug('base_server.resources.document_store.init', { driver: persistenceDriver });
+        defaults.documentStore = new DocumentStoreManager();
+      }
     }
     // Merge: overrides replace defaults by key and can add new keys
     const out: Record<string, ResourceManager<any>> = { ...defaults, ...overrides };
@@ -1314,12 +1322,44 @@ export class Bit {
   }
 
   /**
-   * Subclasses can override this to provide a per-connection Server instance.
-   * Default: use the shared server instance.
+   * Create a new Server instance for each SSE connection.
+   * The MCP SDK requires one Server instance per transport connection.
+   *
+   * This duplicates the registration logic from initializeMcp() but is necessary
+   * because each SSE connection needs its own Server instance.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected async getMcpServerForConnection(_req: Request): Promise<Server> {
-    return this.mcpServer;
+    // Get version from architecture.yaml (same as initializeMcp)
+    const arch = (this.constructor as any).loadArchitectureYaml?.() || undefined;
+    const svcNode = arch?.services?.[this.serviceName] || {};
+    const description = svcNode.description || 'BitBrat MCP Server';
+    const version = arch?.project?.version || '1.0.0';
+
+    // Create a new Server instance for this connection
+    const server = new Server(
+      {
+        name: this.serviceName,
+        version: version,
+        description: description,
+      } as any,
+      {
+        capabilities: {
+          tools: this.registeredTools.size > 0 ? {} : undefined,
+          resources: this.registeredResources.size > 0 ? {} : undefined,
+          prompts: this.registeredPrompts.size > 0 ? {} : undefined,
+        },
+      }
+    );
+
+    // Copy all request handlers from the main server to this connection-specific server
+    // This ensures all registered tools, resources, and prompts are available
+    const mainServer = this.mcpServer as any;
+    if (mainServer._requestHandlers) {
+      server['_requestHandlers'] = new Map(mainServer._requestHandlers);
+    }
+
+    return server;
   }
 
   /**
@@ -1540,7 +1580,10 @@ export class Bit {
     };
 
     try {
-      const pub = createMessagePublisher(INTERNAL_MCP_REGISTRATION_V1);
+      // Apply busPrefix to match subscriber expectations
+      const prefix = this.config.busPrefix || '';
+      const subject = `${prefix}${INTERNAL_MCP_REGISTRATION_V1}`;
+      const pub = createMessagePublisher(subject);
       await pub.publishJson(registrationEvent, {
         source: this.serviceName,
         type: INTERNAL_MCP_REGISTRATION_V1
@@ -1677,7 +1720,8 @@ export class Bit {
           });
         } catch (error) {
           this.getLogger().error("mcp_server.connect_error", {
-            error,
+            error: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
             sessionId: transport.sessionId,
           });
           this.transports.delete(transport.sessionId);

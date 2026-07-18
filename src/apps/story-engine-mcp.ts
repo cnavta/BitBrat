@@ -3,15 +3,23 @@ import { z } from 'zod';
 import { Bit } from '../common/base-server';
 import { FirestoreManager } from '../common/resources/firestore-manager';
 import type { Firestore } from 'firebase-admin/firestore';
-import { FieldValue } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { INTERNAL_STORY_ENRICH_V1, InternalEventV2, AnnotationV1, INTERNAL_PERSISTENCE_SNAPSHOT_V1 } from '../types/events';
+import {
+  createStoryRepository,
+  type IStoryRepository,
+  type StoryDoc,
+  type UserDoc,
+} from '../services/story-engine/repository';
+import { createDocumentStore } from '../common/persistence/factory';
 
 /**
  * StoryEngineMcpServer
  * Provides tools for interactive Choose Your Own Adventure storytelling.
  */
 export class StoryEngineMcpServer extends Bit {
+  private readonly storyRepo: IStoryRepository;
+
   constructor() {
     super({
       serviceName: 'story-engine-mcp',
@@ -21,6 +29,19 @@ export class StoryEngineMcpServer extends Bit {
         firestore: new FirestoreManager(),
       },
     });
+
+    // Initialize repository (backend auto-detection via factory)
+    const driver = process.env.PERSISTENCE_DRIVER;
+    if (driver === 'postgres' || driver === 'postgresql') {
+      // Use PostgreSQL DocumentStore
+      const store = createDocumentStore();
+      this.storyRepo = createStoryRepository(store);
+    } else {
+      // Use Firestore
+      const firestore = this.getResource<Firestore>('firestore');
+      this.storyRepo = createStoryRepository(firestore);
+    }
+
     this.setupMcpTools();
     this.setupEnrichmentConsumer();
   }
@@ -41,9 +62,8 @@ export class StoryEngineMcpServer extends Bit {
           return;
         }
 
-        const db = this.getFirestore();
-        const userDoc = await db.collection('users').doc(userId).get();
-        const storyId = userDoc.data()?.active_story;
+        const user = await this.storyRepo.getUser(userId);
+        const storyId = user?.active_story;
 
         if (!storyId) {
           this.getLogger().warn('Enrichment skipped: No active story for user', { userId, correlationId: data.correlationId });
@@ -52,8 +72,7 @@ export class StoryEngineMcpServer extends Bit {
           return;
         }
 
-        const storyDoc = await db.collection('stories').doc(storyId).get();
-        const storyData = storyDoc.data();
+        const storyData = await this.storyRepo.getStory(storyId);
 
         if (!storyData) {
           this.getLogger().warn('Enrichment skipped: Story data missing', { storyId, correlationId: data.correlationId });
@@ -104,13 +123,6 @@ export class StoryEngineMcpServer extends Bit {
     });
   }
 
-  private getFirestore(): Firestore {
-    const db = this.getResource<Firestore>('firestore');
-    if (!db) {
-      throw new Error('Firestore resource not initialized');
-    }
-    return db;
-  }
 
   private setupMcpTools() {
     this.registerTool(
@@ -123,12 +135,11 @@ export class StoryEngineMcpServer extends Bit {
       }),
       async (args) => {
         const { userId, theme, setting } = args;
-        const db = this.getFirestore();
         const storyId = uuidv4();
 
         this.getLogger().info('Starting new story', { userId, theme, setting, storyId });
 
-        const storyDoc = {
+        const storyDoc: StoryDoc = {
           id: storyId,
           userId,
           theme,
@@ -140,11 +151,8 @@ export class StoryEngineMcpServer extends Bit {
           history: [],
         };
 
-        await db.collection('stories').doc(storyId).set(storyDoc);
-        await db.collection('users').doc(userId).set({
-          active_story: storyId,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
+        await this.storyRepo.createStory(storyDoc);
+        await this.storyRepo.setUserActiveStory(userId, storyId);
 
         // Persistence Snapshotting
         await this.publishPersistenceSnapshot({
@@ -180,12 +188,11 @@ export class StoryEngineMcpServer extends Bit {
       }),
       async (args) => {
         const { userId } = args;
-        const db = this.getFirestore();
 
         this.getLogger().info('Retrieving current scene', { userId });
 
-        const userDoc = await db.collection('users').doc(userId).get();
-        const storyId = userDoc.data()?.active_story;
+        const user = await this.storyRepo.getUser(userId);
+        const storyId = user?.active_story;
 
         if (!storyId) {
           return {
@@ -194,8 +201,7 @@ export class StoryEngineMcpServer extends Bit {
           };
         }
 
-        const storyDoc = await db.collection('stories').doc(storyId).get();
-        const storyData = storyDoc.data();
+        const storyData = await this.storyRepo.getStory(storyId);
 
         if (!storyData) {
           return {
@@ -209,8 +215,8 @@ export class StoryEngineMcpServer extends Bit {
           .pop();
 
         return {
-          content: [{ 
-            type: 'text', 
+          content: [{
+            type: 'text',
             text: lastScene ? `Scene: ${lastScene.scene}\n\nChoices:\n${lastScene.choices.join('\n')}` : 'Story started. Waiting for first narration.'
           }],
         };
@@ -227,12 +233,11 @@ export class StoryEngineMcpServer extends Bit {
       }),
       async (args) => {
         const { userId, action } = args;
-        const db = this.getFirestore();
 
         this.getLogger().info('Processing action', { userId, action });
 
-        const userDoc = await db.collection('users').doc(userId).get();
-        const storyId = userDoc.data()?.active_story;
+        const user = await this.storyRepo.getUser(userId);
+        const storyId = user?.active_story;
 
         if (!storyId) {
           return {
@@ -249,10 +254,7 @@ export class StoryEngineMcpServer extends Bit {
           timestamp: new Date().toISOString(),
         };
 
-        await db.collection('stories').doc(storyId).update({
-          history: FieldValue.arrayUnion(actionEntry),
-          updatedAt: new Date().toISOString(),
-        });
+        await this.storyRepo.appendToHistory(storyId, actionEntry);
 
         // Persistence Snapshotting
         await this.publishPersistenceSnapshot({
@@ -269,7 +271,7 @@ export class StoryEngineMcpServer extends Bit {
           } as any,
           changeSummary: `Recorded action: ${action}`
         });
-        
+
         return {
           content: [{ type: 'text', text: `Action "${action}" recorded. Narrating consequence...` }],
         };
@@ -288,12 +290,11 @@ export class StoryEngineMcpServer extends Bit {
       }),
       async (args) => {
         const { userId, scene, choices, worldStateMutation } = args;
-        const db = this.getFirestore();
 
         this.getLogger().info('Committing scene', { userId, choicesCount: choices.length });
 
-        const userDoc = await db.collection('users').doc(userId).get();
-        const storyId = userDoc.data()?.active_story;
+        const user = await this.storyRepo.getUser(userId);
+        const storyId = user?.active_story;
 
         if (!storyId) {
           return {
@@ -309,18 +310,17 @@ export class StoryEngineMcpServer extends Bit {
           timestamp: new Date().toISOString(),
         };
 
-        const updates: any = {
-          history: FieldValue.arrayUnion(narrativeEntry),
-          updatedAt: new Date().toISOString(),
-        };
+        // Append narrative entry to history
+        await this.storyRepo.appendToHistory(storyId, narrativeEntry);
 
+        // If there's a worldStateMutation, apply it
         if (worldStateMutation) {
-          for (const [key, value] of Object.entries(worldStateMutation)) {
-            updates[`worldState.${key}`] = value;
+          const story = await this.storyRepo.getStory(storyId);
+          if (story) {
+            const updatedWorldState = { ...story.worldState, ...worldStateMutation };
+            await this.storyRepo.updateStory(storyId, { worldState: updatedWorldState });
           }
         }
-
-        await db.collection('stories').doc(storyId).update(updates);
 
         // Persistence Snapshotting
         await this.publishPersistenceSnapshot({
@@ -354,12 +354,11 @@ export class StoryEngineMcpServer extends Bit {
       }),
       async (args) => {
         const { userId, mutation } = args;
-        const db = this.getFirestore();
 
         this.getLogger().info('Updating world state', { userId, mutation });
 
-        const userDoc = await db.collection('users').doc(userId).get();
-        const storyId = userDoc.data()?.active_story;
+        const user = await this.storyRepo.getUser(userId);
+        const storyId = user?.active_story;
 
         if (!storyId) {
           return {
@@ -368,13 +367,11 @@ export class StoryEngineMcpServer extends Bit {
           };
         }
 
-        const updates: any = {};
-        for (const [key, value] of Object.entries(mutation)) {
-          updates[`worldState.${key}`] = value;
+        const story = await this.storyRepo.getStory(storyId);
+        if (story) {
+          const updatedWorldState = { ...story.worldState, ...mutation };
+          await this.storyRepo.updateStory(storyId, { worldState: updatedWorldState });
         }
-        updates.updatedAt = new Date().toISOString();
-
-        await db.collection('stories').doc(storyId).update(updates);
 
         // Persistence Snapshotting
         await this.publishPersistenceSnapshot({

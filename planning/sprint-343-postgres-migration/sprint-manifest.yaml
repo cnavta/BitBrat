@@ -1,0 +1,214 @@
+sprint:
+  number: 343
+  name: PostgreSQL Migration
+  status: in_progress
+  approach: Docker-first → Migrate → Deploy → GCP (optional future)
+  timeline:
+    start_date: 2026-07-15
+    duration: 3-4 weeks
+    phases:
+      - name: Foundation
+        weeks: 1
+        goal: Docker-first PostgreSQL with migration tooling
+      - name: Full Migration
+        weeks: 2-3
+        goal: Migrate all 13 collections, deploy to remote Docker
+      - name: Cleanup
+        days: 3-5
+        goal: Remove Firestore dependencies
+      - name: GCP Cloud SQL (Optional)
+        weeks: 1
+        goal: Cloud SQL for future production (deferred)
+
+objective:
+  primary: Replace Firestore with PostgreSQL for Docker-first deployment portability
+  secondary:
+    - Simplify local development (no emulator required)
+    - Enable remote Docker deployments (bitbrat.lan staging)
+    - Improve query capabilities (full SQL support)
+    - Prepare for future non-GCP deployments (AWS, Azure, on-prem)
+
+success_criteria:
+  foundation_phase:
+    - PostgreSQL handles event persistence at equivalent performance
+    - Migration tooling works (migrate, backup, restore, validate)
+    - Local Docker stack runs with PostgreSQL
+    - Performance within 20% of Firestore baseline
+  migration_phase:
+    - All 13 Firestore collections migrated to PostgreSQL
+    - All services refactored to use IDocumentStore
+    - Remote Docker (staging) deployed with PostgreSQL
+    - Zero Firestore reads in staging logs
+    - Integration tests passing
+  cleanup_phase:
+    - Firestore dependencies removed from codebase
+    - Documentation updated for PostgreSQL
+    - Zero Firestore operations for 48 hours
+
+artifacts:
+  planning:
+    - persistence-architecture-analysis.md (architectural analysis)
+    - EXECUTION_PLAN.md (detailed implementation plan)
+    - backlog.yaml (trackable task list - 58 tasks, 180 hours)
+    - sprint-manifest.yaml (this file)
+  deliverables:
+    code:
+      - src/common/persistence/interfaces.ts (IDocumentStore, IKVStore)
+      - src/common/persistence/postgres-store.ts (PostgreSQL implementation)
+      - src/common/persistence/redis-store.ts (Redis KV store)
+      - src/common/persistence/factory.ts (simple driver selection)
+      - infrastructure/postgres/schema/*.sql (13 schemas)
+      - tools/brat/src/commands/migrate.ts (Firestore → PostgreSQL)
+      - tools/brat/src/commands/backup.ts (PostgreSQL backup)
+      - tools/brat/src/commands/restore.ts (PostgreSQL restore)
+      - tools/brat/src/commands/db-validate.ts (data consistency check)
+    infrastructure:
+      - infrastructure/docker-compose/docker-compose.local.yaml (local PostgreSQL)
+      - infrastructure/docker-compose/docker-compose.staging.yaml (remote Docker PostgreSQL)
+    documentation:
+      - README.md (updated for PostgreSQL)
+      - CLAUDE.md (updated for AI agents)
+      - documentation/guides/local-development.md (Docker setup)
+    testing:
+      - src/common/persistence/__tests__/postgres-store.test.ts
+      - src/__tests__/integration/postgres-full-stack.spec.ts
+
+team:
+  lead_implementor:
+    role: Primary developer
+    commitment: 3-4 weeks full-time
+    responsibilities:
+      - Implement persistence abstractions (Week 1)
+      - Migrate all services to PostgreSQL (Weeks 2-3)
+      - Migration tooling (migrate, backup, restore, validate)
+      - Deploy to remote Docker (staging)
+      - Write tests and documentation
+      - Performance benchmarking
+
+dependencies:
+  technical:
+    - Docker for local and remote deployment
+    - PostgreSQL 15+ (via Docker image)
+    - pg npm package (will install during FND-002)
+    - pgvector extension (for context pack similarity search)
+    - Redis (optional, for caching)
+  infrastructure:
+    - Docker environment for local development
+    - Remote Docker host (bitbrat.lan) for staging
+    - PostgreSQL container with persistent volumes
+  organizational:
+    - Stakeholder approval to proceed
+    - 3-4 weeks of Lead Implementor time
+
+risks:
+  medium:
+    - risk: Data loss during migration
+      probability: Low
+      impact: High
+      mitigation: Migration tooling with validation (db:validate), backup before migration, Firestore data remains available for rollback
+    - risk: Performance regression
+      probability: Low
+      impact: Medium
+      mitigation: Benchmark during foundation phase, optimize queries before full migration
+  low:
+    - risk: Migration downtime
+      probability: Low
+      impact: Low
+      mitigation: No production data yet, staging downtime acceptable during migration window
+
+rollback_strategy:
+  immediate:
+    - Set PERSISTENCE_DRIVER=firestore in environment config
+    - Restart services (Docker restart)
+    - Firestore still has all original data (migration doesn't delete)
+    - Recovery time: <2 minutes
+  data_recovery:
+    - Firestore data untouched during migration (read-only)
+    - PostgreSQL backups via "brat backup" before major changes
+    - Can restore from PostgreSQL backup or revert to Firestore
+
+metrics:
+  tasks:
+    total_tasks: 58 (51 required, 7 cleanup)
+    foundation_tasks: 16 (60 hours)
+    migration_tasks: 35 (105 hours)
+    cleanup_tasks: 7 (15 hours)
+    total_effort: 180 hours (~4-5 weeks at 40 hrs/week)
+  code:
+    files_created: ~25 (schemas, tooling, repositories)
+    files_modified: ~40 (service refactoring)
+    files_deleted: ~10 (Firestore code removal)
+    loc_added: ~6000 (includes schemas, migration tooling, repositories)
+    loc_removed: ~2000
+  infrastructure:
+    docker_services: 2 (local + staging PostgreSQL)
+    schemas: 13 (all Firestore collections)
+    brat_commands: 4 (migrate, backup, restore, db:validate)
+  performance:
+    event_throughput: >= baseline (currently ~1000 events/sec)
+    query_latency: <= baseline + 20% (currently <5ms avg)
+    vector_search: <100ms for 10k context packs
+  cost:
+    firestore_current: ~$95/month (10M events) + emulator overhead
+    postgres_docker: $0/month (self-hosted on existing infrastructure)
+    cost_reduction: ~$95/month savings
+
+decision_gates:
+  gate_1:
+    name: Foundation Complete
+    timing: End of Week 1
+    approvers: [Lead Implementor]
+    criteria:
+      - Local Docker stack works with PostgreSQL
+      - Migration tooling validated (migrate, backup, restore, validate)
+      - Performance within 20% of Firestore baseline
+      - No data loss in test migrations
+    outcomes:
+      go: Proceed to full migration
+      no_go: Iterate on foundation or reconsider approach
+  gate_2:
+    name: Migration Complete
+    timing: End of Week 3
+    approvers: [Lead Implementor]
+    criteria:
+      - All 13 collections migrated to PostgreSQL
+      - All services refactored and deployed to remote Docker
+      - Zero Firestore reads in staging logs
+      - Integration tests passing
+    outcomes:
+      go: Proceed to Firestore cleanup
+      no_go: Investigate and resolve issues before cleanup
+
+communication:
+  cadence:
+    weekly: Progress updates (completed tasks, blockers, metrics)
+    ad_hoc: Escalate blockers immediately
+  reports:
+    foundation_complete: End of Week 1
+    migration_complete: End of Week 3
+    cleanup_complete: End of Week 4
+
+next_steps:
+  immediate:
+    - Review backlog and execution plan
+    - Get approval to proceed
+    - Allocate Lead Implementor for 3-4 weeks
+  week_1:
+    - Begin foundation tasks (FND-001 through FND-016)
+    - Set up local Docker with PostgreSQL
+    - Implement migration tooling
+    - Validate with test data
+  weeks_2_3:
+    - Full migration (MIG-001 through MIG-035)
+    - Refactor all services
+    - Deploy to remote Docker (staging)
+  week_4:
+    - Cleanup (CLN-001 through CLN-007)
+    - Remove Firestore dependencies
+    - Update documentation
+
+references:
+  analysis: planning/persistence-architecture-analysis.md
+  execution_plan: planning/sprint-343-postgres-migration/EXECUTION_PLAN.md
+  backlog: planning/sprint-343-postgres-migration/backlog.yaml
+  architecture: architecture.yaml

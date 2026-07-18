@@ -32,18 +32,35 @@ describe('RegistryWatcher', () => {
 
     (getFirestore as jest.Mock).mockReturnValue(mockFirestore);
 
+    // Create mock store that converts Firestore-style callbacks to watch-style
+    const mockStore = {
+      watch: jest.fn().mockImplementation((callback) => {
+        // Store the callback for later use in tests
+        // We'll need to convert Firestore snapshot format to configs array
+        const firestoreCallback = (snapshot: any) => {
+          const configs = snapshot.docChanges().map((change: any) => {
+            const data = change.doc.data();
+            return { ...data, name: data.name || change.doc.id };
+          });
+          callback(configs);
+        };
+        snapshotCallback = firestoreCallback;
+        return jest.fn(); // unsubscribe
+      }),
+    };
+
     options = {
-      onServerActive: jest.fn(),
-      onServerInactive: jest.fn(),
+      store: mockStore,
+      onServerActive: jest.fn().mockResolvedValue(undefined),
+      onServerInactive: jest.fn().mockResolvedValue(undefined),
     };
 
     watcher = new RegistryWatcher(mockServer, options);
   });
 
-  it('should start watching the mcp_servers collection', () => {
+  it('should start watching via the store', () => {
     watcher.start();
-    expect(mockFirestore.collection).toHaveBeenCalledWith('mcp_servers');
-    expect(mockFirestore.onSnapshot).toHaveBeenCalled();
+    expect(options.store.watch).toHaveBeenCalled();
   });
 
   it('should call onServerActive when a server is added', async () => {
@@ -70,17 +87,25 @@ describe('RegistryWatcher', () => {
 
   it('should call onServerInactive when a server is removed', async () => {
     watcher.start();
-    
+
+    // First add the server
     await snapshotCallback({
       docChanges: () => [
         {
-          type: 'removed',
+          type: 'added',
           doc: {
             id: 'id1',
-            data: () => ({ name: 'test-server' })
+            data: () => ({ name: 'test-server', status: 'active', command: 'test-cmd' })
           }
         }
       ]
+    });
+
+    jest.clearAllMocks();
+
+    // Then remove it (empty list means server was removed)
+    await snapshotCallback({
+      docChanges: () => []
     });
 
     expect(options.onServerInactive).toHaveBeenCalledWith('test-server');
@@ -150,8 +175,10 @@ describe('RegistryWatcher', () => {
 
   it('should stop watching when stop is called', () => {
     const unsubscribe = jest.fn();
-    mockFirestore.onSnapshot.mockReturnValue(unsubscribe);
-    
+
+    // Override the mock store to return our tracked unsubscribe function
+    options.store.watch = jest.fn().mockReturnValue(unsubscribe);
+
     watcher.start();
     watcher.stop();
 

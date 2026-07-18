@@ -35,8 +35,6 @@ services:
     depends_on:
       nats:
         condition: service_healthy
-      firebase-emulator:
-        condition: service_healthy
       tool-gateway:
         condition: service_healthy
     healthcheck:

@@ -1,10 +1,17 @@
 import { Bit } from '../common/base-server';
 import { getFirestore } from '../common/firebase';
 import { INTERNAL_MCP_REGISTRATION_V1, InternalEventV2 } from '../types/events';
+import type { Firestore } from 'firebase-admin/firestore';
+import type { IDocumentStore } from '../common/persistence/interfaces';
+import {
+  createContextPackStore,
+  type IContextPackStore,
+  type ContextPackDocument
+} from './context-pack-service';
 import { Express, Request, Response } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { 
-  ListToolsRequestSchema, 
+import {
+  ListToolsRequestSchema,
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
@@ -16,6 +23,13 @@ import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
+import {
+  createMcpServerStore,
+  type IMcpServerStore,
+  type McpServerDocument,
+  FirestoreMcpServerStore,
+  DocumentStoreMcpServerStore
+} from '../common/mcp/mcp-server-store';
 import { normalizeError } from '../common/mcp/error-utils';
 import {
   embedText,
@@ -57,15 +71,40 @@ export class ToolGatewayServer extends Bit {
   private inFlightRequests: Map<string, Promise<any>> = new Map();
   // Track completion timestamps for cleanup
   private completedRequests: Map<string, number> = new Map();
+  // Repository abstractions for persistence (Firestore or PostgreSQL via factory)
+  private mcpServerStore: IMcpServerStore;
+  private contextPackStore: IContextPackStore;
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
+
+    // Initialize repositories (backend auto-detection via factory)
+    // Use documentStore for PostgreSQL or fallback to Firestore
+    const documentStore = this.getResource('documentStore');
+    const db = this.getResource('firestore');
+    let dbOrStore = documentStore || db;
+
+    // If no resources available, try getFirestore() for test environments
+    // that mock firebase directly
+    if (!dbOrStore) {
+      try {
+        const { getFirestore } = require('../common/firebase');
+        dbOrStore = getFirestore();
+      } catch (err) {
+        // Ignore - will fall back to in-memory store
+      }
+    }
+
+    this.mcpServerStore = createMcpServerStore(dbOrStore);
+    this.contextPackStore = createContextPackStore(dbOrStore);
+
     this.setupApp(this.getApp() as any);
   }
 
   async start(port: number) {
     // Initialize MCP Registry Watcher to populate upstream tools
     this.registryWatcher = new RegistryWatcher(this as any, {
+      store: this.mcpServerStore,
       onServerActive: async (config) => {
         this.serverConfigs.set(config.name, config);
         await this.mcpManager.connectServer(config);
@@ -166,20 +205,23 @@ export class ToolGatewayServer extends Bit {
     // This prevents duplicate writes even though the actual Firestore write is fire-and-forget
     this.registrationSignatures.set(payload.name, signature);
 
-    // Fire-and-forget Firestore write with timeout to prevent blocking event handler
-    const firestoreWrite = (async () => {
+    // Fire-and-forget repository write with timeout to prevent blocking event handler
+    const registrationWrite = (async () => {
       try {
-        const db = getFirestore();
-        const writePromise = db.collection('mcp_servers').doc(payload.name).set({
+        const doc: McpServerDocument = {
+          name: payload.name,
+          url: payload.url,
           ...payload,
           updatedAt: new Date().toISOString(),
           discoverySource: 'auto-registration',
           correlationId: event.correlationId
-        }, { merge: true });
+        };
+
+        const writePromise = this.mcpServerStore.upsert(payload.name, doc);
 
         // Race against 5-second timeout
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Firestore write timeout (5s)')), 5000)
+          setTimeout(() => reject(new Error('Store write timeout (5s)')), 5000)
         );
 
         await Promise.race([writePromise, timeoutPromise]);
@@ -201,7 +243,7 @@ export class ToolGatewayServer extends Bit {
     })();
 
     // Don't await - let it complete in background
-    firestoreWrite.catch(() => {});  // Suppress unhandled rejection warnings
+    registrationWrite.catch(() => {});  // Suppress unhandled rejection warnings
   }
 
   /**
@@ -217,13 +259,12 @@ export class ToolGatewayServer extends Bit {
     packs: any[],
     correlationId: string
   ): Promise<void> {
-    const db = getFirestore();
     const updatedAt = new Date().toISOString();
 
     for (const pack of packs) {
       try {
         // Build pack document with all fields + metadata
-        const packDoc: any = {
+        const packDoc: ContextPackDocument = {
           id: pack.id,
           version: pack.version,
           title: pack.title,
@@ -255,14 +296,14 @@ export class ToolGatewayServer extends Bit {
           });
         }
 
-        // Fire-and-forget Firestore write with timeout to prevent blocking
+        // Fire-and-forget repository write with timeout to prevent blocking
         const writePromise = (async () => {
           try {
-            const setPromise = db.collection('context_packs').doc(pack.id).set(packDoc, { merge: true });
+            const upsertPromise = this.contextPackStore.upsert(pack.id, packDoc);
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Firestore write timeout (5s)')), 5000)
+              setTimeout(() => reject(new Error('Store write timeout (5s)')), 5000)
             );
-            await Promise.race([setPromise, timeoutPromise]);
+            await Promise.race([upsertPromise, timeoutPromise]);
 
             this.getLogger().info('tool_gateway.context.pack_registered', {
               packId: pack.id,
