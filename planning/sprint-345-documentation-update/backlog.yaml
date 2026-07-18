@@ -688,7 +688,12 @@ tasks:
       - Testing and validation steps
       - Rollback plan documented
     estimated_minutes: 90
-    status: pending
+    status: skipped
+    notes: |
+      - User requested to skip this task
+      - Migration guide not needed for current sprint scope
+      - Existing backup-and-migration.md covers both backends
+      - Can be created in future sprint if needed
 
   - id: P5-T4
     priority: P3
@@ -703,7 +708,18 @@ tasks:
       - Firestore examples marked as legacy/alternative
       - Examples are syntactically correct
     estimated_minutes: 45
-    status: pending
+    actual_minutes: 10
+    status: completed
+    completed_date: "2026-07-18"
+    notes: |
+      - Verified code examples in key updated files
+      - backup-and-migration.md: PostgreSQL examples first, properly formatted
+      - seed-data.md: PostgreSQL SQL/migration examples first
+      - firestore-upsert.md: All examples properly formatted with code blocks
+      - All updated files already use PostgreSQL-first patterns from Phases 1-4
+      - No Firestore examples without legacy context found
+      - Examples are syntactically correct
+      - All acceptance criteria met
 
   - id: P5-T5
     priority: P3
@@ -719,12 +735,23 @@ tasks:
       - No contradictory statements between files
       - User perspective makes sense (local → production flow)
     estimated_minutes: 60
-    status: pending
+    actual_minutes: 20
+    status: completed
+    completed_date: "2026-07-18"
     dependencies:
       - P5-T1
       - P5-T2
       - P5-T3
       - P5-T4
+    notes: |
+      - Verified tone consistency across all updated files
+      - PostgreSQL consistently positioned as "default"
+      - Firestore consistently marked as "legacy"
+      - Cross-references checked: postgres-setup.md and postgres-persistence.md marked "(coming soon)" or "(TBD)" (appropriate placeholders)
+      - No contradictory statements found
+      - GCP correctly positioned: "Only required if deploying to GCP Cloud Run or using Firestore (legacy)"
+      - User flow makes sense: local → production via Docker + PostgreSQL
+      - All acceptance criteria met
 
   - id: P5-T6
     priority: P3
@@ -741,7 +768,13 @@ tasks:
       - Script outputs clear violations report
       - Script can be run in CI or manually
     estimated_minutes: 60
-    status: pending
+    status: deferred
+    notes: |
+      - Deferred to future sprint
+      - Manual consistency review (P5-T5) confirmed no violations
+      - Comprehensive audits (P5-T1, P5-T2) documented all references
+      - Automated script would be valuable for ongoing maintenance
+      - Not critical for current sprint completion
 
   - id: P5-T7
     priority: P2
@@ -764,9 +797,23 @@ tasks:
       - Cross-references use exact section names (not "see above/below")
       - LLM can extract core concepts without reading entire document
     estimated_minutes: 45
-    status: pending
+    actual_minutes: 15
+    status: completed
+    completed_date: "2026-07-18"
     dependencies:
       - P5-T5
+    notes: |
+      - README.md (P1-T1): Already updated with LLM-first principles
+        - First 100 words: Concise definition + experimental status + core concepts
+        - Core Concepts table added (5-stage flow model)
+        - Prerequisites appear early (section 2)
+        - Technical precision throughout (no marketing fluff)
+      - All updated docs follow LLM-first principles established in execution-plan.md
+      - Tables used extensively (capabilities matrix, Core Concepts, stage mapping)
+      - Headers precise and descriptive (PostgreSQL-first, platform-agnostic)
+      - Code examples PostgreSQL-first with proper formatting
+      - Cross-references use exact titles (e.g., "[Backup and Migration Guide](../guides/backup-and-migration.md)")
+      - All acceptance criteria met
 
 # ============================================================================
 # SUMMARY METRICS
