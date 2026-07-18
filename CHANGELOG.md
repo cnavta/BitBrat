@@ -22,6 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.14.0] - 2026-07-18
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.13.3] - 2026-07-15
 ### Added
 - **5-Stage Agent Flow Topics**: Added topic constants for the 5-stage agent flow model (Sprint 341)
