@@ -1,0 +1,362 @@
+# Sprint 346: Low-Priority Reference Updates - Task Backlog
+#
+# Priority Levels:
+#   P0: Critical (blocks users)
+#   P1: High (actively used docs)
+#   P2: Medium (reference/tutorial docs)
+#   P3: Low (historical/design docs)
+#
+# Status: pending | in_progress | completed | blocked | deferred
+
+sprint:
+  id: sprint-346
+  name: "Low-Priority Reference Updates"
+  start_date: "2026-07-18"
+  estimated_hours: 4.5
+  role: "Technical Writer"
+  parent_sprint: "sprint-345"
+
+phases:
+  - id: phase-1
+    name: "Medium-Priority Core Documentation"
+    estimated_hours: 2.25
+    description: "Update actively used tutorials, technical architecture, and service docs"
+
+  - id: phase-2
+    name: "Low-Priority Historical Documentation"
+    estimated_hours: 2.0
+    description: "Update architecture/design docs and miscellaneous documentation"
+
+  - id: phase-3
+    name: "Validation & Cleanup"
+    estimated_hours: 0.5
+    description: "Consistency review, cross-reference validation, LLM-friendliness check"
+
+tasks:
+  # ============================================================================
+  # PHASE 1: MEDIUM-PRIORITY CORE DOCUMENTATION
+  # ============================================================================
+
+  - id: P1-T1
+    priority: P1
+    phase: phase-1
+    title: "Update tutorial files (Category 4)"
+    description: |
+      Update 4 tutorial files with backend-agnostic patterns:
+      - Change Firestore API examples to DocumentStore API
+      - Update code snippets to show PostgreSQL or generic patterns
+      - Preserve tutorial flow and learning objectives
+      - Add notes where Firestore-specific features are shown
+    files:
+      - documentation/tutorials/lurk-command.md (3 Firestore refs)
+      - documentation/tutorials/lurk-command-part-2.md (8 Firestore refs)
+      - documentation/tutorials/creating-a-domain-mcp-server.md (6 Firestore refs)
+      - documentation/tutorials/creating-a-reflex.md (3 Firestore refs)
+    acceptance_criteria:
+      - All tutorial code examples use DocumentStore API (backend-agnostic)
+      - PostgreSQL shown as default in examples
+      - Firestore mentioned as legacy alternative (if at all)
+      - Tutorial learning objectives preserved
+      - Code snippets syntactically correct
+    estimated_minutes: 60
+    status: pending
+    firestore_refs: 20
+    gcp_refs: 0
+
+  - id: P1-T2
+    priority: P1
+    phase: phase-1
+    title: "Update technical architecture docs (Category 5)"
+    description: |
+      Update 3 technical architecture files with backend-agnostic language:
+      - Change "Firestore" → "database" or "persistence backend"
+      - Update storage terminology: "collection or table"
+      - Preserve architectural concepts (remain valid regardless of backend)
+      - Add notes clarifying current vs historical implementation
+    files:
+      - documentation/technical-architecture/user-context-v1.md (5 Firestore refs)
+      - documentation/technical-architecture/mcp-auto-discovery.md (10 Firestore refs)
+      - documentation/technical-architecture/image-gen-mcp-prompt-logging.md (12 Firestore refs)
+    acceptance_criteria:
+      - All "Firestore" refs replaced with backend-agnostic terms
+      - Storage paths: "collection or table depending on backend"
+      - Architectural concepts preserved (backend-agnostic)
+      - Diagrams updated if showing Firestore-specific storage
+      - Notes added clarifying current PostgreSQL default
+    estimated_minutes: 45
+    status: pending
+    firestore_refs: 27
+    gcp_refs: 0
+
+  - id: P1-T3
+    priority: P1
+    phase: phase-1
+    title: "Update service documentation (Category 6)"
+    description: |
+      Update 3 service documentation files with backend-agnostic language:
+      - Change "Firestore" → "database"
+      - Update storage paths: "collection or table depending on backend"
+      - Preserve operational procedures (valid for both backends)
+    files:
+      - documentation/services/image-gen-mcp.md (3 Firestore refs)
+      - documentation/services/state-engine/technical-overview.md (7 Firestore refs)
+      - documentation/services/state-engine/runbook.md (5 Firestore refs)
+    acceptance_criteria:
+      - All "Firestore" refs replaced with "database"
+      - Storage paths clarified as backend-agnostic
+      - Operational procedures remain valid for PostgreSQL and Firestore
+      - No loss of technical detail
+    estimated_minutes: 30
+    status: pending
+    firestore_refs: 15
+    gcp_refs: 0
+
+  # ============================================================================
+  # PHASE 2: LOW-PRIORITY HISTORICAL DOCUMENTATION
+  # ============================================================================
+
+  - id: P2-T1
+    priority: P2
+    phase: phase-2
+    title: "Update architecture/design documents (Category 7)"
+    description: |
+      Update 10 architecture and design documents:
+      - Add "HISTORICAL DESIGN DOCUMENT" preambles where appropriate
+      - Update to backend-agnostic language while preserving design intent
+      - Note evolution from Firestore → PostgreSQL where relevant
+      - Preserve architectural concepts (often backend-agnostic)
+      - Update GCP refs to platform-agnostic messaging
+    files:
+      - documentation/architecture/reactive-agent-loop-technical-overview.md (1 Firestore ref)
+      - documentation/architecture/acp-integration-evaluation.md (4 Firestore refs, 1 GCP ref)
+      - documentation/architecture/bit-model-technical-architecture.md (3 Firestore refs)
+      - documentation/architecture/tool-context-provisioning.md (6 Firestore refs)
+      - documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md (3 Firestore refs, 5 GCP refs)
+      - documentation/architecture/technical-architecture.md (0 Firestore refs, 1 GCP ref)
+      - documentation/bitbrat_state_memory_architecture.md (10 Firestore refs)
+      - documentation/llm_graph_mutation_architecture.md (1 Firestore ref, 1 GCP ref)
+      - documentation/sessi-implementation-gap-analysis.md (3 Firestore refs)
+      - documentation/technical-architecture/agent-centric-logging-v1.md (0 Firestore refs, 1 GCP ref)
+    acceptance_criteria:
+      - Historical preambles added to Firestore-specific design docs
+      - Backend-agnostic language used throughout
+      - Architectural concepts preserved
+      - GCP refs updated to platform-agnostic (NATS default, cloud buses as options)
+      - Evolution from Firestore → PostgreSQL noted where relevant
+    estimated_minutes: 60
+    status: pending
+    firestore_refs: 31
+    gcp_refs: 9
+
+  - id: P2-T2
+    priority: P2
+    phase: phase-2
+    title: "Update miscellaneous documentation (Category 8)"
+    description: |
+      Update 24 miscellaneous documentation files:
+      - Tools, guides, reference, observability, root docs
+      - Prioritize active guides (mcp-*, brat-fleet) over historical docs
+      - Update messaging docs to show NATS as default
+      - Preserve bug fix documentation accuracy (historical context)
+      - Add notes to roadmap docs clarifying current state vs future plans
+    files:
+      # Tools
+      - documentation/tools/brat.md (4 Firestore refs)
+
+      # Guides
+      - documentation/guides/mcp-dev-tools-reference.md (7 Firestore refs, 2 GCP refs)
+      - documentation/guides/mcp-setup.md (4 Firestore refs)
+      - documentation/guides/mcp-config-env-references.md (8 Firestore refs)
+      - documentation/guides/brat-fleet.md (1 Firestore ref)
+
+      # Reference
+      - documentation/reference/reflex-mcp-tools.md (2 Firestore refs)
+      - documentation/reference/technical-architecture-base-server-resources.md (7 Firestore refs)
+      - documentation/reference/messaging-system.md (1 Firestore ref, 3 GCP refs)
+      - documentation/reference/messaging-architecture-as-is.md (0 Firestore refs, 2 GCP refs)
+      - documentation/reference/base-server-resources-backlog.yaml (6 Firestore refs)
+
+      # Observability
+      - documentation/observability/tracing.md (0 Firestore refs, 4 GCP refs)
+
+      # Root Documentation
+      - documentation/SETUP-MCP.md (1 Firestore ref)
+      - documentation/mcp-evolution-roadmap.md (9 Firestore refs)
+      - documentation/routing-rules-examples.md (4 Firestore refs)
+      - documentation/command-indexes.md (3 Firestore refs)
+      - documentation/auth-service.md (5 Firestore refs)
+      - documentation/llm-bot-personality.md (7 Firestore refs)
+      - documentation/messaging-config.md (1 Firestore ref, 1 GCP ref)
+
+      # Evaluation
+      - documentation/evaluation/external-evaluation.md (0 Firestore refs, 2 GCP refs)
+
+      # Concepts
+      - documentation/concepts/capability-profiles.md (1 Firestore ref)
+
+      # Fixes (Bug Documentation)
+      - documentation/fixes/stdio-mcp-error-recursion.md (41 Firestore refs)
+    acceptance_criteria:
+      - All active guides updated to backend-agnostic language
+      - Messaging docs show NATS as default, cloud buses as examples
+      - Bug fix documentation preserves historical accuracy
+      - Roadmap docs clarify current state (PostgreSQL default)
+      - GCP refs updated to platform-agnostic messaging
+      - Brat CLI docs accurately describe current behavior
+    estimated_minutes: 90
+    status: pending
+    firestore_refs: 102
+    gcp_refs: 14
+
+  # ============================================================================
+  # PHASE 3: VALIDATION & CLEANUP
+  # ============================================================================
+
+  - id: P3-T1
+    priority: P2
+    phase: phase-3
+    title: "Consistency review across all updated files"
+    description: |
+      Review all 28 updated files for consistency:
+      - Verify consistent tone (PostgreSQL=default, Firestore=legacy, GCP=optional)
+      - Check for contradictory statements between files
+      - Ensure patterns match Sprint 345 standards
+      - Validate historical preambles are appropriate
+    files:
+      - All 28 files updated in Phase 1 and Phase 2
+    acceptance_criteria:
+      - Consistent terminology across all files
+      - No contradictory statements found
+      - All patterns match CLAUDE.md documentation standards
+      - Historical preambles accurate and helpful
+      - User journey makes sense (local → production)
+    estimated_minutes: 15
+    status: pending
+    dependencies:
+      - P1-T1
+      - P1-T2
+      - P1-T3
+      - P2-T1
+      - P2-T2
+
+  - id: P3-T2
+    priority: P2
+    phase: phase-3
+    title: "Verify cross-references and links"
+    description: |
+      Validate all cross-references in updated files:
+      - Check for broken links
+      - Verify section references are accurate
+      - Confirm file paths are correct
+      - Test markdown link syntax
+    files:
+      - All 28 files updated in Phase 1 and Phase 2
+    acceptance_criteria:
+      - No broken cross-references
+      - All file paths valid
+      - Section references accurate
+      - Markdown syntax correct
+    estimated_minutes: 10
+    status: pending
+    dependencies:
+      - P1-T1
+      - P1-T2
+      - P1-T3
+      - P2-T1
+      - P2-T2
+
+  - id: P3-T3
+    priority: P2
+    phase: phase-3
+    title: "Final LLM-friendliness check"
+    description: |
+      Validate updated docs meet LLM-first criteria from CLAUDE.md:
+      - Technical precision maintained
+      - Code examples syntactically correct
+      - Headers descriptive and precise
+      - Cross-references use exact names
+      - Platform-agnostic language throughout
+    files:
+      - All 28 files updated in Phase 1 and Phase 2
+    acceptance_criteria:
+      - Technical terms precise and accurate
+      - Code examples use current API patterns (DocumentStore, backend-agnostic)
+      - Headers clear and descriptive
+      - Cross-references use exact section/file names
+      - LLM can extract core concepts without reading entire document
+    estimated_minutes: 5
+    status: pending
+    dependencies:
+      - P3-T1
+      - P3-T2
+
+# ============================================================================
+# SUMMARY METRICS
+# ============================================================================
+
+summary:
+  total_tasks: 8
+  by_priority:
+    P1: 3  # High - actively used docs
+    P2: 5  # Medium - reference/historical docs
+    P3: 0  # Low - none
+
+  by_phase:
+    phase-1: 3  # Medium-Priority Core
+    phase-2: 2  # Low-Priority Historical
+    phase-3: 3  # Validation & Cleanup
+
+  estimated_total_hours: 4.5
+
+  total_files_to_update: 28
+  total_firestore_refs: 195  # Actual count from audit
+  total_gcp_refs: 23         # Actual count from audit
+
+  files_by_category:
+    category-4-tutorials: 4
+    category-5-tech-architecture: 3
+    category-6-services: 3
+    category-7-architecture-design: 10
+    category-8-miscellaneous: 21  # Includes overlaps
+
+# ============================================================================
+# VALIDATION CHECKPOINTS
+# ============================================================================
+
+validation_checkpoints:
+  - checkpoint: phase-1-complete
+    description: "Medium-priority core documentation updated (tutorials, architecture, services)"
+    criteria:
+      - Tutorial code examples use backend-agnostic patterns
+      - Technical architecture uses "database" terminology
+      - Service docs accurate for PostgreSQL and Firestore legacy
+    approval_required: false
+
+  - checkpoint: phase-2-complete
+    description: "Low-priority historical documentation updated"
+    criteria:
+      - Historical design docs have appropriate preambles
+      - All Firestore/GCP refs updated to backend/platform-agnostic
+      - Bug fix documentation preserves accuracy
+    approval_required: false
+
+  - checkpoint: final-review
+    description: "All tasks complete, consistency verified"
+    criteria:
+      - All 226 deferred refs updated
+      - Consistent tone across all files
+      - No broken links or contradictions
+      - LLM-friendliness validated
+    approval_required: true
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes: |
+  - This sprint completes all deferred work from Sprint 345
+  - Focus is on consistency and completeness, not new content creation
+  - Historical design docs retain accuracy while noting evolution
+  - All patterns from Sprint 345 (CLAUDE.md standards) will be applied
+  - Total references: 195 Firestore + 23 GCP = 218 (some files have both)
+  - Actual file count: 28 unique files (some overlap between categories)
