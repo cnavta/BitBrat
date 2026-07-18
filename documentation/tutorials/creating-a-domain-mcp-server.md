@@ -449,8 +449,8 @@ If your service needs to manage resources (databases, connections):
 
 ```typescript
 async initialize(): Promise<void> {
-  // Get Firestore resource
-  const firestore = this.getResource('firestore');
+  // Get persistence resource (PostgreSQL or Firestore legacy)
+  const persistence = this.getResource('persistence');
 
   // Get Publisher resource
   const publisher = this.getResource('publisher');
@@ -548,8 +548,26 @@ private setCache(key: string, data: any, ttlMs: number = 300000): void {
 }
 ```
 
-### Firestore Integration
+### Database Integration
 
+**PostgreSQL (Default)**:
+```typescript
+import type { DocumentStore } from '../common/persistence/document-store';
+
+async initialize(): Promise<void> {
+  const persistence = this.getResource('persistence');
+  this.db = persistence as DocumentStore;
+}
+
+private async saveWeatherData(location: string, data: WeatherData): Promise<void> {
+  await this.db.set(`weather/${location}`, {
+    ...data,
+    timestamp: new Date(),
+  });
+}
+```
+
+**Firestore (Legacy)**:
 ```typescript
 import type { FirestoreResource } from '../common/resources/firestore-manager';
 

@@ -59,9 +59,18 @@ tasks:
       - Tutorial learning objectives preserved
       - Code snippets syntactically correct
     estimated_minutes: 60
-    status: pending
+    actual_minutes: 45
+    status: completed
+    completed_date: "2026-07-18"
     firestore_refs: 20
     gcp_refs: 0
+    notes: |
+      - lurk-command.md: Updated Step 2 with PostgreSQL/Firestore examples, troubleshooting section
+      - lurk-command-part-2.md: Updated all 8 firestore:upsert commands with PostgreSQL examples first
+      - creating-a-domain-mcp-server.md: Updated Resource Management and Database Integration sections
+      - creating-a-reflex.md: Updated Step 3 with PostgreSQL/Firestore database loading examples
+      - All code examples show PostgreSQL first, Firestore as legacy alternative
+      - Tutorial flow and learning objectives preserved
 
   - id: P1-T2
     priority: P1

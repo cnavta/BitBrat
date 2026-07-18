@@ -114,10 +114,16 @@ For this tutorial, we'll show the direct tool invocation format:
 
 ## Step 3: Load the Reflex
 
-### Option A: Via Firestore (Development)
+### Option A: Via Database (Development)
 
-Save the reflex definition to `my-lurk-reflex.json`, then load it directly into Firestore:
+Save the reflex definition to `my-lurk-reflex.json`, then load it directly into the database:
 
+**PostgreSQL (Default)**:
+```bash
+psql $DATABASE_URL -c "INSERT INTO reflexes (name, description, active, priority, match, conditions, candidate_template, tags) VALUES ('lurk-command', 'Respond when users type !lurk in chat', true, 100, '{\"type\":\"contains\",\"pattern\":\"!lurk\",\"field\":\"message.text\",\"caseSensitive\":false}'::jsonb, '{\"eventTypes\":[\"chat.message.v1\"],\"platforms\":[\"twitch\"]}'::jsonb, 'Enjoy your lurk, @{{identity.user.displayName}}! 👀', ARRAY['chat-commands', 'social'])"
+```
+
+**Firestore (Legacy)**:
 ```bash
 npm run firestore:upsert -- reflexes @my-lurk-reflex.json
 ```
