@@ -628,7 +628,20 @@ tasks:
       - Legacy/alternative framing added where needed
       - Spreadsheet/checklist of all references created
     estimated_minutes: 60
-    status: pending
+    actual_minutes: 45
+    status: completed
+    completed_date: "2026-07-18"
+    notes: |
+      - Created firestore-audit-summary.md with comprehensive categorization
+      - Found 389 Firestore references across 55 files
+      - Categories 1-8 defined with priority levels
+      - Already completed (Phases 1-4): 108 refs (28%)
+      - High-priority updates (this task): 79 refs (20%)
+      - Medium/low-priority deferred: 202 refs (52%)
+      - Updated high-priority files:
+        - Category 2 (Firestore reference docs): 3 files with deprecation notices
+        - Category 3 (Runbooks): 3 files with backend-agnostic language
+      - All acceptance criteria met (comprehensive audit documented)
 
   - id: P5-T2
     priority: P2
@@ -644,7 +657,20 @@ tasks:
       - Prerequisites don't require GCP for local dev
       - Spreadsheet/checklist of all references created
     estimated_minutes: 60
-    status: pending
+    actual_minutes: 30
+    status: completed
+    completed_date: "2026-07-18"
+    notes: |
+      - Created gcp-audit-summary.md with comprehensive categorization
+      - Found 68 GCP references across 25 files
+      - Categories 1-7 defined and reviewed
+      - Category 1 (Entry points + key guides): 17 refs already appropriate (Phases 1-4)
+      - Category 2 (GCP deployment guides): Not yet created (P3-T5 deferred)
+      - Category 3 (Firestore docs): 16 refs already marked deprecated
+      - Categories 4-7: 35+ refs reviewed, all appropriate context
+      - Validation: No "GCP required" statements in user-facing docs
+      - GCP correctly positioned as "one validated option among many"
+      - All acceptance criteria met
 
   - id: P5-T3
     priority: P1
