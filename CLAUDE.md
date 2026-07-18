@@ -89,11 +89,11 @@ npm run brat -- bit create <name> --register --active                  # Create 
 
 ### Deployment
 ```bash
-npm run brat -- deploy services --all         # Deploy all active services to Cloud Run
+npm run brat -- deploy services --all         # Deploy all active services (target platform configured in architecture.yaml)
 npm run brat -- deploy service <name>         # Deploy specific service
-npm run brat -- infra plan <module>           # Terraform plan (network/lb/connectors/buckets)
-npm run brat -- infra apply <module>          # Apply infrastructure changes
-npm run brat -- lb urlmap render              # Generate Load Balancer URL map
+npm run brat -- infra plan <module>           # Terraform plan for cloud infrastructure (GCP: network/lb/connectors/buckets)
+npm run brat -- infra apply <module>          # Apply infrastructure changes (cloud platforms)
+npm run brat -- lb urlmap render              # Generate Load Balancer URL map (GCP Cloud Run)
 ```
 
 ### Fleet Control Plane (MCP-based administration)
@@ -205,8 +205,11 @@ npm test -- --watch                # Watch mode
 
 ### Environment Configuration
 - Service configs are defined in architecture.yaml under `services.<name>.env` and `services.<name>.secrets`
-- Secrets are resolved from Google Secret Manager (no values in YAML)
-- Local dev uses `.env` files; Cloud Run injects secrets at runtime
+- Secrets management:
+  - **Local/self-hosted**: `.env` files
+  - **GCP Cloud Run**: Google Secret Manager
+  - **AWS ECS**: AWS Secrets Manager or Parameter Store
+  - **Azure**: Azure Key Vault
 - Some integrations (Twilio, Discord) are optional in local development
 
 ### Message Versioning
@@ -452,7 +455,7 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
 - **RULE: ALWAYS return 200 OK within 3 seconds** — platforms retry slow webhooks
 - **RULE: Use `setImmediate()` for async processing** — defer work after response
 - **RULE: Verify signature synchronously** — reject invalid requests before processing
-- **RULE: Use `x-forwarded-proto` for URL reconstruction** — Cloud Run terminates SSL
+- **RULE: Use `x-forwarded-proto` for URL reconstruction** — cloud platforms and reverse proxies terminate SSL
 
 **RULES: Connector Registration**
 
@@ -568,15 +571,24 @@ await this.onMessage('internal.llmbot.v1', async (data, attrs, ctx) => {
 
 ## Deployment Notes
 
-- **Target platforms**: Docker Compose (local), Google Cloud Run (production)
-- **Persistence**: PostgreSQL (default), Firestore (legacy, deprecated)
+- **Target platforms**: Docker (platform-agnostic: local, cloud, self-hosted)
+  - **Docker Compose**: Local development and self-hosted production
+  - **Cloud Platforms** (validated): GCP Cloud Run, AWS ECS, Azure Container Instances
+  - Platform-agnostic by design—runs anywhere Docker and PostgreSQL are available
+- **Persistence**: PostgreSQL (default, platform-agnostic), Firestore (legacy, GCP-specific, deprecated)
   - PostgreSQL is the primary backend as of Sprint 344
+  - Works with any PostgreSQL service: AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted
   - Firestore remains supported for backwards compatibility but will be removed in future sprints
   - Set `PERSISTENCE_DRIVER=postgres` (default) or `PERSISTENCE_DRIVER=firestore` (deprecated)
-- **Message bus**: NATS (local), Google Cloud Pub/Sub (production)
+- **Message bus**: NATS (platform-agnostic default), Google Cloud Pub/Sub (GCP-specific), AWS SQS/SNS, Azure Service Bus
+  - NATS for local/dev and self-hosted production
+  - Cloud-specific buses for managed deployments
+  - Selected via `MESSAGE_BUS_DRIVER`
 - **LLM providers**: OpenAI (default), Ollama (local/offline), vLLM (OpenAI-compatible)
-- **Scaling**: Most services use min:1, max:1 for cost control; gateways may scale to zero when idle
-- **Networking**: VPC connectors for private ranges only; outbound uses Cloud Run default egress
+- **Scaling**: Most services use min:1, max:1 for cost control; gateways may scale to zero when idle (cloud platforms only)
+- **Networking**:
+  - Cloud deployments: VPC connectors for private ranges, cloud-specific egress
+  - Self-hosted: Standard Docker networking
 
 ## Troubleshooting
 

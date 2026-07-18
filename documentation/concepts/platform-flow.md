@@ -1,6 +1,6 @@
 # Concepts: Platform Flow Overview
 
-The BitBrat Platform operates as a series of decoupled microservices communicating via a message bus (Pub/Sub in Google Cloud, or NATS locally). Understanding how an event flows through the system is key to extending its capabilities.
+The BitBrat Platform operates as a series of decoupled microservices communicating via a message bus (NATS for local/self-hosted, or cloud-specific buses like Google Cloud Pub/Sub for managed deployments). Understanding how an event flows through the system is key to extending its capabilities.
 
 ## 1. High-Level Flow
 
@@ -215,7 +215,7 @@ await this.onMessage<InternalEventV2>('internal.analysis.v1', async (event, attr
 2. `ingress-egress` consumes the message
 3. Response translated to platform-specific format (e.g., Twitch chat message)
 4. Message delivered to external platform
-5. (Optional) Audit log persisted to Firestore
+5. (Optional) Audit log persisted to PostgreSQL (or Firestore for legacy deployments)
 
 **Typical Duration:** 50-100ms
 
@@ -320,8 +320,8 @@ All communication between these stages is asynchronous. This allows the platform
 - Services can be scaled independently based on the volume of events they handle.
 
 **Technologies:**
-- **Local/Dev**: NATS JetStream
-- **Production**: Google Cloud Pub/Sub
+- **Local/Dev/Self-Hosted**: NATS JetStream (platform-agnostic default)
+- **Cloud Platforms**: Google Cloud Pub/Sub (GCP), AWS SQS/SNS (AWS), Azure Service Bus (Azure)
 - **Selection**: Controlled via `MESSAGE_BUS_DRIVER` environment variable
 
 **At-Least-Once Delivery:**

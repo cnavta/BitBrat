@@ -12,11 +12,11 @@ BitBrat provides comprehensive backup and migration tools for both Firestore and
 ## Quick Reference
 
 ```bash
-# Manual Firestore backup (config collections only)
-npm run brat -- backup export --target local --out backup.json
-
-# Manual PostgreSQL backup (all data)
+# Manual PostgreSQL backup (all data) - DEFAULT
 DATABASE_URL="..." npm run brat -- pg:backup --output backup.json
+
+# Manual Firestore backup (config collections only) - LEGACY
+npm run brat -- backup export --target local --out backup.json
 
 # Cross-environment migration
 ./tools/scripts/migrate-environment.sh local staging --full --dry-run
@@ -27,7 +27,9 @@ DATABASE_URL="..." npm run brat -- pg:backup --output backup.json
 
 ---
 
-## Firestore Backups
+## Firestore Backups (Legacy)
+
+**Note:** Firestore is a legacy persistence backend. For the default PostgreSQL backend, see [PostgreSQL Backups (Default)](#postgresql-backups-default) below.
 
 ### What Gets Backed Up
 
@@ -127,7 +129,9 @@ Firestore backups use a JSON envelope format:
 
 ---
 
-## PostgreSQL Backups
+## PostgreSQL Backups (Default)
+
+**PostgreSQL is the default persistence backend.** PostgreSQL backups are comprehensive and include all data.
 
 ### What Gets Backed Up
 

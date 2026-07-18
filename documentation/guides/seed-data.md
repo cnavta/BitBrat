@@ -1,20 +1,65 @@
 # Guide: Managing Seed Data
 
-To test the platform locally or in a fresh environment, you often need to load initial configuration, rules, and state into the database (Firestore). This process is referred to as "seeding".
+To test the platform locally or in a fresh environment, you often need to load initial configuration, rules, and state into the database (PostgreSQL or Firestore for legacy deployments). This process is referred to as "seeding".
 
 ## 1. Initial Seeding via `brat setup`
 
-For a new local installation, the **`brat setup`** command is the primary way to seed the platform. It automatically populates Firestore with:
+For a new local installation, the **`brat setup`** command is the primary way to seed the platform.
 
-- **Admin API Tokens**: Required for CLI tools like `brat chat`.
-- **Default Personalities**: The bot identities you configure during setup.
-- **Bootstraps Rules**: A set of base rules that enable core platform flows (Analysis -> Reaction).
+### PostgreSQL Seeding (Default)
 
-If you need to reset these to a clean state, you can run `npm run brat -- setup` again and choose the **wipe** option when prompted.
+When using PostgreSQL (default persistence backend), `brat setup` automatically:
 
-## 2. The Firestore Upsert Tool
+- **Creates Schema**: Runs migrations from `infrastructure/postgres/migrations/` to set up tables
+- **Admin API Tokens**: Inserts required tokens for CLI tools like `brat chat`
+- **Default Personalities**: Inserts bot identities you configure during setup
+- **Bootstrap Rules**: Inserts base rules that enable core platform flows (Analysis → Reaction)
 
-For adding specific rules (like custom commands) or updating existing data without a full reset, use the specialized Firestore upsert tool.
+**Reset/Wipe:** To reset to a clean state with PostgreSQL, you can:
+1. Drop and recreate the database
+2. Re-run migrations: `npm run brat -- setup`
+3. Choose the **wipe** option when prompted
+
+See [PostgreSQL Setup Guide](./postgres-setup.md) for database management details.
+
+### Firestore Seeding (Legacy)
+
+For legacy Firestore deployments, `brat setup` populates the Firestore emulator with:
+
+- **Admin API Tokens**: Required for CLI tools
+- **Default Personalities**: Bot identities
+- **Bootstrap Rules**: Base Event Router rules
+
+**Reset/Wipe:** Run `npm run brat -- setup` and choose the **wipe** option when prompted.
+
+## 2. Adding Custom Data
+
+### PostgreSQL (Default)
+
+For PostgreSQL deployments, you can add custom data using:
+
+1. **SQL Scripts**: Direct SQL inserts/updates
+   ```bash
+   psql $DATABASE_URL -c "INSERT INTO routing_rules (id, priority, enabled, logic, routing) VALUES (...)"
+   ```
+
+2. **Migrations**: Create a new migration file in `infrastructure/postgres/migrations/`
+   ```sql
+   -- File: infrastructure/postgres/migrations/004_custom_rules.sql
+   INSERT INTO routing_rules (id, priority, enabled, description, logic, routing)
+   VALUES ('lurk-command', 100, true, 'Handle !lurk command', '{"and": [...]}', '{"slip": [...]}');
+   ```
+
+3. **Application Code**: Use the DocumentStore API
+   ```typescript
+   await documentStore.set('configs/routingRules/rules', 'lurk-command', ruleData);
+   ```
+
+See [PostgreSQL Setup Guide](./postgres-setup.md) for detailed database operations.
+
+### Firestore (Legacy)
+
+For legacy Firestore deployments, use the specialized Firestore upsert tool:
 
 ```bash
 npm run firestore:upsert -- <path> <data> [--id <id>] [--merge]
@@ -29,37 +74,88 @@ npm run firestore:upsert -- <path> <data> [--id <id>] [--merge]
 
 The repository contains several reference rules in `documentation/reference/setup/` that you can use to seed your platform.
 
-### Example: Loading the !lurk command
-
-The `!lurk` command is a classic example of an Event Router rule. To load it:
+### PostgreSQL: Loading Reference Rules
 
 ```bash
-npm run firestore:upsert -- configs/routingRules/rules @documentation/reference/setup/lurk_command_rule.json
+# Load a single rule using SQL
+psql $DATABASE_URL < documentation/reference/setup/lurk_command_rule.sql
+
+# Or use the DocumentStore API via application code
+# (Recommended for production)
 ```
 
-### Example: Loading multiple rules
-
-You can load all provided reference rules using a simple loop in your terminal:
+### Firestore: Loading Reference Rules (Legacy)
 
 ```bash
+# Load the !lurk command
+npm run firestore:upsert -- configs/routingRules/rules @documentation/reference/setup/lurk_command_rule.json
+
+# Load all reference rules
 for rule in documentation/reference/setup/*.json; do
   npm run firestore:upsert -- configs/routingRules/rules "@$rule"
 done
 ```
 
-## 3. Verifying Seeded Data
+## 4. Verifying Seeded Data
 
-After running the upsert commands, you can verify that the rules are loaded by:
+After seeding, verify that the data is loaded correctly:
 
-1.  **Checking the Firestore Emulator UI**: If running locally, visit `http://localhost:4000/firestore` (default port).
-2.  **Using `brat chat`**: Send a message like `!lurk` in the chat to see if the platform reacts as expected.
-3.  **Brat Doctor**: Run `npm run brat -- doctor` to ensure the core configurations are correctly detected.
+### PostgreSQL
 
-## 4. Custom Seed Data
+```bash
+# Check routing rules
+psql $DATABASE_URL -c "SELECT id, priority, enabled, description FROM routing_rules ORDER BY priority;"
 
-You can create your own seed data by following the JSON format of the reference rules. 
+# Check personalities
+psql $DATABASE_URL -c "SELECT id, name, active FROM personalities;"
 
-- **Rules**: Should be placed in `configs/routingRules/rules`.
-- **Global Config**: Should be placed in `configs/platform/globals/default`.
+# Check admin tokens
+psql $DATABASE_URL -c "SELECT id, name, scopes FROM auth_tokens WHERE active = true;"
+```
 
-For more information on the Rule format, see the [Event Router & Rules](../concepts/event-router-rules.md) concept guide.
+### Firestore (Legacy)
+
+1. **Firestore Emulator UI**: Visit `http://localhost:4000/firestore` (default port)
+2. **Browse Collections**: Navigate to `configs/routingRules/rules`
+
+### Platform-Agnostic Verification
+
+- **Using `brat chat`**: Send a message like `!lurk` to test if rules are working
+- **Brat Doctor**: Run `npm run brat -- doctor` to verify core configurations
+
+## 5. Custom Seed Data
+
+You can create your own seed data by following the reference formats.
+
+### Data Structure
+
+- **Rules**: Collection `configs/routingRules/rules`
+- **Personalities**: Collection `personalities`
+- **Global Config**: Collection `configs/platform/globals`
+- **Auth Tokens**: Collection `auth_tokens`
+
+### Rule Format
+
+For detailed rule format, see [Event Router & Rules](../concepts/event-router-rules.md).
+
+**Example Rule Structure:**
+```json
+{
+  "id": "my-custom-rule",
+  "priority": 100,
+  "enabled": true,
+  "description": "My custom command",
+  "logic": {
+    "and": [
+      { "===": [{ "var": "message.text" }, "!mycommand"] }
+    ]
+  },
+  "routing": {
+    "slip": [
+      { "id": "reflex", "nextTopic": "internal.reflex.v1" }
+    ]
+  }
+}
+```
+
+See [PostgreSQL Setup Guide](./postgres-setup.md) for schema details and migration management.

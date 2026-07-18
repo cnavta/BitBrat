@@ -78,7 +78,7 @@ BitBrat decomposes the classic agent loop into independent, message-passing serv
   - **LLM-Based**: `llm-bot` / `query-analyzer` reason and select tools via full AI inference (2-10s)
   - Both paths call tools via MCP servers behind `tool-gateway`
 - **Observe / Memory** — `state-engine`, `disposition-service`, and `persistence` store state and
-  history in Firestore.
+  history in PostgreSQL (default) or Firestore (legacy).
 
 **Key Insight**: The dual execution paths let you choose speed/cost vs. reasoning capability per event type.
 

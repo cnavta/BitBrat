@@ -6,10 +6,15 @@ This guide will help you get the BitBrat Platform running on your local machine 
 
 Before you begin, ensure you have the following tools installed:
 
+**Core Requirements:**
 - **Node.js**: Version 24.x or higher.
 - **Docker**: Desktop or Engine with Docker Compose support.
-- **Google Cloud SDK (gcloud)**: Required for interaction with GCP services (even when running locally, some configs depend on GCP project structure).
+- **PostgreSQL**: Local instance, Docker container, or managed service (AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted). See [PostgreSQL Setup Guide](../guides/postgres-setup.md).
 - **Git**: To clone and manage the repository.
+
+**Optional:**
+- **OpenAI API Key**: Required for the default OpenAI LLM provider. Skip if running fully offline with Ollama (see below).
+- **Google Cloud SDK (gcloud)**: Only required if deploying to GCP Cloud Run or using Firestore (legacy). Not needed for Docker-based deployments with PostgreSQL.
 
 ## 2. Clone the Repository
 
@@ -35,9 +40,10 @@ npm run brat -- setup
 ```
 
 During this process, you will be prompted for:
-- **GCP Project ID**: Your Google Cloud project identifier.
+- **PostgreSQL Connection**: Your PostgreSQL connection details (host, port, database, credentials). Works with any PostgreSQL service (local Docker, AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted).
 - **OpenAI API Key**: Required for the default OpenAI provider. **You can leave this blank** if you plan to run fully offline with a local model (see below).
 - **Bot Name**: The display name for your BitBrat bot.
+- **GCP Project ID** (optional): Only needed if deploying to GCP Cloud Run or using Firestore (legacy).
 
 ### Offline / Local-LLM mode (no OpenAI key)
 
@@ -58,10 +64,12 @@ No `LLM_API_KEY` is needed for Ollama. See the README [Offline / Local-LLM Quick
 The setup command performs several critical initialization steps:
 1.  **Configuration Files**: Creates `.bitbrat.json` (admin credentials), `.secure.local` (secrets), and `env/local/global.yaml` (environment variables).
 2.  **Admin Token**: Generates a unique API token for local administration and saves it to `.bitbrat.json`.
-3.  **Initial Seeding**: Automatically populates the local Firestore emulator with:
+3.  **Initial Seeding**: Automatically populates your PostgreSQL database (or Firestore emulator if using legacy mode) with:
     - **Personalities**: Sets up the default bot personality you defined.
     - **Core Rules**: Bootstraps the [Event Router](../concepts/event-router-rules.md) with base rules for analysis and bot mentions.
-    - **Security**: Sets up initial authentication tokens in Firestore.
+    - **Security**: Sets up initial authentication tokens.
+
+**Platform-Agnostic**: The setup process works with any PostgreSQL service. The persistence layer is configurable via `PERSISTENCE_DRIVER` (default: `postgres`). For legacy Firestore support, set `PERSISTENCE_DRIVER=firestore`.
 
 ## 5. Health Check
 

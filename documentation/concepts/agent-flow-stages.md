@@ -129,7 +129,7 @@ Observe        →             Introspection (learn)
 **Example Rule (Attention):**
 
 ```typescript
-// File: Firestore collection: configs/routingRules/rules/<rule-id>
+// File: Database collection: configs/routingRules/rules/<rule-id>
 {
   "id": "twitch-chat-attention",
   "priority": 100,
@@ -367,7 +367,7 @@ export class PersistenceService extends Bit {
     await this.onMessage<InternalEventV2>(
       'internal.audit.v1',
       async (event, attrs, ctx) => {
-        // Log full event lifecycle to Firestore
+        // Log full event lifecycle to database
         await this.auditLog(event);
         await ctx.ack();
         // No next() — terminal stage
@@ -553,7 +553,7 @@ grep -r "routing.stage.*analysis" . --include="*.ts"
 **Contextualization Stage Rule:**
 
 ```typescript
-// File: Firestore configs/routingRules/rules/contextualization-rule
+// File: Database configs/routingRules/rules/contextualization-rule
 {
   "id": "auth-required",
   "priority": 50,
@@ -575,7 +575,7 @@ grep -r "routing.stage.*analysis" . --include="*.ts"
 **Analysis Stage Rule:**
 
 ```typescript
-// File: Firestore configs/routingRules/rules/analysis-rule
+// File: Database configs/routingRules/rules/analysis-rule
 {
   "id": "llm-analysis",
   "priority": 100,
