@@ -1,5 +1,13 @@
 # Firestore Collection: `context_packs`
 
+> **DEPRECATED - LEGACY BACKEND**
+>
+> This document describes the Firestore implementation of Context Packs, which is **legacy** and supported for existing deployments only.
+>
+> **Default Backend:** BitBrat now uses **PostgreSQL** as the default persistence backend. For PostgreSQL Context Packs schema, see [PostgreSQL Persistence Guide](../guides/postgres-persistence.md) (coming soon).
+>
+> **Migration:** If you're using Firestore, consider migrating to PostgreSQL. See [Backup and Migration Guide](../guides/backup-and-migration.md).
+
 **Purpose:** Store Context Packs with vector embeddings for semantic retrieval (P4 RAG Scale-Out, sprint-338).
 
 **Created:** 2026-07-11 (sprint-338)

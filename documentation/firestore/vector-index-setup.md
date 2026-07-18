@@ -1,5 +1,13 @@
 # Firestore Vector Index Setup for Context Packs
 
+> **DEPRECATED - LEGACY BACKEND**
+>
+> This document describes Firestore vector index setup, which is **legacy** and supported for existing Firestore deployments only.
+>
+> **Default Backend:** BitBrat now uses **PostgreSQL** as the default persistence backend. PostgreSQL vector search uses the `pgvector` extension. See [PostgreSQL Persistence Guide](../guides/postgres-persistence.md) (coming soon) for vector search setup with pgvector.
+>
+> **Migration:** If you're using Firestore, consider migrating to PostgreSQL. See [Backup and Migration Guide](../guides/backup-and-migration.md).
+
 **Sprint:** 338 (P4 RAG Scale-Out)
 **Created:** 2026-07-11
 **Purpose:** Document vector index creation for `context_packs` collection
