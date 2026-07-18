@@ -9,7 +9,7 @@ The `query-analyzer` is a high-performance linguistic analysis service that acts
 - **Risk Assessment**: Detects harassment, spam, privacy violations, and other risky content.
 - **Short-Circuiting**: Automatically terminates processing for spam or high-risk messages, saving expensive primary LLM tokens.
 - **Adaptive Model Selection Support**: Enriches events with annotations that allow `llm-bot` to select the most appropriate model (e.g., GPT-4o vs. GPT-4o-mini).
-- **Prompt Logging**: Logs all queries and analysis results to Firestore for audit and training purposes, including token usage metrics.
+- **Prompt Logging**: Logs all queries and analysis results to the database for audit and training purposes, including token usage metrics.
 
 ## Architecture
 
@@ -44,9 +44,9 @@ The service produces three types of annotations with the source `query-analyzer`
 
 ### Prompt Logging
 
-The service logs every analysis request to Firestore for audit and debugging.
+The service logs every analysis request to the database for audit and debugging.
 
-- **Storage Path**: `services/query-analyzer/prompt_logs/{logId}`
+- **Storage Path (Database)**: `services/query-analyzer/prompt_logs/{logId}` (collection or table depending on backend)
 - **Fields**:
     - `correlationId`: Unique ID to trace the request across services.
     - `prompt`: The query text (redacted).
@@ -66,5 +66,5 @@ The service logs every analysis request to Firestore for audit and debugging.
 | `LLM_MODEL` | `llama3` | Model to use for analysis (e.g., `llama3`, `gpt-4o-mini`) |
 | `OLLAMA_HOST` | `http://localhost:11434` | URL of the Ollama API (only for `ollama` provider) |
 | `OPENAI_API_KEY` | N/A | OpenAI API Key (required for `openai` provider) |
-| `FF_LLM_PROMPT_LOGGING` | `false` | Feature flag to enable prompt logging to Firestore. |
+| `FF_LLM_PROMPT_LOGGING` | `false` | Feature flag to enable prompt logging to database. |
 | `SERVICE_PORT` | `3000` | Port for the service to listen on |

@@ -27,7 +27,7 @@ Rules determine which path (or both) an event takes by specifying routing slip t
 
 ## 2. Rule Format
 
-Rules are stored in Firestore under `configs/routingRules/rules`. Each rule is a JSON document with the following structure:
+Rules are stored in the database under `configs/routingRules/rules`. Each rule is a JSON document with the following structure:
 
 ### Core Fields
 - **`enabled`** (boolean): Whether the rule is active.

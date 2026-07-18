@@ -1,64 +1,45 @@
 # BitBrat Platform
 
-> [!WARNING]
-> **Early & Experimental Development Stage**: This project started as a way for me to better understand scalable LLM Agent collaboration. As is, it has been mainly a work between myself and multiple LLM coding agents. It is currently in early development. APIs, configuration schemas, and core architectures are subject to significant changes.
->
-> Several design decisions were deliberately fixed to keep scope simple and focus exploration:
-> - The only target platforms are Docker Compose and Google Cloud.
-> - The only persistence framework supported is Firestore.
-> - Logging, persisted data and message verbosity is deliberately high to facilitate ease of learning and debugging.
-> 
-> These all could be fairly easily updated to support additional options, I have just not focused on them specifically in favor of learning and exploring LLM coding and AI agent orchestration.
+**BitBrat is an event-driven LLM orchestration engine** that decomposes the classic agent loop (perceive → plan → act → observe) into independent microservices communicating over a message bus. Platform-agnostic by design—runs anywhere Docker and PostgreSQL are available.
+
+**Early Experimental Development:** BitBrat is in active development, exploring scalable LLM agent orchestration patterns through collaboration between human developers and AI coding agents. APIs, configuration schemas, and core architectures are subject to change. Logging and message verbosity are deliberately high to facilitate learning and debugging.
 
 <p align="center">
-  <img src="./assets/assets/BitBrat.png" alt="Description of Image" width="300"/>
+  <img src="./assets/assets/BitBrat.png" alt="BitBrat Platform Logo" width="300"/>
 </p>
 
-## What is BitBrat?
+## Core Concepts
 
-**BitBrat is an event-driven LLM orchestration engine for building AI agents.** Rather than a single
-monolithic "agent" object, BitBrat decomposes the classic agent loop into independent, message-passing
-microservices that communicate over a unified bus (NATS locally / Google Cloud Pub/Sub in production).
-**Streaming is the reference application** — the shipped services react to Twitch/Discord/Twilio events —
-but nothing about the core engine is streaming-specific.
+BitBrat implements a **5-stage agent flow model** where each stage maps to independent services that enrich events and advance a routing slip:
 
-### The agent loop, mapped to BitBrat services
-
-If you are evaluating BitBrat as an **AI agent framework**, this is where "the agent" lives. BitBrat uses a
-**5-stage agent flow model** that decomposes the traditional perceive → plan → act → observe loop into more
-granular stages. Each stage maps directly onto real services defined in [`architecture.yaml`](./architecture.yaml):
-
-| Stage | Purpose | BitBrat realization | Service(s) |
+| Stage | Purpose | BitBrat Services | Pattern |
 |---|---|---|---|
-| **Attention** | What events are important? How important? | Match events against [JsonLogic rules](https://jsonlogic.com/) and attach a **routing slip** | `event-router` |
-| **Contextualization** | Reestablish context (auth, env) BEFORE analysis | Enrich with user identity, permissions, environmental state | `auth`, `query-analyzer` |
-| **Analysis** | What does this mean? What responses/actions? | LLM reasoning OR deterministic pattern-match, tool selection | `llm-bot`, **`reflex`**, `query-analyzer` |
-| **Reaction** | Execute actions, mutate state | Tool execution via MCP, state mutations, response preparation | `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`), `state-engine`, `disposition-service` |
-| **Introspection** | What did we learn? Feedback loops | Persist audit logs, collect feedback (future enhancements) | `persistence` |
+| **Attention** | Match events against rules, attach routing slip | `event-router` | Rule-driven planning via JsonLogic |
+| **Contextualization** | Reestablish context (auth, environment) BEFORE analysis | `auth`, `query-analyzer` | Enrich with identity, permissions, state |
+| **Analysis** | LLM reasoning OR deterministic pattern-match, tool selection | `llm-bot`, `reflex`, `query-analyzer` | Add candidate responses/actions |
+| **Reaction** | Execute actions, mutate state, prepare responses | `tool-gateway` + MCP servers, `state-engine`, `disposition-service` | Tool execution, state mutations |
+| **Introspection** | Persist audit logs, collect feedback | `persistence` | Durable event history |
 
-The **routing slip** is BitBrat's orchestration mechanism: an ordered, self-describing list of steps that
-travels *with* the message, so each service simply **enriches the event and calls `next()`** to advance
-the slip. See the [5-Stage Agent Flow Model](./documentation/concepts/agent-flow-stages.md) and
-[Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for details.
+**Key Abstractions:**
 
-### Why BitBrat (beyond streaming)
-
-The same primitives — typed event ingest, rule-driven planning, an MCP tool layer, and durable
-memory — apply to any **event-driven agent**: chat-ops bots, webhook/automation pipelines, customer-support
-triage, or IoT/telephony reactions. Swap the `ingress-egress` adapters and the Event Router rules, and the
-reasoning/tool/memory planes are reused unchanged.
-
-### Core Agent Concepts
-
-| Concept | In BitBrat | Where it lives |
+| Concept | Description | Where to Learn More |
 |---|---|---|
-| **Agent-flow pattern** | Bits participate in orchestration by **enriching events** (add annotations/candidates) and **calling `next()`** to advance the routing slip | [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md), [5-Stage Model](./documentation/concepts/agent-flow-stages.md), EventingProfile |
-| **Reasoning loop** | The Event Router matches rules and assigns a **routing slip**; the framework advances the slip step-by-step via `next()`; analysis services (`llm-bot`, `query-analyzer`) add candidate responses | [Event Router & Rules](./documentation/concepts/event-router-rules.md), [Platform Flow](./documentation/concepts/platform-flow.md) |
-| **Tool use** | Tools are exposed to the LLM via **MCP servers** and brokered/secured by `tool-gateway` | `tool-gateway`, `obs-mcp`, `image-gen-mcp`, `story-engine-mcp` |
-| **Memory** | Durable state and audit history in Firestore; short-term, TTL-bounded behavior via the disposition service | `persistence`, `state-engine`, `disposition-service` |
-| **Message contract** | Every message is an `Envelope v1` carrying `correlationId`, `routingSlip`, etc. | [`envelope.v1.json`](./documentation/schemas/envelope.v1.json), [`routing-slip.v1.json`](./documentation/schemas/routing-slip.v1.json) |
+| **Bit** | Every service is a Bit—a unit that extends a common base abstraction and always exposes a universal `bit.*` MCP control plane | [The Bit Model](./documentation/concepts/bit-model.md), [Bit Control Plane](./documentation/reference/bit-control-plane.md) |
+| **Routing Slip** | Ordered, self-describing list of processing steps that travels WITH the message; services enrich events and call `next()` to advance the slip | [5-Stage Agent Flow](./documentation/concepts/agent-flow-stages.md), [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) |
+| **Envelope** | Every message is an Envelope v1 carrying `correlationId`, `routingSlip`, payload, annotations, and metadata | [`envelope.v1.json`](./documentation/schemas/envelope.v1.json), [`routing-slip.v1.json`](./documentation/schemas/routing-slip.v1.json) |
+| **Enrich-and-Next** | Canonical pattern: subscribe to stage topic → enrich event (add annotations/candidates) → call `next()` → acknowledge message | [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md), [Building an Enrichment Bit](./documentation/tutorials/building-an-enrichment-bit.md) |
+| **MCP Tools** | Tools exposed to LLM via Model Context Protocol servers, brokered by `tool-gateway` with RBAC enforcement | `tool-gateway`, `obs-mcp`, `image-gen-mcp`, `story-engine-mcp` |
+| **Memory** | Durable state in PostgreSQL (default, platform-agnostic) or Firestore (legacy, GCP-specific); short-term behavior via `disposition-service` | `persistence`, `state-engine`, `disposition-service` |
 
-### Extending BitBrat
+**Platform-Agnostic Architecture:**
+
+BitBrat runs anywhere Docker and PostgreSQL are available—cloud providers (AWS ECS, GCP Cloud Run, Azure Container Instances), self-hosted infrastructure, or local development. Docker provides the baseline deployment model; specific platforms (GCP, AWS, Azure) are validated implementation choices, not requirements. No vendor lock-in.
+
+## Why BitBrat
+
+**Streaming is the reference application**—the shipped services react to Twitch/Discord/Twilio events—but nothing about the core engine is streaming-specific. The same primitives (typed event ingest, rule-driven planning, MCP tool layer, durable memory) apply to any event-driven agent: chat-ops bots, webhook automation, customer-support triage, IoT/telephony reactions. Swap the `ingress-egress` adapters and Event Router rules; the reasoning/tool/memory planes are reused unchanged.
+
+## Extending BitBrat
 
 Adding a new agent capability is a matter of adding a service, an MCP tool, or a routing rule:
 
@@ -209,13 +190,13 @@ flowchart TB
   LB <--> TG[tool-gateway]
   RFX <--> TG
   TG <--> MCP["MCP Servers<br/>(Domain Bits)"]
-  PE --> FS[(Firestore)]
+  PE --> DB[(PostgreSQL<br/>or Firestore)]
 
   classDef store fill:#eef,stroke:#669;
   classDef platform fill:#e8f5e9,stroke:#4caf50;
   classDef domain fill:#fff3e0,stroke:#ff9800;
   classDef bus fill:#e3f2fd,stroke:#2196f3;
-  class FS store;
+  class DB store;
   class IE,ER,AU,LB,QA,RFX,TG,SE,DS,PE platform;
   class MCP domain;
   class BUS bus;
@@ -233,15 +214,15 @@ flowchart TB
 
 ### Capabilities Matrix
 
-| Dimension | Supported today | Notes |
-|---|---|---|
-| **Ingress/egress platforms** | Twitch (IRC & EventSub), Discord, Twilio Conversations | Add more by extending `ingress-egress` adapters. |
-| **LLM providers** | OpenAI (default), **Ollama** (local/offline), vLLM (OpenAI-compatible) | Selected via `LLM_PROVIDER`/`LLM_MODEL`/`LLM_BASE_URL`. |
-| **Tooling** | Model Context Protocol (MCP) via `tool-gateway` + MCP servers (`obs-mcp`, `image-gen-mcp`, `story-engine-mcp`) | Tools are exposed to the LLM at the "act" stage. |
-| **Message bus** | NATS (local/dev), Google Cloud Pub/Sub (production) | Selected via `MESSAGE_BUS_DRIVER`. |
-| **Persistence** | Google Cloud Firestore | Only supported persistence backend (by design, pre-1.0). |
-| **Deploy targets** | Docker Compose (local), Google Cloud Run (production) | Only supported targets (by design, pre-1.0). |
-| **Control plane** | Universal `bit.*` MCP toolset on every Bit, driven fleet-wide by `brat fleet` | RBAC-scoped (`bit:read` / `bit:operate`); see the [control-plane reference](./documentation/reference/bit-control-plane.md). |
+| Dimension | Supported Today | Platform Examples | Notes |
+|---|---|---|---|
+| **Persistence** | **PostgreSQL** (default), Firestore (legacy) | AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted PostgreSQL | Platform-agnostic. Selected via `PERSISTENCE_DRIVER`. Firestore is GCP-specific and deprecated. |
+| **Deploy Targets** | Docker (Docker Compose, container platforms) | AWS ECS, GCP Cloud Run, Azure Container Instances, self-hosted Docker | Platform-agnostic. Docker provides baseline; cloud platforms are validated options, not requirements. |
+| **Message Bus** | NATS (local/dev), Google Cloud Pub/Sub (production) | NATS (platform-agnostic), GCP Pub/Sub, AWS SQS/SNS, Azure Service Bus | Selected via `MESSAGE_BUS_DRIVER`. NATS is platform-agnostic default. |
+| **Ingress/Egress** | Twitch (IRC & EventSub), Discord, Twilio Conversations | Any platform with webhook/WebSocket APIs | Add more by extending `ingress-egress` adapters. |
+| **LLM Providers** | OpenAI (default), **Ollama** (local/offline), vLLM (OpenAI-compatible) | Any OpenAI-compatible API | Selected via `LLM_PROVIDER`/`LLM_MODEL`/`LLM_BASE_URL`. |
+| **Tooling** | Model Context Protocol (MCP) via `tool-gateway` + MCP servers | `obs-mcp`, `image-gen-mcp`, `story-engine-mcp` | Tools are exposed to LLM during analysis/reaction stages. |
+| **Control Plane** | Universal `bit.*` MCP toolset on every Bit, driven fleet-wide by `brat fleet` | RBAC-scoped (`bit:read`, `bit:operate`) | See [Bit Control Plane Reference](./documentation/reference/bit-control-plane.md). |
 
 ## Getting Started
 
@@ -249,13 +230,17 @@ flowchart TB
 
 ### Prerequisites
 
+**Core Requirements:**
 - **Node.js** (v24.x or higher)
 - **npm**
 - **Docker** and Docker Compose
-- **Google Cloud SDK (`gcloud`)** — some local configs depend on GCP project structure.
 - **Git**
-- **OpenAI API Key** — required for the default OpenAI provider. **Optional** if you run fully offline with a local model — see [Offline / Local-LLM Quickstart](#offline--local-llm-quickstart-no-openai-key) below.
-- **Coding Agent** (optional, for `brat code`) — one of:
+- **PostgreSQL** (local instance, Docker container, or managed service) — for persistence. See [PostgreSQL Setup Guide](./documentation/guides/postgres-setup.md).
+
+**Optional:**
+- **OpenAI API Key** — required for the default OpenAI LLM provider. Skip if running fully offline with Ollama — see [Offline / Local-LLM Quickstart](#offline--local-llm-quickstart-no-openai-key).
+- **Google Cloud SDK (`gcloud`)** — only required if deploying to GCP Cloud Run or using Firestore (legacy). Not needed for Docker-based deployments with PostgreSQL.
+- **Coding Agent** (for `brat code` AI-assisted development):
   - **Claude Code** (recommended): `npm install -g @anthropic-ai/claude-code`
   - **Aider**: `pip install aider-chat`
   - **Continue**: `npm install -g continue`
@@ -280,11 +265,13 @@ npm install
 npm run brat -- setup
 ```
 
-The interactive `setup` command guides you through configuring your **GCP Project ID**, **OpenAI API Key**, and **Bot Name**. It also bootstraps your local environment by:
+The interactive `setup` command guides you through configuring your **PostgreSQL connection**, **OpenAI API Key**, and **Bot Name**. It also bootstraps your local environment by:
 
 - **Configuration**: Generating `.bitbrat.json` (admin credentials), `.secure.local` (secrets), and `env/local/global.yaml`.
 - **Admin Token**: Creating a unique API token for local administration (used by tools like `brat chat`).
-- **Initial Seeding**: Populating the local Firestore emulator with default bot **personalities**, base **Event Router rules** (analysis and bot-mention handling), and initial **authentication tokens**.
+- **Initial Seeding**: Populating your PostgreSQL database (or Firestore emulator if using legacy mode) with default bot **personalities**, base **Event Router rules** (analysis and bot-mention handling), and initial **authentication tokens**.
+
+**Platform-Agnostic:** The setup process works with any PostgreSQL service (local Docker, AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted). For GCP deployments, you'll also configure your GCP Project ID during setup.
 
 See [Managing Seed Data](./documentation/guides/seed-data.md) for details on the seeded data and how to extend it.
 

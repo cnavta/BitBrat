@@ -1,5 +1,13 @@
 # Technical Architecture — `brat backup`: Firestore Config Export / Import (v1)
 
+> **DEPRECATED LEGACY DESIGN**
+>
+> This document describes a **Firestore-specific backup design** which is now **legacy**. The `brat backup` command was implemented for Firestore but is deprecated in favor of PostgreSQL-based persistence.
+>
+> **Current Implementation:** BitBrat now uses **PostgreSQL** as the default persistence backend. For backup/restore operations, see:
+> - [Backup and Migration Guide](../guides/backup-and-migration.md) - PostgreSQL `pg:backup` and `pg:restore` commands
+> - PostgreSQL backups are comprehensive (all data), while Firestore backups are config-only
+
 > Status: **Proposed** (sprint-319-740b5b, Task 1 — design only; no implementation yet)
 > Owner: Architect
 > Precedence: `architecture.yaml` is canonical. This document defines an approach; any conflict

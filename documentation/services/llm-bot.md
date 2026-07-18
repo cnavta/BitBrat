@@ -25,9 +25,9 @@ The service is a Node.js application built on the `BaseServer` framework.
 
 ### Prompt Logging
 
-The service logs every LLM interaction to Firestore for audit, debugging, and analytics.
+The service logs every LLM interaction to the database for audit, debugging, and analytics.
 
-- **Storage Path**: `services/llm-bot/prompt_logs/{logId}`
+- **Storage Path (Database)**: `services/llm-bot/prompt_logs/{logId}` (collection or table depending on backend)
 - **Fields**:
     - `correlationId`: Unique ID to trace the request across services.
     - `prompt`: The fully assembled prompt sent to the LLM (redacted).
@@ -52,7 +52,7 @@ Relevant environment variables for the LLM Bot service:
 | `OPENAI_API_KEY` | N/A | OpenAI API Key. |
 | `PERSONALITY_ENABLED` | `true` | Enable personality injection. |
 | `USER_CONTEXT_ENABLED` | `true` | Enable user context enrichment. |
-| `FF_LLM_PROMPT_LOGGING` | `false` | Feature flag to enable prompt logging to Firestore. |
+| `FF_LLM_PROMPT_LOGGING` | `false` | Feature flag to enable prompt logging to database. |
 | `LLM_BOT_MEMORY_MAX_MESSAGES` | `8` | Maximum messages to keep in short-term memory. |
 | `LLM_BOT_MEMORY_MAX_CHARS` | `8000` | Maximum characters to keep in short-term memory. |
 | `LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED` | `true` | Inject normalized intent/tone/risk guidance into prompt constraints and task framing. |

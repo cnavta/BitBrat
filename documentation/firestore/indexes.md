@@ -1,5 +1,13 @@
 # Firestore Indexes — Command Processor
 
+> **DEPRECATED - LEGACY BACKEND**
+>
+> This document describes Firestore index requirements, which are **legacy** and supported for existing Firestore deployments only.
+>
+> **Default Backend:** BitBrat now uses **PostgreSQL** as the default persistence backend. PostgreSQL uses standard B-tree indexes managed via migrations. See [PostgreSQL Setup Guide](../guides/postgres-setup.md) (coming soon).
+>
+> **Migration:** If you're using Firestore, consider migrating to PostgreSQL. See [Backup and Migration Guide](../guides/backup-and-migration.md).
+
 Date: 2025-12-01
 Sprint: sprint-108-bc7a2d
 

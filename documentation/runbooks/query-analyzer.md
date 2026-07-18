@@ -72,11 +72,11 @@ Search for the following log keys in Cloud Logging or via `npm run local:logs`:
 - `query-analyzer.llm_provider_error`: Errors communicating with the LLM provider (Ollama or OpenAI).
 - `llm_bot.adaptive_model_selection`: Downstream model selection based on analyzer output.
 
-### Firestore Monitoring
+### Database Monitoring
 
-You can inspect analysis results and token usage in Firestore:
+You can inspect analysis results and token usage in the database:
 
-- **Collection**: `services/query-analyzer/prompt_logs`
+- **Storage Path (Database)**: `services/query-analyzer/prompt_logs` (collection or table depending on backend)
 - **Use Case**:
     - Auditing classification accuracy.
     - Debugging risk assessment false positives.

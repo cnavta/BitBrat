@@ -28,7 +28,7 @@ Every service is a **Bit** that:
 3. **Analyze**: Services like `llm-bot`, `query-analyzer` enrich events via `internal.enriched.v1`
 4. **React**: `state-engine`, `disposition-service` apply mutations
 5. **Egress**: Responses delivered back via `internal.egress.v1` to the originating platform
-6. **Persist**: Events durably captured in Firestore
+6. **Persist**: Events durably captured in PostgreSQL (or Firestore for legacy deployments)
 
 All messages are `Envelope v1` (see documentation/schemas/envelope.v1.json) with a `routingSlip` that travels with the message.
 
@@ -89,11 +89,11 @@ npm run brat -- bit create <name> --register --active                  # Create 
 
 ### Deployment
 ```bash
-npm run brat -- deploy services --all         # Deploy all active services to Cloud Run
+npm run brat -- deploy services --all         # Deploy all active services (target platform configured in architecture.yaml)
 npm run brat -- deploy service <name>         # Deploy specific service
-npm run brat -- infra plan <module>           # Terraform plan (network/lb/connectors/buckets)
-npm run brat -- infra apply <module>          # Apply infrastructure changes
-npm run brat -- lb urlmap render              # Generate Load Balancer URL map
+npm run brat -- infra plan <module>           # Terraform plan for cloud infrastructure (GCP: network/lb/connectors/buckets)
+npm run brat -- infra apply <module>          # Apply infrastructure changes (cloud platforms)
+npm run brat -- lb urlmap render              # Generate Load Balancer URL map (GCP Cloud Run)
 ```
 
 ### Fleet Control Plane (MCP-based administration)
@@ -205,8 +205,11 @@ npm test -- --watch                # Watch mode
 
 ### Environment Configuration
 - Service configs are defined in architecture.yaml under `services.<name>.env` and `services.<name>.secrets`
-- Secrets are resolved from Google Secret Manager (no values in YAML)
-- Local dev uses `.env` files; Cloud Run injects secrets at runtime
+- Secrets management:
+  - **Local/self-hosted**: `.env` files
+  - **GCP Cloud Run**: Google Secret Manager
+  - **AWS ECS**: AWS Secrets Manager or Parameter Store
+  - **Azure**: Azure Key Vault
 - Some integrations (Twilio, Discord) are optional in local development
 
 ### Message Versioning
@@ -221,6 +224,151 @@ npm test -- --watch                # Watch mode
   - `SERVICE_PORT`: `services.<name>.port` (default 3000)
   - `SERVICE_ENTRY`: entry point mapped from `src/` to `dist/` (e.g., `src/apps/llm-bot-service.ts` → `dist/apps/llm-bot-service.js`)
 - Escape hatch: a service may ship its own `Dockerfile.<service>` when the standard image cannot express its needs
+
+## Documentation Standards
+
+### LLM-First Documentation Philosophy
+
+**BitBrat documentation prioritizes information density and discoverability for LLM evaluators while remaining human-readable.**
+
+This approach recognizes that LLMs (including coding agents like Claude Code, Aider, Continue) are primary consumers of technical documentation. When creating or updating documentation:
+
+#### Core Principles
+
+1. **Critical Information First**
+   - First 100 words must contain: What is this? What does it do? How does it work?
+   - No preamble, background, or history before substance
+   - Definition → Status → Core Concepts → Details
+
+2. **Dense, Scannable Structure**
+   - **Tables over prose**: Use tables for structured data (capabilities, stages, configurations)
+   - **Lists over paragraphs**: Break down complex information into bulleted lists
+   - **Headers are descriptive**: "PostgreSQL Backup (Default)" not "Backup Options"
+   - **Code examples near definitions**: Don't bury examples at the end
+
+3. **Technical Precision**
+   - Use exact technical terms: "PostgreSQL" not "the database"
+   - No ambiguous pronouns without clear antecedents
+   - No marketing language where technical precision is needed
+   - Specify versions, file paths, command syntax exactly
+
+4. **Cross-References**
+   - Use exact section/file names: `[Backup Guide](../guides/backup-and-migration.md)` not "see above"
+   - Provide file paths for code references: `src/common/base-server.ts:67`
+   - Link to related concepts explicitly
+
+5. **Platform-Agnostic Language**
+   - Default to generic terms: "database" not "Firestore", "message bus" not "Pub/Sub"
+   - Show platform-agnostic baseline first: Docker + PostgreSQL + NATS
+   - Cloud platforms as examples: "AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted"
+   - Mark legacy/deprecated clearly: "Firestore (legacy, deprecated)"
+
+#### Documentation File Structure
+
+Every documentation file should follow this structure:
+
+```markdown
+# [Precise Title]
+
+[1-3 sentence definition: What is this? What does it do?]
+
+[Optional status indicator: Experimental, Deprecated, Legacy]
+
+## Core Concepts (if applicable)
+
+| Concept | Description | Example |
+|---------|-------------|---------|
+| ...     | ...         | ...     |
+
+## Quick Reference
+
+```bash
+# Most common commands/patterns
+command --flag value
+```
+
+## [Main Content Sections]
+
+### [Descriptive Headers]
+- Bullet points for processes
+- Tables for structured data
+- Code blocks with syntax highlighting
+
+## Troubleshooting (if applicable)
+
+### Error: [Exact Error Message]
+**Cause**: ...
+**Solution**: ...
+
+## See Also
+- [Exact File Name](./path/to/file.md) - Brief description
+```
+
+#### README.md Special Considerations
+
+The README is the entry point for LLM evaluators. It must:
+
+1. **Line 1-3**: Concise definition (1-2 sentences, exact technical terms)
+2. **Line 4-6**: Brief status indicator (experimental, production, etc.)
+3. **Line 7-50**: Core Concepts table or structured overview
+4. **Line 51+**: Architecture diagram before long-form narrative
+5. **No WARNING boxes**: Use concise inline status indicators instead
+6. **Prerequisites early**: Section 2 or 3, not buried
+
+#### Updating Documentation
+
+When updating existing documentation:
+
+1. **Audit existing content** for LLM-friendliness:
+   - Is critical info in first 100 words?
+   - Are tables used instead of prose lists?
+   - Are headers precise and descriptive?
+   - Are code examples current and properly formatted?
+
+2. **Maintain consistency**:
+   - PostgreSQL = "default" or "default, platform-agnostic"
+   - Firestore = "legacy, deprecated" or "legacy, GCP-specific"
+   - GCP = "one validated option" not "the deployment platform"
+   - Docker = "baseline" or "platform-agnostic default"
+
+3. **Add deprecation notices** to legacy docs:
+   ```markdown
+   > **DEPRECATED - LEGACY BACKEND**
+   >
+   > This document describes [X] which is **legacy** and supported for existing deployments only.
+   >
+   > **Default:** BitBrat now uses [Y]. See [Guide](../path/to/guide.md).
+   ```
+
+4. **Verify cross-references**:
+   - No broken links
+   - Use exact section titles
+   - Provide file paths for code references
+
+#### Code Comments vs Documentation
+
+- **Code comments**: Implementation details, why not what, edge cases
+- **Documentation**: User-facing behavior, APIs, configuration, workflows
+- **NEVER** rely on code comments alone for user-facing features
+
+#### Documentation Testing
+
+Before committing documentation changes:
+
+1. **LLM-friendliness check**:
+   - Can an LLM extract core concepts without reading the entire document?
+   - Are prerequisites and examples clear?
+   - Are cross-references valid?
+
+2. **Consistency check**:
+   - Tone matches other docs (PostgreSQL=default, Firestore=legacy)
+   - No contradictory statements between files
+   - User journey makes sense (local → production)
+
+3. **Technical accuracy**:
+   - Commands are syntactically correct
+   - File paths are accurate
+   - Code examples use current APIs
 
 ## LLM-Specific Workflows (AGENTS.md Protocol)
 
@@ -452,7 +600,7 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
 - **RULE: ALWAYS return 200 OK within 3 seconds** — platforms retry slow webhooks
 - **RULE: Use `setImmediate()` for async processing** — defer work after response
 - **RULE: Verify signature synchronously** — reject invalid requests before processing
-- **RULE: Use `x-forwarded-proto` for URL reconstruction** — Cloud Run terminates SSL
+- **RULE: Use `x-forwarded-proto` for URL reconstruction** — cloud platforms and reverse proxies terminate SSL
 
 **RULES: Connector Registration**
 
@@ -568,15 +716,24 @@ await this.onMessage('internal.llmbot.v1', async (data, attrs, ctx) => {
 
 ## Deployment Notes
 
-- **Target platforms**: Docker Compose (local), Google Cloud Run (production)
-- **Persistence**: PostgreSQL (default), Firestore (legacy, deprecated)
+- **Target platforms**: Docker (platform-agnostic: local, cloud, self-hosted)
+  - **Docker Compose**: Local development and self-hosted production
+  - **Cloud Platforms** (validated): GCP Cloud Run, AWS ECS, Azure Container Instances
+  - Platform-agnostic by design—runs anywhere Docker and PostgreSQL are available
+- **Persistence**: PostgreSQL (default, platform-agnostic), Firestore (legacy, GCP-specific, deprecated)
   - PostgreSQL is the primary backend as of Sprint 344
+  - Works with any PostgreSQL service: AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted
   - Firestore remains supported for backwards compatibility but will be removed in future sprints
   - Set `PERSISTENCE_DRIVER=postgres` (default) or `PERSISTENCE_DRIVER=firestore` (deprecated)
-- **Message bus**: NATS (local), Google Cloud Pub/Sub (production)
+- **Message bus**: NATS (platform-agnostic default), Google Cloud Pub/Sub (GCP-specific), AWS SQS/SNS, Azure Service Bus
+  - NATS for local/dev and self-hosted production
+  - Cloud-specific buses for managed deployments
+  - Selected via `MESSAGE_BUS_DRIVER`
 - **LLM providers**: OpenAI (default), Ollama (local/offline), vLLM (OpenAI-compatible)
-- **Scaling**: Most services use min:1, max:1 for cost control; gateways may scale to zero when idle
-- **Networking**: VPC connectors for private ranges only; outbound uses Cloud Run default egress
+- **Scaling**: Most services use min:1, max:1 for cost control; gateways may scale to zero when idle (cloud platforms only)
+- **Networking**:
+  - Cloud deployments: VPC connectors for private ranges, cloud-specific egress
+  - Self-hosted: Standard Docker networking
 
 ## Troubleshooting
 

@@ -40,7 +40,7 @@ outer rings are where each Bit expresses itself.
 │  ┌──────────────────────────────────────────────────┐    │
 │  │  Capability Ring  (opt-in profiles / mixins)       │    │
 │  │   • Eventing (onMessage / next / complete)         │    │
-│  │   • Resources (firestore / storage / publisher)    │    │
+│  │   • Resources (persistence / storage / publisher)  │    │
 │  │   • MCP client (consume other Bits' tools)         │    │
 │  │   • LLM core (provider-factory + prompt-assembly)  │    │
 │  └──────────────────────────────────────────────────┘    │
