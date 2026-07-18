@@ -149,12 +149,11 @@ export class DocumentStorePersonalityStore implements IPersonalityStore {
 
   async getByName(name: string, status: string = 'active'): Promise<PersonalityDoc | undefined> {
     try {
-      // Query PostgreSQL using standard QueryFilter format
-      // Note: For JSONB @> operator, we need to use PostgreSQL-specific features
-      // This is a temporary solution until IDocumentStore supports JSONB operators
+      // Query PostgreSQL - use separate filters for each JSONB field
       const results = await this.store.query(this.tableName, {
         filters: [
-          { field: 'data', operator: '==', value: { name, status } } as any,
+          { field: 'name', operator: '==', value: name },
+          { field: 'status', operator: '==', value: status },
         ],
         // FIXME: Using 'version' as string field - doesn't sort numerically
         // Future: Add support for PostgreSQL cast expressions in QueryOptions
@@ -183,15 +182,15 @@ export class DocumentStorePersonalityStore implements IPersonalityStore {
       const queryFilters: any[] = [];
 
       if (filters.status) {
-        queryFilters.push({ field: 'data', operator: '==', value: { status: filters.status } });
+        queryFilters.push({ field: 'status', operator: '==', value: filters.status });
       }
 
       if (filters.platform) {
-        queryFilters.push({ field: 'data', operator: '==', value: { platform: filters.platform } });
+        queryFilters.push({ field: 'platform', operator: '==', value: filters.platform });
       }
 
       if (filters.model) {
-        queryFilters.push({ field: 'data', operator: '==', value: { model: filters.model } });
+        queryFilters.push({ field: 'model', operator: '==', value: filters.model });
       }
 
       // Note: tags array-contains-any would need custom SQL, skipping for now
