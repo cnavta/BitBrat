@@ -1,0 +1,8 @@
+# Docker Compose override for staging environment
+# This file disables services that should not run in staging
+
+services:
+  # Disable Firebase emulator in staging - we use real Firestore
+  firebase-emulator:
+    profiles:
+      - disabled  # Move to 'disabled' profile to prevent activation
