@@ -1,9 +1,17 @@
 # Firestore Token Storage for Twitch — Bot and Broadcaster (As Implemented)
 
+> **DEPRECATED - LEGACY BACKEND**
+>
+> This document describes the **Firestore implementation** of OAuth token storage, which is **legacy** and supported for existing Firestore deployments only.
+>
+> **Default Backend:** BitBrat now uses **PostgreSQL** as the default persistence backend. OAuth tokens are stored in the `oauth_tokens` table with the same schema semantics. The `FirestoreTokenStore` class is deprecated in favor of `PostgresTokenStore`.
+>
+> **Migration:** If you're using Firestore, consider migrating to PostgreSQL. See [Backup and Migration Guide](../guides/backup-and-migration.md).
+
 Author: Junie (Lead Implementor)
 Date: 2025-11-04
 Sprint: 96
-Status: Draft → Ready for review
+Status: Draft → Ready for review (DEPRECATED - Firestore only)
 
 ## Scope
 This document describes, strictly based on the repository’s code and configuration, how BitBrat persists and uses Twitch OAuth tokens in Firestore for two identities:

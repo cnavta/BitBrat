@@ -1,5 +1,13 @@
 # Operator Runbook — `brat backup` (Firestore config export / import)
 
+> **DEPRECATED - FIRESTORE ONLY**
+>
+> This runbook describes the **Firestore-specific `brat backup` commands** which are **legacy** and supported for existing Firestore deployments only.
+>
+> **Default Backend:** BitBrat now uses **PostgreSQL** as the default persistence backend. For backup/restore operations, see:
+> - [Backup and Migration Guide](../guides/backup-and-migration.md) - PostgreSQL `pg:backup` and `pg:restore` commands
+> - PostgreSQL backups are comprehensive (all data), while Firestore backups are config-only
+
 > Companion to the Technical Architecture: `documentation/technical-architecture/brat-firestore-config-backup.md`.
 > Sprint: `sprint-319-740b5b`.
 

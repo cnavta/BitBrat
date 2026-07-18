@@ -15,7 +15,7 @@ This document explains how to reuse BitBrat’s Twitch integration modules in a 
 
 Covered modules (files):
 - OAuth endpoints and helpers: `src/services/twitch-oauth.ts`
-- Firestore-backed token store: `src/services/firestore-token-store.ts`
+- Token store implementations: `src/services/firestore-token-store.ts` (legacy), `src/services/postgres-token-store.ts` (default)
 - Token freshness/refresh manager: `src/services/twitch-token-manager.ts`
 - EventSub WebSocket controller: `src/services/twitch-eventsub.ts`
 
@@ -29,10 +29,10 @@ You can adopt these modules wholesale or as patterns to implement equivalents fo
 - TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
 - OAUTH_STATE_SECRET (HMAC secret for OAuth state)
 - Optional: TWITCH_OAUTH_SCOPES (space or comma separated), TWITCH_REDIRECT_URI
-- Firestore (if using FirestoreTokenStore): ADC credentials and FIRESTORE_DATABASE_ID
+- Database connection (if using token persistence): `DATABASE_URL` for PostgreSQL (default) or ADC credentials + `FIRESTORE_DATABASE_ID` for Firestore (legacy)
 
 2) Choose a token store implementation:
-- Use the provided FirestoreTokenStore, or implement your own ITokenStore with the same contract.
+- Use the provided `PostgresTokenStore` (default) or `FirestoreTokenStore` (legacy), or implement your own `ITokenStore` with the same contract.
 
 3) Mount OAuth endpoints in your Express app for Bot and/or Broadcaster identities:
 - `/oauth/twitch/bot/start` → `/oauth/twitch/bot/callback`
@@ -71,13 +71,16 @@ Adoption tips:
 
 ---
 
-### 2) Token persistence — `src/services/firestore-token-store.ts`
+### 2) Token persistence — `ITokenStore` interface
+
+**Default Implementation:** `src/services/postgres-token-store.ts` (PostgreSQL backend)
+**Legacy Implementation:** `src/services/firestore-token-store.ts` (Firestore backend, deprecated)
 
 Responsibilities:
-- Persist and retrieve `TwitchTokenData` in Firestore.
+- Persist and retrieve `TwitchTokenData` in the database backend.
 
-Path convention:
-- Construct with a logical path like `oauth/twitch/bot` or `oauth/twitch/broadcaster`. The actual document used is `{path}/token` (lines 13–15).
+**PostgreSQL:** Tokens stored in `oauth_tokens` table with `path` column (e.g., `oauth/twitch/bot`, `oauth/twitch/broadcaster`)
+**Firestore (legacy):** Tokens stored at document path `{path}/token` (lines 13–15 in firestore-token-store.ts)
 
 Schema written/read (lines 41–57 and 17–35):
 - `accessToken: string`
