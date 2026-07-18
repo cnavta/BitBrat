@@ -35,7 +35,10 @@ export class AuthServer extends Bit {
       res.status(200).json({ counters: counters.snapshot() });
     });
 
-    const db = this.getResource<Firestore>('firestore');
+    // Get Firestore or DocumentStore for persistence
+    // When PERSISTENCE_DRIVER=postgres, Firestore may not be available
+    const db = this.getResource<Firestore>('firestore') || this.getResource<any>('documentStore');
+
     // Use factory to create UserRepo - automatically selects backend based on PERSISTENCE_DRIVER
     this.userRepo = createUserRepo('users', db);
 

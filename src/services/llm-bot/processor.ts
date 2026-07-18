@@ -7,6 +7,7 @@ import { resolvePersonalityParts, PersonalityDoc } from './personality-resolver'
 import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
 import { isFeatureEnabled } from '../../common/feature-flags';
+import { createPromptLogStore } from '../query-analyzer/llm-provider';
 import { assemble } from '../../common/prompt-assembly/assemble';
 import { openaiAdapter } from '../../common/prompt-assembly/adapters/openai';
 import type { PromptSpec, TaskAnnotation as PATask, RequestingUser as PARequestingUser } from '../../common/prompt-assembly/types';
@@ -868,11 +869,14 @@ export async function processEvent(
     // 6. Prompt Logging (Fire and forget)
     if (isFeatureEnabled('llm.promptLogging.enabled')) {
       const fullPrompt = payload.messages.map((m: any) => `(${m.role}) ${m.content}`).join('\n\n');
-      const db = getFirestore();
-      
+
+      // Get document store for prompt logging (firestore or postgres)
+      const documentStore = (server as any).getResource?.('firestore') || (server as any).getResource?.('documentStore');
+      const promptLogStore = createPromptLogStore(documentStore, 'prompt_logs');
+
       const toolLogs = ((evt as any)._lastToolCalls || []).map((call: any) => {
         const matchingResult = ((evt as any)._lastToolResults || []).find((r: any) => r.toolCallId === call.toolCallId);
-        
+
         const stringify = (val: any) => {
           if (val === undefined || val === null) return undefined;
           if (typeof val === 'string') return val;
@@ -897,7 +901,7 @@ export async function processEvent(
         };
       });
 
-      db.collection('services').doc('llm-bot').collection('prompt_logs').add({
+      promptLogStore.log({
         correlationId: corr,
         prompt: redactText(fullPrompt),
         response: redactText(finalResponse),

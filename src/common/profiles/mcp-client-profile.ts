@@ -4,6 +4,7 @@ import { IToolRegistry } from '../../types/tools';
 import { McpClientManager } from '../mcp/client-manager';
 import { RegistryWatcher } from '../mcp/registry-watcher';
 import { McpServerConfig } from '../mcp/types';
+import { createMcpServerStore } from '../mcp/mcp-server-store';
 
 /**
  * The MCP-client capability attached to a Bit by {@link McpClientProfile}, exposed as `bit.mcpClient`.
@@ -87,7 +88,29 @@ export function McpClientProfile(opts: McpClientProfileOptions): BitProfile {
             backoff = Math.min(backoff * 2, 15000);
           }
         } else {
+          // Create store from Bit's available resources
+          const documentStore = (bit as any).getResource?.('documentStore');
+          const firestore = (bit as any).getResource?.('firestore');
+          let dbOrStore = documentStore || firestore;
+
+          // If no resources available, try getFirestore() for test environments
+          if (!dbOrStore) {
+            try {
+              const { getFirestore } = require('../firebase');
+              dbOrStore = getFirestore();
+            } catch (err) {
+              bit.getLogger().error('bit.mcp_client.no_store', {
+                error: 'No store available for MCP registry watching'
+              });
+              throw new Error('McpClientProfile requires a store (documentStore or firestore resource)');
+            }
+          }
+
+          // Create appropriate MCP store based on backend type
+          const mcpStore = createMcpServerStore(dbOrStore);
+
           watcher = new RegistryWatcher(bit as any, {
+            store: mcpStore,
             onServerActive: async (config) => {
               await manager.connectServer(config);
             },

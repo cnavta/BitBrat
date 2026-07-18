@@ -118,6 +118,17 @@ export class DocumentStoreContextPackStore implements IContextPackStore {
 }
 
 /**
+ * In-memory mock store for test environments
+ */
+class InMemoryContextPackStore implements IContextPackStore {
+  private data = new Map<string, ContextPackDocument>();
+
+  async upsert(packId: string, data: ContextPackDocument): Promise<void> {
+    this.data.set(packId, data);
+  }
+}
+
+/**
  * Factory function to create context pack store based on backend detection.
  *
  * @param dbOrStore - Optional Firestore instance or IDocumentStore
@@ -144,6 +155,11 @@ export function createContextPackStore(
     const { createDocumentStore } = require('../common/persistence/factory');
     const store = createDocumentStore();
     return new DocumentStoreContextPackStore(store, collectionOrTable || 'context_packs');
+  }
+
+  // Test environment: return in-memory mock store
+  if (!driver) {
+    return new InMemoryContextPackStore();
   }
 
   // Default to Firestore
@@ -186,7 +202,18 @@ export class ContextPackServer extends Bit {
         const docStore = createDocumentStore();
         this.contextPackStore = createContextPackStore(docStore);
       } else {
-        const firestore = this.getResource<any>('firestore');
+        let firestore = this.getResource<any>('firestore');
+
+        // If no resource available, try getFirestore() for test environments
+        if (!firestore) {
+          try {
+            const { getFirestore } = require('../common/firebase');
+            firestore = getFirestore();
+          } catch (err) {
+            // Ignore - will fall back to in-memory store
+          }
+        }
+
         this.contextPackStore = createContextPackStore(firestore);
       }
     }

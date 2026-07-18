@@ -180,4 +180,89 @@ CREATE INDEX idx_tool_usage_user_id ON tool_usage((data->>'user_id'));
 CREATE INDEX idx_tool_usage_service ON tool_usage((data->>'service'));
 CREATE INDEX idx_tool_usage_correlation_id ON tool_usage((data->>'correlation_id'));
 
+-- 17. Reflexes collection (event-driven automation rules)
+CREATE TABLE IF NOT EXISTS reflexes (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_reflexes_active ON reflexes((data->>'active'));
+CREATE INDEX idx_reflexes_priority ON reflexes((data->>'priority'));
+CREATE INDEX idx_reflexes_active_priority ON reflexes((data->>'active'), (data->>'priority'));
+
+-- 18. Snapshots collection (event snapshots - flattened from Firestore subcollections)
+-- Firestore structure: events/{correlationId}/snapshots/{snapshotId}
+-- PostgreSQL: Flattened with correlationId as FK field in data JSONB
+CREATE TABLE IF NOT EXISTS snapshots (
+  id VARCHAR(255) PRIMARY KEY,  -- snapshotId (e.g., "{correlationId}-000001-initial")
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_snapshots_correlation_id ON snapshots((data->>'correlationId'));
+CREATE INDEX idx_snapshots_kind ON snapshots((data->>'kind'));
+CREATE INDEX idx_snapshots_sequence ON snapshots((data->>'sequence'));
+CREATE INDEX idx_snapshots_idempotency_key ON snapshots((data->>'idempotencyKey'));
+CREATE INDEX idx_snapshots_correlation_idempotency ON snapshots(
+  (data->>'correlationId'),
+  (data->>'idempotencyKey')
+);
+
+-- 19. Prompt logs collection (LLM prompt logs - flattened from Firestore subcollections)
+-- Firestore structure: services/{serviceName}/prompt_logs/{logId}
+-- PostgreSQL: Flattened to single prompt_logs table
+CREATE TABLE IF NOT EXISTS prompt_logs (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_prompt_logs_correlation_id ON prompt_logs((data->>'correlationId'));
+CREATE INDEX idx_prompt_logs_platform ON prompt_logs((data->>'platform'));
+CREATE INDEX idx_prompt_logs_model ON prompt_logs((data->>'model'));
+CREATE INDEX idx_prompt_logs_created_at ON prompt_logs(created_at);
+CREATE INDEX idx_prompt_logs_platform_model ON prompt_logs((data->>'platform'), (data->>'model'));
+
+-- 20. User disposition observations (user sentiment/behavior tracking)
+CREATE TABLE IF NOT EXISTS disposition_observations (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_disposition_observations_user_key ON disposition_observations((data->>'userKey'));
+CREATE INDEX idx_disposition_observations_observed_at ON disposition_observations((data->>'observedAt'));
+CREATE INDEX idx_disposition_observations_user_time ON disposition_observations((data->>'userKey'), (data->>'observedAt'));
+CREATE INDEX idx_disposition_observations_correlation_id ON disposition_observations((data->>'correlationId'));
+
+-- 21. State (application state snapshots managed by state-engine)
+CREATE TABLE IF NOT EXISTS state (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_state_key ON state((data->>'key'));
+CREATE INDEX idx_state_type ON state((data->>'type'));
+
+-- 22. Mutation log (audit trail of state mutations)
+CREATE TABLE IF NOT EXISTS mutation_log (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_mutation_log_mutation_id ON mutation_log((data->>'mutationId'));
+CREATE INDEX idx_mutation_log_correlation_id ON mutation_log((data->>'correlationId'));
+CREATE INDEX idx_mutation_log_state_key ON mutation_log((data->>'stateKey'));
+CREATE INDEX idx_mutation_log_timestamp ON mutation_log((data->>'timestamp'));
+CREATE INDEX idx_mutation_log_key_time ON mutation_log((data->>'stateKey'), (data->>'timestamp'));
+
 SELECT 'All tables created successfully' AS status;

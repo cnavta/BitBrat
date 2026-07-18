@@ -1,0 +1,20 @@
+{
+  "name": "lurk-command",
+  "description": "Respond when users type !lurk in chat",
+  "active": true,
+  "priority": 100,
+  "match": {
+    "type": "contains",
+    "pattern": "!lurk",
+    "field": "message.text"
+  },
+  "conditions": {
+    "eventTypes": ["chat.message.v1"],
+    "platforms": ["twitch", "discord"]
+  },
+  "candidateTemplate": "{{user.displayName}} is lurking in the shadows 👀",
+  "metadata": {
+    "category": "community",
+    "tags": ["lurk", "presence"]
+  }
+}

@@ -17,7 +17,6 @@ services:
       - "${OBS_MCP_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     depends_on:
       - nats
-      - firebase-emulator
       - tool-gateway
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]

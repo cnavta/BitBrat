@@ -97,9 +97,11 @@ export function buildCandidate(
 /**
  * Interpolates a template with dual context (event + result).
  *
- * Supports two placeholder formats:
+ * Supports multiple placeholder formats:
  * - {{event.field.path}} - Extracts from event object
  * - {{result.field.path}} - Extracts from tool result
+ * - {{user.field}} - Shorthand for {{event.identity.external.field}}
+ * - ${expression} or ${{expression}} - Also supported for convenience
  *
  * @param template - Template string with placeholders
  * @param event - Event object for {{event.path}}
@@ -119,6 +121,36 @@ function interpolateDualContext(template: string, event: InternalEventV2, toolRe
   result = result.replace(/\{\{result\.([^}]+)\}\}/g, (match, path) => {
     const value = getFieldValue(toolResult, path.trim());
     return stringifyValue(value, match);
+  });
+
+  // Replace {{user.field}} shorthand with {{event.identity.external.field}}
+  result = result.replace(/\{\{user\.([^}]+)\}\}/g, (match, path) => {
+    const value = getFieldValue(event, `identity.external.${path.trim()}`);
+    return stringifyValue(value, match);
+  });
+
+  // Replace ${...} and ${{...}} syntax (alternate template syntax)
+  result = result.replace(/\$\{\{?([^}]+)\}\}?/g, (match, path) => {
+    const trimmedPath = path.trim();
+
+    // Check for prefixes
+    if (trimmedPath.startsWith('event.')) {
+      const value = getFieldValue(event, trimmedPath.substring(6));
+      return stringifyValue(value, match);
+    } else if (trimmedPath.startsWith('result.')) {
+      const value = getFieldValue(toolResult, trimmedPath.substring(7));
+      return stringifyValue(value, match);
+    } else if (trimmedPath.startsWith('user.')) {
+      const value = getFieldValue(event, `identity.external.${trimmedPath.substring(5)}`);
+      return stringifyValue(value, match);
+    } else {
+      // Try to resolve as event field first, then shorthand user field
+      let value = getFieldValue(event, trimmedPath);
+      if (value === undefined || value === null) {
+        value = getFieldValue(event, `identity.external.${trimmedPath}`);
+      }
+      return stringifyValue(value, match);
+    }
   });
 
   // Handle escaped braces

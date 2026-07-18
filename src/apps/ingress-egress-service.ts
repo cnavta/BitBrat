@@ -96,8 +96,13 @@ export class IngressEgressServer extends Bit {
     const envelopeBuilder = new TwitchEnvelopeBuilder();
     const pubRes = this.getResource<PublisherResource>('publisher');
     const publisher = createTwitchIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
+
+    // Get documentStore for OAuth token storage (uses PostgreSQL when PERSISTENCE_DRIVER=postgres)
+    // Falls back to Firestore if documentStore not available
+    const documentStore = this.getResource('documentStore') || this.getResource('firestore');
+
     const credsProvider = cfg.firestoreEnabled
-      ? new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot'))
+      ? new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot', documentStore))
       : new ConfigTwitchCredentialsProvider(cfg);
 
     // Create the IRC client using config-driven channels
@@ -117,7 +122,7 @@ export class IngressEgressServer extends Bit {
 
     // Twitch Broadcaster
     if (cfg.firestoreEnabled && cfg.broadcasterTokenDocPath) {
-      const broadcasterCredsProvider = new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.broadcasterTokenDocPath));
+      const broadcasterCredsProvider = new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.broadcasterTokenDocPath, documentStore));
       this.twitchBroadcasterClient = new TwitchIrcClient(envelopeBuilder, publisher, cfg.twitchChannels, {
         cfg,
         credentialsProvider: broadcasterCredsProvider,

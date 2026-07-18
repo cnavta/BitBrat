@@ -28,6 +28,11 @@ const COLLECTION_MAPPING: Record<string, string> = {
   'services': 'service_registry', // Firestore services → PostgreSQL service_registry
 };
 
+// Firestore nested collection paths (for collections with nested structure)
+const NESTED_COLLECTION_PATHS: Record<string, string> = {
+  'configs': 'configs/routingRules/rules',  // Actual path for routing rules
+};
+
 const COLLECTIONS = [
   'events',
   'configs',              // Will map to routing_rules in PostgreSQL
@@ -43,6 +48,7 @@ const COLLECTIONS = [
   'integration_configs',
   'metrics',
   'tool_usage',           // MCP tool usage analytics
+  'reflexes',             // Event-driven automation rules
 ];
 
 /**
@@ -78,8 +84,11 @@ async function migrateCollection(
     // Map Firestore collection name to PostgreSQL table name
     const postgresTable = COLLECTION_MAPPING[collectionName] || collectionName;
 
+    // Determine the actual Firestore path (handle nested collections)
+    const firestorePath = NESTED_COLLECTION_PATHS[collectionName] || collectionName;
+
     // Get all documents from Firestore collection
-    const snapshot = await firestore.collection(collectionName).get();
+    const snapshot = await firestore.collection(firestorePath).get();
     const total = snapshot.size;
 
     logger.info(

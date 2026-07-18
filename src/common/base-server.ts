@@ -16,6 +16,7 @@ import { runWithEventContext, type EventContext } from './event-context';
 import type { ResourceManager, ResourceInstances, SetupContext } from './resources/types';
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
+import { DocumentStoreManager } from './resources/document-store-manager';
 import { createMessageSubscriber, createMessagePublisher, type AttributeMap } from '../services/message-bus';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
@@ -648,6 +649,13 @@ export class Bit {
     if (!isJest) {
       logger.debug('base_server.resources.firestore.init');
       defaults.firestore = new FirestoreManager();
+
+      // Register documentStore when using PostgreSQL persistence
+      const persistenceDriver = process.env.PERSISTENCE_DRIVER;
+      if (persistenceDriver === 'postgres' || persistenceDriver === 'postgresql') {
+        logger.debug('base_server.resources.document_store.init', { driver: persistenceDriver });
+        defaults.documentStore = new DocumentStoreManager();
+      }
     }
     // Merge: overrides replace defaults by key and can add new keys
     const out: Record<string, ResourceManager<any>> = { ...defaults, ...overrides };
@@ -1540,7 +1548,10 @@ export class Bit {
     };
 
     try {
-      const pub = createMessagePublisher(INTERNAL_MCP_REGISTRATION_V1);
+      // Apply busPrefix to match subscriber expectations
+      const prefix = this.config.busPrefix || '';
+      const subject = `${prefix}${INTERNAL_MCP_REGISTRATION_V1}`;
+      const pub = createMessagePublisher(subject);
       await pub.publishJson(registrationEvent, {
         source: this.serviceName,
         type: INTERNAL_MCP_REGISTRATION_V1
@@ -1677,7 +1688,8 @@ export class Bit {
           });
         } catch (error) {
           this.getLogger().error("mcp_server.connect_error", {
-            error,
+            error: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
             sessionId: transport.sessionId,
           });
           this.transports.delete(transport.sessionId);

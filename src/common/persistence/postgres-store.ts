@@ -134,12 +134,12 @@ export class PostgresDocumentStore implements IDocumentStore {
         const distanceOp = this.getDistanceOperator(vectorOrder.distanceMeasure);
 
         paramCount++;
-        sql = `SELECT data, (data->'${vectorOrder.field}' ${distanceOp} $${paramCount}::vector) AS distance
+        sql = `SELECT id, data, (data->'${vectorOrder.field}' ${distanceOp} $${paramCount}::vector) AS distance
                FROM ${this.sanitizeCollectionName(collection)}`;
         params.push(JSON.stringify(vectorOrder.vector));
       } else {
-        // Regular query
-        sql = `SELECT data FROM ${this.sanitizeCollectionName(collection)}`;
+        // Regular query - include id column for proper document identification
+        sql = `SELECT id, data FROM ${this.sanitizeCollectionName(collection)}`;
       }
 
       // Build WHERE clause from filters
@@ -180,7 +180,8 @@ export class PostgresDocumentStore implements IDocumentStore {
         `[PostgresDocumentStore] query ${collection} (${result.rows.length} rows, ${latency}ms)${isVectorSearch ? ' [vector search]' : ''}`
       );
 
-      return result.rows.map((row) => row.data as T);
+      // Merge id from table column into the data object
+      return result.rows.map((row) => ({ ...row.data, id: row.id } as T));
     } catch (error) {
       this.logger.error?.(`[PostgresDocumentStore] query error:`, error);
       throw error;
@@ -312,11 +313,19 @@ export class PostgresDocumentStore implements IDocumentStore {
     const field = filter.field;
     const operator = filter.operator;
     const isDateValue = this.isDateString(filter.value);
+    const isBooleanValue = typeof filter.value === 'boolean';
 
     switch (operator) {
       case '==':
+        // Use -> for boolean comparisons to preserve JSONB type, ->> for text
+        if (isBooleanValue) {
+          return `(data->'${field}')::boolean = $${paramIndex}`;
+        }
         return `data->>'${field}' = $${paramIndex}`;
       case '!=':
+        if (isBooleanValue) {
+          return `(data->'${field}')::boolean != $${paramIndex}`;
+        }
         return `data->>'${field}' != $${paramIndex}`;
       case '<':
         if (isDateValue) {

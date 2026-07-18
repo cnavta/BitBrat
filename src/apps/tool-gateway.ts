@@ -10,8 +10,8 @@ import {
 } from './context-pack-service';
 import { Express, Request, Response } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { 
-  ListToolsRequestSchema, 
+import {
+  ListToolsRequestSchema,
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
@@ -23,6 +23,13 @@ import { McpClientManager } from '../common/mcp/client-manager';
 import { RegistryWatcher } from '../common/mcp/registry-watcher';
 import { RbacEvaluator } from '../common/mcp/rbac';
 import { McpServerConfig, SessionContext } from '../common/mcp/types';
+import {
+  createMcpServerStore,
+  type IMcpServerStore,
+  type McpServerDocument,
+  FirestoreMcpServerStore,
+  DocumentStoreMcpServerStore
+} from '../common/mcp/mcp-server-store';
 import { normalizeError } from '../common/mcp/error-utils';
 import {
   embedText,
@@ -37,82 +44,6 @@ import type { NamedContext } from '../common/prompt-assembly/types';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'tool-gateway';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
-
-// =============================================================================
-// MCP Server Registry Storage Abstraction
-// =============================================================================
-
-/**
- * Document structure for MCP server registry.
- */
-export interface McpServerDocument {
-  name: string;
-  url: string;
-  updatedAt: string;
-  discoverySource: string;
-  correlationId: string;
-  [key: string]: any; // Allow additional payload fields
-}
-
-/**
- * Interface for MCP server registry storage operations.
- */
-export interface IMcpServerStore {
-  /**
-   * Upsert an MCP server registration.
-   * @param name - Server name (document ID)
-   * @param data - Server registration data
-   */
-  upsert(name: string, data: McpServerDocument): Promise<void>;
-}
-
-/**
- * Firestore implementation of MCP server store.
- */
-export class FirestoreMcpServerStore implements IMcpServerStore {
-  constructor(
-    private readonly firestore: Firestore,
-    private readonly collectionName: string = 'mcp_servers'
-  ) {}
-
-  async upsert(name: string, data: McpServerDocument): Promise<void> {
-    await this.firestore.collection(this.collectionName).doc(name).set(data, { merge: true });
-  }
-}
-
-/**
- * PostgreSQL implementation of MCP server store via IDocumentStore.
- */
-export class DocumentStoreMcpServerStore implements IMcpServerStore {
-  constructor(
-    private readonly store: IDocumentStore,
-    private readonly tableName: string = 'mcp_servers'
-  ) {}
-
-  async upsert(name: string, data: McpServerDocument): Promise<void> {
-    await this.store.set(this.tableName, name, data);
-  }
-}
-
-/**
- * Factory function to create MCP server store based on backend detection.
- */
-export function createMcpServerStore(
-  dbOrStore: any,
-  collectionOrTable?: string
-): IMcpServerStore {
-  // Check if Firestore instance
-  if (dbOrStore && typeof dbOrStore.collection === 'function') {
-    return new FirestoreMcpServerStore(dbOrStore, collectionOrTable || 'mcp_servers');
-  }
-
-  // Check if IDocumentStore instance
-  if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
-    return new DocumentStoreMcpServerStore(dbOrStore, collectionOrTable || 'mcp_servers');
-  }
-
-  throw new Error('createMcpServerStore: Invalid database/store instance provided');
-}
 
 export class ToolGatewayServer extends Bit {
   private registry = new ToolRegistry();
@@ -148,9 +79,24 @@ export class ToolGatewayServer extends Bit {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
 
     // Initialize repositories (backend auto-detection via factory)
-    const db = getFirestore();
-    this.mcpServerStore = createMcpServerStore(db);
-    this.contextPackStore = createContextPackStore(db);
+    // Use documentStore for PostgreSQL or fallback to Firestore
+    const documentStore = this.getResource('documentStore');
+    const db = this.getResource('firestore');
+    let dbOrStore = documentStore || db;
+
+    // If no resources available, try getFirestore() for test environments
+    // that mock firebase directly
+    if (!dbOrStore) {
+      try {
+        const { getFirestore } = require('../common/firebase');
+        dbOrStore = getFirestore();
+      } catch (err) {
+        // Ignore - will fall back to in-memory store
+      }
+    }
+
+    this.mcpServerStore = createMcpServerStore(dbOrStore);
+    this.contextPackStore = createContextPackStore(dbOrStore);
 
     this.setupApp(this.getApp() as any);
   }
@@ -158,6 +104,7 @@ export class ToolGatewayServer extends Bit {
   async start(port: number) {
     // Initialize MCP Registry Watcher to populate upstream tools
     this.registryWatcher = new RegistryWatcher(this as any, {
+      store: this.mcpServerStore,
       onServerActive: async (config) => {
         this.serverConfigs.set(config.name, config);
         await this.mcpManager.connectServer(config);

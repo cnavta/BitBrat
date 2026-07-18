@@ -75,6 +75,10 @@ function buildIdentitySummary(evt: InternalEventV2): EventAggregateV2['identityS
     platform: evt.identity?.external?.platform,
     displayName: evt.identity?.user?.displayName || evt.identity?.external?.displayName,
     userId: evt.identity?.user?.id,
+    roles: evt.identity?.user?.roles,
+    rolesMeta: evt.identity?.user?.rolesMeta,
+    tags: evt.identity?.user?.tags,
+    status: evt.identity?.user?.status,
   });
 }
 

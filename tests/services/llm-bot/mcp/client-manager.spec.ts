@@ -16,6 +16,8 @@ describe('McpClientManager', () => {
   let manager: McpClientManager;
   let mockClientInstance: any;
   let watcher: RegistryWatcher;
+  let snapshotCallback: any;
+  let mockStore: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,25 +47,31 @@ describe('McpClientManager', () => {
 
     manager = new McpClientManager(mockServer, mockRegistry);
 
+    // Create mock store that converts Firestore-style callbacks to watch-style
+    mockStore = {
+      watch: jest.fn().mockImplementation((callback) => {
+        // Store the callback for later use in tests
+        // We'll need to convert Firestore snapshot format to configs array
+        const firestoreCallback = (snapshot: any) => {
+          const configs = snapshot.docChanges().map((change: any) => {
+            const data = change.doc.data();
+            return { ...data, name: data.name || change.doc.id };
+          });
+          callback(configs);
+        };
+        snapshotCallback = firestoreCallback;
+        return jest.fn(); // unsubscribe
+      }),
+    };
+
     watcher = new RegistryWatcher(mockServer, {
+        store: mockStore,
         onServerActive: async (config) => { await manager.connectServer(config); },
         onServerInactive: async (name) => { await manager.disconnectServer(name); }
     });
   });
 
   it('should connect to servers via RegistryWatcher and record status', async () => {
-    // Mock the firestore for the watcher
-    let snapshotCallback: any;
-    const mockFirestore = {
-        collection: jest.fn().mockReturnThis(),
-        onSnapshot: jest.fn().mockImplementation((cb) => {
-          snapshotCallback = cb;
-          return jest.fn(); // unsubscribe
-        }),
-      };
-  
-      (getFirestore as jest.Mock).mockReturnValue(mockFirestore);
-
     watcher.start();
 
     // Simulate a change AFTER start

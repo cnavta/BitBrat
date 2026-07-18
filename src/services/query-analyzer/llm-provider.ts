@@ -18,8 +18,8 @@ export interface PromptLogRecord {
   correlationId?: string;
   prompt: string;
   response: string;
-  entities: Array<{ text: string; type: string }>;
-  topic: string;
+  entities?: Array<{ text: string; type: string }>; // Optional - query-analyzer specific
+  topic?: string; // Optional - query-analyzer specific
   platform: string;
   model: string;
   processingTimeMs: number;
@@ -29,6 +29,13 @@ export interface PromptLogRecord {
     totalTokens: number;
   };
   createdAt: Date | string;
+  // Additional fields for llm-bot
+  behaviorProfile?: any;
+  personalityNames?: string[];
+  contextPacks?: Array<{ id: string; title?: string }>;
+  toolCalls?: Array<{ tool: string; args: string; result: string; error?: string }>;
+  // Allow any additional fields for extensibility
+  [key: string]: any;
 }
 
 /**
@@ -182,6 +189,7 @@ export async function analyzeWithLlm(
     logger?: { error: (msg: string, meta?: any) => void; info: (msg: string, meta?: any) => void };
     correlationId?: string;
     tokenCount?: number;
+    documentStore?: any; // IDocumentStore or Firestore instance for prompt logging
   } = {}
 ): Promise<QueryAnalysis | null> {
   const providerName = options.providerName || process.env.LLM_PROVIDER || 'ollama';
@@ -209,7 +217,7 @@ export async function analyzeWithLlm(
     // Prompt Logging (Fire and forget)
     if (isFeatureEnabled('llm.promptLogging.enabled')) {
       const usage = result.usage;
-      const promptLogStore = createPromptLogStore();
+      const promptLogStore = createPromptLogStore(options.documentStore, 'prompt_logs');
 
       const logRecord: PromptLogRecord = {
         correlationId: corr,

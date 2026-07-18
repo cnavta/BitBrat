@@ -135,8 +135,8 @@ describe('PostgresDocumentStore', () => {
       const { Pool } = require('pg');
       const poolInstance = new Pool();
       const mockDocs = [
-        { data: { id: 'doc1', name: 'Doc 1' } },
-        { data: { id: 'doc2', name: 'Doc 2' } },
+        { id: 'doc1', data: { name: 'Doc 1' } },
+        { id: 'doc2', data: { name: 'Doc 2' } },
       ];
       poolInstance.query.mockResolvedValueOnce({ rows: mockDocs });
 
@@ -145,7 +145,7 @@ describe('PostgresDocumentStore', () => {
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ id: 'doc1', name: 'Doc 1' });
       expect(poolInstance.query).toHaveBeenCalledWith(
-        'SELECT data FROM test_collection',
+        'SELECT id, data FROM test_collection',
         []
       );
     });
@@ -208,9 +208,9 @@ describe('PostgresDocumentStore', () => {
       const { Pool } = require('pg');
       const poolInstance = new Pool();
       const mockDocs = [
-        { data: { id: 'doc1' } },
-        { data: { id: 'doc2' } },
-        { data: { id: 'doc3' } },
+        { id: 'doc1', data: {} },
+        { id: 'doc2', data: {} },
+        { id: 'doc3', data: {} },
       ];
       poolInstance.query.mockResolvedValueOnce({ rows: mockDocs });
 
@@ -218,7 +218,7 @@ describe('PostgresDocumentStore', () => {
 
       expect(result).toHaveLength(3);
       expect(poolInstance.query).toHaveBeenCalledWith(
-        'SELECT data FROM test_collection',
+        'SELECT id, data FROM test_collection',
         []
       );
     });
@@ -310,7 +310,7 @@ describe('PostgresDocumentStore', () => {
     it('should poll for changes at specified interval', async () => {
       const { Pool } = require('pg');
       const poolInstance = new Pool();
-      const mockDocs = [{ data: { id: 'doc1', version: 1 } }];
+      const mockDocs = [{ id: 'doc1', data: { version: 1 } }];
       poolInstance.query.mockResolvedValue({ rows: mockDocs });
 
       const callback = jest.fn();
@@ -326,7 +326,7 @@ describe('PostgresDocumentStore', () => {
 
       // Change data
       poolInstance.query.mockResolvedValue({
-        rows: [{ data: { id: 'doc1', version: 2 } }],
+        rows: [{ id: 'doc1', data: { version: 2 } }],
       });
 
       await jest.advanceTimersByTimeAsync(1000);

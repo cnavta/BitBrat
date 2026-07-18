@@ -63,6 +63,9 @@ services:
       - "max_connections=200"
 
   firebase-emulator:
+    profiles:
+      - firestore
+      - firebase
     env_file:
       - .env.brat
     build:
