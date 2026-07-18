@@ -569,7 +569,10 @@ await this.onMessage('internal.llmbot.v1', async (data, attrs, ctx) => {
 ## Deployment Notes
 
 - **Target platforms**: Docker Compose (local), Google Cloud Run (production)
-- **Persistence**: Google Cloud Firestore (only supported backend)
+- **Persistence**: PostgreSQL (default), Firestore (legacy, deprecated)
+  - PostgreSQL is the primary backend as of Sprint 344
+  - Firestore remains supported for backwards compatibility but will be removed in future sprints
+  - Set `PERSISTENCE_DRIVER=postgres` (default) or `PERSISTENCE_DRIVER=firestore` (deprecated)
 - **Message bus**: NATS (local), Google Cloud Pub/Sub (production)
 - **LLM providers**: OpenAI (default), Ollama (local/offline), vLLM (OpenAI-compatible)
 - **Scaling**: Most services use min:1, max:1 for cost control; gateways may scale to zero when idle
@@ -585,7 +588,7 @@ await this.onMessage('internal.llmbot.v1', async (data, attrs, ctx) => {
 ### Test Failures
 - Run `npm test` to identify failing specs
 - In CI, tests run serially (`maxWorkers: 1`) to avoid segfaults
-- Firestore is not initialized in test environments to prevent async handle leaks
+- Persistence backends (PostgreSQL/Firestore) are not initialized in test environments to prevent async handle leaks
 
 ### Missing Environment Variables
 - Check architecture.yaml for required `env:` and `secrets:` per service
@@ -595,8 +598,14 @@ await this.onMessage('internal.llmbot.v1', async (data, attrs, ctx) => {
 ### Local Stack Issues
 - Ensure Docker is running
 - Check `npm run local:logs` for service errors
-- Verify Firestore emulator is accessible (default: localhost:8080)
+- Verify PostgreSQL is accessible (default: localhost:5432, database: bitbrat)
 - Some integrations (Twilio, Discord) are optional in local mode
+
+### Persistence Issues
+- **PostgreSQL connection failures**: Check `DATABASE_URL` environment variable
+- **Empty tables**: Ensure migrations have run (`infrastructure/postgres/migrations/`)
+- **Firestore deprecation warnings**: Switch to PostgreSQL by setting `PERSISTENCE_DRIVER=postgres`
+- **Migration guide**: See `documentation/guides/postgres-migration.md`
 
 ### MCP Tool Not Found
 - Verify tool is registered in service constructor or setup

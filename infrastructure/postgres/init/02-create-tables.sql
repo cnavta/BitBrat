@@ -213,7 +213,7 @@ CREATE INDEX idx_snapshots_correlation_idempotency ON snapshots(
 
 -- 19. Prompt logs collection (LLM prompt logs - flattened from Firestore subcollections)
 -- Firestore structure: services/{serviceName}/prompt_logs/{logId}
--- PostgreSQL: Flattened to single prompt_logs table
+-- PostgreSQL: Flattened to single prompt_logs table with serviceName discriminator (Sprint 344)
 CREATE TABLE IF NOT EXISTS prompt_logs (
   id VARCHAR(255) PRIMARY KEY,
   data JSONB NOT NULL,
@@ -221,11 +221,13 @@ CREATE TABLE IF NOT EXISTS prompt_logs (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE INDEX idx_prompt_logs_service_name ON prompt_logs((data->>'serviceName'));
 CREATE INDEX idx_prompt_logs_correlation_id ON prompt_logs((data->>'correlationId'));
 CREATE INDEX idx_prompt_logs_platform ON prompt_logs((data->>'platform'));
 CREATE INDEX idx_prompt_logs_model ON prompt_logs((data->>'model'));
 CREATE INDEX idx_prompt_logs_created_at ON prompt_logs(created_at);
 CREATE INDEX idx_prompt_logs_platform_model ON prompt_logs((data->>'platform'), (data->>'model'));
+CREATE INDEX idx_prompt_logs_service_platform ON prompt_logs((data->>'serviceName'), (data->>'platform'));
 
 -- 20. User disposition observations (user sentiment/behavior tracking)
 CREATE TABLE IF NOT EXISTS disposition_observations (
@@ -264,5 +266,27 @@ CREATE INDEX idx_mutation_log_correlation_id ON mutation_log((data->>'correlatio
 CREATE INDEX idx_mutation_log_state_key ON mutation_log((data->>'stateKey'));
 CREATE INDEX idx_mutation_log_timestamp ON mutation_log((data->>'timestamp'));
 CREATE INDEX idx_mutation_log_key_time ON mutation_log((data->>'stateKey'), (data->>'timestamp'));
+
+-- 23. Personalities collection (LLM identity/personality prompts)
+-- Stores personality documents used by llm-bot for prompt composition
+-- Firestore mapping: personalities/{personalityId}
+CREATE TABLE IF NOT EXISTS personalities (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_personalities_name ON personalities((data->>'name'));
+CREATE INDEX idx_personalities_status ON personalities((data->>'status'));
+CREATE INDEX idx_personalities_version ON personalities(((data->>'version')::int));
+CREATE INDEX idx_personalities_name_status_version ON personalities(
+  (data->>'name'),
+  (data->>'status'),
+  ((data->>'version')::int) DESC
+);
+CREATE INDEX idx_personalities_platform ON personalities((data->>'platform'));
+CREATE INDEX idx_personalities_model ON personalities((data->>'model'));
+CREATE INDEX idx_personalities_tags ON personalities USING GIN ((data->'tags'));
 
 SELECT 'All tables created successfully' AS status;

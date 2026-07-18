@@ -67,8 +67,16 @@ describe('persistence-service integration (mocked messaging + firestore)', () =>
   const originalPersistenceDriver = process.env.PERSISTENCE_DRIVER;
 
   beforeAll(() => {
-    // Ensure tests use Firestore, not PostgreSQL
-    delete process.env.PERSISTENCE_DRIVER;
+    // Ensure tests use Firestore, not PostgreSQL (Sprint 344: factory now defaults to postgres)
+    process.env.PERSISTENCE_DRIVER = 'firestore';
+
+    // Suppress deprecation warnings in test output (intentional legacy backend usage)
+    jest.spyOn(console, 'warn').mockImplementation((msg) => {
+      if (typeof msg === 'string' && msg.includes('DEPRECATION WARNING')) {
+        return; // suppress
+      }
+      console.info(msg); // log other warnings
+    });
 
     // Spy on onMessage to capture handlers instead of wiring a real subscriber
     jest

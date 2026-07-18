@@ -29,8 +29,8 @@ function makeEvent(overrides: any = {}): any {
 }
 
 describe('llm-bot processor — MCP Visibility', () => {
-  let mockAdd: jest.Mock;
-  let mockCollection: jest.Mock;
+  let mockSet: jest.Mock;
+  let mockDocumentStore: any;
   let mockDb: any;
 
   class StubServer {
@@ -39,6 +39,12 @@ describe('llm-bot processor — MCP Visibility', () => {
       PERSONALITY_ENABLED: 'true',
       USER_CONTEXT_ENABLED: 'false',
     };
+    private _documentStore: any;
+
+    constructor(documentStore?: any) {
+      this._documentStore = documentStore;
+    }
+
     getConfig<T>(key: string, opts?: any): T {
       const v = this.cfg[key];
       if (v !== undefined) return (opts?.parser ? opts.parser(v) : v) as T;
@@ -47,36 +53,44 @@ describe('llm-bot processor — MCP Visibility', () => {
     getLogger() {
       return { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any;
     }
+    // Sprint 344: Provide documentStore resource for prompt logging
+    getResource(name: string): any {
+      if (name === 'documentStore') return this._documentStore;
+      return undefined;
+    }
   }
 
   beforeEach(() => {
     jest.clearAllMocks();
     features.setOverride('llm.promptLogging.enabled', 'true');
-    
-    mockAdd = jest.fn().mockResolvedValue({ id: 'doc-123' });
-    const mockCollectionInner = jest.fn().mockReturnValue({ add: mockAdd });
-    const mockDoc = jest.fn().mockReturnValue({ 
-        collection: mockCollectionInner
-    });
 
-    mockCollection = jest.fn().mockImplementation((name) => {
-        if (name === 'services') return { doc: mockDoc };
-        return { 
-            add: mockAdd,
+    // Sprint 344: Mock documentStore (PostgreSQL) instead of Firestore
+    mockSet = jest.fn().mockResolvedValue(undefined);
+    mockDocumentStore = {
+      set: mockSet,
+      get: jest.fn(),
+      query: jest.fn(),
+      delete: jest.fn(),
+    };
+
+    // Mock Firestore for personality lookups (still used for personalities in this test)
+    const mockCollection = jest.fn().mockImplementation((name) => {
+        if (name === 'personalities') return {
             where: jest.fn().mockReturnThis(),
             orderBy: jest.fn().mockReturnThis(),
             limit: jest.fn().mockReturnThis(),
             get: jest.fn().mockResolvedValue({ docs: [{ data: () => ({ name: 'Bratty', text: 'You are bratty.', status: 'active' }) }] })
         };
+        return {};
     });
     mockDb = { collection: mockCollection };
     (getFirestore as jest.Mock).mockReturnValue(mockDb);
   });
 
   test('logs personality names and tool calls to prompt_logs', async () => {
-    const server = new StubServer() as any;
+    const server = new StubServer(mockDocumentStore) as any;
     const evt = makeEvent();
-    
+
     (generateText as jest.Mock).mockResolvedValue({
       text: 'Final response',
       toolCalls: [
@@ -89,7 +103,9 @@ describe('llm-bot processor — MCP Visibility', () => {
 
     await processEvent(server, evt, { registry: { getTools: () => ({}) } as any });
 
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockSet).toHaveBeenCalled();
+    const [_tableName, _id, logData] = mockSet.mock.calls[0];
+    expect(logData).toMatchObject({
       personalityNames: ['Bratty'],
       toolCalls: [
         expect.objectContaining({
@@ -98,13 +114,13 @@ describe('llm-bot processor — MCP Visibility', () => {
           result: 'Sunny, 25°C'
         })
       ]
-    }));
+    });
   });
 
   test('captures tool errors in prompt_logs', async () => {
-    const server = new StubServer() as any;
+    const server = new StubServer(mockDocumentStore) as any;
     const evt = makeEvent();
-    
+
     (generateText as jest.Mock).mockResolvedValue({
       text: 'Error occurred',
       toolCalls: [
@@ -117,13 +133,15 @@ describe('llm-bot processor — MCP Visibility', () => {
 
     await processEvent(server, evt, { registry: { getTools: () => ({}) } as any });
 
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockSet).toHaveBeenCalled();
+    const [_tableName, _id, logData] = mockSet.mock.calls[0];
+    expect(logData).toMatchObject({
       toolCalls: [
         expect.objectContaining({
           tool: 'mcp:faulty_tool',
           error: 'Tool failed intentionally'
         })
       ]
-    }));
+    });
   });
 });

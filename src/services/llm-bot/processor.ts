@@ -4,6 +4,7 @@ import { generateText, ModelMessage, stepCountIs } from 'ai';
 import type { Bit } from '../../common/base-server';
 import { getInstanceMemoryStore, type ChatMessage as StoreMessage } from './instance-memory';
 import { resolvePersonalityParts, PersonalityDoc } from './personality-resolver';
+import type { IPersonalityStore } from './personality-store';
 import { buildUserContextAnnotation } from './user-context';
 import { getFirestore } from '../../common/firebase';
 import { isFeatureEnabled } from '../../common/feature-flags';
@@ -416,11 +417,12 @@ function extractContextPackAnnotations(annotations?: AnnotationV1[]): any[] {
 export async function processEvent(
   server: Bit,
   evt: InternalEventV2,
-  deps?: { 
+  deps?: {
     registry?: IToolRegistry;
     callLLM?: (model: string, input: string) => Promise<string>;
     fetchByName?: (name: string) => Promise<PersonalityDoc | undefined>;
     fetchDisposition?: (userKey: string) => Promise<DispositionSnapshotV1 | undefined>;
+    personalityStore?: IPersonalityStore;
   }
 ): Promise<'SKIP'|'OK'|'ERROR'> {
   const logger = (server as any).getLogger?.();
@@ -621,9 +623,18 @@ export async function processEvent(
           maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v: any) => Number(v) }),
           cacheTtlMs: server.getConfig<number>('PERSONALITY_CACHE_TTL_MS', { default: 300000, parser: (v: any) => Number(v) }),
         };
-        const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
         const fetchByName = async (name: string): Promise<PersonalityDoc | undefined> => {
+          // Priority: deps.fetchByName (tests) > deps.personalityStore (injected) > fallback to Firestore (legacy)
           if (deps?.fetchByName) return deps.fetchByName(name);
+          if (deps?.personalityStore) {
+            return deps.personalityStore.getActive(name);
+          }
+          // Legacy fallback to Firestore (deprecated, will be removed in future sprint)
+          logger?.warn?.('llm_bot.personality.legacy_firestore_fallback', {
+            correlationId: corr,
+            message: 'Using deprecated Firestore fallback for personality lookup. Inject personalityStore via deps.'
+          });
+          const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
           const db = getFirestore();
           const snap = await db.collection(collection).where('name', '==', name).where('status', '==', 'active').orderBy('version', 'desc').limit(1).get();
           return snap.docs[0]?.data() as PersonalityDoc | undefined;
@@ -870,9 +881,15 @@ export async function processEvent(
     if (isFeatureEnabled('llm.promptLogging.enabled')) {
       const fullPrompt = payload.messages.map((m: any) => `(${m.role}) ${m.content}`).join('\n\n');
 
-      // Get document store for prompt logging (firestore or postgres)
-      const documentStore = (server as any).getResource?.('firestore') || (server as any).getResource?.('documentStore');
-      const promptLogStore = createPromptLogStore(documentStore, 'prompt_logs');
+      // Sprint 344: Get document store for prompt logging (postgres preferred, firestore fallback)
+      const documentStore = (server as any).getResource?.('documentStore') || (server as any).getResource?.('firestore');
+      if (!documentStore) {
+        logger?.warn?.('llm_bot.prompt_logging.no_backend', {
+          correlationId: corr,
+          message: 'No documentStore or firestore resource available. Prompt logging skipped.'
+        });
+      }
+      const promptLogStore = documentStore ? createPromptLogStore(documentStore, 'llm-bot', 'prompt_logs') : null;
 
       const toolLogs = ((evt as any)._lastToolCalls || []).map((call: any) => {
         const matchingResult = ((evt as any)._lastToolResults || []).find((r: any) => r.toolCallId === call.toolCallId);
@@ -901,26 +918,28 @@ export async function processEvent(
         };
       });
 
-      promptLogStore.log({
-        correlationId: corr,
-        prompt: redactText(fullPrompt),
-        response: redactText(finalResponse),
-        platform: platformName,
-        model: modelName,
-        processingTimeMs,
-        behaviorProfile: behaviorProfileSummary,
-        personalityNames: resolvedPersonalityNames,
-        contextPacks: includedContextPacks,
-        toolCalls: toolLogs,
-        usage: usage ? {
-          promptTokens: usage.promptTokens,
-          completionTokens: usage.completionTokens,
-          totalTokens: usage.totalTokens,
-        } : undefined,
-        createdAt: new Date(),
-      }).catch((e: any) => {
-        logger?.warn?.('llm_bot.prompt_logging_failed', { correlationId: corr, error: e?.message });
-      });
+      if (promptLogStore) {
+        promptLogStore.log({
+          correlationId: corr,
+          prompt: redactText(fullPrompt),
+          response: redactText(finalResponse),
+          platform: platformName,
+          model: modelName,
+          processingTimeMs,
+          behaviorProfile: behaviorProfileSummary,
+          personalityNames: resolvedPersonalityNames,
+          contextPacks: includedContextPacks,
+          toolCalls: toolLogs,
+          usage: usage ? {
+            promptTokens: usage.promptTokens,
+            completionTokens: usage.completionTokens,
+            totalTokens: usage.totalTokens,
+          } : undefined,
+          createdAt: new Date(),
+        }).catch((e: any) => {
+          logger?.warn?.('llm_bot.prompt_logging_failed', { correlationId: corr, error: e?.message });
+        });
+      }
     }
 
     // 7. Update Memory

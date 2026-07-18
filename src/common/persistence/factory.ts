@@ -16,16 +16,19 @@ import { getFirestore } from '../firebase';
  * Create document store based on PERSISTENCE_DRIVER environment variable
  *
  * Values:
- * - 'postgres': Use PostgreSQL backend
- * - 'firestore' (default): Use Firestore backend
+ * - 'postgres' (default): Use PostgreSQL backend
+ * - 'firestore' (deprecated): Use Firestore backend
  *
  * Environment variables:
  * - PERSISTENCE_DRIVER: Driver selection ('postgres' | 'firestore')
  * - DATABASE_URL: PostgreSQL connection string (required if driver=postgres)
  * - POSTGRES_POOL_SIZE: Connection pool size (optional, default: 10)
+ *
+ * Sprint 344: PostgreSQL is now the default persistence driver for the BitBrat platform.
+ * Firestore remains supported for backwards compatibility but will be deprecated in future sprints.
  */
 export function createDocumentStore(): IDocumentStore {
-  const driver = process.env.PERSISTENCE_DRIVER || 'firestore';
+  const driver = process.env.PERSISTENCE_DRIVER || 'postgres';
 
   if (driver === 'postgres') {
     const connectionString = process.env.DATABASE_URL;
@@ -44,7 +47,15 @@ export function createDocumentStore(): IDocumentStore {
     });
   }
 
-  // Default to Firestore
+  // Firestore backend (deprecated - will be removed in future sprint)
+  if (driver === 'firestore') {
+    console.warn(
+      '[DEPRECATION WARNING] PERSISTENCE_DRIVER=firestore is deprecated. ' +
+      'PostgreSQL is now the default persistence backend. ' +
+      'Firestore support will be removed in a future sprint. ' +
+      'Please migrate to PostgreSQL (see documentation/guides/postgres-migration.md).'
+    );
+  }
   return getFirestore() as any; // Firestore already implements similar interface
 }
 

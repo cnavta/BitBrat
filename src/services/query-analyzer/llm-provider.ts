@@ -18,6 +18,7 @@ export interface PromptLogRecord {
   correlationId?: string;
   prompt: string;
   response: string;
+  serviceName?: string; // Sprint 344: Service discriminator for PostgreSQL (implicit in Firestore path)
   entities?: Array<{ text: string; type: string }>; // Optional - query-analyzer specific
   topic?: string; // Optional - query-analyzer specific
   platform: string;
@@ -70,17 +71,20 @@ export class FirestorePromptLogStore implements IPromptLogStore {
 
 /**
  * PostgreSQL-based prompt log store implementation via IDocumentStore.
+ * Sprint 344: Includes serviceName discriminator for multi-service logging.
  */
 export class DocumentStorePromptLogStore implements IPromptLogStore {
   constructor(
     private readonly store: IDocumentStore,
+    private readonly serviceName: string,
     private readonly tableName: string = 'prompt_logs'
   ) {}
 
   async log(record: PromptLogRecord): Promise<void> {
-    const id = `${record.platform}_${record.model}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `${this.serviceName}_${record.platform}_${record.model}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     await this.store.set(this.tableName, id, {
       ...record,
+      serviceName: this.serviceName, // Sprint 344: Add service discriminator
       createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
     });
   }
@@ -89,22 +93,36 @@ export class DocumentStorePromptLogStore implements IPromptLogStore {
 /**
  * Factory function to create prompt log store based on backend detection.
  *
+ * Sprint 344: Updated to support serviceName discriminator for PostgreSQL.
+ *
  * @param dbOrStore - Optional Firestore instance or IDocumentStore
- * @param serviceNameOrTable - Service name (Firestore) or table name (PostgreSQL)
+ * @param serviceName - Service name (used for both Firestore path and PostgreSQL discriminator)
+ * @param tableName - Table name for PostgreSQL (default: 'prompt_logs')
  * @returns IPromptLogStore implementation
+ *
+ * @example
+ * // Firestore backend
+ * const store = createPromptLogStore(firestore, 'llm-bot');
+ *
+ * // PostgreSQL backend
+ * const store = createPromptLogStore(documentStore, 'llm-bot', 'prompt_logs');
  */
 export function createPromptLogStore(
   dbOrStore?: any,
-  serviceNameOrTable?: string
+  serviceName?: string,
+  tableName?: string
 ): IPromptLogStore {
+  const defaultServiceName = serviceName || 'query-analyzer';
+  const defaultTableName = tableName || 'prompt_logs';
+
   // Check if Firestore instance (has collection() method)
   if (dbOrStore && typeof dbOrStore.collection === 'function') {
-    return new FirestorePromptLogStore(dbOrStore, serviceNameOrTable || 'query-analyzer');
+    return new FirestorePromptLogStore(dbOrStore, defaultServiceName);
   }
 
   // Check if IDocumentStore instance
   if (dbOrStore && typeof dbOrStore.get === 'function' && typeof dbOrStore.set === 'function') {
-    return new DocumentStorePromptLogStore(dbOrStore, serviceNameOrTable || 'prompt_logs');
+    return new DocumentStorePromptLogStore(dbOrStore, defaultServiceName, defaultTableName);
   }
 
   // Auto-select based on PERSISTENCE_DRIVER environment variable
@@ -116,7 +134,7 @@ export function createPromptLogStore(
   }
 
   // Default to Firestore
-  return new FirestorePromptLogStore(getFirestore(), serviceNameOrTable || 'query-analyzer');
+  return new FirestorePromptLogStore(getFirestore(), defaultServiceName);
 }
 
 /**
@@ -217,7 +235,7 @@ export async function analyzeWithLlm(
     // Prompt Logging (Fire and forget)
     if (isFeatureEnabled('llm.promptLogging.enabled')) {
       const usage = result.usage;
-      const promptLogStore = createPromptLogStore(options.documentStore, 'prompt_logs');
+      const promptLogStore = createPromptLogStore(options.documentStore, 'query-analyzer', 'prompt_logs');
 
       const logRecord: PromptLogRecord = {
         correlationId: corr,

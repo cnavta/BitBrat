@@ -7,6 +7,7 @@ import { applyProfiles, EventingProfile, LlmProfile, McpClientProfile, McpClient
 import { createGetBotStatusTool, createListAvailableToolsTool } from '../services/llm-bot/tools/internal-tools';
 import { createGetCurrentTimeTool } from '../services/llm-bot/tools/basic-tools';
 import { createAdventureNarratorTool } from '../services/llm-bot/tools/adventure-tools';
+import { createPersonalityStore, type IPersonalityStore } from '../services/llm-bot/personality-store';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
 
@@ -92,6 +93,9 @@ class LlmBotServer extends Bit {
   private get registry() { return this.mcp.registry; }
   private get mcpManager() { return this.mcp.manager; }
 
+  // Sprint 344: PersonalityStore abstraction for PostgreSQL migration
+  private personalityStore?: IPersonalityStore;
+
   // Provide sensible defaults via BaseServer CONFIG_DEFAULTS so getConfig() can honor them
   protected static CONFIG_DEFAULTS: Record<string, any> = {
     SERVICE_NAME: 'llm-bot',
@@ -129,6 +133,29 @@ class LlmBotServer extends Bit {
   }
 
   async start(port: number) {
+    // Sprint 344: Initialize PersonalityStore from documentStore or firestore resource
+    try {
+      const documentStore = this.getResource<any>('documentStore');
+      const firestore = this.getResource<any>('firestore');
+      const backend = documentStore || firestore;
+
+      if (backend) {
+        this.personalityStore = createPersonalityStore(backend, 'personalities');
+        this.getLogger().info('llm_bot.personality_store.initialized', {
+          backend: documentStore ? 'postgres' : 'firestore'
+        });
+      } else {
+        this.getLogger().warn('llm_bot.personality_store.unavailable', {
+          message: 'No documentStore or firestore resource available. Personality resolution will use Firestore fallback.'
+        });
+      }
+    } catch (error: any) {
+      this.getLogger().error('llm_bot.personality_store.init_error', {
+        error: error.message,
+        message: 'PersonalityStore initialization failed. Falling back to legacy Firestore lookup.'
+      });
+    }
+
     // Register internal tools into the profile-provided shared registry before super.start() runs the
     // McpClientProfile startup hook (gateway connect / registry watcher), preserving the prior ordering.
     this.registry.registerTool(createGetBotStatusTool(this.mcpManager));
@@ -166,7 +193,10 @@ class LlmBotServer extends Bit {
             try {
               // Preferred: LLM processor
               logger.debug('llm_bot.processing');
-              const status = await processEvent(this, data as InternalEventV2, { registry: this.registry });
+              const status = await processEvent(this, data as InternalEventV2, {
+                registry: this.registry,
+                personalityStore: this.personalityStore
+              });
               
               // If status is OK but no candidates were generated, we might want to log it
               if (status === 'OK' && (!data.candidates || data.candidates.length === 0)) {

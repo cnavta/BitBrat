@@ -32,8 +32,14 @@ class QueryAnalyzerServer extends Bit {
   }
 
   private async analyzeQuery(text: string, correlationId?: string, tokenCount?: number): Promise<QueryAnalysis | null> {
-    // Get document store for prompt logging (firestore or postgres)
-    const documentStore = this.getResource<any>('firestore') || this.getResource<any>('documentStore');
+    // Sprint 344: Get document store for prompt logging (postgres preferred, firestore fallback)
+    const documentStore = this.getResource<any>('documentStore') || this.getResource<any>('firestore');
+    if (!documentStore) {
+      this.getLogger().warn('query_analyzer.prompt_logging.no_backend', {
+        correlationId,
+        message: 'No documentStore or firestore resource available. Prompt logging may fail.'
+      });
+    }
 
     return analyzeWithLlm(text, {
       logger: this.getLogger() as any,

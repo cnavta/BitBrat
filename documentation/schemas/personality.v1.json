@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "personality.v1.json",
+  "title": "Personality V1",
+  "description": "Schema for LLM personality/identity documents used in prompt composition. Personalities define the identity, voice, and constraints for AI responses.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique personality name identifier (e.g., 'bitbrat_the_ai', 'helpful_assistant'). Used for lookup and resolution.",
+      "pattern": "^[a-z0-9_]+$",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "text": {
+      "type": "string",
+      "description": "Full personality/identity prompt text. This is the actual content that gets composed into the system prompt.",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "status": {
+      "type": "string",
+      "description": "Lifecycle status of the personality. Only 'active' personalities are resolved during prompt composition.",
+      "enum": ["active", "inactive", "archived"]
+    },
+    "version": {
+      "type": "integer",
+      "description": "Version number for this personality. Incremented on updates. Higher versions are preferred when multiple exist.",
+      "minimum": 1
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags for categorization and filtering (e.g., ['streamer', 'gaming', 'humor'])",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_-]+$"
+      },
+      "uniqueItems": true
+    },
+    "platform": {
+      "type": "string",
+      "description": "Optional LLM platform override. If set, this personality is preferred when using the specified platform.",
+      "enum": ["openai", "ollama", "vllm", "anthropic"]
+    },
+    "model": {
+      "type": "string",
+      "description": "Optional model override. If set, this personality is preferred when using the specified model (e.g., 'gpt-4o', 'llama3').",
+      "examples": ["gpt-4o", "gpt-4o-mini", "llama3", "mistral", "claude-3-opus"]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of when this personality was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of when this personality was last updated"
+    },
+    "author": {
+      "type": "string",
+      "description": "Optional author/creator of this personality"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional human-readable description of what this personality does",
+      "maxLength": 500
+    }
+  },
+  "required": ["name", "text", "status"],
+  "examples": [
+    {
+      "name": "bitbrat_the_ai",
+      "text": "You are BitBrat, a witty and helpful AI assistant for streamers. You love gaming, technology, and helping creators engage with their communities. Keep responses concise and entertaining.",
+      "status": "active",
+      "version": 1,
+      "tags": ["streamer", "gaming", "default"],
+      "createdAt": "2026-01-15T10:00:00Z",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "name": "technical_assistant",
+      "text": "You are a technical assistant specializing in software development and DevOps. Provide accurate, detailed technical guidance with code examples when appropriate.",
+      "status": "active",
+      "version": 2,
+      "tags": ["technical", "coding", "devops"],
+      "platform": "openai",
+      "model": "gpt-4o",
+      "createdAt": "2026-02-01T14:30:00Z",
+      "updatedAt": "2026-02-10T09:15:00Z"
+    }
+  ]
+}

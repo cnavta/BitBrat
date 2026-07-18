@@ -8,13 +8,25 @@ jest.mock('../../../common/firebase');
 jest.mock('../../../common/feature-flags');
 
 class TestServer extends Bit {
-  constructor() {
+  private mockDocumentStore: any;
+
+  constructor(documentStore?: any) {
     super({ serviceName: 'test-llm-bot' });
+    this.mockDocumentStore = documentStore;
   }
+
   getConfig(name?: string, options?: any): any {
     if (name === 'OPENAI_MODEL') return 'gpt-4o';
     if (name === 'LLM_PLATFORM') return 'openai';
     return options?.default;
+  }
+
+  // Sprint 344: Override getResource to provide documentStore for prompt logging
+  protected getResource<T>(name: string): T | undefined {
+    if (name === 'documentStore' && this.mockDocumentStore) {
+      return this.mockDocumentStore as T;
+    }
+    return super.getResource(name);
   }
 }
 
@@ -33,21 +45,20 @@ function baseEvt(): InternalEventV2 {
 }
 
 describe('llm-bot processor logging', () => {
-  let mockAdd: jest.Mock;
-  let mockCollection: jest.Mock;
-  let mockDoc: jest.Mock;
+  let mockSet: jest.Mock;
+  let mockDocumentStore: any;
 
   beforeEach(() => {
     jest.resetAllMocks();
-    mockAdd = jest.fn().mockResolvedValue({ id: 'new-log-id' });
-    mockCollection = jest.fn().mockReturnThis();
-    mockDoc = jest.fn().mockReturnThis();
 
-    (getFirestore as jest.Mock).mockReturnValue({
-      collection: mockCollection,
-      doc: mockDoc,
-      add: mockAdd,
-    });
+    // Sprint 344: Mock documentStore (PostgreSQL) instead of Firestore
+    mockSet = jest.fn().mockResolvedValue(undefined);
+    mockDocumentStore = {
+      set: mockSet,
+      get: jest.fn(),
+      query: jest.fn(),
+      delete: jest.fn(),
+    };
 
     (isFeatureEnabled as jest.Mock).mockImplementation((key) => {
       if (key === 'llm.promptLogging.enabled') return true;
@@ -55,8 +66,8 @@ describe('llm-bot processor logging', () => {
     });
   });
 
-  test('records processingTimeMs in Firestore prompt_logs', async () => {
-    const server = new TestServer();
+  test('records processingTimeMs in PostgreSQL prompt_logs', async () => {
+    const server = new TestServer(mockDocumentStore);
     const evt = baseEvt();
 
     const status = await processEvent(server, evt, {
@@ -68,10 +79,11 @@ describe('llm-bot processor logging', () => {
     } as any);
 
     expect(status).toBe('OK');
-    expect(mockCollection).toHaveBeenCalledWith('prompt_logs');
-    
-    // Check the data passed to .add()
-    const logData = mockAdd.mock.calls[0][0];
+    expect(mockSet).toHaveBeenCalled();
+
+    // Check the data passed to documentStore.set(table, id, data)
+    const [tableName, _id, logData] = mockSet.mock.calls[0];
+    expect(tableName).toBe('prompt_logs');
     expect(logData).toBeDefined();
     expect(logData.processingTimeMs).toBeGreaterThanOrEqual(40);
     expect(logData.correlationId).toBe('corr-log-test');
