@@ -22,8 +22,8 @@ In BitBrat, this architecture enables:
 
 | Component | Abstract Requirement | BitBrat Implementation |
 |-----------|----------------------|-------------------------|
-| **State Snapshot Store** | Fast read/write, versioned | **Firestore** (`state` collection) |
-| **Mutation Event Log** | Append-only, ordered | **NATS JetStream** (`internal.state.mutation.v1`) + **Firestore** (`mutation_log`) |
+| **State Snapshot Store** | Fast read/write, versioned | **Database** (`state` collection/table) |
+| **Mutation Event Log** | Append-only, ordered | **NATS JetStream** (`internal.state.mutation.v1`) + **Database** (`mutation_log` collection/table) |
 | **Rule Engine** | Reactive derivation | **`state-engine` Service** (Node/TS) |
 | **LLM Interface** | Controlled tools | **MCP API exposed by `state-engine` via McpServer base class** (consumed by `llm-bot`) |
 
@@ -31,12 +31,12 @@ In BitBrat, this architecture enables:
 
 # 3. Core Components
 
-## 3.1 State Snapshot Store (Firestore)
+## 3.1 State Snapshot Store (Database)
 
-Authoritative current state is stored in Firestore.
+Authoritative current state is stored in the database.
 
-**Collection:** `state`
-**Document ID:** `{key}` (e.g., `stream.state`)
+**Collection/Table:** `state`
+**Document/Row ID:** `{key}` (e.g., `stream.state`)
 
 **Schema:**
 ```json
@@ -52,12 +52,12 @@ Authoritative current state is stored in Firestore.
 }
 ```
 
-## 3.2 Mutation Event Log (NATS + Firestore)
+## 3.2 Mutation Event Log (NATS + Database)
 
 All state changes MUST be proposed as mutations.
 
 **NATS Topic:** `internal.state.mutation.v1`
-**Firestore Collection:** `mutation_log`
+**Database Collection/Table:** `mutation_log`
 
 **Mutation Payload:**
 ```json
@@ -77,7 +77,7 @@ All state changes MUST be proposed as mutations.
 
 The `state-engine` is a new service that:
 1.  **Validates** mutations (Policy Layer).
-2.  **Commits** valid mutations to Firestore.
+2.  **Commits** valid mutations to the database.
 3.  **Publishes** success/failure events.
 4.  **Evaluates Rules** reacting to state changes.
 
@@ -93,7 +93,7 @@ rules:
 
 ## 3.4 LLM Tool Interface (MCP via state-engine)
 
-`llm-bot` MUST NOT access Firestore or NATS directly for state. Instead, it uses MCP tools implemented by the `state-engine` service, which exposes its API using the shared `McpServer` base class. This keeps policy, validation, and concurrency control centralized in `state-engine` while providing a clean tool surface for agents.
+`llm-bot` MUST NOT access the database or NATS directly for state. Instead, it uses MCP tools implemented by the `state-engine` service, which exposes its API using the shared `McpServer` base class. This keeps policy, validation, and concurrency control centralized in `state-engine` while providing a clean tool surface for agents.
 
 - `get_state(keys: string[])`: Returns current values and versions from the authoritative snapshot store via `state-engine`.
 - `get_state_prefix(prefix: string)`: Returns key/value pairs matching a prefix (optimization for grouped reads) via `state-engine`.
@@ -111,7 +111,7 @@ The first implementation focuses on `stream.state`.
 
 ### Flow:
 1.  **Twitch Starts**: `ingress-egress` receives a Twitch EventSub `stream.online` event -> publishes `internal.state.mutation.v1` with `key: "stream.state", value: "on"`.
-2.  **State Engine**: Validates mutation -> Updates Firestore `state/stream.state` -> Publishes success.
+2.  **State Engine**: Validates mutation -> Updates database `state/stream.state` -> Publishes success.
 3.  **LLM Bot**: Periodically or on-trigger reads `stream.state`. Now knows the stream is ON without guessing.
 4.  **Agent Action**: If Agent wants to stop stream, it calls `propose_mutation(key: "stream.state", value: "off")`.
 5.  **State Engine**: Validates (e.g., check permissions) -> Updates state -> Triggers Rule -> Publishes `internal.egress.v1` to `obs-mcp` to stop stream.
@@ -131,4 +131,4 @@ The first implementation focuses on `stream.state`.
 1.  **Define Protobuf/TS types** for Mutations and State.
 2.  **Implement `state-engine` service** stub.
 3.  **Add State MCP tools** to `llm-bot`.
-4.  **Bootstrap Firestore** with initial stream state.
+4.  **Bootstrap database** with initial stream state.

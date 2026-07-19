@@ -52,7 +52,7 @@ The work is deliberately small: the MCP client primitives (`McpClientManager`, `
 2. **Default = fabric-through-gateway** (ADR-003): discovery and invocation flow through `tool-gateway`, the single auth/RBAC/discovery chokepoint.
 3. **Direct-connect break-glass** behind an explicit `--direct <bit>` flag, for when the gateway is down or a Bit must be reached out-of-band.
 4. **Fail-closed RBAC:** fleet commands carry an authorized token/roles or they refuse to run; `bit:operate` actions (`drain`/`shutdown`/`flags.set`) demand elevated scope.
-5. **Deployment-target parity:** identical behavior on GCP (Cloud Run/PubSub), Local Docker (Compose/NATS), and Remote Docker (`ssh://`).
+5. **Deployment-target parity:** identical behavior on cloud platforms (Cloud Run/Pub/Sub), local development (Docker Compose/NATS), and remote Docker deployments (`ssh://`).
 
 ### 3.2 Non-Goals
 - No change to the `bit.*` toolset or its scopes (shipped in sprint-324; BL-200/201).
@@ -151,7 +151,7 @@ Rationale: one chokepoint (fabric) gives consistent auth, RBAC, discovery, and o
 
 ## 6. Security Posture
 
-1. **Fail-closed.** No resolvable bearer token ⇒ the command refuses to run (non-zero exit), never a silent unauthenticated call. Token resolution order mirrors existing Brat/secret conventions: `MCP_AUTH_TOKEN` env → environment-target secret (GCP Secret Manager / `.secure.local` / `ssh://`-synced `.env.brat`). This matches OQ3's posture: an absent token preserves prior behavior but is logged as a **posture warning**.
+1. **Fail-closed.** No resolvable bearer token ⇒ the command refuses to run (non-zero exit), never a silent unauthenticated call. Token resolution order mirrors existing Brat/secret conventions: `MCP_AUTH_TOKEN` env → environment-target secret (cloud secret manager / `.secure.local` / `ssh://`-synced `.env.brat`). This matches OQ3's posture: an absent token preserves prior behavior but is logged as a **posture warning**.
 2. **Scope-aware.** Read commands (`list`/`info`/`health`/`config`/`flags get`) need only `bit:read`. Mutating commands (`flags set`/`log`/`drain`/`shutdown`) require `bit:operate`; the client surfaces a clear `Forbidden`/insufficient-scope error rather than retrying.
 3. **RBAC is server-authoritative.** Brat sends identity (`_meta.userRoles`/`userId`); the gateway (`RbacEvaluator` + `getRequestContext`) and the Bit make the allow/deny decision. Brat never self-authorizes.
 4. **Secret redaction preserved.** `bit.config.*` already redacts secrets server-side (`safeConfig`); Brat displays whatever the Bit returns and performs **no** de-redaction.
@@ -172,12 +172,12 @@ Rationale: one chokepoint (fabric) gives consistent auth, RBAC, discovery, and o
 
 The fleet client must behave identically across all three current targets. The design avoids any target-specific assumption:
 
-| Concern | GCP (Cloud Run / PubSub) | Local Docker (Compose / NATS) | Remote Docker (`ssh://`) |
+| Concern | Cloud Platform (Cloud Run / Pub/Sub) | Local Development (Compose / NATS) | Remote Docker (`ssh://`) |
 |---|---|---|---|
-| Discovery source | Firestore `mcp_servers` + gateway | same (emulator Firestore) | same |
+| Discovery source | Database `mcp_servers` + gateway | same (local/emulator database) | same |
 | Bit external URL | Cloud Run URL (from registration) | `http://<service>:<port>` (compose network) | resolved via the remote host (from registration) |
-| Token source | GCP Secret Manager | `.secure.local` / `.env.local` | `ssh://`-synced `.env.brat` |
-| Messaging backend | PubSub | NATS | NATS |
+| Token source | Cloud secret manager | `.secure.local` / `.env.local` | `ssh://`-synced `.env.brat` |
+| Messaging backend | Pub/Sub | NATS | NATS |
 
 Because discovery uses the **registry self-published URL** (not a hard-coded host) and the bus backend is irrelevant to the synchronous MCP call path, no PubSub-only or Compose-only assumption is baked in. Parity is asserted in tests (§9) by driving the fleet client against a mocked gateway/registry under both bus drivers, consistent with the BL-500 harness.
 
@@ -195,7 +195,7 @@ Aligns with `AGENTS.md` §3 and the BL-204 acceptance criteria.
 - **Parity test:** fleet path exercised under both `MESSAGE_BUS_DRIVER=pubsub` and `=nats` (mockable), per BL-500.
 - **Stack:** Jest (TypeScript), external services mocked, `npm test` green, wired into `validate_deliverable.sh`.
 
-**Definition of Done (BL-204):** Brat discovers Bits and offers fleet `bit.info`/`bit.health`/`bit.flags`/`bit.drain`; default path is fabric-through-gateway; a documented `--direct` break-glass exists; commands honor RBAC and fail closed without an authorized token; parity holds across GCP/Local/Remote Docker; tests green.
+**Definition of Done (BL-204):** Brat discovers Bits and offers fleet `bit.info`/`bit.health`/`bit.flags`/`bit.drain`; default path is fabric-through-gateway; a documented `--direct` break-glass exists; commands honor RBAC and fail closed without an authorized token; parity holds across cloud platforms/local development/remote Docker; tests green.
 
 ---
 

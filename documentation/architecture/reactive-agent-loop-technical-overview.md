@@ -111,7 +111,7 @@ Current mapping:
 - `auth` enriches `identity.user` and `identity.auth`.
 - User context, disposition context, and prompt assembly add event-local operating context.
 - `query-analyzer` emits annotations and disposition observations.
-- Firestore-backed state and persistence snapshots provide short and durable context.
+- Database-backed state and persistence snapshots provide short and durable context (PostgreSQL or Firestore legacy).
 
 Formalization:
 

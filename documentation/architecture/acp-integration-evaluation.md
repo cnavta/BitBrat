@@ -211,7 +211,7 @@ services:
 - `bit.acp.subscribe` - Subscribe to ACP message types
 
 **Discovery:**
-- Bits register capabilities in Firestore `agent_registry` collection
+- Bits register capabilities in database `agent_registry` collection/table
 - `acp-registry` service acts as capability matcher
 - Agents query registry to find suitable collaborators
 
@@ -564,7 +564,7 @@ services:
    - Add `conversationId` to Envelope metadata
 
 3. **Agent Registry**
-   - Firestore collection: `agent_registry`
+   - Database collection/table: `agent_registry`
    - Schema: `{ agentId, capabilities[], status, lastSeen }`
    - Basic discovery API
 
@@ -594,7 +594,7 @@ services:
    - BitBrat events → External ACP (for responses)
 
 3. **Conversation Persistence**
-   - Firestore collection: `acp_conversations`
+   - Database collection/table: `acp_conversations`
    - State: pending, in_progress, completed, failed
    - Timeout handling
 

@@ -724,7 +724,7 @@ describe('Fleet observability', () => {
 ### External References
 
 - [Node.js AsyncLocalStorage](https://nodejs.org/api/async_context.html#class-asynclocalstorage)
-- [Google Cloud Logging Correlation](https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry)
+- [Cloud Logging Correlation](https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry) (Google Cloud example)
 - [OpenTelemetry Context Propagation](https://opentelemetry.io/docs/concepts/context-propagation/)
 
 ### Key Architecture Principles
