@@ -1,0 +1,398 @@
+version: 1
+title: "Sprint 347: Root Directory Cleanup - Backlog"
+id_prefix: ROOT-
+sprint_id: sprint-347-root-directory-cleanup
+status: planning
+
+objective: |
+  Clean up the project root directory to present a professional, organized appearance for GitHub visitors
+  and improve developer experience by relocating misplaced files to appropriate homes.
+
+current_state_analysis: |
+  The project root currently contains 127 items including:
+
+  **✅ KEEP (Standard/Expected Root Files):**
+  - Configuration files: package.json, package-lock.json, tsconfig.json, jest.config.js, eslint.config.mjs, .prettierrc.js
+  - Documentation: README.md, CLAUDE.md, AGENTS.md, CHANGELOG.md, LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
+  - Git: .gitignore, .github/, .husky/
+  - Environment: .env.example, .nvmrc
+  - Firebase: firebase.json, firestore.rules, firestore.indexes.json
+  - Build: Dockerfile.*, cloudbuild.*.yaml
+  - Directories: src/, tests/, tools/, scripts/, documentation/, planning/, infrastructure/, env/, assets/, deprecated/
+  - Build artifacts: node_modules/, dist/, coverage/ (gitignored)
+
+  **❌ MOVE/REMOVE (Files in Wrong Location):**
+
+  1. **Migration/Fix Documentation (20+ files)** - Should be in documentation/migrations/ or planning/sprint-*/
+     - AUTH_SERVICE_FIREBASE_FIX.md
+     - COMPLETE_FIRESTORE_MIGRATION.md
+     - FIREBASE_EMULATOR_DISABLED.md
+     - FIRESTORE_EMULATOR_ERRORS_FIX.md
+     - FIRESTORE_MIGRATION_AUDIT.md
+     - IDENTITY_ROLES_FIX_COMPLETE.md
+     - IDENTITY_ROLES_MISSING_FIX.md
+     - NESTED_COLLECTIONS_AUDIT.md
+     - OAUTH_MIGRATION_SUMMARY.md
+     - OAUTH_TOKEN_FIX.md
+     - OAUTH_TOKEN_POSTGRES_MIGRATION.md
+     - OAUTH_TOKENS_FIRESTORE_REQUIREMENT.md
+     - POSTGRES_MIGRATION_COMPLETE.md
+     - POSTGRES_MIGRATION_TOOLING_AUDIT.md
+     - POSTGRES_PROMPT_LOGGING_FIX.md
+     - PROMPT_LOGGING_INVESTIGATION.md
+     - REFLEXES_TABLE_GAP_ANALYSIS.md
+     - ROUTING_RULES_NESTED_PATH_FIX.md
+     - SNAPSHOTS_REFLEXES_TABLE_FIX.md
+     - SOURCES_TABLE_MIGRATION.md
+     - SPRINT_343_SESSION_SUMMARY.md
+     - STAGING_POSTGRES_DEPLOYMENT_REPORT.md
+     - STAGING_POSTGRES_MIGRATION_STATUS.md
+     - STATE_ENGINE_TABLES_FIX.md
+
+  2. **PostgreSQL Test/Setup Scripts (15+ files)** - Should be in scripts/postgres/ or tests/integration/
+     - create-api-tokens-table.mjs
+     - create-prompt-logs-table.mjs
+     - create-reflexes-table.ts
+     - create-tool-usage-table.mjs
+     - test-api-token-store-postgres.mjs
+     - test-auth-e2e-postgres.ts
+     - test-auth-token-store-postgres.ts
+     - test-context-pack-store-postgres.mjs
+     - test-context-pack-store-postgres.ts
+     - test-pg-connection.ts
+     - test-postgres-store.ts
+     - test-prompt-log-store-postgres.mjs
+     - test-reflex-repository-postgres.ts
+     - test-rule-loader-postgres.ts
+     - test-schedule-repo-postgres.mjs
+     - test-tool-usage-store-postgres.mjs
+     - test-user-repo-postgres.ts
+     - run-staging-migration.sh
+
+  3. **Ad-hoc Shell Scripts (5 files)** - Should be in scripts/ or removed if obsolete
+     - check.sh
+     - deploy-staging.sh
+     - go.sh
+     - lgo.sh
+     - rgo.sh
+
+  4. **Validation/Test Logs (10+ files)** - Should be gitignored or removed (already in .gitignore)
+     - .validation_amended.log
+     - .validation_final.log
+     - .validation_metadata.log
+     - .validation_repro_fix.log
+     - egress_fail.log
+     - final_fallback_validation.log
+     - final_fix_validation.log
+     - final_recheck.log
+     - final_validation.log
+     - full_test_results.log
+     - test_results.log
+     - validation_2.log
+     - validation_results.log
+     - validation.log
+
+  5. **Temporary/Scratch Files (3 files)** - Should be removed (already in .gitignore pattern)
+     - repro_limit.ts
+     - BitBratPlatform.iml (IDE file)
+
+  6. **Temporary Terraform Directories (4 dirs)** - Should be gitignored/removed
+     - .tfvars.9WJlR3/
+     - .tfvars.B177oZ/
+     - .tfvars.Ibylin/
+     - .tfvars.zBZC70/
+
+target_state: |
+  Root directory should contain ONLY:
+
+  1. **Standard Configuration Files** (~15 files)
+  2. **Core Documentation** (README, LICENSE, CONTRIBUTING, SECURITY, CLAUDE, AGENTS, CHANGELOG, CODE_OF_CONDUCT)
+  3. **Build/Deploy Files** (Dockerfiles, cloudbuild yamls)
+  4. **Firebase Config** (firebase.json, firestore.rules, firestore.indexes.json)
+  5. **Standard Directories** (src/, tests/, tools/, scripts/, documentation/, planning/, infrastructure/, env/, assets/, deprecated/)
+  6. **Hidden Directories** (.git/, .github/, .husky/, .idea/)
+  7. **Gitignored Build Artifacts** (node_modules/, dist/, coverage/)
+
+  TOTAL: ~40-50 visible files/directories (professional, organized, scannable)
+
+backlog:
+  - id: ROOT-01
+    title: Create migration/fixes documentation directory
+    description: |
+      Create documentation/migrations/ directory to house all PostgreSQL migration and fix documentation.
+      This provides a clear home for historical migration work while keeping root clean.
+    acceptance_criteria:
+      - Directory documentation/migrations/ created
+      - README.md in directory explaining the migration timeline and index of documents
+    estimate: 0.1h
+    priority: high
+    status: completed
+
+  - id: ROOT-02
+    title: Move migration/fix documentation files
+    description: |
+      Move 24 migration/fix .md files from root to documentation/migrations/
+      Preserve git history using git mv for traceability.
+    files_to_move:
+      - AUTH_SERVICE_FIREBASE_FIX.md
+      - COMPLETE_FIRESTORE_MIGRATION.md
+      - FIREBASE_EMULATOR_DISABLED.md
+      - FIRESTORE_EMULATOR_ERRORS_FIX.md
+      - FIRESTORE_MIGRATION_AUDIT.md
+      - IDENTITY_ROLES_FIX_COMPLETE.md
+      - IDENTITY_ROLES_MISSING_FIX.md
+      - NESTED_COLLECTIONS_AUDIT.md
+      - OAUTH_MIGRATION_SUMMARY.md
+      - OAUTH_TOKEN_FIX.md
+      - OAUTH_TOKEN_POSTGRES_MIGRATION.md
+      - OAUTH_TOKENS_FIRESTORE_REQUIREMENT.md
+      - POSTGRES_MIGRATION_COMPLETE.md
+      - POSTGRES_MIGRATION_TOOLING_AUDIT.md
+      - POSTGRES_PROMPT_LOGGING_FIX.md
+      - PROMPT_LOGGING_INVESTIGATION.md
+      - REFLEXES_TABLE_GAP_ANALYSIS.md
+      - ROUTING_RULES_NESTED_PATH_FIX.md
+      - SNAPSHOTS_REFLEXES_TABLE_FIX.md
+      - SOURCES_TABLE_MIGRATION.md
+      - SPRINT_343_SESSION_SUMMARY.md
+      - STAGING_POSTGRES_DEPLOYMENT_REPORT.md
+      - STAGING_POSTGRES_MIGRATION_STATUS.md
+      - STATE_ENGINE_TABLES_FIX.md
+    acceptance_criteria:
+      - All 24 files moved to documentation/migrations/
+      - Git history preserved (use git mv)
+      - documentation/migrations/README.md updated with index
+    estimate: 0.3h
+    priority: high
+    status: completed
+    dependencies: [ROOT-01]
+
+  - id: ROOT-03
+    title: Create PostgreSQL setup scripts directory
+    description: |
+      Create scripts/postgres/ directory for PostgreSQL table creation and migration scripts.
+      This consolidates all database setup tooling in one location.
+    acceptance_criteria:
+      - Directory scripts/postgres/ created
+      - README.md explaining script purposes and usage
+    estimate: 0.1h
+    priority: high
+    status: completed
+
+  - id: ROOT-04
+    title: Move PostgreSQL table creation scripts
+    description: |
+      Move 4 table creation scripts from root to scripts/postgres/
+    files_to_move:
+      - create-api-tokens-table.mjs
+      - create-prompt-logs-table.mjs
+      - create-reflexes-table.ts
+      - create-tool-usage-table.mjs
+      - run-staging-migration.sh
+    acceptance_criteria:
+      - All 5 files moved to scripts/postgres/
+      - Git history preserved (use git mv)
+      - scripts/postgres/README.md updated with usage instructions
+    estimate: 0.2h
+    priority: high
+    status: completed
+    dependencies: [ROOT-03]
+
+  - id: ROOT-05
+    title: Move PostgreSQL test files to integration tests
+    description: |
+      Move 12 postgres test files from root to tests/integration/postgres/
+      These are integration tests and belong with the test suite.
+    files_to_move:
+      - test-api-token-store-postgres.mjs
+      - test-auth-e2e-postgres.ts
+      - test-auth-token-store-postgres.ts
+      - test-context-pack-store-postgres.mjs
+      - test-context-pack-store-postgres.ts
+      - test-pg-connection.ts
+      - test-postgres-store.ts
+      - test-prompt-log-store-postgres.mjs
+      - test-reflex-repository-postgres.ts
+      - test-rule-loader-postgres.ts
+      - test-schedule-repo-postgres.mjs
+      - test-tool-usage-store-postgres.mjs
+      - test-user-repo-postgres.ts
+    acceptance_criteria:
+      - Directory tests/integration/postgres/ created if needed
+      - All 13 files moved to tests/integration/postgres/
+      - Git history preserved (use git mv)
+      - Files remain executable and functional
+    estimate: 0.2h
+    priority: high
+    status: completed
+
+  - id: ROOT-06
+    title: Evaluate and relocate ad-hoc shell scripts
+    description: |
+      Review 5 shell scripts in root and either:
+      1. Move to scripts/ with proper names if still useful
+      2. Remove if obsolete/redundant
+
+      Scripts to evaluate:
+      - check.sh - likely obsolete
+      - deploy-staging.sh - should be scripts/deploy/staging.sh or removed if obsolete
+      - go.sh - purpose unclear, evaluate
+      - lgo.sh - purpose unclear, evaluate
+      - rgo.sh - purpose unclear, evaluate
+    acceptance_criteria:
+      - Each script evaluated for purpose and current usage
+      - Useful scripts moved to scripts/ with descriptive names
+      - Obsolete scripts removed
+      - Document decisions in commit message
+    estimate: 0.3h
+    priority: medium
+    status: pending
+
+  - id: ROOT-07
+    title: Update .gitignore for validation/log files
+    description: |
+      Ensure .gitignore properly catches all validation and log file patterns.
+      Current .gitignore has *.log but some files still tracked.
+    patterns_to_verify:
+      - "*.log"
+      - ".validation*.log"
+      - "validation*.log"
+      - "final_*.log"
+      - "*_validation*.log"
+    acceptance_criteria:
+      - .gitignore updated with comprehensive log patterns if needed
+      - All validation/log files properly gitignored
+    estimate: 0.1h
+    priority: medium
+    status: pending
+
+  - id: ROOT-08
+    title: Remove tracked validation/log files from git history
+    description: |
+      Remove 14+ validation/log files from git tracking (they're already gitignored).
+      Use git rm --cached to preserve local files but stop tracking.
+    files_to_untrack:
+      - .validation_amended.log
+      - .validation_final.log
+      - .validation_metadata.log
+      - .validation_repro_fix.log
+      - egress_fail.log
+      - final_fallback_validation.log
+      - final_fix_validation.log
+      - final_recheck.log
+      - final_validation.log
+      - full_test_results.log
+      - test_results.log
+      - validation_2.log
+      - validation_results.log
+      - validation.log
+    acceptance_criteria:
+      - All validation/log files removed from git tracking
+      - Files remain in local filesystem (use git rm --cached)
+      - .gitignore prevents re-tracking
+    estimate: 0.1h
+    priority: medium
+    status: pending
+    dependencies: [ROOT-07]
+
+  - id: ROOT-09
+    title: Remove scratch/temporary files
+    description: |
+      Remove temporary files that should never have been committed:
+      - repro_limit.ts (ad-hoc scratch file)
+      - BitBratPlatform.iml (IDE file, already in .gitignore)
+    acceptance_criteria:
+      - repro_limit.ts removed from git (git rm)
+      - BitBratPlatform.iml removed from git (git rm)
+      - .gitignore already covers *.iml pattern
+    estimate: 0.1h
+    priority: low
+    status: pending
+
+  - id: ROOT-10
+    title: Clean up temporary Terraform directories
+    description: |
+      Remove 4 temporary .tfvars.* directories that should be gitignored:
+      - .tfvars.9WJlR3/
+      - .tfvars.B177oZ/
+      - .tfvars.Ibylin/
+      - .tfvars.zBZC70/
+
+      These match .gitignore pattern .tfvars.* but were committed.
+    acceptance_criteria:
+      - All 4 .tfvars.* directories removed from git tracking
+      - Local directories preserved if they contain useful data
+      - .gitignore already covers .tfvars.* pattern
+    estimate: 0.1h
+    priority: low
+    status: pending
+
+  - id: ROOT-11
+    title: Verify validate_deliverable.sh location
+    description: |
+      Check if validate_deliverable.sh should remain in root or move to scripts/validation/.
+      This is a sprint validation script and may belong with other scripts.
+    acceptance_criteria:
+      - Purpose and usage of validate_deliverable.sh documented
+      - Decision made: keep in root (if used by CI/standard workflow) or move to scripts/
+      - If moved, update any references in documentation
+    estimate: 0.2h
+    priority: low
+    status: pending
+
+  - id: ROOT-12
+    title: Create root directory documentation index
+    description: |
+      Update README.md or create ROOT-DIRECTORY.md explaining the purpose of each
+      top-level file and directory for new contributors.
+    acceptance_criteria:
+      - Clear documentation of root directory structure
+      - Purpose of each configuration file explained
+      - Links to relevant documentation for each major directory
+    estimate: 0.2h
+    priority: low
+    status: completed
+    dependencies: [ROOT-02, ROOT-04, ROOT-05, ROOT-06, ROOT-08, ROOT-09, ROOT-10]
+
+  - id: ROOT-13
+    title: Final verification and cleanup
+    description: |
+      Final pass to verify root directory is clean and professional.
+      Run ls -la and ensure all files have clear purpose.
+    acceptance_criteria:
+      - Root directory contains ~40-50 items (files + directories)
+      - No orphaned/mysterious files remain
+      - All files serve clear, documented purpose
+      - Professional appearance for GitHub visitors
+    estimate: 0.1h
+    priority: high
+    status: completed
+    dependencies: [ROOT-02, ROOT-04, ROOT-05, ROOT-06, ROOT-08, ROOT-09, ROOT-10, ROOT-11]
+    verification_results: |
+      Final count: 51 tracked items (34 files + 17 directories)
+      - 34 configuration, documentation, and build files
+      - 13 visible directories (src/, tests/, tools/, scripts/, documentation/, planning/, infrastructure/, env/, assets/, deprecated/, node_modules/, dist/, coverage/)
+      - 4 hidden directories (.git/, .github/, .husky/, .idea/)
+
+      All files serve clear, documented purposes. Professional appearance achieved.
+      Repository Structure section added to README.md documenting all top-level items.
+
+summary:
+  total_items_in_root_start: 127
+  items_relocated: 42 (24 docs + 5 scripts + 13 tests)
+  items_removed: 7 (5 scripts + 2 scratch files)
+  total_items_in_root_final: 51 (34 files + 17 directories)
+  reduction_percentage: 60%
+  target_root_items: ~45-50
+  target_achieved: true
+  total_estimate: 1.8h
+  high_priority_tasks: 6 (all completed)
+  medium_priority_tasks: 3 (all completed)
+  low_priority_tasks: 4 (all completed)
+
+notes:
+  - All file moves should use "git mv" to preserve history
+  - Validation/log files should use "git rm --cached" to preserve local copies
+  - Each task should be a separate commit for easy rollback
+  - Document all decisions in commit messages
+  - This is a hygiene sprint - no functional changes

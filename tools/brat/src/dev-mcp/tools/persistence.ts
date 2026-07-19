@@ -1,7 +1,7 @@
 /**
  * Persistence Abstraction Tools
  *
- * Tools for querying Firestore as generic JSON document storage.
+ * Tools for querying the persistence backend (PostgreSQL or Firestore) as generic JSON document storage.
  * Read-only operations for development and debugging.
  */
 
@@ -9,9 +9,11 @@ import { z } from 'zod';
 import { ToolDefinition, TargetConnection } from '../types.js';
 
 /**
- * db.collections - List all Firestore collections
+ * db.collections - List all database collections/tables
  *
- * Returns a list of all top-level collections in the target Firestore.
+ * Returns a list of all top-level collections in the target database.
+ * For PostgreSQL: Lists tables in the public schema.
+ * For Firestore: Lists top-level collections.
  */
 export const dbCollectionsTool: ToolDefinition = {
   name: 'db.collections',
@@ -19,10 +21,42 @@ export const dbCollectionsTool: ToolDefinition = {
   inputSchema: z.object({}),
   handler: async (args, connection: TargetConnection) => {
     try {
+      // Use PostgreSQL store if available
+      if (connection.persistenceDriver === 'postgres' && connection.store) {
+        // For PostgreSQL, we'll list known tables
+        // The IDocumentStore interface doesn't have a listCollections method,
+        // so we return a hardcoded list of known tables
+        const knownTables = [
+          'service_registry',
+          'events',
+          'dispositions',
+          'routingSlips',
+          'context_packs',
+          'commands'
+        ];
+
+        const result = {
+          driver: 'postgres',
+          collections: knownTables,
+          count: knownTables.length,
+        };
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      // Fallback to Firestore
       const collections = await connection.firestore.db.listCollections();
       const collectionNames = collections.map((col) => col.id);
 
       const result = {
+        driver: 'firestore',
         projectId: connection.firestore.projectId,
         databaseId: connection.firestore.databaseId || '(default)',
         collections: collectionNames,
@@ -54,7 +88,7 @@ export const dbCollectionsTool: ToolDefinition = {
 /**
  * db.get - Get a single document by ID
  *
- * Retrieves a document from Firestore by collection and document ID.
+ * Retrieves a document from the persistence backend by collection and document ID.
  */
 export const dbGetTool: ToolDefinition = {
   name: 'db.get',
@@ -65,6 +99,45 @@ export const dbGetTool: ToolDefinition = {
   }),
   handler: async (args, connection: TargetConnection) => {
     try {
+      // Use PostgreSQL store if available
+      if (connection.persistenceDriver === 'postgres' && connection.store) {
+        const doc = await connection.store.get(args.collection, args.id);
+
+        if (!doc) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({
+                  found: false,
+                  driver: 'postgres',
+                  collection: args.collection,
+                  id: args.id,
+                }, null, 2),
+              },
+            ],
+          };
+        }
+
+        const result = {
+          found: true,
+          driver: 'postgres',
+          collection: args.collection,
+          id: args.id,
+          data: doc,
+        };
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      // Fallback to Firestore
       const docRef = connection.firestore.db.collection(args.collection).doc(args.id);
       const docSnap = await docRef.get();
 
@@ -75,6 +148,7 @@ export const dbGetTool: ToolDefinition = {
               type: 'text' as const,
               text: JSON.stringify({
                 found: false,
+                driver: 'firestore',
                 collection: args.collection,
                 id: args.id,
               }, null, 2),
@@ -86,6 +160,7 @@ export const dbGetTool: ToolDefinition = {
       const data = docSnap.data();
       const result = {
         found: true,
+        driver: 'firestore',
         collection: args.collection,
         id: args.id,
         data,
@@ -114,7 +189,7 @@ export const dbGetTool: ToolDefinition = {
 };
 
 /**
- * db.query - Query Firestore with filters, ordering, and pagination
+ * db.query - Query persistence backend with filters, ordering, and pagination
  *
  * Supports:
  * - Filters: ==, !=, <, <=, >, >=, in, array-contains
@@ -141,6 +216,59 @@ export const dbQueryTool: ToolDefinition = {
   }),
   handler: async (args, connection: TargetConnection) => {
     try {
+      // Use PostgreSQL store if available
+      if (connection.persistenceDriver === 'postgres' && connection.store) {
+        const queryOptions: any = {};
+
+        // Map filters
+        if (args.filters && args.filters.length > 0) {
+          queryOptions.filters = args.filters.map((f: any) => ({
+            field: f.field,
+            operator: f.op,
+            value: f.value
+          }));
+        }
+
+        // Map ordering
+        if (args.orderBy) {
+          queryOptions.orderBy = {
+            field: args.orderBy.field,
+            direction: args.orderBy.direction || 'asc'
+          };
+        }
+
+        // Map pagination
+        if (args.limit) {
+          queryOptions.limit = args.limit;
+        }
+        if (args.offset) {
+          queryOptions.offset = args.offset;
+        }
+
+        // Execute query
+        const documents = await connection.store.query(args.collection, queryOptions);
+
+        const result = {
+          driver: 'postgres',
+          collection: args.collection,
+          count: documents.length,
+          documents: documents.map((doc: any) => ({
+            id: doc.id,
+            data: doc
+          })),
+        };
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      // Fallback to Firestore
       let query: any = connection.firestore.db.collection(args.collection);
 
       // Apply filters
@@ -173,6 +301,7 @@ export const dbQueryTool: ToolDefinition = {
       }));
 
       const result = {
+        driver: 'firestore',
         collection: args.collection,
         count: documents.length,
         documents,
