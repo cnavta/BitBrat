@@ -22,7 +22,7 @@ That's it! The `bitbrat-dev` MCP server is now available in all your Claude Code
 Once configured, you can use natural language to:
 
 - **Query Configuration**: "Show me the current BitBrat config"
-- **Manage Firestore**: "List all commands in the Firestore commands collection"
+- **Manage Database**: "List all commands in the database commands collection"
 - **Fleet Operations**: "Get health status of all running Bits"
 - **Validate Settings**: "Check if architecture.yaml is valid"
 

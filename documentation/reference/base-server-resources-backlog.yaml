@@ -9,7 +9,7 @@ references:
   - src/common/firebase.ts
 
 notes:
-  - Scope: Implement ResourceManager lifecycle in BaseServer with default resources (Publisher, Firestore) and graceful shutdown.
+  - Scope: Implement ResourceManager lifecycle in BaseServer with default resources (Publisher, Database) and graceful shutdown.
   - Backwards compatibility: setup(app, cfg) continues to work; new optional third arg exposes realized resources; also via app.locals.resources.
   - Tests are Jest-based; no external I/O in CI (MESSAGE_BUS_DRIVER=noop, MESSAGE_BUS_DISABLE_IO=1).
 
@@ -62,14 +62,14 @@ backlog:
     status: completed
 
   - id: BSR-04
-    title: Default Firestore resource manager
-    description: "Provide Firestore manager that returns getFirestore() singleton; shutdown is no-op. Honors configureFirestore() if FIREBASE_DATABASE_ID set."
+    title: Default Database resource manager
+    description: "Provide database manager that returns getFirestore() singleton (for Firestore backend); shutdown is no-op. Honors configureFirestore() if FIREBASE_DATABASE_ID set."
     files:
       - src/common/resources/firestore-manager.ts
       - src/common/firebase.ts
     estimate: 0.25d
     acceptance_criteria:
-      - setup() returns a Firestore-like instance from getFirestore()
+      - setup() returns a database instance from getFirestore()
       - shutdown() is a safe no-op
       - No additional I/O in tests (emulator or noop env respected)
     tests:
@@ -143,7 +143,7 @@ backlog:
     estimate: 0.3d
     acceptance_criteria:
       - Service compiles and runs without behavior change
-      - Example usage: use resources.publisher.create(subject) instead of direct factory where convenient
+      - Example usage: use resources.publisher.create(subject) and resources.database instead of direct factory where convenient
     tests:
       - unit: smoke test service createApp() path with MESSAGE_BUS_DRIVER=noop
     dependencies: [BSR-02, BSR-03, BSR-04]

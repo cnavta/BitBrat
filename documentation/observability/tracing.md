@@ -1,16 +1,16 @@
 # Distributed Tracing and Log Correlation
 
-This document explains how to enable distributed tracing using OpenTelemetry with export to Google Cloud Trace, and how application logs correlate to traces in Cloud Logging.
+This document explains how to enable distributed tracing using OpenTelemetry with export to cloud tracing backends (e.g., Google Cloud Trace), and how application logs correlate to traces in structured logging.
 
 ## Overview
 
 - Tracing is integrated via OpenTelemetry in `src/common/tracing.ts` and bootstrapped by `BaseServer`.
 - Message handlers registered through `BaseServer.onMessage()` run inside an active span ("msg <subject>") when tracing is enabled.
 - Services add child spans for key operations (e.g., `process-llm-request`, `execute-command`, `user-enrichment`, `route-message`, `deliver-egress`, `ingress-receive`).
-- Logger automatically adds Cloud Logging correlation fields when a span is active:
-  - `logging.googleapis.com/trace`
-  - `logging.googleapis.com/spanId`
-  - `logging.googleapis.com/trace_sampled`
+- Logger automatically adds trace correlation fields when a span is active (format depends on backend):
+  - `logging.googleapis.com/trace` (Google Cloud Logging)
+  - `logging.googleapis.com/spanId` (Google Cloud Logging)
+  - `logging.googleapis.com/trace_sampled` (Google Cloud Logging)
 
 ## Enablement
 
@@ -19,13 +19,13 @@ Tracing is disabled by default. Enable it per-service using environment variable
 - `TRACING_ENABLED=1` — Turn on tracing
 - `TRACING_SAMPLER_RATIO=0.1` — Sampling ratio between 0 and 1 (default 0.1)
 
-For log-to-trace linkage in Cloud Logging, ensure one of the following is set in the environment (Cloud Run sets it automatically):
+For log-to-trace linkage in cloud logging backends, ensure the project identifier is set in the environment (Cloud Run sets it automatically):
 
-- `GOOGLE_CLOUD_PROJECT` (preferred), or
+- `GOOGLE_CLOUD_PROJECT` (preferred for Google Cloud), or
 - `GCP_PROJECT`, or
 - `GCP_PROJECT_ID`
 
-Exporter: The Google Cloud Trace exporter is dynamically required at runtime. If `@google-cloud/opentelemetry-cloud-trace-exporter` is installed in the environment, spans will be exported to Cloud Trace. Otherwise, spans remain local.
+Exporter: Cloud trace exporters are dynamically required at runtime. If `@google-cloud/opentelemetry-cloud-trace-exporter` is installed in the environment, spans will be exported to the cloud tracing backend. Otherwise, spans remain local.
 
 ## Architecture defaults
 
@@ -45,10 +45,10 @@ The oauth-flow service instruments its HTTP routes with light middleware that op
 
 ## Pub/Sub and HTTP propagation
 
-When a service publishes to Pub/Sub while inside an active span, Google client libraries and Cloud Run push subscriptions automatically propagate and continue the trace context. You should see:
+When a service publishes to a message bus (e.g., Cloud Pub/Sub) while inside an active span, client libraries and push subscriptions automatically propagate and continue the trace context. You should see:
 
 - Upstream span (publisher)
-- A Pub/Sub wait component representing time in topic
+- A message bus wait component representing time in transit
 - Downstream span (subscriber handler)
 
 No custom headers or code are required for propagation.
@@ -64,18 +64,18 @@ These spans help trace message progression across internal hops and to egress. E
 
 ## Manual validation checklist
 
-1. Set env on services in Cloud Run (or locally if exporting is configured):
+1. Set env on services (Cloud Run or locally if exporting is configured):
    - `TRACING_ENABLED=1`
    - `TRACING_SAMPLER_RATIO=1` (temporarily increase for validation)
 2. Trigger an end-to-end message path (e.g., Twitch ingress → auth → event-router → llm-bot).
-3. In Cloud Logging, filter by the service and find a recent log for the path; open a log line and click the trace link (`logging.googleapis.com/trace`).
-4. In Cloud Trace, verify the waterfall shows child spans:
+3. In your logging backend (e.g., Cloud Logging), filter by the service and find a recent log for the path; open a log line and click the trace link (e.g., `logging.googleapis.com/trace` for Google Cloud).
+4. In your tracing backend (e.g., Cloud Trace), verify the waterfall shows child spans:
    - ingress-egress: `ingress-receive` (and `deliver-egress` when applicable)
    - auth: `user-enrichment`
    - event-router: `route-message`
    - llm-bot: `process-llm-request`
    - command-processor: `execute-command`
-5. Confirm the Pub/Sub waiting time and subscriber processing spans are visible.
+5. Confirm the message bus waiting time and subscriber processing spans are visible.
 
 ## Notes and guidance
 
