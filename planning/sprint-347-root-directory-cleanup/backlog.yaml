@@ -126,7 +126,7 @@ backlog:
       - README.md in directory explaining the migration timeline and index of documents
     estimate: 0.1h
     priority: high
-    status: pending
+    status: completed
 
   - id: ROOT-02
     title: Move migration/fix documentation files
@@ -164,7 +164,7 @@ backlog:
       - documentation/migrations/README.md updated with index
     estimate: 0.3h
     priority: high
-    status: pending
+    status: completed
     dependencies: [ROOT-01]
 
   - id: ROOT-03
@@ -177,7 +177,7 @@ backlog:
       - README.md explaining script purposes and usage
     estimate: 0.1h
     priority: high
-    status: pending
+    status: completed
 
   - id: ROOT-04
     title: Move PostgreSQL table creation scripts
@@ -195,7 +195,7 @@ backlog:
       - scripts/postgres/README.md updated with usage instructions
     estimate: 0.2h
     priority: high
-    status: pending
+    status: completed
     dependencies: [ROOT-03]
 
   - id: ROOT-05
@@ -224,7 +224,7 @@ backlog:
       - Files remain executable and functional
     estimate: 0.2h
     priority: high
-    status: pending
+    status: completed
 
   - id: ROOT-06
     title: Evaluate and relocate ad-hoc shell scripts
