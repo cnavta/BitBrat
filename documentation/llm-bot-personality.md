@@ -1,22 +1,22 @@
 LLM Bot – Modular Personality Injection
 
 Overview
-- The llm-bot can incorporate dynamic “personality” instructions into its system prompt based on event annotations.
-- Personalities are provided inline in the annotation payload or resolved from Firestore /personalities by name, selecting the latest active version.
+- The llm-bot can incorporate dynamic "personality" instructions into its system prompt based on event annotations.
+- Personalities are provided inline in the annotation payload or resolved from the database /personalities collection by name, selecting the latest active version.
 
 Annotation payload
 {
   name?: string,   // Personality name used for lookup
-  text?: string    // Inline text. If present, it is used and no Firestore call is made
+  text?: string    // Inline text. If present, it is used and no database call is made
 }
 
-Selection (Firestore)
+Selection (Database)
 - Collection: /personalities
 - Query: where name == payload.name AND status == "active", orderBy version DESC, limit 1
 - Indexing guidance: composite index on (name asc, status asc, version desc)
 
 Document schema (recommended)
-- id: Firestore auto-generated ID
+- id: database auto-generated ID
 - name: string
 - text: string
 - status: active | inactive | archived
@@ -55,11 +55,11 @@ Observability
   - personality_cache_miss_total
   - personality_clamped_total
 
-Security and Firestore rules
-- The llm-bot uses the Firebase Admin SDK and should be run with a least-privilege service account that only needs read access to /personalities.
-- Firestore Rules do not apply to Admin SDK usage, but should still be locked down for any client access patterns:
+Security and Database rules
+- The llm-bot uses the Firebase Admin SDK (Firestore backend) and should be run with a least-privilege service account that only needs read access to /personalities.
+- Database rules do not apply to Admin SDK usage, but should still be locked down for any client access patterns:
 
-Production rules snippet (example)
+Production rules snippet (example, Firestore)
 service cloud.firestore {
   match /databases/{database}/documents {
     match /personalities/{doc} {

@@ -64,7 +64,7 @@ confidence.
 - No "**Why BitBrat / use cases beyond streaming**" section to help an evaluator generalize.
 
 ### 3.2 Onboarding & reproducibility friction
-- Local quickstart effectively requires **GCP SDK, an OpenAI key, and Docker** even to look around.
+- Local quickstart effectively requires **Cloud SDK (or Docker with emulators), an OpenAI key, and Docker** even to look around.
 - An offline/local-LLM path exists in spirit (`ai-sdk-ollama` is a dependency) but is **not
   documented** in the README, so evaluators can't trivially try the platform without paid keys.
 - No minimal "**hello-world agent in 5 minutes**" path.
