@@ -113,6 +113,85 @@ The `documentation/` folder contains structured guides for getting started, core
 
 For the canonical system definition, see [architecture.yaml](./architecture.yaml).
 
+## Repository Structure
+
+The BitBrat repository is organized to separate concerns between application code, infrastructure, documentation, and development tooling. Here's what each top-level directory contains:
+
+### Core Directories
+
+- **`src/`** — Application source code (TypeScript)
+  - `apps/` — Service entry points (e.g., `llm-bot-service.ts`, `event-router-service.ts`)
+  - `common/` — Shared abstractions (`Bit` base class, logging, config, events)
+  - `services/` — Service-specific logic organized by domain
+  - `types/` — Shared TypeScript types and event schemas
+
+- **`tests/`** — Test suites (Jest)
+  - Unit tests alongside source code (`.test.ts`, `.spec.ts`)
+  - `integration/` — Integration tests (e.g., `postgres/` for PostgreSQL store tests)
+
+- **`tools/`** — Development and administration tools
+  - `brat/` — Platform CLI (config, deploy, fleet management, backup)
+
+- **`scripts/`** — Setup, deployment, and maintenance scripts
+  - `postgres/` — PostgreSQL table creation and migration scripts
+
+- **`documentation/`** — Platform guides, concepts, references, and schemas
+  - `getting-started/` — Quickstart and evaluation guides
+  - `concepts/` — Core architectural concepts (Bit model, agent flow, routing)
+  - `guides/` — How-to guides (deployment, backup, PostgreSQL setup)
+  - `reference/` — API references (Bit control plane, MCP tools)
+  - `tutorials/` — Step-by-step tutorials (building commands, enrichment bits)
+  - `schemas/` — JSON schemas for events and messages
+  - `migrations/` — Historical PostgreSQL migration documentation (Sprint 343)
+
+- **`planning/`** — Sprint planning, implementation plans, and architecture decisions
+  - `sprint-<id>/` — Per-sprint artifacts (backlog, implementation plan, retros)
+
+- **`infrastructure/`** — Cloud deployment configurations
+  - `terraform/` — Terraform IaC for GCP resources
+  - `docker-compose/` — Docker Compose service definitions
+  - `cloudbuild/` — Google Cloud Build configurations
+
+- **`env/`** — Environment-specific configurations
+  - `local/` — Local development configs (`global.yaml`, per-service overrides)
+  - `staging/` — Staging environment configs
+  - `prod/` — Production environment configs
+
+- **`assets/`** — Static assets (logos, diagrams, architecture visuals)
+
+- **`deprecated/`** — Historical code for reference only (DO NOT import or depend on)
+
+### Key Configuration Files
+
+- **`architecture.yaml`** — Canonical source of truth for all system configuration, service definitions, and deployment specifications
+- **`package.json`** — Node.js dependencies and npm scripts
+- **`tsconfig.json`** — TypeScript compiler configuration (uses `@/*` path aliases)
+- **`jest.config.js`** — Jest test runner configuration
+- **`eslint.config.mjs`** — ESLint linting configuration
+- **`.prettierrc.js`** — Code formatting rules
+- **`AGENTS.md`** — LLM collaboration protocol and sprint workflow
+- **`CLAUDE.md`** — Instructions for Claude Code AI assistant
+- **`README.md`** — This file (platform overview and quickstart)
+- **`CHANGELOG.md`** — Version history and release notes
+- **`LICENSE`**, **`CONTRIBUTING.md`**, **`CODE_OF_CONDUCT.md`**, **`SECURITY.md`** — Open source project governance
+
+### Build and Deployment Files
+
+- **`Dockerfile.*`** — Multi-stage Docker builds for each service
+  - `Dockerfile.service` — Reusable template for most services
+  - `Dockerfile.brat` — Brat CLI containerization
+  - Per-service Dockerfiles when custom build logic is required
+- **`cloudbuild.*.yaml`** — Google Cloud Build configurations for CI/CD
+- **`firebase.json`**, **`firestore.rules`**, **`firestore.indexes.json`** — Firebase/Firestore configuration (legacy backend)
+
+### Environment and Secrets
+
+- **`.env.example`** — Example environment variable template
+- **`.gitignore`** — Git ignore patterns (logs, build artifacts, secrets)
+- **`.nvmrc`** — Node.js version specification
+
+All file moves preserve git history using `git mv`, and validation/log files follow `.gitignore` patterns to keep the repository clean.
+
 ## Architecture
 
 Under the **[Bit model](./documentation/concepts/bit-model.md)**, every service is a **Bit** built on a

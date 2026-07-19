@@ -351,7 +351,7 @@ backlog:
       - Links to relevant documentation for each major directory
     estimate: 0.2h
     priority: low
-    status: pending
+    status: completed
     dependencies: [ROOT-02, ROOT-04, ROOT-05, ROOT-06, ROOT-08, ROOT-09, ROOT-10]
 
   - id: ROOT-13
