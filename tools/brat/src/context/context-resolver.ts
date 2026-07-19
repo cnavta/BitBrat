@@ -21,6 +21,9 @@ import type {
   ResolvedPersistence,
   BratrcConfig,
 } from './types';
+import { discoverGatewayPort, extractHostFromSSH } from './gateway-discovery';
+import { discoverPostgresContainer } from './persistence-discovery';
+import { EnvironmentResolver } from '../orchestration/docker/environment-resolver';
 
 /**
  * Context resolution error
@@ -215,7 +218,6 @@ export class ContextResolver {
 
   /**
    * Resolve gateway URL (auto-discover or explicit)
-   * Implemented in resolver-002
    */
   private async resolveGateway(context: ExecutionContext, name: string): Promise<ResolvedGateway> {
     const gatewayConfig = context.runtime.gateway;
@@ -228,14 +230,17 @@ export class ContextResolver {
       };
     }
 
-    // TODO (resolver-002): Auto-discover from docker ps
-    // if (gatewayConfig?.autoDiscover && context.deployment.type === 'docker-compose') {
-    //   const discoveredPort = await this.discoverGatewayPort(context.deployment.docker!.host);
-    //   if (discoveredPort) {
-    //     const host = this.extractHost(context.deployment.docker!.host);
-    //     return { url: `ws://${host}:${discoveredPort}/ws/v1`, authToken: gatewayConfig.authToken };
-    //   }
-    // }
+    // Auto-discover from docker ps
+    if (gatewayConfig?.autoDiscover && context.deployment.type === 'docker-compose') {
+      const discoveredPort = await discoverGatewayPort(context.deployment.docker!.host);
+      if (discoveredPort) {
+        const host = this.extractHost(context.deployment.docker!.host);
+        return {
+          url: `ws://${host}:${discoveredPort}/ws/v1`,
+          authToken: gatewayConfig.authToken,
+        };
+      }
+    }
 
     // Fallback port
     if (gatewayConfig?.fallbackPort) {
@@ -255,13 +260,12 @@ export class ContextResolver {
 
   /**
    * Resolve persistence configuration
-   * Implemented in resolver-003
    */
   private async resolvePersistence(context: ExecutionContext, name: string): Promise<ResolvedPersistence> {
     const persistence = context.runtime.persistence;
 
     if (persistence.driver === 'postgres') {
-      // Explicit connection config
+      // Explicit connection config (highest priority)
       if (persistence.connection) {
         return {
           driver: 'postgres',
@@ -269,11 +273,13 @@ export class ContextResolver {
         };
       }
 
-      // TODO (resolver-003): Auto-discover postgres container
-      // if (persistence.autoDiscover && context.deployment.type === 'docker-compose') {
-      //   const pgConfig = await this.discoverPostgresContainer(context.deployment.docker!.host);
-      //   if (pgConfig) return pgConfig;
-      // }
+      // Auto-discover postgres container from Docker
+      if (persistence.autoDiscover && context.deployment.type === 'docker-compose') {
+        const discovered = await discoverPostgresContainer(context.deployment.docker!.host);
+        if (discovered) {
+          return discovered;
+        }
+      }
 
       throw new ContextResolutionError(
         `Cannot resolve PostgreSQL persistence for context '${name}': ` +
@@ -294,7 +300,7 @@ export class ContextResolver {
 
   /**
    * Resolve environment variables from overlays
-   * Implemented in resolver-004
+   * Loads and merges YAML files in order: global → infra → {service} → .secure.*
    */
   private async resolveEnvironmentVars(context: ExecutionContext, serviceName?: string): Promise<Record<string, string>> {
     const overlayConfig = context.runtime.envOverlay;
@@ -302,22 +308,92 @@ export class ContextResolver {
       return {};
     }
 
-    // TODO (resolver-004): Load and merge environment overlays
-    // const envResolver = new EnvironmentResolver(this.repoRoot);
-    // const merged: Record<string, string> = {};
-    // for (const file of overlayConfig.files) {
-    //   const fileName = serviceName ? file.replace('{service}', serviceName) : file;
-    //   const filePath = path.join(this.repoRoot, overlayConfig.path, fileName);
-    //   const vars = await envResolver.loadYamlIfExists(filePath);
-    //   Object.assign(merged, vars);
-    // }
-    // if (overlayConfig.secure) {
-    //   const secureVars = await envResolver.loadSecureLocal(overlayConfig.secure);
-    //   Object.assign(merged, secureVars);
-    // }
-    // return merged;
+    const merged: Record<string, string> = {};
 
+    // Load files in order (later files override earlier)
+    for (const filePattern of overlayConfig.files) {
+      const fileName = serviceName ? filePattern.replace('{service}', serviceName) : filePattern;
+      const filePath = path.join(this.repoRoot, overlayConfig.path, fileName);
+
+      // Use EnvironmentResolver's loadYamlIfExists (private method, so we'll reimplement)
+      const vars = this.loadYamlIfExists(filePath);
+      Object.assign(merged, vars);
+    }
+
+    // Load .secure.* file last (highest priority)
+    if (overlayConfig.secure) {
+      const securePath = path.join(this.repoRoot, overlayConfig.secure);
+      const secureVars = this.loadSecureEnv(securePath);
+      Object.assign(merged, secureVars);
+    }
+
+    // Convert all values to strings (required by Record<string, string>)
+    const stringified: Record<string, string> = {};
+    for (const [key, value] of Object.entries(merged)) {
+      stringified[key] = String(value);
+    }
+
+    return stringified;
+  }
+
+  /**
+   * Load YAML file if it exists (returns empty object on error)
+   */
+  private loadYamlIfExists(filePath: string): Record<string, any> {
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return (yaml.load(content) as Record<string, any>) || {};
+      }
+    } catch (error) {
+      // Silently ignore errors (file doesn't exist or invalid YAML)
+    }
     return {};
+  }
+
+  /**
+   * Load .secure.* file (KEY=VALUE format)
+   */
+  private loadSecureEnv(filePath: string): Record<string, string> {
+    const env: Record<string, string> = {};
+    if (!fs.existsSync(filePath)) return env;
+
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.split(/\r?\n/);
+
+      for (let line of lines) {
+        line = line.trim();
+        if (!line || line.startsWith('#')) continue;
+        if (line.startsWith('export ')) line = line.slice(7).trim();
+
+        const eqIndex = line.indexOf('=');
+        if (eqIndex === -1) continue;
+
+        const key = line.slice(0, eqIndex).trim();
+        let value = line.slice(eqIndex + 1).trim();
+
+        // Strip quotes
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+
+        // Expand tilde
+        if (value === '~') {
+          value = os.homedir();
+        } else if (value.startsWith('~/')) {
+          value = path.join(os.homedir(), value.slice(2));
+        }
+
+        if (key) {
+          env[key] = value;
+        }
+      }
+    } catch (error) {
+      // Silently ignore errors
+    }
+
+    return env;
   }
 
   /**

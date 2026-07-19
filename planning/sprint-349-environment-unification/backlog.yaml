@@ -280,13 +280,21 @@ tasks:
     tests:
       - tools/brat/src/context/gateway-discovery.test.ts
     estimated_hours: 5
-    status: pending
+    status: completed
     depends_on: [resolver-001]
-    assigned_to: null
-    completed_at: null
+    assigned_to: Claude Code
+    completed_at: 2026-07-19T12:00:00Z
     notes: |
-      Auto-discovery parses docker ps output:
-      0.0.0.0:3004->3000/tcp → extract port 3004
+      ✅ All acceptance criteria met:
+      - Created gateway-discovery.ts module
+      - discoverGatewayPort() parses docker ps output
+      - Supports local (unix socket) and remote (SSH) Docker hosts
+      - Parses IPv4 (0.0.0.0:PORT) and IPv6 ([::]:PORT) formats
+      - extractHostFromSSH() utility for SSH URL parsing
+      - 10-second timeout for discovery
+      - Returns null on failure (allows fallback)
+      - Updated ContextResolver to use auto-discovery
+      - 19 unit tests passing (100% coverage)
 
   - id: resolver-003
     phase: phase-2
@@ -307,11 +315,18 @@ tasks:
     tests:
       - tools/brat/src/context/persistence-discovery.test.ts
     estimated_hours: 4
-    status: pending
+    status: completed
     depends_on: [resolver-001]
-    assigned_to: null
-    completed_at: null
-    notes: null
+    assigned_to: Claude Code
+    completed_at: 2026-07-19T21:52:00Z
+    notes: |
+      ✅ All acceptance criteria met:
+      - Created persistence-discovery.ts with discoverPostgresContainer()
+      - Parses docker inspect output for POSTGRES_* env vars
+      - Supports local (unix://) and remote (ssh://) Docker hosts
+      - Returns ResolvedPersistence or null on failure
+      - Integrated into context-resolver.ts resolvePersistence() method
+      - 14 tests passing (edge cases: = in values, whitespace, special chars)
 
   - id: resolver-004
     phase: phase-2
@@ -332,13 +347,20 @@ tasks:
     tests:
       - tools/brat/src/context/context-resolver.test.ts
     estimated_hours: 3
-    status: pending
+    status: completed
     depends_on: [resolver-001]
-    assigned_to: null
-    completed_at: null
+    assigned_to: Claude Code
+    completed_at: 2026-07-19T22:15:00Z
     notes: |
-      Reuse EnvironmentResolver class (already exists).
-      Add context-aware wrapper.
+      ✅ All acceptance criteria met:
+      - Implemented resolveEnvironmentVars() in ContextResolver
+      - Loads YAML files via loadYamlIfExists() helper
+      - Loads .secure.* files via loadSecureEnv() helper (KEY=VALUE format)
+      - Merges files in order (later files override earlier)
+      - Converts all values to strings (Record<string, string>)
+      - Handles missing files gracefully (returns empty object)
+      - Supports export prefix, quote stripping, tilde expansion
+      - 9 unit tests added (total 37 context-resolver tests)
 
   - id: resolver-005
     phase: phase-2
