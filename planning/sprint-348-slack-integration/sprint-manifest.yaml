@@ -1,0 +1,145 @@
+# Sprint 348: Slack Integration - Sprint Manifest
+
+sprint:
+  id: sprint-348
+  number: 348
+  name: Slack Integration
+  goal: Integrate Slack using the Ingress-Egress Framework
+  status: in_progress
+  start_date: 2026-07-19
+  branch: feature/slack-integration
+
+team:
+  lead: LLM-Assisted Development (Claude Code)
+  role: Lead Implementor
+
+base_sprint:
+  id: sprint-342
+  name: Ingress-Egress Framework Foundation
+  completed: 2026-07-14
+
+deliverables:
+  primary:
+    - SlackConnectorAdapter (IngressConnector + WebhookConnector)
+    - Slack Socket Mode client (real-time ingress)
+    - Slack Events API webhook handler
+    - Envelope builder (Slack events → Envelope v1)
+    - Webhook signature verification (HMAC-SHA256)
+    - Egress via Slack Web API
+
+  testing:
+    - 17+ unit tests (100% coverage)
+    - Integration tests (multi-platform webhook routing)
+    - Architecture validation
+
+  cleanup:
+    - Remove deprecated Twilio webhook route
+
+  documentation:
+    - Update CLAUDE.md with Slack examples
+    - Update platform integration guide
+    - Sprint retrospective
+
+artifacts:
+  - planning/sprint-348-slack-integration/CONTINUATION_PLAN.md
+  - planning/sprint-348-slack-integration/execution-plan.md
+  - planning/sprint-348-slack-integration/backlog.yaml
+  - planning/sprint-348-slack-integration/sprint-manifest.yaml
+  - planning/sprint-348-slack-integration/retro.md (pending)
+  - planning/sprint-348-slack-integration/request-log.md (pending)
+
+files_to_create:
+  - src/services/ingress/slack/connector-adapter.ts
+  - src/services/ingress/slack/slack-ingress-client.ts
+  - src/services/ingress/slack/webhook-utils.ts
+  - src/services/ingress/slack/envelope-builder.ts
+  - src/services/ingress/slack/index.ts
+  - src/services/ingress/slack/__tests__/connector-adapter.test.ts
+  - src/services/ingress/slack/__tests__/connector-adapter-webhook.test.ts
+  - src/services/ingress/slack/__tests__/webhook-utils.test.ts
+  - src/services/ingress/slack/__tests__/envelope-builder.test.ts
+  - src/services/ingress/slack/__tests__/slack-ingress-client.test.ts
+  - tests/integration/webhook-routing.test.ts
+
+files_to_modify:
+  - package.json
+  - package-lock.json
+  - src/apps/ingress-egress-service.ts
+  - architecture.yaml
+  - CLAUDE.md
+  - documentation/guides/adding-ingress-platform.md
+  - tools/validate-ingress-architecture.ts
+  - src/services/ingress/twilio/__tests__/*.test.ts
+
+estimated_effort:
+  total_hours: 12-16
+  phases:
+    foundation: 2-3
+    core: 4-6
+    testing: 2-3
+    deployment: 2-3
+    closure: 1-2
+
+success_metrics:
+  code_quality:
+    - All P0 tasks completed
+    - 17+ unit tests passing
+    - Integration tests passing
+    - Architecture validator passes
+    - Zero TypeScript errors
+
+  production_ready:
+    - Socket Mode connection stable > 1 hour
+    - Webhook signature verification 100% success rate
+    - Messages published in Envelope v1 format
+    - Rate limit handling implemented
+    - No errors in logs for 24 hours
+
+  framework_validation:
+    - Framework ROI: 30-40% time savings
+    - Second platform successfully integrated
+    - No gaps in abstraction identified
+    - Documentation sufficient for future platforms
+
+dependencies:
+  npm_packages:
+    - "@slack/socket-mode": "^1.x"
+    - "@slack/web-api": "^6.x"
+
+  environment_variables:
+    - SLACK_APP_TOKEN
+    - SLACK_BOT_TOKEN
+    - SLACK_SIGNING_SECRET
+
+  framework_components:
+    - WebhookConnector interface
+    - Generic webhook routing
+    - ConnectorManager
+    - Architecture validation tooling
+
+risks:
+  - id: RISK-001
+    description: Socket Mode connectivity issues
+    likelihood: medium
+    impact: high
+    mitigation: Implement reconnection logic with exponential backoff
+
+  - id: RISK-002
+    description: Rate limit enforcement
+    likelihood: high
+    impact: medium
+    mitigation: Implement retry queue with rate limit headers monitoring
+
+  - id: RISK-003
+    description: Webhook signature verification failures
+    likelihood: low
+    impact: high
+    mitigation: Comprehensive unit tests + production monitoring
+
+handoff:
+  next_sprint: 349
+  next_platform: Discord
+  estimated_effort: 8-10 hours
+  notes: |
+    Discord uses Ed25519 signature verification (different algorithm from Slack/Twilio).
+    Will validate framework supports multiple signature algorithms.

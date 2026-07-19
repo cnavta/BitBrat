@@ -52,6 +52,8 @@
     "@opentelemetry/resources": "^1.26.0",
     "@opentelemetry/sdk-trace-node": "^1.26.0",
     "@opentelemetry/semantic-conventions": "^1.26.0",
+    "@slack/socket-mode": "^3.0.0",
+    "@slack/web-api": "^8.0.0",
     "@twilio/conversations": "^2.6.5",
     "@twurple/api": "^7.4.0",
     "@twurple/auth": "^7.4.0",

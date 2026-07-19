@@ -4,6 +4,7 @@ import WebSocket from 'ws';
 import readline from 'readline';
 import { v4 as uuidv4 } from 'uuid';
 import { execSync } from 'child_process';
+import { loadArchitecture } from '../config/loader.js';
 
 interface ChatOptions {
   env: string;
@@ -36,12 +37,14 @@ function parseFlagMap(rest: string[]): Record<string, string> {
 }
 
 export async function cmdChat(flags: any, rest: string[] = []) {
-  const env = flags.env || process.env.BITBRAT_ENV || 'local';
-  const projectId = flags.projectId || process.env.PROJECT_ID || 'twitch-452523';
-  const url = flags.url;
-
-  // Parse additional flags from rest array
+  // Parse additional flags from rest array first
   const restFlags = parseFlagMap(rest);
+
+  // Support both --env and --target for environment selection (--target for consistency with docker commands)
+  const env = flags.env || restFlags.target || restFlags.env || process.env.BITBRAT_ENV || 'local';
+  const projectId = flags.projectId || process.env.PROJECT_ID || 'twitch-452523';
+  const url = flags.url || restFlags.url;
+
   const message = restFlags.message || restFlags.m; // Support --message or -m
   const user = restFlags.user || restFlags.u;       // Support --user or -u
 
@@ -149,25 +152,82 @@ class ChatController {
     return null;
   }
 
+  private findRootDir(): string {
+    let currentDir = process.cwd();
+    const maxDepth = 10;
+    let depth = 0;
+
+    while (depth < maxDepth) {
+      const archPath = path.join(currentDir, 'architecture.yaml');
+      if (fs.existsSync(archPath)) {
+        return currentDir;
+      }
+
+      const parent = path.dirname(currentDir);
+      if (parent === currentDir) {
+        // Reached filesystem root
+        break;
+      }
+      currentDir = parent;
+      depth++;
+    }
+
+    // Default to current directory if not found
+    return process.cwd();
+  }
+
   private resolveUrl(): string {
     let url = '';
     if (this.options.url) {
       url = this.options.url;
     } else {
       const { env } = this.options;
-      if (env === 'local') {
-        const discoveredPort = this.discoverLocalPort();
-        const port = process.env.API_GATEWAY_HOST_PORT || discoveredPort || '3004';
-        url = `ws://localhost:${port}/ws/v1`;
 
-        // Debug output in one-shot mode
-        if (this.options.message && !discoveredPort && !process.env.API_GATEWAY_HOST_PORT) {
-          console.error(`[DEBUG] Port discovery failed, using default port ${port}`);
+      // Try to load gateway URL from architecture.yaml for non-local environments
+      if (env !== 'local') {
+        try {
+          const rootDir = this.findRootDir();
+          const arch = loadArchitecture(rootDir);
+          const deploymentTarget = arch?.deploymentTargets?.[env];
+
+          if (deploymentTarget?.gateway?.url) {
+            // Convert HTTP/HTTPS to WS/WSS
+            const gatewayUrl = deploymentTarget.gateway.url
+              .replace(/^https/, 'wss')
+              .replace(/^http/, 'ws');
+
+            url = `${gatewayUrl}/ws/v1`;
+
+            // Debug output in one-shot mode
+            if (this.options.message && process.env.DEBUG) {
+              console.error(`[DEBUG] Resolved gateway URL from architecture.yaml: ${url}`);
+            }
+          }
+        } catch (err) {
+          // Fall through to hardcoded defaults if architecture.yaml can't be loaded
+          if (process.env.DEBUG) {
+            console.error(`[DEBUG] Failed to load gateway URL from architecture.yaml: ${err}`);
+          }
         }
-      } else if (env === 'prod') {
-        url = 'wss://api.bitbrat.ai/ws/v1';
-      } else {
-        url = `wss://api.${env}.bitbrat.ai/ws/v1`;
+      }
+
+      // Fallback logic if no gateway URL found in architecture.yaml
+      if (!url) {
+        if (env === 'local') {
+          const discoveredPort = this.discoverLocalPort();
+          const port = process.env.API_GATEWAY_HOST_PORT || discoveredPort || '3004';
+          url = `ws://localhost:${port}/ws/v1`;
+
+          // Debug output in one-shot mode
+          if (this.options.message && !discoveredPort && !process.env.API_GATEWAY_HOST_PORT) {
+            console.error(`[DEBUG] Port discovery failed, using default port ${port}`);
+          }
+        } else if (env === 'prod') {
+          url = 'wss://api.bitbrat.ai/ws/v1';
+        } else {
+          // Generic fallback for unknown environments
+          url = `wss://api.${env}.bitbrat.ai/ws/v1`;
+        }
       }
     }
 
