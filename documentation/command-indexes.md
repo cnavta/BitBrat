@@ -1,4 +1,4 @@
-# Firestore Indexes for Command Matching (vNext)
+# Database Indexes for Command Matching (vNext)
 
 This document captures the composite index requirements for the simplified command matching data model.
 
@@ -25,10 +25,10 @@ Regex loader – cache ordering:
   - orderBy("matchType.priority", "asc")
 
 Required index (single-field is typically sufficient):
-- If Firestore prompts for a composite index, create:
+- If the database prompts for a composite index, create:
   1) matchType.kind Ascending
   2) matchType.priority Ascending
 
 Notes:
 - These indexes should be created in all environments before enabling traffic to the Command Processor service.
-- If your collection name differs, adjust accordingly. Firestore console will also offer a direct creation link if missing.
+- If your collection name differs, adjust accordingly. The database console will also offer a direct creation link if missing.

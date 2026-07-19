@@ -1,12 +1,12 @@
 # MCP Server Config: Environment-Variable References
 
-The `tool-gateway` connects to MCP servers using configuration stored in the Firestore
+The `tool-gateway` connects to MCP servers using configuration stored in the database
 `mcp_servers` collection (see [MCP Auto-Discovery](../technical-architecture/mcp-auto-discovery.md)).
 The `env` and `args` values of an MCP server configuration may now **reference environment
 variables available to the tool-gateway container** instead of containing literal values.
 
 The primary use case is **secret hygiene**: store a *reference* (e.g. `${OPENAI_API_KEY}`) in
-Firestore rather than the secret itself. The tool-gateway substitutes the real value — drawn from
+the database rather than the secret itself. The tool-gateway substitutes the real value — drawn from
 its own process environment / mounted secret — at connection time. References can also point at
 non-secret runtime configuration (e.g. `${ENV}`, `${GCS_BUCKET_NAME}`).
 
@@ -26,16 +26,16 @@ References may appear anywhere inside a string and may be mixed with literal tex
 ## Where references are resolved
 
 - **Source of values:** resolution draws **only** from the tool-gateway's own `process.env`.
-  There are no Firestore lookups or remote secret fetches.
+  There are no database lookups or remote secret fetches.
 - **`env`** — every *value* in the `env` record is interpolated. Keys are left unchanged.
   - For `stdio` servers, the resolved `env` is merged into the child process environment
     (`{ ...process.env, ...resolvedEnv }`).
   - For `sse` servers, the resolved `env` is sent as the request headers.
 - **`args`** — every element of the `args` array is interpolated (for `stdio` servers).
-- The persisted Firestore document and the gateway's in-memory cache always retain the
+- The persisted database document and the gateway's in-memory cache always retain the
   **unresolved** (safe-to-store) form. Resolution happens only when building the live transport.
 
-### Example (Firestore `mcp_servers` document)
+### Example (database `mcp_servers` document)
 
 ```json
 {
@@ -50,7 +50,7 @@ References may appear anywhere inside a string and may be mixed with literal tex
 ```
 
 With `OPENAI_API_KEY` provided to the tool-gateway container (e.g. via a mounted secret), the
-spawned MCP server receives the real key without it ever being stored in Firestore.
+spawned MCP server receives the real key without it ever being stored in the database.
 
 ## Unresolved references
 
@@ -75,10 +75,10 @@ mcp.config.env_ref.resolved    { name: "<server>", refsUsed: ["OPENAI_API_KEY"],
 
 ## Reconnect idempotency & secret rotation
 
-The tool-gateway avoids churning healthy connections on benign Firestore rewrites by comparing a
+The tool-gateway avoids churning healthy connections on benign database rewrites by comparing a
 *connection signature*. References are **resolved before** the signature is computed, so:
 
-- An unchanged Firestore document **and** unchanged environment → **no reconnect** (idempotent).
+- An unchanged database document **and** unchanged environment → **no reconnect** (idempotent).
 - A **rotated** underlying value (the env var changes) → **exactly one reconnect** that picks up the
   new resolved value the next time `connectServer` runs for that server.
 

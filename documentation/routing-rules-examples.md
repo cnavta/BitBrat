@@ -1,6 +1,6 @@
-# Routing Rules — Firestore Example Document
+# Routing Rules — Database Example Document
 
-This example shows a single routing rule document to be stored in Firestore at the collection path:
+This example shows a single routing rule document to be stored in the database at the collection path:
 
 - Collection: configs/routingRules/rules
 - Document ID: chat-command-bot
@@ -13,7 +13,7 @@ Notes:
 - routingSlip entries should define intended processing steps. Do not include runtime fields like status or attempt; the RouterEngine will normalize these at runtime.
 - If no rule matches, the router defaults to INTERNAL_ROUTER_DLQ_V1 (internal.router.dlq.v1).
 
-Example Firestore document (configs/routingRules/rules/chat-command-bot):
+Example database document (configs/routingRules/rules/chat-command-bot):
 
 ```json
 {
@@ -48,7 +48,7 @@ Usage tips:
 - Ensure your consumers subscribe to the correct subject names.
 
 Migration note:
-- Earlier drafts referenced the path "configs/routingRules" which is a document path (even number of segments) and will cause Firestore to error when used with collection(). The correct collection path is "configs/routingRules/rules" (odd number of segments). The runtime now normalizes even-segment paths by appending "/rules", but you should create your collection at the corrected path.
+- Earlier drafts referenced the path "configs/routingRules" which is a document path (even number of segments) and will cause database errors when used with collection(). The correct collection path is "configs/routingRules/rules" (odd number of segments). The runtime now normalizes even-segment paths by appending "/rules", but you should create your collection at the corrected path.
 
 ## Behavioral annotation routing examples
 

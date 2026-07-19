@@ -82,8 +82,8 @@ Stores the current authoritative state.
 ### Recommended Storage Options
 
 -   Redis (fast, pub/sub enabled)
--   Postgres JSONB (durable + transactional)
--   Firestore (if already in GCP ecosystem)
+-   PostgreSQL (durable + transactional, default for BitBrat)
+-   Firestore (legacy option for cloud deployments)
 
 ------------------------------------------------------------------------
 

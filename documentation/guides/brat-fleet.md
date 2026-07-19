@@ -65,9 +65,9 @@ Commands **fail closed**: without a resolvable `MCP_AUTH_TOKEN` they refuse to r
 ## Targeting a deployment (`--target`)
 
 `--target <name>` selects a docker deployment target (e.g. `local` | `staging`) and reads that stack's
-**Firestore emulator** registry instead of real GCP. For a local docker target, the gateway (and any
+**database emulator** registry instead of cloud database. For a local docker target, the gateway (and any
 `--direct` Bit) is reached on its **published host port** — resolved from `<SERVICE>_HOST_PORT` or a
-`docker ps` probe (e.g. `localhost:3001`), not the internal `:3000`. Without `--target`, GCP/ADC is used.
+`docker ps` probe (e.g. `localhost:3001`), not the internal `:3000`. Without `--target`, cloud database/ADC is used.
 Set `TOOL_GATEWAY_URL` / `--url` to override the gateway endpoint explicitly.
 
 ```bash

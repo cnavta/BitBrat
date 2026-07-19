@@ -14,6 +14,8 @@ import {
   LogLevel
 } from './types.js';
 import { FirestoreRegistryReader } from '../fleet/firestore-registry.js';
+import { PostgresRegistryReader } from '../fleet/postgres-registry.js';
+import type { RegistryReader } from '../fleet/types.js';
 import { Logging } from '@google-cloud/logging';
 import { execSync } from 'child_process';
 import {
@@ -31,7 +33,7 @@ import { LokiClient } from './loki-client.js';
  */
 export class LogRetriever {
   private connection: TargetConnection;
-  private registry: FirestoreRegistryReader;
+  private registry: RegistryReader;
   private lokiClient?: LokiClient;
   private lokiAvailable: boolean = false;
   private lokiChecked: boolean = false;
@@ -39,11 +41,20 @@ export class LogRetriever {
   constructor(connection: TargetConnection) {
     this.connection = connection;
 
-    // Use Firestore for registry
-    this.registry = new FirestoreRegistryReader({
-      projectId: connection.firestore.projectId,
-      databaseId: connection.firestore.databaseId
-    });
+    // Use appropriate registry based on persistence driver
+    if (connection.persistenceDriver === 'postgres' && connection.store) {
+      this.registry = new PostgresRegistryReader(connection.store);
+    } else if (connection.firestore) {
+      this.registry = new FirestoreRegistryReader({
+        projectId: connection.firestore.projectId,
+        databaseId: connection.firestore.databaseId
+      });
+    } else {
+      // Fallback: create a no-op registry (shouldn't happen with proper target configuration)
+      this.registry = {
+        async listServers() { return []; },
+      } as any;
+    }
 
     // Initialize Loki client with remote URL for remote-ssh targets
     if (connection.type === 'local') {

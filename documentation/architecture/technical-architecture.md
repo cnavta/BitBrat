@@ -54,7 +54,7 @@ The `event-router` should load different rule sets based on the `metadata.phase`
 - **Slip-Driven Execution:** Services do not need to know about "phases"; they simply execute the `next` service in their `routingSlip`. The `event-router` is only invoked when the `next` step requires a new routing decision.
 
 ## Service Communication
-- **Pub/Sub (NATS/Google Cloud PubSub):** Used for all inter-service communication to ensure decoupling.
+- **Message Bus (NATS/Cloud Pub/Sub):** Used for all inter-service communication to ensure decoupling.
 - **Topic Naming Convention:** `internal.<phase>.<version>`
   - `internal.ingress.v1`
   - `internal.enrichment.v1`

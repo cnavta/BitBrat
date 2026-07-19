@@ -7,7 +7,7 @@ This document summarizes environment-tunable settings for the message bus publis
 - Attribute keys are normalized to lowerCamelCase across drivers.
 - Always include: correlationId, type, traceparent (when available). Optional: stepId, idempotencyKey.
 
-## Google Cloud Pub/Sub (Driver: pubsub)
+## Cloud Pub/Sub (Driver: pubsub)
 
 Environment variables:
 

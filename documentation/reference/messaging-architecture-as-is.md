@@ -11,7 +11,7 @@ llm_prompt: This document consolidates repo-backed facts into a single reference
 ---
 
 ## Executive Summary
-BitBrat uses a driver-agnostic message bus to connect services via versioned event contracts. The bus supports both GCP Pub/Sub (Cloud) and NATS JetStream (Local/Docker). Core services include Ingress/Egress, Event Router, and LLM Bot. Messages carry a v1 envelope with correlation and optional routing slip steps. Delivery semantics target at-least-once; all consumers must be idempotent.
+BitBrat uses a driver-agnostic message bus to connect services via versioned event contracts. The bus supports both Cloud Pub/Sub (cloud deployments) and NATS JetStream (local/Docker). Core services include Ingress/Egress, Event Router, and LLM Bot. Messages carry a v1 envelope with correlation and optional routing slip steps. Delivery semantics target at-least-once; all consumers must be idempotent.
 
 ---
 
@@ -63,7 +63,7 @@ Source: `src/services/message-bus/index.ts`
 
 ## Transports
 
-### GCP Pub/Sub (Cloud)
+### Cloud Pub/Sub (Cloud)
 - Source: `src/services/message-bus/pubsub-driver.ts`
 - Publisher: batches JSON payloads; publishes attributes on the message.
 - Subscriber: creates subscription names derived from topic + optional queue; invokes handler with `{ ack, nack }` utilities. Explicit ack path supported in code.

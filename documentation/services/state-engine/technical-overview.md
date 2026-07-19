@@ -1,22 +1,22 @@
 # State Engine Service Technical Overview
 
 ## Introduction
-The State Engine is a core service in the BitBrat Platform responsible for managing authoritative application state using the **Graph + Mutation** model. It provides a reactive layer over Firestore, allowing the platform to maintain a consistent view of the world while enabling complex automation through rules.
+The State Engine is a core service in the BitBrat Platform responsible for managing authoritative application state using the **Graph + Mutation** model. It provides a reactive layer over the database, allowing the platform to maintain a consistent view of the world while enabling complex automation through rules.
 
 ## Core Concepts
 
 ### Graph + Mutation Model
 Instead of services directly updating a shared database, the platform uses a mutation-based approach:
 1.  **Mutation Proposal**: A service or agent proposes a change to a specific state key (e.g., `stream.state = "on"`).
-2.  **State Engine**: The engine consumes the proposal, validates it, and applies it to the authoritative snapshot in Firestore.
-3.  **State Snapshot**: The current value and version of a key, stored in Firestore.
+2.  **State Engine**: The engine consumes the proposal, validates it, and applies it to the authoritative snapshot in the database.
+3.  **State Snapshot**: The current value and version of a key, stored in the database.
 4.  **Mutation Log**: An immutable audit trail of all accepted and rejected mutations.
 
 ### Optimistic Concurrency Control
 To prevent race conditions, the State Engine uses version-based optimistic concurrency:
 - Every state key has an associated `version` (integer).
 - A `MutationProposal` can include an `expectedVersion`.
-- If the current version in Firestore does not match `expectedVersion`, the mutation is rejected.
+- If the current version in the database does not match `expectedVersion`, the mutation is rejected.
 - If successful, the version is incremented.
 
 ### Rule Engine
@@ -36,14 +36,14 @@ graph TD
         Ingress[Ingress Service]
         StateEngine[State Engine Service]
         Bus[NATS Message Bus]
-        Firestore[(Firestore)]
+        Database[(Database)]
     end
 
     Twitch --> Ingress
     Ingress -- "internal.state.mutation.v1" --> Bus
     LLM -- "propose_mutation (MCP)" --> StateEngine
     StateEngine -- Subscribes to --> Bus
-    StateEngine -- Reads/Writes --> Firestore
+    StateEngine -- Reads/Writes --> Database
     StateEngine -- "internal.egress.v1" --> Bus
 ```
 
@@ -52,7 +52,7 @@ graph TD
 2.  **Bus**: The proposal is published to the `internal.state.mutation.v1` topic.
 3.  **Processing**: The State Engine consumes the event and:
     - Validates the key against `allowedKeys`.
-    - Executes a Firestore transaction to update the snapshot and log the mutation.
+    - Executes a database transaction to update the snapshot and log the mutation.
     - Increments the version number.
 4.  **Reactivity**: After a successful commit, rules are evaluated. If a rule matches, it may trigger an egress event (e.g., sending a notification to Discord).
 

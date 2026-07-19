@@ -3,12 +3,12 @@
 ## 1. Objective
 Provide the LLM Bot with richer per-user context at inference time:
 - Username
-- Role-derived prompt descriptors (configured in Firestore at /configs/bot/roles)
-- Optional free-text user description stored in /users/{userId}
+- Role-derived prompt descriptors (configured in database at configs/bot/roles)
+- Optional free-text user description stored in users/{userId}
 
 This context is composed into prompt annotations for the LLM Bot with caching, safety, and observability.
 
-## 2. Firestore Data Model
+## 2. Database Data Model
 
 ### 2.1 Roles Configuration
 Path: /configs/bot/roles — Collection under a configuration document
@@ -112,7 +112,7 @@ Resulting annotation example:
 
 ### 4.1 Caches
 - Roles cache: in-memory per process; TTL default 300 seconds (PERSONALITY_CACHE_TTL_MS or USER_CONTEXT_CACHE_TTL_MS).
-- User cache: optional in-memory cache keyed by userId with TTL 60–300 seconds (to minimize Firestore reads under burst).
+- User cache: optional in-memory cache keyed by userId with TTL 60–300 seconds (to minimize database reads under burst).
 
 ### 4.2 Invalidation
 - Time-based TTL expiry.
@@ -121,7 +121,7 @@ Resulting annotation example:
 
 ## 5. Security, Permissions, and Privacy
 
-- Access: Services use server-side Firebase Admin SDK with IAM; Firestore rules restrict client access (rules not relied upon by Admin SDK but should remain least-privilege for any client paths).
+- Access: Services use backend-specific SDKs with appropriate IAM/permissions; access rules enforce least-privilege principles.
 - Data minimization: description is optional; obtain user/admin consent in UI flows. Do not log description content; log only presence and lengths.
 - Redaction: when logging composed context, redact description contents and truncate long fields (e.g., 160 chars preview max).
 - PII handling: username considered public display; description may contain PII—treat as sensitive.
@@ -157,7 +157,7 @@ Resulting annotation example:
 - PERSONALITY_LOG_PREVIEW_CHARS=160 (existing)
 
 ## 9. Acceptance Criteria Mapping
-- Firestore schema for /configs/bot/roles with role-to-prompt mapping and enable/disable flags — Section 2.1
+- Database schema for configs/bot/roles collection/table with role-to-prompt mapping and enable/disable flags — Section 2.1
 - User document extensions in /users/{userId} for username, roles, and optional description — Section 2.2
 - Data flow and integration for llm-bot to enrich prompts with user context — Section 3
 - Caching and invalidation strategy — Section 4

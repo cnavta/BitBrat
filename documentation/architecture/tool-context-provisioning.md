@@ -85,7 +85,7 @@ The Model Context Protocol deliberately separates three primitives:
 The intended pattern is: a tool *does* the thing; an associated **Resource** carries the schema/explainer; a **Prompt** stitches them together for a given task. BitBrat already has `registerResource`/`registerPrompt` in `src/common/mcp-server.ts` but they are currently underused for schema context.
 
 ### 3.3 Retrieval-Augmented Generation for context (RAG / "context engineering")
-Instead of statically injecting everything, embed candidate context fragments (schemas, examples, docs) and retrieve the top-N relevant ones for the current turn. This is exactly the trajectory in BitBrat's own `mcp-evolution-roadmap.md` Phase 2 (semantic *tool* discovery via Firestore Vector Search). The same machinery generalizes from "which tools" to "which context blocks."
+Instead of statically injecting everything, embed candidate context fragments (schemas, examples, docs) and retrieve the top-N relevant ones for the current turn. This is exactly the trajectory in BitBrat's own `mcp-evolution-roadmap.md` Phase 2 (semantic *tool* discovery via database vector search). The same machinery generalizes from "which tools" to "which context blocks."
 - **Pros:** scales to large schema/doc corpora; naturally relevance-gated.
 - **Cons:** retrieval errors → missing/irrelevant context; added latency and infra.
 
@@ -192,7 +192,7 @@ Now "schedule a prompt 5 minutes from now" resolves to a correct `schedule.value
 > *Context [JsonLogic for Routing]:* Available paths: `type`, `identity.*`, `annotations[]`, `candidates[]`, `routingSlip`, `source`, `channel`, `userId`. Custom ops: `has_annotation(event,key[,value])`, `has_role(roles,role)`, `text_contains(value,needle[,ci])`, `re_test`, `ci_eq`, `slip_complete`. `services` become the routing slip; `customAnnotation` attaches an `AnnotationV1`.
 
 ### 5.6 Alignment with the MCP Evolution Roadmap
-Phase 2 of `mcp-evolution-roadmap.md` already plans Firestore-backed, embedding-driven **tool** discovery. Context Packs are stored and retrieved by the **same substrate**: persist packs in Firestore, embed their titles/bodies, and when the bound-tool set is large or open-ended, **retrieve** the top-N relevant packs instead of statically attaching them. Static bindings (5.2) are the deterministic floor; RAG is the scale-out path. This avoids a competing mechanism (G3/G4).
+Phase 2 of `mcp-evolution-roadmap.md` already plans database-backed, embedding-driven **tool** discovery. Context Packs are stored and retrieved by the **same substrate**: persist packs in the database, embed their titles/bodies, and when the bound-tool set is large or open-ended, **retrieve** the top-N relevant packs instead of statically attaching them. Static bindings (5.2) are the deterministic floor; RAG is the scale-out path. This avoids a competing mechanism (G3/G4).
 
 ---
 
@@ -204,7 +204,7 @@ Phase 2 of `mcp-evolution-roadmap.md` already plans Firestore-backed, embedding-
 | **P1 – Convention** | Add `src/common/context/` (`ContextPack`/`ContextBinding`/`ContextProvider`) + `registerToolWithContext`; bind packs to tools. | Consistent, service-owned packs. |
 | **P2 – JIT assembly** | Resolve + de-dupe bound packs in `tool-gateway`/`McpBridge`; render via `prompt-assembly` `NamedContext`. Extend `INTERNAL_MCP_REGISTRATION_V1` to advertise packs/bindings. | True just-in-time injection. |
 | **P3 – Generated + drift-guarded** | Generate packs from `events.ts` / `jsonlogic-evaluator.ts`; add drift tests. | Zero schema drift (Law #2). |
-| **P4 – RAG scale-out** | Persist + embed packs in Firestore; retrieve top-N when binding sets are large. Fold into roadmap Phase 2. | Scales to large ecosystems. |
+| **P4 – RAG scale-out** | Persist + embed packs in the database; retrieve top-N when binding sets are large. Fold into roadmap Phase 2. | Scales to large ecosystems. |
 
 ---
 
@@ -220,11 +220,11 @@ centrally by the tool-gateway (`ToolGatewayServer.resolveContextForTools`).
 
 **P4 (RAG scale-out) is deferred / design-only.** The seam already exists: `resolveContextPacks`
 takes an array of `ContextProvider`s, and the gateway aggregates one provider per registered Bit.
-A future Firestore/embedding-backed retrieval source only needs to implement `ContextProvider`
+A future database/embedding-backed retrieval source only needs to implement `ContextProvider`
 (`listPacks`/`listBindings`) — or a `resolveContextPacks` variant that ranks/top-N's packs — without
 changing any caller. Static bindings remain the deterministic floor (§5.6); RAG reuses the
 `mcp-evolution-roadmap.md` Phase 2 substrate rather than introducing a competing mechanism. No
-Firestore/embedding code ships until the owner pulls P4 into scope.
+database/embedding code ships until the owner pulls P4 into scope.
 
 ## 7. Trade-offs & Risks
 
@@ -242,6 +242,6 @@ Firestore/embedding code ships until the owner pulls P4 into scope.
 2. Surface packs to tool-using agents via **MCP Resources** + bindings; surface to internal pipelines via task/stage/eventType bindings.
 3. Inject **just-in-time** through the existing **prompt-assembly** layer (`NamedContext`, priority-ordered), de-duplicating shared schema packs.
 4. **Generate** the `InternalEventV2` and JsonLogic packs from source of truth and guard with drift tests.
-5. **Scale** with the already-planned Firestore + vector retrieval substrate (`mcp-evolution-roadmap.md`), reusing it for context, not just tools.
+5. **Scale** with the already-planned database + vector retrieval substrate (`mcp-evolution-roadmap.md`), reusing it for context, not just tools.
 
 This gives every service a consistent, low-drift way to say "here is what you need to know to use me correctly" — and the agent only pays for it when that service's tool or task is actually in play.

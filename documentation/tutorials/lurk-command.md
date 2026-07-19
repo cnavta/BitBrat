@@ -44,8 +44,18 @@ Create a file named `my-lurk-rule.json`:
 
 ## Step 2: Load the Rule
 
-Use the `firestore:upsert` tool to load your new rule into the local Firestore emulator.
+Load your new rule into the database.
 
+**PostgreSQL (Default)**:
+```bash
+# Using SQL
+psql $DATABASE_URL -c "INSERT INTO routing_rules (id, enabled, priority, description, logic, enrichments, routing) VALUES ('tutorial-lurk', true, 100, 'Tutorial Lurk Command', ...)"
+
+# Or create a migration file
+# See: documentation/guides/seed-data.md
+```
+
+**Firestore (Legacy)**:
 ```bash
 npm run firestore:upsert -- configs/routingRules/rules @my-lurk-rule.json
 ```
@@ -63,7 +73,7 @@ The easiest way to test your new command is using the `brat chat` CLI.
 
 ## Troubleshooting
 
-- **No response?** Run `npm run brat -- doctor` to ensure the services are healthy and connected to Firestore.
+- **No response?** Run `npm run brat -- doctor` to ensure the services are healthy and connected to the database.
 - **Check logs**: Use `npm run local:logs` to see if the Event Router is matching your rule. Look for `rule_loader.snapshot_applied`.
 - **Logic issues?** Ensure the `logic` field is a valid JSON string containing the JsonLogic object.
 

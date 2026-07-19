@@ -1,5 +1,11 @@
 # Technical Architecture – image-gen-mcp Prompt Logging
 
+> **HISTORICAL DESIGN DOCUMENT - FIRESTORE IMPLEMENTATION**
+>
+> This document describes the original **Firestore-specific** prompt logging design for `image-gen-mcp`.
+>
+> **Current Implementation:** BitBrat now uses **PostgreSQL** as the default persistence backend. The core concepts (service-specific prompt_logs, fail-soft writes, redaction discipline) remain valid, but storage implementation has evolved. For PostgreSQL implementation, see `src/common/persistence/document-store.ts`.
+
 - **Sprint:** sprint-320-1cc8aa
 - **Status:** Proposed (Task 1 deliverable; implementation deferred per AGENTS.md §2.4.1)
 - **Author/Role:** Architect

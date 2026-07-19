@@ -66,8 +66,17 @@ Open your `my-lurk-rule.json` from Part 1 and replace its contents with the rule
 
 ### 1b. Load the updated rule
 
-Re-run the same `firestore:upsert` command from Part 1. Because the `id` is still `tutorial-lurk`, this overwrites the existing rule:
+Load the updated rule into the database. Because the `id` is still `tutorial-lurk`, this overwrites the existing rule:
 
+**PostgreSQL (Default)**:
+```bash
+# Update existing rule with SQL
+psql $DATABASE_URL -c "UPDATE routing_rules SET enrichments = ..., routing = ... WHERE id = 'tutorial-lurk'"
+
+# Or use a migration file - see documentation/guides/seed-data.md
+```
+
+**Firestore (Legacy)**:
 ```bash
 npm run firestore:upsert -- configs/routingRules/rules @my-lurk-rule.json
 ```
@@ -101,7 +110,7 @@ The default personality is generic. To give `!lurk` a consistent voice, we attac
 
 ### 2a. Understand the personalities collection
 
-Personalities live in their own Firestore collection: **`/personalities`**. When the `llm-bot` receives an event carrying a `personality` annotation, it looks the personality up by name and folds its `text` into the system prompt. (For the full reference, see [LLM Bot – Modular Personality Injection](../llm-bot-personality.md).)
+Personalities live in the database **`personalities`** collection/table. When the `llm-bot` receives an event carrying a `personality` annotation, it looks the personality up by name and folds its `text` into the system prompt. (For the full reference, see [LLM Bot – Modular Personality Injection](../llm-bot-personality.md).)
 
 A personality document looks like this:
 
@@ -116,7 +125,7 @@ A personality document looks like this:
 | `platform` | string | **Optional.** Overrides the LLM provider for this personality (defaults to `openai`). |
 | `createdAt` / `updatedAt` | ISO‑8601 string | Timestamps. |
 
-When resolving a personality, the `llm-bot` queries `/personalities` for `name == <annotation value>` and `status == "active"`, ordered by `version` descending, and uses the latest match. This is why bumping `version` lets you publish a new revision without deleting the old one.
+When resolving a personality, the `llm-bot` queries the `personalities` collection/table for `name == <annotation value>` and `status == "active"`, ordered by `version` descending, and uses the latest match. This is why bumping `version` lets you publish a new revision without deleting the old one.
 
 ### 2b. Add a personality document
 
@@ -134,8 +143,14 @@ Create a file named `my-lurk-personality.json`:
 }
 ```
 
-Load it into the `/personalities` collection. We pass `--id lurk-master` so the document has a predictable ID (the lookup is by `name`, so the document ID itself is just for your convenience):
+Load it into the `personalities` collection/table:
 
+**PostgreSQL (Default)**:
+```bash
+psql $DATABASE_URL -c "INSERT INTO personalities (id, name, text, status, tags, version, created_at, updated_at) VALUES ('lurk-master', 'lurk-master', 'You are the Lurk Master...', 'active', ARRAY['tutorial', 'lurk'], 1, '2026-06-22T17:09:00Z', '2026-06-22T17:09:00Z')"
+```
+
+**Firestore (Legacy)**:
 ```bash
 npm run firestore:upsert -- personalities @my-lurk-personality.json --id lurk-master
 ```
@@ -179,8 +194,14 @@ Now update `my-lurk-rule.json` to **attribute** this personality to the command.
 }
 ```
 
-The only change from Step 1 is the new `a2` annotation. Reload the rule:
+The only change from Step 1 is the new `a2` annotation. Reload the rule into the database:
 
+**PostgreSQL (Default)**:
+```bash
+psql $DATABASE_URL -c "UPDATE routing_rules SET enrichments = ... WHERE id = 'tutorial-lurk'"
+```
+
+**Firestore (Legacy)**:
 ```bash
 npm run firestore:upsert -- configs/routingRules/rules @my-lurk-rule.json
 ```
@@ -218,8 +239,14 @@ When the `llm-bot` resolves a personality that sets either field, it uses those 
 }
 ```
 
-Re-upsert it and the next `!lurk` runs on the model you specified — no rule change required:
+Update the personality in the database and the next `!lurk` runs on the model you specified — no rule change required:
 
+**PostgreSQL (Default)**:
+```bash
+psql $DATABASE_URL -c "UPDATE personalities SET model = 'gpt-4o', platform = 'openai', version = 2, updated_at = '2026-06-22T17:30:00Z' WHERE id = 'lurk-master'"
+```
+
+**Firestore (Legacy)**:
 ```bash
 npm run firestore:upsert -- personalities @my-lurk-personality.json --id lurk-master
 ```
@@ -228,8 +255,8 @@ Omit `model` and `platform` to fall back to the platform default. Whichever prov
 
 ## Troubleshooting
 
-- **Still seeing the two static lines from Part 1?** Make sure you removed the `candidates`/`randomCandidate` enrichments and re-ran the `firestore:upsert` for the rule. Check `npm run local:logs` for `rule_loader.snapshot_applied` to confirm the new rule loaded.
-- **No response at all?** Run `npm run brat -- doctor` to confirm the services (including `llm-bot`) are healthy and connected to Firestore.
+- **Still seeing the two static lines from Part 1?** Make sure you removed the `candidates`/`randomCandidate` enrichments and reloaded the rule. Check `npm run local:logs` for `rule_loader.snapshot_applied` to confirm the new rule loaded.
+- **No response at all?** Run `npm run brat -- doctor` to confirm the services (including `llm-bot`) are healthy and connected to the database.
 - **Response ignores the personality?** Confirm the personality `status` is `active` and the annotation `value` matches the document `name` exactly. The `llm-bot` logs `personality.resolve.miss` when a name cannot be found and `personality.resolve.inactive` when the document is not active.
 - **Personality feature disabled?** The `llm-bot` honors a `PERSONALITY_ENABLED` flag; if it is set to `false`, only the base system prompt is used. See [LLM Bot – Modular Personality Injection](../llm-bot-personality.md).
 - **Errors mentioning the model or API key?** The platform defaults to OpenAI, so the `llm-bot` needs a valid `OPENAI_API_KEY`. If you set a personality `model`, make sure it is a model your key/provider can serve. See [LLM Bot Service → Configuration](../services/llm-bot.md#configuration).
@@ -240,7 +267,7 @@ You upgraded `!lurk` from static, router-authored text to a fully **LLM-generate
 
 1. You added the `llm-bot` to the **routing slip** so the event is enriched before egress.
 2. You replaced the static candidates with a **prompt annotation** describing what to generate.
-3. You tested with the **default personality**, then introduced the **`/personalities`** collection and attributed a **personality** to the command for a consistent voice.
+3. You tested with the **default personality**, then introduced the **`personalities`** collection/table and attributed a **personality** to the command for a consistent voice.
 4. You learned that the platform defaults to **OpenAI** (requiring an `OPENAI_API_KEY`) with a model set by `OPENAI_MODEL`, and that any personality can override the `model` and `platform` for itself.
 
 From here you can experiment with multiple personalities, richer prompts that reference more event fields, per-personality model/provider tuning, or adding `contextualization`-stage steps before the `llm-bot` runs.

@@ -319,8 +319,8 @@ Both `action.parameters` and `candidateTemplate` support template interpolation:
 ### Cache and Real-Time Sync
 
 The Reflex bit maintains an in-memory cache of all active reflexes for <150ms pattern matching. The cache:
-- Warms on startup by loading all active reflexes from Firestore
-- Syncs in real-time via Firestore snapshot listeners
+- Warms on startup by loading all active reflexes from the database
+- Syncs in real-time via database snapshot listeners
 - Updates automatically when reflexes are created/updated/deleted
 - Reports cache stats via `reflex.stats` (hits, misses, size, last sync)
 

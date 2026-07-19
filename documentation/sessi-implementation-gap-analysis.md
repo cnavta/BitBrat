@@ -22,12 +22,12 @@ While the core engine for extraction, normalization, and analysis is functional,
 *   **Current State**: The service publishes to `internal.summarization.report.v1`. It does not populate the `Egress` metadata or route the resulting summary to the `internal.egress.v1` topic, meaning summaries are generated but not actually delivered to the end platforms (e.g., Twitch chat).
 
 ### 2.4 Limited Data Source Support (`prompt_logs`)
-*   **Requirement (TA 3.1)**: "Source: Primarily queries PersistenceStore (Firestore) and prompt_logs (for LLM evaluation)."
-*   **Current State**: `StreamAnalystEngine.queryEvents` is hardcoded to query the `events` collection. It does not support querying the `prompt_logs` collection (or its service-specific sub-collections), even though the `StreamSource` interface defines it.
+*   **Requirement (TA 3.1)**: "Source: Primarily queries PersistenceStore (database) and prompt_logs (for LLM evaluation)."
+*   **Current State**: `StreamAnalystEngine.queryEvents` is hardcoded to query the `events` collection/table. It does not support querying the `prompt_logs` collection/table (or its service-specific sub-collections), even though the `StreamSource` interface defines it.
 
 ### 2.5 No Annotation Enrichment
 *   **Requirement (TA 3.2.5)**: "Inspection: Generates AnnotationV1 objects... and optionally publishes them back to the event bus or enriches original event records."
-*   **Current State**: `AnnotationV1` objects are correctly parsed from the LLM response and included in the report, but they are not used to enrich the original event documents in Firestore.
+*   **Current State**: `AnnotationV1` objects are correctly parsed from the LLM response and included in the report, but they are not used to enrich the original event documents in the database.
 
 ### 2.6 MCP Tool Independence
 *   **Requirement (TA v2, 5)**: Added `mcpEnabled` flag to `StreamObserver` to control tool-based access.
@@ -48,5 +48,5 @@ While the core engine for extraction, normalization, and analysis is functional,
 2.  **Add Idempotency Middleware**: Implement a check in the `engine.summarize` method that records successful runs in a `summarization_runs` collection.
 3.  **Complete Egress Path**: Update the reporting phase to publish to `internal.egress.v1` with the appropriate `Egress` metadata derived from the observer's `delivery` configuration.
 4.  **Expand Data Extraction**: Update `queryEvents` to respect the `source.collection` field and handle the schema differences between `events` and `prompt_logs`.
-5.  **Enable Annotation Persistence**: Add a step to save generated annotations back to the respective event documents in Firestore.
+5.  **Enable Annotation Persistence**: Add a step to save generated annotations back to the respective event documents in the database.
 6.  **Align MCP Tool with Observers**: Refactor the MCP tool to optionally accept an `observerId` and verify `mcpEnabled` before processing.
