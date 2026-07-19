@@ -154,9 +154,9 @@ tasks:
     files:
       - documentation/architecture/reactive-agent-loop-technical-overview.md (1 Firestore ref)
       - documentation/architecture/acp-integration-evaluation.md (4 Firestore refs, 1 GCP ref)
-      - documentation/architecture/bit-model-technical-architecture.md (3 Firestore refs)
+      - documentation/architecture/bit-model-technical-architecture.md (0 Firestore refs - already agnostic)
       - documentation/architecture/tool-context-provisioning.md (6 Firestore refs)
-      - documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md (3 Firestore refs, 5 GCP refs)
+      - documentation/architecture/bl-204-brat-fleet-mcp-client-technical-architecture.md (0 Firestore refs, 5 GCP refs)
       - documentation/architecture/technical-architecture.md (0 Firestore refs, 1 GCP ref)
       - documentation/bitbrat_state_memory_architecture.md (10 Firestore refs)
       - documentation/llm_graph_mutation_architecture.md (1 Firestore ref, 1 GCP ref)
@@ -169,9 +169,24 @@ tasks:
       - GCP refs updated to platform-agnostic (NATS default, cloud buses as options)
       - Evolution from Firestore → PostgreSQL noted where relevant
     estimated_minutes: 60
-    status: pending
+    actual_minutes: 40
+    status: completed
+    completed_date: "2026-07-18"
     firestore_refs: 31
     gcp_refs: 9
+    notes: |
+      - reactive-agent-loop-technical-overview.md: Updated 1 ref (database-backed state/persistence)
+      - acp-integration-evaluation.md: Updated 4 Firestore refs (agent_registry, acp_conversations) + 1 GCP ref (removed)
+      - bit-model-technical-architecture.md: Already backend-agnostic, no changes needed
+      - tool-context-provisioning.md: Updated 6 refs (database vector search, RAG infrastructure)
+      - bl-204-brat-fleet-mcp-client-technical-architecture.md: Updated 5 GCP refs to platform-agnostic
+      - technical-architecture.md: Updated 1 GCP ref (Message Bus terminology)
+      - bitbrat_state_memory_architecture.md: Updated 10 refs (State Snapshot Store, Mutation Log)
+      - llm_graph_mutation_architecture.md: Updated 1 Firestore + 1 GCP ref (PostgreSQL as default)
+      - sessi-implementation-gap-analysis.md: Updated 3 refs (PersistenceStore, event documents)
+      - agent-centric-logging-v1.md: Updated 1 GCP ref (Cloud Logging → cloud logging example)
+      - All architectural concepts preserved
+      - Platform-agnostic language throughout (cloud platforms, message bus, database)
 
   - id: P2-T2
     priority: P2

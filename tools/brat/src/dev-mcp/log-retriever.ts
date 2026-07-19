@@ -40,15 +40,6 @@ export class LogRetriever {
 
   constructor(connection: TargetConnection) {
     this.connection = connection;
-<<<<<<< HEAD
-
-    // Use Firestore for registry
-    this.registry = new FirestoreRegistryReader({
-      projectId: connection.firestore.projectId,
-      databaseId: connection.firestore.databaseId
-    });
-
-=======
 
     // Use appropriate registry based on persistence driver
     if (connection.persistenceDriver === 'postgres' && connection.store) {
@@ -65,7 +56,6 @@ export class LogRetriever {
       } as any;
     }
 
->>>>>>> 974f4c6d (fix: Enable fleet.trace for PostgreSQL targets with remote Docker log retrieval)
     // Initialize Loki client with remote URL for remote-ssh targets
     if (connection.type === 'local') {
       // Local: use localhost
