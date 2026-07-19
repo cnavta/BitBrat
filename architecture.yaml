@@ -1066,27 +1066,30 @@ executionContexts:
 
 # DEPRECATED: Use executionContexts instead (will be removed in Sprint 353)
 # Preserved for backward compatibility during Sprint 349-352
-# deploymentTargets:
-#   local:
-#     type: docker-engine
-#     host: unix:///var/run/docker.sock
-#     env: local
-#   staging:
-#     type: docker-engine
-#     host: ssh://root@bitbrat.lan
-#     env: staging
-#     remoteDir: /opt/BitBratPlatform
-#     maxConcurrent: 3
-#     gateway:
-#       url: http://bitbrat.lan:3002
-#       authToken: ${MCP_AUTH_TOKEN}
-#     persistence:
-#       driver: postgres
-#       host: bitbrat.lan
-#       port: 5432
-#       database: bitbrat
-#       username: bitbrat
-#       password: bitbrat_dev_password
+# DEPRECATED (Sprint 349): deploymentTargets is deprecated in favor of executionContexts.
+# Maintained for 3-sprint backward compatibility period. Will be removed in Sprint 352.
+# Use executionContexts (above) for all new development.
+deploymentTargets:
+  local:
+    type: docker-engine
+    host: unix:///var/run/docker.sock
+    env: local
+  staging:
+    type: docker-engine
+    host: ssh://root@bitbrat.lan
+    env: staging
+    remoteDir: /opt/BitBratPlatform
+    maxConcurrent: 3
+    gateway:
+      url: http://bitbrat.lan:3002
+      authToken: ${MCP_AUTH_TOKEN}
+    persistence:
+      driver: postgres
+      host: bitbrat.lan
+      port: 5432
+      database: bitbrat
+      username: bitbrat
+      password: bitbrat_dev_password
 networking:
   cloud_nat:
     enabled: false
