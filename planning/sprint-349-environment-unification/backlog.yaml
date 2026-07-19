@@ -414,13 +414,19 @@ tasks:
     tests:
       - tools/brat/src/context/context-resolver.test.ts
     estimated_hours: 2
-    status: pending
+    status: completed
     depends_on: [resolver-002, resolver-003]
-    assigned_to: null
-    completed_at: null
+    assigned_to: Claude Code
+    completed_at: 2026-07-19T12:00:00Z
     notes: |
-      Simple in-memory cache. Key: contextName, Value: ResolvedContext.
-      Invalidate on architecture.yaml mtime change.
+      ✅ ALREADY IMPLEMENTED in resolver-001:
+      - ContextResolver has contextCache Map<string, ResolvedContext>
+      - architectureCache caches loaded ExecutionContexts
+      - architectureMtime tracks modification time
+      - isArchitectureModified() checks mtime for invalidation
+      - clearCache() method for testing
+      - Caching tests included in context-resolver.test.ts
+      - No additional work required
 
   - id: resolver-007
     phase: phase-2
@@ -440,11 +446,23 @@ tasks:
     files:
       - tools/brat/src/__tests__/integration/context-resolution.test.ts
     estimated_hours: 4
-    status: pending
+    status: completed
     depends_on: [resolver-001, resolver-002, resolver-003, resolver-004, resolver-005]
-    assigned_to: null
-    completed_at: null
-    notes: null
+    assigned_to: Claude Code
+    completed_at: 2026-07-19T23:30:00Z
+    notes: |
+      ✅ All acceptance criteria met:
+      - Created context-resolution.test.ts with 18 integration tests
+      - Tests full resolution workflow (explicit context, priority chain)
+      - Tests BITBRAT_CONTEXT env var resolution
+      - Tests ~/.bratrc current_context resolution
+      - Tests default (local) fallback
+      - Tests fallback port resolution
+      - Tests environment overlay merging (YAML + .secure.*)
+      - Tests error cases (unknown context, missing config, invalid schema)
+      - Tests caching and cache invalidation
+      - Tests utility methods (listContexts, contextExists)
+      - 18 integration tests passing (end-to-end workflows)
 
   # ============================================================================
   # PHASE 3: CLI Unification
