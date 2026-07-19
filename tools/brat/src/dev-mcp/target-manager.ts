@@ -101,16 +101,17 @@ export class TargetConnectionManager {
         ? 'local'
         : 'gcp';
 
-      // Load architecture.yaml to get gateway URL and SSH details
+      // Load architecture.yaml to get gateway URL, SSH details, and persistence config
       let gateway: TargetConnection['gateway'];
       let ssh: TargetConnection['ssh'];
+      let deploymentTarget: any;
 
       if (targetName) {
         try {
           // Determine root directory (walk up to find architecture.yaml)
           const rootDir = this.findRootDir();
           const arch = loadArchitecture(rootDir);
-          const deploymentTarget = arch?.deploymentTargets?.[targetName];
+          deploymentTarget = arch?.deploymentTargets?.[targetName];
 
           if (deploymentTarget) {
             // Extract gateway configuration
@@ -147,10 +148,35 @@ export class TargetConnectionManager {
         this.logger.debug({ gatewayUrl: gateway.url }, 'Using default local gateway URL');
       }
 
+      // Determine persistence driver from architecture.yaml or default to postgres for non-local
+      let persistenceDriver: 'postgres' | 'firestore' | undefined;
+      let store: any;
+
+      if (deploymentTarget?.persistence?.driver) {
+        persistenceDriver = deploymentTarget.persistence.driver as 'postgres' | 'firestore';
+      } else {
+        // Default: postgres for staging/production, firestore for local
+        persistenceDriver = type === 'local' ? 'firestore' : 'postgres';
+      }
+
+      // Initialize PostgreSQL store if needed
+      if (persistenceDriver === 'postgres') {
+        try {
+          const { createDocumentStore } = await import('../../../../src/common/persistence/factory.js');
+          store = createDocumentStore();
+          this.logger.debug({ target: targetName, driver: persistenceDriver }, 'Initialized PostgreSQL DocumentStore');
+        } catch (error: any) {
+          this.logger.warn({ target: targetName, error: error.message }, 'Failed to initialize PostgreSQL store, falling back to Firestore');
+          persistenceDriver = 'firestore';
+        }
+      }
+
       // Build TargetConnection
       const connection: TargetConnection = {
         name: targetName || 'default',
         type,
+        persistenceDriver,
+        store,
         firestore: {
           db,
           projectId: target.projectId,

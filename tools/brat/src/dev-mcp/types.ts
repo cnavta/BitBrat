@@ -14,6 +14,10 @@ export interface TargetConnection {
   name: string;
   /** Target type */
   type: 'local' | 'remote-ssh' | 'gcp';
+  /** Persistence driver (postgres or firestore) */
+  persistenceDriver?: 'postgres' | 'firestore';
+  /** PostgreSQL DocumentStore (when persistenceDriver is postgres) */
+  store?: any;  // IDocumentStore from src/common/persistence/interfaces
   /** Firestore connection options */
   firestore: {
     db: Firestore;
