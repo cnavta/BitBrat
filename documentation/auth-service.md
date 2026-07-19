@@ -1,6 +1,6 @@
 Auth Service – User Enrichment v1
 
-The Auth service enriches internal events with user information from Firestore and republishes them for downstream routing.
+The Auth service enriches internal events with user information from the database and republishes them for downstream routing.
 
 Overview
 - Input: internal.ingress.v1 (prefixable via BUS_PREFIX)
@@ -14,10 +14,10 @@ Environment Variables
 - MESSAGE_BUS_DRIVER: 'pubsub' | 'nats' (default: pubsub)
 - BUS_PREFIX: optional subject/topic prefix (e.g., "dev.")
 - AUTH_ENRICH_OUTPUT_TOPIC: override for default output topic (default: internal.user.enriched.v1)
-- FIREBASE_DATABASE_ID: optional Firestore multi-database binding
+- FIREBASE_DATABASE_ID: optional database multi-database binding (Firestore backend)
 - LOG_LEVEL: error|warn|info|debug
 
-Firestore
+Database
 - Collection: users (top-level)
 - Document ID: userId (string)
 - Suggested fields: email, displayName?, roles?, status?, identities?
@@ -25,7 +25,7 @@ Firestore
 
 IAM (Least Privilege)
 - Grant the runtime service account read access to the users collection only.
-- Recommended roles: a custom role with datastore.entities.get, datastore.entities.list scoped to the project; or Firestore rules permitting read for the service identity in the target environment.
+- Recommended roles: a custom role with datastore.entities.get, datastore.entities.list scoped to the project; or database rules permitting read for the service identity in the target environment.
 
 Observability
 - Logs: info on subscription/publish; debug on enrichment outcome; error on failures
@@ -33,7 +33,7 @@ Observability
 
 Error Handling
 - JSON parse errors: ack (no retry)
-- Firestore/publish transient errors: nack with requeue
+- Database/publish transient errors: nack with requeue
 
 Notes
 - Runtime: Node 24.x on Cloud Run (managed)
