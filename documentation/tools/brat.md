@@ -23,8 +23,8 @@ npm run brat -- <command> [options]
 ## Global Flags
 
 - `--env <name>`: Specify the environment (e.g., `local`, `dev`, `prod`). Can also be set via `BITBRAT_ENV`.
-- `--project-id <id>`: Override the Google Cloud Project ID.
-- `--region <name>`: Override the GCP region.
+- `--project-id <id>`: Override the cloud project ID.
+- `--region <name>`: Override the cloud region.
 - `--dry-run`: Preview changes without applying them.
 - `--json`: Output results in JSON format.
 
@@ -33,7 +33,7 @@ npm run brat -- <command> [options]
 ### Setup & Interaction
 
 #### `brat setup`
-Interactive platform initialization. Guides you through configuring your GCP Project ID, OpenAI API Key, and Bot Name.
+Interactive platform initialization. Guides you through configuring your cloud project ID, OpenAI API Key, and Bot Name.
 
 ```bash
 npm run brat -- setup [--project-id <id>] [--openai-key <key>] [--bot-name <name>]
@@ -41,10 +41,10 @@ npm run brat -- setup [--project-id <id>] [--openai-key <key>] [--bot-name <name
 
 **What it does:**
 - **Configuration**: Generates `.bitbrat.json`, `.secure.local`, and `env/local/global.yaml`.
-- **Identity**: Sets up bot personalities and instructions in Firestore.
+- **Identity**: Sets up bot personalities and instructions in the database.
 - **Rules**: Bootstraps the Event Router with default rules for core platform stages.
-- **Security**: Creates an initial admin API token and stores its hash in Firestore.
-- **Local Persistence**: Sets up the local environment to use the Firestore emulator and other local services.
+- **Security**: Creates an initial admin API token and stores its hash in the database.
+- **Local Persistence**: Sets up the local environment to use the database emulator and other local services.
 
 #### `brat chat`
 Start an interactive chat session with your bot. This is the primary tool for testing rules and interactions locally.
@@ -175,7 +175,7 @@ Example generated config:
 ### Diagnostics & Config
 
 #### `brat doctor`
-Run diagnostic checks to ensure required tools (`gcloud`, `terraform`, `docker`) are installed and accessible. It also verifies your GCP authentication and project configuration.
+Run diagnostic checks to ensure required tools (`gcloud`, `terraform`, `docker`) are installed and accessible. It also verifies your cloud authentication and project configuration.
 
 ```bash
 npm run brat -- doctor [--json] [--ci]
@@ -249,10 +249,10 @@ Apply infrastructure changes.
 npm run brat -- infra apply network|lb|connectors|buckets --env <name>
 ```
 
-### Google Cloud Platform
+### Cloud Platform
 
 #### `brat apis enable`
-Enable all required Google Cloud APIs for the project.
+Enable all required cloud APIs for the project (Google Cloud).
 
 ```bash
 npm run brat -- apis enable --env <name>
@@ -296,7 +296,7 @@ npm run brat -- fleet <subcommand> [<bit> | --all] [options]
 - `--direct <bit>`: **Break-glass** — bypass the gateway and connect directly to one Bit (audited; never with `--all`).
 - `--confirm`: Required for fleet-wide / high-blast-radius mutations.
 - `--json`: Machine-readable output.
-- `--target <name>`: Select a docker deployment target (e.g. `local` | `staging`); reads that stack's Firestore emulator registry instead of real GCP.
+- `--target <name>`: Select a docker deployment target (e.g. `local` | `staging`); reads that stack's database emulator registry instead of cloud database.
 - `--env <name>`: Select environment (reuses the global flag + `BITBRAT_ENV`).
 
 > Commands fail closed: without a resolvable `MCP_AUTH_TOKEN` they refuse to run.

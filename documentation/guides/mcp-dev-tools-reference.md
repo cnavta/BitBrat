@@ -248,7 +248,7 @@ await fleet.info({})
 
 #### `db.collections`
 
-List all top-level Firestore collections.
+List all top-level database collections.
 
 **Signature:**
 ```typescript
@@ -274,7 +274,7 @@ await db.collections({})
 
 #### `db.get`
 
-Get a Firestore document by ID.
+Get a database document by ID.
 
 **Signature:**
 ```typescript
@@ -304,7 +304,7 @@ await db.get({ collection: "commands", id: "cmd-123" })
 
 #### `db.query`
 
-Query Firestore with filters, ordering, and pagination.
+Query database with filters, ordering, and pagination.
 
 **Signature:**
 ```typescript
@@ -368,9 +368,9 @@ await fleet.list({ target: "staging" })
 ```
 
 **Available Targets:**
-- `local` - Local Docker (Firestore emulator)
+- `local` - Local Docker (database emulator)
 - `staging` - Remote Docker (SSH)
-- `production` - GCP Cloud Run
+- `production` - Cloud Run (Google Cloud)
 
 Configuration in `architecture.yaml`:
 
@@ -398,7 +398,7 @@ deploymentTargets:
 ### Read-Only Guarantee
 
 **No tool can mutate platform state:**
-- Firestore: Only `get()`, `list()`, `query()` - no `add()`, `set()`, `update()`, `delete()`
+- Database: Only `get()`, `list()`, `query()` - no `add()`, `set()`, `update()`, `delete()`
 - Filesystem: Only reads `architecture.yaml` and schemas
 - Fleet: Only calls `bit.info` and similar read-only endpoints
 
@@ -574,7 +574,7 @@ deploymentTargets:
 
 ---
 
-### Firestore connection issues
+### Database connection issues
 
 **Local:**
 - Ensure emulator running: `npm run local`
@@ -585,8 +585,8 @@ deploymentTargets:
 - Check remote Docker running
 
 **Production:**
-- Verify GCP credentials
-- Check Firestore API enabled
+- Verify cloud credentials
+- Check database API enabled (Firestore API for Google Cloud)
 
 ---
 

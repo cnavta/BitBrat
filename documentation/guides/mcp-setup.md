@@ -113,7 +113,7 @@ Once configured, the MCP server provides these tool categories:
    - `brat.config.get`: Get configuration values
    - `brat.config.validate`: Validate architecture.yaml
 
-2. **Persistence Tools**: Interact with Firestore
+2. **Persistence Tools**: Interact with the database
    - `brat.firestore.get`: Retrieve documents
    - `brat.firestore.query`: Query collections
    - `brat.firestore.set`: Write documents
