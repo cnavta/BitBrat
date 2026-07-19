@@ -10,7 +10,7 @@ Objective
 
 Initial Resources (for every service)
 - Publisher: factory for creating MessagePublisher instances with per-subject caching and flush-on-exit.
-- Firestore: firebase-admin Firestore singleton bound to configured database.
+- Database: persistence singleton bound to configured database (PostgreSQL or Firestore legacy).
 
 Key Changes
 - Add ResourceManager interface with two methods: setup() and shutdown().
@@ -49,9 +49,9 @@ Default Resource Managers
    - shutdown(): calls flushAll() and clears cache.
    - Honors test/CI env already in place (MESSAGE_BUS_DRIVER=noop, MESSAGE_BUS_DISABLE_IO=1).
 
-2) Firestore Manager
-   - setup(): returns getFirestore() singleton; if FIREBASE_DATABASE_ID is set prior to first call, configure via configureFirestore().
-   - shutdown(): no-op (firebase-admin has no explicit close); keep hook for future changes.
+2) Database Manager
+   - setup(): returns database singleton (getFirestore() for Firestore backend; if FIREBASE_DATABASE_ID is set prior to first call, configure via configureFirestore()).
+   - shutdown(): no-op (firebase-admin has no explicit close); keep hook for future changes and PostgreSQL connection pooling.
 
 Observability
 - Log per resource during setup and shutdown:
@@ -71,7 +71,7 @@ Error Handling
 Acceptance Criteria
 - BaseServer accepts a resources map and initializes resources at construction.
 - Realized resources are available via setup third arg and app.locals.resources.
-- Default publisher and firestore resources exist; publisher flushes on shutdown.
+- Default publisher and database resources exist; publisher flushes on shutdown.
 - Signal handling triggers orderly shutdown with logs.
 
 Testing Strategy (unit-focused)
@@ -85,8 +85,8 @@ Incremental Adoption Plan
 1) Implement interfaces and BaseServer wiring (additive change).
 2) Add default managers under src/common/resources/* and lazily import within BaseServer to avoid cycles.
 3) Optionally update one service (e.g., auth or event-router) to consume resources via setup third arg as an example (no behavior change required).
-4) Follow-up (separate change): consider switching default Firestore database id to "(default)" in common/firebase; retain configureFirestore() override.
+4) Follow-up (separate change): consider switching default database configuration for backend-agnostic initialization; retain configureFirestore() override for Firestore legacy backend.
 
 Risks & Mitigations
-- Startup latency: Firestore getFirestore() may perform ADC; we already support emulator/env guidance, and manager does not block readiness endpoints.
+- Startup latency: Database connection (getFirestore() for Firestore, connection pooling for PostgreSQL) may perform authentication; we already support emulator/env guidance, and manager does not block readiness endpoints.
 - Hidden I/O in tests: mitigated by existing CI env (MESSAGE_BUS_DRIVER=noop, MESSAGE_BUS_DISABLE_IO=1, PUBSUB_ENSURE_DISABLE=1).

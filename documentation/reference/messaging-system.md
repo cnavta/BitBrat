@@ -16,7 +16,7 @@
  - Message Envelope v1 (transport metadata and correlation)
  - Routing Slip pattern (decentralized orchestration and progress tracking)
  - Topics/subjects and naming
- - Swappable message bus (GCP Pub/Sub in Cloud; NATS JetStream in Local/Docker)
+ - Swappable message bus (Cloud Pub/Sub for cloud deployments; NATS JetStream for local/Docker)
  - Implementation templates, retries, idempotency, DLQ, observability, and security
 
  This is transport-agnostic and aligns with architecture.yaml and current repository patterns (see References).
@@ -30,17 +30,17 @@
  - Event Router/Processor: Plans and advances a routing slip, orchestrating downstream workers (retrieval, LLM, formatting, etc.).
  - LLM Bot Service: Handles llm.request.v1 events and produces llm.response.v1, participating in the routing slip.
 
- All services communicate via a message bus abstraction that supports Pub/Sub (Cloud) and NATS JetStream (Local). Delivery semantics target at-least-once; therefore, every consumer must be idempotent.
+ All services communicate via a message bus abstraction that supports Cloud Pub/Sub and NATS JetStream (local/Docker). Delivery semantics target at-least-once; therefore, every consumer must be idempotent.
 
  ---
 
  3) Message Bus Abstraction (Driver-Agnostic)
 
  - Drivers supported:
-   - GCP Pub/Sub (Cloud Run deployments)
+   - Cloud Pub/Sub (cloud deployments, e.g., Cloud Run)
    - NATS JetStream (Docker/local dev)
  - Selection via env:
-   - MESSAGE_BUS_DRIVER or MESSAGE_BUS: pubsub | nats (default: pubsub in Cloud)
+   - MESSAGE_BUS_DRIVER or MESSAGE_BUS: pubsub | nats (default: pubsub for cloud)
    - BUS_PREFIX: optional per-environment prefix for subjects (primarily used with NATS)
  - Interfaces (see src/services/message-bus):
    - Publisher: publishJson(data, attributes?) -> Promise
@@ -146,7 +146,7 @@
 
  Idempotency & Exactly-Once Semantics:
  - The bus provides at-least-once delivery; consumers must be idempotent.
- - Guard side effects (e.g., sending chat messages) with idempotency keys or dedupe storage (Firestore/Redis) with TTL.
+ - Guard side effects (e.g., sending chat messages) with idempotency keys or dedupe storage (database/Redis) with TTL.
 
  Dead-Letter & Timeouts:
  - Terminal ERRORs should result in publication to internal.deadletter.v1 with envelope, lastStep, and error context.
@@ -161,7 +161,7 @@
  - Structure logs with { correlationId, stepId, attempt, status } and sample payloads per privacy policy.
 
  Security/IAM (Cloud):
- - Least-privilege Pub/Sub roles per service account; only the required topics are accessible.
+ - Least-privilege message bus roles per service account; only the required topics are accessible.
  - Egress delivery credentials isolated from Router/LLM accounts.
 
  ---
@@ -205,9 +205,9 @@
  - Enable JetStream; use durable consumers and queue groups for competing consumers.
  - BUS_PREFIX=dev. to isolate local subjects.
 
- Cloud (GCP Pub/Sub)
+ Cloud (Pub/Sub)
  - MESSAGE_BUS_DRIVER=pubsub
- - Topics and subscriptions are provisioned via Cloud Build/IaC.
+ - Topics and subscriptions are provisioned via cloud build/IaC.
  - Use least-privilege IAM on service accounts per service.
 
  Subject/Topic Mapping: identical names across transports (e.g., internal.bot.requests.v1).
@@ -240,7 +240,7 @@
 
  11) Operational Practices
 
- - Backpressure: configure subscriber concurrency/flow control (Pub/Sub) or queue group size and consumer limits (NATS JetStream).
+ - Backpressure: configure subscriber concurrency/flow control (Cloud Pub/Sub) or queue group size and consumer limits (NATS JetStream).
  - Metrics: messages_total by {service, type, channel}, latency histograms per step, error rates; expose driver label (driver=pubsub|nats).
  - Dead-letter analysis: inspect events on internal.deadletter.v1, correct root cause, and replay where appropriate.
  - Timeouts: honor envelope.timeoutAt when present; abort and DLQ remaining work.
