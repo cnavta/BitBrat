@@ -1020,6 +1020,13 @@ deploymentTargets:
     gateway:
       url: http://bitbrat.lan:3017
       authToken: ${MCP_AUTH_TOKEN}
+    persistence:
+      driver: postgres
+      host: bitbrat.lan
+      port: 5432
+      database: bitbrat
+      username: bitbrat
+      password: bitbrat_dev_password
 networking:
   cloud_nat:
     enabled: false

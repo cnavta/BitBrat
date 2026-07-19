@@ -84,27 +84,12 @@ export class TargetConnectionManager {
    */
   private async connect(targetName?: string): Promise<TargetConnection> {
     try {
-      // Resolve connection using existing backup connection logic
-      const resolved = await resolveBackupConnection(
-        {},
-        { target: targetName || '' },
-        this.logger
-      );
-
-      // Get Firestore instance
-      const { db, target } = getBackupFirestore(resolved.connectOptions, this.logger);
-
-      // Determine target type
-      const type: TargetConnection['type'] = resolved.targetKind === 'remote'
-        ? 'remote-ssh'
-        : resolved.isEmulator
-        ? 'local'
-        : 'gcp';
-
-      // Load architecture.yaml to get gateway URL, SSH details, and persistence config
+      // Load architecture.yaml first to determine persistence driver BEFORE attempting any connections
       let gateway: TargetConnection['gateway'];
       let ssh: TargetConnection['ssh'];
       let deploymentTarget: any;
+      let persistenceDriver: 'postgres' | 'firestore' | undefined;
+      let type: TargetConnection['type'] = 'local';
 
       if (targetName) {
         try {
@@ -112,6 +97,25 @@ export class TargetConnectionManager {
           const rootDir = this.findRootDir();
           const arch = loadArchitecture(rootDir);
           deploymentTarget = arch?.deploymentTargets?.[targetName];
+
+          // Determine target type from deployment target config
+          if (deploymentTarget) {
+            if (deploymentTarget.host?.startsWith('ssh://')) {
+              type = 'remote-ssh';
+            } else if (deploymentTarget.type === 'docker-engine') {
+              type = 'local';
+            } else if (deploymentTarget.type === 'gcp') {
+              type = 'gcp';
+            }
+          }
+
+          // Determine persistence driver early so we can conditionally connect to Firestore
+          if (deploymentTarget?.persistence?.driver) {
+            persistenceDriver = deploymentTarget.persistence.driver as 'postgres' | 'firestore';
+          } else {
+            // Default: postgres for staging/production, firestore for local
+            persistenceDriver = type === 'local' ? 'firestore' : 'postgres';
+          }
 
           if (deploymentTarget) {
             // Extract gateway configuration
@@ -137,6 +141,9 @@ export class TargetConnectionManager {
           this.logger.warn({ target: targetName, error: error.message }, 'Failed to load gateway/SSH config from architecture.yaml');
           // Continue without gateway/SSH details - not fatal
         }
+      } else {
+        // No target name specified - default to firestore for backward compatibility
+        persistenceDriver = 'firestore';
       }
 
       // For local connections without explicit gateway config, use default local gateway
@@ -148,26 +155,77 @@ export class TargetConnectionManager {
         this.logger.debug({ gatewayUrl: gateway.url }, 'Using default local gateway URL');
       }
 
-      // Determine persistence driver from architecture.yaml or default to postgres for non-local
-      let persistenceDriver: 'postgres' | 'firestore' | undefined;
+      // Initialize persistence backend
       let store: any;
+      let db: any;
+      let target: any = { projectId: '', databaseId: '' };
 
-      if (deploymentTarget?.persistence?.driver) {
-        persistenceDriver = deploymentTarget.persistence.driver as 'postgres' | 'firestore';
-      } else {
-        // Default: postgres for staging/production, firestore for local
-        persistenceDriver = type === 'local' ? 'firestore' : 'postgres';
-      }
-
-      // Initialize PostgreSQL store if needed
       if (persistenceDriver === 'postgres') {
+        // Initialize PostgreSQL store
         try {
-          const { createDocumentStore } = await import('../../../../src/common/persistence/factory.js');
-          store = createDocumentStore();
+          const { PostgresDocumentStore } = await import('../../../../src/common/persistence/postgres-store.js');
+
+          let connectionString: string;
+
+          // Construct DATABASE_URL from target config if available
+          if (deploymentTarget?.persistence?.host) {
+            const pgHost = deploymentTarget.persistence.host;
+            const pgPort = deploymentTarget.persistence.port || 5432;
+            const pgDatabase = deploymentTarget.persistence.database || 'bitbrat';
+            const pgUsername = deploymentTarget.persistence.username || 'bitbrat';
+            const pgPassword = deploymentTarget.persistence.password || '';
+
+            connectionString = `postgresql://${pgUsername}:${pgPassword}@${pgHost}:${pgPort}/${pgDatabase}`;
+            this.logger.debug({
+              target: targetName,
+              driver: persistenceDriver,
+              host: pgHost,
+              port: pgPort,
+              database: pgDatabase
+            }, 'Constructed PostgreSQL connection string from target config');
+          } else if (process.env.DATABASE_URL) {
+            // Fall back to environment variable
+            connectionString = process.env.DATABASE_URL;
+            this.logger.debug({ target: targetName, driver: persistenceDriver }, 'Using DATABASE_URL from environment');
+          } else {
+            throw new Error(
+              'PostgreSQL configuration not found. ' +
+              'Either configure persistence.host in architecture.yaml deploymentTargets or set DATABASE_URL environment variable.'
+            );
+          }
+
+          store = new PostgresDocumentStore({
+            connectionString,
+            poolSize: 5, // Smaller pool for dev-mcp tools
+            ssl: false
+          });
           this.logger.debug({ target: targetName, driver: persistenceDriver }, 'Initialized PostgreSQL DocumentStore');
         } catch (error: any) {
-          this.logger.warn({ target: targetName, error: error.message }, 'Failed to initialize PostgreSQL store, falling back to Firestore');
-          persistenceDriver = 'firestore';
+          this.logger.error({ target: targetName, error: error.message }, 'Failed to initialize PostgreSQL store');
+          throw new Error(`PostgreSQL initialization failed for target '${targetName}': ${error.message}`);
+        }
+      }
+
+      // Only connect to Firestore if using firestore driver
+      let cleanupFn: (() => Promise<void>) | undefined;
+
+      if (persistenceDriver === 'firestore') {
+        try {
+          // Only now resolve backup connection (which establishes Firestore connection)
+          const resolved = await resolveBackupConnection(
+            {},
+            { target: targetName || '' },
+            this.logger
+          );
+
+          const firestoreResult = getBackupFirestore(resolved.connectOptions, this.logger);
+          db = firestoreResult.db;
+          target = firestoreResult.target;
+          cleanupFn = resolved.cleanup;
+          this.logger.debug({ target: targetName, driver: persistenceDriver, projectId: target.projectId }, 'Connected to Firestore');
+        } catch (error: any) {
+          this.logger.error({ target: targetName, error: error.message }, 'Failed to connect to Firestore');
+          throw new Error(`Failed to connect to Firestore for target '${targetName}': ${error.message}`);
         }
       }
 
@@ -185,8 +243,13 @@ export class TargetConnectionManager {
         gateway,
         ssh,
         cleanup: async () => {
-          if (resolved.cleanup) {
-            await resolved.cleanup();
+          // Cleanup PostgreSQL connection pool if exists
+          if (store && typeof store.close === 'function') {
+            await store.close();
+          }
+          // Cleanup Firestore connection if exists
+          if (cleanupFn) {
+            await cleanupFn();
           }
         },
       };

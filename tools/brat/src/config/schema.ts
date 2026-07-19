@@ -55,6 +55,14 @@ export const DeploymentTargetSchema = z.discriminatedUnion('type', [
       url: z.string(),
       authToken: z.string().optional(),
     }).optional(),
+    persistence: z.object({
+      driver: z.enum(['postgres', 'firestore']),
+      host: z.string().optional(),
+      port: z.number().int().positive().optional(),
+      database: z.string().optional(),
+      username: z.string().optional(),
+      password: z.string().optional(),
+    }).optional(),
   }),
 ]);
 

@@ -9,8 +9,25 @@ import { ToolDefinition, TargetConnection, LogEntry, TraceTimeline, TimelineEntr
 import { FleetClient } from '../../fleet/fleet-client.js';
 import { GatewayTransport } from '../../fleet/transports/gateway-transport.js';
 import { FirestoreRegistryReader } from '../../fleet/firestore-registry.js';
+import { PostgresRegistryReader } from '../../fleet/postgres-registry.js';
+import type { RegistryReader } from '../../fleet/types.js';
 import { LogRetriever } from '../log-retriever.js';
 import { formatText, formatJson, formatRaw, formatTimeline, formatTraceJson } from '../log-formatter.js';
+
+/**
+ * Create appropriate registry reader based on target's persistence driver
+ */
+function createRegistryReader(connection: TargetConnection): RegistryReader {
+  if (connection.persistenceDriver === 'postgres' && connection.store) {
+    return new PostgresRegistryReader(connection.store);
+  }
+
+  // Default to Firestore for backward compatibility
+  return new FirestoreRegistryReader({
+    projectId: connection.firestore.projectId,
+    databaseId: connection.firestore.databaseId
+  });
+}
 
 /**
  * fleet.list - Enumerate all live Bits in the fleet
@@ -44,10 +61,7 @@ async function fleetListHandler(
       baseUrl: connection.gateway.url
     });
 
-    const registry = new FirestoreRegistryReader({
-      projectId: connection.firestore.projectId,
-      databaseId: connection.firestore.databaseId
-    });
+    const registry = createRegistryReader(connection);
 
     if (!connection.gateway.authToken) {
       return {
@@ -154,10 +168,7 @@ async function fleetInfoHandler(
       baseUrl: connection.gateway.url
     });
 
-    const registry = new FirestoreRegistryReader({
-      projectId: connection.firestore.projectId,
-      databaseId: connection.firestore.databaseId
-    });
+    const registry = createRegistryReader(connection);
 
     if (!connection.gateway.authToken) {
       return {
@@ -341,10 +352,7 @@ async function fleetLogsHandler(
         baseUrl: connection.gateway?.url || ''
       });
 
-      const registry = new FirestoreRegistryReader({
-        projectId: connection.firestore.projectId,
-        databaseId: connection.firestore.databaseId
-      });
+      const registry = createRegistryReader(connection);
 
       const identity = {
         token: connection.gateway?.authToken || 'dev-mcp-token',
@@ -539,10 +547,7 @@ async function fleetTraceHandler(
       baseUrl: connection.gateway.url
     });
 
-    const registry = new FirestoreRegistryReader({
-      projectId: connection.firestore.projectId,
-      databaseId: connection.firestore.databaseId
-    });
+    const registry = createRegistryReader(connection);
 
     if (!connection.gateway.authToken) {
       return {
