@@ -1006,27 +1006,87 @@ deploymentDefaults:
     billing: instance
   global-external-application-lb:
     loadBalancingScheme: EXTERNAL_MANAGED
-deploymentTargets:
+# Sprint 349: Execution Contexts (replaces deploymentTargets)
+# Unified environment configuration for deployment and runtime concerns
+executionContexts:
   local:
-    type: docker-engine
-    host: unix:///var/run/docker.sock
-    env: local
+    description: "Local Docker development environment"
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      persistence:
+        driver: firestore
+        autoDiscover: true
+      envOverlay:
+        path: env/local
+        files:
+          - global.yaml
+          - infra.yaml
+          - "{service}.yaml"
+        secure: .secure.local
+    tags:
+      - development
+      - local
+
   staging:
-    type: docker-engine
-    host: ssh://root@bitbrat.lan
-    env: staging
-    remoteDir: /opt/BitBratPlatform
-    maxConcurrent: 3
-    gateway:
-      url: http://bitbrat.lan:3002
-      authToken: ${MCP_AUTH_TOKEN}
-    persistence:
-      driver: postgres
-      host: bitbrat.lan
-      port: 5432
-      database: bitbrat
-      username: bitbrat
-      password: bitbrat_dev_password
+    description: "Remote staging environment on bitbrat.lan"
+    deployment:
+      type: docker-compose
+      docker:
+        host: ssh://root@bitbrat.lan
+        remoteDir: /opt/BitBratPlatform
+        maxConcurrent: 3
+    runtime:
+      gateway:
+        url: http://bitbrat.lan:3002
+        authToken: ${MCP_AUTH_TOKEN}
+      persistence:
+        driver: postgres
+        connection:
+          host: bitbrat.lan
+          port: 5432
+          database: bitbrat
+          username: bitbrat
+          password: bitbrat_dev_password
+      envOverlay:
+        path: env/staging
+        files:
+          - global.yaml
+          - infra.yaml
+          - "{service}.yaml"
+        secure: .secure.staging
+    tags:
+      - staging
+      - remote
+
+# DEPRECATED: Use executionContexts instead (will be removed in Sprint 353)
+# Preserved for backward compatibility during Sprint 349-352
+# deploymentTargets:
+#   local:
+#     type: docker-engine
+#     host: unix:///var/run/docker.sock
+#     env: local
+#   staging:
+#     type: docker-engine
+#     host: ssh://root@bitbrat.lan
+#     env: staging
+#     remoteDir: /opt/BitBratPlatform
+#     maxConcurrent: 3
+#     gateway:
+#       url: http://bitbrat.lan:3002
+#       authToken: ${MCP_AUTH_TOKEN}
+#     persistence:
+#       driver: postgres
+#       host: bitbrat.lan
+#       port: 5432
+#       database: bitbrat
+#       username: bitbrat
+#       password: bitbrat_dev_password
 networking:
   cloud_nat:
     enabled: false
