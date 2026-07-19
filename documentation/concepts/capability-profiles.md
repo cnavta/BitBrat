@@ -47,7 +47,7 @@ Each profile is backed by existing platform commons (`src/common/profiles/`):
 | Profile | `name` | Bundles | Backed by |
 |---|---|---|---|
 | `EventingProfile` | `eventing` | `onMessage` / publish / routing-slip helpers (`next` / `complete`) | base eventing + `common/events` |
-| `ResourcesProfile` | `resources` | firestore / storage / publisher managers | `common/resources` |
+| `ResourcesProfile` | `resources` | database / storage / publisher managers | `common/resources` |
 | `McpClientProfile` | `mcp-client` | MCP client-manager + registry-watcher wiring (consume other Bits' tools) | `common/mcp` |
 | `LlmProfile` | `llm` | provider resolution + prompt assembly/redaction + the `bit.llm.*` admin tools | `common/llm/provider-factory`, `common/prompt-assembly` |
 
