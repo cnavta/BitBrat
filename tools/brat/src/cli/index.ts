@@ -1137,12 +1137,13 @@ Options:
   if (c1 === 'docker') {
     const action = c2;
     if (!action) {
-      console.error('Usage: brat docker <up|down|logs|ps> [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--dry-run]');
+      console.error('Usage: brat docker <up|down|logs|ps> [--context <name>] [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--dry-run]');
       process.exit(2);
     }
     const m = parseKeyValueFlags(rest);
     const dockerFlags = {
       ...flags,
+      context: m['context'] || flags.context, // Sprint 349: Execution context support
       target: m['target'],
       service: m['service'],
       follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true',

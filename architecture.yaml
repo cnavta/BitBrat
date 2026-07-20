@@ -1088,7 +1088,7 @@ executionContexts:
       gateway:
         autoDiscover: true
         fallbackPort: 3004
-        authToken: jfdask;hjhjklfdjsalhjklhjklfdsadsafdsa
+        authToken: jklfdasiuiopjkl;fdasjklhdfjuldsafds
       persistence:
         driver: postgres
         autoDiscover: true
@@ -1099,7 +1099,7 @@ executionContexts:
           - infra.yaml
           - '{service}.yaml'
         secure: .secure.agent-dev
-    description: Local environtment dedicated for the `brat chat` coding agent.
+    description: Dedicated coding agent environment for development and testing.
     tags:
       - agent
       - dev
