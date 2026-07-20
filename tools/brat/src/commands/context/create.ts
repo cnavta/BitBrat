@@ -513,6 +513,10 @@ function generateGlobalYaml(contextName: string, contextConfig: any): string {
 
     // Persistence
     PERSISTENCE_DRIVER: persistenceDriver,
+    PERSISTENCE_SNAPSHOT_MODE: 'all',
+    PERSISTENCE_INCLUDE_RAW_PAYLOADS: true,
+    PERSISTENCE_MAX_SNAPSHOT_BYTES: 1048576, // 1MB
+    PERSISTENCE_TTL_DAYS: 7,
   };
 
   // Add postgres-specific config
