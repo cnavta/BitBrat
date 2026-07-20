@@ -12,6 +12,9 @@ import * as yaml from 'js-yaml';
 import * as readline from 'readline';
 import { generateServiceConfigs, logGenerationResults } from '../../context/generate-service-configs';
 import { cmdSeed } from '../../cli/seed';
+import { getActiveServicesArray } from '../../context/parse-services';
+import { getRequiredInfrastructure } from '../../context/parse-dependencies';
+import { generateAndWriteDockerCompose } from '../../context/generate-docker-compose';
 
 export interface ContextCreateOptions {
   /** Non-interactive mode with all values from flags */
@@ -424,6 +427,26 @@ async function scaffoldEnvironment(repoRoot: string, contextName: string, contex
     dryRun: false,
   });
   logGenerationResults(results);
+
+  // Sprint 352 Epic 2: Generate Docker Compose file for docker-compose contexts
+  if (contextConfig.deployment.type === 'docker-compose') {
+    console.log();
+    console.log('Generating Docker Compose configuration...');
+
+    const activeServices = getActiveServicesArray(repoRoot);
+    const infrastructure = getRequiredInfrastructure(repoRoot, activeServices);
+
+    const composePath = generateAndWriteDockerCompose({
+      repoRoot,
+      contextName,
+      activeServices,
+      infrastructure,
+    });
+
+    console.log(`   Generated: ${composePath}`);
+    console.log(`   Services: ${activeServices.length} application services`);
+    console.log(`   Infrastructure: ${Array.from(infrastructure).join(', ')}`);
+  }
 }
 
 /**
