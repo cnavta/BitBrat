@@ -3,11 +3,14 @@
  *
  * Story S6.2: Write seed data to PostgreSQL database.
  * Supports idempotent seeding with ON CONFLICT DO UPDATE.
+ *
+ * Story S3.1-S3.3: Includes schema verification before seeding.
  */
 
 import { Pool } from 'pg';
 import { SeedDataSet, SeedingOptions } from './seed-data-types';
 import { generateSeedData } from './seed-data-definitions';
+import { verifyPostgresSchema, printSchemaVerification } from './verify-schema';
 
 /**
  * Seed result
@@ -40,6 +43,30 @@ export async function seedPostgres(
   const errors: string[] = [];
 
   try {
+    // Sprint 352 S3.1-S3.3: Verify schema before seeding
+    if (!options.dryRun) {
+      console.log('Verifying PostgreSQL schema...');
+      const schemaResult = await verifyPostgresSchema(connectionString);
+
+      if (!schemaResult.success) {
+        printSchemaVerification(schemaResult);
+        return {
+          success: false,
+          message: 'Schema verification failed',
+          counts: {
+            routingRules: 0,
+            reflexes: 0,
+            personalities: 0,
+            contextPacks: 0,
+            apiTokens: 0,
+          },
+          errors: [`Missing required tables: ${schemaResult.missingRequired.join(', ')}`],
+        };
+      }
+
+      printSchemaVerification(schemaResult);
+    }
+
     // Generate seed data
     const seedData = generateSeedData(options);
 
