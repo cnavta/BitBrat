@@ -115,6 +115,19 @@ export async function executeContextCreate(contextName: string, options: Context
       console.log('Seeding database with initial data...');
       console.log();
 
+      // Set DATABASE_URL for seeding on host machine
+      // (cmdSeed runs on host, not in Docker, so it needs host-accessible connection)
+      if (contextConfig.runtime.persistence?.driver === 'postgres') {
+        const conn = contextConfig.runtime.persistence.connection;
+        if (conn) {
+          // Explicit connection provided
+          process.env.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
+        } else {
+          // Auto-discover mode - use localhost since we're seeding from host
+          process.env.DATABASE_URL = 'postgresql://bitbrat:bitbrat_dev_password@localhost:5432/bitbrat';
+        }
+      }
+
       try {
         const seedFlags = {
           context: contextName,
