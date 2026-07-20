@@ -32,7 +32,8 @@
     "release:dry": "node dist/tools/brat/src/cli/index.js release --dry-run",
     "firestore:upsert": "node dist/tools/firestore-upsert.js",
     "migrate:tokens": "node dist/tools/migrate-tokens.js",
-    "test-migration": "node dist/tools/brat/src/test-migration.js"
+    "test-migration": "node dist/tools/brat/src/test-migration.js",
+    "init-streams": "ts-node tools/init-nats-streams.ts"
   },
   "bin": {
     "brat": "dist/tools/brat/src/cli/index.js",
