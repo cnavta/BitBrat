@@ -1077,7 +1077,7 @@ executionContexts:
     tags:
       - staging
       - remote
-  agent-dev:
+  ec-test:
     deployment:
       type: docker-compose
       docker:
@@ -1086,21 +1086,21 @@ executionContexts:
       gateway:
         autoDiscover: true
         fallbackPort: 3004
-        authToken: jklfdasiuiopjkl;fdasjklhdfjuldsafds
+        authToken: ${MCP_AUTH_TOKEN}
       persistence:
         driver: postgres
         autoDiscover: true
       envOverlay:
-        path: env/agent-dev
+        path: env/ec-test
         files:
           - global.yaml
           - infra.yaml
           - '{service}.yaml'
-        secure: .secure.agent-dev
-    description: Dedicated coding agent environment for development and testing.
+        secure: .secure.ec-test
+    description: EC Creation Test
     tags:
-      - agent
-      - dev
+      - ectest
+      - ephemeral
 deploymentTargets:
   local:
     type: docker-engine

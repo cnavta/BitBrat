@@ -137,7 +137,17 @@ export async function seedPostgres(
       client.release();
     }
   } catch (error: any) {
-    errors.push(error.message || String(error));
+    // Handle AggregateError (multiple errors)
+    if (error.errors && Array.isArray(error.errors)) {
+      error.errors.forEach((err: any) => {
+        errors.push(err.message || String(err));
+        console.error('Seed error:', err);
+      });
+    } else {
+      errors.push(error.message || String(error));
+      console.error('Seed error:', error);
+    }
+
     return {
       success: false,
       message: `Seeding failed: ${error.message}`,
@@ -171,29 +181,23 @@ async function wipeExistingData(client: any): Promise<void> {
  */
 async function seedRoutingRules(client: any, seedData: SeedDataSet): Promise<void> {
   for (const rule of seedData.routingRules) {
+    const data = {
+      enabled: rule.enabled,
+      priority: rule.priority,
+      description: rule.description,
+      logic: rule.logic,
+      routingSlip: rule.routingSlip,
+      stage: rule.stage,
+      enrichments: rule.enrichments || null,
+    };
+
     await client.query(
-      `INSERT INTO routing_rules (
-        id, enabled, priority, description, logic, routing_slip, stage, enrichments, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8::jsonb, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        enabled = EXCLUDED.enabled,
-        priority = EXCLUDED.priority,
-        description = EXCLUDED.description,
-        logic = EXCLUDED.logic,
-        routing_slip = EXCLUDED.routing_slip,
-        stage = EXCLUDED.stage,
-        enrichments = EXCLUDED.enrichments,
-        updated_at = NOW()`,
-      [
-        rule.id,
-        rule.enabled,
-        rule.priority,
-        rule.description,
-        JSON.stringify(rule.logic),
-        JSON.stringify(rule.routingSlip),
-        rule.stage,
-        rule.enrichments ? JSON.stringify(rule.enrichments) : null,
-      ]
+      `INSERT INTO routing_rules (id, data, created_at, updated_at)
+       VALUES ($1, $2::jsonb, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         data = EXCLUDED.data,
+         updated_at = NOW()`,
+      [rule.id, JSON.stringify(data)]
     );
   }
 }
@@ -203,32 +207,24 @@ async function seedRoutingRules(client: any, seedData: SeedDataSet): Promise<voi
  */
 async function seedReflexes(client: any, seedData: SeedDataSet): Promise<void> {
   for (const reflex of seedData.reflexes) {
+    const data = {
+      trigger_pattern: reflex.triggerPattern,
+      match_type: reflex.matchType,
+      case_sensitive: reflex.caseSensitive,
+      response_template: reflex.responseTemplate,
+      response_type: reflex.responseType,
+      enabled: reflex.enabled,
+      priority: reflex.priority,
+      description: reflex.description,
+    };
+
     await client.query(
-      `INSERT INTO reflexes (
-        id, trigger_pattern, match_type, case_sensitive, response_template, response_type,
-        enabled, priority, description, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        trigger_pattern = EXCLUDED.trigger_pattern,
-        match_type = EXCLUDED.match_type,
-        case_sensitive = EXCLUDED.case_sensitive,
-        response_template = EXCLUDED.response_template,
-        response_type = EXCLUDED.response_type,
-        enabled = EXCLUDED.enabled,
-        priority = EXCLUDED.priority,
-        description = EXCLUDED.description,
-        updated_at = NOW()`,
-      [
-        reflex.id,
-        reflex.triggerPattern,
-        reflex.matchType,
-        reflex.caseSensitive,
-        reflex.responseTemplate,
-        reflex.responseType,
-        reflex.enabled,
-        reflex.priority,
-        reflex.description,
-      ]
+      `INSERT INTO reflexes (id, data, created_at, updated_at)
+       VALUES ($1, $2::jsonb, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         data = EXCLUDED.data,
+         updated_at = NOW()`,
+      [reflex.id, JSON.stringify(data)]
     );
   }
 }
@@ -238,25 +234,21 @@ async function seedReflexes(client: any, seedData: SeedDataSet): Promise<void> {
  */
 async function seedPersonalities(client: any, seedData: SeedDataSet): Promise<void> {
   for (const personality of seedData.personalities) {
+    const data = {
+      name: personality.name,
+      instructions: personality.instructions,
+      description: personality.description,
+      status: personality.status,
+      version: personality.version,
+    };
+
     await client.query(
-      `INSERT INTO personalities (
-        id, name, instructions, description, status, version, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        instructions = EXCLUDED.instructions,
-        description = EXCLUDED.description,
-        status = EXCLUDED.status,
-        version = EXCLUDED.version,
-        updated_at = NOW()`,
-      [
-        personality.id,
-        personality.name,
-        personality.instructions,
-        personality.description,
-        personality.status,
-        personality.version,
-      ]
+      `INSERT INTO personalities (id, data, created_at, updated_at)
+       VALUES ($1, $2::jsonb, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         data = EXCLUDED.data,
+         updated_at = NOW()`,
+      [personality.id, JSON.stringify(data)]
     );
   }
 }
@@ -266,27 +258,22 @@ async function seedPersonalities(client: any, seedData: SeedDataSet): Promise<vo
  */
 async function seedContextPacks(client: any, seedData: SeedDataSet): Promise<void> {
   for (const pack of seedData.contextPacks) {
+    const data = {
+      version: pack.version,
+      title: pack.title,
+      priority: pack.priority,
+      format: pack.format,
+      source: pack.source,
+      content: pack.content,
+    };
+
     await client.query(
-      `INSERT INTO context_packs (
-        id, version, title, priority, format, source, content, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        version = EXCLUDED.version,
-        title = EXCLUDED.title,
-        priority = EXCLUDED.priority,
-        format = EXCLUDED.format,
-        source = EXCLUDED.source,
-        content = EXCLUDED.content,
-        updated_at = NOW()`,
-      [
-        pack.id,
-        pack.version,
-        pack.title,
-        pack.priority,
-        pack.format,
-        pack.source,
-        pack.content,
-      ]
+      `INSERT INTO context_packs (id, data, created_at, updated_at)
+       VALUES ($1, $2::jsonb, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         data = EXCLUDED.data,
+         updated_at = NOW()`,
+      [pack.id, JSON.stringify(data)]
     );
   }
 }
@@ -296,18 +283,19 @@ async function seedContextPacks(client: any, seedData: SeedDataSet): Promise<voi
  */
 async function seedApiTokens(client: any, seedData: SeedDataSet): Promise<void> {
   for (const token of seedData.apiTokens) {
+    const data = {
+      token_hash: token.tokenHash,
+      uid: token.uid,
+      description: token.description,
+    };
+
     await client.query(
-      `INSERT INTO api_tokens (
-        token_hash, uid, description, created_at
-      ) VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (token_hash) DO UPDATE SET
-        uid = EXCLUDED.uid,
-        description = EXCLUDED.description`,
-      [
-        token.tokenHash,
-        token.uid,
-        token.description,
-      ]
+      `INSERT INTO api_tokens (id, data, created_at, updated_at)
+       VALUES ($1, $2::jsonb, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         data = EXCLUDED.data,
+         updated_at = NOW()`,
+      [token.tokenHash, JSON.stringify(data)]
     );
   }
 }
