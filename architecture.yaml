@@ -1043,7 +1043,7 @@ executionContexts:
         maxConcurrent: 3
     runtime:
       gateway:
-        url: http://bitbrat.lan:3002
+        autoDiscover: true
         authToken: ${MCP_AUTH_TOKEN}
       persistence:
         driver: postgres

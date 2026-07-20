@@ -875,6 +875,44 @@ Options:
     executeCurrent();
     return;
   }
+  if (c1 === 'context') {
+    const subcommand = c2;
+    if (!subcommand || subcommand === 'help' || subcommand === '--help') {
+      console.log('Usage: brat context <subcommand>');
+      console.log('\nSubcommands:');
+      console.log('  list              List all execution contexts');
+      console.log('  show <name>       Show full configuration for a context');
+      console.log('  create <name>     Create a new execution context');
+      console.log('  delete <name>     Delete an execution context');
+      console.log('  validate <name>   Validate context configuration');
+      console.log('  ping <name>       Test connectivity to context components');
+      console.log('\nExamples:');
+      console.log('  brat context list');
+      console.log('  brat context show staging');
+      console.log('  brat context create prod --type cloud-run');
+      process.exit(0);
+    }
+    if (subcommand === 'list') {
+      const { executeContextList } = require('../commands/context/list');
+      const format = flags.json ? 'json' : 'table';
+      await executeContextList({ format });
+      return;
+    }
+    if (subcommand === 'show') {
+      const contextName = cmd[2];
+      if (!contextName) {
+        console.error('Usage: brat context show <name>');
+        process.exit(2);
+      }
+      const { executeContextShow } = require('../commands/context/show');
+      const raw = rest.includes('--raw');
+      await executeContextShow(contextName, { raw });
+      return;
+    }
+    console.error(`Unknown context subcommand: ${subcommand}`);
+    console.error('Run "brat context help" for usage');
+    process.exit(2);
+  }
   if (c1 === 'bit') {
     const { cmdBit } = require('./bit');
     await cmdBit(cmd, rest, flags);
