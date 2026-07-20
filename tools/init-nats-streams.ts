@@ -68,12 +68,12 @@ const STANDARD_STREAMS: StreamDefinition[] = [
 ];
 
 /** Default stream configuration */
-const DEFAULT_STREAM_CONFIG: Partial<StreamConfig> = {
-  storage: 'file',      // Persistent storage
-  retention: 'limits',  // Retain based on limits (not interest-based)
+const DEFAULT_STREAM_CONFIG = {
+  storage: 'file' as const,      // Persistent storage
+  retention: 'limits' as const,  // Retain based on limits (not interest-based)
   max_age: 86400_000_000_000, // 24 hours in nanoseconds
   replicas: 1,          // Single replica (increase for production HA)
-  discard: 'old',       // Discard old messages when limits reached
+  discard: 'old' as const,       // Discard old messages when limits reached
 };
 
 /** CLI arguments */
@@ -127,13 +127,11 @@ async function createStream(
     return 'exists';
   }
 
-  const config: StreamConfig = {
+  await jsm.streams.add({
     name: def.name,
     subjects: def.subjects,
     ...DEFAULT_STREAM_CONFIG,
-  };
-
-  await jsm.streams.add(config);
+  } as any);
 
   if (verbose) {
     console.log(`  ✅ ${def.name} (created)`);
