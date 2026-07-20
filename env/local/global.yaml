@@ -8,6 +8,9 @@ PROJECT_ID: "bitbrat-local"
 BOT_NAME: "BitBrat_the_AI"
 MCP_GATEWAY_URL: "http://tool-gateway.bitbrat.local:3000/sse"
 
+# Docker Compose project name (Sprint 349: prevents stack conflicts)
+COMPOSE_PROJECT_NAME: "bitbrat-local"
+
 # PostgreSQL persistence (Sprint 343)
 PERSISTENCE_DRIVER: postgres
 DATABASE_URL: "postgresql://bitbrat:bitbrat_dev_password@postgres:5432/bitbrat"

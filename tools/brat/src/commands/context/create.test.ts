@@ -306,4 +306,21 @@ describe('brat context create', () => {
     expect(globalYamlCall[1]).toContain('GCP_PROJECT_ID: my-project');
     expect(globalYamlCall[1]).toContain('GCP_REGION: us-west1');
   });
+
+  it('generates context-specific COMPOSE_PROJECT_NAME', async () => {
+    mockFs.existsSync.mockImplementation((p: any) => {
+      if (p.includes('env/my-context')) return false;
+      return true;
+    });
+
+    await executeContextCreate('my-context', {
+      nonInteractive: true,
+      persistenceDriver: 'postgres',
+    });
+
+    const globalYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('global.yaml')
+    );
+    expect(globalYamlCall[1]).toContain('COMPOSE_PROJECT_NAME: bitbrat-my-context');
+  });
 });

@@ -389,6 +389,9 @@ function generateGlobalYaml(contextName: string, contextConfig: any): string {
     // Logging
     LOG_LEVEL: contextName === 'local' ? 'debug' : 'info',
 
+    // Docker Compose
+    COMPOSE_PROJECT_NAME: `bitbrat-${contextName}`, // Context-specific stack name
+
     // Message bus
     MESSAGE_BUS_DRIVER: 'nats', // Default to NATS (platform-agnostic)
     NATS_URL: 'nats://nats:4222',
