@@ -883,9 +883,9 @@ Options:
       console.log('  list              List all execution contexts');
       console.log('  show <name>       Show full configuration for a context');
       console.log('  create <name>     Create a new execution context');
-      console.log('  delete <name>     Delete an execution context');
-      console.log('  validate <name>   Validate context configuration');
-      console.log('  ping <name>       Test connectivity to context components');
+      console.log('  delete <name>     Delete an execution context (coming soon)');
+      console.log('  validate <name>   Validate context configuration (coming soon)');
+      console.log('  ping <name>       Test connectivity to context components (coming soon)');
       console.log('\nExamples:');
       console.log('  brat context list');
       console.log('  brat context show staging');
@@ -940,6 +940,17 @@ Options:
 
       await executeContextCreate(contextName, options);
       return;
+    }
+    if (subcommand === 'delete' || subcommand === 'validate' || subcommand === 'ping') {
+      console.error(`Error: 'brat context ${subcommand}' is not yet implemented`);
+      console.error('');
+      console.error('Implemented commands:');
+      console.error('  brat context list');
+      console.error('  brat context show <name>');
+      console.error('  brat context create <name>');
+      console.error('');
+      console.error(`The '${subcommand}' command is planned for a future sprint.`);
+      process.exit(2);
     }
     console.error(`Unknown context subcommand: ${subcommand}`);
     console.error('Run "brat context help" for usage');
