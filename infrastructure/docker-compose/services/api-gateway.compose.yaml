@@ -9,14 +9,10 @@ services:
         SERVICE_NAME: api-gateway
         SERVICE_ENTRY: dist/apps/api-gateway.js
         SERVICE_PORT: "3000"
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google-app-creds.json
-
-    volumes:
-      - ${GOOGLE_APPLICATION_CREDENTIALS:?Set GOOGLE_APPLICATION_CREDENTIALS to a local JSON file}:/var/secrets/google-app-creds.json:ro
     ports:
-      - "${API_GATEWAY_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+      - "${API_GATEWAY_HOST_PORT:-3002}:${SERVICE_PORT:-3000}"
     depends_on:
+      - postgres
       - nats
       - tool-gateway
     healthcheck:
