@@ -7,6 +7,7 @@ LOG_LEVEL: info
 COMPOSE_PROJECT_NAME: bitbrat-agent-dev
 MESSAGE_BUS_DRIVER: nats
 NATS_URL: nats://nats:4222
+BUS_PREFIX: "agent-dev."
 PERSISTENCE_DRIVER: postgres
 POSTGRES_HOST: postgres
 POSTGRES_PORT: '5432'
