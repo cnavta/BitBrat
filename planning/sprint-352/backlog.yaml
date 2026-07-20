@@ -1,0 +1,839 @@
+# Sprint 352: Context Creation Automation - Trackable Backlog
+# Format: Prioritized, trackable YAML task list
+# Created: 2026-07-20
+# Sprint Start: 2026-07-20
+# Sprint End: 2026-07-30 (estimated)
+# Lead Implementor: Claude
+
+sprint:
+  id: sprint-352
+  name: Context Creation Automation
+  goal: Make new execution contexts 100% functional upon creation
+  duration_days: 8-10
+  priority: P0
+  status: in_progress
+  branch: feature/sprint-352-context-automation
+
+metrics:
+  target_automation_coverage: 100% # All active services get config files
+  target_config_accuracy: 100% # All required env vars present
+  target_deployment_success: 100% # Contexts deploy without errors
+  manual_steps_eliminated: 7+ # Per context creation
+  time_saved_per_context: 60 # minutes
+
+phases:
+  - id: phase-1
+    name: Critical Path
+    days: 1-3
+    priority: P0
+    goal: Auto-generate configs and seed data
+    deliverable: New contexts work out-of-the-box
+
+  - id: phase-2
+    name: Robustness
+    days: 4-6
+    priority: P0
+    goal: Validation and correctness
+    deliverable: Configs validated and correct
+
+  - id: phase-3
+    name: Polish
+    days: 7-8
+    priority: P0
+    goal: Testing and documentation
+    deliverable: Production-ready, well-documented
+
+  - id: phase-4
+    name: Optional Enhancements
+    days: 9-10
+    priority: P2
+    goal: Nice-to-have features
+    deliverable: Enhanced DX
+
+epics:
+  - id: epic-1
+    name: Service Config Generation
+    phase: phase-1
+    priority: P0
+    estimate_hours: 12
+    estimate_days: 2
+    status: todo
+    dependencies: []
+    goal: Auto-generate service-specific YAML files during context creation
+
+  - id: epic-6
+    name: Unified Data Seeding
+    phase: phase-1
+    priority: P0
+    estimate_hours: 14
+    estimate_days: 2
+    status: todo
+    dependencies: []
+    goal: Seed PostgreSQL and Firestore with routing rules, personalities, context packs
+
+  - id: epic-2
+    name: Environment Variable Interpolation
+    phase: phase-2
+    priority: P1
+    estimate_hours: 8
+    estimate_days: 1
+    status: todo
+    dependencies:
+      - epic-1
+    goal: Fix PostgreSQL password configuration
+
+  - id: epic-3
+    name: Configuration Validation
+    phase: phase-2
+    priority: P0
+    estimate_hours: 10
+    estimate_days: 1.5
+    status: todo
+    dependencies:
+      - epic-1
+    goal: Validate configs against architecture.yaml requirements
+
+  - id: epic-4
+    name: Testing & Documentation
+    phase: phase-3
+    priority: P0
+    estimate_hours: 12
+    estimate_days: 1.5
+    status: todo
+    dependencies:
+      - epic-1
+      - epic-6
+      - epic-3
+    goal: Comprehensive testing and documentation
+
+  - id: epic-5
+    name: Backwards Compatibility & Migration
+    phase: phase-3
+    priority: P0
+    estimate_hours: 6
+    estimate_days: 1
+    status: todo
+    dependencies:
+      - epic-1
+    goal: Ensure existing contexts work, provide migration tool
+
+stories:
+  # PHASE 1: CRITICAL PATH (Days 1-3)
+
+  # EPIC 1: Service Config Generation
+  - id: S1.1
+    epic: epic-1
+    phase: phase-1
+    name: Parse architecture.yaml for Active Services
+    priority: P0
+    estimate_hours: 3
+    status: todo
+    assignee: claude
+    dependencies: []
+    description: |
+      Read architecture.yaml and extract all services with active:true and their required env vars.
+      This is the foundation for automatic service config generation.
+    acceptance_criteria:
+      - Read architecture.yaml during context create
+      - Extract services.*.active === true
+      - For each active service, extract services.*.env array
+      - For each active service, extract services.*.secrets array
+      - Build service metadata map (name -> {env, secrets, profile, category})
+      - Handle missing/undefined env/secrets gracefully
+      - Log discovered services and var counts
+    files:
+      - tools/brat/src/context/create.ts (update)
+      - tools/brat/src/context/parse-services.ts (create)
+    validation:
+      - Unit test: parseActiveServices returns correct service list
+      - Unit test: handles missing env/secrets gracefully
+      - Integration test: reads real architecture.yaml correctly
+
+  - id: S1.2
+    epic: epic-1
+    phase: phase-1
+    name: Generate Service YAML Files with Defaults
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.1
+    description: |
+      For each active service, generate env/{context}/{service}.yaml with intelligent defaults.
+      Prefer copying from env/local/{service}.yaml if exists.
+    acceptance_criteria:
+      - For each active service, create {service}.yaml
+      - Populate with required env vars from architecture.yaml
+      - Use intelligent defaults based on var name patterns
+      - Copy from env/local/{service}.yaml if exists (preferred)
+      - Context-aware adjustments (dev vs staging vs prod)
+      - Add header comments with generation metadata
+      - Create file with proper permissions
+      - Log each file created
+    files:
+      - tools/brat/src/context/create.ts (update)
+      - tools/brat/src/context/generate-service-configs.ts (create)
+    validation:
+      - Unit test: generates correct YAML structure
+      - Unit test: copies from local when available
+      - Unit test: generates from architecture.yaml when no template
+      - Integration test: creates all service files for agent-dev
+
+  - id: S1.3
+    epic: epic-1
+    phase: phase-1
+    name: Create Default Value Mapping Rules
+    priority: P0
+    estimate_hours: 3
+    status: todo
+    assignee: claude
+    dependencies: []
+    description: |
+      Define intelligent defaults for common environment variable patterns.
+      This ensures generated configs have sensible values.
+    acceptance_criteria:
+      - PERSISTENCE_* variables default to standard values
+      - "*_ENABLED" variables default based on context (false for dev/agent, true for prod)
+      - "*_TIMEOUT_MS" variables have reasonable defaults
+      - LLM_BOT_* variables have sensible defaults
+      - PostgreSQL connection vars match global.yaml
+      - Twitch/Discord/Twilio disabled for dev contexts
+      - OAuth/Auth variables have dev-safe defaults
+      - Secrets reference .secure.{context} or use dev defaults
+    files:
+      - tools/brat/src/context/config-defaults.ts (create)
+    validation:
+      - Unit test: each default rule returns correct value
+      - Unit test: context-aware rules work correctly
+      - Integration test: defaults applied to generated configs
+
+  - id: S1.4
+    epic: epic-1
+    phase: phase-1
+    name: Context-Aware Configuration Adjustments
+    priority: P0
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.2
+      - S1.3
+    description: |
+      Apply context-specific adjustments (dev, staging, prod, agent-dev).
+      Dev contexts disable integrations, prod requires explicit config.
+    acceptance_criteria:
+      - Dev/agent-dev contexts disable external integrations by default
+      - Prod contexts require explicit integration config
+      - Agent-dev uses simplified configs (no external dependencies)
+      - Staging mirrors prod but with staging endpoints
+      - Database passwords match context conventions
+      - Log level appropriate per context (debug for dev, info for prod)
+      - Resource limits appropriate per context
+    files:
+      - tools/brat/src/context/create.ts (update)
+      - tools/brat/src/context/context-profiles.ts (create)
+    validation:
+      - Unit test: dev context disables integrations
+      - Unit test: prod context requires explicit config
+      - Integration test: agent-dev has correct adjustments
+
+  # EPIC 6: Unified Data Seeding
+  - id: S6.1
+    epic: epic-6
+    phase: phase-1
+    name: Create Persistence-Agnostic Seed Data Model
+    priority: P0
+    estimate_hours: 3
+    status: todo
+    assignee: claude
+    dependencies: []
+    description: |
+      Define canonical seed data structure independent of persistence backend.
+      Single source of truth for seed data eliminates Firestore/PostgreSQL divergence.
+
+      INCLUDES !ping reflex (see initial-seed-data-spec.md)
+    acceptance_criteria:
+      - Define SeedDataDefinition interface
+      - Routing rules in common format (4 rules - see spec)
+      - Reflexes in common format (1 reflex - !ping → pong!)
+      - Personalities in common format (1 default bot personality)
+      - Context packs in common format (3 packs - schema, router, scheduler)
+      - API tokens/auth data in common format (1 admin token)
+      - TypeScript types for all seed entities
+      - Validation for seed data structure
+      - Support bot name parameterization
+    files:
+      - tools/brat/src/seeding/seed-data-types.ts (create)
+      - tools/brat/src/seeding/seed-data-definitions.ts (create)
+      - planning/sprint-352/initial-seed-data-spec.md (reference)
+    validation:
+      - Unit test: seed data structure validates correctly
+      - Unit test: bot name parameterization works
+      - Unit test: ping reflex included in seed data
+      - Compiles without TypeScript errors
+
+  - id: S6.2
+    epic: epic-6
+    phase: phase-1
+    name: Implement PostgreSQL Seed Writer
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: claude
+    dependencies:
+      - S6.1
+    description: |
+      Transform seed data into PostgreSQL INSERT statements.
+      Critical for populating routing_rules, reflexes, personalities, context_packs.
+    acceptance_criteria:
+      - Read seed data definitions
+      - Generate INSERT for routing_rules table (4 rules)
+      - Generate INSERT for reflexes table (1 reflex - !ping)
+      - Generate INSERT for personalities table (1 default personality)
+      - Generate INSERT for context_packs table (3 packs)
+      - Generate INSERT for api_tokens table (1 admin token)
+      - Handle JSONB columns correctly
+      - Handle timestamps (created_at, updated_at)
+      - Support upsert (ON CONFLICT DO UPDATE)
+      - Transaction-based seeding (all-or-nothing)
+      - Idempotent (can run multiple times)
+    files:
+      - tools/brat/src/seeding/postgres-seed-writer.ts (create)
+    validation:
+      - Unit test: generates correct SQL
+      - Unit test: handles JSONB correctly
+      - Integration test: seeds agent-dev PostgreSQL
+      - Verify routing_rules populated (4 rows)
+      - Verify reflexes populated (1 row - !ping)
+      - Verify personalities populated (1 row)
+      - Verify context_packs populated (3 rows)
+      - Verify api_tokens populated (1 row)
+      - Verify idempotent (run twice)
+      - Functional test: echo "!ping" returns "pong!"
+
+  - id: S6.3
+    epic: epic-6
+    phase: phase-1
+    name: Implement Firestore Seed Writer
+    priority: P0
+    estimate_hours: 3
+    status: todo
+    assignee: claude
+    dependencies:
+      - S6.1
+    description: |
+      Transform seed data into Firestore writes (refactor existing setup.ts logic).
+      Maintains backwards compatibility for Firestore-based contexts.
+    acceptance_criteria:
+      - Read seed data definitions
+      - Write to configs/routingRules/rules collection
+      - Write to personalities collection
+      - Write to context_packs collection
+      - Write to gateways/api/tokens collection
+      - Preserve existing setup.ts behavior
+      - Support merge mode (upsert)
+      - Batch writes where possible
+      - Idempotent (can run multiple times)
+    files:
+      - tools/brat/src/seeding/firestore-seed-writer.ts (create)
+      - tools/brat/src/cli/setup.ts (update - use new writer)
+    validation:
+      - Unit test: generates correct Firestore writes
+      - Integration test: seeds Firestore emulator
+      - Verify backwards compatibility with setup.ts
+      - Verify idempotent (run twice)
+
+  - id: S6.4
+    epic: epic-6
+    phase: phase-1
+    name: Create Unified Seed Command
+    priority: P0
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S6.2
+      - S6.3
+    description: |
+      CLI command that detects persistence driver and seeds accordingly.
+      Enables manual seeding of existing contexts.
+    acceptance_criteria:
+      - Command - brat seed [--context {context}]
+      - Detect PERSISTENCE_DRIVER from context config
+      - Route to PostgreSQL writer if driver=postgres
+      - Route to Firestore writer if driver=firestore
+      - Support --dry-run flag
+      - Support --wipe flag (clear before seeding)
+      - Support --bot-name parameter
+      - Show summary of seeded entities
+      - Exit code indicates success/failure
+    files:
+      - tools/brat/src/cli/seed.ts (create)
+      - tools/brat/src/cli/index.ts (update - add route)
+    validation:
+      - CLI test: brat seed --dry-run works
+      - CLI test: detects driver correctly
+      - Integration test: seeds PostgreSQL context
+      - Integration test: seeds Firestore context
+
+  - id: S6.5
+    epic: epic-6
+    phase: phase-1
+    name: Integrate Seeding into Context Create
+    priority: P0
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S6.4
+      - S1.2
+    description: |
+      Automatically seed data when creating a new context.
+      This is the final piece making contexts fully functional out-of-the-box.
+    acceptance_criteria:
+      - Run seeding after context files generated
+      - Detect persistence driver automatically
+      - Use bot name from context config
+      - Show seeding progress
+      - Optional --no-seed flag to skip
+      - Handle seeding failures gracefully
+      - Log what was seeded
+    files:
+      - tools/brat/src/context/create.ts (update)
+    validation:
+      - Integration test: brat context create seeds data
+      - Integration test: --no-seed skips seeding
+      - Verify routing_rules populated in new context
+      - Verify personalities populated in new context
+
+  # PHASE 2: ROBUSTNESS (Days 4-6)
+
+  # EPIC 2: Environment Variable Interpolation
+  - id: S2.3
+    epic: epic-2
+    phase: phase-2
+    name: PostgreSQL Connection Configuration
+    priority: P0
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.2
+    description: |
+      Ensure DATABASE_URL and individual POSTGRES_* vars are consistent.
+      Fixes reflex service authentication errors.
+    acceptance_criteria:
+      - POSTGRES_PASSWORD matches DATABASE_URL password
+      - POSTGRES_HOST, POSTGRES_PORT match DATABASE_URL
+      - POSTGRES_DB matches DATABASE_URL database name
+      - POSTGRES_USER matches DATABASE_URL user
+      - All services requiring DB get consistent config
+      - Works with both connection methods (URL vs individual params)
+    files:
+      - tools/brat/src/context/create.ts (update global.yaml generation)
+    validation:
+      - Unit test: generated config has consistent values
+      - Integration test: reflex connects successfully
+
+  - id: S2.2
+    epic: epic-2
+    phase: phase-2
+    name: Use Explicit Password Values
+    priority: P1
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S2.3
+    description: |
+      Use explicit password values instead of placeholders (simpler than interpolation).
+      Dev contexts use standard password, prod generates secure passwords.
+    acceptance_criteria:
+      - Generate explicit password values
+      - Use standard dev passwords (bitbrat_dev_password) for dev contexts
+      - Use generated secrets for prod contexts
+      - Store generated secrets in .secure.{context}
+      - Match postgres container defaults
+      - Document password conventions per context
+    files:
+      - tools/brat/src/context/create.ts (update)
+      - tools/brat/src/context/password-generation.ts (create)
+    validation:
+      - Unit test: dev contexts use standard password
+      - Unit test: prod contexts generate secure password
+      - Integration test: matches postgres container
+
+  # EPIC 3: Configuration Validation
+  - id: S3.1
+    epic: epic-3
+    phase: phase-2
+    name: Create Config Validation Module
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.1
+    description: |
+      Cross-check generated configs against architecture.yaml requirements.
+      Catches missing environment variables before deployment.
+    acceptance_criteria:
+      - Read architecture.yaml for required env vars
+      - Read generated YAML files
+      - Compare required vs provided
+      - Report missing variables per service
+      - Report extra variables (informational)
+      - Validate value formats (URLs, booleans, numbers)
+      - Exit with error if critical vars missing
+      - Generate validation report
+    files:
+      - tools/brat/src/context/validate-config.ts (create)
+    validation:
+      - Unit test: detects missing required vars
+      - Unit test: validates value formats
+      - Integration test: validates agent-dev context
+
+  - id: S3.2
+    epic: epic-3
+    phase: phase-2
+    name: Integrate Validation into Context Create
+    priority: P0
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S3.1
+    description: |
+      Run validation automatically after config generation.
+      Fail context creation if critical vars missing.
+    acceptance_criteria:
+      - Call validation after all files generated
+      - Display validation results
+      - Fail creation if critical vars missing
+      - Warn if non-critical vars missing
+      - Show summary (X services, Y vars, Z missing)
+      - Option to skip validation (--no-validate)
+    files:
+      - tools/brat/src/context/create.ts (update)
+    validation:
+      - Integration test: creation fails with missing vars
+      - Integration test: --no-validate skips validation
+
+  - id: S3.3
+    epic: epic-3
+    phase: phase-2
+    name: Create Standalone Validation Command
+    priority: P1
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S3.1
+    description: |
+      Allow manual validation of existing contexts.
+      Useful for auditing and troubleshooting.
+    acceptance_criteria:
+      - Command - brat context validate {context}
+      - Validates existing context configs
+      - Reports missing/invalid vars
+      - Can validate all contexts (--all)
+      - Generates detailed report
+      - Exit code indicates pass/fail
+    files:
+      - tools/brat/src/context/validate-command.ts (create)
+      - tools/brat/src/cli/index.ts (update)
+    validation:
+      - CLI test: brat context validate agent-dev
+      - CLI test: --all validates all contexts
+
+  - id: S3.4
+    epic: epic-3
+    phase: phase-2
+    name: Add Pre-Deployment Validation Check
+    priority: P1
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S3.1
+    description: |
+      Validate context before docker up/deploy.
+      Fail early with clear error messages.
+    acceptance_criteria:
+      - Run validation before docker up
+      - Run validation before brat deploy
+      - Fail early if config invalid
+      - Option to skip (--skip-validation)
+      - Clear error messages
+      - Suggest fixes for common issues
+    files:
+      - tools/brat/src/docker/up.ts (update)
+      - tools/brat/src/deploy/deploy.ts (update)
+    validation:
+      - Integration test: docker up fails with invalid config
+      - Integration test: --skip-validation bypasses check
+
+  # PHASE 3: POLISH (Days 7-8)
+
+  # EPIC 4: Testing & Documentation
+  - id: S4.1
+    epic: epic-4
+    phase: phase-3
+    name: Unit Tests for Config Generation
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.2
+      - S1.3
+      - S1.4
+    description: |
+      Test service config generation logic.
+      Ensure configs are generated correctly.
+    acceptance_criteria:
+      - Test parseActiveServices extracts correct services
+      - Test generateServiceConfigs creates correct files
+      - Test default value rules apply correctly
+      - Test context adjustments work
+      - Test with various architecture.yaml configurations
+      - Test file creation and permissions
+      - Coverage > 90%
+    files:
+      - tools/brat/src/context/__tests__/config-generation.test.ts (create)
+    validation:
+      - All tests passing
+      - Coverage > 90%
+
+  - id: S4.2
+    epic: epic-4
+    phase: phase-3
+    name: Integration Tests for Context Create
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.2
+      - S6.5
+      - S3.2
+    description: |
+      End-to-end test of brat context create.
+      Verify entire workflow works.
+    acceptance_criteria:
+      - Test creates new context successfully
+      - Test generates all expected files
+      - Test validation passes
+      - Test can deploy created context
+      - Test services start without env errors
+      - Test with different context types
+      - Cleanup after tests
+    files:
+      - tools/brat/src/context/__tests__/create-integration.test.ts (create)
+    validation:
+      - All tests passing
+      - Tests clean up properly
+
+  - id: S4.3
+    epic: epic-4
+    phase: phase-3
+    name: Update Documentation
+    priority: P0
+    estimate_hours: 3
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.2
+      - S6.5
+      - S3.1
+    description: |
+      Document new context creation features.
+      Make it easy for users to understand the automation.
+    acceptance_criteria:
+      - Update CLAUDE.md with new workflow
+      - Document default value rules
+      - Document context-specific adjustments
+      - Add troubleshooting section
+      - Update architecture diagrams if needed
+      - Add examples for each context type
+    files:
+      - CLAUDE.md (update)
+      - documentation/guides/context-creation-guide.md (create)
+    validation:
+      - Documentation accurate
+      - Examples work
+
+  - id: S4.4
+    epic: epic-4
+    phase: phase-3
+    name: Create Validation Report
+    priority: P1
+    estimate_hours: 1
+    status: todo
+    assignee: claude
+    dependencies:
+      - S3.3
+    description: |
+      Test with all existing contexts and report results.
+      Ensure automation works with real contexts.
+    acceptance_criteria:
+      - Validate local context
+      - Validate staging context
+      - Validate agent-dev context
+      - Generate report of findings
+      - Fix any discovered issues
+      - Document any manual adjustments needed
+    files:
+      - planning/sprint-352/context-validation-report.md (create)
+    validation:
+      - All contexts valid
+      - Report generated
+
+  # EPIC 5: Backwards Compatibility & Migration
+  - id: S5.1
+    epic: epic-5
+    phase: phase-3
+    name: Preserve Existing Context Behavior
+    priority: P0
+    estimate_hours: 2
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.2
+    description: |
+      Ensure existing contexts continue to work unchanged.
+      Only new contexts get automation.
+    acceptance_criteria:
+      - Local context unchanged
+      - Staging context unchanged
+      - Prod context (if exists) unchanged
+      - New automation only applies to new contexts
+      - Option to regenerate configs for existing context
+      - No breaking changes to existing workflows
+    files:
+      - tools/brat/src/context/create.ts (update)
+    validation:
+      - Integration test: existing contexts unchanged
+      - Integration test: --regenerate updates existing
+
+  - id: S5.2
+    epic: epic-5
+    phase: phase-3
+    name: Create Migration Tool
+    priority: P1
+    estimate_hours: 3
+    status: todo
+    assignee: claude
+    dependencies:
+      - S1.2
+    description: |
+      Tool to migrate existing contexts to new format.
+      Generates missing service files while preserving customizations.
+    acceptance_criteria:
+      - Command - brat context migrate {context}
+      - Analyzes existing config
+      - Generates missing service files
+      - Preserves existing customizations
+      - Creates backup before migration
+      - Reports what was changed
+      - Dry-run mode available
+    files:
+      - tools/brat/src/context/migrate-command.ts (create)
+      - tools/brat/src/cli/index.ts (update)
+    validation:
+      - CLI test: dry-run shows changes
+      - Integration test: migrates context correctly
+
+  - id: S5.3
+    epic: epic-5
+    phase: phase-3
+    name: Test Migration on Agent-Dev
+    priority: P0
+    estimate_hours: 1
+    status: todo
+    assignee: claude
+    dependencies:
+      - S5.2
+    description: |
+      Verify migration works on agent-dev context.
+      Real-world validation of migration tool.
+    acceptance_criteria:
+      - Backup current agent-dev configs
+      - Run migration
+      - Compare before/after
+      - Verify no functional changes
+      - All services still work
+      - Document any differences
+    files:
+      - planning/sprint-352/agent-dev-migration-report.md (create)
+    validation:
+      - Migration successful
+      - No functional changes
+
+summary:
+  total_epics: 5
+  total_stories: 20
+  total_estimate_hours: 62
+  total_estimate_days: 8-10
+  p0_stories: 15
+  p0_hours: 48
+  p1_stories: 5
+  p1_hours: 14
+
+milestones:
+  - name: Phase 1 Complete - Critical Path
+    date: Day 3
+    criteria:
+      - Epic 1 complete (service config generation)
+      - Epic 6 complete (unified data seeding)
+      - New contexts generate all config files
+      - Routing rules, personalities seeded
+      - All services start successfully
+
+  - name: Phase 2 Complete - Robustness
+    date: Day 6
+    criteria:
+      - Epic 2 complete (env var interpolation)
+      - Epic 3 complete (config validation)
+      - Configs validated automatically
+      - Clear error messages for missing vars
+      - PostgreSQL passwords configured correctly
+
+  - name: Phase 3 Complete - Polish
+    date: Day 8
+    criteria:
+      - Epic 4 complete (testing & docs)
+      - Epic 5 complete (backwards compat)
+      - All tests passing (>90% coverage)
+      - Documentation updated
+      - Migration tool working
+
+  - name: Sprint Complete
+    date: Day 10
+    criteria:
+      - All P0 stories complete
+      - All tests passing
+      - brat context create fully functional
+      - New contexts deploy without manual intervention
+      - Sprint retrospective complete
+
+definition_of_done:
+  - All P0 stories complete and tested
+  - brat context create generates all service configs
+  - brat seed populates routing_rules, personalities, context_packs
+  - brat context validate catches missing env vars
+  - New contexts deploy successfully without manual steps
+  - Event router functional (routing rules populated)
+  - All tests passing (unit + integration, >90% coverage)
+  - Documentation updated
+  - Existing contexts unchanged (backwards compatible)
+  - Code reviewed and merged
+  - Sprint retrospective complete
+
+next_steps:
+  - Review and approve implementation plan
+  - Begin S1.1 - Parse architecture.yaml
+  - Track progress in this backlog
+  - Update story status as work progresses
+  - Daily progress check-ins

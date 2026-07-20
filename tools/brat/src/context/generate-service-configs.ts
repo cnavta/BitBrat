@@ -1,0 +1,289 @@
+/**
+ * Sprint 352: Generate Service YAML Files with Defaults
+ *
+ * Story S1.2: For each active service, create env/{context}/{service}.yaml
+ * by either copying from env/local/{service}.yaml or generating from defaults.
+ */
+
+import * as path from 'path';
+import * as fs from 'fs';
+import * as yaml from 'js-yaml';
+import { ServiceMetadata, parseActiveServices } from './parse-services';
+import { determineContextProfile, applyContextAdjustments, getContextAdjustmentsSummary } from './context-profiles';
+
+/**
+ * Configuration generation options
+ */
+export interface GenerateConfigOptions {
+  /** Repository root */
+  repoRoot: string;
+  /** Context name (e.g., 'agent-dev', 'staging') */
+  contextName: string;
+  /** Context type (docker-compose, cloud-run, k8s) */
+  contextType: 'docker-compose' | 'cloud-run' | 'k8s';
+  /** Overwrite existing files */
+  force?: boolean;
+  /** Dry run (don't write files) */
+  dryRun?: boolean;
+}
+
+/**
+ * Generated config result
+ */
+export interface GeneratedConfig {
+  serviceName: string;
+  filePath: string;
+  source: 'copied' | 'generated' | 'skipped' | 'error';
+  message: string;
+}
+
+/**
+ * Generate service-specific YAML config files for a context
+ *
+ * @param options - Generation options
+ * @returns Array of generation results
+ */
+export function generateServiceConfigs(options: GenerateConfigOptions): GeneratedConfig[] {
+  const { repoRoot, contextName, contextType, force, dryRun } = options;
+  const results: GeneratedConfig[] = [];
+
+  // Parse active services
+  const services = parseActiveServices(repoRoot);
+
+  // Determine context profile and log summary
+  const profile = determineContextProfile(contextName, contextType);
+  console.log();
+  console.log(getContextAdjustmentsSummary(profile));
+  console.log();
+
+  // Create env/<context>/ directory
+  const contextDir = path.join(repoRoot, 'env', contextName);
+  if (!fs.existsSync(contextDir)) {
+    if (!dryRun) {
+      fs.mkdirSync(contextDir, { recursive: true });
+    }
+  }
+
+  // Generate config for each active service
+  for (const [serviceName, metadata] of services.entries()) {
+    const targetPath = path.join(contextDir, `${serviceName}.yaml`);
+
+    // Check if file already exists
+    if (fs.existsSync(targetPath) && !force) {
+      results.push({
+        serviceName,
+        filePath: targetPath,
+        source: 'skipped',
+        message: 'File already exists (use --force to overwrite)',
+      });
+      continue;
+    }
+
+    // Try to copy from env/local/{service}.yaml first (preferred)
+    const localTemplatePath = path.join(repoRoot, 'env', 'local', `${serviceName}.yaml`);
+
+    if (fs.existsSync(localTemplatePath)) {
+      try {
+        const content = fs.readFileSync(localTemplatePath, 'utf8');
+
+        if (!dryRun) {
+          fs.writeFileSync(targetPath, content, 'utf8');
+        }
+
+        results.push({
+          serviceName,
+          filePath: targetPath,
+          source: 'copied',
+          message: `Copied from env/local/${serviceName}.yaml`,
+        });
+      } catch (error: any) {
+        results.push({
+          serviceName,
+          filePath: targetPath,
+          source: 'error',
+          message: `Failed to copy: ${error.message}`,
+        });
+      }
+    } else {
+      // Generate from defaults based on service metadata
+      try {
+        const config = generateServiceDefaults(serviceName, metadata, options);
+
+        if (!dryRun) {
+          fs.writeFileSync(targetPath, config, 'utf8');
+        }
+
+        results.push({
+          serviceName,
+          filePath: targetPath,
+          source: 'generated',
+          message: 'Generated from architecture.yaml metadata',
+        });
+      } catch (error: any) {
+        results.push({
+          serviceName,
+          filePath: targetPath,
+          source: 'error',
+          message: `Failed to generate: ${error.message}`,
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Generate default configuration content for a service
+ *
+ * @param serviceName - Service name
+ * @param metadata - Service metadata from architecture.yaml
+ * @param options - Generation options
+ * @returns YAML content as string
+ */
+export function generateServiceDefaults(
+  serviceName: string,
+  metadata: ServiceMetadata,
+  options: GenerateConfigOptions
+): string {
+  const config: Record<string, any> = {};
+
+  // Add defaults based on service profile and metadata
+  addProfileDefaults(config, metadata, options);
+  addEnvVarDefaults(config, metadata, options);
+
+  // Sprint 352 S1.4: Apply context-aware adjustments
+  const profile = determineContextProfile(options.contextName, options.contextType);
+  applyContextAdjustments(config, profile, serviceName);
+
+  // Convert to YAML with header
+  const yamlContent = yaml.dump(config, { indent: 2, lineWidth: 100 });
+
+  const header = `# ${serviceName} service configuration for ${options.contextName} context
+# Generated by 'brat context create ${options.contextName}'
+# Context profile: ${profile}
+# Customize as needed for your deployment
+# Source: architecture.yaml (no template found in env/local/)
+
+`;
+
+  return header + yamlContent;
+}
+
+/**
+ * Add profile-specific defaults
+ */
+function addProfileDefaults(
+  config: Record<string, any>,
+  metadata: ServiceMetadata,
+  options: GenerateConfigOptions
+): void {
+  const { contextType } = options;
+
+  // LLM profile defaults
+  if (metadata.profile === 'llm') {
+    config.LLM_PROVIDER = 'openai';
+    config.LLM_MODEL = 'gpt-4.1-mini';
+    config.OPENAI_TIMEOUT_MS = 300000;
+    config.OPENAI_MAX_RETRIES = 3;
+
+    // Service-specific LLM defaults
+    if (metadata.name === 'llm-bot') {
+      config.LLM_BOT_LLM_PROVIDER = 'openai';
+      config.LLM_BOT_LLM_MODEL = 'gpt-4.1-mini';
+      config.LLM_BOT_ENABLED = true;
+    }
+  }
+
+  // Gateway profile defaults
+  if (metadata.profile === 'gateway') {
+    // Most gateways don't have special env requirements beyond secrets
+  }
+
+  // MCP Server profile defaults
+  if (metadata.profile === 'mcp-server') {
+    // MCP servers typically don't have additional env requirements
+  }
+
+  // External service flags
+  if (metadata.external) {
+    for (const external of metadata.external) {
+      const flag = `${external.toUpperCase()}_ENABLED`;
+
+      // Dev contexts: disable external integrations by default
+      // Prod/staging: enable by default (assume they're configured)
+      if (contextType === 'docker-compose') {
+        config[flag] = false;
+      } else {
+        config[flag] = true;
+      }
+    }
+  }
+}
+
+/**
+ * Add defaults for required environment variables
+ */
+function addEnvVarDefaults(
+  config: Record<string, any>,
+  metadata: ServiceMetadata,
+  options: GenerateConfigOptions
+): void {
+  // Add placeholder defaults for required env vars
+  for (const envKey of metadata.envKeys) {
+    if (config[envKey] !== undefined) {
+      continue; // Already set by profile defaults
+    }
+
+    // Common patterns
+    if (envKey.includes('TIMEOUT')) {
+      config[envKey] = 30000;
+    } else if (envKey.includes('MAX_') || envKey.includes('LIMIT')) {
+      config[envKey] = 100;
+    } else if (envKey.includes('ENABLED')) {
+      config[envKey] = options.contextType === 'docker-compose' ? false : true;
+    } else if (envKey.includes('URL') || envKey.includes('URI')) {
+      config[envKey] = '${' + envKey + '}';
+    } else if (envKey.includes('PORT')) {
+      config[envKey] = 3000;
+    } else if (envKey.includes('TTL')) {
+      config[envKey] = 3600000; // 1 hour default
+    } else {
+      // Generic placeholder
+      config[envKey] = '${' + envKey + '}';
+    }
+  }
+}
+
+/**
+ * Log generation results
+ */
+export function logGenerationResults(results: GeneratedConfig[]): void {
+  console.log();
+  console.log('Service config generation results:');
+  console.log();
+
+  const bySource = {
+    copied: results.filter(r => r.source === 'copied'),
+    generated: results.filter(r => r.source === 'generated'),
+    skipped: results.filter(r => r.source === 'skipped'),
+    error: results.filter(r => r.source === 'error'),
+  };
+
+  for (const [source, items] of Object.entries(bySource)) {
+    if (items.length === 0) continue;
+
+    console.log(`${source.toUpperCase()}:`);
+    for (const item of items) {
+      console.log(`  - ${item.serviceName}: ${item.message}`);
+    }
+    console.log();
+  }
+
+  console.log('Summary:');
+  console.log(`  Copied: ${bySource.copied.length}`);
+  console.log(`  Generated: ${bySource.generated.length}`);
+  console.log(`  Skipped: ${bySource.skipped.length}`);
+  console.log(`  Errors: ${bySource.error.length}`);
+  console.log();
+}

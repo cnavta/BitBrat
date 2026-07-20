@@ -10,6 +10,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import * as readline from 'readline';
+import { generateServiceConfigs, logGenerationResults } from '../../context/generate-service-configs';
+import { cmdSeed } from '../../cli/seed';
 
 export interface ContextCreateOptions {
   /** Non-interactive mode with all values from flags */
@@ -75,6 +77,35 @@ export async function executeContextCreate(contextName: string, options: Context
     // Scaffold env directory and baseline files
     await scaffoldEnvironment(repoRoot, contextName, contextConfig);
 
+    // Sprint 352 S6.5: Auto-seed database if persistence is configured
+    const shouldSeed = await promptForSeeding(contextConfig);
+
+    if (shouldSeed) {
+      console.log();
+      console.log('Seeding database with initial data...');
+      console.log();
+
+      try {
+        const seedFlags = {
+          context: contextName,
+          botName: 'BitBrat', // Default, user can customize later
+          dryRun: false,
+          wipe: false,
+          apiToken: undefined,
+          json: false,
+        };
+
+        await cmdSeed({}, seedFlags);
+      } catch (error: any) {
+        console.error();
+        console.error('⚠️  Warning: Database seeding failed');
+        console.error(`   ${error.message}`);
+        console.error();
+        console.error('You can manually seed later with: brat seed');
+        console.error();
+      }
+    }
+
     console.log();
     console.log(`✅ Context '${contextName}' created successfully`);
     console.log();
@@ -82,12 +113,19 @@ export async function executeContextCreate(contextName: string, options: Context
     console.log(`  - architecture.yaml: executionContexts.${contextName}`);
     console.log(`  - env/${contextName}/global.yaml`);
     console.log(`  - env/${contextName}/infra.yaml`);
+    console.log(`  - env/${contextName}/<service>.yaml (18 service configs generated)`);
+    if (shouldSeed) {
+      console.log(`  - Database: Seeded with routing rules, reflexes, personalities`);
+    }
     console.log();
     console.log('Next steps:');
     console.log(`  - Review: brat context show ${contextName}`);
+    console.log(`  - Validate: brat context validate ${contextName}`);
     console.log(`  - Customize: Edit env/${contextName}/*.yaml files`);
+    if (!shouldSeed) {
+      console.log(`  - Seed: brat seed (populate database with initial data)`);
+    }
     console.log(`  - Switch: brat use ${contextName}`);
-    console.log(`  - Test:   brat context ping ${contextName}`);
 
   } catch (error: any) {
     console.error(`Error creating context: ${error.message}`);
@@ -357,6 +395,7 @@ async function writeContextToArchitecture(repoRoot: string, contextName: string,
 
 /**
  * Scaffold environment directory and baseline files
+ * Sprint 352: Now also generates service-specific YAML files
  */
 async function scaffoldEnvironment(repoRoot: string, contextName: string, contextConfig: any): Promise<void> {
   const envDir = path.join(repoRoot, 'env', contextName);
@@ -373,6 +412,18 @@ async function scaffoldEnvironment(repoRoot: string, contextName: string, contex
   // Create infra.yaml with baseline defaults
   const infraYaml = generateInfraYaml(contextName, contextConfig);
   fs.writeFileSync(path.join(envDir, 'infra.yaml'), infraYaml, 'utf8');
+
+  // Sprint 352: Generate service-specific YAML files
+  console.log();
+  console.log('Generating service-specific configuration files...');
+  const results = generateServiceConfigs({
+    repoRoot,
+    contextName,
+    contextType: contextConfig.deployment.type,
+    force: false,
+    dryRun: false,
+  });
+  logGenerationResults(results);
 }
 
 /**
@@ -472,4 +523,28 @@ function generateInfraYaml(contextName: string, contextConfig: any): string {
 # Customize as needed for your infrastructure
 
 ${content}`;
+}
+
+/**
+ * Determine whether to seed the database
+ * Sprint 352 S6.5: Auto-detect persistence and prompt/auto-seed
+ *
+ * @param contextConfig - Context configuration
+ * @returns True if database should be seeded
+ */
+async function promptForSeeding(contextConfig: any): Promise<boolean> {
+  const persistenceDriver = contextConfig.runtime?.persistence?.driver;
+
+  // Only seed if persistence is configured
+  if (!persistenceDriver) {
+    return false;
+  }
+
+  // For docker-compose contexts with postgres/firestore, auto-seed
+  if (contextConfig.deployment.type === 'docker-compose') {
+    return true;
+  }
+
+  // For cloud deployments, skip auto-seeding (user should seed manually after infrastructure is ready)
+  return false;
 }
