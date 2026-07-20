@@ -33,7 +33,8 @@ const log = createLogger({ base: { runId: RUN_ID, component: 'brat' } });
 interface GlobalFlags {
   projectId: string;
   region?: string;
-  env: string;
+  env: string; // DEPRECATED: Use context instead (Sprint 349+)
+  context?: string; // Sprint 349+: Execution context name
   dryRun: boolean;
   concurrency?: number;
   json?: boolean;
@@ -42,7 +43,10 @@ interface GlobalFlags {
   ci?: boolean;
   imageTag?: string;
   repoName?: string;
-  envExplicit?: boolean;
+  envExplicit?: boolean; // DEPRECATED: Tracks if --env was explicitly set
+  contextExplicit?: boolean; // Sprint 349+: Tracks if --context was explicitly set
+  target?: string; // DEPRECATED: Use context instead (Sprint 349+)
+  targetExplicit?: boolean; // DEPRECATED: Tracks if --target was explicitly set
   url?: string;
 }
 
@@ -57,7 +61,23 @@ export function parseArgs(argv: string[]): { cmd: string[]; flags: GlobalFlags; 
     const a = args[i];
     if (a === '--project-id') { flags.projectId = String(args[++i]); }
     else if (a === '--region') { flags.region = String(args[++i]); }
-    else if (a === '--env') { flags.env = String(args[++i]); (flags as any).envExplicit = true; }
+    else if (a === '--context') { flags.context = String(args[++i]); (flags as any).contextExplicit = true; }
+    else if (a === '--env') {
+      flags.env = String(args[++i]);
+      (flags as any).envExplicit = true;
+      // Map --env to --context for backward compatibility
+      if (!flags.context) {
+        flags.context = flags.env;
+      }
+    }
+    else if (a === '--target') {
+      (flags as any).target = String(args[++i]);
+      (flags as any).targetExplicit = true;
+      // Map --target to --context for backward compatibility
+      if (!flags.context) {
+        flags.context = (flags as any).target;
+      }
+    }
     else if (a === '--dry-run') { flags.dryRun = true; }
     else if (a === '--concurrency') { flags.concurrency = Number(args[++i]); }
     else if (a === '--json') { flags.json = true; }
@@ -124,6 +144,15 @@ Usage:
 
   # Launch a coding agent (Claude Code, Aider, Continue, OpenHands) preconfigured for this project
   brat code [--agent <agent>] [--list] [--project-root <path>] [-- <agent-args>...]
+
+  # Execution context management (Sprint 349+)
+  brat use <context>              # Switch to a different execution context (local, staging, prod)
+  brat current                    # Show current execution context
+
+  # Global flags:
+  --context <name>                # Execution context (local, staging, prod) - overrides ~/.bratrc
+  --env <name>                    # DEPRECATED: Use --context instead (removed in Sprint 352)
+  --target <name>                 # DEPRECATED: Use --context instead (removed in Sprint 352)
 
   # Fleet control plane (drives the universal bit.* tools via the tool-gateway fabric; fail-closed RBAC)
   brat fleet list [--json]
@@ -680,8 +709,40 @@ async function cmdCloudRunShutdown(flags: GlobalFlags) {
   log.info({ action: 'cloud-run.shutdown.complete' }, 'Cloud Run shutdown completed');
 }
 
+/**
+ * Print deprecation warnings for legacy flags (Sprint 349+)
+ */
+function printDeprecationWarnings(flags: GlobalFlags): void {
+  const warnings: string[] = [];
+
+  if ((flags as any).envExplicit) {
+    warnings.push(
+      '⚠️  --env is deprecated and will be removed in Sprint 352.',
+      '   Use --context or "brat use <context>" instead.',
+      `   Your --env=${flags.env} has been mapped to --context=${flags.context}`
+    );
+  }
+
+  if ((flags as any).targetExplicit) {
+    warnings.push(
+      '⚠️  --target is deprecated and will be removed in Sprint 352.',
+      '   Use --context or "brat use <context>" instead.',
+      `   Your --target=${(flags as any).target} has been mapped to --context=${flags.context}`
+    );
+  }
+
+  if (warnings.length > 0) {
+    console.error(''); // blank line
+    warnings.forEach(w => console.error(w));
+    console.error(''); // blank line
+  }
+}
+
 async function main() {
   const { cmd, flags, rest } = parseArgs(process.argv);
+
+  // Print deprecation warnings for legacy flags (Sprint 349+)
+  printDeprecationWarnings(flags);
   const requireEnv = (context: string) => {
     if (!flags.env) {
       console.error(`Environment is required for '${context}'. Specify --env <name> (e.g., dev, prod) or set BITBRAT_ENV.`);
@@ -791,6 +852,109 @@ Options:
     const { cmdCode } = require('./code/code-command');
     await cmdCode(cmd, rest);
     return;
+  }
+  if (c1 === 'use') {
+    const contextName = c2;
+    if (!contextName) {
+      console.error('Usage: brat use <context>');
+      console.error('\nAvailable contexts are defined in architecture.yaml under executionContexts.');
+      console.error('Example: brat use local');
+      process.exit(2);
+    }
+    const { executeUse } = require('../commands/use');
+    try {
+      await executeUse(contextName);
+    } catch (error: any) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+  if (c1 === 'current') {
+    const { executeCurrent } = require('../commands/current');
+    executeCurrent();
+    return;
+  }
+  if (c1 === 'context') {
+    const subcommand = c2;
+    if (!subcommand || subcommand === 'help' || subcommand === '--help') {
+      console.log('Usage: brat context <subcommand>');
+      console.log('\nSubcommands:');
+      console.log('  list              List all execution contexts');
+      console.log('  show <name>       Show full configuration for a context');
+      console.log('  create <name>     Create a new execution context');
+      console.log('  delete <name>     Delete an execution context (coming soon)');
+      console.log('  validate <name>   Validate context configuration (coming soon)');
+      console.log('  ping <name>       Test connectivity to context components (coming soon)');
+      console.log('\nExamples:');
+      console.log('  brat context list');
+      console.log('  brat context show staging');
+      console.log('  brat context create prod --type cloud-run');
+      process.exit(0);
+    }
+    if (subcommand === 'list') {
+      const { executeContextList } = require('../commands/context/list');
+      const format = flags.json ? 'json' : 'table';
+      await executeContextList({ format });
+      return;
+    }
+    if (subcommand === 'show') {
+      const contextName = cmd[2];
+      if (!contextName) {
+        console.error('Usage: brat context show <name>');
+        process.exit(2);
+      }
+      const { executeContextShow } = require('../commands/context/show');
+      const raw = rest.includes('--raw');
+      await executeContextShow(contextName, { raw });
+      return;
+    }
+    if (subcommand === 'create') {
+      const contextName = cmd[2];
+      if (!contextName) {
+        console.error('Usage: brat context create <name> [options]');
+        process.exit(2);
+      }
+      const { executeContextCreate } = require('../commands/context/create');
+
+      // Parse flags for non-interactive mode
+      const f = flags as any; // Type assertion for dynamic flag access
+      const options: any = {};
+      if (rest.includes('--non-interactive')) options.nonInteractive = true;
+      if (f.type) options.type = f.type;
+      if (f.description) options.description = f.description;
+      if (f['persistence-driver']) options.persistenceDriver = f['persistence-driver'];
+      if (f['pg-host']) options.pgHost = f['pg-host'];
+      if (f['pg-port']) options.pgPort = parseInt(f['pg-port'], 10);
+      if (f['pg-database']) options.pgDatabase = f['pg-database'];
+      if (f['pg-username']) options.pgUsername = f['pg-username'];
+      if (f['pg-password']) options.pgPassword = f['pg-password'];
+      if (f['docker-host']) options.dockerHost = f['docker-host'];
+      if (f['docker-remote-dir']) options.dockerRemoteDir = f['docker-remote-dir'];
+      if (f['gcp-project']) options.gcpProject = f['gcp-project'];
+      if (f['gcp-region']) options.gcpRegion = f['gcp-region'];
+      if (f['gateway-url']) options.gatewayUrl = f['gateway-url'];
+      if (f['gateway-auth-token']) options.gatewayAuthToken = f['gateway-auth-token'];
+      if (f['env-path']) options.envPath = f['env-path'];
+      if (f.tags) options.tags = f.tags;
+
+      await executeContextCreate(contextName, options);
+      return;
+    }
+    if (subcommand === 'delete' || subcommand === 'validate' || subcommand === 'ping') {
+      console.error(`Error: 'brat context ${subcommand}' is not yet implemented`);
+      console.error('');
+      console.error('Implemented commands:');
+      console.error('  brat context list');
+      console.error('  brat context show <name>');
+      console.error('  brat context create <name>');
+      console.error('');
+      console.error(`The '${subcommand}' command is planned for a future sprint.`);
+      process.exit(2);
+    }
+    console.error(`Unknown context subcommand: ${subcommand}`);
+    console.error('Run "brat context help" for usage');
+    process.exit(2);
   }
   if (c1 === 'bit') {
     const { cmdBit } = require('./bit');
@@ -973,12 +1137,13 @@ Options:
   if (c1 === 'docker') {
     const action = c2;
     if (!action) {
-      console.error('Usage: brat docker <up|down|logs|ps> [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--dry-run]');
+      console.error('Usage: brat docker <up|down|logs|ps> [--context <name>] [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--dry-run]');
       process.exit(2);
     }
     const m = parseKeyValueFlags(rest);
     const dockerFlags = {
       ...flags,
+      context: m['context'] || flags.context, // Sprint 349: Execution context support
       target: m['target'],
       service: m['service'],
       follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true',

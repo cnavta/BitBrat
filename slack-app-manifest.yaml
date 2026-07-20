@@ -1,0 +1,180 @@
+# BitBrat Slack App Manifest
+#
+# This manifest defines the Slack app configuration for BitBrat Platform.
+# Use this manifest to create or update your Slack app at https://api.slack.com/apps
+#
+# Sprint 348: Slack Integration
+# Architecture: Dual-mode connector (Socket Mode + Events API)
+#
+# Documentation:
+# - Implementation: src/services/ingress/slack/
+# - Architecture: CLAUDE.md (Integrating Chat Platforms: The Webhook Pattern)
+# - Execution Plan: planning/sprint-348-slack-integration/execution-plan.md
+#
+# Prerequisites:
+# 1. Create Slack workspace for testing
+# 2. Install app to workspace
+# 3. Copy Bot Token (xoxb-...) → SLACK_BOT_TOKEN secret
+# 4. Copy App-Level Token (xapp-...) → SLACK_APP_TOKEN secret (Socket Mode)
+# 5. Copy Signing Secret → SLACK_SIGNING_SECRET secret (Events API)
+#
+# Deployment:
+# - Local/Staging: Socket Mode (no webhook required)
+# - Production: Socket Mode (primary) + Events API (fallback/redundancy)
+#
+# Last Updated: 2026-07-19
+
+display_information:
+  name: BitBrat
+  description: >-
+    LLM-powered event orchestration engine for streamers and community managers.
+    Provides intelligent chat moderation, automated responses, and tool execution
+    via conversational AI.
+  background_color: "#2c2d30"
+  long_description: >-
+    BitBrat is an event-driven LLM orchestration platform that listens to chat events
+    across multiple platforms (Slack, Twitch, Discord, Twilio) and provides intelligent
+    automated responses, moderation, and tool execution.
+
+
+    Key Features:
+
+    - **Intelligent Chat Bot**: @mention BitBrat to ask questions, get help, or trigger actions
+
+    - **Event-Driven Orchestration**: Powered by a 5-stage agent loop (perceive → plan → act → observe)
+
+    - **Tool Execution**: Control OBS, generate images, manage state via MCP (Model Context Protocol)
+
+    - **Multi-Platform**: Unified bot experience across Slack, Twitch, Discord
+
+
+    Usage:
+
+    - @BitBrat help - Get started
+
+    - @BitBrat <your question> - Ask anything
+
+    - Direct message for private conversations
+
+
+    BitBrat is built for streamers, community managers, and developers who want
+    automated, context-aware chat interactions powered by OpenAI GPT-4.
+
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: BitBrat
+    always_online: true
+  slash_commands: []  # Reserved for future sprints (custom commands)
+  unfurl_domains: []
+
+oauth_config:
+  scopes:
+    bot:
+      # Core messaging permissions
+      - app_mentions:read        # Listen to @mentions (primary trigger)
+      - channels:history         # Read channel message history
+      - channels:read            # List public channels
+      - chat:write               # Send messages to channels
+      - chat:write.public        # Send messages to channels without joining
+
+      # Direct message support
+      - im:history               # Read DM history
+      - im:read                  # List DMs
+      - im:write                 # Send DMs
+
+      # Group conversation support
+      - groups:history           # Read private channel history
+      - groups:read              # List private channels
+      - groups:write             # Send messages to private channels
+
+      # Multi-party direct messages
+      - mpim:history             # Read group DM history
+      - mpim:read                # List group DMs
+      - mpim:write               # Send messages to group DMs
+
+      # User context (for enrichment)
+      - users:read               # Read user profile info
+      - users:read.email         # Read user email (optional, for auth)
+
+      # Reactions support (egress capability)
+      - reactions:read           # Read message reactions
+      - reactions:write          # Add reactions to messages
+
+      # Moderation capabilities
+      - chat:write.customize     # Customize message appearance (username/icon)
+
+      # File operations (future: image generation egress)
+      - files:read               # Read uploaded files
+      - files:write              # Upload files (for image-gen-mcp)
+
+      # Team info (for multi-workspace support)
+      - team:read                # Read workspace info
+
+settings:
+  event_subscriptions:
+    # Events API (webhook fallback)
+    # Webhook URL: https://<your-domain>/webhooks/slack
+    # Signature verification: HMAC-SHA256 (validateSlackSignature)
+    request_url: https://bitbrat.ai/webhooks/slack
+
+    bot_events:
+      # Primary events (Socket Mode handles these)
+      - app_mention            # @BitBrat mentions in channels
+      - message.channels       # Public channel messages (for context)
+      - message.groups         # Private channel messages
+      - message.im             # Direct messages
+      - message.mpim           # Group DMs
+
+      # Moderation events (disposition-service analysis)
+      - reaction_added         # Track user reactions
+      - reaction_removed       # Track reaction changes
+
+      # User context events (enrichment)
+      - user_change            # User profile updates
+      - team_join              # New workspace members
+
+      # Channel management
+      - channel_created        # Track new channels
+      - channel_deleted        # Track channel deletions
+      - channel_rename         # Track channel renames
+      - member_joined_channel  # Track channel joins
+      - member_left_channel    # Track channel leaves
+
+  interactivity:
+    is_enabled: false  # Reserved for future sprints (interactive components)
+    # request_url: https://bitbrat.ai/webhooks/slack/interactive
+
+  org_deploy_enabled: false
+  socket_mode_enabled: true  # Primary ingress method (no public URL required)
+  token_rotation_enabled: false
+
+# Ingress Architecture Notes:
+# - Socket Mode (Primary): Real-time WebSocket connection, no webhook required
+# - Events API (Fallback): Webhook-based delivery for redundancy
+# - Dual-mode connector: SlackConnectorAdapter implements both IngressConnector + WebhookConnector
+# - Message deduplication: At-least-once delivery requires idempotent event handlers
+# - Bot message filtering: Prevents infinite loops (filters on bot_id and botUserId)
+#
+# Security:
+# - Webhook signature verification: HMAC-SHA256 of `v0:timestamp:body`
+# - Replay attack prevention: Rejects requests older than 5 minutes
+# - Socket Mode auth: App-level token (xapp-...) with connections:write scope
+# - Bot token rotation: Manual only (token_rotation_enabled: false)
+#
+# Egress Capabilities:
+# - chat:write: Send messages to channels
+# - chat:write.public: Send messages without joining
+# - reactions:write: Add emoji reactions
+# - files:write: Upload images (image-gen-mcp integration)
+# - Thread support: Responds in threads when event.thread_ts present
+#
+# Future Enhancements (not yet implemented):
+# - Slash commands: /bitbrat <command>
+# - Interactive components: Buttons, select menus, modals
+# - Block Kit rich messages: Cards, sections, actions
+# - Message deletion: chat:write scope allows edits/deletes (moderation-service)
+# - Scheduled messages: chat:write.public with post_at parameter

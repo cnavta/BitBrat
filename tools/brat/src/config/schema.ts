@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ExecutionContextsSchema } from './execution-context-schema';
 
 export const CloudRunDefaultsSchema = z.object({
   platform: z.string().optional(),
@@ -139,6 +140,8 @@ export const ArchitectureSchema = z.object({
   defaults: z.object({ services: DefaultsServicesSchema }).optional(),
   services: z.record(ServiceSchema).default({}),
   deploymentDefaults: DeploymentDefaultsSchema.optional(),
+  // Sprint 349: executionContexts (new, preferred) vs deploymentTargets (deprecated)
+  executionContexts: ExecutionContextsSchema.optional(),
   deploymentTargets: z.record(DeploymentTargetSchema).optional(),
   network: NetworkSchema.optional(),
   lb: LoadBalancerSchema.optional(),
@@ -254,6 +257,31 @@ export function parseArchitecture(raw: unknown): ParseArchitectureResult {
   const resources = arch.infrastructure?.resources || {} as Record<string, any>;
   const resourceEntries = Object.entries(resources);
   const lbResources = resourceEntries.filter(([, r]) => r?.type === 'load-balancer' && r?.implementation === 'global-external-application-lb');
+
+  // Sprint 349: Validate executionContexts vs deploymentTargets
+  const hasExecutionContexts = arch.executionContexts && Object.keys(arch.executionContexts).length > 0;
+  const hasDeploymentTargets = arch.deploymentTargets && Object.keys(arch.deploymentTargets).length > 0;
+
+  if (hasDeploymentTargets && !hasExecutionContexts) {
+    warnings.push(
+      'Deprecation: deploymentTargets is deprecated and will be removed in Sprint 353. ' +
+      'Use executionContexts instead. Run `brat migrate-contexts` to migrate automatically.'
+    );
+  }
+
+  if (hasExecutionContexts && hasDeploymentTargets) {
+    throw new Error(
+      'Ambiguous configuration: Both executionContexts and deploymentTargets are defined. ' +
+      'Use only executionContexts (recommended) or remove executionContexts to use deploymentTargets (deprecated).'
+    );
+  }
+
+  if (!hasExecutionContexts && !hasDeploymentTargets) {
+    throw new Error(
+      'Missing environment configuration: architecture.yaml must define either executionContexts (recommended) ' +
+      'or deploymentTargets (deprecated). See documentation/guides/context-migration.md.'
+    );
+  }
 
   // Deprecation behavior: prefer routing-based LB over lb.services[] when both exist
   if ((arch.lb?.services?.length || 0) > 0 && lbResources.length > 0) {

@@ -103,3 +103,5 @@ validation_output.txt
 
 # Junie-specific Agent configuration
 .junie/
+
+.scratch/

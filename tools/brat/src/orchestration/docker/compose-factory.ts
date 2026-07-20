@@ -110,11 +110,12 @@ export class ComposeFactory {
     });
   }
 
-  public buildComposeArgs(fileSet: ComposeFileSet, envFiles: string[]): string[] {
+  public buildComposeArgs(fileSet: ComposeFileSet, envFiles: string[], projectName: string = 'bitbratplatform'): string[] {
     const args: string[] = [];
     // Explicitly set project name to ensure consistency between build and up,
     // and between local and remote environments.
-    args.push('-p', 'bitbratplatform');
+    // Sprint 349: Project name is now configurable via COMPOSE_PROJECT_NAME
+    args.push('-p', projectName);
     args.push('-f', fileSet.baseFile);
     for (const f of fileSet.serviceFiles) {
       args.push('-f', f);

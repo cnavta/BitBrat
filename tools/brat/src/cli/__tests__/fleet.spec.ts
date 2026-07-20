@@ -1,6 +1,11 @@
 import { parseFleetArgs, runFleet, FleetDeps } from '../fleet';
 import { PermissionError, ConfigurationError } from '../../orchestration/errors';
 import { FleetIdentity, FleetTool, FleetTransport, RegistryReader } from '../../fleet';
+import * as fs from 'fs';
+
+// Mock fs to prevent ContextResolver from finding architecture.yaml (tests use legacy behavior)
+jest.mock('fs');
+const mockFs = fs as jest.Mocked<typeof fs>;
 
 const IDENTITY: FleetIdentity = { token: 't', roles: ['bit:read'], agentName: 'brat' };
 
@@ -184,6 +189,12 @@ describe('brat fleet — local Docker host-port mapping (regression: always used
     description: "target 'local' -> Firestore emulator localhost:8080 (project 'bitbrat-local')",
     cleanup: jest.fn(async () => {}),
   };
+
+  beforeEach(() => {
+    // Mock fs.existsSync to return false so ContextResolver can't find architecture.yaml
+    // This forces fallback to legacy discovery logic (which these tests validate)
+    mockFs.existsSync.mockReturnValue(false);
+  });
 
   it('derives the gateway URL from the tool-gateway PUBLISHED host port (not the internal 3000)', async () => {
     let baseUrl = '';

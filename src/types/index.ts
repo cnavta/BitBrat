@@ -99,6 +99,15 @@ export interface IConfig {
   twilioIdentity?: string;
   /** Authorized debug users (connector:username list) */
   debugUsers?: string[];
+
+  /** Slack integration master switch */
+  slackEnabled?: boolean;
+  /** Slack Bot Token (xoxb-..., OAuth2) */
+  slackBotToken?: string; // secret
+  /** Slack App Token (xapp-..., Socket Mode) */
+  slackAppToken?: string; // secret
+  /** Slack Signing Secret (webhook signature verification) */
+  slackSigningSecret?: string; // secret
 }
 
 export interface TwitchTokenData {

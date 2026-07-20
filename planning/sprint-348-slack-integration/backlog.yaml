@@ -1,0 +1,461 @@
+meta:
+  backlog_id: sprint-348-slack-integration
+  sprint_number: 348
+  status_values: [todo, in_progress, blocked, done]
+  created_at: 2026-07-19T00:00:00Z
+
+sprint:
+  id: sprint-348
+  name: Slack Integration
+  goal: Integrate Slack using the Ingress-Egress Framework
+  base_sprint: sprint-342  # Continuation of Sprint 342 foundation
+  start_date: 2026-07-19
+  estimated_duration_hours: 12-16
+
+items:
+  # ============================================================================
+  # Phase 1: Foundation & Setup (2-3 hours)
+  # ============================================================================
+
+  - id: SLACK-001
+    title: Create Slack Connector Directory Structure
+    description: |
+      Create directory structure following Sprint 342 blueprint.
+      Files: connector-adapter.ts, slack-ingress-client.ts, webhook-utils.ts,
+      envelope-builder.ts, index.ts, and test files.
+    status: done
+    priority: P0
+    phase: 1-foundation
+    estimated_hours: 0.5
+    acceptance_criteria:
+      - All directories created
+      - All stub files created with TypeScript boilerplate
+      - Files import necessary interfaces from ../core
+      - No compilation errors
+    files_changed:
+      - src/services/ingress/slack/connector-adapter.ts (new)
+      - src/services/ingress/slack/slack-ingress-client.ts (new)
+      - src/services/ingress/slack/webhook-utils.ts (new)
+      - src/services/ingress/slack/envelope-builder.ts (new)
+      - src/services/ingress/slack/index.ts (new)
+      - src/services/ingress/slack/__tests__/connector-adapter.test.ts (new)
+      - src/services/ingress/slack/__tests__/connector-adapter-webhook.test.ts (new)
+      - src/services/ingress/slack/__tests__/webhook-utils.test.ts (new)
+
+  - id: SLACK-002
+    title: Install Slack SDK Dependencies
+    description: |
+      Install @slack/socket-mode and @slack/web-api packages.
+      Update package.json and package-lock.json.
+    status: done
+    priority: P0
+    phase: 1-foundation
+    estimated_hours: 0.25
+    dependencies: [SLACK-001]
+    acceptance_criteria:
+      - Packages installed successfully
+      - package.json updated
+      - package-lock.json updated
+      - npm run build succeeds
+    files_changed:
+      - package.json (modified)
+      - package-lock.json (modified)
+
+  - id: SLACK-003
+    title: Implement Slack Webhook Signature Verification
+    description: |
+      Implement validateSlackSignature() function using HMAC-SHA256 algorithm.
+      Algorithm: v0:timestamp:body
+      Include timestamp validation for replay attack prevention (5 min window).
+    status: done
+    priority: P0
+    phase: 1-foundation
+    estimated_hours: 1.5
+    dependencies: [SLACK-002]
+    acceptance_criteria:
+      - validateSlackSignature() function implemented
+      - 5+ unit tests passing
+      - Signature verification works with official Slack test vectors
+      - Replay attack prevention working (timestamp validation)
+    files_changed:
+      - src/services/ingress/slack/webhook-utils.ts (modified)
+      - src/services/ingress/slack/__tests__/webhook-utils.test.ts (modified)
+    reference:
+      - https://api.slack.com/authentication/verifying-requests-from-slack
+
+  # ============================================================================
+  # Phase 2: Core Integration (4-6 hours)
+  # ============================================================================
+
+  - id: SLACK-004
+    title: Implement Envelope Builder
+    description: |
+      Normalize Slack events to Envelope v1 format.
+      Support event types: message.channels, message.im, app_mention, reaction_added.
+      Include thread support (thread_ts).
+    status: done
+    priority: P0
+    phase: 2-core
+    estimated_hours: 1.5
+    dependencies: [SLACK-003]
+    acceptance_criteria:
+      - Envelope builder implemented
+      - Unit tests cover all event types
+      - Envelope v1 schema validated
+      - Thread support (thread_ts) implemented
+    files_changed:
+      - src/services/ingress/slack/envelope-builder.ts (modified)
+      - src/services/ingress/slack/__tests__/envelope-builder.test.ts (new)
+
+  - id: SLACK-005
+    title: Implement Socket Mode Client
+    description: |
+      Implement real-time ingress via Slack Socket Mode using @slack/socket-mode.
+      Handle message events, errors, disconnections.
+      Filter bot messages to prevent loops.
+      Track counters: received, published, filtered, failed.
+    status: done
+    priority: P0
+    phase: 2-core
+    estimated_hours: 2.5
+    dependencies: [SLACK-004]
+    acceptance_criteria:
+      - Socket Mode client connects successfully
+      - Message events published to event-router
+      - Bot messages filtered (prevent loops)
+      - Counters track received/published/filtered/failed
+      - Graceful shutdown on stop()
+      - Error handling and logging
+    files_changed:
+      - src/services/ingress/slack/slack-ingress-client.ts (modified)
+      - src/services/ingress/slack/__tests__/slack-ingress-client.test.ts (new)
+
+  - id: SLACK-006
+    title: Implement SlackConnectorAdapter
+    description: |
+      Implement dual-mode connector (IngressConnector + WebhookConnector).
+      IngressConnector: delegates to SlackIngressClient (Socket Mode)
+      WebhookConnector: handles Events API webhooks
+      Metadata: platform='slack', method='hybrid', capabilities defined
+    status: done
+    priority: P0
+    phase: 2-core
+    estimated_hours: 1.5
+    dependencies: [SLACK-005]
+    acceptance_criteria:
+      - Implements both IngressConnector and WebhookConnector
+      - URL verification challenge handled correctly
+      - Event callbacks processed asynchronously (< 3-second SLA)
+      - Signature verification delegates to webhook-utils
+      - Metadata accurately reflects Slack capabilities
+    files_changed:
+      - src/services/ingress/slack/connector-adapter.ts (modified)
+      - src/services/ingress/slack/index.ts (modified)
+
+  # ============================================================================
+  # Phase 3: Testing (2-3 hours)
+  # ============================================================================
+
+  - id: SLACK-007
+    title: Unit Tests for Webhook Connector
+    description: |
+      Create comprehensive test suite for WebhookConnector interface.
+      17+ tests covering signature verification, URL verification,
+      event callbacks, error handling, metadata validation.
+    status: done
+    priority: P0
+    phase: 3-testing
+    estimated_hours: 1.5
+    dependencies: [SLACK-006]
+    acceptance_criteria:
+      - 17+ unit tests passing
+      - 100% coverage of webhook code paths
+      - Tests run in < 5 seconds
+      - No actual Slack API calls (mocked)
+    test_cases:
+      - Valid signature passes
+      - Invalid signature fails
+      - Missing headers fail
+      - Expired timestamp fails
+      - URL verification returns challenge
+      - Event callback returns 200 OK < 100ms
+      - Unsupported event types return 400
+      - Metadata validation
+    files_changed:
+      - src/services/ingress/slack/__tests__/connector-adapter-webhook.test.ts (modified)
+
+  - id: SLACK-008
+    title: Integration Tests (Multi-Platform Validation)
+    description: |
+      Validate generic webhook routing with multiple platforms.
+      Test cases: Twilio routing, Slack routing, URL verification,
+      unknown platform (404), invalid signature (403).
+    status: todo
+    priority: P1
+    phase: 3-testing
+    estimated_hours: 1
+    dependencies: [SLACK-007]
+    acceptance_criteria:
+      - All integration tests passing
+      - Generic route works for both Twilio and Slack
+      - Platform lookup via ConnectorManager validated
+      - 404 handling for unknown platforms
+      - 403 handling for invalid signatures
+    files_changed:
+      - tests/integration/webhook-routing.test.ts (new)
+
+  # ============================================================================
+  # Phase 4: Integration & Deployment (2-3 hours)
+  # ============================================================================
+
+  - id: SLACK-009
+    title: Register Slack Connector in ingress-egress-service
+    description: |
+      Register SlackConnectorAdapter with ConnectorManager.
+      Add configuration to architecture.yaml for secrets.
+      Gracefully handle missing credentials (log warning).
+    status: todo
+    priority: P0
+    phase: 4-deployment
+    estimated_hours: 1
+    dependencies: [SLACK-006]
+    acceptance_criteria:
+      - Connector registered when credentials present
+      - Gracefully handles missing credentials (logs warning)
+      - Webhook route /webhooks/slack automatically works
+      - No code changes needed to webhook routing logic
+    files_changed:
+      - src/apps/ingress-egress-service.ts (modified)
+      - architecture.yaml (modified - add secrets)
+    configuration:
+      secrets:
+        - SLACK_APP_TOKEN
+        - SLACK_BOT_TOKEN
+        - SLACK_SIGNING_SECRET
+
+  - id: SLACK-010
+    title: Implement Slack Egress (sendText)
+    description: |
+      Implement egress via Slack Web API.
+      Use webClient.chat.postMessage() to send messages.
+      Handle errors and log appropriately.
+    status: todo
+    priority: P0
+    phase: 4-deployment
+    estimated_hours: 1
+    dependencies: [SLACK-009]
+    acceptance_criteria:
+      - Messages sent to Slack channels successfully
+      - Errors logged and propagated
+      - Unit tests cover success and failure cases
+    files_changed:
+      - src/services/ingress/slack/connector-adapter.ts (modified)
+      - src/services/ingress/slack/__tests__/connector-adapter.test.ts (modified)
+
+  - id: SLACK-011
+    title: Architecture Validation
+    description: |
+      Run tools/validate-ingress-architecture.ts against SlackConnectorAdapter.
+      Ensure all framework compliance checks pass.
+    status: todo
+    priority: P1
+    phase: 4-deployment
+    estimated_hours: 0.5
+    dependencies: [SLACK-010]
+    acceptance_criteria:
+      - All architecture validation checks pass
+      - No deprecated patterns detected
+      - Metadata accurately reflects capabilities
+    files_changed:
+      - tools/validate-ingress-architecture.ts (modified - add Slack checks)
+
+  - id: SLACK-012
+    title: Remove Deprecated Twilio Route
+    description: |
+      Clean up deprecated Twilio webhook route from ingress-egress-service.ts.
+      Twilio now uses generic /webhooks/twilio route (Sprint 342 IEF-008).
+      Update tests to use generic route.
+    status: todo
+    priority: P1
+    phase: 4-deployment
+    estimated_hours: 0.25
+    dependencies: [SLACK-009]
+    acceptance_criteria:
+      - Deprecated route removed from code
+      - Tests updated to use generic route
+      - Deployment logs show zero traffic on old route
+    files_changed:
+      - src/apps/ingress-egress-service.ts (modified)
+      - src/services/ingress/twilio/__tests__/*.test.ts (modified)
+
+  # ============================================================================
+  # Phase 5: Documentation & Closure (1-2 hours)
+  # ============================================================================
+
+  - id: SLACK-013
+    title: Documentation Update
+    description: |
+      Update CLAUDE.md, adding-ingress-platform.md, and architecture validation guide.
+      Add Slack as second reference implementation.
+      Update webhook pattern examples to include Slack.
+    status: todo
+    priority: P1
+    phase: 5-closure
+    estimated_hours: 1
+    dependencies: [SLACK-011]
+    acceptance_criteria:
+      - CLAUDE.md references both Twilio and Slack
+      - Documentation reflects current state (deprecated route removed)
+      - Platform integration guide updated
+      - Future developers have Slack as reference implementation
+    files_changed:
+      - CLAUDE.md (modified)
+      - documentation/guides/adding-ingress-platform.md (modified)
+      - tools/validate-ingress-architecture.ts (modified - update docs)
+
+  - id: SLACK-014
+    title: Sprint Retrospective
+    description: |
+      Document sprint outcomes and lessons learned.
+      Analyze framework ROI (time saved vs Sprint 342).
+      Identify action items for future sprints (Discord, Teams).
+      Create retro.md with comprehensive analysis.
+    status: todo
+    priority: P1
+    phase: 5-closure
+    estimated_hours: 1
+    dependencies:
+      - SLACK-001
+      - SLACK-002
+      - SLACK-003
+      - SLACK-004
+      - SLACK-005
+      - SLACK-006
+      - SLACK-007
+      - SLACK-008
+      - SLACK-009
+      - SLACK-010
+      - SLACK-011
+      - SLACK-012
+      - SLACK-013
+    acceptance_criteria:
+      - Comprehensive retrospective document created
+      - Action items identified for future sprints
+      - Framework ROI analysis documented
+      - Lessons captured for Discord/Teams integrations
+    files_changed:
+      - planning/sprint-348-slack-integration/retro.md (new)
+
+# ==============================================================================
+# Sprint Summary
+# ==============================================================================
+
+summary:
+  total_tasks: 14
+  p0_tasks: 8  # Critical path
+  p1_tasks: 6  # Important but not blocking
+
+  phases:
+    - phase: 1-foundation
+      tasks: 3
+      estimated_hours: 2.25
+    - phase: 2-core
+      tasks: 3
+      estimated_hours: 5.5
+    - phase: 3-testing
+      tasks: 2
+      estimated_hours: 2.5
+    - phase: 4-deployment
+      tasks: 4
+      estimated_hours: 2.75
+    - phase: 5-closure
+      tasks: 2
+      estimated_hours: 2
+
+  estimated_total_hours: 15
+  estimated_duration_days: 3
+
+  risk_register:
+    - risk: Socket Mode connectivity issues
+      likelihood: medium
+      impact: high
+      mitigation: Implement reconnection logic, fallback to Events API
+
+    - risk: Rate limit enforcement
+      likelihood: high
+      impact: medium
+      mitigation: Implement retry queue with exponential backoff
+
+    - risk: Webhook signature verification failures
+      likelihood: low
+      impact: high
+      mitigation: Comprehensive unit tests, production monitoring
+
+# ==============================================================================
+# Dependencies from Sprint 342
+# ==============================================================================
+
+framework_dependencies:
+  - WebhookConnector interface (Sprint 342 IEF-002)
+  - Generic webhook routing POST /webhooks/:platform (Sprint 342 IEF-005)
+  - WebhookHandler < 3-second SLA enforcement (Sprint 342 IEF-001)
+  - Architecture validation tooling (Sprint 342 IEF-010)
+  - Documentation guide (Sprint 342 IEF-011)
+  - Twilio reference implementation (Sprint 342 IEF-007)
+
+framework_roi:
+  sprint_342_hours: 7-8
+  sprint_348_estimated_hours: 12-16
+  without_framework_estimated_hours: 20-25
+  time_saved_percentage: 30-40
+
+# ==============================================================================
+# Success Criteria
+# ==============================================================================
+
+success_criteria:
+  code:
+    - All P0 tasks completed
+    - 17+ unit tests passing (100% coverage)
+    - Integration tests passing
+    - Architecture validator passes
+    - No TypeScript compilation errors
+    - npm run build succeeds
+
+  production:
+    - Slack bot deployed to staging
+    - Socket Mode connection maintained > 1 hour
+    - "@mention" messages trigger event-router flow
+    - Messages published in Envelope v1 format
+    - Webhook signature verification passes (Events API)
+    - No errors in logs for 24 hours
+    - Rate limit handling tested
+
+  documentation:
+    - CLAUDE.md updated with Slack examples
+    - Platform integration guide updated
+    - Architecture validation guide updated
+    - Retrospective completed
+
+# ==============================================================================
+# Handoff to Future Sprints
+# ==============================================================================
+
+future_sprints:
+  - sprint: 349
+    name: Discord Migration
+    description: Migrate Discord to webhook framework
+    notes: Discord uses Ed25519 signatures (different from HMAC-SHA256)
+    estimated_hours: 8-10
+
+  - sprint: 350
+    name: Microsoft Teams Integration
+    description: Integrate Teams using webhook framework
+    notes: OAuth2 + tenant-specific configuration
+    estimated_hours: 10-12
+
+  - sprint: 351
+    name: Telegram Integration
+    description: Integrate Telegram using webhook framework
+    notes: Bot API, long-polling or webhooks
+    estimated_hours: 8-10

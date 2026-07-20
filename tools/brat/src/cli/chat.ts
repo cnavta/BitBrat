@@ -3,10 +3,12 @@ import path from 'path';
 import WebSocket from 'ws';
 import readline from 'readline';
 import { v4 as uuidv4 } from 'uuid';
-import { execSync } from 'child_process';
+import { ContextResolver } from '../context/context-resolver';
+import { getCurrentContext } from '../config/bratrc';
 
 interface ChatOptions {
-  env: string;
+  context?: string; // Sprint 349+: Execution context
+  env: string; // DEPRECATED: Use context instead
   projectId: string;
   url?: string;
   message?: string; // One-shot message for non-interactive mode
@@ -36,16 +38,22 @@ function parseFlagMap(rest: string[]): Record<string, string> {
 }
 
 export async function cmdChat(flags: any, rest: string[] = []) {
-  const env = flags.env || process.env.BITBRAT_ENV || 'local';
-  const projectId = flags.projectId || process.env.PROJECT_ID || 'twitch-452523';
-  const url = flags.url;
-
-  // Parse additional flags from rest array
+  // Parse additional flags from rest array first
   const restFlags = parseFlagMap(rest);
+
+  // Sprint 349+: Resolve context
+  // Priority: --context flag > BITBRAT_CONTEXT env var > ~/.bratrc > default 'local'
+  const contextName = flags.context || process.env.BITBRAT_CONTEXT || getCurrentContext() || 'local';
+
+  // DEPRECATED: Support --env and --target for backward compatibility
+  const env = flags.env || restFlags.target || restFlags.env || process.env.BITBRAT_ENV || contextName;
+  const projectId = flags.projectId || process.env.PROJECT_ID || 'twitch-452523';
+  const url = flags.url || restFlags.url;
+
   const message = restFlags.message || restFlags.m; // Support --message or -m
   const user = restFlags.user || restFlags.u;       // Support --user or -u
 
-  const controller = new ChatController({ env, projectId, url, message, user });
+  const controller = new ChatController({ context: contextName, env, projectId, url, message, user });
   await controller.start();
 }
 
@@ -65,7 +73,8 @@ class ChatController {
     const isOneShotMode = !!this.options.message;
 
     if (!isOneShotMode) {
-      console.log(`\n--- BitBrat Chat CLI (${this.options.env}) ---`);
+      const contextName = this.options.context || 'local';
+      console.log(`\n--- BitBrat Chat CLI (${contextName}) ---`);
     }
 
     try {
@@ -82,7 +91,7 @@ class ChatController {
         process.exit(1);
       }
 
-      const url = this.resolveUrl();
+      const url = await this.resolveUrl();
       if (!isOneShotMode) {
         console.log(`Connecting to ${url}...`);
       } else if (process.env.DEBUG) {
@@ -149,28 +158,75 @@ class ChatController {
     return null;
   }
 
-  private resolveUrl(): string {
+  private findRootDir(): string {
+    let currentDir = process.cwd();
+    const maxDepth = 10;
+    let depth = 0;
+
+    while (depth < maxDepth) {
+      const archPath = path.join(currentDir, 'architecture.yaml');
+      if (fs.existsSync(archPath)) {
+        return currentDir;
+      }
+
+      const parent = path.dirname(currentDir);
+      if (parent === currentDir) {
+        // Reached filesystem root
+        break;
+      }
+      currentDir = parent;
+      depth++;
+    }
+
+    // Default to current directory if not found
+    return process.cwd();
+  }
+
+  private async resolveUrl(): Promise<string> {
     let url = '';
+
+    // Priority 1: Explicit --url flag
     if (this.options.url) {
       url = this.options.url;
     } else {
-      const { env } = this.options;
-      if (env === 'local') {
-        const discoveredPort = this.discoverLocalPort();
-        const port = process.env.API_GATEWAY_HOST_PORT || discoveredPort || '3004';
-        url = `ws://localhost:${port}/ws/v1`;
+      // Priority 2: Use ContextResolver (Sprint 349+)
+      try {
+        const rootDir = this.findRootDir();
+        const resolver = new ContextResolver(rootDir);
+        const contextName = this.options.context || 'local';
+        const context = await resolver.resolve(contextName);
 
-        // Debug output in one-shot mode
-        if (this.options.message && !discoveredPort && !process.env.API_GATEWAY_HOST_PORT) {
-          console.error(`[DEBUG] Port discovery failed, using default port ${port}`);
+        // Use gateway URL from resolved context
+        if (context.runtime.gateway.url) {
+          url = context.runtime.gateway.url;
+
+          // Debug output in one-shot mode
+          if (this.options.message && process.env.DEBUG) {
+            console.error(`[DEBUG] Resolved gateway URL from context '${contextName}': ${url}`);
+          }
         }
-      } else if (env === 'prod') {
-        url = 'wss://api.bitbrat.ai/ws/v1';
-      } else {
-        url = `wss://api.${env}.bitbrat.ai/ws/v1`;
+      } catch (err: any) {
+        // Fall through to hardcoded defaults if context resolution fails
+        if (process.env.DEBUG) {
+          console.error(`[DEBUG] Failed to resolve context '${this.options.context}': ${err?.message || String(err)}`);
+        }
+
+        // DEPRECATED: Fallback to legacy env-based logic for backward compatibility
+        const { env } = this.options;
+        if (env === 'local') {
+          // Try docker discovery first (for backward compatibility during Sprint 349 transition)
+          const discoveredPort = this.discoverLocalPort();
+          const port = process.env.API_GATEWAY_HOST_PORT || discoveredPort || '3004';
+          url = `ws://localhost:${port}/ws/v1`;
+        } else if (env === 'prod') {
+          url = 'wss://api.bitbrat.ai/ws/v1';
+        } else {
+          url = `wss://api.${env}.bitbrat.ai/ws/v1`;
+        }
       }
     }
 
+    // Append userId query parameter
     if (this.name) {
       const separator = url.includes('?') ? '&' : '?';
       url += `${separator}userId=brat-chat:${encodeURIComponent(this.name)}`;
@@ -178,27 +234,22 @@ class ChatController {
     return url;
   }
 
+  // DEPRECATED (Sprint 349+): Gateway discovery is now handled by ContextResolver
+  // This method is retained for backward compatibility in fallback scenarios when ContextResolver fails
   private discoverLocalPort(): string | null {
     try {
-      // Use more specific filters: look for a container belonging to this project (via labels)
-      // or specifically named with api-gateway.
-      const cmd = 'docker ps --filter "label=com.docker.compose.service=api-gateway" --filter "status=running" --format "{{.Ports}}"';
-      const output = execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+      const { execSync } = require('child_process');
+      const output = execSync(
+        `docker ps --filter 'label=com.docker.compose.service=api-gateway' --format '{{.Ports}}'`,
+        { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }
+      );
 
-      // Look for something like 0.0.0.0:3004->3000/tcp or [::]:3004->3000/tcp
-      // Fixed regex to work on macOS (BSD grep doesn't support -P flag)
-      const lines = output.split('\n').filter(Boolean);
-      for (const line of lines) {
-        // Match port mapping: 0.0.0.0:PORT->3000/tcp or [::]:PORT->3000/tcp
-        const match = line.match(/:(\d+)->3000\/tcp/);
-        if (match && match[1]) {
-          return match[1];
-        }
-      }
-    } catch (err) {
-      // Docker might not be running or command failed, fall back to default
+      // Parse output like "0.0.0.0:3004->3000/tcp" to extract host port
+      const match = output.match(/(0\.0\.0\.0|\[::\]):(\d+)->/);
+      return match ? match[2] : null;
+    } catch {
+      return null;
     }
-    return null;
   }
 
   private setupWebSocket() {
@@ -276,7 +327,7 @@ class ChatController {
     
     setTimeout(async () => {
       try {
-        const url = this.resolveUrl();
+        const url = await this.resolveUrl();
         this.ws = new WS(url, {
           headers: {
             'Authorization': `Bearer ${this.token}`

@@ -51,7 +51,7 @@ export interface Routing {
   history: RoutingStep[];
 }
 
-export type ConnectorType = 'twitch' | 'discord' | 'twilio' | 'webhook' | 'api' | 'system';
+export type ConnectorType = 'twitch' | 'discord' | 'twilio' | 'slack' | 'webhook' | 'api' | 'system';
 
 export interface Egress {
   destination: string; // Destination that was the entry point for the message.

@@ -13,8 +13,13 @@ import {
   rewriteToLocalHostPort,
   classifyFleetError,
 } from '../fleet';
+import { PostgresRegistryReader } from '../fleet/postgres-registry';
+import { PostgresDocumentStore } from '../../../../src/common/persistence/postgres-store';
 import { resolveBackupConnection, ResolvedBackupConnection } from '../backup/connection';
 import { FirestoreConnectOptions } from '../providers/gcp/firestore';
+import { ContextResolver } from '../context/context-resolver';
+import { getCurrentContext } from '../config/bratrc';
+import type { ResolvedContext } from '../context/types';
 
 /** The tool-gateway's internal container port (it publishes on a mapped host port locally). */
 const GATEWAY_CONTAINER_PORT = 3000;
@@ -193,37 +198,9 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
   const roles = args.roles && args.roles.length ? args.roles : (isMutating ? ['bit:operate'] : ['bit:read']);
   const identity = d.resolveIdentityFn({ roles, userId: args.userId }, logger); // throws PermissionError (fail-closed) if no token
 
-  // Resolve the registry's Firestore connection. With `--target` we map a docker deployment target
-  // to its (emulator) endpoint exactly as `brat backup` does — so e.g. `--target local` reads the
-  // local Firestore emulator's `mcp_servers` registry instead of real GCP (the root cause of the
-  // `5 NOT_FOUND` / `twitch-452523` failure). Without `--target`, honor explicit project/emulator/
-  // database overrides and otherwise fall back to ADC/env.
-  let connectOptions: FirestoreConnectOptions = {
-    projectId: args.projectId,
-    emulatorHost: args.emulatorHost,
-    databaseId: args.database,
-  };
-  let connectionCleanup: (() => Promise<void>) | undefined;
-  // True when `--target` resolved to a *local* docker engine (unix socket). Only then can we probe
-  // `docker ps` on this machine to remap services from their internal container port to the
-  // operator-reachable published host port. (Remote/ssh targets are left to their published URLs.)
-  let isLocalDocker = false;
-  if (args.target) {
-    const m: Record<string, string> = { target: args.target };
-    if (args.projectId) m['project-id'] = args.projectId;
-    if (args.emulatorHost) m['emulator-host'] = args.emulatorHost;
-    if (args.database) m['database'] = args.database;
-    const resolved = await d.connectionResolverFn({ projectId: flags?.projectId, env: flags?.env }, m, logger);
-    connectOptions = resolved.connectOptions;
-    connectionCleanup = resolved.cleanup;
-    isLocalDocker = resolved.targetKind === 'local';
-    logger.info(
-      { action: 'fleet.target.resolved', target: args.target, isEmulator: resolved.isEmulator, kind: resolved.targetKind },
-      `Fleet registry resolved to ${resolved.description}`,
-    );
-  }
-
-  const registry = d.registryFactory(connectOptions, logger);
+  // Sprint 349+: Resolve registry based on execution context (postgres vs firestore)
+  // Legacy: --target flag maps to Firestore emulator
+  const { registry, cleanup: connectionCleanup, isLocalDocker } = await resolveRegistry(args, flags, logger, d);
 
   // Transport selection: fabric by default, direct break-glass behind --direct.
   let transport: FleetTransport;
@@ -244,7 +221,7 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
       : undefined;
     transport = d.directTransportFactory(args.direct, registry, logger, urlRewriter);
   } else {
-    const baseUrl = resolveGatewayUrl(flags, connectOptions, isLocalDocker ? d.hostPortResolverFn : undefined, logger);
+    const baseUrl = await resolveGatewayUrl(flags, undefined, isLocalDocker ? d.hostPortResolverFn : undefined, logger);
     transport = d.gatewayTransportFactory(baseUrl, identity, logger);
   }
 
@@ -265,21 +242,148 @@ export async function runFleet(args: FleetArgs, flags: any, logger: Logger, deps
 }
 
 /**
- * Resolve the tool-gateway base URL. An explicit `--url` / `TOOL_GATEWAY_URL` always wins. For a
- * local docker `--target`, the gateway runs on the host's *published* port (`TOOL_GATEWAY_HOST_PORT`,
- * e.g. `localhost:3001` — `deploy-local.sh` may auto-assign it), NOT the internal `3000`; resolve it
- * via the host-port resolver instead of the old hardcoded `:3000`. Otherwise derive the host from any
- * resolved emulator host (still defaulting the port to 3000 for non-docker stacks).
+ * Resolve registry reader based on execution context (Sprint 349+).
+ *
+ * Priority:
+ *   1. --target flag (legacy Firestore-specific)
+ *   2. ContextResolver (reads persistence.driver from execution context)
+ *   3. Falls back to Firestore for backward compatibility
  */
-function resolveGatewayUrl(
+async function resolveRegistry(
+  args: FleetArgs,
+  flags: any,
+  logger: Logger,
+  deps: FleetDeps,
+): Promise<{ registry: RegistryReader; cleanup?: () => Promise<void>; isLocalDocker: boolean }> {
+  // Legacy path: --target flag maps to Firestore emulator (backward compatibility)
+  if (args.target) {
+    const m: Record<string, string> = { target: args.target };
+    if (args.projectId) m['project-id'] = args.projectId;
+    if (args.emulatorHost) m['emulator-host'] = args.emulatorHost;
+    if (args.database) m['database'] = args.database;
+
+    const resolved = await deps.connectionResolverFn!({ projectId: flags?.projectId, env: flags?.env }, m, logger);
+    const registry = deps.registryFactory!(resolved.connectOptions, logger);
+    const isLocalDocker = resolved.targetKind === 'local';
+
+    logger.info(
+      { action: 'fleet.target.resolved', target: args.target, isEmulator: resolved.isEmulator, kind: resolved.targetKind },
+      `Fleet registry resolved to ${resolved.description}`,
+    );
+
+    return { registry, cleanup: resolved.cleanup, isLocalDocker };
+  }
+
+  // Sprint 349+: Use ContextResolver to determine persistence driver
+  try {
+    const repoRoot = process.cwd();
+    const resolver = new ContextResolver(repoRoot);
+    const contextName = flags?.context || process.env.BITBRAT_CONTEXT || getCurrentContext() || 'local';
+    const context = await resolver.resolve(contextName);
+
+    const isLocalDocker = context.deployment.type === 'docker-compose' &&
+                          (context.deployment.docker?.host.startsWith('unix://') || false);
+
+    // Create appropriate registry based on persistence driver
+    if (context.runtime.persistence.driver === 'postgres') {
+      const conn = context.runtime.persistence.connection;
+      if (!conn) {
+        throw new ConfigurationError(
+          `PostgreSQL connection not configured for context '${contextName}'`
+        );
+      }
+
+      // Build connection string
+      const connectionString = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
+
+      // Create PostgreSQL document store
+      const store = new PostgresDocumentStore({ connectionString });
+      store.setLogger(logger);
+
+      // Create PostgreSQL registry reader
+      const registry = new PostgresRegistryReader(store, logger);
+
+      logger.info(
+        { action: 'fleet.registry.resolved', context: contextName, driver: 'postgres', host: conn.host },
+        `Fleet registry resolved to PostgreSQL (${conn.host}:${conn.port}/${conn.database})`,
+      );
+
+      return { registry, isLocalDocker };
+    } else if (context.runtime.persistence.driver === 'firestore') {
+      // Firestore fallback
+      const connectOptions: FirestoreConnectOptions = {
+        projectId: args.projectId,
+        emulatorHost: args.emulatorHost,
+        databaseId: args.database,
+      };
+      const registry = deps.registryFactory!(connectOptions, logger);
+
+      logger.info(
+        { action: 'fleet.registry.resolved', context: contextName, driver: 'firestore' },
+        `Fleet registry resolved to Firestore`,
+      );
+
+      return { registry, isLocalDocker };
+    } else {
+      throw new ConfigurationError(
+        `Unknown persistence driver for context '${contextName}': ${context.runtime.persistence.driver}`
+      );
+    }
+  } catch (err: any) {
+    logger.warn(
+      { action: 'fleet.registry.fallback', error: err.message },
+      'Context resolution failed, falling back to Firestore'
+    );
+
+    // Fallback to Firestore (backward compatibility)
+    const connectOptions: FirestoreConnectOptions = {
+      projectId: args.projectId,
+      emulatorHost: args.emulatorHost,
+      databaseId: args.database,
+    };
+    const registry = deps.registryFactory!(connectOptions, logger);
+
+    return { registry, isLocalDocker: false };
+  }
+}
+
+/**
+ * Resolve the tool-gateway base URL (Sprint 349+: uses ContextResolver).
+ *
+ * Priority:
+ *   1. Explicit --url flag or TOOL_GATEWAY_URL env var
+ *   2. ContextResolver (context.runtime.gateway.url)
+ *   3. Legacy fallback logic (for backward compatibility)
+ */
+async function resolveGatewayUrl(
   flags: any,
   connect?: FirestoreConnectOptions,
   hostPortResolverFn?: (service: string, containerPort: number, logger?: Logger) => number,
   logger?: Logger,
-): string {
+): Promise<string> {
+  // Priority 1: Explicit override
   const explicit = (flags?.url || process.env.TOOL_GATEWAY_URL || '').trim();
   if (explicit) return explicit.replace(/\/+$/, '');
 
+  // Priority 2: Use ContextResolver (Sprint 349+)
+  try {
+    const repoRoot = process.cwd();
+    const resolver = new ContextResolver(repoRoot);
+    const contextName = flags?.context || process.env.BITBRAT_CONTEXT || getCurrentContext() || 'local';
+    const context = await resolver.resolve(contextName);
+
+    if (context.runtime.gateway.url) {
+      logger?.info(
+        { action: 'fleet.gateway.resolved', context: contextName, url: context.runtime.gateway.url },
+        `Gateway URL resolved from context '${contextName}'`,
+      );
+      return context.runtime.gateway.url.replace(/\/+$/, '');
+    }
+  } catch (err: any) {
+    logger?.debug({ action: 'fleet.gateway.fallback', error: err?.message }, 'Context resolution failed, using fallback');
+  }
+
+  // Priority 3: Legacy fallback (DEPRECATED)
   // Local docker target: the gateway is reachable on its published host port (not the internal 3000).
   if (hostPortResolverFn) {
     const port = hostPortResolverFn('tool-gateway', GATEWAY_CONTAINER_PORT, logger);

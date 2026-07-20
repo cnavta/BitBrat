@@ -1,43 +1,47 @@
 name: BitBrat Platform
 description: >-
-  The BitBrat Platform is an LLM powered event orchestration and execution engine aimed at Streamers. Uses
-  Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
+  The BitBrat Platform is an LLM powered event orchestration and execution engine aimed at
+  Streamers. Uses Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.14.4
+  version: 0.15.0
   status: experimental
   description: >
-    A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
-    them.
+    A cloud-native microservices suite that listens to Twitch, Kick and other events and provides
+    tools to react to them.
   owners:
     - chris@ix-n.com
 llm_guidance:
   default_system_prompt: >
-    You are an experienced Lead Engineer responsible for developing the BitBrat Platform. Follow the architecture.yaml
-    specs strictly. Justify any architectural deviation clearly.
+    You are an experienced Lead Engineer responsible for developing the BitBrat Platform. Follow the
+    architecture.yaml specs strictly. Justify any architectural deviation clearly.
   glossary:
     routing_slip: >-
-      An ordered list of processing steps that travels with a message; each worker updates its step and republishes (see
-      references.routing_slip_schema).
+      An ordered list of processing steps that travels with a message; each worker updates its step
+      and republishes (see references.routing_slip_schema).
     disposition: A short-term, TTL-bounded read of a user's behavior, computed by disposition-service.
-    mcp: Model Context Protocol; MCP servers expose tools to the LLM and are proxied/secured by tool-gateway.
+    mcp: >-
+      Model Context Protocol; MCP servers expose tools to the LLM and are proxied/secured by
+      tool-gateway.
     egress: Delivery of an internal response back out to the originating platform (Twitch/Discord/Twilio).
     enrichment: Optional analysis that augments an event before reaction (query-analyzer, llm-bot).
     brat: The platform CLI/tooling under tools/brat (config, backup, setup).
     bit: >-
-      A platform service unit under the Bit model. Every Bit speaks MCP, exposing a mandatory bit.* control plane (the
-      Platform Ring) that Brat administers fleet-wide. The YAML services key is retained for back-compat (each service
-      entry is conceptually a Bit). A Bit's optional profile declares its capability mixins (core, llm, mcp-server,
-      gateway) and mcp.exposure controls whether it serves only the platform control plane (platform-only, the default)
-      or also its domain tools (platform+domain). See documentation/architecture/bit-model-technical-architecture.md.
+      A platform service unit under the Bit model. Every Bit speaks MCP, exposing a mandatory bit.*
+      control plane (the Platform Ring) that Brat administers fleet-wide. The YAML services key is
+      retained for back-compat (each service entry is conceptually a Bit). A Bit's optional profile
+      declares its capability mixins (core, llm, mcp-server, gateway) and mcp.exposure controls
+      whether it serves only the platform control plane (platform-only, the default) or also its
+      domain tools (platform+domain). See
+      documentation/architecture/bit-model-technical-architecture.md.
     platform_bit: >-
-      A Bit that forms part of the core agent orchestration loop (perceive → plan → act → observe). Platform Bits are
-      required for the minimal viable agent and provide infrastructure other Bits depend on. Examples: ingress-egress,
-      event-router, llm-bot, reflex, tool-gateway, persistence.
+      A Bit that forms part of the core agent orchestration loop (perceive → plan → act → observe).
+      Platform Bits are required for the minimal viable agent and provide infrastructure other Bits
+      depend on. Examples: ingress-egress, event-router, llm-bot, reflex, tool-gateway, persistence.
     domain_bit: >-
-      A Bit that extends the platform with optional, domain-specific capabilities or tools. Domain Bits can be removed
-      without breaking core orchestration. Examples: obs-mcp (OBS control), image-gen-mcp (image generation),
-      story-engine-mcp (storytelling), scheduler (periodic tasks).
+      A Bit that extends the platform with optional, domain-specific capabilities or tools. Domain
+      Bits can be removed without breaking core orchestration. Examples: obs-mcp (OBS control),
+      image-gen-mcp (image generation), story-engine-mcp (storytelling), scheduler (periodic tasks).
   invariants:
     - Never import from or depend on ./deprecated in deliverables.
     - Every message must carry a correlationId (see messaging.envelope.required).
@@ -51,14 +55,14 @@ llm_guidance:
     backlog: documentation/reference/backlog-example.yaml
     execution-or-implementation-plan: documentation/reference/execution-implementation-plan-template.md
   build_contract: >
-    Standard services build from the single reusable Dockerfile.service; per-service behavior is supplied as
-    --build-args derived from this file (see defaults.services.build).
+    Standard services build from the single reusable Dockerfile.service; per-service behavior is
+    supplied as --build-args derived from this file (see defaults.services.build).
 messaging:
   description: >
-    The internal event bus that connects all services. NATS JetStream locally (Docker/dev) and Google Cloud Pub/Sub in
-    production; the driver is selected at runtime via MESSAGE_BUS_DRIVER. Every message is an Envelope v1 and
-    orchestration is decentralized via a routing slip that travels with the message. Delivery is at-least-once, so every
-    consumer MUST be idempotent.
+    The internal event bus that connects all services. NATS JetStream locally (Docker/dev) and
+    Google Cloud Pub/Sub in production; the driver is selected at runtime via MESSAGE_BUS_DRIVER.
+    Every message is an Envelope v1 and orchestration is decentralized via a routing slip that
+    travels with the message. Delivery is at-least-once, so every consumer MUST be idempotent.
   reference: documentation/reference/messaging-system.md
   transport:
     driver_env: MESSAGE_BUS_DRIVER
@@ -77,8 +81,9 @@ messaging:
     topic_naming: internal.<domain>.<verb>.v<version>
     versioning: Bump v<N> on breaking payload changes; never mutate an existing version.
     per_instance: >
-      A '.{instanceId}' suffix targets a single running instance. ingress-egress and api-gateway resolve {instanceId} at
-      runtime via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME || generated id.
+      A '.{instanceId}' suffix targets a single running instance. ingress-egress and api-gateway
+      resolve {instanceId} at runtime via: K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID
+      || HOSTNAME || generated id.
   envelope:
     schema: documentation/schemas/envelope.v1.json
     required:
@@ -93,15 +98,18 @@ messaging:
     routing_slip_schema: documentation/schemas/routing-slip.v1.json
   dlq:
     description: >
-      Unrecoverable failures are routed to dead-letter topics with rich context and consumed by the persistence service
-      for durable capture and later inspection. Retryable failures are re-published by the originating step with backoff
-      (see routing-slip.v1.json) rather than dead-lettered.
+      Unrecoverable failures are routed to dead-letter topics with rich context and consumed by the
+      persistence service for durable capture and later inspection. Retryable failures are
+      re-published by the originating step with backoff (see routing-slip.v1.json) rather than
+      dead-lettered.
     topics:
       - internal.deadletter.v1
       - internal.router.dlq.v1
   topics:
     internal.finalize.v1:
-      description: Generic finalize signal that any service may publish to close out a message (defaults.topics.publishes).
+      description: >-
+        Generic finalize signal that any service may publish to close out a message
+        (defaults.topics.publishes).
       producers:
         - any-service
       consumers: []
@@ -146,8 +154,8 @@ messaging:
       schema: documentation/schemas/envelope.v1.json
     internal.reflex.v1:
       description: >
-        Deterministic event-driven behavior execution (Sprint 332). Reflexes are pattern-matched rules that execute MCP
-        tools in <150ms, bypassing LLM analysis when triggered.
+        Deterministic event-driven behavior execution (Sprint 332). Reflexes are pattern-matched
+        rules that execute MCP tools in <150ms, bypassing LLM analysis when triggered.
       producers:
         - event-router
       consumers:
@@ -155,16 +163,16 @@ messaging:
       schema: documentation/schemas/envelope.v1.json
     internal.reflex.executed.v1:
       description: >
-        Execution success events published by reflex service. Contains tool results, latency, and triggeredBy context
-        for observability and future reactive systems.
+        Execution success events published by reflex service. Contains tool results, latency, and
+        triggeredBy context for observability and future reactive systems.
       producers:
         - reflex
       consumers: []
       schema: documentation/schemas/reflex-executed-event.v1.json
     internal.reflex.failed.v1:
       description: >
-        Execution failure events published by reflex service. Contains error details, latency, and triggeredBy context
-        for observability and alerting.
+        Execution failure events published by reflex service. Contains error details, latency, and
+        triggeredBy context for observability and alerting.
       producers:
         - reflex
       consumers: []
@@ -198,8 +206,9 @@ messaging:
       schema: documentation/schemas/envelope.v1.json
     internal.egress.v1:
       description: >
-        Final responses for delivery back to the originating platform. Consumed broadcast plus a per-instance variant
-        (internal.egress.v1.{instanceId}) addressing the connection-owning instance.
+        Final responses for delivery back to the originating platform. Consumed broadcast plus a
+        per-instance variant (internal.egress.v1.{instanceId}) addressing the connection-owning
+        instance.
       producers:
         - event-router
         - scheduler
@@ -208,8 +217,8 @@ messaging:
       schema: documentation/schemas/envelope.v1.json
     internal.api.egress.v1:
       description: >
-        Egress responses destined for the API gateway's WebSocket clients; consumed via the per-instance variant
-        internal.api.egress.v1.{instanceId} owned by the serving instance.
+        Egress responses destined for the API gateway's WebSocket clients; consumed via the
+        per-instance variant internal.api.egress.v1.{instanceId} owned by the serving instance.
       producers:
         - event-router
       consumers:
@@ -253,12 +262,12 @@ messaging:
       schema: documentation/schemas/envelope.v1.json
 dataflow:
   description: >
-    Canonical event lifecycle (ingest -> route -> analysis/enrichment -> reaction -> egress): ingress-egress normalizes
-    external platform events and publishes internal.ingress.v1; the event-router attaches a JsonLogic routing slip;
-    analysis/enrichment services (query-analyzer, llm-bot, disposition-service, story-engine-mcp) process steps and
-    publish internal.enriched.v1; the router advances the slip, drives reactive services (state-engine,
-    disposition-service), and finally publishes internal.egress.v1, which ingress-egress (or api-gateway) delivers back
-    out.
+    Canonical event lifecycle (ingest -> route -> analysis/enrichment -> reaction -> egress):
+    ingress-egress normalizes external platform events and publishes internal.ingress.v1; the
+    event-router attaches a JsonLogic routing slip; analysis/enrichment services (query-analyzer,
+    llm-bot, disposition-service, story-engine-mcp) process steps and publish internal.enriched.v1;
+    the router advances the slip, drives reactive services (state-engine, disposition-service), and
+    finally publishes internal.egress.v1, which ingress-egress (or api-gateway) delivers back out.
   reference: documentation/concepts/platform-flow.md
   stages:
     - id: ingest
@@ -295,8 +304,8 @@ dataflow:
 conventions:
   env:
     description: >
-      Variables listed under each service's env: are required at runtime. They are supplied by Cloud Run at deploy time,
-      by a local .env in development, or auto-injected by the platform.
+      Variables listed under each service's env: are required at runtime. They are supplied by Cloud
+      Run at deploy time, by a local .env in development, or auto-injected by the platform.
     sources:
       - gcp-secret-manager
       - dotenv
@@ -305,12 +314,12 @@ conventions:
       - name: K_REVISION
         source: cloud-run-injection
         description: >
-          Cloud Run revision name, injected automatically when running on Cloud Run. Used as the default per-instance
-          egress {instanceId} (see messaging.conventions.per_instance).
+          Cloud Run revision name, injected automatically when running on Cloud Run. Used as the
+          default per-instance egress {instanceId} (see messaging.conventions.per_instance).
   secrets:
     description: >
-      Names listed under each service's secrets: are resolved from Google Secret Manager and mounted/injected at deploy
-      time. No secret VALUES are stored in this file.
+      Names listed under each service's secrets: are resolved from Google Secret Manager and
+      mounted/injected at deploy time. No secret VALUES are stored in this file.
     default_source: gcp-secret-manager
     catalog:
       MCP_AUTH_TOKEN:
@@ -411,14 +420,16 @@ references:
   firestore_indexes: firestore.indexes.json
 extension_points:
   description: >
-    BitBrat is extended by adding message-passing services, MCP tool servers, or Event Router rules. The `brat` CLI
-    scaffolds new services; this file (architecture.yaml) is the canonical registry that drives standard builds and
-    deploys. See references.* and documentation/tools/brat.md.
+    BitBrat is extended by adding message-passing services, MCP tool servers, or Event Router rules.
+    The `brat` CLI scaffolds new services; this file (architecture.yaml) is the canonical registry
+    that drives standard builds and deploys. See references.* and documentation/tools/brat.md.
   add_service:
     summary: Scaffold and register a new Bit service.
     cli: brat bit create <name> [--profile <p>] [--exposure <e>] [--category <c>] [--register]
     steps:
-      - Run the CLI to scaffold src/apps/<name>-service.ts, test, Dockerfile, and docker-compose config.
+      - >-
+        Run the CLI to scaffold src/apps/<name>-service.ts, test, Dockerfile, and docker-compose
+        config.
       - Use --register to auto-add to architecture.yaml, or manually register under `services:` (set active: true; choose category:, profile:, mcp.exposure:, kind:, stage:, env:, secrets:).
       - Profile options: core, gateway, llm, mcp-server (each scaffolds appropriate imports/setup).
       - Category options: platform (core orchestration), domain (optional extensions).
@@ -434,11 +445,11 @@ extension_points:
     cli: brat bit create <name> --profile mcp-server [--category domain] [--register]
     steps:
       - >-
-        Run the CLI with --profile mcp-server to scaffold an MCP server (automatically sets exposure to
-        platform+domain).
+        Run the CLI with --profile mcp-server to scaffold an MCP server (automatically sets exposure
+        to platform+domain).
       - >-
-        Use --register to auto-add to architecture.yaml with kind: mcp-server, category: domain (typically), or manually
-        register; it is proxied/secured by tool-gateway.
+        Use --register to auto-add to architecture.yaml with kind: mcp-server, category: domain
+        (typically), or manually register; it is proxied/secured by tool-gateway.
       - Template includes registerTool() examples and zod imports.
       - Existing examples: obs-mcp (Dockerfile.obs-mcp), image-gen-mcp, story-engine-mcp.
     files_changed:
@@ -451,7 +462,9 @@ extension_points:
     summary: Add a JsonLogic rule so the event-router routes matching events through services.
     steps:
       - Author a JsonLogic rule (seeded via `brat setup` / the firestore:upsert tool).
-      - The event-router matches it and attaches a routing slip directing the event through services.
+      - >-
+        The event-router matches it and attaches a routing slip directing the event through
+        services.
     reference: documentation/concepts/event-router-rules.md
   see_also:
     cli_docs: documentation/tools/brat.md
@@ -489,8 +502,8 @@ defaults:
         SERVICE_ENTRY: services.<name>.entry with leading 'src/' -> 'dist/' and '.ts' -> '.js'
       entry_to_service_entry: src/<x>.ts -> dist/<x>.js (e.g. src/apps/llm-bot-service.ts -> dist/apps/llm-bot-service.js)
       per_service_override: >-
-        A Dockerfile.<service> is honored as an explicit override (escape hatch), e.g. brat (builds from tools/) and
-        obs-mcp (uses a prebuilt image:).
+        A Dockerfile.<service> is honored as an explicit override (escape hatch), e.g. brat (builds
+        from tools/) and obs-mcp (uses a prebuilt image:).
     health:
       - /healthz
       - /readyz
@@ -512,7 +525,9 @@ services:
     mcp:
       exposure: platform-only
     active: true
-    description: OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and broadcaster accounts.
+    description: >-
+      OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and
+      broadcaster accounts.
     kind: gateway
     external:
       - twitch
@@ -542,9 +557,9 @@ services:
       exposure: platform-only
     active: true
     description: >-
-      Bridges external event sources/sinks (e.g., Twitch EventSub/IRC, Discord, Twilio) to and from internal topics,
-      normalizing inbound events to internal.ingress.v1 and delivering internal.egress.v1 responses back to the
-      originating platform.
+      Bridges external event sources/sinks (e.g., Twitch EventSub/IRC, Discord, Twilio) to and from
+      internal topics, normalizing inbound events to internal.ingress.v1 and delivering
+      internal.egress.v1 responses back to the originating platform.
     kind: pipeline-service
     stage:
       - ingest
@@ -555,8 +570,9 @@ services:
       - twilio
     stateful: false
     scaling_rationale: >-
-      Owns singleton external connections; uses a per-instance egress topic (internal.egress.v1.{instanceId}) so replies
-      route back to the instance holding the connection.
+      Owns singleton external connections; uses a per-instance egress topic
+      (internal.egress.v1.{instanceId}) so replies route back to the instance holding the
+      connection.
     entry: src/apps/ingress-egress-service.ts
     topics:
       publishes:
@@ -755,8 +771,8 @@ services:
       - ingest
       - egress
     scaling_rationale: >-
-      Serves WebSocket clients; uses a per-instance egress topic (internal.api.egress.v1.{instanceId}) so responses
-      reach the instance owning the socket.
+      Serves WebSocket clients; uses a per-instance egress topic
+      (internal.api.egress.v1.{instanceId}) so responses reach the instance owning the socket.
     entry: src/apps/api-gateway.ts
     topics:
       publishes:
@@ -880,19 +896,21 @@ services:
     mcp:
       exposure: platform+domain
     active: true
-    description: The Reflex bit is responsible for matching and orchestrating repeated deterministic behavior in a low-cost manner
+    description: >-
+      The Reflex bit is responsible for matching and orchestrating repeated deterministic behavior
+      in a low-cost manner
     kind: mcp-server
     entry: src/apps/reflex-service.ts
     port: 3000
     stage: analyze
     env:
-      - REFLEX_CACHE_POLL_INTERVAL_MS  # PostgreSQL polling interval (default: 10s)
+      - REFLEX_CACHE_POLL_INTERVAL_MS
   context-pack:
     profile: core
     mcp:
       exposure: platform-only
     active: true
-    description: 'Analysis-stage service for semantic context enrichment via RAG (Sprint 338)'
+    description: Analysis-stage service for semantic context enrichment via RAG (Sprint 338)
     kind: pipeline-service
     stage: analysis
     entry: src/apps/context-pack-service.ts
@@ -904,9 +922,9 @@ infrastructure:
       type: document-database
       implementation: cloud-firestore
       description: >
-        Primary (and only supported) persistence layer. Backs event storage/indexing, application and user state, the
-        state mutation log, and command lookup. Security rules live in firestore.rules and composite indexes in
-        firestore.indexes.json.
+        Primary (and only supported) persistence layer. Backs event storage/indexing, application
+        and user state, the state mutation log, and command lookup. Security rules live in
+        firestore.rules and composite indexes in firestore.indexes.json.
       docs: documentation/firestore/
       rules: firestore.rules
       indexes: firestore.indexes.json
@@ -971,10 +989,11 @@ infrastructure:
       name: bitbrat-internal-lb
       ip: bitbrat-internal-ip
       description: >
-        Internal load balancer for service-to-service communication. Resolution is per-service by HOST, not by path:
-        each service is reachable at its own internal hostname under routing.default_domain (e.g. llm-bot.bitbrat.local)
-        and every rule therefore matches the whole namespace with `path_prefix: /`. The `path_prefix: /` entries are
-        intentional (each backend owns its full path space on its own host); they are not ambiguous path routing.
+        Internal load balancer for service-to-service communication. Resolution is per-service by
+        HOST, not by path: each service is reachable at its own internal hostname under
+        routing.default_domain (e.g. llm-bot.bitbrat.local) and every rule therefore matches the
+        whole namespace with `path_prefix: /`. The `path_prefix: /` entries are intentional (each
+        backend owns its full path space on its own host); they are not ambiguous path routing.
       routing:
         default_domain: bitbrat.local
         rules:
@@ -1006,6 +1025,84 @@ deploymentDefaults:
     billing: instance
   global-external-application-lb:
     loadBalancingScheme: EXTERNAL_MANAGED
+executionContexts:
+  local:
+    description: Local Docker development environment
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      persistence:
+        driver: firestore
+        autoDiscover: true
+      envOverlay:
+        path: env/local
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+        secure: .secure.local
+    tags:
+      - development
+      - local
+  staging:
+    description: Remote staging environment on bitbrat.lan
+    deployment:
+      type: docker-compose
+      docker:
+        host: ssh://root@bitbrat.lan
+        remoteDir: /opt/BitBratPlatform
+        maxConcurrent: 3
+    runtime:
+      gateway:
+        autoDiscover: true
+        authToken: ${MCP_AUTH_TOKEN}
+      persistence:
+        driver: postgres
+        connection:
+          host: bitbrat.lan
+          port: 5432
+          database: bitbrat
+          username: bitbrat
+          password: bitbrat_dev_password
+      envOverlay:
+        path: env/staging
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+        secure: .secure.staging
+    tags:
+      - staging
+      - remote
+  agent-dev:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+        authToken: jklfdasiuiopjkl;fdasjklhdfjuldsafds
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      envOverlay:
+        path: env/agent-dev
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+        secure: .secure.agent-dev
+    description: Dedicated coding agent environment for development and testing.
+    tags:
+      - agent
+      - dev
 deploymentTargets:
   local:
     type: docker-engine
@@ -1018,7 +1115,7 @@ deploymentTargets:
     remoteDir: /opt/BitBratPlatform
     maxConcurrent: 3
     gateway:
-      url: http://bitbrat.lan:3017
+      url: http://bitbrat.lan:3002
       authToken: ${MCP_AUTH_TOKEN}
     persistence:
       driver: postgres

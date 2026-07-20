@@ -22,3 +22,6 @@ TWITCH_CLIENT_SECRET: "local-twitch-secret"
 DISCORD_ALLOW_ENV_FALLBACK: "true"
 # Poll interval (ms) for token rotation checks when using token store
 DISCORD_TOKEN_POLL_MS: "60000"
+
+SLACK_ENABLED: true
+SLACK_LOG_LEVEL: debug

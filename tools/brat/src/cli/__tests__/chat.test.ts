@@ -1,5 +1,6 @@
 import { cmdChat } from '../chat';
 import EventEmitter from 'events';
+import * as fs from 'fs';
 
 // Mock process.exit
 const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: string | number | null | undefined) => {
@@ -9,6 +10,10 @@ const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: string |
 // Mock console
 const mockLog = jest.spyOn(console, 'log').mockImplementation();
 const mockError = jest.spyOn(console, 'error').mockImplementation();
+
+// Mock fs to prevent ContextResolver from finding architecture.yaml (tests use legacy behavior)
+jest.mock('fs');
+const mockFs = fs as jest.Mocked<typeof fs>;
 
 jest.mock('child_process', () => ({
   execSync: jest.fn()
@@ -45,6 +50,13 @@ describe('Chat CLI Protocol Simple', () => {
     jest.clearAllMocks();
     process.env.BITBRAT_API_TOKEN = 'test-token';
     SimpleMockWS.instance = null;
+    // Mock fs.existsSync to return false so ContextResolver can't find architecture.yaml
+    // This forces fallback to legacy discovery logic (which these tests validate)
+    mockFs.existsSync.mockReturnValue(false);
+    // Mock fs.readFileSync to throw when ContextResolver tries to read architecture.yaml
+    (mockFs.readFileSync as jest.Mock).mockImplementation(() => {
+      throw new Error('ENOENT: no such file or directory');
+    });
   });
 
   it('should send authentication and handle connection.ready', (done) => {
@@ -105,7 +117,8 @@ describe('Chat CLI Protocol Simple', () => {
   it('should dynamically discover port from docker if API_GATEWAY_HOST_PORT is missing', (done) => {
     const { execSync } = require('child_process');
     const mockExecSync = execSync as jest.Mock;
-    mockExecSync.mockReturnValue(Buffer.from('0.0.0.0:3006->3000/tcp'));
+    // Return string (not Buffer) because discoverLocalPort() uses encoding: 'utf8'
+    mockExecSync.mockReturnValue('0.0.0.0:3006->3000/tcp');
 
     cmdChat({ env: 'local' });
 

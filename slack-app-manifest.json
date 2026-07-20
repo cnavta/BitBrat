@@ -1,0 +1,80 @@
+{
+  "_meta": {
+    "major_version": 1,
+    "minor_version": 1
+  },
+  "display_information": {
+    "name": "BitBrat",
+    "description": "LLM-powered event orchestration engine for streamers and community managers. Provides intelligent chat moderation, automated responses, and tool execution via conversational AI.",
+    "background_color": "#2c2d30",
+    "long_description": "BitBrat is an event-driven LLM orchestration platform that listens to chat events across multiple platforms (Slack, Twitch, Discord, Twilio) and provides intelligent automated responses, moderation, and tool execution.\n\nKey Features:\n- **Intelligent Chat Bot**: @mention BitBrat to ask questions, get help, or trigger actions\n- **Event-Driven Orchestration**: Powered by a 5-stage agent loop (perceive → plan → act → observe)\n- **Tool Execution**: Control OBS, generate images, manage state via MCP (Model Context Protocol)\n- **Multi-Platform**: Unified bot experience across Slack, Twitch, Discord\n\nUsage:\n- @BitBrat help - Get started\n- @BitBrat <your question> - Ask anything\n- Direct message for private conversations\n\nBitBrat is built for streamers, community managers, and developers who want automated, context-aware chat interactions powered by OpenAI GPT-4."
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "BitBrat",
+      "always_online": true
+    },
+    "slash_commands": [],
+    "unfurl_domains": []
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "chat:write.public",
+        "im:history",
+        "im:read",
+        "im:write",
+        "groups:history",
+        "groups:read",
+        "groups:write",
+        "mpim:history",
+        "mpim:read",
+        "mpim:write",
+        "users:read",
+        "users:read.email",
+        "reactions:read",
+        "reactions:write",
+        "chat:write.customize",
+        "files:read",
+        "files:write",
+        "team:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://bitbrat.ai/webhooks/slack",
+      "bot_events": [
+        "app_mention",
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim",
+        "reaction_added",
+        "reaction_removed",
+        "user_change",
+        "team_join",
+        "channel_created",
+        "channel_deleted",
+        "channel_rename",
+        "member_joined_channel",
+        "member_left_channel"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": false
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}

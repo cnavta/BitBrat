@@ -9,6 +9,15 @@ describe('Sprint 20 — Schema routing and cross-reference validation', () => {
       'ingress-egress': { active: true, entry: 'src/apps/ingress-egress-service.ts' },
       auth: { active: false, entry: 'src/apps/auth-service.ts' },
     },
+    executionContexts: {
+      local: {
+        deployment: { type: 'docker-compose', docker: { host: 'unix:///var/run/docker.sock' } },
+        runtime: {
+          gateway: { fallbackPort: 3000 },
+          persistence: { driver: 'firestore' },
+        },
+      },
+    },
     infrastructure: {
       target: 'gcp',
       resources: {

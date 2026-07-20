@@ -3,6 +3,7 @@ import { EnvironmentResolver } from './environment-resolver';
 import { ComposeFactory } from './compose-factory';
 import { PortManager } from './port-manager';
 import { loadArchitecture, resolveServices } from '../../config/loader';
+import { ContextResolver } from '../../context/context-resolver';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -18,6 +19,7 @@ export interface DockerOrchestratorOptions {
   repoRoot: string;
   target?: string;
   env?: string;
+  context?: string; // Sprint 349: Execution context name
   service?: string;
   dryRun?: boolean;
   loki?: boolean; // Enable Loki + Promtail observability stack
@@ -37,8 +39,8 @@ export class DockerOrchestrator {
   }
 
   public async up(): Promise<void> {
-    const { arch, targetConfig, envName } = this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
+    const { arch, targetConfig, envName, contextName } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
 
     // Deploy must honor architecture.yaml `active`. Services marked active:false (or absent,
     // which defaults to DISABLED) are never built/started here: on `--all` they are silently
@@ -51,8 +53,11 @@ export class DockerOrchestrator {
 
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, inactiveServices, this.options.loki);
 
+    // Sprint 349: Determine compose project name from context or env
+    const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
+
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath], composeProjectName);
       const isRemote = targetConfig.host?.startsWith('ssh://');
 
       await this.ensureRemoteSynced(targetConfig);
@@ -146,11 +151,12 @@ export class DockerOrchestrator {
   }
 
   public async down(): Promise<void> {
-    const { targetConfig, envName } = this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
+    const { targetConfig, envName, contextName } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
+    const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath], composeProjectName);
       await this.ensureRemoteSynced(targetConfig);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'down']);
     } finally {
@@ -159,11 +165,12 @@ export class DockerOrchestrator {
   }
 
   public async logs(follow: boolean = false): Promise<void> {
-    const { targetConfig, envName } = this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
+    const { targetConfig, envName, contextName } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
+    const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath], composeProjectName);
       await this.ensureRemoteSynced(targetConfig);
       const args = [...composeArgs, 'logs'];
       if (follow) args.push('-f');
@@ -175,11 +182,12 @@ export class DockerOrchestrator {
   }
 
   public async ps(): Promise<void> {
-    const { targetConfig, envName } = this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig);
+    const { targetConfig, envName, contextName } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
+    const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
     try {
-      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath]);
+      const composeArgs = this.composeFactory.buildComposeArgs(composeFileSet, [tempEnvPath], composeProjectName);
       await this.ensureRemoteSynced(targetConfig);
       await this.executeDockerCompose(targetConfig, [...composeArgs, 'ps']);
     } finally {
@@ -187,15 +195,19 @@ export class DockerOrchestrator {
     }
   }
 
-  private async writeEnvFile(envName: string, targetConfig: any): Promise<string> {
+  private async writeEnvFile(envName: string, targetConfig: any, contextName?: string): Promise<string> {
     const env = this.envResolver.resolve(envName);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     const assignments = await this.portManager.resolvePorts(composeFileSet.serviceFiles, env, targetConfig);
     const portOverrides = this.portManager.getEnvOverrides(assignments);
-    const mergedEnv: Record<string, string | number | boolean> = { 
-      ...env, 
+
+    // Sprint 349: Use context-specific COMPOSE_PROJECT_NAME if execution context is provided
+    const composeProjectName = contextName ? `bitbrat-${contextName}` : (env['COMPOSE_PROJECT_NAME'] as string || 'bitbratplatform');
+
+    const mergedEnv: Record<string, string | number | boolean> = {
+      ...env,
       ...portOverrides,
-      COMPOSE_PROJECT_NAME: 'bitbratplatform'
+      COMPOSE_PROJECT_NAME: composeProjectName
     };
 
     // For remote (ssh://) targets the ADC key lives only on the local machine, so the
@@ -425,8 +437,45 @@ export class DockerOrchestrator {
     }
   }
 
-  private prepare() {
+  /**
+   * Get compose project name from environment
+   * Sprint 349: Reads COMPOSE_PROJECT_NAME from global.yaml
+   */
+  private async getComposeProjectName(envName: string): Promise<string> {
+    const env = this.envResolver.resolve(envName);
+    return (env['COMPOSE_PROJECT_NAME'] as string) || 'bitbratplatform';
+  }
+
+  private async prepare() {
     const arch = loadArchitecture(this.options.repoRoot);
+
+    // Sprint 349: Support execution contexts
+    if (this.options.context) {
+      const resolver = new ContextResolver(this.options.repoRoot);
+      const rawContext = await resolver.getRawContext(this.options.context);
+
+      if (!rawContext) {
+        throw new Error(`Context '${this.options.context}' not found`);
+      }
+
+      if (rawContext.deployment.type !== 'docker-compose') {
+        throw new Error(`Context '${this.options.context}' uses deployment type '${rawContext.deployment.type}' which is not supported by 'brat docker'`);
+      }
+
+      // Create a synthetic target config from the execution context
+      const targetConfig = {
+        name: `context:${this.options.context}`,
+        host: rawContext.deployment.docker?.host || 'unix:///var/run/docker.sock',
+        remoteDir: rawContext.deployment.docker?.remoteDir,
+        maxConcurrent: rawContext.deployment.docker?.maxConcurrent,
+      };
+
+      const envName = rawContext.runtime.envOverlay?.path?.replace('env/', '') || this.options.context;
+
+      return { arch, targetConfig, envName, contextName: this.options.context };
+    }
+
+    // Legacy path: Use deploymentTargets from architecture.yaml
     const targetName = this.options.target || 'local';
     const targetConfig = arch.deploymentTargets?.[targetName];
 
