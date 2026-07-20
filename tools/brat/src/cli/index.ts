@@ -909,6 +909,38 @@ Options:
       await executeContextShow(contextName, { raw });
       return;
     }
+    if (subcommand === 'create') {
+      const contextName = cmd[2];
+      if (!contextName) {
+        console.error('Usage: brat context create <name> [options]');
+        process.exit(2);
+      }
+      const { executeContextCreate } = require('../commands/context/create');
+
+      // Parse flags for non-interactive mode
+      const f = flags as any; // Type assertion for dynamic flag access
+      const options: any = {};
+      if (rest.includes('--non-interactive')) options.nonInteractive = true;
+      if (f.type) options.type = f.type;
+      if (f.description) options.description = f.description;
+      if (f['persistence-driver']) options.persistenceDriver = f['persistence-driver'];
+      if (f['pg-host']) options.pgHost = f['pg-host'];
+      if (f['pg-port']) options.pgPort = parseInt(f['pg-port'], 10);
+      if (f['pg-database']) options.pgDatabase = f['pg-database'];
+      if (f['pg-username']) options.pgUsername = f['pg-username'];
+      if (f['pg-password']) options.pgPassword = f['pg-password'];
+      if (f['docker-host']) options.dockerHost = f['docker-host'];
+      if (f['docker-remote-dir']) options.dockerRemoteDir = f['docker-remote-dir'];
+      if (f['gcp-project']) options.gcpProject = f['gcp-project'];
+      if (f['gcp-region']) options.gcpRegion = f['gcp-region'];
+      if (f['gateway-url']) options.gatewayUrl = f['gateway-url'];
+      if (f['gateway-auth-token']) options.gatewayAuthToken = f['gateway-auth-token'];
+      if (f['env-path']) options.envPath = f['env-path'];
+      if (f.tags) options.tags = f.tags;
+
+      await executeContextCreate(contextName, options);
+      return;
+    }
     console.error(`Unknown context subcommand: ${subcommand}`);
     console.error('Run "brat context help" for usage');
     process.exit(2);
