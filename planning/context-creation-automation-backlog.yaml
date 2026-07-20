@@ -1,0 +1,978 @@
+# Context Creation Automation Backlog
+# Format: YAML-based task tracking
+# Created: 2026-07-20
+# Sprint: 352 (proposed)
+# Reference: Post-context creation checklist from agent-dev deployment debugging
+
+project:
+  name: Context Creation Automation
+  goal: Automate service-specific configuration generation in `brat context create`
+  duration_estimate: 3-5 days
+  priority: P0
+  background: >
+    During agent-dev context debugging, discovered that `brat context create` only generates
+    global.yaml and infra.yaml, but not service-specific YAML files. This caused 6 services to fail
+    with missing environment variable errors. Manual creation of 7 service-specific YAML files was
+    required to get all containers green. This backlog automates that process.
+
+metrics:
+  automation_coverage_target: 100% # All active services get config files
+  config_accuracy_target: 100% # All required env vars from architecture.yaml present
+  manual_steps_eliminated: 7 # Number of manual file creations eliminated
+  deployment_success_rate: 100% # Contexts deploy without env var errors
+
+discovered_issues:
+  - issue: Service-specific YAML files not auto-generated
+    impact: 6 services failed with missing env vars (llm-bot, persistence, ingress-egress, disposition-service, query-analyzer, reflex, api-gateway)
+    root_cause: brat context create only generates global.yaml and infra.yaml
+    current_workaround: Manual copying from env/local/ with context-specific adjustments
+
+  - issue: Environment variable interpolation not working
+    impact: POSTGRES_PASSWORD placeholder ${POSTGRES_PASSWORD} not replaced from .secure.{context}
+    root_cause: Docker Compose doesn't interpolate from .secure files
+    current_workaround: Use explicit password values matching postgres container defaults
+
+  - issue: No validation of required env vars
+    impact: Silent failures, containers restart loop, hard to diagnose
+    root_cause: No cross-check between architecture.yaml requirements and generated configs
+    current_workaround: Manual checking of docker logs after deployment
+
+  - issue: No PostgreSQL seed data script
+    impact: routing_rules table empty (0 rows), event-router cannot route events; personalities table empty (0 rows), no bot personalities
+    root_cause: brat setup only seeds Firestore, not PostgreSQL
+    current_workaround: Manual SQL inserts or no routing (system non-functional)
+
+epics:
+  - id: epic-1
+    name: Service Config Generation
+    description: Auto-generate service-specific YAML files during context creation
+    priority: P0
+    estimate_hours: 12
+    estimate_days: 2
+    status: todo
+    dependencies: []
+    stories:
+      - id: story-1.1
+        name: Parse architecture.yaml for Active Services
+        priority: P0
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Read architecture.yaml and extract all services with active:true and their required env vars
+        acceptance_criteria:
+          - Read architecture.yaml during context create
+          - Extract services.*.active === true
+          - For each active service, extract services.*.env array
+          - For each active service, extract services.*.secrets array
+          - Build service metadata map (name -> {env, secrets, profile, category})
+          - Handle missing/undefined env/secrets gracefully
+          - Log discovered services and var counts
+        dependencies: []
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+            method: createContext or new parseActiveServices helper
+        tasks:
+          - Import YAML parser (already available)
+          - Read architecture.yaml
+          - Parse services section
+          - Filter for active: true
+          - Extract env arrays per service
+          - Extract secrets arrays per service
+          - Build metadata map
+          - Add logging
+          - Handle edge cases (no env, no secrets)
+
+      - id: story-1.2
+        name: Generate Service YAML Files with Defaults
+        priority: P0
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: For each active service, generate env/{context}/{service}.yaml with reasonable defaults
+        acceptance_criteria:
+          - For each active service, create {service}.yaml
+          - Populate with required env vars from architecture.yaml
+          - Use intelligent defaults based on var name patterns
+          - Copy from env/local/{service}.yaml if exists (preferred)
+          - Context-aware adjustments (dev vs staging vs prod)
+          - Add header comments with generation metadata
+          - Create file with proper permissions
+          - Log each file created
+        dependencies:
+          - story-1.1
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+            method: generateServiceConfigs
+          - action: create
+            path: tools/brat/src/context/config-defaults.ts
+            description: Default value mappings per environment variable pattern
+        tasks:
+          - Create generateServiceConfigs function
+          - For each service, check if env/local/{service}.yaml exists
+          - If exists, copy and adjust for context
+          - If not exists, generate from architecture.yaml env list
+          - Apply default value rules (see config-defaults.ts)
+          - Add YAML header comments
+          - Write file to env/{context}/{service}.yaml
+          - Set file permissions
+          - Log creation
+          - Handle write failures gracefully
+
+      - id: story-1.3
+        name: Create Default Value Mapping Rules
+        priority: P0
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Define intelligent defaults for common environment variable patterns
+        acceptance_criteria:
+          - PERSISTENCE_* variables default to standard values
+          - *_ENABLED variables default based on context (false for dev/agent, true for prod)
+          - *_TIMEOUT_MS variables have reasonable defaults
+          - LLM_BOT_* variables have sensible defaults
+          - PostgreSQL connection vars match global.yaml
+          - Twitch/Discord/Twilio disabled for dev contexts
+          - OAuth/Auth variables have dev-safe defaults
+          - Secrets reference .secure.{context} or use dev defaults
+        dependencies: []
+        files:
+          - action: create
+            path: tools/brat/src/context/config-defaults.ts
+        tasks:
+          - Define ConfigDefaultRule interface
+          - Create default rule for PERSISTENCE_* vars
+          - Create default rule for *_ENABLED vars
+          - Create default rule for *_TIMEOUT_MS vars
+          - Create default rule for LLM_BOT_* vars
+          - Create default rule for database vars
+          - Create default rule for external integration vars
+          - Create context-aware rule system
+          - Add JSDoc documentation
+          - Export default rules map
+
+      - id: story-1.4
+        name: Context-Aware Configuration Adjustments
+        priority: P0
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Apply context-specific adjustments (dev, staging, prod, agent-dev)
+        acceptance_criteria:
+          - Dev/agent-dev contexts disable external integrations by default
+          - Prod contexts require explicit integration config
+          - Agent-dev uses simplified configs (no external dependencies)
+          - Staging mirrors prod but with staging endpoints
+          - Database passwords match context conventions
+          - Log level appropriate per context (debug for dev, info for prod)
+          - Resource limits appropriate per context
+        dependencies:
+          - story-1.2
+          - story-1.3
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+            method: applyContextAdjustments
+        tasks:
+          - Define context profiles (dev, staging, prod, agent-dev)
+          - Create adjustment rules per context
+          - Disable integrations for dev/agent-dev
+          - Set log levels per context
+          - Adjust resource limits per context
+          - Apply database config per context
+          - Document adjustment rules
+          - Test with each context type
+
+  - id: epic-2
+    name: Environment Variable Interpolation
+    description: Support ${VAR} placeholder resolution from .secure.{context}
+    priority: P1
+    estimate_hours: 8
+    estimate_days: 1
+    status: todo
+    dependencies:
+      - epic-1
+    stories:
+      - id: story-2.1
+        name: Implement Secret Interpolation
+        priority: P1
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: Replace ${VAR} placeholders with values from .secure.{context}
+        acceptance_criteria:
+          - Read .secure.{context} file
+          - Parse key=value format
+          - Replace ${VAR} in YAML configs with actual values
+          - Handle missing variables gracefully (warn or fail)
+          - Support nested placeholders
+          - Preserve non-placeholder values
+          - Secure handling (don't log secret values)
+        dependencies: []
+        files:
+          - action: create
+            path: tools/brat/src/context/secret-interpolation.ts
+          - action: update
+            path: tools/brat/src/context/create.ts
+        tasks:
+          - Create secret interpolation module
+          - Parse .secure.{context} file
+          - Build secrets map
+          - Find ${VAR} patterns in YAML
+          - Replace with actual values
+          - Handle missing variables
+          - Add warning/error logging (no secret values)
+          - Test with nested placeholders
+
+      - id: story-2.2
+        name: Alternative - Use Explicit Values
+        priority: P1
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: OR use explicit values instead of placeholders (simpler, current workaround)
+        acceptance_criteria:
+          - Generate explicit password values
+          - Use standard dev passwords (bitbrat_dev_password) for dev contexts
+          - Use generated secrets for prod contexts
+          - Store generated secrets in .secure.{context}
+          - Match postgres container defaults
+          - Document password conventions per context
+        dependencies: []
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+        tasks:
+          - Define password conventions per context
+          - Dev contexts use bitbrat_dev_password
+          - Prod contexts generate secure passwords
+          - Write explicit values to global.yaml
+          - Store in .secure.{context} for reference
+          - Document conventions
+          - Test with postgres container
+
+      - id: story-2.3
+        name: PostgreSQL Connection Configuration
+        priority: P0
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Ensure DATABASE_URL and individual POSTGRES_* vars are consistent
+        acceptance_criteria:
+          - POSTGRES_PASSWORD matches DATABASE_URL password
+          - POSTGRES_HOST, POSTGRES_PORT match DATABASE_URL
+          - POSTGRES_DB matches DATABASE_URL database name
+          - POSTGRES_USER matches DATABASE_URL user
+          - All services requiring DB get consistent config
+          - Works with both connection methods (URL vs individual params)
+        dependencies:
+          - story-2.1 OR story-2.2
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+        tasks:
+          - Generate POSTGRES_* vars
+          - Build DATABASE_URL from components
+          - Verify password consistency
+          - Add to global.yaml
+          - Test with reflex (uses DATABASE_URL)
+          - Test with other services (use individual params)
+
+  - id: epic-3
+    name: Configuration Validation
+    description: Validate generated configs against architecture.yaml requirements
+    priority: P0
+    estimate_hours: 10
+    estimate_days: 1.5
+    status: todo
+    dependencies:
+      - epic-1
+    stories:
+      - id: story-3.1
+        name: Create Config Validation Module
+        priority: P0
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: Cross-check generated configs against architecture.yaml requirements
+        acceptance_criteria:
+          - Read architecture.yaml for required env vars
+          - Read generated YAML files
+          - Compare required vs provided
+          - Report missing variables per service
+          - Report extra variables (informational)
+          - Validate value formats (URLs, booleans, numbers)
+          - Exit with error if critical vars missing
+          - Generate validation report
+        dependencies:
+          - epic-1
+        files:
+          - action: create
+            path: tools/brat/src/context/validate-config.ts
+          - action: update
+            path: tools/brat/src/context/create.ts
+        tasks:
+          - Create validateConfig function
+          - Parse architecture.yaml requirements
+          - Parse generated YAML files
+          - Compare required vs provided
+          - Check for missing vars
+          - Validate value formats
+          - Generate report
+          - Return validation status
+
+      - id: story-3.2
+        name: Integrate Validation into Context Create
+        priority: P0
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Run validation automatically after config generation
+        acceptance_criteria:
+          - Call validation after all files generated
+          - Display validation results
+          - Fail creation if critical vars missing
+          - Warn if non-critical vars missing
+          - Show summary (X services, Y vars, Z missing)
+          - Option to skip validation (--no-validate)
+        dependencies:
+          - story-3.1
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+        tasks:
+          - Call validateConfig after generation
+          - Display results
+          - Implement error handling
+          - Add --no-validate flag
+          - Show summary
+          - Test with valid config
+          - Test with invalid config
+
+      - id: story-3.3
+        name: Create Standalone Validation Command
+        priority: P1
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Allow manual validation of existing contexts
+        acceptance_criteria:
+          - Command - brat context validate {context}
+          - Validates existing context configs
+          - Reports missing/invalid vars
+          - Can validate all contexts (--all)
+          - Generates detailed report
+          - Exit code indicates pass/fail
+        dependencies:
+          - story-3.1
+        files:
+          - action: create
+            path: tools/brat/src/context/validate-command.ts
+          - action: update
+            path: tools/brat/src/cli/index.ts
+        tasks:
+          - Create validate command
+          - Parse command args
+          - Call validateConfig
+          - Format output
+          - Support --all flag
+          - Implement exit codes
+          - Add to CLI router
+          - Test with agent-dev context
+
+      - id: story-3.4
+        name: Add Pre-Deployment Validation Check
+        priority: P1
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Validate context before docker up/deploy
+        acceptance_criteria:
+          - Run validation before docker up
+          - Run validation before brat deploy
+          - Fail early if config invalid
+          - Option to skip (--skip-validation)
+          - Clear error messages
+          - Suggest fixes for common issues
+        dependencies:
+          - story-3.1
+        files:
+          - action: update
+            path: tools/brat/src/docker/up.ts
+          - action: update
+            path: tools/brat/src/deploy/deploy.ts
+        tasks:
+          - Add validation to docker up
+          - Add validation to deploy
+          - Implement skip flag
+          - Add error messages
+          - Suggest fixes
+          - Test validation failures
+
+  - id: epic-4
+    name: Testing & Documentation
+    description: Comprehensive tests and documentation
+    priority: P0
+    estimate_hours: 12
+    estimate_days: 1.5
+    status: todo
+    dependencies:
+      - epic-1
+      - epic-2
+      - epic-3
+    stories:
+      - id: story-4.1
+        name: Unit Tests for Config Generation
+        priority: P0
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: Test service config generation logic
+        acceptance_criteria:
+          - Test parseActiveServices extracts correct services
+          - Test generateServiceConfigs creates correct files
+          - Test default value rules apply correctly
+          - Test context adjustments work
+          - Test with various architecture.yaml configurations
+          - Test file creation and permissions
+          - Coverage > 90%
+        dependencies:
+          - epic-1
+        files:
+          - action: create
+            path: tools/brat/src/context/__tests__/config-generation.test.ts
+        tasks:
+          - Test parseActiveServices
+          - Test generateServiceConfigs
+          - Test config-defaults rules
+          - Test context adjustments
+          - Test file operations
+          - Test error cases
+          - Verify coverage
+
+      - id: story-4.2
+        name: Integration Tests for Context Create
+        priority: P0
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: End-to-end test of brat context create
+        acceptance_criteria:
+          - Test creates new context successfully
+          - Test generates all expected files
+          - Test validation passes
+          - Test can deploy created context
+          - Test services start without env errors
+          - Test with different context types
+          - Cleanup after tests
+        dependencies:
+          - epic-1
+          - epic-3
+        files:
+          - action: create
+            path: tools/brat/src/context/__tests__/create-integration.test.ts
+        tasks:
+          - Setup test environment
+          - Test context creation
+          - Verify files created
+          - Test validation
+          - Test deployment
+          - Test service startup
+          - Test cleanup
+          - Test different context types
+
+      - id: story-4.3
+        name: Update Documentation
+        priority: P0
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Document new context creation features
+        acceptance_criteria:
+          - Update CLAUDE.md with new workflow
+          - Document default value rules
+          - Document context-specific adjustments
+          - Add troubleshooting section
+          - Update architecture diagrams if needed
+          - Add examples for each context type
+        dependencies:
+          - epic-1
+          - epic-2
+          - epic-3
+        files:
+          - action: update
+            path: CLAUDE.md
+          - action: create
+            path: documentation/guides/context-creation-guide.md
+        tasks:
+          - Update CLAUDE.md overview
+          - Document brat context create enhancements
+          - Document default rules
+          - Document context adjustments
+          - Add troubleshooting
+          - Add examples
+          - Update architecture docs
+
+      - id: story-4.4
+        name: Create Validation Report
+        priority: P1
+        estimate_hours: 1
+        status: todo
+        assignee: null
+        description: Test with all existing contexts and report results
+        acceptance_criteria:
+          - Validate local context
+          - Validate staging context
+          - Validate agent-dev context
+          - Generate report of findings
+          - Fix any discovered issues
+          - Document any manual adjustments needed
+        dependencies:
+          - epic-3
+        files:
+          - action: create
+            path: planning/context-validation-report.md
+        tasks:
+          - Run validation on local
+          - Run validation on staging
+          - Run validation on agent-dev
+          - Document findings
+          - Fix issues
+          - Create report
+
+  - id: epic-5
+    name: Backwards Compatibility & Migration
+    description: Ensure existing contexts continue to work
+    priority: P0
+    estimate_hours: 6
+    estimate_days: 1
+    status: todo
+    dependencies:
+      - epic-1
+    stories:
+      - id: story-5.1
+        name: Preserve Existing Context Behavior
+        priority: P0
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Existing contexts work unchanged
+        acceptance_criteria:
+          - Local context unchanged
+          - Staging context unchanged
+          - Prod context (if exists) unchanged
+          - New automation only applies to new contexts
+          - Option to regenerate configs for existing context
+          - No breaking changes to existing workflows
+        dependencies: []
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+        tasks:
+          - Check if context exists
+          - Skip generation if exists (unless --force)
+          - Add --regenerate flag
+          - Test with existing contexts
+          - Verify no changes
+          - Document regenerate option
+
+      - id: story-5.2
+        name: Create Migration Tool
+        priority: P1
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Tool to migrate existing contexts to new format
+        acceptance_criteria:
+          - Command - brat context migrate {context}
+          - Analyzes existing config
+          - Generates missing service files
+          - Preserves existing customizations
+          - Creates backup before migration
+          - Reports what was changed
+          - Dry-run mode available
+        dependencies:
+          - epic-1
+        files:
+          - action: create
+            path: tools/brat/src/context/migrate-command.ts
+          - action: update
+            path: tools/brat/src/cli/index.ts
+        tasks:
+          - Create migrate command
+          - Analyze existing config
+          - Identify missing files
+          - Generate missing files
+          - Preserve customizations
+          - Create backups
+          - Add dry-run mode
+          - Test migration
+
+      - id: story-5.3
+        name: Test Migration on Agent-Dev
+        priority: P0
+        estimate_hours: 1
+        status: todo
+        assignee: null
+        description: Verify migration works on agent-dev context
+        acceptance_criteria:
+          - Backup current agent-dev configs
+          - Run migration
+          - Compare before/after
+          - Verify no functional changes
+          - All services still work
+          - Document any differences
+        dependencies:
+          - story-5.2
+        files:
+          - action: create
+            path: planning/agent-dev-migration-report.md
+        tasks:
+          - Backup agent-dev
+          - Run migration
+          - Compare configs
+          - Test deployment
+          - Verify services
+          - Document results
+
+  - id: epic-6
+    name: Unified Data Seeding (PostgreSQL + Firestore)
+    description: Create persistence-agnostic seed data system for both PostgreSQL and Firestore
+    priority: P0
+    estimate_hours: 14
+    estimate_days: 2
+    status: todo
+    dependencies:
+      - epic-1
+    stories:
+      - id: story-6.1
+        name: Create Persistence-Agnostic Seed Data Model
+        priority: P0
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Define canonical seed data structure independent of persistence backend
+        acceptance_criteria:
+          - Define SeedDataDefinition interface
+          - Routing rules in common format (matches setup.ts getInitialRoutingRules)
+          - Personalities in common format
+          - Context packs in common format
+          - API tokens/auth data in common format
+          - TypeScript types for all seed entities
+          - Validation for seed data structure
+          - Support bot name parameterization
+        dependencies: []
+        files:
+          - action: create
+            path: tools/brat/src/seeding/seed-data-types.ts
+          - action: create
+            path: tools/brat/src/seeding/seed-data-definitions.ts
+        tasks:
+          - Define SeedDataDefinition interface
+          - Define RoutingRuleSeed type
+          - Define PersonalitySeed type
+          - Define ContextPackSeed type
+          - Define AuthTokenSeed type
+          - Port getInitialRoutingRules to common format
+          - Add validation functions
+          - Add bot name parameterization
+          - Document seed data structure
+
+      - id: story-6.2
+        name: Implement PostgreSQL Seed Writer
+        priority: P0
+        estimate_hours: 4
+        status: todo
+        assignee: null
+        description: Transform seed data into PostgreSQL INSERT statements
+        acceptance_criteria:
+          - Read seed data definitions
+          - Generate INSERT for routing_rules table
+          - Generate INSERT for personalities table
+          - Generate INSERT for context_packs table
+          - Generate INSERT for api_tokens table
+          - Handle JSONB columns correctly
+          - Handle timestamps (created_at, updated_at)
+          - Support upsert (ON CONFLICT DO UPDATE)
+          - Transaction-based seeding (all-or-nothing)
+          - Idempotent (can run multiple times)
+        dependencies:
+          - story-6.1
+        files:
+          - action: create
+            path: tools/brat/src/seeding/postgres-seed-writer.ts
+        tasks:
+          - Create PostgresSeedWriter class
+          - Implement routing rules INSERT generation
+          - Implement personalities INSERT generation
+          - Implement context_packs INSERT generation
+          - Implement api_tokens INSERT generation
+          - Add JSONB serialization
+          - Add timestamp handling
+          - Add upsert logic (ON CONFLICT)
+          - Add transaction wrapper
+          - Test idempotency
+
+      - id: story-6.3
+        name: Implement Firestore Seed Writer
+        priority: P0
+        estimate_hours: 3
+        status: todo
+        assignee: null
+        description: Transform seed data into Firestore writes (refactor existing setup.ts logic)
+        acceptance_criteria:
+          - Read seed data definitions
+          - Write to configs/routingRules/rules collection
+          - Write to personalities collection
+          - Write to context_packs collection
+          - Write to gateways/api/tokens collection
+          - Preserve existing setup.ts behavior
+          - Support merge mode (upsert)
+          - Batch writes where possible
+          - Idempotent (can run multiple times)
+        dependencies:
+          - story-6.1
+        files:
+          - action: create
+            path: tools/brat/src/seeding/firestore-seed-writer.ts
+          - action: update
+            path: tools/brat/src/cli/setup.ts
+            description: Refactor to use new seed writer
+        tasks:
+          - Create FirestoreSeedWriter class
+          - Implement routing rules writes
+          - Implement personalities writes
+          - Implement context_packs writes
+          - Implement api_tokens writes
+          - Add batch write logic
+          - Add merge mode support
+          - Refactor setup.ts to use new writer
+          - Test idempotency
+
+      - id: story-6.4
+        name: Create Unified Seed Command
+        priority: P0
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: CLI command that detects persistence driver and seeds accordingly
+        acceptance_criteria:
+          - Command - brat seed [--context {context}]
+          - Detect PERSISTENCE_DRIVER from context config
+          - Route to PostgreSQL writer if driver=postgres
+          - Route to Firestore writer if driver=firestore
+          - Support --dry-run flag
+          - Support --wipe flag (clear before seeding)
+          - Support --bot-name parameter
+          - Show summary of seeded entities
+          - Exit code indicates success/failure
+        dependencies:
+          - story-6.2
+          - story-6.3
+        files:
+          - action: create
+            path: tools/brat/src/cli/seed.ts
+          - action: update
+            path: tools/brat/src/cli/index.ts
+        tasks:
+          - Create seed command
+          - Detect persistence driver from env
+          - Route to appropriate writer
+          - Add --dry-run support
+          - Add --wipe support
+          - Add --bot-name parameter
+          - Generate summary output
+          - Add to CLI router
+          - Test with both drivers
+
+      - id: story-6.5
+        name: Integrate Seeding into Context Create
+        priority: P0
+        estimate_hours: 2
+        status: todo
+        assignee: null
+        description: Automatically seed data when creating a new context
+        acceptance_criteria:
+          - Run seeding after context files generated
+          - Detect persistence driver automatically
+          - Use bot name from context config
+          - Show seeding progress
+          - Optional --no-seed flag to skip
+          - Handle seeding failures gracefully
+          - Log what was seeded
+        dependencies:
+          - story-6.4
+          - epic-1
+        files:
+          - action: update
+            path: tools/brat/src/context/create.ts
+        tasks:
+          - Import seed functionality
+          - Call after file generation
+          - Detect persistence driver
+          - Extract bot name from config
+          - Add --no-seed flag
+          - Add error handling
+          - Add progress logging
+          - Test with postgres context
+          - Test with firestore context
+
+summary:
+  total_stories: 27
+  total_estimate_hours: 62
+  total_estimate_days: 8-10
+  core_stories: 23
+  core_estimate_hours: 54
+  core_estimate_days: 7-8
+  p0_stories: 19
+  p0_estimate_hours: 48
+  p1_stories: 8
+  p1_estimate_hours: 14
+
+milestones:
+  - name: Service Config Generation Complete
+    date: Day 2
+    criteria:
+      - Epic 1 complete
+      - Service YAML files auto-generated
+      - Default rules working
+      - Context adjustments working
+
+  - name: Validation System Complete
+    date: Day 4
+    criteria:
+      - Epic 3 complete
+      - Validation integrated into context create
+      - Standalone validation command working
+      - Pre-deployment checks working
+
+  - name: Data Seeding Complete
+    date: Day 6
+    criteria:
+      - Epic 6 complete
+      - Unified seed data model defined
+      - PostgreSQL and Firestore writers implemented
+      - brat seed command working
+      - Integrated into context create
+
+  - name: Full System Tested
+    date: Day 8
+    criteria:
+      - All epics complete (1-6)
+      - Unit and integration tests passing
+      - Documentation updated
+      - Migration tested on agent-dev
+      - Seeding tested on both backends
+
+  - name: Production Ready
+    date: Day 10
+    criteria:
+      - All tests passing
+      - Documentation complete
+      - Validated on all contexts (local, staging, agent-dev)
+      - No regressions
+      - Seed data populated correctly
+
+risks:
+  - id: risk-1
+    name: Breaking Existing Contexts
+    likelihood: medium
+    impact: high
+    mitigation: Backwards compatibility checks, only affect new contexts, comprehensive testing
+    contingency: Rollback mechanism, preserve old behavior with flag
+
+  - id: risk-2
+    name: Incomplete Default Rules
+    likelihood: medium
+    impact: medium
+    mitigation: Copy from local as baseline, extensive testing, validation checks
+    contingency: Manual override, document missing defaults
+
+  - id: risk-3
+    name: Secret Interpolation Complexity
+    likelihood: low
+    impact: medium
+    mitigation: Use explicit values approach (simpler), document limitations
+    contingency: Fallback to manual secret management
+
+  - id: risk-4
+    name: Context-Specific Edge Cases
+    likelihood: medium
+    impact: low
+    mitigation: Test with all context types, allow manual overrides
+    contingency: Document manual adjustment procedures
+
+  - id: risk-5
+    name: Seed Data Backend Divergence
+    likelihood: medium
+    impact: medium
+    mitigation: Single source of truth (seed data definitions), comprehensive testing on both backends
+    contingency: Manual SQL/Firestore seeding if unified approach fails
+
+  - id: risk-6
+    name: PostgreSQL Schema Mismatch
+    likelihood: low
+    impact: high
+    mitigation: Test seed data against latest schema, validate JSONB structure
+    contingency: Update seed writer to match schema changes
+
+success_criteria:
+  must_have:
+    - brat context create generates all service YAML files
+    - All required env vars from architecture.yaml present
+    - Validation catches missing variables
+    - No manual config file creation needed
+    - Existing contexts unchanged
+    - All tests passing
+    - Seed data automatically populated (routing_rules, personalities, context_packs)
+    - Works with both PostgreSQL and Firestore backends
+    - brat seed command functional
+
+  nice_to_have:
+    - Secret interpolation from .secure files
+    - Migration tool for existing contexts
+    - Intelligent defaults cover 95% of cases
+    - Pre-deployment validation prevents env errors
+    - Detailed validation reports
+    - Seed data extensible for new entity types
+
+implementation_notes:
+  files_created_manually_this_session:
+    - env/agent-dev/llm-bot.yaml (15 vars)
+    - env/agent-dev/persistence.yaml (4 vars)
+    - env/agent-dev/ingress-egress.yaml (disabled integrations, added persistence)
+    - env/agent-dev/disposition-service.yaml (copied from local)
+    - env/agent-dev/query-analyzer.yaml (copied from local)
+    - env/agent-dev/reflex.yaml (1 var)
+    - env/agent-dev/api-gateway.yaml (added persistence vars)
+
+  manual_adjustments_required:
+    - POSTGRES_PASSWORD: Use explicit value, not ${POSTGRES_PASSWORD}
+    - DATABASE_URL: Match password from POSTGRES_PASSWORD
+    - Disable external integrations for dev contexts (TWITCH_ENABLED, DISCORD_ENABLED, TWILIO_ENABLED)
+    - Add PERSISTENCE_* vars to all services that publish/consume persistence topics
+
+  current_workarounds_to_eliminate:
+    - Manual copying from env/local/ → Auto-generate with intelligent defaults
+    - Manual password configuration → Auto-configure with context conventions
+    - Manual validation by checking logs → Pre-deployment validation
+    - Trial-and-error debugging → Upfront validation with clear error messages
+    - Manual SQL seeding (or no seeding) → Automated unified seeding
+
+  seed_data_status_agent_dev:
+    populated:
+      - context_packs (3 rows) - router.jsonlogic-guide, scheduler.guide, schema.internal-event-v2
+      - events (5 rows) - startup events
+      - snapshots (15 rows) - persistence snapshots
+    missing:
+      - routing_rules (0 rows) - CRITICAL - event router cannot route events
+      - reflexes (0 rows) - reflex system inactive
+      - personalities (0 rows) - no bot personalities
+      - auth_users (0 rows) - no authenticated users
+      - state (0 rows) - no initial state
+
+reference_implementations:
+  - agent-dev context (this session) - manual creation process to be automated
+  - local context (env/local/) - template for default values
+  - staging context (env/staging/) - production-like configuration example

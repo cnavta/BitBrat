@@ -1,0 +1,690 @@
+# Sprint 351: Bootstrap Automation & Bug Remediation - Prioritized Backlog
+# Parent Sprint: 350 (agent-dev Context Bootstrap)
+# Branch: feature/sprint-351-bootstrap-automation
+# Estimation: 10-16 hours across 3 days
+
+metadata:
+  sprint_id: 351
+  sprint_name: "Bootstrap Automation & Bug Remediation"
+  parent_sprint: 350
+  branch: "feature/sprint-351-bootstrap-automation"
+  status: "PLANNING"
+  priority: "HIGH"
+  estimated_duration_days: 3
+  estimated_hours: "10-16"
+
+objectives:
+  primary:
+    - "Fix 3 critical bugs discovered in Sprint 350"
+    - "Automate NATS stream initialization"
+    - "Improve brat context create with auto-population and validation"
+    - "Audit and fix all service compose files"
+  secondary:
+    - "Create bootstrap validation tooling"
+    - "Improve error messages and documentation"
+    - "Create service configuration requirements matrix"
+
+# Prioritized task backlog
+# Priority levels: P0 (Critical), P1 (High), P2 (Medium), P3 (Low)
+# Status: TODO, IN_PROGRESS, BLOCKED, COMPLETE, DEFERRED
+
+tasks:
+  # ========================================================================
+  # PHASE 1: CRITICAL BUG FIXES (Day 1, Morning)
+  # ========================================================================
+
+  - id: T1.1
+    phase: 1
+    title: "Audit ALL Service Compose Files for GOOGLE_APPLICATION_CREDENTIALS"
+    description: |
+      Scan all 18 service compose files to identify which still reference
+      GOOGLE_APPLICATION_CREDENTIALS after the PostgreSQL migration.
+      Create audit report documenting findings.
+    priority: P0
+    estimate_hours: 1.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: []
+    deliverables:
+      - "Service audit report (Markdown)"
+      - "List of affected compose files"
+      - "Count of references found"
+    acceptance_criteria:
+      - "All 18 service compose files scanned"
+      - "Audit report documents every occurrence"
+      - "Files categorized by severity (blocking vs warning)"
+    files_to_modify: []
+    files_to_create:
+      - "planning/sprint-351-bootstrap-automation/service-audit-report.md"
+    commands:
+      - "grep -r 'GOOGLE_APPLICATION_CREDENTIALS' infrastructure/docker-compose/services/"
+      - "grep -r 'google-app-creds.json' infrastructure/docker-compose/services/"
+    tests_required: false
+    tags: ["bug-fix", "audit", "compose-files"]
+
+  - id: T1.2
+    title: "Remove GOOGLE_APPLICATION_CREDENTIALS from Affected Compose Files"
+    description: |
+      Remove GOOGLE_APPLICATION_CREDENTIALS environment variable and volume
+      mount from all affected service compose files identified in T1.1.
+      Add postgres to depends_on where needed.
+    priority: P0
+    estimate_hours: 1.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T1.1"]
+    deliverables:
+      - "Updated compose files (all affected services)"
+      - "Git commit with changes"
+    acceptance_criteria:
+      - "GOOGLE_APPLICATION_CREDENTIALS removed from all files"
+      - "Volume mounts for google-app-creds.json removed"
+      - "postgres added to depends_on where database access needed"
+      - "All services still start successfully"
+    files_to_modify:
+      - "infrastructure/docker-compose/services/*.compose.yaml (TBD in T1.1)"
+    validation:
+      - "grep returns no matches for GOOGLE_APPLICATION_CREDENTIALS"
+      - "docker compose config validates all files"
+      - "brat docker up --context agent-dev succeeds"
+    tests_required: true
+    test_command: "npm run brat -- docker up --context agent-dev --dry-run"
+    tags: ["bug-fix", "compose-files", "postgres-migration"]
+
+  - id: T1.3
+    title: "Create CI Check for GOOGLE_APPLICATION_CREDENTIALS"
+    description: |
+      Add automated check to CI/CD pipeline that fails if any service
+      compose file contains GOOGLE_APPLICATION_CREDENTIALS references.
+      Prevents future regression.
+    priority: P1
+    estimate_hours: 0.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T1.2"]
+    deliverables:
+      - "CI workflow or script to detect GOOGLE_APPLICATION_CREDENTIALS"
+      - "Documentation of check in CONTRIBUTING.md"
+    acceptance_criteria:
+      - "CI fails if GOOGLE_APPLICATION_CREDENTIALS found in compose files"
+      - "Check runs on every PR"
+      - "False positives handled (comments allowed)"
+    files_to_create:
+      - ".github/workflows/validate-compose-files.yml"
+      - "or tools/validate-compose-files.sh"
+    validation:
+      - "CI passes on clean codebase"
+      - "CI fails when test file with GOOGLE_APPLICATION_CREDENTIALS added"
+    tests_required: true
+    tags: ["ci-cd", "validation", "regression-prevention"]
+
+  - id: T1.4
+    title: "Auto-Populate BUS_PREFIX in brat context create"
+    description: |
+      Update brat context create command to automatically generate
+      BUS_PREFIX in global.yaml as "{context-name}.". Add validation
+      that BUS_PREFIX matches context name in existing contexts.
+    priority: P0
+    estimate_hours: 1.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: []
+    deliverables:
+      - "Updated context create logic"
+      - "BUS_PREFIX auto-populated in global.yaml"
+      - "Validation for existing contexts"
+      - "Unit tests for BUS_PREFIX generation"
+    acceptance_criteria:
+      - "brat context create test-ctx generates BUS_PREFIX: 'test-ctx.'"
+      - "Validation warns if BUS_PREFIX doesn't match context name"
+      - "Existing contexts can be validated and fixed"
+      - "Tests cover edge cases (hyphens, underscores, etc.)"
+    files_to_modify:
+      - "tools/brat/src/cli/context.ts"
+      - "tools/brat/src/orchestration/context-resolver.ts"
+    files_to_create:
+      - "tools/brat/src/cli/__tests__/context.test.ts (if not exists)"
+    validation:
+      - "Create new context and verify BUS_PREFIX auto-populated"
+      - "Validation catches mismatched BUS_PREFIX"
+      - "Tests pass"
+    tests_required: true
+    test_files:
+      - "tools/brat/src/cli/__tests__/context.test.ts"
+    tags: ["bug-fix", "context-management", "automation"]
+
+  - id: T1.5
+    title: "Document DATABASE_URL Password Initialization Order"
+    description: |
+      Update brat context create help text and documentation to explain
+      that .env.brat must exist before postgres container is first created.
+      Improve error messages when .env.brat missing during docker up.
+    priority: P2
+    estimate_hours: 0.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: []
+    deliverables:
+      - "Updated help text for 'brat context create'"
+      - "Bootstrap checklist in documentation"
+      - "Improved error message when .env.brat missing"
+    acceptance_criteria:
+      - "Help text mentions .env.brat requirement"
+      - "Error message guides user to create .env.brat first"
+      - "Documentation includes proper bootstrap order"
+    files_to_modify:
+      - "tools/brat/src/cli/context.ts (help text)"
+      - "tools/brat/src/cli/docker.ts (error message)"
+      - "documentation/guides/bootstrap-new-context.md"
+    tags: ["documentation", "error-handling", "user-experience"]
+
+  # ========================================================================
+  # PHASE 2: NATS STREAM AUTOMATION (Day 1 Afternoon - Day 2 Morning)
+  # ========================================================================
+
+  - id: T2.1
+    phase: 2
+    title: "Design NATS Stream Configuration Format"
+    description: |
+      Design YAML or JSON configuration format for defining NATS streams.
+      Should be flexible enough for different contexts but provide sensible
+      defaults. Include all 7 standard streams discovered in Sprint 350.
+    priority: P0
+    estimate_hours: 0.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: []
+    deliverables:
+      - "Stream configuration schema (YAML or JSON)"
+      - "Default stream definitions file"
+      - "Documentation of configuration format"
+    acceptance_criteria:
+      - "Schema defines all required stream properties"
+      - "Default config includes 7 standard streams"
+      - "Configuration validates against schema"
+    files_to_create:
+      - "infrastructure/nats/streams-config.yaml"
+      - "infrastructure/nats/streams-schema.json (optional)"
+    example_config: |
+      streams:
+        - name: internal-mcp
+          subjects: ["internal.mcp.>"]
+          storage: file
+          retention: limits
+          max_age: 24h
+          replicas: 1
+    tags: ["nats", "configuration", "design"]
+
+  - id: T2.2
+    title: "Implement NATS Stream Initialization Script"
+    description: |
+      Create idempotent TypeScript script that reads stream configuration
+      and creates missing streams. Should detect existing streams and
+      only create what's missing. Logs actions taken.
+    priority: P0
+    estimate_hours: 2.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T2.1"]
+    deliverables:
+      - "Stream initialization script (TypeScript)"
+      - "Configuration loader"
+      - "Idempotency logic (check before create)"
+      - "Logging of actions"
+    acceptance_criteria:
+      - "Script creates all missing streams from config"
+      - "Running multiple times is safe (idempotent)"
+      - "Logs which streams created vs skipped"
+      - "Handles NATS connection errors gracefully"
+    files_to_create:
+      - "tools/init-nats-streams.ts"
+      - "tools/__tests__/init-nats-streams.test.ts"
+    dependencies_npm:
+      - "nats (already installed)"
+    validation:
+      - "Run script against empty NATS - creates all streams"
+      - "Run script again - skips existing streams"
+      - "Delete one stream, run script - recreates only that stream"
+    tests_required: true
+    tags: ["nats", "automation", "scripting"]
+
+  - id: T2.3
+    title: "Integrate Stream Init into brat docker up"
+    description: |
+      Add stream initialization to brat docker up workflow. Should run
+      after NATS healthcheck passes but before services start. Make
+      output visible to user.
+    priority: P1
+    estimate_hours: 1.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T2.2"]
+    deliverables:
+      - "Integration in docker.ts"
+      - "Healthcheck wait logic"
+      - "User-facing log output"
+    acceptance_criteria:
+      - "brat docker up runs stream init automatically"
+      - "Waits for NATS health before init"
+      - "User sees confirmation of stream creation"
+      - "Works for all contexts (local, agent-dev, staging, etc.)"
+    files_to_modify:
+      - "tools/brat/src/cli/docker.ts"
+      - "tools/brat/src/orchestration/docker/orchestrator.ts"
+    validation:
+      - "brat docker up --context agent-dev creates streams"
+      - "Streams exist before services start"
+      - "Output shows stream creation"
+    tests_required: true
+    tags: ["nats", "docker", "integration", "automation"]
+
+  # ========================================================================
+  # PHASE 3: BOOTSTRAP VALIDATION (Day 2 Morning)
+  # ========================================================================
+
+  - id: T3.1
+    phase: 3
+    title: "Design Validation Check Framework"
+    description: |
+      Design framework for validation checks that can be run independently
+      or as a suite. Each check returns pass/fail with actionable message.
+      Support for different severity levels (error vs warning).
+    priority: P1
+    estimate_hours: 0.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: []
+    deliverables:
+      - "Validation check interface/type"
+      - "Check registry/runner"
+      - "Severity levels (error, warning, info)"
+    acceptance_criteria:
+      - "Can register new checks easily"
+      - "Can run all checks or specific subset"
+      - "Results include actionable error messages"
+      - "Supports JSON output for CI"
+    files_to_create:
+      - "tools/brat/src/validation/check-framework.ts"
+    tags: ["validation", "framework", "design"]
+
+  - id: T3.2
+    title: "Implement Core Validation Checks"
+    description: |
+      Implement 7 core validation checks for context configuration:
+      1. .secure.{context} file exists
+      2. .env.brat exists and populated
+      3. .env.brat copied to subdirectories
+      4. BUS_PREFIX matches context name
+      5. Required secrets present
+      6. DATABASE_URL format valid
+      7. YAML files valid
+    priority: P1
+    estimate_hours: 2.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T3.1"]
+    deliverables:
+      - "7 validation check implementations"
+      - "Each with clear error messages"
+      - "Tests for each check"
+    acceptance_criteria:
+      - "All 7 checks implemented and working"
+      - "Error messages actionable (tell user what to fix)"
+      - "Checks handle edge cases (missing files, etc.)"
+      - "Tests cover pass and fail scenarios"
+    files_to_create:
+      - "tools/brat/src/validation/checks/secure-file.ts"
+      - "tools/brat/src/validation/checks/env-file.ts"
+      - "tools/brat/src/validation/checks/bus-prefix.ts"
+      - "tools/brat/src/validation/checks/secrets.ts"
+      - "tools/brat/src/validation/checks/database-url.ts"
+      - "tools/brat/src/validation/checks/yaml-files.ts"
+      - "tools/brat/src/validation/checks/__tests__/*.test.ts"
+    validation:
+      - "Each check passes on valid configuration"
+      - "Each check fails on invalid configuration with clear message"
+    tests_required: true
+    tags: ["validation", "checks", "testing"]
+
+  - id: T3.3
+    title: "Create brat context validate Command"
+    description: |
+      Create new CLI command 'brat context validate {context}' that runs
+      all validation checks and reports results. Support JSON output for
+      automation.
+    priority: P1
+    estimate_hours: 1.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T3.2"]
+    deliverables:
+      - "New validate subcommand in context.ts"
+      - "Pretty-printed output for terminal"
+      - "JSON output option (--json flag)"
+      - "Exit code 0 on success, non-zero on failure"
+    acceptance_criteria:
+      - "brat context validate agent-dev runs all checks"
+      - "Output clearly shows pass/fail for each check"
+      - "JSON output valid and parseable"
+      - "Exit code indicates overall success/failure"
+    files_to_modify:
+      - "tools/brat/src/cli/context.ts"
+    files_to_create:
+      - "tools/brat/src/cli/__tests__/validate.test.ts"
+    validation:
+      - "Command runs on valid context - all checks pass"
+      - "Command runs on invalid context - shows failures"
+      - "JSON output parseable by jq"
+    tests_required: true
+    tags: ["cli", "validation", "command"]
+
+  - id: T3.4
+    title: "Integrate Validation into brat docker up"
+    description: |
+      Add automatic validation to brat docker up workflow. Run validation
+      before starting containers. Fail fast if validation fails. Add
+      --no-validate flag to skip validation if needed.
+    priority: P1
+    estimate_hours: 0.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T3.3"]
+    deliverables:
+      - "Validation integrated into docker up"
+      - "Fail fast on validation errors"
+      - "--no-validate flag to skip"
+    acceptance_criteria:
+      - "brat docker up validates before starting containers"
+      - "Fails with clear error if validation fails"
+      - "--no-validate skips validation"
+      - "Validation warnings don't block startup"
+    files_to_modify:
+      - "tools/brat/src/cli/docker.ts"
+    validation:
+      - "docker up with valid config succeeds"
+      - "docker up with invalid config fails before containers start"
+      - "docker up --no-validate skips validation"
+    tests_required: true
+    tags: ["docker", "validation", "integration"]
+
+  # ========================================================================
+  # PHASE 4: .env.brat AUTOMATION (Day 2 Afternoon)
+  # ========================================================================
+
+  - id: T4.1
+    phase: 4
+    title: "Auto-Generate .env.brat in brat context create"
+    description: |
+      Update brat context create to automatically generate .env.brat by
+      merging YAML configs and .secure.* files. Copy to all required
+      subdirectories (root, docker-compose, services).
+    priority: P1
+    estimate_hours: 1.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T1.4"]
+    deliverables:
+      - "Auto-generation logic in context create"
+      - "YAML + secrets merging"
+      - "Automatic copying to subdirectories"
+      - "Validation of required variables"
+    acceptance_criteria:
+      - "brat context create test auto-generates .env.brat"
+      - ".env.brat contains all merged variables"
+      - ".env.brat copied to 3 locations automatically"
+      - "Validates all required variables present"
+    files_to_modify:
+      - "tools/brat/src/cli/context.ts"
+      - "tools/brat/src/orchestration/context-resolver.ts"
+    validation:
+      - "Create new context - .env.brat exists in all locations"
+      - ".env.brat contains correct merged values"
+      - "Missing required variables triggers error"
+    tests_required: true
+    tags: ["context-management", "automation", "env-files"]
+
+  - id: T4.2
+    title: "Create brat context refresh Command"
+    description: |
+      Create new command to regenerate .env.brat from current YAML configs
+      and .secure.* files. Useful after updating configuration. Validates
+      and copies to subdirectories.
+    priority: P2
+    estimate_hours: 1.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T4.1"]
+    deliverables:
+      - "New refresh subcommand"
+      - "Regeneration logic (reuse from T4.1)"
+      - "Validation and copying"
+    acceptance_criteria:
+      - "brat context refresh agent-dev regenerates .env.brat"
+      - "Picks up changes from YAML files"
+      - "Picks up changes from .secure.* files"
+      - "Re-copies to all subdirectories"
+    files_to_modify:
+      - "tools/brat/src/cli/context.ts"
+    validation:
+      - "Modify YAML config, run refresh, verify .env.brat updated"
+      - "Modify .secure.*, run refresh, verify .env.brat updated"
+    tests_required: true
+    tags: ["context-management", "automation", "command"]
+
+  # ========================================================================
+  # PHASE 5: DOCUMENTATION & TESTING (Day 3)
+  # ========================================================================
+
+  - id: T5.1
+    phase: 5
+    title: "Update Bootstrap Documentation"
+    description: |
+      Update bootstrap guide to reflect new automation in brat context create.
+      Document new validation command. Update troubleshooting guide with
+      new error messages.
+    priority: P1
+    estimate_hours: 1.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T1.4", "T2.3", "T3.3", "T4.1"]
+    deliverables:
+      - "Updated bootstrap guide"
+      - "Documented validation command"
+      - "Updated troubleshooting guide"
+    acceptance_criteria:
+      - "Documentation reflects new automation"
+      - "Clear step-by-step guide for new contexts"
+      - "Troubleshooting covers new error messages"
+    files_to_modify:
+      - "documentation/guides/bootstrap-new-context.md"
+      - "documentation/guides/troubleshooting.md"
+      - "README.md (if bootstrap mentioned)"
+    tags: ["documentation"]
+
+  - id: T5.2
+    title: "Create Service Configuration Requirements Matrix"
+    description: |
+      Document which services require which environment variables.
+      Create matrix showing minimum config for "core platform" vs
+      "full platform". Helps users understand what's needed.
+    priority: P1
+    estimate_hours: 1.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T1.1"]
+    deliverables:
+      - "Service configuration requirements matrix (Markdown table)"
+      - "Core vs full platform definitions"
+      - "Example configurations for common scenarios"
+    acceptance_criteria:
+      - "Matrix lists all 18 services"
+      - "Required vs optional env vars documented"
+      - "Core platform services clearly identified"
+    files_to_create:
+      - "documentation/reference/service-config-requirements.md"
+    tags: ["documentation", "reference"]
+
+  - id: T5.3
+    title: "End-to-End Bootstrap Test - Create test-sprint-351 Context"
+    description: |
+      Create brand new test context from scratch using all new automation.
+      Validate everything works end-to-end. Document any issues found.
+      Clean up test context after validation.
+    priority: P0
+    estimate_hours: 1.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T1.2", "T1.4", "T2.3", "T3.3", "T4.1"]
+    deliverables:
+      - "Test context created successfully"
+      - "Test report documenting validation results"
+      - "Any bugs found and fixed"
+      - "Test context cleaned up"
+    acceptance_criteria:
+      - "Can create new context with minimal manual steps"
+      - "BUS_PREFIX auto-populated correctly"
+      - ".env.brat auto-generated and copied"
+      - "Validation command passes"
+      - "All streams auto-created"
+      - "Core services start without errors"
+    procedure: |
+      1. brat context create test-sprint-351
+      2. Populate .secure.test-sprint-351 with test secrets
+      3. brat context validate test-sprint-351
+      4. brat docker up --context test-sprint-351
+      5. Verify services start
+      6. brat docker down --context test-sprint-351
+      7. Clean up env/test-sprint-351
+    validation:
+      - "All steps complete without manual intervention"
+      - "Validation passes"
+      - "Services operational"
+    tags: ["testing", "end-to-end", "validation"]
+
+  - id: T5.4
+    title: "Create Unit and Integration Tests"
+    description: |
+      Create comprehensive tests for new functionality:
+      - Context create logic (BUS_PREFIX, .env.brat generation)
+      - Stream initialization script
+      - Validation checks
+      - Integration tests for full workflows
+    priority: P2
+    estimate_hours: 1.5
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T1.4", "T2.2", "T3.2"]
+    deliverables:
+      - "Unit tests for context create"
+      - "Unit tests for stream init"
+      - "Unit tests for validation checks"
+      - "Integration tests for workflows"
+    acceptance_criteria:
+      - "Tests cover critical paths"
+      - "Tests run in CI"
+      - "Test coverage >80% for new code"
+    test_files:
+      - "tools/brat/src/cli/__tests__/context.test.ts"
+      - "tools/__tests__/init-nats-streams.test.ts"
+      - "tools/brat/src/validation/checks/__tests__/*.test.ts"
+    tags: ["testing", "unit-tests", "integration-tests"]
+
+  - id: T5.5
+    title: "Create Sprint Completion Documentation"
+    description: |
+      Document sprint completion with all deliverables, bugs fixed,
+      learnings, and recommendations for future work. Create retro
+      and key learnings documents.
+    priority: P1
+    estimate_hours: 1.0
+    status: TODO
+    assignee: "Lead Implementor"
+    dependencies: ["T5.3"]
+    deliverables:
+      - "sprint-completion.md"
+      - "retro.md"
+      - "key-learnings.md"
+    acceptance_criteria:
+      - "All deliverables documented"
+      - "All bugs fixed documented"
+      - "Learnings captured for future sprints"
+      - "Recommendations for Sprint 352+"
+    files_to_create:
+      - "planning/sprint-351-bootstrap-automation/sprint-completion.md"
+      - "planning/sprint-351-bootstrap-automation/retro.md"
+      - "planning/sprint-351-bootstrap-automation/key-learnings.md"
+    tags: ["documentation", "sprint-completion"]
+
+# ============================================================================
+# SUMMARY METRICS
+# ============================================================================
+
+summary:
+  total_tasks: 21
+  by_priority:
+    P0: 6  # Critical - must complete
+    P1: 10 # High - should complete
+    P2: 5  # Medium - nice to have
+    P3: 0  # Low - defer if needed
+  by_phase:
+    phase_1: 5  # Critical bug fixes
+    phase_2: 3  # NATS automation
+    phase_3: 4  # Validation
+    phase_4: 2  # .env.brat automation
+    phase_5: 5  # Documentation & testing
+    unphased: 2 # Support tasks
+  total_estimated_hours: 23.5
+  must_have_hours: 14.5  # P0 + P1 critical path
+  should_have_hours: 5.0  # P1 nice-to-have
+  nice_to_have_hours: 4.0 # P2
+
+timeline:
+  day_1:
+    morning: ["T1.1", "T1.2", "T1.4"]
+    afternoon: ["T1.3", "T1.5", "T2.1", "T2.2"]
+    estimated_hours: 6-8
+  day_2:
+    morning: ["T2.3", "T3.1", "T3.2"]
+    afternoon: ["T3.3", "T3.4", "T4.1"]
+    estimated_hours: 6-8
+  day_3:
+    morning: ["T4.2", "T5.1", "T5.2", "T5.3"]
+    afternoon: ["T5.4", "T5.5"]
+    estimated_hours: 4-6
+
+success_criteria_mapping:
+  must_have:
+    - "T1.1" # Audit compose files
+    - "T1.2" # Remove GOOGLE_APPLICATION_CREDENTIALS
+    - "T1.4" # Auto-populate BUS_PREFIX
+    - "T2.2" # Stream init script
+    - "T2.3" # Integrate into docker up
+    - "T3.3" # Validation command
+    - "T5.3" # End-to-end test
+  should_have:
+    - "T1.3" # CI check
+    - "T3.4" # Auto-validate in docker up
+    - "T4.1" # Auto-generate .env.brat
+    - "T5.1" # Documentation
+    - "T5.2" # Config matrix
+  nice_to_have:
+    - "T1.5" # DATABASE_URL docs
+    - "T4.2" # context refresh command
+    - "T5.4" # Tests
+    - "T5.5" # Sprint completion docs
+
+risks:
+  high:
+    - name: "Breaking existing contexts"
+      mitigation: "Test on agent-dev first, keep backward compatibility"
+      tasks_affected: ["T1.4", "T4.1"]
+    - name: "NATS stream timing issues"
+      mitigation: "Add retries, document manual fallback"
+      tasks_affected: ["T2.3"]
+  medium:
+    - name: "Incomplete service audit"
+      mitigation: "Automated scanning, thorough testing"
+      tasks_affected: ["T1.1", "T1.2"]
+    - name: "Validation too strict"
+      mitigation: "Warnings vs errors, --no-validate flag"
+      tasks_affected: ["T3.2", "T3.4"]

@@ -1,0 +1,2 @@
+# reflex service agent-dev configuration
+REFLEX_CACHE_POLL_INTERVAL_MS: 5000

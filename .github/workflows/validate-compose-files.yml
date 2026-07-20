@@ -1,0 +1,29 @@
+name: Validate Compose Files
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/docker-compose/services/*.yaml'
+      - 'infrastructure/docker-compose/services/*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/docker-compose/services/*.yaml'
+      - 'infrastructure/docker-compose/services/*.yml'
+
+jobs:
+  validate-no-firestore-deps:
+    name: Check for legacy Firestore dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Firestore dependency validation
+        run: bash tools/validate-no-firestore-deps.sh
+
+      - name: Report success
+        if: success()
+        run: echo "✅ All compose files are clean - no legacy Firestore dependencies found"

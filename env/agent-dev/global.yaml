@@ -13,4 +13,5 @@ POSTGRES_HOST: postgres
 POSTGRES_PORT: '5432'
 POSTGRES_DB: bitbrat
 POSTGRES_USER: bitbrat
-POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+POSTGRES_PASSWORD: bitbrat_dev_password
+DATABASE_URL: postgresql://bitbrat:bitbrat_dev_password@postgres:5432/bitbrat

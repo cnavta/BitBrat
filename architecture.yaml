@@ -4,7 +4,7 @@ description: >-
   Streamers. Uses Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.15.1
+  version: 0.15.2
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides
@@ -568,6 +568,7 @@ services:
       - twitch
       - discord
       - twilio
+      - slack
     stateful: false
     scaling_rationale: >-
       Owns singleton external connections; uses a per-instance egress topic
@@ -596,15 +597,12 @@ services:
       - TWILIO_API_SECRET
       - TWILIO_CHAT_SERVICE_SID
     env:
-      - TWITCH_BOT_USERNAME
-      - TWITCH_CHANNELS
       - PERSISTENCE_SNAPSHOT_MODE
       - PERSISTENCE_INCLUDE_RAW_PAYLOADS
       - PERSISTENCE_MAX_SNAPSHOT_BYTES
       - PERSISTENCE_TTL_DAYS
       - DISCORD_ENABLED
       - TWILIO_ENABLED
-      - K_REVISION
   auth:
     category: platform
     profile: gateway
