@@ -12,6 +12,7 @@ import * as yaml from 'js-yaml';
 import * as readline from 'readline';
 import { generateServiceConfigs, logGenerationResults } from '../../context/generate-service-configs';
 import { cmdSeed } from '../../cli/seed';
+import { cmdDocker } from '../../cli/docker';
 import { getActiveServicesArray } from '../../context/parse-services';
 import { getRequiredInfrastructure } from '../../context/parse-dependencies';
 import { generateAndWriteDockerCompose } from '../../context/generate-docker-compose';
@@ -79,6 +80,32 @@ export async function executeContextCreate(contextName: string, options: Context
 
     // Scaffold env directory and baseline files
     await scaffoldEnvironment(repoRoot, contextName, contextConfig);
+
+    // Sprint 352: Bring up Docker stack if docker-compose deployment
+    if (contextConfig.deployment.type === 'docker-compose') {
+      console.log();
+      console.log('Starting Docker Compose stack...');
+      console.log();
+
+      try {
+        await cmdDocker('up', { context: contextName, loki: false });
+
+        // Wait for PostgreSQL to be ready (if using PostgreSQL)
+        if (contextConfig.runtime.persistence?.driver === 'postgres') {
+          console.log();
+          console.log('Waiting for PostgreSQL to be ready...');
+          await waitForPostgres(30); // 30 second timeout
+          console.log('✅ PostgreSQL is ready');
+        }
+      } catch (error: any) {
+        console.error();
+        console.error('⚠️  Warning: Failed to start Docker stack');
+        console.error(`   ${error.message}`);
+        console.error();
+        console.error(`You can manually start the stack later with: brat docker up --context ${contextName}`);
+        console.error();
+      }
+    }
 
     // Sprint 352 S6.5: Auto-seed database if persistence is configured
     const shouldSeed = await promptForSeeding(contextConfig);
@@ -570,4 +597,38 @@ async function promptForSeeding(contextConfig: any): Promise<boolean> {
 
   // For cloud deployments, skip auto-seeding (user should seed manually after infrastructure is ready)
   return false;
+}
+
+/**
+ * Wait for PostgreSQL to be ready by attempting connections
+ *
+ * @param timeoutSeconds - Maximum time to wait in seconds
+ */
+async function waitForPostgres(timeoutSeconds: number): Promise<void> {
+  const { Pool } = await import('pg');
+  const startTime = Date.now();
+  const timeoutMs = timeoutSeconds * 1000;
+
+  while (Date.now() - startTime < timeoutMs) {
+    const pool = new Pool({
+      host: 'localhost',
+      port: 5432,
+      database: 'bitbrat',
+      user: 'bitbrat',
+      password: 'bitbrat_dev_password', // Default password for local dev
+      connectionTimeoutMillis: 2000,
+    });
+
+    try {
+      await pool.query('SELECT 1');
+      await pool.end();
+      return; // Success!
+    } catch (error) {
+      await pool.end();
+      // Wait 1 second before retry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  throw new Error(`PostgreSQL did not become ready within ${timeoutSeconds} seconds`);
 }
