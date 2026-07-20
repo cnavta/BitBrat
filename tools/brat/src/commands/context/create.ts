@@ -395,6 +395,7 @@ function generateGlobalYaml(contextName: string, contextConfig: any): string {
     // Message bus
     MESSAGE_BUS_DRIVER: 'nats', // Default to NATS (platform-agnostic)
     NATS_URL: 'nats://nats:4222',
+    BUS_PREFIX: `${contextName}.`, // Message namespace for multi-context isolation
 
     // Persistence
     PERSISTENCE_DRIVER: persistenceDriver,
