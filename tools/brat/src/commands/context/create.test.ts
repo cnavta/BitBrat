@@ -222,4 +222,88 @@ describe('brat context create', () => {
     expect(output).toContain('brat use test-success');
     expect(output).toContain('brat context ping test-success');
   });
+
+  it('scaffolds env directory and baseline files', async () => {
+    // Mock fs.existsSync to return false for env directory
+    mockFs.existsSync.mockImplementation((p: any) => {
+      if (p.includes('env/test-scaffold')) return false;
+      return true;
+    });
+
+    // Mock fs.mkdirSync
+    mockFs.mkdirSync.mockImplementation();
+
+    await executeContextCreate('test-scaffold', {
+      nonInteractive: true,
+      type: 'docker-compose',
+      dockerHost: 'unix:///var/run/docker.sock',
+      persistenceDriver: 'postgres',
+    });
+
+    // Should create env directory
+    expect(mockFs.mkdirSync).toHaveBeenCalledWith(
+      '/mock/repo/env/test-scaffold',
+      { recursive: true }
+    );
+
+    // Should write global.yaml
+    const globalYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('global.yaml')
+    );
+    expect(globalYamlCall).toBeDefined();
+    expect(globalYamlCall[0]).toBe('/mock/repo/env/test-scaffold/global.yaml');
+    expect(globalYamlCall[1]).toContain('NODE_ENV:');
+    expect(globalYamlCall[1]).toContain('PERSISTENCE_DRIVER: postgres');
+
+    // Should write infra.yaml
+    const infraYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('infra.yaml')
+    );
+    expect(infraYamlCall).toBeDefined();
+    expect(infraYamlCall[0]).toBe('/mock/repo/env/test-scaffold/infra.yaml');
+  });
+
+  it('generates postgres-specific config in global.yaml', async () => {
+    mockFs.existsSync.mockImplementation((p: any) => {
+      if (p.includes('env/test-pg')) return false;
+      return true;
+    });
+
+    await executeContextCreate('test-pg', {
+      nonInteractive: true,
+      persistenceDriver: 'postgres',
+      pgHost: 'db.example.com',
+      pgPort: 5432,
+      pgDatabase: 'testdb',
+      pgUsername: 'testuser',
+      pgPassword: 'testpass',
+    });
+
+    const globalYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('global.yaml')
+    );
+    expect(globalYamlCall[1]).toContain('DATABASE_URL: postgresql://testuser:testpass@db.example.com:5432/testdb');
+  });
+
+  it('generates cloud-run-specific config in global.yaml', async () => {
+    mockFs.existsSync.mockImplementation((p: any) => {
+      if (p.includes('env/test-gcp')) return false;
+      return true;
+    });
+
+    await executeContextCreate('test-gcp', {
+      nonInteractive: true,
+      type: 'cloud-run',
+      gcpProject: 'my-project',
+      gcpRegion: 'us-west1',
+      persistenceDriver: 'postgres',
+    });
+
+    const globalYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('global.yaml')
+    );
+    expect(globalYamlCall[1]).toContain('MESSAGE_BUS_DRIVER: pubsub');
+    expect(globalYamlCall[1]).toContain('GCP_PROJECT_ID: my-project');
+    expect(globalYamlCall[1]).toContain('GCP_REGION: us-west1');
+  });
 });
