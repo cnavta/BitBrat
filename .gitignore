@@ -19,6 +19,7 @@ node_modules/
 # Local secure configuration storage. NEVER COMMIT THIS FILE
 .secure.local
 .secure.local.*
+.secure.*
 # Local .terraform directories
 .terraform
 
