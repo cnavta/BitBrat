@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.15.0] - 2026-07-20
+### Added
 - **Sprint 349: Execution Contexts** - Unified environment configuration abstraction
   - `brat context list` - List all execution contexts with table/JSON output
   - `brat context show <name>` - Display context configuration with sensitive value redaction (--raw to show actual values)

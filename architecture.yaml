@@ -4,7 +4,7 @@ description: >-
   Streamers. Uses Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.14.4
+  version: 0.15.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides
