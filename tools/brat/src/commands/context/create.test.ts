@@ -24,6 +24,7 @@ describe('brat context create', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules(); // Clear module cache to prevent cross-test pollution
 
     // Mock process.cwd()
     jest.spyOn(process, 'cwd').mockReturnValue(mockRepoRoot);
