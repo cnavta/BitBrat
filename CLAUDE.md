@@ -138,6 +138,99 @@ npm run brat -- config show            # Display resolved platform config
 npm run brat -- config validate        # Validate architecture.yaml against schema
 ```
 
+### Execution Contexts
+**Sprint 349+**: Execution contexts unify environment configuration across deployment types (docker-compose, cloud-run) and runtime concerns (gateway, persistence, env overlays).
+
+```bash
+npm run brat -- context list                    # List all execution contexts
+npm run brat -- context show <name>             # Show full configuration (sensitive values redacted)
+npm run brat -- context show <name> --raw       # Show actual values (unredacted)
+npm run brat -- context create <name>           # Create new context (interactive wizard)
+npm run brat -- use <name>                      # Switch to a different context
+```
+
+**Context Management:**
+- **List contexts**: View all available execution contexts with deployment type, description, and tags
+- **Show context**: Display complete YAML configuration with auto-redaction of passwords/tokens
+- **Create context**: Interactive wizard or non-interactive mode with flags
+- **Switch context**: Update `~/.bratrc` to use a different context
+
+**Context Structure** (defined in `architecture.yaml`):
+```yaml
+executionContexts:
+  staging:
+    description: "Remote staging environment on bitbrat.lan"
+    deployment:
+      type: docker-compose              # docker-compose | cloud-run | k8s
+      docker:
+        host: ssh://root@bitbrat.lan    # unix:///var/run/docker.sock or ssh://user@host
+        remoteDir: /opt/BitBratPlatform
+    runtime:
+      gateway:
+        autoDiscover: true              # Auto-discover from docker ps
+        authToken: ${MCP_AUTH_TOKEN}    # Can use ${ENV_VAR} interpolation
+      persistence:
+        driver: postgres                # postgres (default) | firestore (legacy)
+        connection:
+          host: bitbrat.lan
+          port: 5432
+          database: bitbrat
+          username: bitbrat
+          password: ${POSTGRES_PASSWORD}
+      envOverlay:
+        path: env/staging
+        files: [global.yaml, infra.yaml, "{service}.yaml"]
+        secure: .secure.staging
+    tags: [staging, remote]
+```
+
+**Environment Scaffolding:**
+When you create a context, `brat context create` automatically scaffolds:
+- `env/<contextName>/` directory
+- `env/<contextName>/global.yaml` - Baseline environment variables (NODE_ENV, LOG_LEVEL, MESSAGE_BUS_DRIVER, PERSISTENCE_DRIVER)
+- `env/<contextName>/infra.yaml` - Infrastructure configuration (NATS, PostgreSQL, Firestore)
+
+**Priority Resolution:**
+1. `--context <name>` flag (highest priority)
+2. `BITBRAT_CONTEXT` environment variable
+3. `~/.bratrc` current context
+4. Default: `local`
+
+**Legacy Compatibility:**
+- Old `--env` and `--target` flags are deprecated (Sprint 349+)
+- Transparent mapping: `--env local` → `--context local`
+- 3-sprint deprecation period before removal
+
+**Examples:**
+```bash
+# Create a new production context
+brat context create prod --non-interactive \
+  --type cloud-run \
+  --gcp-project my-project \
+  --gcp-region us-central1 \
+  --persistence-driver postgres \
+  --pg-host cloudsql-instance
+
+# List all contexts
+brat context list
+# Output:
+# NAME      TYPE             DESCRIPTION                                 TAGS
+# ===================================================================================
+# * local   docker-compose   Local Docker development environment        development, local
+#   prod    cloud-run        Production environment on GCP               production, gcp
+#   staging docker-compose   Remote staging environment on bitbrat.lan   staging, remote
+
+# View context configuration (redacted)
+brat context show staging
+# Output shows YAML with passwords/tokens redacted: "bi********", "${********"
+
+# Switch context
+brat use staging
+
+# Run fleet command with staging context
+brat fleet list --context staging
+```
+
 ## Project Structure
 
 ```

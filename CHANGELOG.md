@@ -11,14 +11,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Sprint 349: Execution Contexts** - Unified environment configuration abstraction
+  - `brat context list` - List all execution contexts with table/JSON output
+  - `brat context show <name>` - Display context configuration with sensitive value redaction (--raw to show actual values)
+  - `brat context create <name>` - Interactive wizard + non-interactive mode with automatic env scaffolding
+  - Context management via `~/.bratrc` for persistent context switching
+  - Smart environment scaffolding: Auto-generates `env/<context>/global.yaml` and `infra.yaml` with platform-aware defaults
+  - ContextResolver: Auto-discovers gateway URLs, persistence connections, and deployment configuration
+  - PostgreSQL registry support for fleet commands (reads from `service_registry` table based on context)
+  - `--context` flag support across all commands (fleet, chat, deploy)
+  - Priority resolution: --context flag > BITBRAT_CONTEXT env var > ~/.bratrc > default 'local'
 
 ### Changed
+- **Fleet commands** now use execution contexts to determine persistence driver (postgres vs firestore)
+- **Chat command** now resolves gateway URL from execution context instead of hardcoded docker discovery
+- **Deployment commands** now read deployment configuration from execution context
+- Test suite enhanced with fs mocking to validate backward compatibility during transition period
 
 ### Deprecated
+- `--env` flag (use `--context` instead) - 3-sprint deprecation period with transparent mapping
+- `--target` flag for fleet commands (use execution context `persistence.driver` instead)
+- Legacy docker discovery in chat.ts (retained for backward compatibility, will be removed in Sprint 352)
 
 ### Removed
 
 ### Fixed
+- Fleet command no longer tries to connect to GCP Firestore when context specifies PostgreSQL
+- Chat tests timeout issues resolved with proper fs mocking
+- PostgreSQL connection string construction now uses correct schema format
 
 ### Security
 
