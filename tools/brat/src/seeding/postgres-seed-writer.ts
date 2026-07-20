@@ -207,15 +207,16 @@ async function seedRoutingRules(client: any, seedData: SeedDataSet): Promise<voi
  */
 async function seedReflexes(client: any, seedData: SeedDataSet): Promise<void> {
   for (const reflex of seedData.reflexes) {
+    // Store the reflex data as-is (camelCase fields preserved for TypeScript consumption)
     const data = {
-      trigger_pattern: reflex.triggerPattern,
-      match_type: reflex.matchType,
-      case_sensitive: reflex.caseSensitive,
-      response_template: reflex.responseTemplate,
-      response_type: reflex.responseType,
-      enabled: reflex.enabled,
+      name: reflex.name,
+      tags: reflex.tags,
+      match: reflex.match,
+      active: reflex.active,
       priority: reflex.priority,
+      conditions: reflex.conditions,
       description: reflex.description,
+      candidateTemplate: reflex.candidateTemplate,
     };
 
     await client.query(

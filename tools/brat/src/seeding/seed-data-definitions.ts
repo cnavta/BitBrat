@@ -149,14 +149,22 @@ function getInitialReflexes() {
   return [
     {
       id: 'ping-reflex',
-      triggerPattern: '!ping',
-      matchType: 'exact' as const,
-      caseSensitive: false,
-      responseTemplate: 'pong!',
-      responseType: 'text' as const,
-      enabled: true,
-      priority: 100,
-      description: 'Simple ping/pong reflex for testing system responsiveness',
+      name: 'Chat !ping responder',
+      tags: ['chat-command', 'ping', 'twitch'],
+      match: {
+        type: 'exact' as const,
+        field: 'message.text',
+        pattern: '!ping',
+        caseSensitive: false,
+      },
+      active: true,
+      priority: 50,
+      conditions: {
+        eventTypes: ['chat.message.v1'],
+        minAuthLevel: 0,
+      },
+      description: "Responds with 'Pong!' when a Twitch chat message is exactly '!ping'.",
+      candidateTemplate: 'Pong!',
     },
   ];
 }

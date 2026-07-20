@@ -27,14 +27,22 @@ export interface SeedRoutingRule {
  */
 export interface SeedReflex {
   id: string;
-  triggerPattern: string;
-  matchType: 'exact' | 'regex' | 'contains';
-  caseSensitive: boolean;
-  responseTemplate: string;
-  responseType: 'text' | 'json';
-  enabled: boolean;
+  name: string;
+  tags: string[];
+  match: {
+    type: 'exact' | 'regex' | 'contains';
+    field: string;
+    pattern: string;
+    caseSensitive: boolean;
+  };
+  active: boolean;
   priority: number;
+  conditions: {
+    eventTypes: string[];
+    minAuthLevel: number;
+  };
   description: string;
+  candidateTemplate: string;
 }
 
 /**
