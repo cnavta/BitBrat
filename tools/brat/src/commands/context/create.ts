@@ -508,12 +508,13 @@ function generateGlobalYaml(contextName: string, contextConfig: any): string {
     if (conn) {
       config.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
     } else {
-      // Auto-discover defaults
+      // Auto-discover defaults for docker-compose deployments
       config.POSTGRES_HOST = 'postgres';
       config.POSTGRES_PORT = '5432';
       config.POSTGRES_DB = 'bitbrat';
       config.POSTGRES_USER = 'bitbrat';
-      config.POSTGRES_PASSWORD = '${POSTGRES_PASSWORD}';
+      config.POSTGRES_PASSWORD = 'bitbrat_dev_password'; // Default for local dev
+      config.DATABASE_URL = `postgresql://bitbrat:bitbrat_dev_password@postgres:5432/bitbrat`;
     }
   }
 
