@@ -230,10 +230,10 @@ function getInitialPersonalities(botName: string) {
     {
       id: botName.toLowerCase(),
       name: botName,
-      instructions: `You are ${botName}, a helpful AI assistant.`,
-      description: `Default personality for ${botName}`,
+      text: `You are ${botName}, a helpful AI assistant.`,
       status: 'active' as const,
       version: 1,
+      tags: ['default', 'assistant'],
     },
   ];
 }
@@ -289,8 +289,8 @@ function getInitialApiTokens(providedToken?: string) {
 
   return [
     {
-      uid: 'brat-admin',
-      description: 'Initial admin token for chat',
+      userId: 'brat-admin',
+      description: 'Initial admin token for BitBrat CLI',
       token,
       tokenHash,
     },

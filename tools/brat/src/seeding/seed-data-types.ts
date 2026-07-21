@@ -62,10 +62,12 @@ export interface SeedReflex {
 export interface SeedPersonality {
   id: string;
   name: string;
-  instructions: string;
-  description: string;
-  status: 'active' | 'inactive';
+  text: string; // Full personality/identity prompt text
+  status: 'active' | 'inactive' | 'archived';
   version: number;
+  tags?: string[]; // Array of tags for categorization
+  platform?: string; // Optional platform override (openai, ollama, vllm)
+  model?: string; // Optional model override (gpt-4o, llama3, etc.)
 }
 
 /**
@@ -85,7 +87,7 @@ export interface SeedContextPack {
  * API token seed data
  */
 export interface SeedApiToken {
-  uid: string;
+  userId: string; // User ID who owns this token
   description: string;
   token: string; // Plain text token (will be hashed for storage)
   tokenHash: string; // SHA-256 hash

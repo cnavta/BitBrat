@@ -222,11 +222,14 @@ async function seedPersonalities(
       docRef,
       {
         name: personality.name,
-        text: personality.instructions, // Firestore uses 'text' instead of 'instructions'
-        description: personality.description,
+        text: personality.text,
         status: personality.status,
         version: personality.version,
+        tags: personality.tags || [],
+        platform: personality.platform,
+        model: personality.model,
         createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
@@ -269,15 +272,16 @@ async function seedApiTokens(
   batch: FirebaseFirestore.WriteBatch
 ): Promise<void> {
   for (const token of seedData.apiTokens) {
-    // Use token_hash as document ID for consistency with PostgreSQL
+    // Use tokenHash as document ID for consistency with PostgreSQL
     const docRef = firestore.collection('gateways/api/tokens').doc(token.tokenHash);
     batch.set(
       docRef,
       {
-        token_hash: token.tokenHash,
-        uid: token.uid,
+        tokenHash: token.tokenHash,
+        userId: token.userId,
         description: token.description,
         createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );

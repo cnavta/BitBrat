@@ -235,12 +235,15 @@ async function seedReflexes(client: any, seedData: SeedDataSet): Promise<void> {
  */
 async function seedPersonalities(client: any, seedData: SeedDataSet): Promise<void> {
   for (const personality of seedData.personalities) {
+    // Store the personality data as-is (camelCase fields preserved for TypeScript consumption)
     const data = {
       name: personality.name,
-      instructions: personality.instructions,
-      description: personality.description,
+      text: personality.text,
       status: personality.status,
       version: personality.version,
+      tags: personality.tags || [],
+      platform: personality.platform,
+      model: personality.model,
     };
 
     await client.query(
@@ -284,9 +287,10 @@ async function seedContextPacks(client: any, seedData: SeedDataSet): Promise<voi
  */
 async function seedApiTokens(client: any, seedData: SeedDataSet): Promise<void> {
   for (const token of seedData.apiTokens) {
+    // Store the API token data as-is (camelCase fields preserved for TypeScript consumption)
     const data = {
-      token_hash: token.tokenHash,
-      uid: token.uid,
+      tokenHash: token.tokenHash,
+      userId: token.userId,
       description: token.description,
     };
 
