@@ -1,0 +1,639 @@
+# Sprint 353: PostgreSQL Default Persistence - Trackable YAML Backlog
+
+sprint:
+  id: 353
+  name: "PostgreSQL Default Persistence"
+  branch: "feature/postgres-default-sprint"
+  start_date: "2026-07-21"
+  estimated_duration_days: 3
+  lead: "Claude Code"
+  objective: |
+    Systematically ensure PostgreSQL is the default persistence layer throughout the BitBrat codebase,
+    eliminating all instances where Firestore is assumed or defaulted to when no explicit persistence
+    driver is specified.
+
+phases:
+  - id: phase-1
+    name: "Critical Infrastructure Fixes"
+    priority: P0
+    tasks:
+      - id: task-1-1
+        name: "Fix Docker Orchestrator Default"
+        priority: P0
+        status: completed
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: low
+        estimated_hours: 1
+        actual_hours: 0.5
+        completed_date: "2026-07-21"
+        files:
+          - path: "tools/brat/src/orchestration/docker/orchestrator.ts"
+            lines: [365, 366]
+            change_type: "modification"
+        description: |
+          Change default persistence driver from 'firestore' to 'postgres' in Docker orchestrator.
+          This is the MOST CRITICAL issue - affects all fresh docker-compose deployments.
+        acceptance_criteria:
+          - Docker orchestrator logs show "Skipping GCP credentials sync" for default config
+          - Services connect to PostgreSQL successfully without PERSISTENCE_DRIVER set
+          - No Firestore errors in logs with default config
+        testing:
+          - command: "BITBRAT_CONTEXT=staging brat docker up"
+            expected: "PostgreSQL used, no GCP credential sync"
+          - command: "docker logs bitbrat-staging-ingress-egress-1"
+            expected: "No Firestore errors"
+        dependencies: []
+        blocks: []
+
+      - id: task-1-2
+        name: "Fix Base Server Resource Initialization Order"
+        priority: P0
+        status: completed
+        assignee: "Lead Implementor"
+        complexity: medium
+        risk: medium
+        estimated_hours: 2
+        actual_hours: 1.5
+        completed_date: "2026-07-21"
+        files:
+          - path: "src/common/base-server.ts"
+            lines: [651, 658]
+            change_type: "modification"
+        description: |
+          Refactor base server resource manager to conditionally initialize
+          PostgreSQL DocumentStore OR Firestore based on PERSISTENCE_DRIVER,
+          defaulting to PostgreSQL. Currently always initializes Firestore first.
+        acceptance_criteria:
+          - Default behavior (no env var) initializes DocumentStore only
+          - Firestore is ONLY initialized when PERSISTENCE_DRIVER=firestore
+          - Invalid driver values throw clear error
+          - All existing services continue to work
+        testing:
+          - command: "npm test src/common/base-server.test.ts"
+            expected: "All tests pass"
+          - manual: "Start all services without PERSISTENCE_DRIVER set"
+            expected: "Only document_store.init logs, no firestore.init logs"
+        dependencies: []
+        blocks: [task-3-1, task-5-1]
+
+      - id: task-1-3
+        name: "Fix PostgreSQL Init Schema Drift (Missing sources Table)"
+        priority: P0
+        status: completed
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: low
+        estimated_hours: 0.5
+        actual_hours: 0.25
+        completed_date: "2026-07-21"
+        files:
+          - path: "infrastructure/postgres/init/02-create-tables.sql"
+            lines: [292, 321]
+            change_type: "addition"
+        description: |
+          Add sources table definition to PostgreSQL init script. The table was
+          added in migration 012-add-sources-table.sql but never backported to
+          the init script, causing fresh PostgreSQL deployments to fail with
+          "relation 'sources' does not exist" errors.
+        root_cause: |
+          Schema drift between init/ and migrations/. Init scripts run only on
+          first container creation, but sources table was added later via migration.
+          Fresh staging deployment had init scripts but not migrations applied.
+        acceptance_criteria:
+          - sources table created in fresh PostgreSQL deployments
+          - Init script includes all current schema (base + migrations)
+          - No "relation 'sources' does not exist" errors
+          - Staging environment works with fresh database
+        testing:
+          - manual: "Drop postgres volume and recreate"
+            expected: "sources table exists on first startup"
+          - command: "docker exec bitbrat-postgres-1 psql -U bitbrat -d bitbrat -c '\\d sources'"
+            expected: "Table definition shown"
+        dependencies: []
+        blocks: []
+
+  - id: phase-2
+    name: "Factory Comment Updates"
+    priority: P1
+    tasks:
+      - id: task-2-1
+        name: "Update 'Default to Firestore' Comments"
+        priority: P1
+        status: completed
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: none
+        estimated_hours: 1
+        actual_hours: 0.5
+        completed_date: "2026-07-21"
+        files:
+          - path: "src/services/scheduler/repository.ts"
+            lines: [310]
+            change_type: "comment"
+          - path: "src/services/reflex/reflex-repository.ts"
+            lines: [740]
+            change_type: "comment"
+          - path: "src/services/firestore-token-store.ts"
+            lines: [179]
+            change_type: "comment"
+          - path: "src/services/oauth/auth-token-store.ts"
+            lines: [205]
+            change_type: "comment"
+          - path: "src/services/auth/gateway-token-store.ts"
+            lines: [273]
+            change_type: "comment"
+          - path: "src/services/llm-bot/user-context.ts"
+            lines: [144]
+            change_type: "comment"
+          - path: "src/services/router/rule-loader.ts"
+            lines: [392]
+            change_type: "comment"
+          - path: "src/apps/state-engine-repository.ts"
+            lines: [283]
+            change_type: "comment"
+          - path: "src/apps/disposition-service.ts"
+            lines: [131]
+            change_type: "comment"
+          - path: "src/services/api-gateway/auth.ts"
+            lines: [151]
+            change_type: "comment"
+          - path: "src/services/query-analyzer/llm-provider.ts"
+            lines: [136]
+            change_type: "comment"
+          - path: "src/apps/context-pack-service.ts"
+            lines: [165]
+            change_type: "comment"
+          - path: "src/common/context/vector-repository.ts"
+            lines: [159]
+            change_type: "comment"
+          - path: "src/common/mcp/observability.ts"
+            lines: [100]
+            change_type: "comment"
+          - path: "src/services/persistence/repository.ts"
+            lines: [313]
+            change_type: "comment"
+          - path: "src/services/story-engine/repository.ts"
+            lines: [219]
+            change_type: "comment"
+          - path: "src/services/stream-analyst/repository.ts"
+            lines: [219]
+            change_type: "comment"
+        description: |
+          Update all misleading "Default to Firestore" comments to accurately
+          reflect that Firestore is a legacy fallback, not the default.
+        pattern: |
+          // BEFORE: Default to Firestore
+          // AFTER: Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
+        acceptance_criteria:
+          - All 11 files updated
+          - No "Default to Firestore" comments in active code
+          - Comments accurately reflect Firestore as legacy fallback
+        testing:
+          - command: "git grep 'Default to Firestore' src/"
+            expected: "No matches (only 'Fallback to Firestore')"
+        dependencies: []
+        blocks: []
+
+  - id: phase-3
+    name: "Handle Incomplete PostgreSQL Implementations"
+    priority: P1
+    tasks:
+      - id: task-3-1
+        name: "Implement PostgreSQL Adapter for User Context"
+        priority: P1
+        status: completed
+        assignee: "Lead Implementor"
+        complexity: medium
+        risk: medium
+        estimated_hours: 4
+        actual_hours: 0.25
+        completed_date: "2026-07-21"
+        files:
+          - path: "src/services/llm-bot/user-context.ts"
+            lines: [131, 144]
+            change_type: "addition"
+          - path: "src/services/llm-bot/__tests__/user-context-postgres.spec.ts"
+            lines: []
+            change_type: "new_file"
+        description: |
+          Implement DocumentStoreUserContextStore class to support PostgreSQL
+          persistence for user context. Currently throws error when
+          PERSISTENCE_DRIVER=postgres without DocumentStore.
+        implementation:
+          - Add DocumentStoreUserContextStore class
+          - Implement get/set/delete using IDocumentStore interface
+          - Update createUserContextStore factory to auto-detect
+          - Add integration tests
+        acceptance_criteria:
+          - User context CRUD operations work with PostgreSQL
+          - LLM bot starts successfully with default config
+          - Integration tests pass for both Firestore and PostgreSQL
+          - No data loss during migration
+        testing:
+          - file: "src/services/llm-bot/__tests__/user-context-postgres.spec.ts"
+            coverage: ["CRUD operations", "migration", "error handling"]
+        dependencies: [task-1-2]
+        blocks: []
+
+      - id: task-3-2
+        name: "Add Graceful Fallback for Incomplete Implementations"
+        priority: P2
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: low
+        risk: low
+        estimated_hours: 2
+        files:
+          - path: "src/services/story-engine/repository.ts"
+            lines: [214]
+            change_type: "modification"
+          - path: "src/services/stream-analyst/repository.ts"
+            lines: [214]
+            change_type: "modification"
+          - path: "src/services/query-analyzer/llm-provider.ts"
+            lines: [131]
+            change_type: "modification"
+          - path: "src/services/persistence/repository.ts"
+            lines: [308]
+            change_type: "modification"
+          - path: "documentation/migrations/postgres-migration-gaps.md"
+            lines: []
+            change_type: "new_file"
+        description: |
+          Add graceful fallback warnings for services without PostgreSQL
+          implementations. Create tracking documentation and GitHub issues.
+        pattern: |
+          console.warn(
+            `[xxx-repository] PostgreSQL persistence not yet implemented. ` +
+            `Falling back to Firestore. Track implementation: https://github.com/.../issues/XXX`
+          );
+        deliverables:
+          - Graceful fallback code in 4 files
+          - postgres-migration-gaps.md documentation
+          - 4 GitHub issues created and linked
+        acceptance_criteria:
+          - Services start successfully with default config (no crashes)
+          - Clear warnings logged when fallback occurs
+          - Tracking documentation created
+          - GitHub issues created and referenced in code
+        testing:
+          - manual: "Start each service with PERSISTENCE_DRIVER unset"
+            expected: "Warning logged, service starts successfully"
+        dependencies: []
+        blocks: []
+
+  - id: phase-4
+    name: "Documentation Updates"
+    priority: P1
+    tasks:
+      - id: task-4-1
+        name: "Update High-Impact User Documentation"
+        priority: P1
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: medium
+        risk: low
+        estimated_hours: 2
+        files:
+          - path: "documentation/getting-started/quickstart.md"
+            change_type: "modification"
+          - path: "documentation/getting-started/evaluating-bitbrat.md"
+            change_type: "modification"
+          - path: "documentation/guides/seed-data.md"
+            change_type: "modification"
+          - path: "documentation/guides/backup-and-migration.md"
+            change_type: "modification"
+        description: |
+          Update user-facing documentation to reflect PostgreSQL as default
+          and Firestore as legacy. Critical for new user onboarding.
+        changes:
+          - Replace "default Firestore" with "default PostgreSQL"
+          - Add "Firestore (legacy)" qualifiers
+          - Update environment variable examples
+          - Prioritize PostgreSQL in setup instructions
+        acceptance_criteria:
+          - All "default Firestore" references removed
+          - PostgreSQL described as default/recommended
+          - Firestore marked as legacy/deprecated
+          - Setup instructions work with default config
+        testing:
+          - manual: "Follow quickstart guide with default config"
+            expected: "Successful setup without Firestore"
+        dependencies: [task-1-1, task-1-2]
+        blocks: []
+
+      - id: task-4-2
+        name: "Add Deprecation Notices to Firestore-Specific Docs"
+        priority: P2
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: low
+        risk: none
+        estimated_hours: 1
+        files:
+          - path: "documentation/reference/twitch-token-storage-firestore.md"
+            change_type: "banner_addition"
+          - path: "documentation/reference/firestore-oauth-token-storage.md"
+            change_type: "banner_addition"
+          - path: "documentation/migrations/*.md"
+            change_type: "banner_addition"
+            count: 10
+        description: |
+          Add standard deprecation banners to all Firestore-specific
+          documentation files.
+        banner_template: |
+          > **DEPRECATED - LEGACY BACKEND**
+          >
+          > This document describes Firestore which is **legacy** and supported for existing deployments only.
+          >
+          > **Default:** BitBrat now uses PostgreSQL (platform-agnostic). See [PostgreSQL Migration Guide](../guides/postgres-migration.md).
+        acceptance_criteria:
+          - All Firestore-specific docs have deprecation banner
+          - Migration path clearly documented
+          - Links to PostgreSQL guides provided
+        testing:
+          - command: "git grep -l 'Firestore' documentation/ | wc -l"
+            expected: "All Firestore docs have deprecation notice"
+        dependencies: []
+        blocks: []
+
+  - id: phase-5
+    name: "Test Coverage"
+    priority: P1
+    tasks:
+      - id: task-5-1
+        name: "Add Integration Tests for Default Behavior"
+        priority: P1
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: medium
+        risk: low
+        estimated_hours: 2
+        files:
+          - path: "src/common/persistence/factory.test.ts"
+            lines: []
+            change_type: "new_file"
+          - path: "tools/brat/src/orchestration/docker/orchestrator.default.spec.ts"
+            lines: []
+            change_type: "new_file"
+        description: |
+          Create integration tests that validate PostgreSQL is used by default
+          when PERSISTENCE_DRIVER is not set.
+        test_cases:
+          factory:
+            - "createDocumentStore() defaults to PostgreSQL"
+            - "createDocumentStore() uses PostgreSQL when PERSISTENCE_DRIVER=postgres"
+            - "createDocumentStore() uses Firestore when PERSISTENCE_DRIVER=firestore"
+          orchestrator:
+            - "Docker orchestrator defaults to postgres for GCP check"
+            - "Docker orchestrator skips GCP credentials with default config"
+            - "Docker orchestrator syncs GCP credentials when PERSISTENCE_DRIVER=firestore"
+        acceptance_criteria:
+          - Tests pass with default configuration
+          - Tests verify PostgreSQL used when no env var
+          - Tests verify Firestore used when explicitly set
+          - CI includes these tests
+        testing:
+          - command: "npm test src/common/persistence/factory.test.ts"
+            expected: "All tests pass"
+          - command: "npm test tools/brat/src/orchestration/docker/orchestrator.default.spec.ts"
+            expected: "All tests pass"
+        dependencies: [task-1-2]
+        blocks: []
+
+      - id: task-5-2
+        name: "Update Existing Integration Tests"
+        priority: P2
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: medium
+        risk: medium
+        estimated_hours: 2
+        files:
+          - path: "src/**/*.spec.ts"
+            change_type: "modification"
+            pattern: "Add explicit PERSISTENCE_DRIVER setting"
+          - path: "src/**/*.test.ts"
+            change_type: "modification"
+            pattern: "Add explicit PERSISTENCE_DRIVER setting"
+        description: |
+          Update existing integration tests to explicitly set PERSISTENCE_DRIVER
+          for both PostgreSQL and Firestore test cases.
+        pattern: |
+          describe('MyService with PostgreSQL', () => {
+            beforeEach(() => {
+              process.env.PERSISTENCE_DRIVER = 'postgres';
+            });
+            // ... tests
+          });
+
+          describe('MyService with Firestore (legacy)', () => {
+            beforeEach(() => {
+              process.env.PERSISTENCE_DRIVER = 'firestore';
+            });
+            // ... tests
+          });
+        acceptance_criteria:
+          - All integration tests explicitly set PERSISTENCE_DRIVER
+          - Tests cover both PostgreSQL and Firestore paths
+          - No test relies on implicit defaults
+        testing:
+          - command: "npm test"
+            expected: "All tests pass"
+        dependencies: []
+        blocks: []
+
+  - id: phase-6
+    name: "Validation & Cleanup"
+    priority: P0
+    tasks:
+      - id: task-6-1
+        name: "End-to-End Validation"
+        priority: P0
+        status: completed
+        assignee: "Lead Implementor"
+        complexity: high
+        risk: high
+        estimated_hours: 2
+        actual_hours: 0.5
+        completed_date: "2026-07-21"
+        files: []
+        description: |
+          Comprehensive E2E validation of all changes before merging.
+          This is the final gate before sprint completion.
+        validation_checklist:
+          fresh_installation:
+            - command: "git clone && npm install && npm run build"
+              expected: "Successful build"
+            - command: "npm run brat -- setup"
+              expected: "Setup uses PostgreSQL by default"
+            - command: "npm run brat -- docker up"
+              expected: "Services start successfully"
+            verification:
+              - "No Firestore errors in logs"
+              - "PostgreSQL connections successful"
+              - "No GCP credentials required"
+          explicit_firestore:
+            - command: "PERSISTENCE_DRIVER=firestore brat docker up"
+              expected: "Firestore used, GCP credentials synced"
+          service_health:
+            - command: "BITBRAT_CONTEXT=staging brat fleet list"
+              expected: "All services healthy"
+          migration:
+            - "Data migration tools work"
+            - "Rollback path exists"
+            - "Documentation is clear"
+        acceptance_criteria:
+          - All validation tests pass
+          - Fresh installation works with defaults
+          - Firestore path works when explicitly set
+          - Migration path documented and tested
+        dependencies: [task-1-1, task-1-2, task-3-1, task-4-1, task-5-1]
+        blocks: [task-6-2]
+
+      - id: task-6-2
+        name: "Create Sprint Completion Artifacts"
+        priority: P2
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: low
+        risk: none
+        estimated_hours: 1
+        files:
+          - path: "planning/sprint-353-postgres-default/verification-report.md"
+            change_type: "new_file"
+          - path: "documentation/migrations/postgres-migration-gaps.md"
+            change_type: "new_file"
+          - path: "planning/sprint-353-postgres-default/retro.md"
+            change_type: "new_file"
+        description: |
+          Create final sprint artifacts documenting completion status,
+          gaps, and retrospective.
+        deliverables:
+          verification_report:
+            - List all tasks completed
+            - Document deferred items
+            - Include test results
+            - Link to PRs/commits
+          migration_gaps:
+            - List incomplete PostgreSQL implementations
+            - Link to tracking issues
+            - Provide migration timeline
+            - Document workarounds
+          retrospective:
+            - What went well
+            - What didn't go well
+            - Key learnings
+            - Process improvements
+        acceptance_criteria:
+          - All artifacts created and committed
+          - Documentation reflects current state
+          - Future work clearly tracked
+        dependencies: [task-6-1]
+        blocks: []
+
+metrics:
+  estimated_total_hours: 20
+  critical_tasks: 3
+  high_priority_tasks: 6
+  medium_priority_tasks: 3
+  low_priority_tasks: 2
+  files_to_modify: 28
+  new_files_to_create: 5
+  tests_to_add: 8
+
+success_criteria:
+  quantitative:
+    - metric: "Zero 'Default to Firestore' comments in active code"
+      target: 0
+      current: 11
+    - metric: "Factory functions defaulting to PostgreSQL"
+      target: 100
+      unit: "percent"
+    - metric: "Services starting with default config"
+      target: 100
+      unit: "percent"
+    - metric: "Firestore errors in default setup"
+      target: 0
+    - metric: "Test coverage for default behavior"
+      target: 95
+      unit: "percent"
+  qualitative:
+    - "Fresh installation experience is smooth"
+    - "Documentation is clear and accurate"
+    - "Developer mental model aligns with implementation"
+    - "Firestore migration path is well-documented"
+
+risks:
+  high:
+    - id: risk-1
+      description: "Base server changes break all services"
+      mitigation: "Comprehensive testing, gradual rollout"
+      contingency: "Git revert + redeploy"
+    - id: risk-2
+      description: "User context data loss"
+      mitigation: "Integration tests, migration script, backup"
+      contingency: "Restore from backup, revert to Firestore"
+  medium:
+    - id: risk-3
+      description: "Existing deployments break"
+      mitigation: "Environment configs already set PERSISTENCE_DRIVER"
+      contingency: "Update env configs to explicitly set firestore"
+
+dependencies_external:
+  - name: "PostgreSQL database"
+    status: "available"
+    notes: "Local or remote instance required"
+  - name: "Docker Compose"
+    status: "available"
+    notes: "For testing"
+  - name: "NATS message bus"
+    status: "available"
+    notes: "For testing"
+
+rollback_plan:
+  trigger_conditions:
+    - ">50% of services fail to start with default config"
+    - "Critical data loss or corruption"
+    - "Breaking changes in production"
+  steps:
+    - "Revert all code changes via git revert"
+    - "Explicitly set PERSISTENCE_DRIVER=firestore in all env configs"
+    - "Update documentation to reflect 'Firestore is default (temporary)'"
+    - "Create post-mortem document"
+    - "Re-plan sprint with smaller scope"
+
+timeline:
+  day_1:
+    focus: "Critical Fixes"
+    tasks: [task-1-1, task-1-2, task-2-1]
+    hours: 4
+    deliverables:
+      - "Docker orchestrator defaults to postgres"
+      - "Base server conditionally initializes persistence"
+      - "All misleading comments updated"
+  day_2:
+    focus: "PostgreSQL Implementations"
+    tasks: [task-3-1, task-3-2]
+    hours: 6
+    deliverables:
+      - "User context supports PostgreSQL"
+      - "Graceful fallback warnings added"
+      - "Migration gaps documented"
+  day_3:
+    focus: "Documentation & Validation"
+    tasks: [task-4-1, task-4-2, task-5-1, task-6-1, task-6-2]
+    hours: 8
+    deliverables:
+      - "User documentation updated"
+      - "Integration tests added"
+      - "E2E validation complete"
+      - "Sprint artifacts created"
+
+notes:
+  - "This sprint builds on Sprint 343 (PostgreSQL Migration) and Sprint 344 (PostgreSQL Default)"
+  - "Focus is on systematic cleanup of Firestore assumptions, not new functionality"
+  - "All changes must maintain backward compatibility with explicit PERSISTENCE_DRIVER=firestore"
+  - "Documentation updates are critical - many users rely on outdated docs"
+  - "Test coverage is essential - we're changing fundamental defaults"
