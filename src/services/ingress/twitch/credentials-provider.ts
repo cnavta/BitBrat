@@ -9,7 +9,6 @@
  */
 
 import type { IConfig, TwitchTokenData, ITokenStore } from '../../../types';
-import { FirestoreTokenStore } from '../../firestore-token-store';
 
 export interface TwitchChatAuth {
   accessToken: string; // OAuth access token for IRC-capable identity (bot or broadcaster)
@@ -117,9 +116,12 @@ export class FirestoreTwitchCredentialsProvider implements ITwitchCredentialsPro
   private botUserId?: string;
   private broadcasterUserId?: string;
 
-  constructor(private readonly cfg: IConfig, store?: ITokenStore) {
-    this.store = store || new FirestoreTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot');
-    this.broadcasterStore = new FirestoreTokenStore('oauth/twitch/broadcaster');
+  constructor(private readonly cfg: IConfig, store?: ITokenStore, broadcasterStore?: ITokenStore) {
+    // Use factory function instead of direct FirestoreTokenStore instantiation
+    // This allows the factory to select PostgresTokenStore when PERSISTENCE_DRIVER=postgres
+    const { createTokenStore } = require('../../firestore-token-store');
+    this.store = store || createTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot');
+    this.broadcasterStore = broadcasterStore || createTokenStore('oauth/twitch/broadcaster');
     this.loginHint = cfg.twitchBotUsername;
   }
 
