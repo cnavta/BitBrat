@@ -63,7 +63,7 @@ export function createDocumentStore(): IDocumentStore {
  * Get current persistence driver name
  */
 export function getPersistenceDriver(): 'postgres' | 'firestore' {
-  return (process.env.PERSISTENCE_DRIVER as any) || 'firestore';
+  return (process.env.PERSISTENCE_DRIVER as any) || 'postgres';
 }
 
 /**

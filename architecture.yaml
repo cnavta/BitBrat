@@ -1077,51 +1077,7 @@ executionContexts:
     tags:
       - staging
       - remote
-  ec-test:
-    deployment:
-      type: docker-compose
-      docker:
-        host: unix:///var/run/docker.sock
-    runtime:
-      gateway:
-        autoDiscover: true
-        fallbackPort: 3004
-        authToken: ${MCP_AUTH_TOKEN}
-      persistence:
-        driver: postgres
-        autoDiscover: true
-      envOverlay:
-        path: env/ec-test
-        files:
-          - global.yaml
-          - infra.yaml
-          - '{service}.yaml'
-        secure: .secure.ec-test
-    description: EC Creation Test
-    tags:
-      - ectest
-      - ephemeral
-deploymentTargets:
-  local:
-    type: docker-engine
-    host: unix:///var/run/docker.sock
-    env: local
-  staging:
-    type: docker-engine
-    host: ssh://root@bitbrat.lan
-    env: staging
-    remoteDir: /opt/BitBratPlatform
-    maxConcurrent: 3
-    gateway:
-      url: http://bitbrat.lan:3002
-      authToken: ${MCP_AUTH_TOKEN}
-    persistence:
-      driver: postgres
-      host: bitbrat.lan
-      port: 5432
-      database: bitbrat
-      username: bitbrat
-      password: bitbrat_dev_password
+
 networking:
   cloud_nat:
     enabled: false
