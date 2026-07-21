@@ -1,16 +1,17 @@
 import { FirestoreTwitchCredentialsProvider } from '../credentials-provider';
 import { IConfig } from '../../../../types';
 
-// Mock FirestoreTokenStore
+// Mock FirestoreTokenStore and createTokenStore
 jest.mock('../../../firestore-token-store', () => {
+  const mockTokenStore = (path: string) => ({
+    path,
+    getToken: jest.fn(),
+    setToken: jest.fn(),
+  });
+
   return {
-    FirestoreTokenStore: jest.fn().mockImplementation((path: string) => {
-      return {
-        path,
-        getToken: jest.fn(),
-        setToken: jest.fn(),
-      };
-    }),
+    FirestoreTokenStore: jest.fn().mockImplementation(mockTokenStore),
+    createTokenStore: jest.fn().mockImplementation(mockTokenStore),
   };
 });
 
