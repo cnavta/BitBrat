@@ -94,8 +94,12 @@ function resolveLbBaseUrl(): string | null {
 }
 
 function computeRedirectUri(cfg: IConfig, req: import('express').Request, basePath: string): string {
-  // Explicit override wins fully (treat as complete callback URL)
-  if (cfg.twitchRedirectUri) return cfg.twitchRedirectUri;
+  // Explicit override - treat as base URL and append basePath
+  if (cfg.twitchRedirectUri) {
+    // Remove trailing slash from base URL to avoid double slashes
+    const baseUrl = cfg.twitchRedirectUri.replace(/\/$/, '');
+    return `${baseUrl}${basePath}/callback`;
+  }
   // Prefer architecture.yaml load balancer default domain when available
   const lbBase = resolveLbBaseUrl();
   if (lbBase) return `${lbBase}${basePath}/callback`;
