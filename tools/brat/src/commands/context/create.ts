@@ -10,6 +10,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import * as readline from 'readline';
+import { generateServiceConfigs, logGenerationResults } from '../../context/generate-service-configs';
+import { cmdSeed } from '../../cli/seed';
+import { cmdDocker } from '../../cli/docker';
+import { getActiveServicesArray } from '../../context/parse-services';
+import { getRequiredInfrastructure } from '../../context/parse-dependencies';
+import { generateAndWriteDockerCompose } from '../../context/generate-docker-compose';
 
 export interface ContextCreateOptions {
   /** Non-interactive mode with all values from flags */
@@ -75,6 +81,74 @@ export async function executeContextCreate(contextName: string, options: Context
     // Scaffold env directory and baseline files
     await scaffoldEnvironment(repoRoot, contextName, contextConfig);
 
+    // Sprint 352: Bring up Docker stack if docker-compose deployment
+    if (contextConfig.deployment.type === 'docker-compose') {
+      console.log();
+      console.log('Starting Docker Compose stack...');
+      console.log();
+
+      try {
+        await cmdDocker('up', { context: contextName, loki: false });
+
+        // Wait for PostgreSQL to be ready (if using PostgreSQL)
+        if (contextConfig.runtime.persistence?.driver === 'postgres') {
+          console.log();
+          console.log('Waiting for PostgreSQL to be ready...');
+          await waitForPostgres(30); // 30 second timeout
+          console.log('✅ PostgreSQL is ready');
+        }
+      } catch (error: any) {
+        console.error();
+        console.error('⚠️  Warning: Failed to start Docker stack');
+        console.error(`   ${error.message}`);
+        console.error();
+        console.error(`You can manually start the stack later with: brat docker up --context ${contextName}`);
+        console.error();
+      }
+    }
+
+    // Sprint 352 S6.5: Auto-seed database if persistence is configured
+    const shouldSeed = await promptForSeeding(contextConfig);
+
+    if (shouldSeed) {
+      console.log();
+      console.log('Seeding database with initial data...');
+      console.log();
+
+      // Set DATABASE_URL for seeding on host machine
+      // (cmdSeed runs on host, not in Docker, so it needs host-accessible connection)
+      if (contextConfig.runtime.persistence?.driver === 'postgres') {
+        const conn = contextConfig.runtime.persistence.connection;
+        if (conn) {
+          // Explicit connection provided
+          process.env.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
+        } else {
+          // Auto-discover mode - use localhost since we're seeding from host
+          process.env.DATABASE_URL = 'postgresql://bitbrat:bitbrat_dev_password@localhost:5432/bitbrat';
+        }
+      }
+
+      try {
+        const seedFlags = {
+          context: contextName,
+          botName: 'BitBrat', // Default, user can customize later
+          dryRun: false,
+          wipe: false,
+          apiToken: undefined,
+          json: false,
+        };
+
+        await cmdSeed({}, seedFlags);
+      } catch (error: any) {
+        console.error();
+        console.error('⚠️  Warning: Database seeding failed');
+        console.error(`   ${error.message}`);
+        console.error();
+        console.error('You can manually seed later with: brat seed');
+        console.error();
+      }
+    }
+
     console.log();
     console.log(`✅ Context '${contextName}' created successfully`);
     console.log();
@@ -82,12 +156,19 @@ export async function executeContextCreate(contextName: string, options: Context
     console.log(`  - architecture.yaml: executionContexts.${contextName}`);
     console.log(`  - env/${contextName}/global.yaml`);
     console.log(`  - env/${contextName}/infra.yaml`);
+    console.log(`  - env/${contextName}/<service>.yaml (18 service configs generated)`);
+    if (shouldSeed) {
+      console.log(`  - Database: Seeded with routing rules, reflexes, personalities`);
+    }
     console.log();
     console.log('Next steps:');
     console.log(`  - Review: brat context show ${contextName}`);
+    console.log(`  - Validate: brat context validate ${contextName}`);
     console.log(`  - Customize: Edit env/${contextName}/*.yaml files`);
+    if (!shouldSeed) {
+      console.log(`  - Seed: brat seed (populate database with initial data)`);
+    }
     console.log(`  - Switch: brat use ${contextName}`);
-    console.log(`  - Test:   brat context ping ${contextName}`);
 
   } catch (error: any) {
     console.error(`Error creating context: ${error.message}`);
@@ -357,6 +438,7 @@ async function writeContextToArchitecture(repoRoot: string, contextName: string,
 
 /**
  * Scaffold environment directory and baseline files
+ * Sprint 352: Now also generates service-specific YAML files
  */
 async function scaffoldEnvironment(repoRoot: string, contextName: string, contextConfig: any): Promise<void> {
   const envDir = path.join(repoRoot, 'env', contextName);
@@ -373,6 +455,38 @@ async function scaffoldEnvironment(repoRoot: string, contextName: string, contex
   // Create infra.yaml with baseline defaults
   const infraYaml = generateInfraYaml(contextName, contextConfig);
   fs.writeFileSync(path.join(envDir, 'infra.yaml'), infraYaml, 'utf8');
+
+  // Sprint 352: Generate service-specific YAML files
+  console.log();
+  console.log('Generating service-specific configuration files...');
+  const results = generateServiceConfigs({
+    repoRoot,
+    contextName,
+    contextType: contextConfig.deployment.type,
+    force: false,
+    dryRun: false,
+  });
+  logGenerationResults(results);
+
+  // Sprint 352 Epic 2: Generate Docker Compose file for docker-compose contexts
+  if (contextConfig.deployment.type === 'docker-compose') {
+    console.log();
+    console.log('Generating Docker Compose configuration...');
+
+    const activeServices = getActiveServicesArray(repoRoot);
+    const infrastructure = getRequiredInfrastructure(repoRoot, activeServices);
+
+    const composePath = generateAndWriteDockerCompose({
+      repoRoot,
+      contextName,
+      activeServices,
+      infrastructure,
+    });
+
+    console.log(`   Generated: ${composePath}`);
+    console.log(`   Services: ${activeServices.length} application services`);
+    console.log(`   Infrastructure: ${Array.from(infrastructure).join(', ')}`);
+  }
 }
 
 /**
@@ -399,6 +513,10 @@ function generateGlobalYaml(contextName: string, contextConfig: any): string {
 
     // Persistence
     PERSISTENCE_DRIVER: persistenceDriver,
+    PERSISTENCE_SNAPSHOT_MODE: 'all',
+    PERSISTENCE_INCLUDE_RAW_PAYLOADS: true,
+    PERSISTENCE_MAX_SNAPSHOT_BYTES: 1048576, // 1MB
+    PERSISTENCE_TTL_DAYS: 7,
   };
 
   // Add postgres-specific config
@@ -407,12 +525,13 @@ function generateGlobalYaml(contextName: string, contextConfig: any): string {
     if (conn) {
       config.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
     } else {
-      // Auto-discover defaults
+      // Auto-discover defaults for docker-compose deployments
       config.POSTGRES_HOST = 'postgres';
       config.POSTGRES_PORT = '5432';
       config.POSTGRES_DB = 'bitbrat';
       config.POSTGRES_USER = 'bitbrat';
-      config.POSTGRES_PASSWORD = '${POSTGRES_PASSWORD}';
+      config.POSTGRES_PASSWORD = 'bitbrat_dev_password'; // Default for local dev
+      config.DATABASE_URL = `postgresql://bitbrat:bitbrat_dev_password@postgres:5432/bitbrat`;
     }
   }
 
@@ -472,4 +591,62 @@ function generateInfraYaml(contextName: string, contextConfig: any): string {
 # Customize as needed for your infrastructure
 
 ${content}`;
+}
+
+/**
+ * Determine whether to seed the database
+ * Sprint 352 S6.5: Auto-detect persistence and prompt/auto-seed
+ *
+ * @param contextConfig - Context configuration
+ * @returns True if database should be seeded
+ */
+async function promptForSeeding(contextConfig: any): Promise<boolean> {
+  const persistenceDriver = contextConfig.runtime?.persistence?.driver;
+
+  // Only seed if persistence is configured
+  if (!persistenceDriver) {
+    return false;
+  }
+
+  // For docker-compose contexts with postgres/firestore, auto-seed
+  if (contextConfig.deployment.type === 'docker-compose') {
+    return true;
+  }
+
+  // For cloud deployments, skip auto-seeding (user should seed manually after infrastructure is ready)
+  return false;
+}
+
+/**
+ * Wait for PostgreSQL to be ready by attempting connections
+ *
+ * @param timeoutSeconds - Maximum time to wait in seconds
+ */
+async function waitForPostgres(timeoutSeconds: number): Promise<void> {
+  const { Pool } = await import('pg');
+  const startTime = Date.now();
+  const timeoutMs = timeoutSeconds * 1000;
+
+  while (Date.now() - startTime < timeoutMs) {
+    const pool = new Pool({
+      host: 'localhost',
+      port: 5432,
+      database: 'bitbrat',
+      user: 'bitbrat',
+      password: 'bitbrat_dev_password', // Default password for local dev
+      connectionTimeoutMillis: 2000,
+    });
+
+    try {
+      await pool.query('SELECT 1');
+      await pool.end();
+      return; // Success!
+    } catch (error) {
+      await pool.end();
+      // Wait 1 second before retry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  throw new Error(`PostgreSQL did not become ready within ${timeoutSeconds} seconds`);
 }

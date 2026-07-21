@@ -26,6 +26,7 @@ import { cmdBackup } from './backup';
 import { cmdMigrate } from './migrate';
 import { cmdPgBackup, cmdPgRestore } from './pg-backup';
 import { cmdDbValidate } from './db-validate';
+import { cmdSeed, printSeedHelp } from './seed';
 
 const RUN_ID = deriveTag();
 const log = createLogger({ base: { runId: RUN_ID, component: 'brat' } });
@@ -188,6 +189,9 @@ Usage:
   brat backup export [--project-id <id> | --target <name>] [--out <path>] [--collections a,b] [--include-secrets] [--pretty] [--json]
   brat backup import --in <path> [--project-id <id> | --target <name>] [--mode merge|overwrite|skip] [--collections a,b] [--include-secrets] [--dry-run] [--confirm] [--json]
       # import is DRY-RUN by default; pass --confirm to write. --target <local|staging> targets a docker-stack Firestore emulator.
+
+  # Database seeding (populate initial data for routing, reflexes, personalities)
+  brat seed [--context <name>] [--bot-name <name>] [--dry-run] [--wipe] [--json]
 
   # Database migration (Firestore → PostgreSQL)
   brat migrate collection <name> [--dry-run] [--json]
@@ -1133,6 +1137,23 @@ Options:
   }
   if (c1 === 'migrate') {
     await cmdMigrate(cmd, { json: flags.json, dryRun: flags.dryRun }, rest, log);
+    return;
+  }
+  if (c1 === 'seed') {
+    if (rest.includes('--help') || rest.includes('-h')) {
+      printSeedHelp();
+      return;
+    }
+    const m = parseKeyValueFlags(rest);
+    const seedFlags = {
+      context: m['context'] || flags.context || flags.env,
+      botName: m['bot-name'] || m['botName'],
+      dryRun: rest.includes('--dry-run') || flags.dryRun,
+      wipe: rest.includes('--wipe'),
+      apiToken: m['api-token'] || m['apiToken'],
+      json: flags.json,
+    };
+    await cmdSeed({}, seedFlags);
     return;
   }
   if (c1 === 'pg:backup') {

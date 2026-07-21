@@ -35,12 +35,14 @@ export class AuthServer extends Bit {
       res.status(200).json({ counters: counters.snapshot() });
     });
 
-    // Get Firestore or DocumentStore for persistence
-    // When PERSISTENCE_DRIVER=postgres, Firestore may not be available
-    const db = this.getResource<Firestore>('firestore') || this.getResource<any>('documentStore');
+    // Get persistence backend - prioritize documentStore (PostgreSQL) over firestore
+    // When PERSISTENCE_DRIVER=postgres, Firestore resource will not be available
+    const db = this.getResource<any>('documentStore') || this.getResource<Firestore>('firestore');
 
     // Use factory to create UserRepo - automatically selects backend based on PERSISTENCE_DRIVER
-    this.userRepo = createUserRepo('users', db);
+    // For PostgreSQL: use 'auth_users' table, for Firestore: use 'users' collection
+    const collectionName = db && 'query' in db ? 'auth_users' : 'users';
+    this.userRepo = createUserRepo(collectionName, db);
 
     // Use factory to create GatewayTokenStore - automatically selects backend based on PERSISTENCE_DRIVER
     this.gatewayTokenStore = createGatewayTokenStore(db);

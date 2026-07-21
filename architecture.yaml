@@ -4,7 +4,7 @@ description: >-
   Streamers. Uses Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.15.2
+  version: 0.16.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides
@@ -1077,51 +1077,7 @@ executionContexts:
     tags:
       - staging
       - remote
-  agent-dev:
-    deployment:
-      type: docker-compose
-      docker:
-        host: unix:///var/run/docker.sock
-    runtime:
-      gateway:
-        autoDiscover: true
-        fallbackPort: 3004
-        authToken: jklfdasiuiopjkl;fdasjklhdfjuldsafds
-      persistence:
-        driver: postgres
-        autoDiscover: true
-      envOverlay:
-        path: env/agent-dev
-        files:
-          - global.yaml
-          - infra.yaml
-          - '{service}.yaml'
-        secure: .secure.agent-dev
-    description: Dedicated coding agent environment for development and testing.
-    tags:
-      - agent
-      - dev
-deploymentTargets:
-  local:
-    type: docker-engine
-    host: unix:///var/run/docker.sock
-    env: local
-  staging:
-    type: docker-engine
-    host: ssh://root@bitbrat.lan
-    env: staging
-    remoteDir: /opt/BitBratPlatform
-    maxConcurrent: 3
-    gateway:
-      url: http://bitbrat.lan:3002
-      authToken: ${MCP_AUTH_TOKEN}
-    persistence:
-      driver: postgres
-      host: bitbrat.lan
-      port: 5432
-      database: bitbrat
-      username: bitbrat
-      password: bitbrat_dev_password
+
 networking:
   cloud_nat:
     enabled: false
