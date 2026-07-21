@@ -13,13 +13,24 @@ export interface SeedRoutingRule {
   enabled: boolean;
   priority: number;
   description: string;
-  logic: any; // JsonLogic expression
-  routingSlip: Array<{
-    service: string;
-    topic: string;
-  }>;
-  stage: string;
-  enrichments?: any; // Optional enrichments object
+  logic: string; // JsonLogic expression as JSON string
+  routing: {
+    slip: Array<{
+      v: string;
+      id: string;
+      nextTopic: string;
+      attributes: Record<string, any>;
+      maxAttempts: number;
+    }>;
+    stage: string;
+  };
+  enrichments?: {
+    annotations: Array<{
+      id: string;
+      kind: string;
+      value: string;
+    }>;
+  };
 }
 
 /**

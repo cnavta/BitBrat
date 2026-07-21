@@ -181,13 +181,13 @@ async function wipeExistingData(client: any): Promise<void> {
  */
 async function seedRoutingRules(client: any, seedData: SeedDataSet): Promise<void> {
   for (const rule of seedData.routingRules) {
+    // Store the routing rule data as-is (camelCase fields preserved for TypeScript consumption)
     const data = {
       enabled: rule.enabled,
       priority: rule.priority,
       description: rule.description,
-      logic: rule.logic,
-      routingSlip: rule.routingSlip,
-      stage: rule.stage,
+      logic: rule.logic, // Already a JSON string from seed data
+      routing: rule.routing,
       enrichments: rule.enrichments || null,
     };
 

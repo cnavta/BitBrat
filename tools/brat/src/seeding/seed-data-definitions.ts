@@ -38,32 +38,63 @@ function getInitialRoutingRules(botName: string) {
       enabled: true,
       priority: 100,
       description: 'Route initial events to auth, reflex, query-analysis, and event-router for contextualization stage',
-      logic: { '==': [{ var: 'routing.stage' }, 'initial'] },
-      routingSlip: [
-        { service: 'auth', topic: 'internal.auth.v1' },
-        { service: 'reflex', topic: 'internal.reflex.v1' },
-        { service: 'query-analysis', topic: 'internal.query.analysis.v1' },
-        { service: 'event-router', topic: 'internal.enriched.v1' },
-      ],
-      stage: 'contextualization',
+      logic: JSON.stringify({ '==': [{ var: 'routing.stage' }, 'initial'] }),
+      routing: {
+        slip: [
+          {
+            v: '1',
+            id: 'auth',
+            nextTopic: 'internal.auth.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
+          {
+            v: '1',
+            id: 'reflex',
+            nextTopic: 'internal.reflex.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
+          {
+            v: '1',
+            id: 'query-analysis',
+            nextTopic: 'internal.query.analysis.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
+          {
+            v: '1',
+            id: 'event-router',
+            nextTopic: 'internal.enriched.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
+        ],
+        stage: 'contextualization',
+      },
     },
 
     // 2. Bot Mention Reaction
     {
       id: 'contextualization-reaction-bot',
       enabled: true,
-      priority: 50,
-      description: 'Route bot mentions to LLM bot',
-      logic: {
-        and: [
-          { '==': [{ var: 'routing.stage' }, 'contextualization'] },
-          { text_contains: [{ var: 'message.text' }, botName, true] },
+      priority: 10,
+      description: `${botName} Bot mention`,
+      logic: JSON.stringify({
+        text_contains: [{ var: 'message.text' }, `@${botName}`, true],
+      }),
+      routing: {
+        slip: [
+          {
+            v: '1',
+            id: 'llm-bot',
+            nextTopic: 'internal.llmbot.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
         ],
+        stage: 'initial',
       },
-      routingSlip: [
-        { service: 'llm-bot', topic: 'internal.llmbot.v1' },
-      ],
-      stage: 'reaction',
       enrichments: {
         annotations: [
           {
@@ -86,17 +117,31 @@ function getInitialRoutingRules(botName: string) {
       enabled: true,
       priority: 40,
       description: 'Route !adventure commands to story engine and LLM bot',
-      logic: {
+      logic: JSON.stringify({
         and: [
           { '==': [{ var: 'routing.stage' }, 'contextualization'] },
           { re_test: [{ var: 'message.text' }, '^!adventure', 'i'] },
         ],
+      }),
+      routing: {
+        slip: [
+          {
+            v: '1',
+            id: 'story-engine',
+            nextTopic: 'internal.story.enrich.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
+          {
+            v: '1',
+            id: 'llm-bot',
+            nextTopic: 'internal.llmbot.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
+        ],
+        stage: 'reaction',
       },
-      routingSlip: [
-        { service: 'story-engine', topic: 'internal.story.enrich.v1' },
-        { service: 'llm-bot', topic: 'internal.llmbot.v1' },
-      ],
-      stage: 'reaction',
       enrichments: {
         annotations: [
           {
@@ -119,16 +164,24 @@ function getInitialRoutingRules(botName: string) {
       enabled: true,
       priority: 100,
       description: 'Create a Chuck Norris Joke for the user',
-      logic: {
+      logic: JSON.stringify({
         and: [
           { '==': [{ var: 'routing.stage' }, 'contextualization'] },
           { re_test: [{ var: 'message.text' }, '^cnj', 'i'] },
         ],
+      }),
+      routing: {
+        slip: [
+          {
+            v: '1',
+            id: 'llm-bot',
+            nextTopic: 'internal.llmbot.v1',
+            attributes: { origin: 'event-router' },
+            maxAttempts: 3,
+          },
+        ],
+        stage: 'reaction',
       },
-      routingSlip: [
-        { service: 'llm-bot', topic: 'internal.llmbot.v1' },
-      ],
-      stage: 'reaction',
       enrichments: {
         annotations: [
           {
