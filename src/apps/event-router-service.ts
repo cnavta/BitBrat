@@ -192,7 +192,60 @@ class EventRouterServer extends Bit {
   }
 
   private registerAdminTools() {
+    // Get documentStore (PostgreSQL) or fallback to Firestore (legacy)
+    const documentStore = this.getResource<any>('documentStore');
     const db = this.getResource<Firestore>('firestore');
+    const backend = documentStore || db;
+    const isFirestore = db && typeof db.collection === 'function';
+
+    // Helper functions for backend-agnostic rule operations
+    const listRules = async () => {
+      if (isFirestore) {
+        const snap = await db!.collection('configs/routingRules/rules').get();
+        return snap.docs.map((doc: any) => ({
+          id: doc.id,
+          description: doc.data().description,
+          priority: doc.data().priority,
+          enabled: doc.data().enabled,
+        }));
+      } else {
+        const records = await documentStore.query('routing_rules', {});
+        return records.map((r: any) => ({
+          id: r.id,
+          description: r.description,
+          priority: r.priority,
+          enabled: r.enabled,
+        }));
+      }
+    };
+
+    const getRule = async (id: string) => {
+      if (isFirestore) {
+        const doc = await db!.collection('configs/routingRules/rules').doc(id).get();
+        if (!doc.exists) return null;
+        return { id: doc.id, ...doc.data() };
+      } else {
+        return await documentStore.get('routing_rules', id);
+      }
+    };
+
+    const createRule = async (ruleDoc: any) => {
+      if (isFirestore) {
+        const res = await db!.collection('configs/routingRules/rules').add({
+          ...ruleDoc,
+          createdAt: new Date().toISOString(),
+        });
+        return res.id;
+      } else {
+        const id = `rule_${Date.now()}`;
+        await documentStore.set('routing_rules', id, {
+          ...ruleDoc,
+          id,
+          createdAt: new Date().toISOString(),
+        });
+        return id;
+      }
+    };
 
     // Just-in-Time Context Provisioning (sprint-328, P0/P1): contribute the JsonLogic guide pack
     // (generated from jsonlogic-evaluator.ts) + the shared schema pack, expose the guide as an MCP
@@ -212,22 +265,16 @@ class EventRouterServer extends Bit {
     // --- list_rules ---
     this.registerTool(
       'list_rules',
-      'List all active routing rules stored in Firestore.',
+      'List all active routing rules.',
       z.object({}),
       async () => {
-        if (!db) {
+        if (!backend) {
           return {
-            content: [{ type: 'text', text: 'Firestore not available' }],
+            content: [{ type: 'text', text: 'Persistence backend not available' }],
             isError: true,
           };
         }
-        const snap = await db.collection('configs/routingRules/rules').get();
-        const rules = snap.docs.map(doc => ({
-          id: doc.id,
-          description: doc.data().description,
-          priority: doc.data().priority,
-          enabled: doc.data().enabled,
-        }));
+        const rules = await listRules();
         return { content: [{ type: 'text', text: JSON.stringify(rules, null, 2) }] };
       }
     );
@@ -240,20 +287,20 @@ class EventRouterServer extends Bit {
         id: z.string().describe('The ID of the rule to retrieve.'),
       }),
       async ({ id }) => {
-        if (!db) {
+        if (!backend) {
           return {
-            content: [{ type: 'text', text: 'Firestore not available' }],
+            content: [{ type: 'text', text: 'Persistence backend not available' }],
             isError: true,
           };
         }
-        const doc = await db.collection('configs/routingRules/rules').doc(id).get();
-        if (!doc.exists) {
+        const rule = await getRule(id);
+        if (!rule) {
           return {
             content: [{ type: 'text', text: `Rule ${id} not found` }],
             isError: true,
           };
         }
-        return { content: [{ type: 'text', text: JSON.stringify({ id: doc.id, ...doc.data() }, null, 2) }] };
+        return { content: [{ type: 'text', text: JSON.stringify(rule, null, 2) }] };
       }
     );
 
@@ -276,22 +323,19 @@ class EventRouterServer extends Bit {
         }).optional().describe('A key-value pair for a custom annotation.'),
       }),
       async (params) => {
-        if (!db) {
+        if (!backend) {
           return {
-            content: [{ type: 'text', text: 'Firestore not available' }],
+            content: [{ type: 'text', text: 'Persistence backend not available' }],
             isError: true,
           };
         }
         try {
           const ruleDoc = RuleMapper.mapToRuleDoc(params);
-          const res = await db.collection('configs/routingRules/rules').add({
-            ...ruleDoc,
-            createdAt: new Date().toISOString(),
-          });
+          const ruleId = await createRule(ruleDoc);
           return {
             content: [{
               type: 'text',
-              text: `Successfully created rule ${res.id}`,
+              text: `Successfully created rule ${ruleId}`,
             }],
           };
         } catch (e: any) {

@@ -60,7 +60,10 @@ export class FirestoreContextPackStore implements IContextPackStore {
   private collectionName: string;
 
   constructor(db?: FirebaseFirestore.Firestore, collectionName = 'context_packs') {
-    this.db = db || getFirestore();
+    if (!db) {
+      throw new Error('FirestoreContextPackStore requires a Firestore instance');
+    }
+    this.db = db;
     this.collectionName = collectionName;
   }
 
@@ -162,7 +165,7 @@ export function createContextPackStore(
     return new InMemoryContextPackStore();
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreContextPackStore(undefined, collectionOrTable || 'context_packs');
 }
 
@@ -193,29 +196,24 @@ export class ContextPackServer extends Bit {
   constructor(store?: IContextPackStore) {
     super({ mcpExposure: 'platform-only' });
 
-    // Use provided store or create based on PERSISTENCE_DRIVER
+    // Use provided store or create based on available resources
     if (store) {
       this.contextPackStore = store;
     } else {
-      const driver = process.env.PERSISTENCE_DRIVER;
-      if (driver === 'postgres' || driver === 'postgresql') {
-        const docStore = createDocumentStore();
-        this.contextPackStore = createContextPackStore(docStore);
-      } else {
-        let firestore = this.getResource<any>('firestore');
+      // Get documentStore (PostgreSQL) or fallback to Firestore (legacy)
+      let documentStore = this.getResource<any>('documentStore') || this.getResource<any>('firestore');
 
-        // If no resource available, try getFirestore() for test environments
-        if (!firestore) {
-          try {
-            const { getFirestore } = require('../common/firebase');
-            firestore = getFirestore();
-          } catch (err) {
-            // Ignore - will fall back to in-memory store
-          }
+      // If no resource available, try getFirestore() for test environments
+      if (!documentStore) {
+        try {
+          const { getFirestore } = require('../common/firebase');
+          documentStore = getFirestore();
+        } catch (err) {
+          // Ignore - will fall back to in-memory store
         }
-
-        this.contextPackStore = createContextPackStore(firestore);
       }
+
+      this.contextPackStore = createContextPackStore(documentStore);
     }
   }
 
