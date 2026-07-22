@@ -476,6 +476,70 @@ Firebase emulator will no longer start, saving ~500MB RAM.
 
 ---
 
+## Creating Additional Environments
+
+The pattern used for `env/local` can be replicated for other environments (staging, production, etc.).
+
+### Example: Create Staging Environment
+
+1. **Create staging directory**:
+   ```bash
+   mkdir -p env/staging
+   ```
+
+2. **Copy local configs as template**:
+   ```bash
+   cp env/local/global.yaml env/staging/global.yaml
+   cp env/local/.secure.local.example env/staging/.secure.staging.example
+   ```
+
+3. **Update staging-specific values**:
+   ```bash
+   # Edit env/staging/global.yaml
+   NODE_ENV: production
+   LOG_LEVEL: info  # Less verbose than local
+   COMPOSE_PROJECT_NAME: bitbrat-staging
+   BUS_PREFIX: staging.
+
+   # Keep using environment variable interpolation
+   DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/bitbrat"
+   ```
+
+4. **Create `.secure.staging`** (copy from `.secure.staging.example`):
+   ```bash
+   cp env/staging/.secure.staging.example env/staging/.secure.staging
+   # Edit and add your staging credentials (use different passwords than local!)
+   ```
+
+5. **Add to .git/info/exclude** (keep staging config private):
+   ```bash
+   echo "/env/staging/" >> .git/info/exclude
+   ```
+
+6. **Register in architecture.yaml** (if using execution contexts):
+   ```yaml
+   executionContexts:
+     staging:
+       description: "Staging environment"
+       deployment:
+         type: docker-compose
+         docker:
+           host: ssh://user@staging-host
+       runtime:
+         envOverlay:
+           path: env/staging
+           files: [global.yaml, infra.yaml, "{service}.yaml"]
+           secure: .secure.staging
+   ```
+
+**Security Best Practices for Additional Environments:**
+- ✅ Use **environment variable interpolation** for all credentials (never hardcode)
+- ✅ Use **different credentials** per environment (isolation)
+- ✅ Keep `.secure.*` files **gitignored** (never commit)
+- ✅ Use **strong passwords** in staging/production (not dev defaults)
+
+---
+
 ## Next Steps
 
 **Learn Core Concepts**:

@@ -13,9 +13,6 @@
 # Production deployments should require authentication.
 # ============================================================================
 
-# Legacy config flag (no longer used)
-BOOGIE: "down"
-
 # Allow WebSocket connections without authentication (local development only)
 # Set to false in production and configure authentication
 API_GATEWAY_ALLOW_ANONYMOUS_WS: true
