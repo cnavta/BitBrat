@@ -1,5 +1,5 @@
 # auth service local configuration
-# Note: TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET are required and should be set in .secure.local
-TWITCH_CLIENT_ID: "local-twitch-id"
-TWITCH_CLIENT_SECRET: "local-twitch-secret"
-OAUTH_STATE_SECRET: "local-state-secret"
+# Configure Twitch OAuth credentials in .secure.local
+# See .secure.local.example for setup instructions
+# TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET are sourced from .secure.local
+# OAUTH_STATE_SECRET is sourced from .secure.local
