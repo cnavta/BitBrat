@@ -7,13 +7,25 @@
 # Uses a small, fast model (gpt-4.1-mini by default) for quick analysis
 # before expensive LLM bot invocation.
 #
+# Note: Query Analyzer has SEPARATE LLM config from LLM Bot (intentional)
+# - Query Analyzer: Fast, cheap models for routing hints (gpt-4.1-mini)
+# - LLM Bot: Conversational models for quality responses (gpt-4.1-mini or better)
+# This separation allows independent provider/model selection and cost control.
+#
 # Prerequisites:
 #   - OPENAI_API_KEY in .secure.local (for OpenAI provider)
 #   - Or configure alternative provider (Ollama, vLLM)
 # ============================================================================
 
+# LLM Provider (optimized for speed, not conversational quality)
 QUERY_ANALYZER_LLM_PROVIDER: openai
+
+# Model to use (fast, cheap, good enough for routing hints)
 QUERY_ANALYZER_LLM_MODEL: gpt-4.1-mini
+
+# QUERY_ANALYZER_FF_LLM_PROMPT_LOGGING: Log prompts sent to LLM provider
+# Inherits from global FF_LLM_PROMPT_LOGGING if not set
+# Default: true (useful for debugging routing hint generation)
 QUERY_ANALYZER_FF_LLM_PROMPT_LOGGING: true
 
 # Optional: Use local Ollama or vLLM instead of OpenAI

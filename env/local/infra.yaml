@@ -4,13 +4,19 @@
 # Purpose: External service connections (message bus, legacy Firebase emulator)
 # Required: Yes (core platform infrastructure)
 #
-# Platform-Agnostic Defaults:
-#   - Message Bus: NATS (configured in global.yaml: MESSAGE_BUS_DRIVER)
-#   - Persistence: PostgreSQL (configured in global.yaml: DATABASE_URL)
+# Platform-Agnostic Defaults (NO emulators needed):
+#   - Message Bus: NATS (MESSAGE_BUS_DRIVER=nats in global.yaml)
+#   - Persistence: PostgreSQL (PERSISTENCE_DRIVER=postgres in global.yaml)
 #
-# Legacy Firebase Emulator:
-#   These settings support the legacy Firestore emulator (deprecated).
-#   Only needed if using PERSISTENCE_DRIVER=firestore (not recommended).
+# The platform runs with just NATS + PostgreSQL - no Firebase emulator required!
+#
+# Legacy Firebase Emulator (OPTIONAL - deprecated):
+#   Only needed if using legacy drivers:
+#   - PERSISTENCE_DRIVER=firestore (deprecated, GCP-specific)
+#   - MESSAGE_BUS_DRIVER=pubsub (deprecated, GCP-specific)
+#
+# To disable Firebase emulator:
+#   See env/local/README.md section "Running Without Firebase Emulator"
 # ============================================================================
 
 # NATS Message Bus (platform-agnostic default)

@@ -382,7 +382,14 @@ BOT_NAME: "YourCustomName"
 
 ### Use Different LLM Provider
 
-Edit `llm-bot.yaml`:
+**Note**: LLM Bot and Query Analyzer have **separate LLM configurations** (intentional design choice).
+
+- **LLM Bot** (`llm-bot.yaml`): Conversational models optimized for quality
+- **Query Analyzer** (`query-analyzer.yaml`): Fast, cheap models for routing hints
+
+This separation allows independent provider/model selection and cost control in production.
+
+**Change LLM Bot provider** (edit `llm-bot.yaml`):
 ```yaml
 # For local Ollama
 LLM_BOT_LLM_PROVIDER: ollama
@@ -394,6 +401,18 @@ LLM_BOT_LLM_PROVIDER: openai
 LLM_BOT_LLM_MODEL: meta-llama/Llama-3.2-8B
 LLM_BOT_LLM_BASE_URL: http://localhost:8000/v1
 ```
+
+**Change Query Analyzer provider** (edit `query-analyzer.yaml`):
+```yaml
+# Use local Ollama for routing hints (faster, no API costs)
+QUERY_ANALYZER_LLM_PROVIDER: ollama
+QUERY_ANALYZER_LLM_MODEL: llama3.2
+QUERY_ANALYZER_LLM_BASE_URL: http://localhost:11434/v1
+```
+
+**Example: Mixed providers** (Query Analyzer on Ollama, LLM Bot on OpenAI):
+- Cost savings: Routing hints are free (Ollama local)
+- Quality responses: Conversational replies use GPT-4.1-mini (OpenAI)
 
 ### Adjust Conversation Memory
 
@@ -411,6 +430,42 @@ Edit `global.yaml`:
 # Format: "platform:user-id,platform:username"
 DEBUG_USERS: "twitch:123456789,discord:username#1234"
 ```
+
+### Running Without Firebase Emulator
+
+**Good news**: The default configuration (NATS + PostgreSQL) **does not require Firebase emulator**!
+
+Firebase emulator is only needed for legacy drivers (deprecated):
+- `PERSISTENCE_DRIVER=firestore` (deprecated, GCP-specific)
+- `MESSAGE_BUS_DRIVER=pubsub` (deprecated, GCP-specific)
+
+**Current defaults** (no Firebase needed):
+- Message Bus: NATS (`MESSAGE_BUS_DRIVER=nats` in `global.yaml`)
+- Persistence: PostgreSQL (`PERSISTENCE_DRIVER=postgres` in `global.yaml`)
+
+**To disable Firebase emulator** (reduce resource usage):
+
+1. Create `docker-compose.override.yaml` in project root:
+   ```yaml
+   services:
+     firebase-emulator:
+       profiles:
+         - legacy  # Only start with: docker compose --profile legacy up
+   ```
+
+2. Restart stack:
+   ```bash
+   npm run local:down
+   npm run local
+   ```
+
+Firebase emulator will no longer start, saving ~500MB RAM.
+
+**When to keep Firebase emulator**:
+- You're using `PERSISTENCE_DRIVER=firestore` (migration to Postgres recommended)
+- You're debugging legacy Firestore code
+
+**Migration guide**: See `documentation/guides/postgres-migration.md`
 
 ---
 
