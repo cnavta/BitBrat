@@ -48,7 +48,7 @@ describe('cmdMcpSetup', () => {
     expect(config.mcpServers['test-server']).toBeDefined();
     expect(config.mcpServers['test-server'].type).toBe('stdio');
     expect(config.mcpServers['test-server'].command).toBe('npm');
-    expect(config.mcpServers['test-server'].args).toContain('--target');
+    expect(config.mcpServers['test-server'].args).toContain('--context');
     expect(config.mcpServers['test-server'].args).toContain('local');
   });
 
@@ -78,7 +78,7 @@ describe('cmdMcpSetup', () => {
 
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     expect(config.mcpServers['test-server'].command).toBe('npm');
-    expect(config.mcpServers['test-server'].args).toContain('--target');
+    expect(config.mcpServers['test-server'].args).toContain('--context');
     expect(config.mcpServers['test-server'].args).toContain('staging');
   });
 
