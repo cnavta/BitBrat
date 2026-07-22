@@ -11,7 +11,6 @@ import {
   type StoryDoc,
   type UserDoc,
 } from '../services/story-engine/repository';
-import { createDocumentStore } from '../common/persistence/factory';
 
 /**
  * StoryEngineMcpServer
@@ -31,16 +30,9 @@ export class StoryEngineMcpServer extends Bit {
     });
 
     // Initialize repository (backend auto-detection via factory)
-    const driver = process.env.PERSISTENCE_DRIVER;
-    if (driver === 'postgres' || driver === 'postgresql') {
-      // Use PostgreSQL DocumentStore
-      const store = createDocumentStore();
-      this.storyRepo = createStoryRepository(store);
-    } else {
-      // Use Firestore
-      const firestore = this.getResource<Firestore>('firestore');
-      this.storyRepo = createStoryRepository(firestore);
-    }
+    // Get documentStore (PostgreSQL) or fallback to Firestore (legacy)
+    const documentStore = this.getResource('documentStore') || this.getResource<Firestore>('firestore');
+    this.storyRepo = createStoryRepository(documentStore);
 
     this.setupMcpTools();
     this.setupEnrichmentConsumer();

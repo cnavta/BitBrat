@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import { Firestore } from 'firebase-admin/firestore';
 import { AuthService } from '../services/api-gateway/auth';
+import type { IDocumentStore } from '../common/persistence/interfaces';
 import { IngressManager } from '../services/api-gateway/ingress';
 import { EgressManager, EgressResult } from '../services/api-gateway/egress';
 import { VariableResolver } from '../services/api-gateway/utils/variable-resolver';
@@ -79,11 +80,12 @@ export class ApiGatewayServer extends Bit {
     // In our case, we want to ensure resources are ready.
     // BaseServer.start doesn't call initializeResources, it assumes they are ready from constructor.
     // But BaseServer constructor calls it.
-    
-    const firestore = this.getResource<Firestore>('firestore');
-    if (!firestore) {
-      this.getLogger().error('api_gateway.firestore_not_found');
-      throw new Error('Firestore resource required');
+
+    // Get documentStore (PostgreSQL) or fallback to Firestore (legacy)
+    const documentStore = this.getResource<IDocumentStore>('documentStore') || this.getResource<Firestore>('firestore');
+    if (!documentStore) {
+      this.getLogger().error('api_gateway.persistence_not_found');
+      throw new Error('DocumentStore or Firestore resource required');
     }
 
     const publisher = this.getResource<PublisherResource>('publisher');
@@ -92,7 +94,7 @@ export class ApiGatewayServer extends Bit {
       throw new Error('Publisher resource required');
     }
 
-    this.authService = new AuthService(firestore, this.getLogger());
+    this.authService = new AuthService(documentStore, this.getLogger());
 
     const resolver = new VariableResolver();
     const formatterRegistry = new FormatterRegistry();
