@@ -22,11 +22,18 @@ function createRegistryReader(connection: TargetConnection): RegistryReader {
     return new PostgresRegistryReader(connection.store);
   }
 
-  // Default to Firestore for backward compatibility
-  return new FirestoreRegistryReader({
-    projectId: connection.firestore.projectId,
-    databaseId: connection.firestore.databaseId
-  });
+  if (connection.persistenceDriver === 'firestore' && connection.firestore?.db) {
+    return new FirestoreRegistryReader({
+      projectId: connection.firestore.projectId,
+      databaseId: connection.firestore.databaseId
+    });
+  }
+
+  throw new Error(
+    `Invalid persistence configuration for fleet operations. ` +
+    `Expected PostgreSQL (default) or Firestore (legacy). ` +
+    `persistenceDriver: ${connection.persistenceDriver}, hasStore: ${!!connection.store}, hasFirestore: ${!!connection.firestore?.db}`
+  );
 }
 
 /**

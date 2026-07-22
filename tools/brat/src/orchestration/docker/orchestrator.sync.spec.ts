@@ -55,6 +55,15 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
       'infrastructure/docker-compose/docker-compose.local.yaml',
       '.env.brat',
     ]);
+
+    // Create env/staging/global.yaml with Firestore config (testing Firestore path)
+    const envDir = path.join(repoRoot, 'env', 'staging');
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, 'global.yaml'),
+      'PERSISTENCE_DRIVER: firestore\nMESSAGE_BUS_DRIVER: pubsub\n',
+    );
+
     // Real SA key on the local machine, referenced via .secure.local.
     const keyPath = path.join(repoRoot, 'sa-key.json');
     fs.writeFileSync(keyPath, '{"type":"service_account"}');
@@ -88,11 +97,20 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
     expect(mkdirCall).toBeDefined();
   });
 
-  it('throws when the configured ADC key does not exist locally', async () => {
+  it('warns and continues when the configured ADC key does not exist locally', async () => {
     const repoRoot = makeRepo([
       'infrastructure/docker-compose/docker-compose.local.yaml',
       '.env.brat',
     ]);
+
+    // Create env/staging/global.yaml with Firestore config (testing Firestore path)
+    const envDir = path.join(repoRoot, 'env', 'staging');
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, 'global.yaml'),
+      'PERSISTENCE_DRIVER: firestore\nMESSAGE_BUS_DRIVER: pubsub\n',
+    );
+
     fs.writeFileSync(
       path.join(repoRoot, '.secure.local'),
       `GOOGLE_APPLICATION_CREDENTIALS=${path.join(repoRoot, 'missing-key.json')}\n`,
@@ -101,7 +119,66 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
     const orch = new DockerOrchestrator({ repoRoot, target: 'staging', env: 'staging' });
     const target = { host: 'ssh://user@example', remoteDir: '/remote/dir' };
 
-    await expect((orch as any).syncRemoteFiles(target)).rejects.toThrow(/ADC key not found/);
+    // Spy on console.warn to verify warning is issued
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    await expect((orch as any).syncRemoteFiles(target)).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('GOOGLE_APPLICATION_CREDENTIALS is set'),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('but file does not exist'),
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it('skips GCP credentials sync when using PostgreSQL and NATS', async () => {
+    const repoRoot = makeRepo([
+      'infrastructure/docker-compose/docker-compose.local.yaml',
+      '.env.brat',
+    ]);
+
+    // Create env/staging/global.yaml with PostgreSQL and NATS
+    const envDir = path.join(repoRoot, 'env', 'staging');
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, 'global.yaml'),
+      'PERSISTENCE_DRIVER: postgres\nMESSAGE_BUS_DRIVER: nats\n',
+    );
+
+    // Set up GCP credentials (they exist but should not be synced)
+    const keyPath = path.join(repoRoot, 'sa-key.json');
+    fs.writeFileSync(keyPath, '{"type":"service_account"}');
+    fs.writeFileSync(
+      path.join(repoRoot, '.secure.local'),
+      `GOOGLE_APPLICATION_CREDENTIALS=${keyPath}\n`,
+    );
+
+    const orch = new DockerOrchestrator({ repoRoot, target: 'staging', env: 'staging' });
+    const target = { host: 'ssh://user@example', remoteDir: '/remote/dir' };
+
+    // Spy on console.log to verify skip message
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    await (orch as any).syncRemoteFiles(target);
+
+    // Verify skip message was logged
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Skipping GCP credentials sync'),
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('PERSISTENCE_DRIVER=postgres'),
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('MESSAGE_BUS_DRIVER=nats'),
+    );
+
+    // Verify no scp command was executed
+    const scpCall = execCmdMock.mock.calls.find(([cmd]) => cmd === 'scp');
+    expect(scpCall).toBeUndefined();
+
+    logSpy.mockRestore();
   });
 });
 

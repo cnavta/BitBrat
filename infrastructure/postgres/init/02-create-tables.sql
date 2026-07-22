@@ -289,4 +289,33 @@ CREATE INDEX idx_personalities_platform ON personalities((data->>'platform'));
 CREATE INDEX idx_personalities_model ON personalities((data->>'model'));
 CREATE INDEX idx_personalities_tags ON personalities USING GIN ((data->'tags'));
 
+-- 24. Sources collection (platform connection status tracking)
+-- Added in migration 012-add-sources-table.sql (Sprint 343)
+-- Stores real-time status of external platform connections (Twitch, Discord, etc.)
+CREATE TABLE IF NOT EXISTS sources (
+  id TEXT PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sources_platform ON sources ((data->>'platform'));
+CREATE INDEX IF NOT EXISTS idx_sources_status ON sources ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_sources_stream_status ON sources ((data->>'streamStatus'));
+CREATE INDEX IF NOT EXISTS idx_sources_updated_at ON sources (updated_at DESC);
+
+-- Trigger to auto-update updated_at timestamp for sources
+CREATE OR REPLACE FUNCTION update_sources_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER sources_updated_at_trigger
+  BEFORE UPDATE ON sources
+  FOR EACH ROW
+  EXECUTE FUNCTION update_sources_updated_at();
+
 SELECT 'All tables created successfully' AS status;

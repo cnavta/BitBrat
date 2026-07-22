@@ -133,7 +133,7 @@ export function createPromptLogStore(
     );
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestorePromptLogStore(getFirestore(), defaultServiceName);
 }
 

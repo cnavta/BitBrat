@@ -33,6 +33,11 @@ export interface IStreamAnalystStore {
   getStreamObserver(observerId: string): Promise<StreamObserver | null>;
 
   /**
+   * Get all active stream observers.
+   */
+  getActiveStreamObservers(): Promise<StreamObserver[]>;
+
+  /**
    * Get summarization run by idempotency key.
    */
   getSummarizationRun(idempotencyKey: string): Promise<SummarizationRun | null>;
@@ -63,6 +68,16 @@ export class FirestoreStreamAnalystStore implements IStreamAnalystStore {
     const doc = await this.firestore.collection('stream_observers').doc(observerId).get();
     if (!doc.exists) return null;
     return { id: doc.id, ...doc.data() } as StreamObserver;
+  }
+
+  async getActiveStreamObservers(): Promise<StreamObserver[]> {
+    const snapshot = await this.firestore.collection('stream_observers')
+      .where('active', '==', true)
+      .get();
+    return snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data()
+    })) as StreamObserver[];
   }
 
   async getSummarizationRun(idempotencyKey: string): Promise<SummarizationRun | null> {
@@ -133,6 +148,13 @@ export class DocumentStoreStreamAnalystStore implements IStreamAnalystStore {
 
   async getStreamObserver(observerId: string): Promise<StreamObserver | null> {
     return await this.store.get('stream_observers', observerId) as StreamObserver | null;
+  }
+
+  async getActiveStreamObservers(): Promise<StreamObserver[]> {
+    const records = await this.store.query('stream_observers', {
+      filters: [{ field: 'active', operator: '==', value: true }]
+    });
+    return records as StreamObserver[];
   }
 
   async getSummarizationRun(idempotencyKey: string): Promise<SummarizationRun | null> {
@@ -216,6 +238,6 @@ export function createStreamAnalystStore(
     );
   }
 
-  // Default to Firestore (for test environments where Firestore is not initialized)
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreStreamAnalystStore(undefined as any);
 }

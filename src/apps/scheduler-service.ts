@@ -31,7 +31,6 @@ import {
   type ScheduleDoc,
   type ScheduledEventInput,
 } from '../services/scheduler/repository';
-import { createDocumentStore } from '../common/persistence/factory';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'scheduler';
 const PORT = parseInt(process.env.SERVICE_PORT || process.env.PORT || '3000', 10);
@@ -182,16 +181,9 @@ class SchedulerServer extends Bit {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
 
     // Initialize repository (backend auto-detection via factory)
-    const driver = process.env.PERSISTENCE_DRIVER;
-    if (driver === 'postgres' || driver === 'postgresql') {
-      // Use PostgreSQL DocumentStore
-      const store = createDocumentStore();
-      this.scheduleRepo = createScheduleRepository(store, COLLECTION_NAME);
-    } else {
-      // Use Firestore
-      const firestore = this.getResource<Firestore>('firestore');
-      this.scheduleRepo = createScheduleRepository(firestore, COLLECTION_NAME);
-    }
+    // Use documentStore (PostgreSQL) or fallback to Firestore (legacy)
+    const documentStore = this.getResource<any>('documentStore') || this.getResource<Firestore>('firestore');
+    this.scheduleRepo = createScheduleRepository(documentStore, COLLECTION_NAME);
 
     this.setupApp(this.getApp() as any);
     this.registerTools();

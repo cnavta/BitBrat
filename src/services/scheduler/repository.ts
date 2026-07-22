@@ -307,6 +307,6 @@ export function createScheduleRepository(
     return new DocumentStoreScheduleRepository(store, collectionOrTable || 'schedules');
   }
 
-  // Default to Firestore (for test environments where Firestore is not initialized)
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreScheduleRepository(undefined as any, collectionOrTable || 'schedules');
 }

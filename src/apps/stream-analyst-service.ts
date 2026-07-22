@@ -1,5 +1,6 @@
 import { Express, Request, Response } from 'express';
 import { StreamAnalystEngine } from '../services/stream-analyst/engine';
+import { createStreamAnalystStore, type IStreamAnalystStore } from '../services/stream-analyst/repository';
 import type { SummarizationRequest, StreamObserver } from '../types/sessi';
 import type { Egress } from '../types/events';
 import { createMessagePublisher } from '../services/message-bus';
@@ -17,6 +18,7 @@ import parser from 'cron-parser';
  */
 export class StreamAnalystServer extends Bit {
   private engineInstance?: StreamAnalystEngine;
+  private storeInstance?: IStreamAnalystStore;
 
   constructor(opts: BaseServerOptions = {}) {
     super({ 
@@ -36,17 +38,30 @@ export class StreamAnalystServer extends Bit {
   };
 
   /**
-   * Lazy-loaded engine to ensure Firestore is ready.
+   * Lazy-loaded engine to ensure persistence is ready.
    */
   private get engine(): StreamAnalystEngine {
     if (!this.engineInstance) {
-      const firestore = this.getResource<any>('firestore');
-      if (!firestore) {
-        throw new Error('Firestore resource not available. Ensure SERVICE_NAME is correct and Firestore is enabled.');
+      // Get documentStore (PostgreSQL) or fallback to Firestore (legacy)
+      const documentStore = this.getResource<any>('documentStore') || this.getResource<any>('firestore');
+      if (!documentStore) {
+        throw new Error('DocumentStore or Firestore resource not available. Ensure SERVICE_NAME is correct and persistence is enabled.');
       }
-      this.engineInstance = new StreamAnalystEngine(firestore, this.getLogger());
+      this.engineInstance = new StreamAnalystEngine(documentStore, this.getLogger());
+      this.storeInstance = createStreamAnalystStore(documentStore);
     }
     return this.engineInstance;
+  }
+
+  /**
+   * Lazy-loaded store to ensure persistence is ready.
+   */
+  private get store(): IStreamAnalystStore {
+    if (!this.storeInstance) {
+      // Trigger engine getter to initialize both
+      const _ = this.engine;
+    }
+    return this.storeInstance!;
   }
 
   async start(port: number) {
@@ -127,15 +142,7 @@ export class StreamAnalystServer extends Bit {
   }
 
   private async pollObservers() {
-    const firestore = this.getResource<any>('firestore');
-    const snapshot = await firestore.collection('stream_observers')
-      .where('active', '==', true)
-      .get();
-
-    const observers = snapshot.docs.map((doc: any) => ({ 
-      id: doc.id, 
-      ...doc.data() 
-    })) as StreamObserver[];
+    const observers = await this.store.getActiveStreamObservers();
 
     const now = new Date();
     const pub = createMessagePublisher('internal.summarization.request.v1');
@@ -180,11 +187,8 @@ export class StreamAnalystServer extends Bit {
 
   private async handleEgress(observerId: string, requestId: string, summary: string) {
     try {
-      const firestore = this.getResource<any>('firestore');
-      const doc = await firestore.collection('stream_observers').doc(observerId).get();
-      if (!doc.exists) return;
-
-      const observer = doc.data() as StreamObserver;
+      const observer = await this.store.getStreamObserver(observerId);
+      if (!observer) return;
       if (!observer.delivery || !observer.delivery.egressTopic) return;
 
       const pub = createMessagePublisher(observer.delivery.egressTopic);
@@ -253,7 +257,6 @@ export class StreamAnalystServer extends Bit {
         filters: z.record(z.any()).optional().describe('Optional filters for the stream (e.g. channel: "#bitbrat")')
       }),
       async (args) => {
-        const firestore = this.getResource<any>('firestore');
         let request: SummarizationRequest = {
           requestId: `mcp-${Date.now()}`,
           streamType: args.stream_type as string || 'chat',
@@ -262,11 +265,10 @@ export class StreamAnalystServer extends Bit {
         };
 
         if (args.observer_id) {
-          const doc = await firestore.collection('stream_observers').doc(args.observer_id).get();
-          if (!doc.exists) {
+          const observer = await this.store.getStreamObserver(args.observer_id);
+          if (!observer) {
             throw new Error(`Observer ${args.observer_id} not found.`);
           }
-          const observer = doc.data() as StreamObserver;
           if (!observer.mcpEnabled) {
             throw new Error(`Observer ${args.observer_id} is not enabled for MCP access.`);
           }

@@ -1,0 +1,2 @@
+# scheduler service local configuration
+# Note: MCP_AUTH_TOKEN is required and should be set in .secure.local

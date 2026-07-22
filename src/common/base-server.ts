@@ -644,17 +644,23 @@ export class Bit {
     const defaults: Record<string, ResourceManager<any>> = {
       publisher: new PublisherManager(),
     };
-    // Avoid initializing Firestore in Jest/CI test runs to prevent lingering async handles
+    // Avoid initializing persistence in Jest/CI test runs to prevent lingering async handles
     const isJest = Boolean((global as any).jest || process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test');
     if (!isJest) {
-      logger.debug('base_server.resources.firestore.init');
-      defaults.firestore = new FirestoreManager();
+      // Initialize persistence backend based on PERSISTENCE_DRIVER (default: postgres)
+      const persistenceDriver = process.env.PERSISTENCE_DRIVER || 'postgres';
 
-      // Register documentStore when using PostgreSQL persistence
-      const persistenceDriver = process.env.PERSISTENCE_DRIVER;
       if (persistenceDriver === 'postgres' || persistenceDriver === 'postgresql') {
         logger.debug('base_server.resources.document_store.init', { driver: persistenceDriver });
         defaults.documentStore = new DocumentStoreManager();
+      } else if (persistenceDriver === 'firestore') {
+        logger.debug('base_server.resources.firestore.init', { driver: persistenceDriver });
+        defaults.firestore = new FirestoreManager();
+      } else {
+        logger.warn('base_server.resources.unknown_driver', { driver: persistenceDriver });
+        throw new Error(
+          `Unknown PERSISTENCE_DRIVER: ${persistenceDriver}. Expected: postgres, postgresql, or firestore`,
+        );
       }
     }
     // Merge: overrides replace defaults by key and can add new keys

@@ -28,14 +28,20 @@ import { createApp, AuthServer } from './auth-service';
 
 describe('auth-service', () => {
   const prev = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
+  const prevDriver = process.env.PERSISTENCE_DRIVER;
+  let app: any;
+
   beforeAll(() => {
     process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = '1';
+    // Use Firestore for tests to avoid needing DATABASE_URL
+    process.env.PERSISTENCE_DRIVER = 'firestore';
+    // Create app AFTER setting env vars
+    app = createApp();
   });
   afterAll(() => {
     if (prev === undefined) delete process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE; else process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = prev;
+    if (prevDriver === undefined) delete process.env.PERSISTENCE_DRIVER; else process.env.PERSISTENCE_DRIVER = prevDriver;
   });
-
-  const app = createApp();
   describe('health endpoints', () => {
     it('/healthz 200', async () => { await request(app).get('/healthz').expect(200); });
     it('/readyz 200', async () => { await request(app).get('/readyz').expect(200); });
@@ -45,7 +51,9 @@ describe('auth-service', () => {
   it('subscribes to internal.auth.v1 with BUS_PREFIX', async () => {
     const origEnv = process.env.BUS_PREFIX;
     const origDisable = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
+    const origDriver = process.env.PERSISTENCE_DRIVER;
     process.env.BUS_PREFIX = 'test.';
+    process.env.PERSISTENCE_DRIVER = 'firestore'; // Use Firestore for test
     delete process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE; // Enable subscribe for this test
 
     const mb = require('../services/message-bus');

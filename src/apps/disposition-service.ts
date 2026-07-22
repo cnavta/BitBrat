@@ -3,7 +3,6 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { Bit } from '../common/base-server';
 import type { PublisherResource } from '../common/resources/publisher-manager';
 import type { IDocumentStore, QueryFilter } from '../common/persistence/interfaces';
-import { createDocumentStore } from '../common/persistence/factory';
 import {
   DEFAULT_DISPOSITION_CONFIG,
   DISPOSITION_OBSERVATION_COLLECTION,
@@ -128,7 +127,7 @@ export function createDispositionObservationStore(
     return new DocumentStoreDispositionObservationStore(store, collectionOrTable || 'disposition_observations');
   }
 
-  // Default to Firestore (for test environments where Firestore is not initialized)
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreDispositionObservationStore(undefined as any, collectionOrTable || DISPOSITION_OBSERVATION_COLLECTION);
 }
 
@@ -140,14 +139,9 @@ export class DispositionServiceServer extends Bit {
     super({ serviceName: SERVICE_NAME });
 
     // Initialize repository (backend auto-detection via factory)
-    const driver = process.env.PERSISTENCE_DRIVER;
-    if (driver === 'postgres' || driver === 'postgresql') {
-      const store = createDocumentStore();
-      this.observationStore = createDispositionObservationStore(store);
-    } else {
-      const firestore = this.getResource<Firestore>('firestore');
-      this.observationStore = createDispositionObservationStore(firestore);
-    }
+    // Use documentStore (PostgreSQL) or fallback to Firestore (legacy)
+    const documentStore = this.getResource<any>('documentStore') || this.getResource<Firestore>('firestore');
+    this.observationStore = createDispositionObservationStore(documentStore);
 
     this.dispositionConfig = getDispositionConfig(<T>(name: string, fallback: T) => {
       if (typeof fallback === 'boolean') {

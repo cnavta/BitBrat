@@ -13,7 +13,8 @@ export class DocumentStoreManager implements ResourceManager<IDocumentStore> {
       return memoizedStore;
     }
     log.info('document_store.manager.setup');
-    memoizedStore = createDocumentStore();
+    // Pass logger to factory so PostgreSQL store uses platform logger
+    memoizedStore = createDocumentStore(log);
     return memoizedStore;
   }
 

@@ -389,7 +389,7 @@ export function createRuleLoader(
     return new DocumentStoreRuleLoader(collectionOrTable || 'routing_rules', refreshIntervalMs);
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreRuleLoader(collectionOrTable || 'configs/routingRules/rules');
 }
 

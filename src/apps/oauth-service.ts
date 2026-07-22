@@ -1,13 +1,12 @@
 import { mountTwitchOAuthRoutes } from '../services/twitch-oauth';
-import { FirestoreTokenStore } from '../services/firestore-token-store';
+import { createTokenStore } from '../services/firestore-token-store';
 import { IConfig, ITokenStore } from '../types';
 import { assertRequiredSecrets, buildConfig } from '../common/config';
 import { Bit } from '../common/base-server';
 import type { Logger } from '../common/logging';
-import type { Firestore } from 'firebase-admin/firestore';
 import { api } from '../common/tracing';
 import { mountOAuthRoutes, ProviderRegistry, TwitchAdapter, DiscordAdapter } from '../services/oauth';
-import { FirestoreAuthTokenStore } from '../services/oauth/auth-token-store';
+import { createAuthTokenStore } from '../services/oauth/auth-token-store';
 
 // Avoid direct env usage in app code; use a stable service name and central Config for port
 const SERVICE_NAME = 'oauth-flow';
@@ -41,9 +40,12 @@ class OauthServer extends Bit {
         }
       });
 
-      const db = this.getResource<Firestore>('firestore');
-      const botStore: ITokenStore = this.options?.botStore || new FirestoreTokenStore(cfg.tokenDocPath!, db);
-      const broadcasterStore: ITokenStore = this.options?.broadcasterStore || new FirestoreTokenStore(cfg.broadcasterTokenDocPath!, db);
+      // Get documentStore for OAuth token storage (uses PostgreSQL when PERSISTENCE_DRIVER=postgres)
+      // Falls back to Firestore if documentStore not available
+      const documentStore = this.getResource('documentStore') || this.getResource('firestore');
+
+      const botStore: ITokenStore = this.options?.botStore || createTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot', documentStore);
+      const broadcasterStore: ITokenStore = this.options?.broadcasterStore || createTokenStore(cfg.broadcasterTokenDocPath || 'oauth/twitch/broadcaster', documentStore);
 
       // 1) Preserve legacy Twitch routes for backward compatibility
       mountTwitchOAuthRoutes(app, cfg, botStore, '/oauth/twitch/bot');
@@ -53,8 +55,7 @@ class OauthServer extends Bit {
       const registry = new ProviderRegistry();
       registry.register(new TwitchAdapter(cfg));
       registry.register(new DiscordAdapter(cfg));
-      const v2Store = new FirestoreAuthTokenStore({
-        db,
+      const v2Store = createAuthTokenStore(documentStore, {
         legacyFallback: {
           twitch: {
             bot: cfg.tokenDocPath || 'oauth/twitch/bot',

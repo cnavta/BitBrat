@@ -1,0 +1,8 @@
+# Context Pack Service Configuration (Sprint 338 - P4 RAG Scale-Out)
+# Analysis-stage service for semantic context enrichment via RAG
+
+# RAG Feature Flags
+RAG_CONTEXT_ENABLED: true
+RAG_CONTEXT_MAX_RESULTS: 5
+RAG_CONTEXT_MIN_SIMILARITY: 0.65
+RAG_CONTEXT_TIMEOUT_MS: 5000

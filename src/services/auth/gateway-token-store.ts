@@ -270,6 +270,6 @@ export function createGatewayTokenStore(
     return new PostgresGatewayTokenStore(store, options?.tableName || 'api_tokens');
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreGatewayTokenStore();
 }

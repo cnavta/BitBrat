@@ -101,8 +101,15 @@ export class IngressEgressServer extends Bit {
     // Falls back to Firestore if documentStore not available
     const documentStore = this.getResource('documentStore') || this.getResource('firestore');
 
-    const credsProvider = cfg.firestoreEnabled
-      ? new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot', documentStore))
+    // Use persistent credentials from PostgreSQL or Firestore if documentStore is available
+    // Falls back to config-based credentials (environment variables) if no persistence available
+    const usePersistentCredentials = !!documentStore;
+    const credsProvider = usePersistentCredentials
+      ? new FirestoreTwitchCredentialsProvider(
+          cfg,
+          createTokenStore(cfg.tokenDocPath || 'oauth/twitch/bot', documentStore),
+          createTokenStore('oauth/twitch/broadcaster', documentStore)
+        )
       : new ConfigTwitchCredentialsProvider(cfg);
 
     // Create the IRC client using config-driven channels
@@ -120,8 +127,8 @@ export class IngressEgressServer extends Bit {
       egressDestinationTopic: egressTopic,
     });
 
-    // Twitch Broadcaster
-    if (cfg.firestoreEnabled && cfg.broadcasterTokenDocPath) {
+    // Twitch Broadcaster (Sprint 353: respect PERSISTENCE_DRIVER)
+    if (usePersistentCredentials && cfg.broadcasterTokenDocPath) {
       const broadcasterCredsProvider = new FirestoreTwitchCredentialsProvider(cfg, createTokenStore(cfg.broadcasterTokenDocPath, documentStore));
       this.twitchBroadcasterClient = new TwitchIrcClient(envelopeBuilder, publisher, cfg.twitchChannels, {
         cfg,

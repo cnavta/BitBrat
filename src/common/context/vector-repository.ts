@@ -156,6 +156,6 @@ export function createVectorStore(
     );
   }
 
-  // Default to Firestore (for test environments where Firestore is not initialized)
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreVectorStore(undefined as any);
 }
