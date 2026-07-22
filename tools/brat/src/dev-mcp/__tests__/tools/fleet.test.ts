@@ -27,6 +27,7 @@ describe('Fleet Tools', () => {
     mockConnection = {
       name: 'test',
       type: 'local',
+      persistenceDriver: 'firestore',
       firestore: {
         db: {} as any,
         projectId: 'test-project',

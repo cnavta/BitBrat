@@ -1,8 +1,9 @@
 import * as api from '@opentelemetry/api';
 import { AsyncHooksContextManager } from '@opentelemetry/context-async-hooks';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { NodeTracerProvider, ParentBasedSampler, TraceIdRatioBasedSampler, BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
+import { resourceFromAttributes, defaultResource } from '@opentelemetry/resources';
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
+import { ParentBasedSampler, TraceIdRatioBasedSampler, BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 
 let provider: NodeTracerProvider | null = null;
 let contextManager: AsyncHooksContextManager | null = null;
@@ -29,24 +30,34 @@ export function initializeTracing(serviceName = process.env.SERVICE_NAME || 'ser
   }
   const ratio = parseRatio(process.env.TRACING_SAMPLER_RATIO, 0.1);
 
-  const resource = new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
-  });
+  const resource = defaultResource().merge(
+    resourceFromAttributes({
+      [ATTR_SERVICE_NAME]: serviceName,
+    })
+  );
 
-  provider = new NodeTracerProvider({
-    sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(ratio) }),
-    resource,
-  });
-
+  let spanProcessor;
   try {
     // Lazy-require exporter so local dev/tests don't need the package installed
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { TraceExporter } = require('@google-cloud/opentelemetry-cloud-trace-exporter');
     const exporter = new TraceExporter();
-    provider.addSpanProcessor(new BatchSpanProcessor(exporter));
+    spanProcessor = new BatchSpanProcessor(exporter);
   } catch {
     // No exporter available; tracing will be local-only (no export)
+    spanProcessor = undefined;
   }
+
+  const config: any = {
+    sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(ratio) }),
+    resource,
+  };
+  if (spanProcessor) {
+    config.spanProcessors = [spanProcessor];
+  }
+
+  provider = new NodeTracerProvider(config);
+
   provider.register();
 
   contextManager = new AsyncHooksContextManager().enable();

@@ -17,7 +17,7 @@ describe('TargetConnectionManager', () => {
   const logger = createLogger({ base: { component: 'test' }, level: 'error' });
 
   beforeEach(() => {
-    manager = new TargetConnectionManager(undefined, undefined, logger);
+    manager = new TargetConnectionManager(process.cwd(), undefined, logger);
   });
 
   afterEach(async () => {

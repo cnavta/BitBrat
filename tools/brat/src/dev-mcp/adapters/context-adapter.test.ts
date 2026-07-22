@@ -94,7 +94,7 @@ describe('ContextAdapter', () => {
       const connection = await adapter.createConnection(resolved);
 
       expect(connection.name).toBe('staging');
-      expect(connection.type).toBe('local'); // docker-compose maps to local
+      expect(connection.type).toBe('remote-ssh'); // docker-compose with ssh:// host maps to remote-ssh
       expect(connection.ssh).toBeDefined();
       expect(connection.ssh?.target).toBe('root@bitbrat.lan');
       expect(connection.ssh?.remoteDir).toBe('/opt/BitBratPlatform');
