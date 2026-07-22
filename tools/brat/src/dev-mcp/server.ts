@@ -20,6 +20,34 @@ import { createLogger, Logger } from '../orchestration/logger';
 import { configTools } from './tools/config.js';
 import { persistenceTools } from './tools/persistence.js';
 import { fleetTools } from './tools/fleet.js';
+import { existsSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+/**
+ * Find repository root by walking up directory tree
+ */
+function findRootDir(): string {
+  // Start from current directory
+  let current = process.cwd();
+
+  while (true) {
+    // Check if architecture.yaml exists in current directory
+    if (existsSync(resolve(current, 'architecture.yaml'))) {
+      return current;
+    }
+
+    // Move up one directory
+    const parent = dirname(current);
+
+    // Stop if we've reached filesystem root
+    if (parent === current) {
+      throw new Error('Could not find repository root (architecture.yaml not found)');
+    }
+
+    current = parent;
+  }
+}
 
 /**
  * Dev MCP Server
@@ -37,7 +65,6 @@ export class DevMcpServer {
   private auditLogger: AuditLogger;
   private logger: Logger;
   private transport?: StdioServerTransport;
-  private authToken?: string;
 
   constructor(options: DevMcpServerOptions = {}) {
     this.logger = createLogger({
@@ -45,8 +72,16 @@ export class DevMcpServer {
       level: options.logLevel || 'info'
     });
 
-    // Store auth token for use in target connections
-    this.authToken = options.authToken;
+    // Handle backward compatibility: target → context
+    let defaultContext = options.context;
+    if (!defaultContext && options.target) {
+      this.logger.warn({
+        deprecation: 'target parameter',
+        replacement: 'context parameter',
+        removal: 'Sprint 357',
+      }, 'DEPRECATION WARNING: options.target is deprecated. Use options.context instead.');
+      defaultContext = options.target;
+    }
 
     // Initialize MCP server
     this.server = new Server(
@@ -61,8 +96,11 @@ export class DevMcpServer {
       }
     );
 
+    // Find repository root for context resolution
+    const repoRoot = findRootDir();
+
     // Initialize components
-    this.targetManager = new TargetConnectionManager(options.target, this.authToken, this.logger);
+    this.targetManager = new TargetConnectionManager(repoRoot, defaultContext, this.logger);
     this.toolRouter = new ToolRouter(this.targetManager, this.logger);
     this.auditLogger = new AuditLogger(options.auditLogPath, this.logger);
 
@@ -73,8 +111,9 @@ export class DevMcpServer {
     this.registerHandlers();
 
     this.logger.info({
-      defaultTarget: options.target,
+      defaultContext,
       logLevel: options.logLevel,
+      repoRoot,
     }, 'Dev MCP server initialized');
   }
 

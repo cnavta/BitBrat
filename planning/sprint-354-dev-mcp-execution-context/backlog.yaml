@@ -1,0 +1,476 @@
+# Sprint 354: Dev MCP Execution Context Adoption - Trackable YAML Backlog
+
+sprint:
+  id: 354
+  name: "Dev MCP Execution Context Adoption"
+  branch: "feature/dev-mcp-execution-context"
+  start_date: "2026-07-22"
+  estimated_duration_days: 3
+  lead: "Claude Code"
+  objective: |
+    Refactor the Dev MCP server to fully adopt the platform's standardized Execution Context framework,
+    eliminating code duplication and ensuring consistent environment resolution across all brat commands.
+
+phases:
+  - id: phase-1
+    name: "Create Context Adapter"
+    priority: P0
+    tasks:
+      - id: task-1-1
+        name: "Create ContextAdapter Class"
+        priority: P0
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: medium
+        risk: low
+        estimated_hours: 4
+        files:
+          - path: "tools/brat/src/dev-mcp/adapters/context-adapter.ts"
+            change_type: "new_file"
+        description: |
+          Create ContextAdapter class that converts ResolvedContext (from ContextResolver)
+          to TargetConnection (used by Dev MCP tools).
+        implementation:
+          - Create ContextAdapter class
+          - Implement createConnection(resolved: ResolvedContext)
+          - Implement createPostgresStore()
+          - Implement createFirestoreConnection()
+          - Implement setupSSHTunnel()
+          - Implement cleanup()
+          - Map deployment types (docker-compose → local, cloud-run → gcp)
+        acceptance_criteria:
+          - ContextAdapter converts ResolvedContext to TargetConnection correctly
+          - PostgreSQL DocumentStore created when driver is postgres
+          - Firestore connection created when driver is firestore
+          - SSH tunnels set up when needed
+          - Cleanup closes all connections properly
+        testing:
+          - file: "tools/brat/src/dev-mcp/adapters/context-adapter.test.ts"
+            coverage: ["createConnection", "createPostgresStore", "createFirestoreConnection", "cleanup"]
+        dependencies: []
+        blocks: [task-2-1]
+
+  - id: phase-2
+    name: "Refactor TargetConnectionManager"
+    priority: P0
+    tasks:
+      - id: task-2-1
+        name: "Refactor TargetConnectionManager to Use ContextResolver"
+        priority: P0
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: high
+        risk: medium
+        estimated_hours: 3
+        files:
+          - path: "tools/brat/src/dev-mcp/target-manager.ts"
+            lines: [1, 231]
+            change_type: "modification"
+        description: |
+          Refactor TargetConnectionManager to use ContextResolver and ContextAdapter
+          instead of custom connection logic. Remove 143 lines of duplicated code.
+        implementation:
+          - Add ContextResolver dependency
+          - Add ContextAdapter dependency
+          - Update constructor to accept repoRoot
+          - Refactor getActiveConnection() to use resolver.resolve() + adapter.createConnection()
+          - Remove connect() method (lines 88-231)
+          - Remove findRootDir() method
+          - Update disconnectAll() to use connection.cleanup()
+        acceptance_criteria:
+          - TargetConnectionManager uses ContextResolver for context resolution
+          - Connection caching still works
+          - Cleanup properly closes all connections
+          - No custom architecture.yaml loading
+          - No custom persistence driver resolution
+        testing:
+          - file: "tools/brat/src/dev-mcp/target-manager.test.ts"
+            coverage: ["getActiveConnection", "disconnectAll", "caching"]
+        dependencies: [task-1-1]
+        blocks: [task-3-1]
+
+  - id: phase-3
+    name: "Update Dev MCP Server"
+    priority: P0
+    tasks:
+      - id: task-3-1
+        name: "Update DevMcpServer Constructor"
+        priority: P0
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: low
+        risk: low
+        estimated_hours: 2
+        files:
+          - path: "tools/brat/src/dev-mcp/server.ts"
+            lines: [42, 79]
+            change_type: "modification"
+          - path: "tools/brat/src/dev-mcp/types.ts"
+            lines: [85, 94]
+            change_type: "modification"
+        description: |
+          Update DevMcpServer to use context instead of target parameter,
+          and pass repoRoot to TargetConnectionManager.
+        implementation:
+          - Add findRootDir() method to server.ts
+          - Update constructor to pass repoRoot to TargetConnectionManager
+          - Update DevMcpServerOptions to use context instead of target
+          - Add deprecation warning for options.target
+          - Update initialization logging
+        acceptance_criteria:
+          - Server accepts --context flag
+          - options.context passed to TargetConnectionManager
+          - repoRoot automatically detected
+          - Backward compatibility with options.target (deprecated)
+          - Deprecation warning logged when options.target is used
+        testing:
+          - file: "tools/brat/src/dev-mcp/server.test.ts"
+            coverage: ["constructor", "context parameter", "backward compatibility"]
+        dependencies: [task-2-1]
+        blocks: [task-4-1]
+
+  - id: phase-4
+    name: "Update CLI Command"
+    priority: P1
+    tasks:
+      - id: task-4-1
+        name: "Update dev-mcp CLI Command"
+        priority: P1
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: low
+        estimated_hours: 1
+        files:
+          - path: "tools/brat/src/cli/dev-mcp.ts"
+            lines: [10, 14]
+            change_type: "modification"
+        description: |
+          Update dev-mcp CLI command to use --context flag instead of --target.
+        implementation:
+          - Update DevMcpFlags interface (target → context)
+          - Update cmdDevMcp() to use flags.context
+          - Add deprecation warning for --target flag
+          - Update help text / usage documentation
+        acceptance_criteria:
+          - --context flag works
+          - --target flag still works with deprecation warning
+          - Help text shows --context as primary option
+        testing:
+          - manual: "npm run brat -- dev-mcp start --context local"
+          - manual: "npm run brat -- dev-mcp start --target local" (deprecated)
+        dependencies: [task-3-1]
+        blocks: [task-5-1]
+
+  - id: phase-5
+    name: "Update Tool Schemas"
+    priority: P1
+    tasks:
+      - id: task-5-1
+        name: "Update Config Tools to Use context Parameter"
+        priority: P1
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: none
+        estimated_hours: 0.5
+        files:
+          - path: "tools/brat/src/dev-mcp/tools/config.ts"
+            change_type: "modification"
+        description: |
+          Update config tool input schemas to use context instead of target.
+        pattern: |
+          // Before
+          const InputSchema = z.object({
+            target: z.string().optional(),
+          });
+
+          // After
+          const InputSchema = z.object({
+            context: z.string().optional(),
+          });
+        acceptance_criteria:
+          - All config tools accept context parameter
+          - Tools still accept target parameter (deprecated)
+        testing:
+          - integration: "Call config tools with context parameter"
+        dependencies: [task-4-1]
+        blocks: []
+
+      - id: task-5-2
+        name: "Update Persistence Tools to Use context Parameter"
+        priority: P1
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: none
+        estimated_hours: 0.5
+        files:
+          - path: "tools/brat/src/dev-mcp/tools/persistence.ts"
+            change_type: "modification"
+        description: |
+          Update persistence tool input schemas to use context instead of target.
+        pattern: |
+          Same as task-5-1
+        acceptance_criteria:
+          - All persistence tools accept context parameter
+          - Tools still accept target parameter (deprecated)
+        testing:
+          - integration: "Call persistence tools with context parameter"
+        dependencies: [task-4-1]
+        blocks: []
+
+      - id: task-5-3
+        name: "Update Fleet Tools to Use context Parameter"
+        priority: P1
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: none
+        estimated_hours: 1
+        files:
+          - path: "tools/brat/src/dev-mcp/tools/fleet.ts"
+            change_type: "modification"
+        description: |
+          Update fleet tool input schemas to use context instead of target.
+        pattern: |
+          Same as task-5-1
+        acceptance_criteria:
+          - All fleet tools accept context parameter
+          - Tools still accept target parameter (deprecated)
+        testing:
+          - integration: "Call fleet tools with context parameter"
+        dependencies: [task-4-1]
+        blocks: []
+
+  - id: phase-6
+    name: "Integration Testing"
+    priority: P1
+    tasks:
+      - id: task-6-1
+        name: "Create Context Integration Tests"
+        priority: P1
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: medium
+        risk: low
+        estimated_hours: 3
+        files:
+          - path: "tools/brat/src/dev-mcp/__tests__/context-integration.test.ts"
+            change_type: "new_file"
+        description: |
+          Create comprehensive integration tests for context resolution in Dev MCP.
+        test_cases:
+          context_resolution:
+            - "Resolve context from --context flag"
+            - "Resolve context from BITBRAT_CONTEXT env var"
+            - "Resolve context from ~/.bratrc current_context"
+            - "Default to 'local' context"
+          auto_discovery:
+            - "Auto-discover gateway port when autoDiscover: true"
+            - "Auto-discover PostgreSQL container when autoDiscover: true"
+            - "Use explicit config when autoDiscover: false"
+          persistence:
+            - "Create PostgreSQL DocumentStore when driver is postgres"
+            - "Create Firestore connection when driver is firestore"
+            - "Connect to correct database"
+          env_overlay:
+            - "Load global.yaml, infra.yaml, service.yaml"
+            - "Merge env vars with correct precedence"
+            - "Load .secure.* secrets"
+          backward_compatibility:
+            - "--target flag still works with deprecation warning"
+            - "target parameter in tools still works"
+        acceptance_criteria:
+          - All test cases pass
+          - Coverage >90% for new code
+          - No regressions in existing tests
+        dependencies: [task-5-1, task-5-2, task-5-3]
+        blocks: [task-7-1]
+
+  - id: phase-7
+    name: "Documentation Updates"
+    priority: P2
+    tasks:
+      - id: task-7-1
+        name: "Update Dev MCP Documentation"
+        priority: P2
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: low
+        risk: none
+        estimated_hours: 2
+        files:
+          - path: "documentation/guides/coding-with-brat-code.md"
+            change_type: "modification"
+          - path: "CLAUDE.md"
+            change_type: "modification"
+          - path: "planning/sprint-354-dev-mcp-execution-context/MIGRATION_GUIDE.md"
+            change_type: "new_file"
+        description: |
+          Update documentation to reflect --context flag and execution context adoption.
+        changes:
+          coding_guide:
+            - Update examples to use --context instead of --target
+            - Add section on execution context resolution
+            - Document context priority (flag → env → bratrc → default)
+          claude_md:
+            - Update Dev MCP section to mention execution contexts
+            - Add note about context-aware tools
+          migration_guide:
+            - Create migration guide for --target → --context
+            - Document backward compatibility period
+            - Provide examples of migration
+        acceptance_criteria:
+          - Documentation accurately reflects new behavior
+          - Migration guide created
+          - All examples updated
+        dependencies: [task-6-1]
+        blocks: []
+
+  - id: phase-8
+    name: "Cleanup and Deprecation"
+    priority: P2
+    tasks:
+      - id: task-8-1
+        name: "Add Deprecation Warnings and Plan Removal"
+        priority: P2
+        status: pending
+        assignee: "Lead Implementor"
+        complexity: trivial
+        risk: none
+        estimated_hours: 1
+        files:
+          - path: "tools/brat/src/dev-mcp/types.ts"
+            change_type: "modification"
+          - path: "tools/brat/src/dev-mcp/server.ts"
+            change_type: "modification"
+          - path: "tools/brat/src/cli/dev-mcp.ts"
+            change_type: "modification"
+        description: |
+          Add deprecation markers and plan removal timeline for --target flag.
+        implementation:
+          - Mark target parameter as @deprecated in types
+          - Add console.warn() when target is used
+          - Add JSDoc deprecation notices
+          - Create GitHub issue for removal (3 sprints from now)
+        acceptance_criteria:
+          - Deprecation warnings logged when using --target
+          - JSDoc shows deprecation notices
+          - GitHub issue created with removal timeline
+        dependencies: [task-7-1]
+        blocks: []
+
+metrics:
+  estimated_total_hours: 18
+  critical_tasks: 4
+  high_priority_tasks: 6
+  medium_priority_tasks: 2
+  low_priority_tasks: 2
+  files_to_modify: 8
+  new_files_to_create: 3
+  tests_to_add: 4
+
+success_criteria:
+  quantitative:
+    - metric: "Zero custom context resolution logic in Dev MCP"
+      target: 0
+      current: 143  # Lines in target-manager.ts connect() method
+    - metric: "Code coverage for new adapter"
+      target: 90
+      unit: "percent"
+    - metric: "Integration tests passing"
+      target: 100
+      unit: "percent"
+    - metric: "Backward compatibility maintained"
+      target: 100
+      unit: "percent"
+  qualitative:
+    - "Dev MCP respects ~/.bratrc current context"
+    - "Dev MCP respects BITBRAT_CONTEXT env var"
+    - "Dev MCP auto-discovers gateway and persistence"
+    - "No code duplication with ContextResolver"
+
+risks:
+  high:
+    - id: risk-1
+      description: "Breaking change for existing users"
+      mitigation: "Backward compatibility with --target, deprecation warnings"
+      contingency: "Keep both --target and --context for 3 sprints"
+  medium:
+    - id: risk-2
+      description: "Context resolution bugs"
+      mitigation: "Reuse proven ContextResolver, comprehensive testing"
+      contingency: "Rollback to custom logic if critical bugs found"
+    - id: risk-3
+      description: "SSH tunnel issues"
+      mitigation: "Reuse existing SSHTunnelManager, thorough testing"
+      contingency: "Fall back to direct connection if tunnels fail"
+  low:
+    - id: risk-4
+      description: "Performance regression"
+      mitigation: "Cache connections as before, minimal adapter overhead"
+      contingency: "Profile and optimize adapter if needed"
+
+dependencies_external:
+  - name: "ContextResolver API"
+    status: "stable"
+    notes: "Sprint 349 complete, API stable"
+  - name: "PostgreSQL default migration"
+    status: "complete"
+    notes: "Sprint 353 complete"
+
+rollback_plan:
+  trigger_conditions:
+    - "Critical bugs in context resolution"
+    - "Breaking changes for >50% of users"
+    - "Performance regression >2x slower"
+  steps:
+    - "Revert all code changes via git revert"
+    - "Restore --target flag as primary option"
+    - "Re-enable custom target-manager.ts logic"
+    - "Create post-mortem document"
+    - "Re-plan sprint with smaller scope"
+
+timeline:
+  day_1:
+    focus: "Context Adapter and TargetConnectionManager"
+    tasks: [task-1-1, task-2-1]
+    hours: 7
+    deliverables:
+      - "ContextAdapter class created and tested"
+      - "TargetConnectionManager refactored to use adapter"
+  day_2:
+    focus: "Server Updates and Tool Schemas"
+    tasks: [task-3-1, task-4-1, task-5-1, task-5-2, task-5-3]
+    hours: 5
+    deliverables:
+      - "DevMcpServer accepts --context flag"
+      - "All tool schemas updated"
+      - "CLI command updated"
+  day_3:
+    focus: "Testing and Documentation"
+    tasks: [task-6-1, task-7-1, task-8-1]
+    hours: 6
+    deliverables:
+      - "Integration tests created and passing"
+      - "Documentation updated"
+      - "Deprecation warnings added"
+
+notes:
+  - "This sprint eliminates 143 lines of duplicated context resolution code"
+  - "Dev MCP becomes a first-class consumer of Execution Context framework"
+  - "Backward compatibility maintained for 3 sprints before --target removal"
+  - "Auto-discovery features now available to Dev MCP (gateway, PostgreSQL)"
+  - "Env overlay support now available (global.yaml, infra.yaml, service.yaml)"
+
+open_questions:
+  - question: "Should ResolvedContext include loki field?"
+    recommendation: "Yes, add optional loki field for consistency"
+    impact: "Minor - would require updating ContextResolver and ResolvedContext type"
+  - question: "Should we deprecate Firestore support in Dev MCP?"
+    recommendation: "Yes, add deprecation warning when Firestore driver is used"
+    impact: "Low - aligns with Sprint 353 PostgreSQL default"
+  - question: "How long should --target flag be supported?"
+    recommendation: "3 sprints (deprecation → removal)"
+    impact: "Low - standard deprecation timeline"

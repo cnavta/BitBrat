@@ -9,18 +9,18 @@ The `brat mcp setup` command configures the BitBrat dev MCP server in your Claud
 ## Quick Start
 
 ```bash
-# Setup with default settings (user scope, target local)
-npm run brat -- mcp setup --target local
+# Setup with default settings (user scope, context local)
+npm run brat -- mcp setup --context local
 
 # Setup with custom options
 npm run brat -- mcp setup \
-  --target local \
+  --context local \
   --scope user \
   --server-name bitbrat-dev \
   --log-level debug
 
 # Dry-run to preview changes
-npm run brat -- mcp setup --target local --dry-run
+npm run brat -- mcp setup --context local --dry-run
 ```
 
 ## Configuration Scopes
@@ -35,13 +35,15 @@ The `--scope` flag determines where the MCP server configuration is saved:
 
 ## Command Options
 
-- `--target <name>`: Target deployment (local, staging, prod). Default: none (uses .bitbrat.json)
+- `--context <name>`: Execution context (local, staging, prod). Default: none (uses current context from ~/.bratrc or BITBRAT_CONTEXT env)
 - `--scope <scope>`: Config scope (local, user, project). Default: `user`
 - `--server-name <name>`: MCP server name. Default: `bitbrat-dev`
 - `--log-level <level>`: Log level (error, warn, info, debug). Default: `info`
 - `--audit-log <path>`: Audit log path. Default: `.brat/dev-mcp-audit.log`
 - `--dry-run`: Preview changes without writing config
 - `--json`: Output result as JSON
+
+**Note**: The `--target` flag is deprecated. Use `--context` instead.
 
 ## Authentication
 
@@ -73,7 +75,7 @@ After running `brat mcp setup`, verify the configuration:
 claude mcp list
 
 # Test the server directly
-npm run brat -- dev-mcp start --target local
+npm run brat -- dev-mcp start --context local
 ```
 
 ## Generated Configuration
@@ -92,7 +94,7 @@ The setup command creates an MCP server configuration like this:
         "--",
         "dev-mcp",
         "start",
-        "--target",
+        "--context",
         "local",
         "--log-level",
         "info"
@@ -155,35 +157,36 @@ export MCP_DEV_TOKEN="test-token-123"
 ### Connection errors
 ```bash
 # Test the server directly
-npm run brat -- dev-mcp start --target local
+npm run brat -- dev-mcp start --context local
 
-# Check that the target exists in .bitbrat.json or architecture.yaml
-cat .bitbrat.json
+# Check that the context exists in ~/.bratrc or architecture.yaml executionContexts
+cat ~/.bratrc
+cat architecture.yaml | grep -A 10 "executionContexts:"
 ```
 
 ## Examples
 
 ### Setup for local development
 ```bash
-npm run brat -- mcp setup --target local --log-level debug
+npm run brat -- mcp setup --context local --log-level debug
 ```
 
 ### Setup for team (project scope)
 ```bash
-npm run brat -- mcp setup --target local --scope project
+npm run brat -- mcp setup --context local --scope project
 ```
 
 ### Setup with custom server name
 ```bash
 npm run brat -- mcp setup \
-  --target staging \
+  --context staging \
   --server-name bitbrat-staging \
   --scope user
 ```
 
 ### Preview without making changes
 ```bash
-npm run brat -- mcp setup --target local --dry-run --json
+npm run brat -- mcp setup --context local --dry-run --json
 ```
 
 ## Security Notes
