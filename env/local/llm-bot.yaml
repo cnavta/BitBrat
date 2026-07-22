@@ -1,27 +1,94 @@
+# ============================================================================
+# LLM Bot Service Configuration
+# ============================================================================
+# Purpose: Conversational AI bot powered by language models
+# Required: Yes (core platform service)
+#
+# Prerequisites:
+#   - OPENAI_API_KEY in .secure.local (required for OpenAI provider)
+#   - Or configure alternative provider (see Advanced Configuration below)
+# ============================================================================
+
+# === Essential Configuration ===
+
+# LLM Provider and Model Selection
+# Note: LLM Bot and Query Analyzer have SEPARATE LLM configs (intentional)
+# - LLM Bot: Uses conversational models optimized for quality (gpt-4.1-mini or better)
+# - Query Analyzer: Uses fast, cheap models optimized for speed (gpt-4.1-mini)
+# This separation allows independent scaling and cost control in production.
+
+# LLM Provider (openai, ollama, vllm)
 LLM_BOT_LLM_PROVIDER: openai
+
+# Model to use (conversational quality, multi-turn coherence)
 LLM_BOT_LLM_MODEL: gpt-4.1-mini
-LLM_BOT_LLM_BASE_URL: "n/a"
+
+# Conversation Memory Limits
+LLM_BOT_MEMORY_MAX_MESSAGES: 8
+LLM_BOT_MEMORY_MAX_CHARS: 8000
+
+# Optional: Customize bot personality
+# LLM_BOT_SYSTEM_PROMPT: "You are a helpful AI assistant."
+
+# === Advanced Configuration ===
+# Most users won't need to modify these settings
+# See documentation/reference/llm-bot-config.md for details
+
+# Provider-Specific Settings
+LLM_BOT_LLM_BASE_URL: "n/a"  # Only needed for Ollama/vLLM
 OPENAI_MODEL: gpt-4.1-mini
 OPENAI_TIMEOUT_MS: 300000
 OPENAI_MAX_RETRIES: 3
-LLM_BOT_ENABLED: true
-# Short-term memory configuration (dev defaults)
-LLM_BOT_MEMORY_MAX_MESSAGES: 8
-LLM_BOT_MEMORY_MAX_CHARS: 8000I
-# Optional system prompt to appear as the first (system) turn in the transcript
-# Uncomment and customize as needed for local testing.
-LLM_BOT_SYSTEM_PROMPT: "You are BitBrat, a conversational, entertaining assistant. You may push boundaries, but never in cruelty, and can be extremely kind when the moment is right. Always, always laugh at the world, but also always show others understanding."
+
+# Instance Memory (per-user conversation state)
 LLM_BOT_INSTANCE_MEM_MAX_KEYS: 1000
 LLM_BOT_INSTANCE_MEM_MAX_MSGS: 32
 LLM_BOT_INSTANCE_MEM_MAX_CHARS: 16000
 LLM_BOT_INSTANCE_MEM_TTL_MS: 3600000
 
-LLM_BOT_FF_LLM_PROMPT_LOGGING: true
+# Behavioral Controls
+# These flags govern safety, moderation, and response quality
 
+# LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED: Inject behavioral constraints into prompts
+# Purpose: Ensures bot follows platform policies (no harmful content, appropriate tone)
+# When false: Bot relies solely on model's training (less controlled)
+# Default: true (recommended for safe, predictable behavior)
 LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED: true
+
+# LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED: Restrict tool use based on behavioral context
+# Purpose: Prevents inappropriate tool invocations (e.g., don't delete messages during casual chat)
+# When false: Bot can use any tool at any time (more flexible, less safe)
+# Default: true (prevents misuse of powerful tools)
 LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED: true
+
+# LLM_BOT_BEHAVIORAL_GATING_ENABLED: Pre-response safety checks
+# Purpose: Analyzes generated responses before sending (blocks harmful content)
+# When false: Responses sent without safety review (faster, less safe)
+# Default: true (essential for public-facing deployments)
 LLM_BOT_BEHAVIORAL_GATING_ENABLED: true
+
+# LLM_BOT_RISK_RESPONSE_MODE: How to handle high-risk requests
+# Options: "refuse" (block risky requests), "warn" (respond with warning), "allow" (no restrictions)
+# Default: "refuse" (safest option - bot politely declines harmful requests)
 LLM_BOT_RISK_RESPONSE_MODE: refuse
+
+# LLM_BOT_TONE_STYLE_ENABLED: Apply tone/style constraints from behavioral guidance
+# Purpose: Maintains consistent personality and communication style
+# When false: Bot uses model's default tone (may vary by model)
+# Default: true (consistent user experience)
 LLM_BOT_TONE_STYLE_ENABLED: true
 
+# Feature Flags: Service-Specific
+
+# LLM_BOT_ENABLED: Master toggle for LLM bot service
+# When false: Service runs but doesn't process events (maintenance mode)
+# Default: true (core service)
+LLM_BOT_ENABLED: true
+
+# LLM_BOT_FF_LLM_PROMPT_LOGGING: Log prompts sent to LLM provider (service-specific override)
+# Inherits from global FF_LLM_PROMPT_LOGGING if not set
+# Default: true (useful for debugging this service)
+LLM_BOT_FF_LLM_PROMPT_LOGGING: true
+
+# Internal Prompt Engineering
 PROMPT_SUBHEADER_CONVERSATION_STATE: "Do not imitate prior assistant tone if it conflicts with current constraints."

@@ -20,6 +20,9 @@ node_modules/
 .secure.local
 .secure.local.*
 .secure.*
+# But DO allow .secure.local.example template
+!.secure.local.example
+!**/.secure.local.example
 # Local .terraform directories
 .terraform
 
@@ -106,3 +109,4 @@ validation_output.txt
 .junie/
 
 .scratch/
+

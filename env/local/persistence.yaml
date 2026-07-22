@@ -1,1 +1,15 @@
-# persistence service local configuration
+# ============================================================================
+# Persistence Service Configuration
+# ============================================================================
+# Purpose: Durable event storage and replay
+# Required: Yes (core platform service)
+#
+# Default Configuration:
+#   All persistence settings are configured in env/local/global.yaml
+#   - PERSISTENCE_DRIVER: postgres (default, platform-agnostic)
+#   - DATABASE_URL: PostgreSQL connection string
+#   - Snapshot mode, TTL, and payload retention settings
+#
+# This file exists for service-specific overrides only.
+# Most users will not need to modify this file.
+# ============================================================================

@@ -1,11 +1,34 @@
+# ============================================================================
+# Infrastructure Configuration
+# ============================================================================
+# Purpose: External service connections (message bus, legacy Firebase emulator)
+# Required: Yes (core platform infrastructure)
+#
+# Platform-Agnostic Defaults (NO emulators needed):
+#   - Message Bus: NATS (MESSAGE_BUS_DRIVER=nats in global.yaml)
+#   - Persistence: PostgreSQL (PERSISTENCE_DRIVER=postgres in global.yaml)
+#
+# The platform runs with just NATS + PostgreSQL - no Firebase emulator required!
+#
+# Legacy Firebase Emulator (OPTIONAL - deprecated):
+#   Only needed if using legacy drivers:
+#   - PERSISTENCE_DRIVER=firestore (deprecated, GCP-specific)
+#   - MESSAGE_BUS_DRIVER=pubsub (deprecated, GCP-specific)
+#
+# To disable Firebase emulator:
+#   See env/local/README.md section "Running Without Firebase Emulator"
+# ============================================================================
+
+# NATS Message Bus (platform-agnostic default)
+NATS_URL: nats://nats:4222
+
+# Legacy Firebase/Firestore Emulator (deprecated - only if PERSISTENCE_DRIVER=firestore)
 FIREBASE_PROJECT_ID: bitbrat-local
 GOOGLE_CLOUD_PROJECT: bitbrat-local
 GCLOUD_PROJECT: bitbrat-local
 FIRESTORE_EMULATOR_HOST: firebase-emulator:8080
-NATS_URL: nats://nats:4222
 
-# Local Pub/Sub Emulator config
+# Legacy Pub/Sub Emulator (deprecated - only if MESSAGE_BUS_DRIVER=pubsub)
 PUBSUB_API_ENDPOINT: "firebase-emulator:8085"
 PUBSUB_EMULATOR_HOST: "firebase-emulator:8085"
-# Disable strict topic existence check to let emulator auto-create if needed
 PUBSUB_ENSURE_MODE: "off"

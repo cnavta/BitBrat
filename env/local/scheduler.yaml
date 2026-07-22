@@ -1,2 +1,17 @@
-# scheduler service local configuration
-# Note: MCP_AUTH_TOKEN is required and should be set in .secure.local
+# ============================================================================
+# Scheduler Service Configuration
+# ============================================================================
+# Purpose: Scheduled task execution (cron jobs, delayed events)
+# Required: No (optional service, not started by default in local stack)
+#
+# Prerequisites:
+#   - MCP_AUTH_TOKEN in .secure.local (required for MCP tool access)
+#
+# Default Configuration:
+#   This service has minimal configuration - most settings are in global.yaml
+#
+# To use the scheduler service:
+#   1. Add MCP_AUTH_TOKEN to .secure.local
+#   2. Start service: docker compose up scheduler
+#   3. Schedule tasks via MCP tools or event-router rules
+# ============================================================================

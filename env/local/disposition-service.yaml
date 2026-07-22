@@ -1,8 +1,30 @@
+# ============================================================================
+# Disposition Service Configuration
+# ============================================================================
+# Purpose: Monitors conversation patterns and provides moderation assistance
+# Required: No (optional service for safety and moderation)
+#
+# Capabilities:
+#   - Prompt injection detection
+#   - Behavioral pattern analysis
+#   - Moderation recommendation engine
+#
+# Default: Enabled with conservative safety settings
+# ============================================================================
+
 DISPOSITION_ENABLED: true
+
+# Event windowing (15 minutes)
 DISPOSITION_WINDOW_MS: 900000
 DISPOSITION_MAX_EVENTS: 20
 DISPOSITION_MIN_EVENTS: 3
+
+# Snapshot retention (20 minutes)
 DISPOSITION_SNAPSHOT_TTL_MS: 1200000
+
+# Publish disposition updates to message bus
 DISPOSITION_PUBLISH_UPDATES: true
+
+# Safety features
 DISPOSITION_PROMPT_INJECTION_ENABLED: true
 DISPOSITION_MODERATION_ASSIST_ENABLED: false

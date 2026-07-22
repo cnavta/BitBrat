@@ -1,4 +1,7 @@
 MCP_TRANSPORT: sse
-OBS_WEBSOCKET_URL: "ws://joepc.lan:4455"
-OBS_WEBSOCKET_SELF_SIGNED: true
-OBS_WEBSOCKET_PASSWORD: "password"
+
+# Optional: OBS Studio WebSocket integration
+# Uncomment and configure if you want OBS integration
+# OBS_WEBSOCKET_URL: "ws://your-obs-host:4455"
+# OBS_WEBSOCKET_SELF_SIGNED: true
+# Configure OBS_WEBSOCKET_PASSWORD in .secure.local

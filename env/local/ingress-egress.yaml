@@ -1,24 +1,44 @@
-TWITCH_BOT_USERNAME: "bitbrat_the_ai"
-TWITCH_CHANNELS: "gonj_the_unjust"
-# Discord integration (disabled by default locally)
-DISCORD_ENABLED: "true"
-# Single guild ID to operate in (e.g., 123456789012345678)
-DISCORD_GUILD_ID: "1324629154695483422"
-# Comma-separated list of channel IDs to listen in (e.g., 111,222)
-DISCORD_CHANNELS: "1324629154695483426,1492322791268159538"
-# Use token store for Discord bot token (authTokens/discord/bot)
+# ============================================================================
+# Ingress/Egress Service: Chat Platform Integrations
+# ============================================================================
+# This service connects BitBrat to external chat platforms (Twitch, Discord, Twilio)
+# All integrations are OPTIONAL - the platform runs without any of them
+# ============================================================================
+
+# Twitch Integration (OPTIONAL - disabled by default)
+# Prerequisites:
+#   1. Twitch Developer App (https://dev.twitch.tv/console/apps)
+#   2. Add TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET to .secure.local
+# To enable:
+#   1. Set TWITCH_BOT_USERNAME to your bot's Twitch username
+#   2. Set TWITCH_CHANNELS to comma-separated list of channels to join
+#   3. Start OAuth flow: npm run brat -- oauth twitch
+TWITCH_BOT_USERNAME: ""
+TWITCH_CHANNELS: ""
+
+# Discord Integration (OPTIONAL - disabled by default)
+# Prerequisites:
+#   1. Discord Bot (https://discord.com/developers/applications)
+#   2. Add DISCORD_BOT_TOKEN to .secure.local
+# To enable:
+#   1. Set DISCORD_ENABLED: "true"
+#   2. Set DISCORD_GUILD_ID to your server's ID
+#   3. Set DISCORD_CHANNELS to comma-separated channel IDs to monitor
+# See: documentation/guides/discord-integration.md
+DISCORD_ENABLED: "false"
+# DISCORD_GUILD_ID: "your-discord-guild-id"
+# DISCORD_CHANNELS: "channel-id-1,channel-id-2"
 DISCORD_USE_TOKEN_STORE: "false"
-# Twilio
-TWILIO_ENABLED: "false"
-TWILIO_IDENTITY: "local-twilio-identity"
-TWILIO_ACCOUNT_SID: "local-twilio-sid"
-TWILIO_AUTH_TOKEN: "local-twilio-token"
-TWILIO_API_KEY: "local-twilio-key"
-TWILIO_API_SECRET: "local-twilio-secret"
-TWILIO_CHAT_SERVICE_SID: "local-twilio-chat-sid"
-# Twitch
-TWITCH_CLIENT_ID: "local-twitch-id"
-TWITCH_CLIENT_SECRET: "local-twitch-secret"
 DISCORD_ALLOW_ENV_FALLBACK: "true"
 # Poll interval (ms) for token rotation checks when using token store
 DISCORD_TOKEN_POLL_MS: "60000"
+
+# Twilio Integration (OPTIONAL - disabled by default)
+# Prerequisites:
+#   1. Twilio Account (https://www.twilio.com/console)
+#   2. Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to .secure.local
+# To enable:
+#   1. Set TWILIO_ENABLED: "true"
+#   2. Configure phone numbers and webhooks in Twilio console
+# See: documentation/guides/twilio-integration.md
+TWILIO_ENABLED: "false"
