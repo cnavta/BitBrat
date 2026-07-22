@@ -20,6 +20,7 @@ describe('LogRetriever', () => {
     mockConnection = {
       name: 'test-target',
       type: 'local',
+      persistenceDriver: 'firestore',
       firestore: {
         db: {} as any,
         projectId: 'test-project',
