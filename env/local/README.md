@@ -12,15 +12,22 @@ This directory contains configuration files for running BitBrat locally using Do
 cp .secure.local.example .secure.local
 ```
 
-### 2. Add Your OpenAI API Key
+### 2. Configure Credentials
 
-Edit `.secure.local` and set:
+Edit `.secure.local` and set the required values:
 
 ```bash
+# Required: OpenAI API key
 OPENAI_API_KEY=sk-your-actual-key-here
+
+# Required: PostgreSQL credentials (defaults are fine for local dev)
+POSTGRES_USER=bitbrat
+POSTGRES_PASSWORD=bitbrat_dev_password
 ```
 
-**Don't have an API key?** Get one at https://platform.openai.com/api-keys
+**Don't have an OpenAI API key?** Get one at https://platform.openai.com/api-keys
+
+**Note**: The PostgreSQL credentials shown above are the defaults for local development. You can leave them as-is or change them to anything you prefer. For production, use strong, unique passwords.
 
 ### 3. Start the Platform
 

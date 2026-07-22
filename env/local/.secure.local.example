@@ -16,6 +16,14 @@
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
 # ============================================================================
+# REQUIRED: PostgreSQL Database Credentials
+# ============================================================================
+# Local development defaults (change for production)
+# These are referenced in global.yaml as ${POSTGRES_USER} and ${POSTGRES_PASSWORD}
+POSTGRES_USER=bitbrat
+POSTGRES_PASSWORD=bitbrat_dev_password
+
+# ============================================================================
 # OPTIONAL: Twitch Integration
 # ============================================================================
 # Only required if you want to connect to Twitch chat
