@@ -8,6 +8,11 @@ import { DevMcpServer } from '../dev-mcp/server.js';
 import { createLogger } from '../orchestration/logger';
 
 export interface DevMcpFlags {
+  /** Execution context name */
+  context?: string;
+  /**
+   * @deprecated Use --context instead. Will be removed in Sprint 357.
+   */
   target?: string;
   logLevel?: 'error' | 'warn' | 'info' | 'debug';
   auditLog?: string;
@@ -28,8 +33,15 @@ export async function cmdDevMcp(
   if (action !== 'start') {
     logger.error(`Unknown dev-mcp action: ${action}`);
     console.error(`Unknown dev-mcp action: ${action}`);
-    console.error('Usage: brat dev-mcp start [--target <name>] [--log-level <level>]');
+    console.error('Usage: brat dev-mcp start [--context <name>] [--log-level <level>]');
     process.exit(1);
+  }
+
+  // Handle backward compatibility: --target → --context
+  let contextName = flags.context;
+  if (!contextName && flags.target) {
+    console.error('WARNING: --target flag is deprecated. Use --context instead. Will be removed in Sprint 357.');
+    contextName = flags.target;
   }
 
   // Check for authentication token (fail-closed)
@@ -43,7 +55,7 @@ export async function cmdDevMcp(
 
   // Create and start server
   const server = new DevMcpServer({
-    target: flags.target,
+    context: contextName,
     logLevel: flags.logLevel,
     auditLogPath: flags.auditLog,
     authToken,
@@ -64,7 +76,7 @@ export async function cmdDevMcp(
     await server.start();
 
     // Print startup message to stderr (so stdout is clean for MCP protocol)
-    console.error(`Dev MCP server started on stdio (target: ${flags.target || 'default'})`);
+    console.error(`Dev MCP server started on stdio (context: ${contextName || 'default'})`);
     console.error(`Audit log: ${flags.auditLog || '.brat/dev-mcp-audit.log'}`);
     console.error('Ready for MCP protocol messages on stdin/stdout');
   } catch (error: any) {

@@ -11,6 +11,11 @@ import os from 'os';
 import { createLogger } from '../orchestration/logger';
 
 export interface McpSetupFlags {
+  /** Execution context name */
+  context?: string;
+  /**
+   * @deprecated Use context instead. Will be removed in Sprint 357.
+   */
   target?: string;
   scope?: 'local' | 'user' | 'project';
   serverName?: string;
@@ -75,9 +80,12 @@ function buildServerConfig(flags: McpSetupFlags, projectRoot: string): any {
     },
   };
 
-  // Add target if specified
-  if (flags.target) {
-    config.args.push('--target', flags.target);
+  // Handle backward compatibility: target → context
+  const contextName = flags.context || flags.target;
+
+  // Add context if specified
+  if (contextName) {
+    config.args.push('--context', contextName);
   }
 
   // Add log level if specified

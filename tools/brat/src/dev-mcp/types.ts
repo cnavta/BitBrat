@@ -83,7 +83,12 @@ export interface ToolDefinition {
  * Dev MCP server options
  */
 export interface DevMcpServerOptions {
-  /** Default target name */
+  /** Default execution context name */
+  context?: string;
+  /**
+   * @deprecated Use `context` instead. Will be removed in Sprint 357.
+   * Default target name (legacy parameter)
+   */
   target?: string;
   /** Log level */
   logLevel?: 'error' | 'warn' | 'info' | 'debug';
