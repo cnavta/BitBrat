@@ -25,7 +25,6 @@ services:
   # ============================================================================
   loki:
     image: grafana/loki:2.9.3
-    container_name: loki.bitbrat.local
     hostname: loki.bitbrat.local
     user: "0"  # Run as root to avoid volume permission issues
 
@@ -68,7 +67,6 @@ services:
   # ============================================================================
   promtail:
     image: grafana/promtail:2.9.3
-    container_name: promtail.bitbrat.local
     hostname: promtail.bitbrat.local
     user: "0"  # Run as root to access Docker socket and container logs
 

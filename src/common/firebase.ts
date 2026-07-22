@@ -43,6 +43,18 @@ function resolveDatabaseId(): string {
 }
 
 export function getFirestore() {
+  // Prevent accidental Firestore initialization when PostgreSQL is configured (Sprint 353)
+  const persistenceDriver = process.env.PERSISTENCE_DRIVER;
+  if (persistenceDriver === 'postgres' || persistenceDriver === 'postgresql') {
+    const error = new Error(
+      `getFirestore() called but PERSISTENCE_DRIVER=${persistenceDriver}. ` +
+      `This indicates a code path is attempting to use Firestore when PostgreSQL is configured. ` +
+      `Check factory functions and ensure they respect PERSISTENCE_DRIVER.`
+    );
+    logger.error('firebase.init.rejected', { persistenceDriver, error: error.message });
+    throw error;
+  }
+
   if (!initialized) {
     const databaseId = resolveDatabaseId();
     const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;

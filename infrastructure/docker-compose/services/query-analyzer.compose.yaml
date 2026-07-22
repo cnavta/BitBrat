@@ -18,9 +18,12 @@ services:
     ports:
       - "${QUERY_ANALYZER_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     depends_on:
-      - postgres
-      - nats
-      - ollama
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s
@@ -33,7 +36,6 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    container_name: ollama
     volumes:
       - ollama_data:/root/.ollama
     networks:

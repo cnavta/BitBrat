@@ -310,6 +310,6 @@ export function createPersistenceStore(
     );
   }
 
-  // Default to Firestore (for test environments where Firestore is not initialized)
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestorePersistenceStore(undefined as any);
 }

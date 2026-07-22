@@ -38,8 +38,14 @@ export class PostgresDocumentStore implements IDocumentStore {
       ssl: config.ssl ? { rejectUnauthorized: false } : undefined,
     });
 
-    // Initialize logger (can be overridden by services)
-    this.logger = console;
+    // Initialize with no-op logger to avoid console spam
+    // Services should call setLogger() to inject the platform logger
+    this.logger = {
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+    };
   }
 
   /**

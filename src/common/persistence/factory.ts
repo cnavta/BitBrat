@@ -26,8 +26,10 @@ import { getFirestore } from '../firebase';
  *
  * Sprint 344: PostgreSQL is now the default persistence driver for the BitBrat platform.
  * Firestore remains supported for backwards compatibility but will be deprecated in future sprints.
+ *
+ * @param logger - Optional logger instance (typically from Bit.getLogger()). If not provided, PostgreSQL store will use no-op logger.
  */
-export function createDocumentStore(): IDocumentStore {
+export function createDocumentStore(logger?: any): IDocumentStore {
   const driver = process.env.PERSISTENCE_DRIVER || 'postgres';
 
   if (driver === 'postgres') {
@@ -38,13 +40,20 @@ export function createDocumentStore(): IDocumentStore {
       );
     }
 
-    return new PostgresDocumentStore({
+    const store = new PostgresDocumentStore({
       connectionString,
       poolSize: process.env.POSTGRES_POOL_SIZE
         ? parseInt(process.env.POSTGRES_POOL_SIZE, 10)
         : 10,
       ssl: process.env.POSTGRES_SSL === 'true',
     });
+
+    // Inject logger if provided
+    if (logger) {
+      store.setLogger(logger);
+    }
+
+    return store;
   }
 
   // Firestore backend (deprecated - will be removed in future sprint)

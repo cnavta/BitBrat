@@ -202,6 +202,6 @@ export function createAuthTokenStore(
     return new DocumentStoreAuthTokenStore(store, options?.tableName || 'auth_scopes');
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreAuthTokenStore(options);
 }

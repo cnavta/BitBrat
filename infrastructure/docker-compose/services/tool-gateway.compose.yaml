@@ -14,8 +14,10 @@ services:
     ports:
       - "${TOOL_GATEWAY_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     depends_on:
-      - postgres
-      - nats
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
       interval: 5s

@@ -97,7 +97,7 @@ export function createToolUsageStore(
     return new DocumentStoreToolUsageStore(store, collectionOrTable || 'tool_usage');
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreToolUsageStore(undefined, collectionOrTable || 'tool_usage');
 }
 

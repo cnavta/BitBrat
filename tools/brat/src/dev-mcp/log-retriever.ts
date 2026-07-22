@@ -44,29 +44,44 @@ export class LogRetriever {
     // Use appropriate registry based on persistence driver
     if (connection.persistenceDriver === 'postgres' && connection.store) {
       this.registry = new PostgresRegistryReader(connection.store);
-    } else if (connection.firestore) {
+    } else if (connection.persistenceDriver === 'firestore' && connection.firestore?.db) {
       this.registry = new FirestoreRegistryReader({
         projectId: connection.firestore.projectId,
         databaseId: connection.firestore.databaseId
       });
     } else {
-      // Fallback: create a no-op registry (shouldn't happen with proper target configuration)
-      this.registry = {
-        async listServers() { return []; },
-      } as any;
+      // No valid persistence configuration
+      throw new Error(
+        `Invalid persistence configuration. Expected PostgreSQL (default) or Firestore (legacy). ` +
+        `persistenceDriver: ${connection.persistenceDriver}, hasStore: ${!!connection.store}, hasFirestore: ${!!connection.firestore?.db}`
+      );
     }
 
-    // Initialize Loki client with remote URL for remote-ssh targets
+    // Initialize Loki client
+    let lokiUrl: string | undefined;
+
     if (connection.type === 'local') {
       // Local: use localhost
+      lokiUrl = 'http://localhost:3100';
+    } else if (connection.type === 'remote-ssh') {
+      // Remote SSH: prefer direct URL, fall back to tunnel
+      if (connection.loki?.url) {
+        lokiUrl = connection.loki.url;
+      } else if (connection.loki?.tunnel) {
+        lokiUrl = `http://localhost:${connection.loki.tunnel.localPort}`;
+      } else if (connection.lokiTunnel) {
+        // Backward compatibility
+        lokiUrl = `http://localhost:${connection.lokiTunnel.localPort}`;
+      }
+    }
+
+    if (lokiUrl) {
       this.lokiClient = new LokiClient({
-        url: 'http://localhost:3100',
+        url: lokiUrl,
         timeout: 5000
       });
-    } else if (connection.type === 'remote-ssh' && connection.ssh) {
-      // Remote SSH: use SSH tunnel or remote Loki URL
-      // For now, disable Loki for remote targets (fall back to Docker logs via SSH)
-      // TODO: Support SSH tunneling to remote Loki (requires port forwarding)
+    } else {
+      // No Loki available (fallback to Docker logs)
       this.lokiClient = undefined;
     }
   }
@@ -218,13 +233,16 @@ export class LogRetriever {
       throw new Error('Bit name is required for log retrieval');
     }
 
-    if (!this.connection.firestore) {
-      throw new Error('Cloud Run logs require Firestore connection (not available for PostgreSQL targets)');
+    if (!this.connection.gcpProjectId) {
+      throw new Error(
+        'Cloud Run logs require GCP project ID. ' +
+        'Configure gcp.projectId in execution context or set GCLOUD_PROJECT environment variable.'
+      );
     }
 
     // Initialize Cloud Logging client
     const logging = new Logging({
-      projectId: this.connection.firestore.projectId
+      projectId: this.connection.gcpProjectId
     });
 
     // Build Cloud Logging filter

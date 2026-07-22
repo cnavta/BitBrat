@@ -726,7 +726,7 @@ services:
       requiredRoles:
         - reflex
         - admin
-    active: true
+    active: false
     description: MCP server for controlling OBS
     kind: mcp-server
     external:
@@ -1035,8 +1035,13 @@ executionContexts:
         autoDiscover: true
         fallbackPort: 3004
       persistence:
-        driver: firestore
-        autoDiscover: true
+        driver: postgres
+        connection:
+          host: localhost
+          port: 5432
+          database: bitbrat
+          username: bitbrat
+          password: bitbrat_dev_password
       envOverlay:
         path: env/local
         files:
@@ -1047,7 +1052,7 @@ executionContexts:
     tags:
       - development
       - local
-  staging:
+  staging-old:
     description: Remote staging environment on bitbrat.lan
     deployment:
       type: docker-compose
@@ -1077,7 +1082,37 @@ executionContexts:
     tags:
       - staging
       - remote
-
+      - old
+  staging:
+    deployment:
+      type: docker-compose
+      docker:
+        host: ssh://root@bitbrat.lan
+        remoteDir: /opt/BitBratPlatform
+        maxConcurrent: 5
+    runtime:
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+        authToken: ${MCP_AUTH_TOKEN}
+      persistence:
+        driver: postgres
+        connection:
+          host: bitbrat.lan
+          port: 5432
+          database: bitbrat
+          username: bitbrat
+          password: bitbrat_dev_password
+      envOverlay:
+        path: env/staging
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+        secure: .secure.staging
+    description: Remote staging
+    tags:
+      - remote
 networking:
   cloud_nat:
     enabled: false

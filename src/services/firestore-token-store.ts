@@ -176,6 +176,6 @@ export function createTokenStore(
     return new PostgresTokenStore(store, docPath, options?.tableName || 'twitch_tokens');
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreTokenStore(docPath);
 }

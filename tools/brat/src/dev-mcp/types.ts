@@ -24,6 +24,8 @@ export interface TargetConnection {
     projectId: string;
     databaseId?: string;
   };
+  /** GCP project ID (for Cloud Run logs, independent of persistence layer) */
+  gcpProjectId?: string;
   /** Optional gateway URL for fleet operations */
   gateway?: {
     url: string;
@@ -35,6 +37,25 @@ export interface TargetConnection {
     target: string;
     /** Remote working directory */
     remoteDir?: string;
+  };
+  /** Loki access configuration */
+  loki?: {
+    /** Direct URL to Loki (e.g., http://bitbrat.lan:3100) */
+    url?: string;
+    /** SSH tunnel details (if direct access not available) */
+    tunnel?: {
+      /** Local port for Loki access */
+      localPort: number;
+      /** Remote Loki port */
+      remotePort: number;
+    };
+  };
+  /** @deprecated Use loki.tunnel instead */
+  lokiTunnel?: {
+    /** Local port for Loki access */
+    localPort: number;
+    /** Remote Loki port */
+    remotePort: number;
   };
   /** Cleanup function to close connections/tunnels */
   cleanup: () => Promise<void>;

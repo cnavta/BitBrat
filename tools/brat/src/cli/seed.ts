@@ -9,6 +9,9 @@ import { seedPostgres } from '../seeding/postgres-seed-writer';
 import { seedFirestore } from '../seeding/firestore-seed-writer';
 import { SeedingOptions } from '../seeding/seed-data-types';
 import { Firestore } from '@google-cloud/firestore';
+import { ContextResolver } from '../context/context-resolver';
+import type { ResolvedContext } from '../context/types';
+import * as path from 'path';
 
 /**
  * Execute seed command
@@ -17,17 +20,33 @@ import { Firestore } from '@google-cloud/firestore';
  * @param flags - Additional flags
  */
 export async function cmdSeed(options: any, flags: any): Promise<void> {
-  const { context, dryRun, wipe, botName, apiToken } = flags;
+  const { context: contextFlag, dryRun, wipe, botName, apiToken } = flags;
 
-  // Determine persistence driver from environment
-  const persistenceDriver = process.env.PERSISTENCE_DRIVER || 'postgres';
+  // Resolve execution context
+  // When running from dist/tools/brat/src/cli/index.js, we need to go up to repo root
+  // __dirname will be dist/tools/brat/src/cli, so we go up 5 levels to reach repo root
+  const repoRoot = path.resolve(__dirname, '../../../../../');
+  const resolver = new ContextResolver(repoRoot);
+
+  let resolvedContext;
+  try {
+    resolvedContext = await resolver.resolve(contextFlag);
+  } catch (error: any) {
+    console.error();
+    console.error('❌ Context resolution failed:');
+    console.error(`   ${error.message}`);
+    console.error();
+    process.exit(1);
+  }
+
+  const persistenceDriver = resolvedContext.runtime.persistence.driver;
 
   console.log();
   console.log('='.repeat(60));
   console.log('BitBrat Seed Data Command');
   console.log('='.repeat(60));
   console.log();
-  console.log(`Context: ${context || 'current'}`);
+  console.log(`Context: ${resolvedContext.name}`);
   console.log(`Persistence Driver: ${persistenceDriver}`);
   console.log(`Bot Name: ${botName || 'BitBrat'}`);
   console.log(`Dry Run: ${dryRun ? 'YES' : 'NO'}`);
@@ -35,7 +54,7 @@ export async function cmdSeed(options: any, flags: any): Promise<void> {
   console.log();
 
   const seedingOptions: SeedingOptions = {
-    contextName: context,
+    contextName: resolvedContext.name,
     botName: botName || 'BitBrat',
     dryRun: !!dryRun,
     wipe: !!wipe,
@@ -47,7 +66,7 @@ export async function cmdSeed(options: any, flags: any): Promise<void> {
 
     if (persistenceDriver === 'postgres') {
       // PostgreSQL seeding
-      const connectionString = buildPostgresConnectionString();
+      const connectionString = buildPostgresConnectionStringFromContext(resolvedContext);
       console.log('Seeding PostgreSQL database...');
       console.log();
 
@@ -120,20 +139,26 @@ export async function cmdSeed(options: any, flags: any): Promise<void> {
 }
 
 /**
- * Build PostgreSQL connection string from environment variables
+ * Build PostgreSQL connection string from resolved context
  */
-function buildPostgresConnectionString(): string {
-  // Try DATABASE_URL first
+function buildPostgresConnectionStringFromContext(context: ResolvedContext): string {
+  // Try DATABASE_URL from environment variables first (allows override)
   if (process.env.DATABASE_URL) {
     return process.env.DATABASE_URL;
   }
 
-  // Build from individual components
-  const host = process.env.POSTGRES_HOST || 'localhost';
-  const port = process.env.POSTGRES_PORT || '5432';
-  const database = process.env.POSTGRES_DB || 'bitbrat';
-  const username = process.env.POSTGRES_USER || 'bitbrat';
-  const password = process.env.POSTGRES_PASSWORD || '';
+  // Use resolved context persistence connection
+  const persistence = context.runtime.persistence;
+
+  if (persistence.driver !== 'postgres') {
+    throw new Error(`Expected postgres driver, got ${persistence.driver}`);
+  }
+
+  if (!persistence.connection) {
+    throw new Error('PostgreSQL connection details not found in context');
+  }
+
+  const { host, port, database, username, password } = persistence.connection;
 
   return `postgresql://${username}:${password}@${host}:${port}/${database}`;
 }

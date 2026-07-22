@@ -737,6 +737,6 @@ export function createReflexRepositoryWithBackend(
     return new DocumentStoreReflexRepository(store, pollIntervalMs);
   }
 
-  // Default to Firestore
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new ReflexRepository();
 }

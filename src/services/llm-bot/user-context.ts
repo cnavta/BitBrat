@@ -133,15 +133,16 @@ export function createUserContextStore(
     return new DocumentStoreUserContextStore(dbOrStore);
   }
 
-  // Auto-select based on PERSISTENCE_DRIVER environment variable
-  const driver = process.env.PERSISTENCE_DRIVER;
+  // Auto-select based on PERSISTENCE_DRIVER environment variable (default: postgres)
+  const driver = process.env.PERSISTENCE_DRIVER || 'postgres';
   if (driver === 'postgres' || driver === 'postgresql') {
-    throw new Error(
-      'createUserContextStore: PostgreSQL driver selected but no IDocumentStore instance provided'
-    );
+    // Create PostgreSQL DocumentStore automatically
+    const { createDocumentStore } = require('../../common/persistence/factory');
+    const store = createDocumentStore();
+    return new DocumentStoreUserContextStore(store);
   }
 
-  // Default to Firestore (for test environments where Firestore is not initialized)
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   return new FirestoreUserContextStore(undefined as any);
 }
 

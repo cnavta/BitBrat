@@ -10,6 +10,7 @@ import { Logger } from '../orchestration/logger';
 import { resolveBackupConnection } from '../backup/connection';
 import { getBackupFirestore } from '../providers/gcp/firestore';
 import { loadArchitecture } from '../config/loader';
+import { SSHTunnelManager } from './ssh-tunnel.js';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -21,11 +22,13 @@ export class TargetConnectionManager {
   private defaultTarget?: string;
   private defaultAuthToken?: string;
   private logger: Logger;
+  private sshTunnelManager: SSHTunnelManager;
 
   constructor(defaultTarget: string | undefined, defaultAuthToken: string | undefined, logger: Logger) {
     this.defaultTarget = defaultTarget;
     this.defaultAuthToken = defaultAuthToken;
     this.logger = logger;
+    this.sshTunnelManager = new SSHTunnelManager(logger);
   }
 
   /**
@@ -90,49 +93,65 @@ export class TargetConnectionManager {
       let deploymentTarget: any;
       let persistenceDriver: 'postgres' | 'firestore' | undefined;
       let type: TargetConnection['type'] = 'local';
+      let persistenceConfig: any;
 
       if (targetName) {
         try {
           // Determine root directory (walk up to find architecture.yaml)
           const rootDir = this.findRootDir();
           const arch = loadArchitecture(rootDir);
-          deploymentTarget = arch?.deploymentTargets?.[targetName];
+          // Sprint 349+: Use executionContexts instead of deploymentTargets
+          deploymentTarget = arch?.executionContexts?.[targetName] || arch?.deploymentTargets?.[targetName];
 
           // Determine target type from deployment target config
+          // Support both old (deploymentTargets) and new (executionContexts) structure
+          const dockerHost = deploymentTarget?.deployment?.docker?.host || deploymentTarget?.host;
+          const deploymentType = deploymentTarget?.deployment?.type || deploymentTarget?.type;
+
           if (deploymentTarget) {
-            if (deploymentTarget.host?.startsWith('ssh://')) {
+            if (dockerHost?.startsWith('ssh://')) {
               type = 'remote-ssh';
-            } else if (deploymentTarget.type === 'docker-engine') {
+            } else if (deploymentType === 'docker-engine' || deploymentType === 'docker-compose') {
               type = 'local';
-            } else if (deploymentTarget.type === 'gcp') {
+            } else if (deploymentType === 'gcp') {
               type = 'gcp';
             }
           }
 
           // Determine persistence driver early so we can conditionally connect to Firestore
-          if (deploymentTarget?.persistence?.driver) {
-            persistenceDriver = deploymentTarget.persistence.driver as 'postgres' | 'firestore';
+          // New structure: executionContexts.staging.runtime.persistence.driver
+          // Old structure: deploymentTargets.staging.persistence.driver
+          persistenceConfig = deploymentTarget?.runtime?.persistence || deploymentTarget?.persistence;
+
+          if (persistenceConfig?.driver) {
+            persistenceDriver = persistenceConfig.driver as 'postgres' | 'firestore';
           } else {
-            // Default: postgres for staging/production, firestore for local
-            persistenceDriver = type === 'local' ? 'firestore' : 'postgres';
+            // Default: postgres (platform-agnostic default since Sprint 344)
+            persistenceDriver = 'postgres';
           }
 
           if (deploymentTarget) {
             // Extract gateway configuration
-            if (deploymentTarget.gateway?.url) {
+            // New structure: executionContexts.staging.runtime.gateway
+            // Old structure: deploymentTargets.staging.gateway
+            const gatewayConfig = deploymentTarget?.runtime?.gateway || deploymentTarget?.gateway;
+
+            if (gatewayConfig?.url) {
               gateway = {
-                url: deploymentTarget.gateway.url,
-                authToken: deploymentTarget.gateway.authToken || this.defaultAuthToken
+                url: gatewayConfig.url,
+                authToken: gatewayConfig.authToken || this.defaultAuthToken
               };
               this.logger.debug({ target: targetName, gatewayUrl: gateway.url, hasToken: !!gateway.authToken }, 'Resolved gateway URL from architecture.yaml');
             }
 
             // Extract SSH details for remote targets
-            if (type === 'remote-ssh' && deploymentTarget.host?.startsWith('ssh://')) {
-              const sshTarget = deploymentTarget.host.replace('ssh://', '');
+            const remoteDir = deploymentTarget?.deployment?.docker?.remoteDir || deploymentTarget?.remoteDir;
+
+            if (type === 'remote-ssh' && dockerHost?.startsWith('ssh://')) {
+              const sshTarget = dockerHost.replace('ssh://', '');
               ssh = {
                 target: sshTarget,
-                remoteDir: deploymentTarget.remoteDir
+                remoteDir
               };
               this.logger.debug({ target: targetName, sshTarget: ssh.target, remoteDir: ssh.remoteDir }, 'Resolved SSH connection details');
             }
@@ -142,8 +161,8 @@ export class TargetConnectionManager {
           // Continue without gateway/SSH details - not fatal
         }
       } else {
-        // No target name specified - default to firestore for backward compatibility
-        persistenceDriver = 'firestore';
+        // No target name specified - default to postgres
+        persistenceDriver = 'postgres';
       }
 
       // For local connections without explicit gateway config, use default local gateway
@@ -168,12 +187,16 @@ export class TargetConnectionManager {
           let connectionString: string;
 
           // Construct DATABASE_URL from target config if available
-          if (deploymentTarget?.persistence?.host) {
-            const pgHost = deploymentTarget.persistence.host;
-            const pgPort = deploymentTarget.persistence.port || 5432;
-            const pgDatabase = deploymentTarget.persistence.database || 'bitbrat';
-            const pgUsername = deploymentTarget.persistence.username || 'bitbrat';
-            const pgPassword = deploymentTarget.persistence.password || '';
+          // New structure: executionContexts.staging.runtime.persistence.connection
+          // Old structure: deploymentTargets.staging.persistence
+          const pgConnection = persistenceConfig?.connection || persistenceConfig;
+
+          if (pgConnection?.host) {
+            const pgHost = pgConnection.host;
+            const pgPort = pgConnection.port || 5432;
+            const pgDatabase = pgConnection.database || 'bitbrat';
+            const pgUsername = pgConnection.username || 'bitbrat';
+            const pgPassword = pgConnection.password || '';
 
             connectionString = `postgresql://${pgUsername}:${pgPassword}@${pgHost}:${pgPort}/${pgDatabase}`;
             this.logger.debug({
@@ -229,6 +252,87 @@ export class TargetConnectionManager {
         }
       }
 
+      // Setup Loki access for remote-ssh targets
+      let lokiTunnel: TargetConnection['lokiTunnel'];
+      let tunnelCleanup: (() => Promise<void>) | undefined;
+      let lokiUrl: string | undefined;
+
+      if (type === 'remote-ssh' && ssh) {
+        // Extract hostname from ssh target (e.g., "root@bitbrat.lan" -> "bitbrat.lan")
+        const remoteHost = ssh.target.includes('@') ? ssh.target.split('@')[1] : ssh.target;
+
+        // First, try direct connection to Loki (if port is publicly exposed)
+        const directLokiUrl = `http://${remoteHost}:3100`;
+        this.logger.debug({ directLokiUrl }, 'Checking if Loki is directly accessible');
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+          const response = await fetch(`${directLokiUrl}/ready`, {
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            this.logger.info({ lokiUrl: directLokiUrl }, 'Loki is directly accessible (no tunnel needed)');
+            lokiUrl = directLokiUrl;
+          }
+        } catch (error) {
+          this.logger.debug({ error: (error as Error).message }, 'Direct Loki access failed, will try SSH tunnel');
+        }
+
+        // If direct access failed, create SSH tunnel
+        if (!lokiUrl) {
+          try {
+            this.logger.info({ sshTarget: ssh.target }, 'Creating SSH tunnel for Loki access');
+
+            const tunnel = await this.sshTunnelManager.createTunnel({
+              sshTarget: ssh.target,
+              remotePort: 3100, // Loki default port
+              remoteHost: 'localhost'
+            });
+
+            lokiTunnel = {
+              localPort: tunnel.localPort,
+              remotePort: tunnel.remotePort
+            };
+
+            tunnelCleanup = tunnel.close;
+
+            this.logger.info({
+              sshTarget: ssh.target,
+              localPort: tunnel.localPort,
+              remotePort: tunnel.remotePort
+            }, 'SSH tunnel for Loki established');
+          } catch (error: any) {
+            // Log warning but don't fail - Loki is optional
+            this.logger.warn({
+              sshTarget: ssh.target,
+              error: error.message
+            }, 'Failed to create SSH tunnel for Loki (will fall back to Docker logs)');
+          }
+        }
+      }
+
+      // Extract GCP project ID for Cloud Run logs (independent of persistence layer)
+      // Priority: deployment config > Firestore connection > environment variables
+      let gcpProjectId: string | undefined;
+
+      if (deploymentTarget?.gcp?.projectId) {
+        // Explicit GCP project ID in deployment target config
+        gcpProjectId = deploymentTarget.gcp.projectId;
+      } else if (target.projectId) {
+        // From Firestore connection (when persistenceDriver === 'firestore')
+        gcpProjectId = target.projectId;
+      } else if (type === 'gcp' || deploymentTarget?.deployment?.type === 'cloud-run') {
+        // For GCP/Cloud Run deployments, try environment variables
+        gcpProjectId = process.env.GCLOUD_PROJECT
+          || process.env.GOOGLE_CLOUD_PROJECT
+          || process.env.FIREBASE_PROJECT_ID;
+      }
+
       // Build TargetConnection
       const connection: TargetConnection = {
         name: targetName || 'default',
@@ -240,8 +344,14 @@ export class TargetConnectionManager {
           projectId: target.projectId,
           databaseId: target.databaseId,
         },
+        gcpProjectId,
         gateway,
         ssh,
+        loki: lokiUrl || lokiTunnel ? {
+          url: lokiUrl,
+          tunnel: lokiTunnel
+        } : undefined,
+        lokiTunnel, // Keep for backward compatibility
         cleanup: async () => {
           // Cleanup PostgreSQL connection pool if exists
           if (store && typeof store.close === 'function') {
@@ -251,6 +361,10 @@ export class TargetConnectionManager {
           if (cleanupFn) {
             await cleanupFn();
           }
+          // Cleanup SSH tunnel if exists
+          if (tunnelCleanup) {
+            await tunnelCleanup();
+          }
         },
       };
 
@@ -258,8 +372,12 @@ export class TargetConnectionManager {
         target: connection.name,
         type: connection.type,
         projectId: connection.firestore.projectId,
+        gcpProjectId: connection.gcpProjectId,
+        persistenceDriver: connection.persistenceDriver,
         hasGateway: !!connection.gateway,
-        hasSsh: !!connection.ssh
+        hasSsh: !!connection.ssh,
+        lokiAccess: connection.loki?.url ? 'direct' : connection.loki?.tunnel ? 'tunnel' : 'none',
+        lokiUrl: connection.loki?.url
       }, 'Connection established');
 
       return connection;
@@ -310,5 +428,8 @@ export class TargetConnectionManager {
       Array.from(this.connections.values()).map((conn) => conn.cleanup())
     );
     this.connections.clear();
+
+    // Also close all SSH tunnels
+    await this.sshTunnelManager.closeAll();
   }
 }

@@ -1,8 +1,700 @@
-# Docker Compose override for staging environment
-# This file disables services that should not run in staging
+# Generated Docker Compose configuration
+# DO NOT EDIT MANUALLY - regenerate with 'brat context create'
+# Generated: 2026-07-21T21:07:29.221Z
 
 services:
-  # Disable Firebase emulator in staging - we use real Firestore
-  firebase-emulator:
-    profiles:
-      - disabled  # Move to 'disabled' profile to prevent activation
+  nats:
+    env_file:
+      - ".env.brat"
+    image: "nats:2-alpine"
+    command:
+      - "-js"
+      - "-sd"
+      - "/data"
+      - "-m"
+      - "8222"
+    networks:
+      bitbrat-network:
+        aliases:
+          - "nats.bitbrat.local"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test:
+        - "CMD"
+        - "wget"
+        - "--spider"
+        - "-q"
+        - "http://localhost:8222/varz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    volumes:
+      - "nats-data:/data"
+  postgres:
+    env_file:
+      - ".env.brat"
+    image: "pgvector/pgvector:pg15"
+    networks:
+      bitbrat-network:
+        aliases:
+          - "postgres.bitbrat.local"
+    environment:
+      - "POSTGRES_USER=${POSTGRES_USER:-bitbrat}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bitbrat_dev_password}"
+      - "POSTGRES_DB=${POSTGRES_DB:-bitbrat}"
+      - "PGDATA=/var/lib/postgresql/data/pgdata"
+    volumes:
+      - "postgres-data:/var/lib/postgresql/data"
+      - "./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "pg_isready -U ${POSTGRES_USER:-bitbrat} -d ${POSTGRES_DB:-bitbrat}"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=vector"
+      - "-c"
+      - "max_connections=200"
+  nats-box:
+    env_file:
+      - ".env.brat"
+    image: "natsio/nats-box:latest"
+    depends_on:
+      - "nats"
+    environment:
+      - "NATS_URL=nats://nats:4222"
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - "tail -f /dev/null"
+    networks:
+      bitbrat-network: {}
+  oauth-flow:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "oauth-flow"
+        SERVICE_ENTRY: "dist/apps/oauth-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      DISCORD_REDIRECT_URI: "${DISCORD_REDIRECT_URI}"
+      DISCORD_OAUTH_SCOPES: "${DISCORD_OAUTH_SCOPES}"
+      DISCORD_OAUTH_PERMISSIONS: "${DISCORD_OAUTH_PERMISSIONS}"
+      TWITCH_OAUTH_SCOPES: "${TWITCH_OAUTH_SCOPES}"
+      TWITCH_CLIENT_ID: "${TWITCH_CLIENT_ID}"
+      TWITCH_CLIENT_SECRET: "${TWITCH_CLIENT_SECRET}"
+      OAUTH_STATE_SECRET: "${OAUTH_STATE_SECRET}"
+      DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID}"
+      DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET}"
+    ports:
+      - "${OAUTH_FLOW_HOST_PORT:-3013}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      auth:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "oauth-flow.bitbrat.local"
+  ingress-egress:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "ingress-egress"
+        SERVICE_ENTRY: "dist/apps/ingress-egress-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      PERSISTENCE_SNAPSHOT_MODE: "${PERSISTENCE_SNAPSHOT_MODE}"
+      PERSISTENCE_INCLUDE_RAW_PAYLOADS: "${PERSISTENCE_INCLUDE_RAW_PAYLOADS}"
+      PERSISTENCE_MAX_SNAPSHOT_BYTES: "${PERSISTENCE_MAX_SNAPSHOT_BYTES}"
+      PERSISTENCE_TTL_DAYS: "${PERSISTENCE_TTL_DAYS}"
+      DISCORD_ENABLED: "${DISCORD_ENABLED}"
+      TWILIO_ENABLED: "${TWILIO_ENABLED}"
+      TWITCH_CLIENT_ID: "${TWITCH_CLIENT_ID}"
+      TWITCH_CLIENT_SECRET: "${TWITCH_CLIENT_SECRET}"
+      DISCORD_BOT_TOKEN: "${DISCORD_BOT_TOKEN}"
+      TWILIO_ACCOUNT_SID: "${TWILIO_ACCOUNT_SID}"
+      TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN}"
+      TWILIO_API_KEY: "${TWILIO_API_KEY}"
+      TWILIO_API_SECRET: "${TWILIO_API_SECRET}"
+      TWILIO_CHAT_SERVICE_SID: "${TWILIO_CHAT_SERVICE_SID}"
+    ports:
+      - "${INGRESS_EGRESS_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      postgres:
+        condition: "service_healthy"
+      auth:
+        condition: "service_started"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "ingress-egress.bitbrat.local"
+  auth:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "auth"
+        SERVICE_ENTRY: "dist/apps/auth-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      TWITCH_CLIENT_ID: "${TWITCH_CLIENT_ID}"
+      TWITCH_CLIENT_SECRET: "${TWITCH_CLIENT_SECRET}"
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${AUTH_HOST_PORT:-3007}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "auth.bitbrat.local"
+  query-analyzer:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "query-analyzer"
+        SERVICE_ENTRY: "dist/apps/query-analyzer.js"
+        SERVICE_PORT: "3000"
+    environment:
+      LLM_PROVIDER: "${LLM_PROVIDER}"
+      LLM_MODEL: "${LLM_MODEL}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+    ports:
+      - "${QUERY_ANALYZER_HOST_PORT:-3004}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+      tool-gateway:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "query-analyzer.bitbrat.local"
+  event-router:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "event-router"
+        SERVICE_ENTRY: "dist/apps/event-router-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${EVENT_ROUTER_HOST_PORT:-3002}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      auth:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "event-router.bitbrat.local"
+  llm-bot:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "llm-bot"
+        SERVICE_ENTRY: "dist/apps/llm-bot-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      OPENAI_MODEL: "${OPENAI_MODEL}"
+      OPENAI_TIMEOUT_MS: "${OPENAI_TIMEOUT_MS}"
+      OPENAI_MAX_RETRIES: "${OPENAI_MAX_RETRIES}"
+      LLM_BOT_MEMORY_MAX_MESSAGES: "${LLM_BOT_MEMORY_MAX_MESSAGES}"
+      LLM_BOT_MEMORY_MAX_CHARS: "${LLM_BOT_MEMORY_MAX_CHARS}"
+      LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED: "${LLM_BOT_BEHAVIORAL_GUIDANCE_ENABLED}"
+      LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED: "${LLM_BOT_BEHAVIORAL_TOOL_FILTER_ENABLED}"
+      LLM_BOT_BEHAVIORAL_GATING_ENABLED: "${LLM_BOT_BEHAVIORAL_GATING_ENABLED}"
+      LLM_BOT_RISK_RESPONSE_MODE: "${LLM_BOT_RISK_RESPONSE_MODE}"
+      LLM_BOT_TONE_STYLE_ENABLED: "${LLM_BOT_TONE_STYLE_ENABLED}"
+      LLM_BOT_SYSTEM_PROMPT: "${LLM_BOT_SYSTEM_PROMPT}"
+      LLM_BOT_INSTANCE_MEM_MAX_KEYS: "${LLM_BOT_INSTANCE_MEM_MAX_KEYS}"
+      LLM_BOT_INSTANCE_MEM_MAX_MSGS: "${LLM_BOT_INSTANCE_MEM_MAX_MSGS}"
+      LLM_BOT_INSTANCE_MEM_MAX_CHARS: "${LLM_BOT_INSTANCE_MEM_MAX_CHARS}"
+      LLM_BOT_INSTANCE_MEM_TTL_MS: "${LLM_BOT_INSTANCE_MEM_TTL_MS}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+    ports:
+      - "${LLM_BOT_HOST_PORT:-3003}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+      tool-gateway:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "llm-bot.bitbrat.local"
+  persistence:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "persistence"
+        SERVICE_ENTRY: "dist/apps/persistence-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      PERSISTENCE_SNAPSHOT_MODE: "${PERSISTENCE_SNAPSHOT_MODE}"
+      PERSISTENCE_INCLUDE_RAW_PAYLOADS: "${PERSISTENCE_INCLUDE_RAW_PAYLOADS}"
+      PERSISTENCE_MAX_SNAPSHOT_BYTES: "${PERSISTENCE_MAX_SNAPSHOT_BYTES}"
+      PERSISTENCE_TTL_DAYS: "${PERSISTENCE_TTL_DAYS}"
+    ports:
+      - "${PERSISTENCE_HOST_PORT:-3011}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      postgres:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "persistence.bitbrat.local"
+  scheduler:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "scheduler"
+        SERVICE_ENTRY: "dist/apps/scheduler-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${SCHEDULER_HOST_PORT:-3012}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "scheduler.bitbrat.local"
+  api-gateway:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "api-gateway"
+        SERVICE_ENTRY: "dist/apps/api-gateway.js"
+        SERVICE_PORT: "3000"
+    environment:
+      PERSISTENCE_SNAPSHOT_MODE: "${PERSISTENCE_SNAPSHOT_MODE}"
+      PERSISTENCE_INCLUDE_RAW_PAYLOADS: "${PERSISTENCE_INCLUDE_RAW_PAYLOADS}"
+      PERSISTENCE_MAX_SNAPSHOT_BYTES: "${PERSISTENCE_MAX_SNAPSHOT_BYTES}"
+      PERSISTENCE_TTL_DAYS: "${PERSISTENCE_TTL_DAYS}"
+      API_GATEWAY_ALLOW_ANONYMOUS_WS: "${API_GATEWAY_ALLOW_ANONYMOUS_WS}"
+    ports:
+      - "${API_GATEWAY_HOST_PORT:-3009}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      postgres:
+        condition: "service_healthy"
+      auth:
+        condition: "service_started"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "api-gateway.bitbrat.local"
+  state-engine:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "state-engine"
+        SERVICE_ENTRY: "dist/apps/state-engine.js"
+        SERVICE_PORT: "3000"
+    environment:
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${STATE_ENGINE_HOST_PORT:-3014}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      postgres:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "state-engine.bitbrat.local"
+  disposition-service:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "disposition-service"
+        SERVICE_ENTRY: "dist/apps/disposition-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      DISPOSITION_ENABLED: "${DISPOSITION_ENABLED}"
+      DISPOSITION_WINDOW_MS: "${DISPOSITION_WINDOW_MS}"
+      DISPOSITION_MAX_EVENTS: "${DISPOSITION_MAX_EVENTS}"
+      DISPOSITION_MIN_EVENTS: "${DISPOSITION_MIN_EVENTS}"
+      DISPOSITION_SNAPSHOT_TTL_MS: "${DISPOSITION_SNAPSHOT_TTL_MS}"
+      DISPOSITION_PUBLISH_UPDATES: "${DISPOSITION_PUBLISH_UPDATES}"
+      DISPOSITION_PROMPT_INJECTION_ENABLED: "${DISPOSITION_PROMPT_INJECTION_ENABLED}"
+      DISPOSITION_MODERATION_ASSIST_ENABLED: "${DISPOSITION_MODERATION_ASSIST_ENABLED}"
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${DISPOSITION_SERVICE_HOST_PORT:-3005}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      postgres:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "disposition-service.bitbrat.local"
+  tool-gateway:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "tool-gateway"
+        SERVICE_ENTRY: "dist/apps/tool-gateway.js"
+        SERVICE_PORT: "3000"
+    environment:
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${TOOL_GATEWAY_HOST_PORT:-3008}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      auth:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "tool-gateway.bitbrat.local"
+  image-gen-mcp:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "image-gen-mcp"
+        SERVICE_ENTRY: "dist/services/image-gen-mcp/index.js"
+        SERVICE_PORT: "3000"
+    environment:
+      MCP_TRANSPORT: "${MCP_TRANSPORT}"
+      GCS_BUCKET_NAME: "${GCS_BUCKET_NAME}"
+      IMAGE_GEN_RATE_LIMIT_MS: "${IMAGE_GEN_RATE_LIMIT_MS}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${IMAGE_GEN_MCP_HOST_PORT:-3016}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "image-gen-mcp.bitbrat.local"
+  stream-analyst-service:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "stream-analyst-service"
+        SERVICE_ENTRY: "dist/apps/stream-analyst-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${STREAM_ANALYST_SERVICE_HOST_PORT:-3100}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      tool-gateway:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "stream-analyst-service.bitbrat.local"
+  story-engine-mcp:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "story-engine-mcp"
+        SERVICE_ENTRY: "dist/apps/story-engine-mcp.js"
+        SERVICE_PORT: "3000"
+    environment:
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
+    ports:
+      - "${STORY_ENGINE_MCP_HOST_PORT:-3017}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+      event-router:
+        condition: "service_started"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "story-engine-mcp.bitbrat.local"
+  reflex:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "reflex"
+        SERVICE_ENTRY: "dist/apps/reflex-service.js"
+        SERVICE_PORT: "3000"
+    environment:
+      REFLEX_CACHE_POLL_INTERVAL_MS: "${REFLEX_CACHE_POLL_INTERVAL_MS}"
+    ports:
+      - "${REFLEX_HOST_PORT:-3006}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "reflex.bitbrat.local"
+  context-pack:
+    env_file:
+      - ".env.brat"
+    build:
+      context: "."
+      dockerfile: "Dockerfile.service"
+      args:
+        SERVICE_NAME: "context-pack"
+        SERVICE_ENTRY: "dist/apps/context-pack-service.js"
+        SERVICE_PORT: "3000"
+    environment: {}
+    ports:
+      - "${CONTEXT_PACK_HOST_PORT:-3010}:${SERVICE_PORT:-3000}"
+    depends_on:
+      nats:
+        condition: "service_healthy"
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-sf"
+        - "http://localhost:3000/healthz"
+      interval: "5s"
+      timeout: "3s"
+      retries: 10
+    networks:
+      bitbrat-network:
+        aliases:
+          - "context-pack.bitbrat.local"
+networks:
+  bitbrat-network:
+    driver: "bridge"
+    name: "bitbrat-staging-network"
+volumes:
+  postgres-data: {}
+  nats-data: {}

@@ -360,6 +360,20 @@ export class DockerOrchestrator {
 
     const envName = this.options.env || target.env || 'local';
     const env = this.envResolver.resolve(envName);
+
+    // Check if GCP services are actually being used
+    const persistenceDriver = env['PERSISTENCE_DRIVER'] || 'postgres'; // Default is postgres (Sprint 344)
+    const messageBusDriver = env['MESSAGE_BUS_DRIVER'] || 'nats';
+    const needsGcp = persistenceDriver === 'firestore' || messageBusDriver === 'pubsub';
+
+    if (!needsGcp) {
+      console.log(
+        `[brat] Skipping GCP credentials sync (PERSISTENCE_DRIVER=${persistenceDriver}, ` +
+        `MESSAGE_BUS_DRIVER=${messageBusDriver} do not require GCP)`,
+      );
+      return;
+    }
+
     const localKeyPath = env['GOOGLE_APPLICATION_CREDENTIALS'];
 
     if (!localKeyPath || typeof localKeyPath !== 'string') {
@@ -371,9 +385,11 @@ export class DockerOrchestrator {
     }
 
     if (!fs.existsSync(localKeyPath)) {
-      throw new Error(
-        `ADC key not found at GOOGLE_APPLICATION_CREDENTIALS='${localKeyPath}'; cannot sync it to the remote host.`,
+      console.warn(
+        `[brat] GOOGLE_APPLICATION_CREDENTIALS is set to '${localKeyPath}' but file does not exist; ` +
+        'skipping ADC key sync to remote host. Services that need GCP access will fail to authenticate.',
       );
+      return;
     }
 
     const sshTarget = target.host.replace('ssh://', '');

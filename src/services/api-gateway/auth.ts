@@ -148,7 +148,7 @@ export function createApiTokenStore(
     return new DocumentStoreApiTokenStore(dbOrStore, logger, collectionOrTable || 'api_tokens');
   }
 
-  // Default to Firestore (for backward compatibility with tests)
+  // Fallback to Firestore (legacy, deprecated - default is PostgreSQL via factory.ts)
   const { getFirestore } = require('../../common/firebase');
   return new FirestoreApiTokenStore(getFirestore(), logger, collectionOrTable || 'gateways/api/tokens');
 }
