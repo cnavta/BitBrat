@@ -1052,37 +1052,6 @@ executionContexts:
     tags:
       - development
       - local
-  staging-old:
-    description: Remote staging environment on bitbrat.lan
-    deployment:
-      type: docker-compose
-      docker:
-        host: ssh://root@bitbrat.lan
-        remoteDir: /opt/BitBratPlatform
-        maxConcurrent: 3
-    runtime:
-      gateway:
-        autoDiscover: true
-        authToken: ${MCP_AUTH_TOKEN}
-      persistence:
-        driver: postgres
-        connection:
-          host: bitbrat.lan
-          port: 5432
-          database: bitbrat
-          username: bitbrat
-          password: bitbrat_dev_password
-      envOverlay:
-        path: env/staging
-        files:
-          - global.yaml
-          - infra.yaml
-          - '{service}.yaml'
-        secure: .secure.staging
-    tags:
-      - staging
-      - remote
-      - old
   staging:
     deployment:
       type: docker-compose
