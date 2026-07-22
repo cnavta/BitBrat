@@ -1,2 +1,21 @@
+# ============================================================================
+# API Gateway Service Configuration
+# ============================================================================
+# Purpose: HTTP/WebSocket API for external clients
+# Required: Yes (if using web UI or HTTP API)
+#
+# Provides:
+#   - REST API for platform administration
+#   - WebSocket connections for real-time chat
+#   - MCP tool proxy (platform+domain tools)
+#
+# Default: Allows anonymous WebSocket connections for local development
+# Production deployments should require authentication.
+# ============================================================================
+
+# Legacy config flag (no longer used)
 BOOGIE: "down"
+
+# Allow WebSocket connections without authentication (local development only)
+# Set to false in production and configure authentication
 API_GATEWAY_ALLOW_ANONYMOUS_WS: true

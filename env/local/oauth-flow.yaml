@@ -1,10 +1,18 @@
+# ============================================================================
+# OAuth Flow Service Configuration
+# ============================================================================
+# Purpose: Handles OAuth 2.0 authorization flows for Twitch and Discord
+# Required: Only if using Twitch/Discord authentication
+#
+# Credentials are sourced from .secure.local (see auth.yaml header for list)
+# ============================================================================
+
 SERVICE_PORT: 3000
 OAUTH_FLOW_HOST_PORT: 3001
 
-# Twitch OAuth credentials are sourced from .secure.local
-# See .secure.local.example for setup instructions
-
-# Twitch OAuth Scopes (example - customize as needed)
+# Twitch OAuth Scopes
+# Customize based on your integration needs
+# See: https://dev.twitch.tv/docs/authentication/scopes
 TWITCH_OAUTH_SCOPES: "chat:read chat:edit channel:read:subscriptions user:read:follows moderator:read:followers channel:read:vips channel:read:redemptions moderation:read bits:read moderator:read:shoutouts user:read:email user:manage:whispers"
 
 # Discord OAuth (optional)

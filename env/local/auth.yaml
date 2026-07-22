@@ -1,5 +1,14 @@
-# auth service local configuration
-# Configure Twitch OAuth credentials in .secure.local
+# ============================================================================
+# Auth Service Configuration
+# ============================================================================
+# Purpose: User identity verification and session management
+# Required: Only if using Twitch/Discord authentication
+#
+# All credentials are sourced from .secure.local (never commit these)
 # See .secure.local.example for setup instructions
-# TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET are sourced from .secure.local
-# OAUTH_STATE_SECRET is sourced from .secure.local
+#
+# Required secrets in .secure.local:
+#   - TWITCH_CLIENT_ID (from https://dev.twitch.tv/console/apps)
+#   - TWITCH_CLIENT_SECRET (from https://dev.twitch.tv/console/apps)
+#   - OAUTH_STATE_SECRET (random string: openssl rand -hex 32)
+# ============================================================================

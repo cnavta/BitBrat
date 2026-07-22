@@ -1,3 +1,17 @@
+# ============================================================================
+# Query Analyzer Service Configuration
+# ============================================================================
+# Purpose: Lightweight LLM analysis for routing hints and command detection
+# Required: Yes (core platform service)
+#
+# Uses a small, fast model (gpt-4.1-mini by default) for quick analysis
+# before expensive LLM bot invocation.
+#
+# Prerequisites:
+#   - OPENAI_API_KEY in .secure.local (for OpenAI provider)
+#   - Or configure alternative provider (Ollama, vLLM)
+# ============================================================================
+
 QUERY_ANALYZER_LLM_PROVIDER: openai
 QUERY_ANALYZER_LLM_MODEL: gpt-4.1-mini
 QUERY_ANALYZER_FF_LLM_PROMPT_LOGGING: true

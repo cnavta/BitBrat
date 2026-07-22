@@ -28,9 +28,14 @@ DEBUG_USERS: ""
 FF_LLM_PROMPT_LOGGING: true
 ENABLE_EVENT_RESPONSES: true
 
-# P4 RAG Scale-Out feature flag (sprint-338)
-# Enabled for local testing and validation (BL-338-305)
-RAG_CONTEXT_ENABLED: true
+# RAG (Retrieval-Augmented Generation) Context Feature
+# Disabled by default - requires vector database setup (Pinecone, Weaviate, or local ChromaDB)
+#
+# To enable:
+# 1. Set RAG_CONTEXT_ENABLED: true
+# 2. Configure vector DB connection (see documentation/guides/rag-setup.md)
+# 3. Seed initial context (npm run brat -- rag seed)
+RAG_CONTEXT_ENABLED: false
 RAG_CONTEXT_MAX_RESULTS: 5
 RAG_CONTEXT_MIN_SIMILARITY: 0.65
 RAG_CONTEXT_TIMEOUT_MS: 5000

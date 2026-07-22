@@ -1,2 +1,16 @@
-# event-router service local configuration
+# ============================================================================
+# Event Router Service Configuration
+# ============================================================================
+# Purpose: Attaches routing slips to events based on JsonLogic rules
+# Required: Yes (core platform service)
+#
+# This service orchestrates event flow through the 5-stage agent loop:
+#   Stage 1: Ingestion → Stage 2: Contextualization → Stage 3: Analysis
+#   → Stage 4: Reaction → Stage 5: Egress
+#
+# Rules are stored in the database and seeded during platform setup.
+# See: documentation/concepts/event-router-rules.md
+# ============================================================================
+
+# Command prefix for chat commands (e.g., "!help", "!status")
 COMMAND_SIGIL: "!"
