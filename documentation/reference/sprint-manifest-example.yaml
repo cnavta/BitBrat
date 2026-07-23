@@ -1,0 +1,13 @@
+id: sprint-7-a13b2f
+title: User profile service
+goal: Deliver the approved user-profile behavior and evidence.
+owner: human-name-or-handle
+createdAt: 2026-01-15T14:00:00Z
+status: planning
+completionMode: null
+blockers: []
+links:
+  branch: feature/sprint-7-a13b2f-user-profile-service
+  pr: null
+notes: |
+  Record assumptions, constraints, and material context.

@@ -1,0 +1,9 @@
+branch: feature/sprint-X-Y-description
+headCommit: <commit-sha>
+pushStatus: pending # pending | succeeded | failed | waived
+pr:
+  desired: false
+  owner: null # human | llm | automation | other
+  timing: null
+  status: not-planned # not-planned | planned | created | failed | waived
+  url: null
