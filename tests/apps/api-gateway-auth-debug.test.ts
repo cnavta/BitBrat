@@ -23,6 +23,12 @@ describe('ApiGatewayServer - Auth Debug', () => {
     server = new ApiGatewayServer();
     (server as any).getResource = jest.fn().mockImplementation((name: string) => {
       if (name === 'firestore') return {};
+      if (name === 'documentStore') return {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        delete: jest.fn().mockResolvedValue(undefined),
+        query: jest.fn().mockResolvedValue([])
+      };
       if (name === 'publisher') return { create: jest.fn().mockReturnValue({ publishJson: jest.fn() }) };
       return undefined;
     });

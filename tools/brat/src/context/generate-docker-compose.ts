@@ -101,7 +101,7 @@ export function generateServiceCompose(
   const serviceDef: ComposeServiceDef = {
     env_file: ['.env.brat'],
     build: {
-      context: '.',
+      context: '.',  // Sprint 358: Orchestrator uses --project-directory, so context is relative to project root
       dockerfile: 'Dockerfile.service',
       args: buildArgs,
     },

@@ -33,10 +33,16 @@ describe('ApiGatewayServer - Generic Egress', () => {
   it('should subscribe to internal.egress.v1 on start', async () => {
     const { createMessageSubscriber } = require('../../src/services/message-bus');
     const subscriber = createMessageSubscriber();
-    
+
     // Mock resources needed for start
     (server as any).getResource = jest.fn().mockImplementation((name: string) => {
       if (name === 'firestore') return {};
+      if (name === 'documentStore') return {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        delete: jest.fn().mockResolvedValue(undefined),
+        query: jest.fn().mockResolvedValue([])
+      };
       if (name === 'publisher') return { create: jest.fn().mockReturnValue({ publishJson: jest.fn() }) };
       return undefined;
     });
@@ -64,6 +70,12 @@ describe('ApiGatewayServer - Generic Egress', () => {
     const mockDlqPublisher = { publishJson: jest.fn() };
     (server as any).getResource = jest.fn().mockImplementation((name: string) => {
       if (name === 'firestore') return {};
+      if (name === 'documentStore') return {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        delete: jest.fn().mockResolvedValue(undefined),
+        query: jest.fn().mockResolvedValue([])
+      };
       if (name === 'publisher') return { create: jest.fn().mockReturnValue(mockDlqPublisher) };
       return undefined;
     });

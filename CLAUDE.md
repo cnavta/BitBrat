@@ -38,6 +38,46 @@ All messages are `Envelope v1` (see documentation/schemas/envelope.v1.json) with
 - Selected via `MESSAGE_BUS_DRIVER` environment variable
 - Delivery is at-least-once; all consumers MUST be idempotent
 
+### Agent-Dev Contexts (Sprint 358)
+**Ephemeral, self-service execution contexts for coding agents.**
+
+Coding agents (Claude Code, Aider, etc.) can provision, manage, and destroy their own isolated BitBrat development environments via MCP tools:
+
+```javascript
+// Provision new context (auto-generates unique name)
+agent_dev.provision()
+// ✅ agent-dev-1784822482755-6a23028f
+
+// Start services (30-60s startup)
+agent_dev.start({ name: "agent-dev-xxx" })
+
+// Stop services (preserves data)
+agent_dev.stop({ name: "agent-dev-xxx" })
+
+// Destroy context (IRREVERSIBLE)
+agent_dev.destroy({ name: "agent-dev-xxx", confirm: true })
+```
+
+**Key Features**:
+- **Isolated**: Each context has dedicated Docker containers, PostgreSQL database, environment directory
+- **Ephemeral**: Stored in `.brat/ephemeral-contexts.yaml` (gitignored), not architecture.yaml
+- **RBAC**: Agent-dev tools can ONLY manage contexts prefixed with `agent-dev-*` (safety guardrail)
+- **Idempotent**: All operations safe to retry (destroy safe to call multiple times)
+- **Self-service**: No human intervention required for provisioning or cleanup
+
+**Common Use Cases**:
+- Testing new features in isolated environment
+- Debugging issues without affecting shared development environment
+- Experimenting with configuration changes
+- Sprint-based development (one context per sprint)
+
+**Limitations**:
+- Only one context can run at a time (port conflicts)
+- Local Docker only (not cloud-deployable)
+- Shared PostgreSQL database (no true data isolation)
+
+See [Agent-Dev Contexts Guide](./documentation/guides/agent-dev-contexts.md) for full documentation.
+
 ## Common Development Commands
 
 ### Build & Test

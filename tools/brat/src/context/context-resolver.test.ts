@@ -899,4 +899,269 @@ describe('ContextResolver - Sprint 349', () => {
       });
     });
   });
+
+  describe('Sprint 358: Ephemeral Context Loading', () => {
+    const ephemeralPath = '/fake/repo/.brat/ephemeral-contexts.yaml';
+    const permanentArch: Architecture = {
+      services: {},
+      executionContexts: {
+        local: {
+          deployment: { type: 'docker-compose', docker: { host: 'unix:///var/run/docker.sock' } },
+          runtime: {
+            gateway: { fallbackPort: 3000 },
+            persistence: {
+              driver: 'postgres',
+              connection: {
+                host: 'localhost',
+                port: 5432,
+                database: 'bitbrat',
+                username: 'bitbrat',
+                password: 'secret',
+              },
+            },
+          },
+        },
+      },
+    };
+
+    beforeEach(() => {
+      mockFs.readFileSync.mockImplementation((p) => {
+        if (p === archPath) return yaml.dump(permanentArch);
+        throw new Error('File not found');
+      });
+      mockFs.statSync.mockReturnValue({ mtimeMs: 123456 } as fs.Stats);
+    });
+
+    it('returns empty object when ephemeral file does not exist', async () => {
+      mockFs.existsSync.mockImplementation((p) => {
+        if (p === archPath) return true;
+        return false; // ephemeral file doesn't exist
+      });
+
+      const result = await resolver.resolve('local');
+      expect(result.name).toBe('local');
+    });
+
+    it('loads ephemeral contexts from .brat/ephemeral-contexts.yaml', async () => {
+      const ephemeralData = {
+        executionContexts: {
+          'agent-dev-123-abc': {
+            deployment: { type: 'docker-compose', docker: { host: 'unix:///var/run/docker.sock' } },
+            runtime: {
+              gateway: { fallbackPort: 3005 },
+              persistence: {
+                driver: 'postgres',
+                connection: {
+                  host: 'localhost',
+                  port: 5432,
+                  database: 'bitbrat',
+                  username: 'bitbrat',
+                  password: 'secret',
+                },
+              },
+            },
+            metadata: {
+              createdBy: 'agent',
+              createdAt: '2026-07-23T10:00:00.000Z',
+              autoDestroy: true,
+            },
+          },
+        },
+      };
+
+      mockFs.existsSync.mockImplementation((p) => {
+        if (p === archPath) return true;
+        if (p === ephemeralPath) return true;
+        return false;
+      });
+
+      mockFs.readFileSync.mockImplementation((p) => {
+        if (p === archPath) return yaml.dump(permanentArch);
+        if (p === ephemeralPath) return yaml.dump(ephemeralData);
+        throw new Error('File not found');
+      });
+
+      const result = await resolver.resolve('agent-dev-123-abc');
+      expect(result.name).toBe('agent-dev-123-abc');
+      expect(result.runtime.gateway.url).toBe('ws://localhost:3005/ws/v1');
+    });
+
+    it('merges permanent and ephemeral contexts', async () => {
+      const ephemeralData = {
+        executionContexts: {
+          'agent-dev-456-def': {
+            deployment: { type: 'docker-compose', docker: { host: 'unix:///var/run/docker.sock' } },
+            runtime: {
+              gateway: { fallbackPort: 3006 },
+              persistence: {
+                driver: 'postgres',
+                connection: {
+                  host: 'localhost',
+                  port: 5432,
+                  database: 'bitbrat',
+                  username: 'bitbrat',
+                  password: 'secret',
+                },
+              },
+            },
+          },
+        },
+      };
+
+      mockFs.existsSync.mockImplementation((p) => {
+        if (p === archPath) return true;
+        if (p === ephemeralPath) return true;
+        return false;
+      });
+
+      mockFs.readFileSync.mockImplementation((p) => {
+        if (p === archPath) return yaml.dump(permanentArch);
+        if (p === ephemeralPath) return yaml.dump(ephemeralData);
+        throw new Error('File not found');
+      });
+
+      const contexts = await resolver.listContexts();
+      expect(contexts).toContain('local');
+      expect(contexts).toContain('agent-dev-456-def');
+      expect(contexts.length).toBe(2);
+    });
+
+    it('ephemeral contexts override permanent contexts on name collision', async () => {
+      const ephemeralData = {
+        executionContexts: {
+          local: {
+            deployment: { type: 'docker-compose', docker: { host: 'unix:///var/run/docker.sock' } },
+            runtime: {
+              gateway: { fallbackPort: 9999 }, // Different port
+              persistence: {
+                driver: 'postgres',
+                connection: {
+                  host: 'localhost',
+                  port: 5432,
+                  database: 'bitbrat',
+                  username: 'bitbrat',
+                  password: 'secret',
+                },
+              },
+            },
+            description: 'Ephemeral override',
+          },
+        },
+      };
+
+      mockFs.existsSync.mockImplementation((p) => {
+        if (p === archPath) return true;
+        if (p === ephemeralPath) return true;
+        return false;
+      });
+
+      mockFs.readFileSync.mockImplementation((p) => {
+        if (p === archPath) return yaml.dump(permanentArch);
+        if (p === ephemeralPath) return yaml.dump(ephemeralData);
+        throw new Error('File not found');
+      });
+
+      const result = await resolver.resolve('local');
+      expect(result.runtime.gateway.url).toBe('ws://localhost:9999/ws/v1'); // Ephemeral wins
+      expect(result.description).toBe('Ephemeral override');
+    });
+
+    it('handles corrupted ephemeral file gracefully', async () => {
+      mockFs.existsSync.mockImplementation((p) => {
+        if (p === archPath) return true;
+        if (p === ephemeralPath) return true;
+        return false;
+      });
+
+      mockFs.readFileSync.mockImplementation((p) => {
+        if (p === archPath) return yaml.dump(permanentArch);
+        if (p === ephemeralPath) return 'invalid: yaml: [[['; // Corrupted YAML
+        throw new Error('File not found');
+      });
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await resolver.resolve('local');
+
+      expect(result.name).toBe('local');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to load ephemeral contexts'));
+      consoleSpy.mockRestore();
+    });
+
+    it('getRawContext returns ephemeral context', async () => {
+      const ephemeralData = {
+        executionContexts: {
+          'agent-dev-789-ghi': {
+            deployment: { type: 'docker-compose', docker: { host: 'unix:///var/run/docker.sock' } },
+            runtime: {
+              gateway: { fallbackPort: 3007 },
+              persistence: {
+                driver: 'postgres',
+                connection: {
+                  host: 'localhost',
+                  port: 5432,
+                  database: 'bitbrat',
+                  username: 'bitbrat',
+                  password: 'secret',
+                },
+              },
+            },
+          },
+        },
+      };
+
+      mockFs.existsSync.mockImplementation((p) => {
+        if (p === archPath) return true;
+        if (p === ephemeralPath) return true;
+        return false;
+      });
+
+      mockFs.readFileSync.mockImplementation((p) => {
+        if (p === archPath) return yaml.dump(permanentArch);
+        if (p === ephemeralPath) return yaml.dump(ephemeralData);
+        throw new Error('File not found');
+      });
+
+      const raw = await resolver.getRawContext('agent-dev-789-ghi');
+      expect(raw).toBeDefined();
+      expect(raw?.runtime.gateway?.fallbackPort).toBe(3007);
+    });
+
+    it('contextExists returns true for ephemeral contexts', async () => {
+      const ephemeralData = {
+        executionContexts: {
+          'agent-dev-999-xyz': {
+            deployment: { type: 'docker-compose', docker: { host: 'unix:///var/run/docker.sock' } },
+            runtime: {
+              gateway: { fallbackPort: 3008 },
+              persistence: {
+                driver: 'postgres',
+                connection: {
+                  host: 'localhost',
+                  port: 5432,
+                  database: 'bitbrat',
+                  username: 'bitbrat',
+                  password: 'secret',
+                },
+              },
+            },
+          },
+        },
+      };
+
+      mockFs.existsSync.mockImplementation((p) => {
+        if (p === archPath) return true;
+        if (p === ephemeralPath) return true;
+        return false;
+      });
+
+      mockFs.readFileSync.mockImplementation((p) => {
+        if (p === archPath) return yaml.dump(permanentArch);
+        if (p === ephemeralPath) return yaml.dump(ephemeralData);
+        throw new Error('File not found');
+      });
+
+      const exists = await resolver.contextExists('agent-dev-999-xyz');
+      expect(exists).toBe(true);
+    });
+  });
 });

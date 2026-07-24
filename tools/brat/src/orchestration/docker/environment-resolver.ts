@@ -10,7 +10,7 @@ export interface EnvironmentVariables {
 export class EnvironmentResolver {
   constructor(private readonly repoRoot: string) {}
 
-  public resolve(envName: string = 'local'): EnvironmentVariables {
+  public resolve(envName: string = 'local', securePath?: string): EnvironmentVariables {
     const envDir = path.join(this.repoRoot, 'env', envName);
 
     const globalYaml = this.loadYamlIfExists(path.join(envDir, 'global.yaml'));
@@ -26,7 +26,11 @@ export class EnvironmentResolver {
       }
     }
 
-    const secureEnv = this.loadSecureLocal(path.join(this.repoRoot, '.secure.local'));
+    // Sprint 358: Use context-specific secure file if provided, otherwise default to .secure.local
+    const secureFilePath = securePath
+      ? path.join(this.repoRoot, securePath)
+      : path.join(this.repoRoot, '.secure.local');
+    const secureEnv = this.loadSecureLocal(secureFilePath);
 
     const merged: EnvironmentVariables = {
       ...globalYaml,

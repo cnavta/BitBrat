@@ -20,6 +20,7 @@ import { createLogger, Logger } from '../orchestration/logger';
 import { configTools } from './tools/config.js';
 import { persistenceTools } from './tools/persistence.js';
 import { fleetTools } from './tools/fleet.js';
+import { agentDevTools } from './tools/agent-dev.js';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -136,11 +137,17 @@ export class DevMcpServer {
       this.toolRouter.registerTool(tool);
     }
 
-    const totalTools = configTools.length + persistenceTools.length + fleetTools.length;
+    // Register agent-dev tools (Sprint 358)
+    for (const tool of agentDevTools) {
+      this.toolRouter.registerTool(tool);
+    }
+
+    const totalTools = configTools.length + persistenceTools.length + fleetTools.length + agentDevTools.length;
     this.logger.info({
       config: configTools.length,
       persistence: persistenceTools.length,
       fleet: fleetTools.length,
+      agentDev: agentDevTools.length,
       total: totalTools,
     }, 'Registered dev tools');
   }
@@ -174,13 +181,32 @@ export class DevMcpServer {
 
         // Log success
         const durationMs = Date.now() - startTime;
-        await this.auditLogger.logToolCall({
+
+        // Sprint 358: Enhanced audit logging for agent-dev tools
+        const auditEntry: any = {
           tool: name,
           args,
           target: connection.name,
           durationMs,
           success: true,
-        });
+        };
+
+        // Add enhanced fields for agent_dev.* tools
+        if (name.startsWith('agent_dev.')) {
+          auditEntry.contextName = (args as any).name;
+          auditEntry.operation = name.split('.')[1]; // provision, start, stop, destroy
+
+          // Define resources affected by operation
+          const resourceMap: Record<string, string[]> = {
+            'provision': ['ephemeral-context', 'env-directory', 'database-seed'],
+            'start': ['docker-containers', 'postgresql', 'nats'],
+            'stop': ['docker-containers'],
+            'destroy': ['docker-containers', 'docker-volumes', 'postgresql-database', 'env-directory', 'ephemeral-context'],
+          };
+          auditEntry.resources = resourceMap[auditEntry.operation] || [];
+        }
+
+        await this.auditLogger.logToolCall(auditEntry);
 
         this.logger.info({ tool: name, durationMs }, 'Tool succeeded');
 
@@ -188,14 +214,24 @@ export class DevMcpServer {
       } catch (error: any) {
         // Log failure
         const durationMs = Date.now() - startTime;
-        await this.auditLogger.logToolCall({
+
+        // Sprint 358: Enhanced audit logging for agent-dev tools
+        const auditEntry: any = {
           tool: name,
           args,
           target: 'unknown',
           durationMs,
           success: false,
           error: error.message,
-        });
+        };
+
+        // Add enhanced fields for agent_dev.* tools
+        if (name.startsWith('agent_dev.')) {
+          auditEntry.contextName = (args as any).name;
+          auditEntry.operation = name.split('.')[1];
+        }
+
+        await this.auditLogger.logToolCall(auditEntry);
 
         this.logger.error({ tool: name, error: error.message }, 'Tool failed');
 

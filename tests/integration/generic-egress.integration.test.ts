@@ -58,6 +58,12 @@ describe('Generic Egress Integration', () => {
     // Mock resources
     const mockResources = {
       firestore: {},
+      documentStore: {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        delete: jest.fn().mockResolvedValue(undefined),
+        query: jest.fn().mockResolvedValue([])
+      },
       publisher: {
         create: (subj: string) => ({
           publishJson: async (data: any, attrs: any) => {

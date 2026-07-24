@@ -67,13 +67,13 @@ export function parseServiceDependencies(
   // Service-to-service dependencies
   const services: string[] = [];
 
-  // Gateway services typically depend on auth
-  if (metadata.profile === 'gateway' && serviceName !== 'auth') {
+  // Gateway services typically depend on auth (except event-router which doesn't need it)
+  if (metadata.profile === 'gateway' && serviceName !== 'auth' && serviceName !== 'event-router') {
     services.push('auth');
   }
 
-  // Services that consume events depend on event-router
-  if (serviceConfig.topics?.consumes?.length > 0 && serviceName !== 'event-router') {
+  // Services that consume events depend on event-router (except auth which doesn't need it)
+  if (serviceConfig.topics?.consumes?.length > 0 && serviceName !== 'event-router' && serviceName !== 'auth') {
     services.push('event-router');
   }
 

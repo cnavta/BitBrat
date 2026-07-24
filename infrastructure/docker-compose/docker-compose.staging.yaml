@@ -81,7 +81,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "oauth-flow"
@@ -98,7 +98,7 @@ services:
       DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID}"
       DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET}"
     ports:
-      - "${OAUTH_FLOW_HOST_PORT:-3013}:${SERVICE_PORT:-3000}"
+      - "${OAUTH_FLOW_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     depends_on:
       nats:
         condition: "service_healthy"
@@ -121,7 +121,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "ingress-egress"
@@ -143,7 +143,7 @@ services:
       TWILIO_API_SECRET: "${TWILIO_API_SECRET}"
       TWILIO_CHAT_SERVICE_SID: "${TWILIO_CHAT_SERVICE_SID}"
     ports:
-      - "${INGRESS_EGRESS_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+      - "${INGRESS_EGRESS_HOST_PORT:-3015}:${SERVICE_PORT:-3000}"
     depends_on:
       nats:
         condition: "service_healthy"
@@ -170,7 +170,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "auth"
@@ -185,8 +185,6 @@ services:
     depends_on:
       nats:
         condition: "service_healthy"
-      event-router:
-        condition: "service_started"
     healthcheck:
       test:
         - "CMD"
@@ -204,7 +202,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "query-analyzer"
@@ -240,7 +238,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "event-router"
@@ -253,8 +251,6 @@ services:
     depends_on:
       nats:
         condition: "service_healthy"
-      auth:
-        condition: "service_started"
     healthcheck:
       test:
         - "CMD"
@@ -272,7 +268,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "llm-bot"
@@ -321,7 +317,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "persistence"
@@ -358,7 +354,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "scheduler"
@@ -390,7 +386,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "api-gateway"
@@ -430,7 +426,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "state-engine"
@@ -464,7 +460,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "disposition-service"
@@ -506,7 +502,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "tool-gateway"
@@ -538,7 +534,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "image-gen-mcp"
@@ -568,14 +564,14 @@ services:
       bitbrat-network:
         aliases:
           - "image-gen-mcp.bitbrat.local"
-  stream-analyst-service:
+  stream-analyst:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
-        SERVICE_NAME: "stream-analyst-service"
+        SERVICE_NAME: "stream-analyst"
         SERVICE_ENTRY: "dist/apps/stream-analyst-service.js"
         SERVICE_PORT: "3000"
     environment:
@@ -599,12 +595,12 @@ services:
     networks:
       bitbrat-network:
         aliases:
-          - "stream-analyst-service.bitbrat.local"
+          - "stream-analyst.bitbrat.local"
   story-engine-mcp:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "story-engine-mcp"
@@ -636,7 +632,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "reflex"
@@ -666,7 +662,7 @@ services:
     env_file:
       - ".env.brat"
     build:
-      context: "."
+      context: "../.."
       dockerfile: "Dockerfile.service"
       args:
         SERVICE_NAME: "context-pack"
@@ -694,7 +690,7 @@ services:
 networks:
   bitbrat-network:
     driver: "bridge"
-    name: "bitbrat-staging-network"
+    name: "${COMPOSE_PROJECT_NAME}-network"
 volumes:
   postgres-data: {}
   nats-data: {}

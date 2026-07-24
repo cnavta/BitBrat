@@ -338,8 +338,9 @@ async function buildInteractive(contextName: string): Promise<any> {
 
 /**
  * Build context configuration from flags (non-interactive)
+ * Sprint 358: Exported for reuse by AgentDevContextManager
  */
-async function buildNonInteractive(options: ContextCreateOptions): Promise<any> {
+export async function buildNonInteractive(options: ContextCreateOptions): Promise<any> {
   const deploymentType = options.type || 'docker-compose';
   const context: any = {
     deployment: { type: deploymentType },
@@ -439,8 +440,9 @@ async function writeContextToArchitecture(repoRoot: string, contextName: string,
 /**
  * Scaffold environment directory and baseline files
  * Sprint 352: Now also generates service-specific YAML files
+ * Sprint 358: Exported for reuse by AgentDevContextManager
  */
-async function scaffoldEnvironment(repoRoot: string, contextName: string, contextConfig: any): Promise<void> {
+export async function scaffoldEnvironment(repoRoot: string, contextName: string, contextConfig: any): Promise<void> {
   const envDir = path.join(repoRoot, 'env', contextName);
 
   // Create env/<contextName>/ directory
@@ -491,8 +493,9 @@ async function scaffoldEnvironment(repoRoot: string, contextName: string, contex
 
 /**
  * Generate global.yaml content with baseline defaults
+ * Sprint 358: Exported for reuse by AgentDevContextManager
  */
-function generateGlobalYaml(contextName: string, contextConfig: any): string {
+export function generateGlobalYaml(contextName: string, contextConfig: any): string {
   const deploymentType = contextConfig.deployment.type;
   const persistenceDriver = contextConfig.runtime.persistence.driver;
 
@@ -558,8 +561,9 @@ ${content}`;
 
 /**
  * Generate infra.yaml content with baseline defaults
+ * Sprint 358: Exported for reuse by AgentDevContextManager
  */
-function generateInfraYaml(contextName: string, contextConfig: any): string {
+export function generateInfraYaml(contextName: string, contextConfig: any): string {
   const deploymentType = contextConfig.deployment.type;
   const persistenceDriver = contextConfig.runtime.persistence.driver;
 
@@ -619,10 +623,11 @@ async function promptForSeeding(contextConfig: any): Promise<boolean> {
 
 /**
  * Wait for PostgreSQL to be ready by attempting connections
+ * Sprint 358: Exported for reuse by AgentDevContextManager
  *
  * @param timeoutSeconds - Maximum time to wait in seconds
  */
-async function waitForPostgres(timeoutSeconds: number): Promise<void> {
+export async function waitForPostgres(timeoutSeconds: number): Promise<void> {
   const { Pool } = await import('pg');
   const startTime = Date.now();
   const timeoutMs = timeoutSeconds * 1000;

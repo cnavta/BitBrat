@@ -173,13 +173,14 @@ Usage:
   brat trigger update --name <n> --repo <owner/repo> --branch <regex> --config <path> [--dry-run]
   brat trigger delete --name <n> [--dry-run]
 
-  brat docker up [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--dry-run]
+  brat docker up [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--no-cache] [--dry-run]
   brat docker down [--target <name>] [--service <name>] [--dry-run]
   brat docker logs [--target <name>] [--service <name>] [--follow]
   brat docker ps [--target <name>] [--service <name>]
 
   # --no-deps: Don't start linked services (nats, firebase-emulator) when using --service
   # --force-recreate: Force recreate containers even if config unchanged (fixes port conflicts)
+  # --no-cache: Build images without using Docker cache (forces fresh build)
 
   # MCP server setup for LLM agents (Claude Code, etc.)
   brat mcp setup [--target <name>] [--scope local|user|project] [--server-name <name>] [--log-level <level>] [--dry-run] [--json]
@@ -1171,7 +1172,7 @@ Options:
   if (c1 === 'docker') {
     const action = c2;
     if (!action) {
-      console.error('Usage: brat docker <up|down|logs|ps> [--context <name>] [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--dry-run]');
+      console.error('Usage: brat docker <up|down|logs|ps> [--context <name>] [--target <name>] [--env <name>] [--service <name>] [--loki] [--no-deps] [--force-recreate] [--no-cache] [--dry-run]');
       process.exit(2);
     }
     const m = parseKeyValueFlags(rest);
@@ -1183,7 +1184,8 @@ Options:
       follow: rest.includes('--follow') || rest.includes('-f') || m['follow'] === 'true',
       loki: rest.includes('--loki') || m['loki'] === 'true',
       noDeps: rest.includes('--no-deps') || m['no-deps'] === 'true' || m['noDeps'] === 'true',
-      forceRecreate: rest.includes('--force-recreate') || m['force-recreate'] === 'true' || m['forceRecreate'] === 'true'
+      forceRecreate: rest.includes('--force-recreate') || m['force-recreate'] === 'true' || m['forceRecreate'] === 'true',
+      noCache: rest.includes('--no-cache') || m['no-cache'] === 'true' || m['noCache'] === 'true'
     };
     await cmdDocker(action, dockerFlags);
     return;

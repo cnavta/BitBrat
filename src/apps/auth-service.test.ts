@@ -13,18 +13,34 @@ jest.mock('../services/message-bus', () => ({
 }));
 
 // Mock Firestore to avoid real initialization in tests
+const mockFirestore = {
+  collection: () => ({
+    doc: () => ({ get: async () => ({ exists: false }) }),
+    get: async () => ({ docs: [] }),
+    onSnapshot: (cb: any) => { cb({ docs: [] }); return () => {}; },
+  }),
+};
+
 jest.mock('../common/firebase', () => {
   return {
-    getFirestore: () => ({
-      collection: () => ({
-        doc: () => ({ get: async () => ({ exists: false }) }),
-        get: async () => ({ docs: [] }),
-        onSnapshot: (cb: any) => { cb({ docs: [] }); return () => {}; },
-      }),
-    }),
+    getFirestore: () => mockFirestore,
   };
 });
+
+// We need to mock getResource to return our mock firestore
 import { createApp, AuthServer } from './auth-service';
+
+// Patch AuthServer to mock getResource (using 'any' to bypass protected access)
+const originalGetResource = (AuthServer.prototype as any).getResource;
+(AuthServer.prototype as any).getResource = function(name: string) {
+  if (name === 'firestore') return mockFirestore;
+  if (name === 'publisher') return {
+    create: jest.fn().mockReturnValue({
+      publishJson: jest.fn().mockResolvedValue('msg-id'),
+    }),
+  };
+  return originalGetResource?.call(this, name);
+};
 
 describe('auth-service', () => {
   const prev = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE;
@@ -41,6 +57,8 @@ describe('auth-service', () => {
   afterAll(() => {
     if (prev === undefined) delete process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE; else process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE = prev;
     if (prevDriver === undefined) delete process.env.PERSISTENCE_DRIVER; else process.env.PERSISTENCE_DRIVER = prevDriver;
+    // Restore original getResource
+    (AuthServer.prototype as any).getResource = originalGetResource;
   });
   describe('health endpoints', () => {
     it('/healthz 200', async () => { await request(app).get('/healthz').expect(200); });

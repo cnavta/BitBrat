@@ -1,61 +1,55 @@
-# AGENTS.md — LLM & Developer Guidelines v2.5 (Git-Enabled Release)
+# AGENTS.md — Human–LLM Sprint Protocol v3.0
 
 ## 🧱 0. Precedence & Scope
 
-These rules define exactly how LLM agents and human developers collaborate in this repository.
+These rules define an accountable Human–LLM partnership: the human owns intent and consequential decisions; the LLM owns traceable execution within approved scope.
 
 ### **Precedence Order**
 1. `architecture.yaml` — canonical source of truth for system behavior
 2. `AGENTS.md` — operational and behavioral rules for agents
 3. Everything else — examples, legacy docs, and supporting materials
 
-If a conflict ever occurs:
-> **`architecture.yaml` wins.**
-Agents must surface the conflict, then align to it.
+If rules conflict, surface the conflict and align to `architecture.yaml`.
 
 ---
 
-## 🧠 Capabilities
+## 🧠 Partnership, Authority, and Capabilities
 
-Agents **ARE allowed** to:
+The human exclusively approves sprint intent, plans, substantial scope changes, exceptions, completion, PR policy, and release policy. The human executes any release and may explicitly assign PR creation or separately governed deployment work.
 
-- Execute shell commands
-- Interact with git (checkout, branch creation, committing, pushing)
-- Create and push feature branches
-- Create GitHub Pull Requests (via GitHub CLI or API)
+Within approved scope, the LLM may use shell and Git, create branches and commits, push the completion branch, and run approved non-mutating checks. The LLM MUST record sprint-relevant turns and material operation evidence, report outcomes, preserve human decision points, and stop on authentication failure.
 
-Agents MUST:
-
-- Log every meaningful shell and git operation into `request-log.md`
-- Operate only within the repository provided
-- Halt and request updated credentials if any authentication step fails
-- Report command results transparently
+The LLM MUST NOT infer approval, create or modify a PR without assignment, execute a mutating release, create or push release tags, or claim a release occurred without human evidence.
 
 ---
 
 # 🧱 1. Immutable Laws
 
-1. **Ask for clarification when needed. Proceed when not.**
-2. **Never violate `architecture.yaml`.** Suggest changes only with justification.
-3. **All sprint planning and output artifacts live in `./planning`.**
-4. **Never use or depend on `./deprecated` in deliverables. You may read it for historical context, but MUST NOT import, execute, copy forward, or make deliverables depend on it.**
-5. **Artifacts in `./preview` are directional only, not implementation-ready.**
-6. **This document is executable intent.** Everything must be:
+1. **Never violate `architecture.yaml`.** Suggest changes only with justification.
+2. **All sprint planning and output artifacts live in `./planning`.**
+3. **Never use or depend on `./deprecated` in deliverables.** Historical reading is allowed; importing, executing, or copying it into deliverables is not.
+4. **Treat `./preview` as directional, not implementation-ready.**
+5. **Keep work:**
    - Traceable
    - Reproducible
    - Reversible
 
 ---
 
-# 🌀 2. LLM Sprint Protocol
+# 🌀 2. Human–LLM Sprint Protocol
 
-This protocol governs every LLM-led sprint.
+This protocol governs every sprint carried out through a Human–LLM partnership.
 
 ```
-Plan → Approve → Implement → Validate → Verify → Publish (PR) → Retro → Learn
+Frame Together → LLM Plans → Human Approves → LLM Implements + Commits
+    ↳ Human Follow-Up: Stop → Clarify → Append → Continue
+    ↳ Human-Defined PR Path: Human | LLM | Automation, at the approved time
+    → LLM Validates + Verifies → LLM Produces Retro + Learnings
+    → LLM Pushes Completion Handoff → Human Reviews + Completes
+    → Human-Defined Release (optional)
 ```
 
-It ensures reproducibility, reviewability, and continuous improvement.
+The human owns intent and consequential decisions. The LLM owns faithful execution and evidence within the approved scope. The shared artifacts make the partnership reproducible, reviewable, reversible, and capable of improving over time.
 
 ---
 
@@ -63,19 +57,20 @@ It ensures reproducibility, reviewability, and continuous improvement.
 
 | Rule | Description |
 |------|-------------|
-| **S1** | A sprint begins only when the user explicitly says **“Start sprint”**. |
-| **S2** | A sprint ends when validation criteria are satisfied OR documented exceptions are explicitly accepted, and the user says **“Sprint complete.”** Alternatively, the user may say **“Force complete sprint.”** |
+| **S1** | A sprint begins only when the human explicitly says **“Start sprint”**. |
+| **S2** | A sprint ends only after the LLM has prepared completion evidence and the human says **“Sprint complete.”** Alternatively, the human may say **“Force complete sprint.”** A release is separate and is not required to complete a sprint. |
 | **S3** | Only one sprint may be active at a time. |
-| **S4** | Prompts related to this repo are included in sprint scope unless the user specifies otherwise. |
-| **S5** | If sprint state is unclear, ask once, then proceed with best judgment, but do not bypass explicit approval gates (e.g., do not implement before the plan is approved). Pause until clarified. |
+| **S4** | Human prompts related to this repo are included in sprint scope unless the human specifies otherwise. |
+| **S5** | If sprint state is unclear, ask once, then proceed with best judgment inside existing authority. Never bypass a human approval gate or infer a release decision. |
+| **S6** | Human approval is specific to the plan or exception presented. It is not blanket approval for later scope, release, or destructive actions. |
 
 ---
 
 # 🚀 2.2 Sprint Start
 
-When a sprint starts, the agent MUST:
+When a sprint starts, the LLM MUST:
 
-1. **Check for active sprints.** Verify no `sprint-manifest.yaml` in `planning/` has a status other than `complete`. If an active sprint is found, you MUST NOT proceed with a new sprint; notify the user that a sprint is already active and must be completed or force-closed first (Rule S3).
+1. **Check for active sprints.** Verify no `sprint-manifest.yaml` in `planning/` has a status other than `complete`. If an active sprint is found, do not proceed with a new sprint; notify the human that the active sprint must be completed or force-closed first (Rule S3).
 2. **Generate a sprint ID**
    ```
    sprint-<number>-<short-hash>
@@ -90,11 +85,9 @@ When a sprint starts, the agent MUST:
    ```
 5. **Create `sprint-manifest.yaml`** with required metadata (see schema below)
 6. **Log the action in `request-log.md`**
+7. **Verify the branch before planning continues.** Record `git branch --show-current` and `git status --short --branch` results. Implementation MUST NOT begin on the default branch or in a detached HEAD state.
 
-Example:
-```
-git checkout -b feature/sprint-7-a13b2f-user-profile-service
-```
+Branch creation is an initialization requirement, not deferred publication work. If the working tree is dirty, preserve unrelated human changes, disclose the state, and stage only files within the approved sprint scope. If the branch cannot be created, keep the sprint in `planning`, log the blocker, and pause implementation.
 
 ---
 
@@ -104,7 +97,8 @@ git checkout -b feature/sprint-7-a13b2f-user-profile-service
 planning/
   sprint-7-a13b2f/
     sprint-manifest.yaml
-    implementation-plan.md
+    execution-plan.md
+    backlog.yaml
     request-log.md
     validate_deliverable.sh
     verification-report.md
@@ -113,148 +107,160 @@ planning/
     key-learnings.md
 ```
 
-This directory is the single authoritative source of truth for every sprint.
+This directory is the sprint's authoritative record.
 
 ---
 
 ## Sprint Manifest Schema
 
-Each sprint directory MUST contain a `sprint-manifest.yaml` with the following fields:
+Before creating or updating a manifest, read `documentation/reference/sprint-manifest-example.yaml`. Required fields are `id`, `title`, `goal`, `owner`, `createdAt`, `status`, `completionMode`, `blockers`, `links.branch`, optional `links.pr`, and `notes`.
 
-```yaml
-id: sprint-<number>-<short-hash>
-title: "Concise sprint title"
-goal: "Clear sprint objective"
-owner: "@github-handle or name"
-createdAt: "YYYY-MM-DDTHH:mm:ssZ"
-status: "planning | in-progress | validating | verifying | published | complete"
-links:
-  pr: "https://github.com/<org>/<repo>/pull/<number>" # optional until created
-  branch: "feature/<sprint-id>-<short-description>"
-notes: |
-  Key assumptions, constraints, and context.
-```
+Allowed lifecycle states are `planning`, `in-progress`, `validating`, `verifying`, `blocked`, `ready-for-handoff`, `complete`, and `cancelled`. Completion mode is `null`, `normal`, or `forced`.
+
+## 2.3.1 Backlog Accountability Contract
+
+`backlog.yaml` is the authoritative commitment and current-state contract; `request-log.md` records Human–LLM interactions and rationale. Update backlog state during execution. History contains concise transitions and evidence links, never duplicate conversation narratives.
+
+### Required backlog shape
+
+Before creating or updating a backlog, read `documentation/reference/backlog-example.yaml`. Required top-level groups are `meta`, `sprint`, and `items`. Each item requires identity, priority, status, approval, owner, dependencies, blocker state, acceptance criteria, evidence, timestamp, and transition history linked to a request-log turn.
+
+Allowed item statuses are `todo`, `in-progress`, `blocked`, `done`, `deferred`, and `cancelled`; approval values are `not-required`, `pending`, and `approved`.
+
+Fields may be extended for project needs, but their meanings MUST NOT be redefined. `priority`, `owner`, and `wip_limit` guide execution; they do not override human approval, dependencies, or acceptance criteria.
+
+### Status transition rules
+
+| Event | Transition | Requirement |
+|---|---|---|
+| Create | `null → todo` | Acceptance defined; approval pending when required; append by default. |
+| Start | `todo → in-progress` | Approved/not-required; dependencies done; WIP available. |
+| Block | active → `blocked` | Set concrete `blocked_reason` immediately. |
+| Unblock | `blocked → todo/in-progress` | Clear reason and record why work can resume. |
+| Complete | `in-progress → done` | Verify all acceptance criteria and add stable evidence. |
+| Defer/cancel | active → terminal | Explicit human direction and linked turn required. |
+| Revise | status may remain | Record material scope, priority, owner, dependency, or acceptance changes. |
+
+Every row updates item and backlog timestamps and appends history with `turn_id`.
 
 ---
 
 # 📝 2.4 Planning Phase — *Coding Forbidden Until Approved*
 
-Before ANY implementation begins:
+Before ANY implementation begins, the LLM prepares the plan and the human exercises the approval gate:
 
-- The agent generates `implementation-plan.md`
-- The user must explicitly approve it
+- The LLM generates `execution-plan.md` and `backlog.yaml`
+- The LLM ensures every planned deliverable maps to one or more backlog items with observable acceptance criteria
+- The human reviews and explicitly approves them
+- The LLM records the approval in `request-log.md`
 
-### Required contents:
-
-```markdown
-# Implementation Plan – sprint-X-Y
-
-## Objective
-- Clear user-approved sprint goal.
-
-## Scope
-- What is in scope
-- What is out of scope
-
-## Deliverables
-- Code changes
-- Tests
-- Deployment & CI artifacts
-- Documentation
-
-## Acceptance Criteria
-- Verifiable, observable behavioral outcomes
-
-## Testing Strategy
-- Unit test and integration test approach
-
-## Deployment Approach
-- Cloud Build, Cloud Run, or other targets
-- Referencing architecture.yaml where applicable
-
-## Dependencies
-- External systems, credentials, services
-
-## Definition of Done
-- MUST reference project-wide DoD unless explicitly overridden
-```
+Before planning, read `documentation/reference/execution-plan-template.md`. The plan MUST cover objective, scope, deliverables, observable acceptance criteria, testing and validation, deployment, completion handoff and PR policy, release decision, dependencies, and Definition of Done.
 
 ## 2.4.1 Amending an Active Sprint (Handling Rule S4)
 
-If the user provides follow-up tasks or scope changes while a sprint is active:
+If the human provides follow-up tasks or scope changes while a sprint is active:
 
-1. **Identify Scope Change:** Determine if the request adds new deliverables or alters the sprint goal.
-2. **Update Implementation Plan:** Add the new tasks to `implementation-plan.md`.
-3. **Update Manifest:** If the goal has evolved significantly, update the `goal` or `title` in `sprint-manifest.yaml`.
-4. **Log Request:** Document the prompt and its interpretation in `request-log.md`.
-5. **Approval Gate:** If the change is substantial, the agent MUST pause and request user approval for the amended plan before proceeding to implementation.
-6. **Maintain Branch Integrity:** Perform all amended work on the existing feature branch (Rule S11).
+1. **Identify Scope Change:** The LLM determines whether the request adds deliverables or alters the approved goal and explains the impact.
+2. **Update Execution Plan:** Add the new tasks to `execution-plan.md`.
+3. **Update Backlog:** Add or revise accountable backlog items, acceptance criteria, approval state, and transition history.
+4. **Update Manifest:** If the goal has evolved significantly, update the `goal` or `title` in `sprint-manifest.yaml`.
+5. **Log Request:** Document the Human–LLM turn and its interpretation in `request-log.md`.
+6. **Approval Gate:** If the change is substantial, the LLM MUST pause and request human approval for the amended plan before proceeding.
+7. **Maintain Branch Integrity:** Perform all amended work on the existing feature branch (§2.2).
 
 ---
 
 # ⚙️ 2.5 Execution Phase
 
-Every user prompt relevant to the sprint MUST be logged in `request-log.md`:
+Every sprint-relevant Human–LLM turn MUST be recorded in `request-log.md`. Each turn record should capture:
 
 - Timestamp
-- Prompt summary
-- Interpretation
-- Shell/git commands executed
-- Files modified or created
+- Human intent or request summary
+- LLM interpretation and response summary
+- Decisions, questions, approvals, or exceptions
+- Resulting backlog, scope, or sprint-state changes
+- Links to relevant request IDs, backlog items, commits, files, or validation evidence
+
+Commands are supporting evidence, not the primary record. Record shell and Git operations when they:
+
+- Change repository or external state
+- Produce validation, verification, publication, or release-assistance evidence
+- Fail materially or affect a sprint decision
+
+Group related commands into one concise entry when practical. Prefer outcomes and affected files over raw terminal output. Routine read-only discovery, navigation, and repeated diagnostic checks may be summarized or omitted. Never record secrets or credentials.
 
 Optional:
 `code-summary.md` mapping files → request IDs.
 
----
+The LLM implements only approved scope. When judgment materially affects behavior, trade-offs, or scope, it records the choice and either ties it to existing approval or returns the decision to the human.
 
-# 🧪 2.6 Validation Phase — *Mandatory Real Build + Test*
+Before starting, blocking, unblocking, completing, deferring, cancelling, or materially revising an item, the LLM MUST update its backlog state under §2.3.1. Status changes are part of execution, not end-of-sprint bookkeeping.
 
-Every sprint MUST include a **real, executable** `validate_deliverable.sh` script.
+## 2.5.1 Intentional Commit Protocol
 
-This script MUST:
+The feature branch is a shared, reviewable narrative for both humans and future LLMs. The LLM MUST commit regularly after coherent work units rather than accumulating the entire sprint into one opaque commit.
 
-1. Install dependencies
-2. Build the project
-3. Run the test suite
-4. Start local runtime (if applicable)
-5. Perform health checks (manual or scripted)
-6. Shut down local runtime
-7. Run Cloud Build/Cloud Run dry-run deployment (if defined)
+Before every commit, the LLM MUST:
 
-Use stack-appropriate commands for your service. The example below is for Node/TypeScript projects; for other stacks, use equivalent commands (e.g., Python: pip/poetry, pytest; Go: go build, go test).
+1. Inspect `git status` and the staged diff.
+2. Stage only approved sprint files; never absorb unrelated human changes.
+3. Run the validation appropriate to that work unit, or state why validation is deferred.
+4. Log the staged scope, validation result, and commit command in `request-log.md`.
 
-### Required script shape (Node/TypeScript example):
+A coherent work unit is an independently explainable change such as one behavior plus tests, one schema migration, or one documentation policy revision. Do not create commits solely because time elapsed, and do not knowingly commit broken intermediate states unless the commit is an explicitly approved diagnostic checkpoint.
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+Commit messages MUST be optimized for human review and future LLM retrieval: describe intent, not merely filenames or mechanics. Use this shape:
 
-echo "🔧 Installing dependencies..."
-npm ci
+```text
+sprint(<sprint-id>): <imperative intent>
 
-echo "🧱 Building project..."
-npm run build   # MUST succeed
-
-echo "🧪 Running tests..."
-npm test        # MUST pass
-
-echo "🏃 Starting local environment..."
-npm run local || true
-
-echo "📝 Healthcheck..."
-# Script/test/endpoint-based check recommended
-
-echo "🧹 Stopping local environment..."
-npm run local:down || true
-
-echo "🚀 Cloud dry-run deployment..."
-npm run deploy:cloud -- --dry-run || true
-
-echo "✅ Validation complete."
+Intent: <why this change exists and the behavior it establishes>
+Requests: <REQ-IDs>
+Validation: <checks run and concise result>
 ```
 
-### Critical rule:
-> **A sprint should not be considered ready to close unless `validate_deliverable.sh` is **logically passable** (i.e., all referenced commands exist and are intended to succeed) and aligned with the project-wide DoD. If the script cannot currently succeed due to environment issues (missing tools, credentials, or external systems), the agent must log the failure, include it in `verification-report.md`, and may still proceed to closure if the user explicitly accepts the current state.**
+Additional context or trade-offs may follow. Keep each commit semantically focused. Avoid vague subjects such as `updates`, `fix stuff`, or `LLM changes`.
+
+The LLM MUST NOT push intermediate sprint commits by default. It pushes the branch when the approved work is complete, validated, verified, and prepared for human review under §2.8. A human may explicitly request an earlier backup or collaboration push.
+
+## 2.5.2 Human Follow-Up Loop
+
+After any LLM delivery turn, including the first turn that delivers backlog items, the human may add follow-up work. Use this compact protocol:
+
+```text
+Stop → Clarify → Append → Continue
+```
+
+1. **Stop:** Pause progression toward the next backlog item or sprint completion. Do not start the follow-up or silently change priorities.
+2. **Clarify:** Ask only questions required to make the follow-up actionable or resolve a material ambiguity. If no question is necessary, proceed directly to Append.
+3. **Append:** Log the interaction in `request-log.md` and add an atomic backlog item using the contract in §2.3.1. Place it at the end of `items` unless the human specifies another position, priority, or dependency. Preserve the order of multiple follow-ups as received. Do not reorder existing items without human direction.
+4. **Continue:** Apply the active-sprint amendment and approval rules in §2.4.1. After required answers and approvals are recorded, select the next ready backlog item in declared order, state which item is resuming, and continue execution.
+
+Appending a follow-up does not imply that it runs next. Existing ready items retain their order unless the human explicitly reprioritizes them. A follow-up that substantially changes scope remains behind the human approval gate even when its desired behavior is otherwise clear.
+
+---
+
+# 🧪 2.6 Validation and Definition of Done
+
+Every sprint MUST include a real, executable `validate_deliverable.sh`. Before writing it, read `documentation/reference/validate-deliverable-example.sh` and classify each planned check as:
+
+- **Required:** must run and pass; never mask failure with unconditional success handling.
+- **Applicable:** becomes required when its referenced deliverable or environment is present.
+- **Not applicable:** omit the command and record the approved rationale in the plan.
+
+All sprints validate artifact structure, backlog acceptance evidence, traceability, and applicable quality rules. Code or runtime work normally validates dependency installation, build, tests, integration/runtime health, and deployment dry runs. Documentation, research, and planning work instead validates applicable schemas, links, structure, and content assertions; it need not invent a build or runtime.
+
+A deliverable is done only when:
+
+- It satisfies every applicable architecture and approved-plan constraint.
+- Its backlog acceptance criteria have stable evidence.
+- Required checks pass using the project-appropriate toolchain.
+- New behavior has appropriate tests; external services are mocked where practical.
+- Production paths contain no placeholder logic or unresolved TODOs.
+- Applicable deployment and documentation artifacts are integrated and validated.
+- Changes trace to the sprint, request-log turns, backlog items, and intent-focused commits.
+
+Any unavailable or failing required check is recorded in `verification-report.md` and the retrospective. Closure then requires explicit human acceptance; force completion follows §2.10. Every sprint must produce at least one accountable artifact, including code, tests, infrastructure, documentation, research, or design.
 
 ---
 
@@ -265,289 +271,114 @@ echo "✅ Validation complete."
 - Completed items
 - Partial implementations
 - Deferred items
-- Deviations from the implementation plan
+- Deviations from the execution plan
+- Reconciliation against every `backlog.yaml` item and its current status
 
-Example:
+Before verification completes, the LLM MUST confirm that every `done` item has acceptance evidence, every `blocked` item has a current blocker, and every `deferred` or `cancelled` item links to explicit human direction. Differences between the backlog and implementation are verification failures until corrected or accepted by the human.
 
-```markdown
-# Deliverable Verification – sprint-X-Y
-
-## Completed
-- [x] Twitch event handler implemented
-- [x] Tests created
-- [x] Cloud Build config added
-
-## Partial
-- [ ] Observability integration (stubbed)
-
-## Deferred
-- [ ] Multi-region deployment
-
-## Alignment Notes
-- Added health endpoint not originally specified
-```
+Before verification, read `documentation/reference/verification-report-template.md`.
 
 ---
 
-# 🔀 2.8 Publication Phase — *Real GitHub PR Required*
+# 🔀 2.8 Completion Handoff — *Push Required, PR Optional*
 
-At the end of implementation and verification:
+The completion handoff transfers validated sprint work from the LLM to the human. It occurs after approved implementation, validation, verification, and the sprint learning artifacts are complete.
 
-### The agent MUST:
+### The LLM MUST:
 
-1. Add all changed files
-2. Commit using a sprint-specific message
-3. Push the feature branch to GitHub
-4. Create a real Pull Request using GitHub CLI or API.
+1. Confirm the branch contains only approved sprint changes.
+2. Update the sprint artifacts with final evidence.
+3. Create a final intent-focused commit if completion artifacts changed after the last coherent commit.
+4. Push the feature branch. This is the default first push unless the human approved another cadence.
+5. Give the human the branch, head commit, validation result, known exceptions, and a concise completion recommendation.
 
-GitHub CLI example:
-```
-gh pr create \
-  --title "Sprint <id> Deliverables – <summary>" \
-  --body "Generated by LLM agent according to Sprint Protocol v2.4."
-```
+Pushing means the LLM considers the approved sprint work ready for human review. It does not mark the sprint `complete`; only the human can do that.
 
-GitHub API example (requires token):
-```
-curl -X POST \
-  -H "Authorization: Bearer <GITHUB_TOKEN>" \
-  -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/<owner>/<repo>/pulls \
-  -d '{
-    "title": "Sprint <id> Deliverables – <summary>",
-    "head": "feature/<sprint-id>-<short-description>",
-    "base": "main",
-    "body": "Generated by LLM agent according to Sprint Protocol v2.4."
-  }'
-```
+### Pull Request Policy
 
-If your chosen method fails (CLI or API):
+Under §Authority, a PR is optional and never an implicit completion gate. Record the human-defined desire, owner, timing, status, and URL in the plan and `publication.yaml`. An authorized PR failure blocks completion only when the approved criteria require that PR.
 
-- Stop immediately
-- Log the failure
-- Ask for updated credentials or API token
+The LLM MUST push and record the completion branch unless the human explicitly accepts a failed or omitted push. Stop an authorized push or PR action on access failure, record it, and ask for the missing access or decision.
 
-### Publication Rules
+Before recording the handoff, read `documentation/reference/publication-example.yaml`. The record MUST include branch, head commit, push status, and optional human-defined PR state.
 
-| Rule | Description |
-|------|-------------|
-| **S11** | A new feature branch MUST be created at sprint start and used for all sprint changes. |
-| **S12** | At sprint completion, the agent MUST attempt to create a GitHub Pull Request for the feature branch and log the result (success or failure). |
-| **S13** | A sprint cannot close until either (a) a PR has been successfully created and its URL recorded in `publication.yaml`, **or** (b) a failed PR attempt has been logged with the error reason and the user has explicitly accepted closure. |
+### Human-Defined Release (optional and separate from sprint completion)
 
-`publication.yaml` should contain:
-
-```yaml
-pr_url: https://github.com/...
-branch: feature/sprint-X-Y-...
-status: created
-```
-
-### Cutting a version during Publish (single source of truth)
-
-The platform version's **single source of truth is `architecture.yaml` `project.version`** (§0; also the
-runtime value every Bit reports via `bit.info` / `brat fleet info`). `package.json` and `package-lock.json`
-mirror it. **Never hand-edit the version in multiple files** — use the integrated release tool, which keeps
-all three in lockstep, rolls `CHANGELOG.md` `## [Unreleased]` into a dated block, and (optionally) tags:
-
-```bash
-brat release <patch|minor|major|x.y.z> [--dry-run] [--tag] [--yes]
-# npm aliases: npm run release -- <bump>   /   npm run release:dry -- <bump>
-```
-
-- When a shipping sprint cuts a version, run `npm run release -- <bump>` as part of Publish (before opening
-  the PR) and log it as a request ID in the sprint `request-log.md` (§2.5). The bump type is **explicit**
-  (never guessed; pre-1.0 SemVer).
-- `validate_deliverable.sh` already runs `npm run release:dry -- patch` and asserts the three files agree, so
-  every sprint proves a bump is mechanically possible before close (CI-safe, idempotent, no mutation).
+Under §Authority, the human defines and executes any release. Policy may live in `architecture.yaml`, another approved project document, or the plan. Release is optional and separate from sprint completion unless the human adds it to approved criteria. The LLM may prepare evidence, notes, analysis, or approved non-mutating checks; this protocol prescribes no release tool or workflow.
 
 ---
 
 # 🏁 2.9 Sprint Completion
 
-A sprint officially completes when:
+Before asking the human to complete the sprint, the LLM MUST present a completion packet containing:
 
-- `validate_deliverable.sh` is logically passable OR its current failures are documented and explicitly accepted by the user
-- A PR has been successfully created and its URL recorded in `publication.yaml`, OR a failed PR attempt has been logged and the user has explicitly accepted closure
-- `verification-report.md` and `retro.md` exist
-- The user says: `Sprint complete.` or `Force complete sprint`
+- Validation and verification results
+- Completed, partial, deferred, and deviated scope
+- The pushed branch and head commit, or the exact handoff failure
+- PR status only when the human-defined PR policy makes it relevant
+- `retro.md` and `key-learnings.md`
+- A recommendation to complete or force-complete, with exceptions called out explicitly
 
-Then the agent generates:
+A sprint officially completes only when:
 
-- `retro.md` — what worked, what didn’t
-- `key-learnings.md` — lessons for future sprints
+- `validate_deliverable.sh` is logically passable, or current failures are documented and explicitly accepted by the human
+- The branch was pushed and recorded in `publication.yaml`, or the failed or omitted push was logged and explicitly accepted by the human
+- `verification-report.md`, `retro.md`, and `key-learnings.md` exist
+- The human says `Sprint complete` or `Force complete sprint`
+
+After the human's declaration, the LLM records it, changes the manifest status to `complete`, and reports the final state. It does not perform a release.
+
+- Use `completionMode: normal` when the human says `Sprint complete`.
+- Use `completionMode: forced` when the human says `Force complete sprint`.
+- Use `status: blocked` with explicit blockers when progress cannot continue.
+- Use `status: cancelled` only when the human explicitly cancels the sprint.
+
+## 2.9.1 Learning Artifacts for Future Extraction
+
+The retrospective artifacts are both human-readable records and future inputs to semantic compaction or structured extraction. Write them for reuse outside the immediate conversation.
+
+### Shared rules
+
+- Use stable headings and IDs; never rely on document position as identity.
+- Keep observations and learnings atomic: one claim, decision, or lesson per record.
+- Link claims to concrete request IDs, commits, validation output, or file paths when available.
+- Separate observed facts from interpretation and recommendation.
+- Use explicit nouns rather than context-dependent pronouns such as "this" or "it".
+- Preserve disagreements or uncertainty instead of manufacturing consensus.
+- Use lowercase kebab-case tags and the confidence values `low`, `medium`, or `high`.
+- Exclude secrets, credentials, personal data, and unnecessary transcript detail.
+- Prefer concise repetition of essential context over references that require reconstructing the conversation.
+
+### Required `retro.md` structure
+
+Before writing the retrospective, read `documentation/reference/retro-template.md`. Preserve its outcome, atomic observation, partnership review, and follow-up record structure.
+
+### Required `key-learnings.md` structure
+
+Before writing learning records, read `documentation/reference/key-learnings-template.md`. Preserve atomic statement, kind, provenance, applicability, recommendation, confidence, tags, and supersession fields.
+
+Do not copy the entire retrospective into `key-learnings.md`. Promote only lessons likely to change a future decision or action. If no durable lesson exists, say so explicitly rather than inventing one.
 
 ---
 
 ### 2.10 Force Completion Override
 
-If the user says `Force complete sprint`, the agent may close the sprint even if:
+If the human says `Force complete sprint`, the LLM may close the sprint even if:
 
 - `validate_deliverable.sh` would currently fail, or
 - Tests are incomplete or failing, or
-- The PR could not be created
+- The completion branch could not be pushed
 
 …as long as:
 
-1. All known failures and gaps are documented under **Partial** or **Deferred** in `verification-report.md`, and
-2. The issues are briefly summarized in `retro.md` for future sprints to pick up.
+1. All known failures and gaps are documented under **Partial** or **Deferred** in `verification-report.md`.
+2. The issues are recorded as atomic observations in `retro.md` and, when reusable, as learning records in `key-learnings.md`.
+3. Any failed or omitted push is recorded in `publication.yaml` and `request-log.md`.
+
+Force completion never authorizes a release.
 
 ---
 
-# 🧮 3. Project-Wide Definition of Done (DoD)
+# 3. Development Guidance
 
-A deliverable is “Done” only if:
-
-### ✅ Code Quality
-- Adheres to project and architecture.yaml constraints
-- No TODOs or placeholder logic in production paths
-- Stubs are allowed only in non-production paths or behind feature flags
-
-### ✅ Testing
-- Tests for all new behavior (use Jest for Node/TypeScript services; use stack-appropriate frameworks for other stacks)
-- Mocks for external dependencies
-- `npm test` must pass
-- Test deferral requires explicit user approval
-
-### ✅ Deployment Artifacts
-If applicable:
-- Dockerfile
-- Cloud Build YAML
-- Cloud Run configs
-- IaC
-  These must integrate with `validate_deliverable.sh`
-
-### ✅ Documentation
-- Rationale, trade-offs, and notes
-- LLM hints (`llm_prompt`) where beneficial
-
-### ✅ Traceability
-All code changes trace back to:
-- A sprint
-- A request ID in `request-log.md`
-
-The user may explicitly accept missing or failing tests for this sprint; in that case, the gaps MUST be listed under **Deferred** in `verification-report.md` and noted in `retro.md`.
-
----
-
-# ☁️ 4. GCP Integration Rules
-
-- Cloud Run is default runtime
-- Cloud Build governs all builds and deployments
-- Artifact Registry stores all images
-- IaC lives under `infrastructure/`
-- Deployment configs should be reusable templates
-
----
-
-# 🧪 5. Testing Standards
-
-- Tests required
-- For Node/TypeScript services, use Jest; for other stacks, use language-appropriate frameworks (e.g., pytest, go test)
-- Tests live beside code or in `__tests__/`
-- High coverage encouraged
-- External services mocked
-- Tests must run as part of validation
-
----
-
-# 📦 6. Deliverable Types
-
-Every sprint must produce at least one:
-
-- Code artifact
-- Tests
-- Deployment scripts
-- Architecture documentation
-
-And all outputs must:
-
-- Build
-- Test
-- Integrate with the validation pipeline
-
-Note: Planning/Discovery sprints may produce documentation-only deliverables; validation should then lint, link-check, and verify structure instead of building code.
-
----
-
-# 🧱 7. Project Structure
-
-```
-deprecated/      # Historical reference only
-examples/        # Useful templates
-planning/        # Sprint artifacts (authoritative)
-preview/         # Visionary, non-binding artifacts
-infrastructure/  # IaC, Cloud Build, Terraform files
-src/
-  apps/          # Service entrypoints
-  common/        # Shared utilities
-  config/        # Configuration
-  services/      # Core microservices
-  types/         # Shared types
-```
-
----
-
-# 🎯 8. Code Style Rules
-
-- Application/services code is in TypeScript by default. If a service explicitly specifies a different stack, follow that stack. Scripts and infrastructure files remain in their native formats.
-- kebab-case filenames
-- PascalCase classes and interfaces
-- camelCase functions and variables
-- UPPER_SNAKE_CASE constants
-
-Logging:
-
-- Always log through a logging facade if possible
-- `info` for useful info
-- `error` for errors
-- `debug` for deep insight
-- Log all network + filesystem operations with context
-
----
-
-# 🧯 9. Error Handling & Events
-
-- Strong try/catch discipline
-- Graceful shutdown of services
-- Validate environment variables
-- Use Pub/Sub for service communication
-- Normalize external events to internal schema
-
----
-
-# 👥 10. Collaboration Roles
-
-- **Cloud Architect**
-  - Does not code.
-  - Responsible for cloud architecture analysis and design.
-- **Lead Architect**
-  - Does not code.
-  - Responsible for platform architecture analysis and design.
-- **Lead Implementor**
-  - Does code.
-  - Creates execution plans and backlogs.
-  - Executes implementation tasks.
-  - Remediates issues.
-- **Quality Lead**
-
-(These describe responsibility domains—not rigid titles.)
-
----
-
-# 🧠 11. Sprint Lifecycle Summary
-
-```
-Plan → Approve → Implement → Validate → Verify → Publish (PR) → Retro → Learn
-```
-
-The system is designed for:
-
-- High traceability
-- Rigor
-- Iterative improvement
-- Human oversight
-
----
-
-# End of AGENTS.md
+Before changing product code, tests, scripts, or infrastructure, read `documentation/reference/development-guidance.md`. Its repository-specific constraints supplement this sprint protocol.

@@ -1,0 +1,781 @@
+# Sprint 358: Agent-Dev MCP Tooling - Prioritized Backlog
+# Format: YAML-based task tracking
+# Created: 2026-07-23
+# Lead Implementor: Claude (Sonnet 4.5)
+# Duration: 4-5 days
+
+project:
+  name: Agent-Dev MCP Tooling
+  sprint: 358
+  goal: Enable agents to provision, manage, and destroy their own dedicated BitBrat Execution Contexts via MCP tools
+  duration_estimate: 4-5 days
+  priority: P0
+  background: >
+    Agents (Claude Code, Aider, Continue) need self-service infrastructure to test changes
+    without requiring manual environment setup. This sprint delivers 4 MCP lifecycle tools
+    (provision/start/stop/destroy) that wrap existing BitBrat infrastructure with guardrails.
+
+metrics:
+  code_coverage_target: 90%
+  test_count_target: 50
+  provision_time_target: 60  # seconds
+  cleanup_success_rate: 100%  # No orphaned resources
+  breaking_changes: 0
+
+epics:
+  - id: epic-1
+    name: Foundation - Ephemeral Context Storage
+    description: Enable ContextResolver to read from .brat/ephemeral-contexts.yaml and export reusable functions from create.ts
+    priority: P0
+    estimate_hours: 15
+    estimate_days: 2
+    status: todo
+    dependencies: []
+
+  - id: epic-2
+    name: MCP Tool Integration
+    description: Implement 4 lifecycle MCP tools with RBAC enforcement and audit logging
+    priority: P0
+    estimate_hours: 10
+    estimate_days: 1
+    status: todo
+    dependencies: [epic-1]
+
+  - id: epic-3
+    name: Orchestration & Lifecycle
+    description: Implement start/stop/destroy with health checks and complete cleanup validation
+    priority: P0
+    estimate_hours: 12
+    estimate_days: 1
+    status: todo
+    dependencies: [epic-2]
+
+  - id: epic-4
+    name: Polish & Documentation
+    description: Error handling, user-friendly messages, and comprehensive documentation
+    priority: P1
+    estimate_hours: 9
+    estimate_days: 1
+    status: todo
+    dependencies: [epic-3]
+
+stories:
+  # ============================================================================
+  # EPIC 1: FOUNDATION
+  # ============================================================================
+
+  - id: story-1.1
+    epic: epic-1
+    name: Update ContextResolver to Check Ephemeral Contexts
+    priority: P0
+    estimate_hours: 3
+    status: todo
+    assignee: null
+    description: >
+      Modify ContextResolver to check .brat/ephemeral-contexts.yaml before architecture.yaml,
+      enabling transparent discovery of agent-dev contexts without polluting the main config file.
+    acceptance_criteria:
+      - ContextResolver.getRawContext() checks ephemeral file first
+      - Ephemeral contexts override architecture.yaml on name collision
+      - ContextResolver.listContexts() merges both sources
+      - Missing .brat/ directory handled gracefully (no error)
+      - No breaking changes to existing context resolution
+      - Unit tests verify ephemeral context loading
+      - Integration test: Create ephemeral context, verify ContextResolver finds it
+    dependencies: []
+    files:
+      - action: modify
+        path: tools/brat/src/context/context-resolver.ts
+        changes:
+          - Add loadEphemeralContexts() method
+          - Update getRawContext() to check ephemeral first
+          - Update listContexts() to merge both sources
+    tests:
+      - type: unit
+        file: tools/brat/src/context/context-resolver.test.ts
+        cases:
+          - Load ephemeral contexts from file
+          - Merge permanent + ephemeral contexts
+          - Prioritize ephemeral over permanent on collision
+          - Handle missing .brat/ephemeral-contexts.yaml
+          - Handle malformed YAML in ephemeral file
+      - type: integration
+        description: Create ephemeral context and verify ContextResolver finds it
+    implementation_notes: |
+      Add this method to ContextResolver:
+
+      ```typescript
+      private loadEphemeralContexts(): Record<string, ExecutionContext> {
+        const ephemeralPath = path.join(this.repoRoot, '.brat', 'ephemeral-contexts.yaml');
+        if (!fs.existsSync(ephemeralPath)) {
+          return {};
+        }
+
+        try {
+          const content = fs.readFileSync(ephemeralPath, 'utf8');
+          const parsed = yaml.load(content) as any;
+          return parsed?.executionContexts || {};
+        } catch (error) {
+          this.logger?.warn('Failed to load ephemeral contexts', { error });
+          return {};
+        }
+      }
+
+      async getRawContext(name: string): Promise<ExecutionContext | null> {
+        // Check ephemeral first (higher priority)
+        const ephemeral = this.loadEphemeralContexts();
+        if (ephemeral[name]) {
+          return ephemeral[name];
+        }
+
+        // Fall back to architecture.yaml
+        const arch = this.loadArchitecture();
+        return arch.executionContexts?.[name] || null;
+      }
+      ```
+
+  - id: story-1.2
+    epic: epic-1
+    name: Export Helper Functions from create.ts
+    priority: P0
+    estimate_hours: 2
+    status: todo
+    assignee: null
+    description: >
+      Export buildNonInteractive, scaffoldEnvironment, waitForPostgres, generateGlobalYaml,
+      and generateInfraYaml functions from create.ts so AgentDevContextManager can reuse them.
+    acceptance_criteria:
+      - All 5 functions exported and importable
+      - No changes to function signatures
+      - No behavioral changes to existing functions
+      - brat context create still works in interactive mode
+      - brat context create still works in non-interactive mode
+      - Unit tests verify export (import and call)
+    dependencies: []
+    files:
+      - action: modify
+        path: tools/brat/src/commands/context/create.ts
+        changes:
+          - Export buildNonInteractive function
+          - Export scaffoldEnvironment function
+          - Export waitForPostgres function
+          - Export generateGlobalYaml function
+          - Export generateInfraYaml function
+    tests:
+      - type: integration
+        description: brat context create works in interactive mode (existing test)
+      - type: integration
+        description: brat context create works in non-interactive mode (existing test)
+      - type: unit
+        file: tools/brat/src/commands/context/create.test.ts
+        cases:
+          - Import and call buildNonInteractive
+          - Import and call scaffoldEnvironment
+          - Import and call waitForPostgres
+    implementation_notes: |
+      Simply add `export` keyword to these functions:
+
+      - `export async function buildNonInteractive(options: ContextCreateOptions): Promise<any>`
+      - `export async function scaffoldEnvironment(repoRoot: string, contextName: string, contextConfig: any): Promise<void>`
+      - `export async function waitForPostgres(timeoutSeconds: number): Promise<void>`
+      - `export function generateGlobalYaml(contextName: string, contextConfig: any): string`
+      - `export function generateInfraYaml(contextName: string, contextConfig: any): string`
+
+  - id: story-1.3
+    epic: epic-1
+    name: Implement AgentDevContextManager Core Class
+    priority: P0
+    estimate_hours: 6
+    status: todo
+    assignee: null
+    description: >
+      Create AgentDevContextManager class with provision/start/stop/destroy methods
+      that delegate to existing infrastructure (DockerOrchestrator, cmdSeed, etc.).
+    acceptance_criteria:
+      - AgentDevContextManager class created
+      - provision() generates unique context name (agent-dev-{timestamp}-{random})
+      - provision() creates entry in .brat/ephemeral-contexts.yaml
+      - provision() scaffolds env directory via scaffoldEnvironment()
+      - provision() seeds database via cmdSeed()
+      - provision() validates readiness (DB connected, env files present)
+      - start() delegates to DockerOrchestrator.up()
+      - start() waits for PostgreSQL readiness (30s timeout)
+      - start() waits for NATS readiness (10s timeout)
+      - start() returns gateway URL
+      - stop() delegates to DockerOrchestrator.down() (preserve volumes)
+      - destroy() stops services, removes volumes, drops DB, deletes env dir, removes ephemeral entry
+      - All operations are idempotent
+      - Clear error messages for all failure modes
+    dependencies: [story-1.1, story-1.2]
+    files:
+      - action: create
+        path: tools/brat/src/dev-mcp/agent-dev-context-manager.ts
+        skeleton: |
+          import { ContextCreateOptions, buildNonInteractive, scaffoldEnvironment, waitForPostgres } from '../commands/context/create';
+          import { DockerOrchestrator } from '../orchestration/docker/orchestrator';
+          import { cmdSeed } from '../cli/seed';
+          import * as fs from 'fs';
+          import * as path from 'path';
+          import * as yaml from 'js-yaml';
+          import { randomBytes } from 'crypto';
+
+          export interface ProvisionOptions {
+            name?: string;
+            profile?: 'dev' | 'staging';
+            persistence?: 'postgres' | 'firestore';
+          }
+
+          export interface ProvisionResult {
+            name: string;
+            gateway: { url: string };
+            postgres: { host: string; port: number; database: string };
+            status: 'provisioned';
+          }
+
+          export interface StartResult {
+            gateway: { url: string };
+            services: string[];
+            status: 'running';
+          }
+
+          export class AgentDevContextManager {
+            constructor(private repoRoot: string) {}
+
+            async provision(options: ProvisionOptions): Promise<ProvisionResult> { /* ... */ }
+            async start(contextName: string, service?: string): Promise<StartResult> { /* ... */ }
+            async stop(contextName: string): Promise<void> { /* ... */ }
+            async destroy(contextName: string): Promise<void> { /* ... */ }
+
+            private generateContextName(): string { /* ... */ }
+            private writeToEphemeralStorage(name: string, config: any): Promise<void> { /* ... */ }
+            private removeFromEphemeralStorage(name: string): Promise<void> { /* ... */ }
+            private dropDatabase(dbName: string): Promise<void> { /* ... */ }
+          }
+    tests:
+      - type: unit
+        file: tools/brat/src/dev-mcp/agent-dev-context-manager.test.ts
+        cases:
+          - Context name generation (unique, valid format agent-dev-{timestamp}-{random})
+          - Ephemeral storage write (creates .brat/ dir if missing)
+          - Ephemeral storage read (finds created context)
+          - Ephemeral storage remove (deletes entry)
+          - Idempotency: provision twice with same name (second fails)
+          - Idempotency: destroy twice (second succeeds silently)
+      - type: integration
+        cases:
+          - Provision creates env directory
+          - Provision creates global.yaml, infra.yaml
+          - Provision seeds database (routing_rules, personalities exist)
+          - Start launches services (verify containers running)
+          - Stop preserves volumes
+          - Start after stop (restart scenario)
+          - Destroy removes all traces
+    implementation_notes: |
+      Key implementation details:
+
+      1. Generate unique context names:
+         ```typescript
+         private generateContextName(): string {
+           const timestamp = Date.now();
+           const random = randomBytes(4).toString('hex');
+           return `agent-dev-${timestamp}-${random}`;
+         }
+         ```
+
+      2. Write to ephemeral storage:
+         ```typescript
+         private async writeToEphemeralStorage(name: string, config: any): Promise<void> {
+           const ephemeralPath = path.join(this.repoRoot, '.brat', 'ephemeral-contexts.yaml');
+           const bratDir = path.dirname(ephemeralPath);
+
+           if (!fs.existsSync(bratDir)) {
+             fs.mkdirSync(bratDir, { recursive: true });
+           }
+
+           let ephemeral: any = { executionContexts: {} };
+           if (fs.existsSync(ephemeralPath)) {
+             const content = fs.readFileSync(ephemeralPath, 'utf8');
+             ephemeral = yaml.load(content) as any;
+           }
+
+           if (!ephemeral.executionContexts) ephemeral.executionContexts = {};
+           ephemeral.executionContexts[name] = config;
+
+           const newContent = yaml.dump(ephemeral, { indent: 2, lineWidth: 100, noRefs: true });
+           fs.writeFileSync(ephemeralPath, newContent, 'utf8');
+         }
+         ```
+
+      3. Drop PostgreSQL database:
+         ```typescript
+         private async dropDatabase(dbName: string): Promise<void> {
+           const { Pool } = await import('pg');
+           const pool = new Pool({
+             host: 'localhost',
+             port: 5432,
+             user: 'bitbrat',
+             password: 'bitbrat_dev_password',
+             database: 'postgres', // Connect to postgres DB to drop target
+           });
+
+           try {
+             await pool.query(`DROP DATABASE IF EXISTS ${dbName}`);
+           } finally {
+             await pool.end();
+           }
+         }
+         ```
+
+  - id: story-1.4
+    epic: epic-1
+    name: Unit Tests for Foundation
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: null
+    description: Write comprehensive unit tests for ContextResolver and AgentDevContextManager
+    acceptance_criteria:
+      - 100% code coverage for new code
+      - All tests pass
+      - No flaky tests
+      - Tests run in <30 seconds
+      - Mock external dependencies (Docker, PostgreSQL)
+    dependencies: [story-1.1, story-1.2, story-1.3]
+    files:
+      - action: create
+        path: tools/brat/src/dev-mcp/agent-dev-context-manager.test.ts
+      - action: modify
+        path: tools/brat/src/context/context-resolver.test.ts
+    tests:
+      - type: unit
+        count: 20
+        coverage_target: 100%
+
+  # ============================================================================
+  # EPIC 2: MCP TOOL INTEGRATION
+  # ============================================================================
+
+  - id: story-2.1
+    epic: epic-2
+    name: Implement 4 MCP Lifecycle Tools
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: null
+    description: >
+      Create agent_dev.provision, agent_dev.start, agent_dev.stop, agent_dev.destroy MCP tools
+      that wrap AgentDevContextManager methods with proper input validation and error handling.
+    acceptance_criteria:
+      - 4 tools registered in dev-mcp server
+      - agent_dev.provision accepts optional name, profile, persistence
+      - agent_dev.start accepts name and optional service filter
+      - agent_dev.stop accepts name
+      - agent_dev.destroy accepts name and confirm flag
+      - All tools validate inputs via Zod schemas
+      - All tools return user-friendly messages
+      - All tools return structured data for programmatic use
+      - Tools callable via MCP protocol
+    dependencies: [story-1.3]
+    files:
+      - action: create
+        path: tools/brat/src/dev-mcp/tools/agent-dev.ts
+        skeleton: |
+          import { z } from 'zod';
+          import { ToolDefinition } from '../types';
+          import { AgentDevContextManager } from '../agent-dev-context-manager';
+
+          export const agentDevTools: ToolDefinition[] = [
+            {
+              name: 'agent_dev.provision',
+              description: 'Provision a new isolated agent-dev execution context',
+              inputSchema: z.object({
+                name: z.string().optional().describe('Context name (auto-generated if omitted)'),
+                profile: z.enum(['dev', 'staging']).optional().default('dev'),
+                persistence: z.enum(['postgres', 'firestore']).optional().default('postgres'),
+              }),
+              handler: async (args, connection) => { /* ... */ }
+            },
+            {
+              name: 'agent_dev.start',
+              description: 'Start all services in the agent-dev context',
+              inputSchema: z.object({
+                name: z.string().describe('Context name'),
+                service: z.string().optional().describe('Start only this service (optional)'),
+              }),
+              handler: async (args, connection) => { /* ... */ }
+            },
+            {
+              name: 'agent_dev.stop',
+              description: 'Stop all services (preserves data for restart)',
+              inputSchema: z.object({
+                name: z.string().describe('Context name'),
+              }),
+              handler: async (args, connection) => { /* ... */ }
+            },
+            {
+              name: 'agent_dev.destroy',
+              description: 'Destroy context and cleanup all resources (irreversible)',
+              inputSchema: z.object({
+                name: z.string().describe('Context name'),
+                confirm: z.boolean().default(false).describe('Confirm destruction'),
+              }),
+              handler: async (args, connection) => { /* ... */ }
+            },
+          ];
+      - action: modify
+        path: tools/brat/src/dev-mcp/server.ts
+        changes:
+          - Import agentDevTools
+          - Register tools in ToolRouter
+    tests:
+      - type: unit
+        file: tools/brat/src/dev-mcp/tools/agent-dev.test.ts
+        cases:
+          - agent_dev.provision validates input
+          - agent_dev.provision generates name if omitted
+          - agent_dev.start validates name required
+          - agent_dev.destroy requires confirm flag
+          - agent_dev.destroy rejects without confirm
+      - type: integration
+        cases:
+          - Call agent_dev.provision via MCP protocol
+          - Call agent_dev.start via MCP protocol
+          - Call agent_dev.destroy via MCP protocol
+          - Verify MCP response format
+
+  - id: story-2.2
+    epic: epic-2
+    name: RBAC Enforcement for Agent-Dev Contexts
+    priority: P1
+    estimate_hours: 3
+    status: todo
+    assignee: null
+    description: >
+      Add context name validation to prevent agents from destroying non-agent contexts
+      (local, staging, prod). Add RBAC metadata and enhance audit logging.
+    acceptance_criteria:
+      - Tools reject context names not matching agent-dev-* pattern
+      - Clear error message: "Cannot operate on non-agent context: staging"
+      - Tools metadata includes agentAllowlist: ['claude-code', 'aider', 'continue']
+      - Audit log captures contextName, operation, resources created/destroyed
+      - RBAC check passes for whitelisted agents
+      - RBAC check fails for non-whitelisted agents
+    dependencies: [story-2.1]
+    files:
+      - action: modify
+        path: tools/brat/src/dev-mcp/tools/agent-dev.ts
+        changes:
+          - Add validateAgentDevContext() helper
+          - Call validation in all tool handlers
+          - Add agentAllowlist to tool metadata
+      - action: modify
+        path: tools/brat/src/dev-mcp/audit-logger.ts
+        changes:
+          - Add contextName field to audit log
+          - Add operation field (provision, start, stop, destroy)
+          - Add resourcesCreated/resourcesDestroyed fields
+    tests:
+      - type: unit
+        cases:
+          - Reject destroy('local')
+          - Reject destroy('staging')
+          - Reject destroy('prod')
+          - Accept destroy('agent-dev-123')
+          - Accept destroy('agent-dev-1721745296-abc123')
+      - type: integration
+        cases:
+          - Verify audit log contains contextName
+          - Verify audit log contains operation type
+
+  - id: story-2.3
+    epic: epic-2
+    name: MCP Tool Integration Tests
+    priority: P1
+    estimate_hours: 3
+    status: todo
+    assignee: null
+    description: Write integration tests that call MCP tools via protocol and verify side effects
+    acceptance_criteria:
+      - All 4 tools callable via MCP
+      - Tools work with TargetConnection
+      - Responses match MCP schema
+      - Side effects verified (files created, containers running)
+      - Tests pass in CI
+    dependencies: [story-2.1, story-2.2]
+    files:
+      - action: modify
+        path: tools/brat/src/dev-mcp/tools/agent-dev.test.ts
+    tests:
+      - type: integration
+        count: 10
+        cases:
+          - Provision via MCP creates ephemeral context
+          - Start via MCP launches containers
+          - Stop via MCP stops containers
+          - Destroy via MCP removes all traces
+
+  # ============================================================================
+  # EPIC 3: ORCHESTRATION & LIFECYCLE
+  # ============================================================================
+
+  - id: story-3.1
+    epic: epic-3
+    name: Implement Start/Stop with Health Checks
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: null
+    description: >
+      Enhance start() to wait for PostgreSQL and NATS readiness, and verify gateway discovery.
+      Enhance stop() to preserve volumes for restart.
+    acceptance_criteria:
+      - start() calls DockerOrchestrator.up()
+      - start() polls PostgreSQL until ready (30s timeout)
+      - start() polls NATS until ready (10s timeout)
+      - start() returns gateway URL from auto-discovery
+      - start() times out gracefully with clear error
+      - stop() calls DockerOrchestrator.down() without -v flag
+      - stop() preserves volumes for restart
+    dependencies: [story-2.1]
+    files:
+      - action: modify
+        path: tools/brat/src/dev-mcp/agent-dev-context-manager.ts
+        changes:
+          - Enhance start() with health checks
+          - Add waitForNats() helper
+          - Enhance stop() to preserve volumes
+    tests:
+      - type: integration
+        cases:
+          - start() waits for PostgreSQL (mock delayed start)
+          - start() times out if PostgreSQL never ready
+          - start() waits for NATS
+          - start() returns gateway URL
+          - stop() preserves volumes
+          - start() after stop() works (restart scenario)
+
+  - id: story-3.2
+    epic: epic-3
+    name: Implement Destroy with Complete Cleanup
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: null
+    description: >
+      Enhance destroy() to remove all traces: containers, volumes, DB, env directory, ephemeral entry.
+      Make destroy() idempotent (safe to call multiple times).
+    acceptance_criteria:
+      - destroy() stops all services via DockerOrchestrator.down()
+      - destroy() removes Docker volumes (docker compose down -v)
+      - destroy() drops PostgreSQL database
+      - destroy() deletes env/agent-dev-{name}/ directory
+      - destroy() removes entry from ephemeral-contexts.yaml
+      - destroy() is idempotent (calling twice doesn't error)
+      - Verify no orphaned containers after destroy
+      - Verify no orphaned volumes after destroy
+      - Verify database dropped
+      - Verify env directory deleted
+    dependencies: [story-3.1]
+    files:
+      - action: modify
+        path: tools/brat/src/dev-mcp/agent-dev-context-manager.ts
+        changes:
+          - Enhance destroy() with complete cleanup
+          - Add volume removal logic
+          - Add database drop logic
+          - Add env directory deletion
+          - Add ephemeral storage removal
+    tests:
+      - type: integration
+        cases:
+          - Provision → Destroy → verify all gone
+          - Destroy twice (idempotency)
+          - Destroy validation: no containers, no volumes, no DB, no env dir
+
+  - id: story-3.3
+    epic: epic-3
+    name: End-to-End Lifecycle Tests
+    priority: P0
+    estimate_hours: 4
+    status: todo
+    assignee: null
+    description: Write comprehensive E2E tests covering full lifecycle scenarios
+    acceptance_criteria:
+      - Full lifecycle test: Provision → Start → Stop → Start → Destroy
+      - Parallel contexts test: Provision 2 → Start both → Verify isolation → Destroy both
+      - Restart test: Provision → Start → Stop → Start (verify data preserved)
+      - Failure recovery test: Provision → Start → Kill service → Start (verify recovery)
+      - All E2E tests pass
+      - Tests cleanup after themselves
+    dependencies: [story-3.1, story-3.2]
+    files:
+      - action: modify
+        path: tools/brat/src/dev-mcp/agent-dev-context-manager.test.ts
+    tests:
+      - type: e2e
+        count: 5
+        cases:
+          - Full lifecycle
+          - Parallel contexts
+          - Restart scenario
+          - Failure recovery
+          - Cleanup verification
+
+  # ============================================================================
+  # EPIC 4: POLISH & DOCUMENTATION
+  # ============================================================================
+
+  - id: story-4.1
+    epic: epic-4
+    name: Error Handling & User-Friendly Messages
+    priority: P1
+    estimate_hours: 3
+    status: todo
+    assignee: null
+    description: >
+      Audit all error paths and add context-rich error messages with remediation suggestions.
+      Add progress indicators for long operations.
+    acceptance_criteria:
+      - Every error path has clear message
+      - Error messages suggest remediation
+      - Progress feedback for operations >10 seconds
+      - Consistent emoji usage (✅ ⚠️ ❌)
+      - Error messages include correlation IDs for debugging
+    dependencies: [epic-3]
+    files:
+      - action: modify
+        path: tools/brat/src/dev-mcp/agent-dev-context-manager.ts
+      - action: modify
+        path: tools/brat/src/dev-mcp/tools/agent-dev.ts
+    tests:
+      - type: manual
+        cases:
+          - Test all error scenarios
+          - Verify messages are actionable
+    implementation_notes: |
+      Example error messages:
+
+      - "Failed to start PostgreSQL: Connection refused at localhost:5432. Is the postgres container running? Try: docker ps --filter name=postgres"
+      - "Context 'agent-dev-123' not found. Did you run agent_dev.provision first?"
+      - "Timeout waiting for services to start (60s). Check logs: fleet.logs({ context: 'agent-dev-123' })"
+
+  - id: story-4.2
+    epic: epic-4
+    name: User Documentation
+    priority: P1
+    estimate_hours: 4
+    status: todo
+    assignee: null
+    description: Create comprehensive user-facing documentation for agent-dev contexts
+    acceptance_criteria:
+      - User guide published at documentation/guides/agent-dev-contexts.md
+      - CLAUDE.md updated with agent-dev section
+      - All 4 MCP tools documented with examples
+      - Common workflows documented (provision → test → destroy)
+      - Troubleshooting section with common errors
+      - Examples are copy-pasteable and working
+    dependencies: [epic-3]
+    files:
+      - action: create
+        path: documentation/guides/agent-dev-contexts.md
+        outline: |
+          # Agent-Dev Execution Contexts
+
+          ## Overview
+          - What is agent-dev?
+          - When to use it?
+          - Architecture overview
+
+          ## Quick Start
+          - Provision context
+          - Start services
+          - Run tests
+          - Destroy context
+
+          ## MCP Tool Reference
+          - agent_dev.provision
+          - agent_dev.start
+          - agent_dev.stop
+          - agent_dev.destroy
+
+          ## Common Workflows
+          - Testing a new feature
+          - Debugging an issue
+          - Running integration tests
+
+          ## Troubleshooting
+          - Services won't start
+          - Database connection failed
+          - Orphaned resources
+
+          ## FAQ
+      - action: modify
+        path: CLAUDE.md
+        changes:
+          - Add Agent-Dev Contexts section
+          - Link to user guide
+          - Add example usage
+
+  - id: story-4.3
+    epic: epic-4
+    name: Final Validation & Cleanup
+    priority: P1
+    estimate_hours: 2
+    status: todo
+    assignee: null
+    description: Run full test suite, manual E2E testing, and final cleanup tasks
+    acceptance_criteria:
+      - All tests pass (unit, integration, E2E)
+      - Code coverage >90%
+      - Manual E2E test with Claude Code successful
+      - No orphaned resources after destroy
+      - .gitignore includes .brat/
+      - All linter warnings resolved
+      - PR ready for review
+    dependencies: [story-4.1, story-4.2]
+    files:
+      - action: modify
+        path: .gitignore
+        changes:
+          - Add .brat/ directory
+    tests:
+      - type: manual
+        cases:
+          - Full manual E2E with Claude Code
+          - Verify all examples in docs work
+          - Verify cleanup is complete
+
+validation_checklist:
+  functional:
+    - Agent provisions context in <60 seconds
+    - All 20+ services start successfully
+    - Zero orphaned resources after destroy
+    - Agent can query DB via persistence tools
+    - Agent can stream logs via fleet tools
+  quality:
+    - Code coverage >90%
+    - All tests pass
+    - Zero critical bugs
+    - Clear error messages for all failure modes
+  operational:
+    - Documentation completeness: 100%
+    - User guide approved
+    - All examples working
+
+timeline:
+  phase_1:
+    name: Foundation
+    duration: 2 days
+    stories: [story-1.1, story-1.2, story-1.3, story-1.4]
+  phase_2:
+    name: MCP Tools
+    duration: 1 day
+    stories: [story-2.1, story-2.2, story-2.3]
+  phase_3:
+    name: Orchestration
+    duration: 1 day
+    stories: [story-3.1, story-3.2, story-3.3]
+  phase_4:
+    name: Polish
+    duration: 1 day
+    stories: [story-4.1, story-4.2, story-4.3]

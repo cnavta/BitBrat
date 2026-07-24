@@ -35,16 +35,37 @@ export class AuthServer extends Bit {
       res.status(200).json({ counters: counters.snapshot() });
     });
 
-    // Get persistence backend - prioritize documentStore (PostgreSQL) over firestore
-    // When PERSISTENCE_DRIVER=postgres, Firestore resource will not be available
-    const db = this.getResource<any>('documentStore') || this.getResource<Firestore>('firestore');
+    // Get persistence backend based on PERSISTENCE_DRIVER
+    const persistenceDriver = process.env.PERSISTENCE_DRIVER || 'postgres';
+    let db: any;
+    let collectionName: string;
 
-    // Use factory to create UserRepo - automatically selects backend based on PERSISTENCE_DRIVER
-    // For PostgreSQL: use 'auth_users' table, for Firestore: use 'users' collection
-    const collectionName = db && 'query' in db ? 'auth_users' : 'users';
+    if (persistenceDriver === 'postgres' || persistenceDriver === 'postgresql') {
+      const documentStore = this.getResource<any>('documentStore');
+      if (!documentStore) {
+        logger.error('auth.document_store_not_found');
+        throw new Error('DocumentStore resource required for PostgreSQL persistence');
+      }
+      db = documentStore;
+      collectionName = 'auth_users';
+      logger.info('auth.using_postgres_persistence');
+    } else if (persistenceDriver === 'firestore') {
+      const firestore = this.getResource<Firestore>('firestore');
+      if (!firestore) {
+        logger.error('auth.firestore_not_found');
+        throw new Error('Firestore resource required for Firestore persistence');
+      }
+      db = firestore;
+      collectionName = 'users';
+      logger.info('auth.using_firestore_persistence');
+    } else {
+      throw new Error(`Unknown PERSISTENCE_DRIVER: ${persistenceDriver}`);
+    }
+
+    // Use factory to create UserRepo with appropriate backend
     this.userRepo = createUserRepo(collectionName, db);
 
-    // Use factory to create GatewayTokenStore - automatically selects backend based on PERSISTENCE_DRIVER
+    // Use factory to create GatewayTokenStore with appropriate backend
     this.gatewayTokenStore = createGatewayTokenStore(db);
 
     this.registerAdminTools();

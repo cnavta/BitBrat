@@ -110,6 +110,12 @@ export interface AuditLogEntry {
   durationMs: number;
   success: boolean;
   error?: string;
+  /** Sprint 358: Enhanced audit logging for agent-dev contexts */
+  contextName?: string;
+  /** Sprint 358: Operation type for lifecycle tools */
+  operation?: 'provision' | 'start' | 'stop' | 'destroy';
+  /** Sprint 358: Resources affected by operation */
+  resources?: string[];
 }
 
 /**

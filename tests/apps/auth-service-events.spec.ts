@@ -21,6 +21,8 @@ describe('AuthServer Event Emission', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Use Firestore for tests since we have Firestore mocks
+    process.env.PERSISTENCE_DRIVER = 'firestore';
 
     dbMock = {
       collection: jest.fn().mockReturnThis(),
