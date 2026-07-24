@@ -51,7 +51,8 @@ export async function cmdDocker(action: string, flags: any) {
     dryRun: flags.dryRun,
     loki: flags.loki,
     noDeps: flags.noDeps,
-    forceRecreate: flags.forceRecreate
+    forceRecreate: flags.forceRecreate,
+    noCache: flags.noCache
   };
 
   const orchestrator = new DockerOrchestrator(options);

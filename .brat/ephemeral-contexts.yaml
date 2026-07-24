@@ -1,0 +1,622 @@
+executionContexts:
+  agent-dev-1784839018915-51284dea:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784839018915-51284dea
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T20:36:58.915Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T20:36:58.915Z'
+      autoDestroy: true
+  agent-dev-1784839232818-7f71dba4:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784839232818-7f71dba4
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T20:40:32.819Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T20:40:32.819Z'
+      autoDestroy: true
+  agent-dev-1784839651412-9b9a787b:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784839651412-9b9a787b
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T20:47:31.414Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T20:47:31.415Z'
+      autoDestroy: true
+  agent-dev-1784840096000-f2497f90:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784840096000-f2497f90
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T20:54:56.002Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T20:54:56.004Z'
+      autoDestroy: true
+  agent-dev-1784840430288-7dbf0fb9:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784840430288-7dbf0fb9
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T21:00:30.289Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T21:00:30.289Z'
+      autoDestroy: true
+  agent-dev-1784841798107-1121fd0f:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784841798107-1121fd0f
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T21:23:18.110Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T21:23:18.111Z'
+      autoDestroy: true
+  agent-dev-1784842299649-11699fae:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784842299649-11699fae
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T21:31:39.713Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T21:31:39.714Z'
+      autoDestroy: true
+  agent-dev-1784845506298-c0c4ab2f:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784845506298-c0c4ab2f
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T22:25:06.300Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T22:25:06.300Z'
+      autoDestroy: true
+  agent-dev-1784846156024-99969541:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784846156024-99969541
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T22:35:56.037Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T22:35:56.041Z'
+      autoDestroy: true
+  agent-dev-1784846800589-569acbad:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784846800589-569acbad
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T22:46:40.591Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T22:46:40.591Z'
+      autoDestroy: true
+  agent-dev-1784847471883-d8651eea:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784847471883-d8651eea
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T22:57:51.891Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T22:57:51.891Z'
+      autoDestroy: true
+  agent-dev-1784847954322-2659e6fe:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784847954322-2659e6fe
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T23:05:54.324Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T23:05:54.324Z'
+      autoDestroy: true
+  agent-dev-1784851179485-5c430ca0:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784851179485-5c430ca0
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-23T23:59:39.488Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-23T23:59:39.488Z'
+      autoDestroy: true
+  agent-dev-1784851363403-5138fd53:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784851363403-5138fd53
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T00:02:43.405Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T00:02:43.405Z'
+      autoDestroy: true
+  agent-dev-1784851407550-b2a878dd:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784851407550-b2a878dd
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T00:03:27.553Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T00:03:27.553Z'
+      autoDestroy: true
+  agent-dev-1784851517131-8c5f24c4:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784851517131-8c5f24c4
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T00:05:17.134Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T00:05:17.134Z'
+      autoDestroy: true
+  agent-dev-1784852607328-1a105024:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784852607328-1a105024
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T00:23:27.331Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T00:23:27.331Z'
+      autoDestroy: true
+  agent-dev-1784852874408-b5664661:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784852874408-b5664661
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T00:27:54.411Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T00:27:54.411Z'
+      autoDestroy: true
+  agent-dev-1784853285519-4fde32e6:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784853285519-4fde32e6
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T00:34:45.522Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T00:34:45.522Z'
+      autoDestroy: true
+  agent-dev-1784853931008-097ea849:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784853931008-097ea849
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T00:45:31.010Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T00:45:31.011Z'
+      autoDestroy: true
+  agent-dev-1784857970719-5e002c2f:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784857970719-5e002c2f
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T01:52:50.722Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T01:52:50.722Z'
+      autoDestroy: true
+  agent-dev-1784906381766-cd0faaf8:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784906381766-cd0faaf8
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T15:19:41.773Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T15:19:41.773Z'
+      autoDestroy: true
+  agent-dev-1784912343047-0fe24b60:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1784912343047-0fe24b60
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-07-24T16:59:03.052Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-07-24T16:59:03.052Z'
+      autoDestroy: true

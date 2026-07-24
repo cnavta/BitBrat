@@ -5,17 +5,19 @@ Read this file before changing product code, tests, scripts, or infrastructure.
 ## Project Structure
 
 ```text
-deprecated/      # Historical reference only; never a deliverable dependency
-examples/        # Useful templates
-planning/        # Sprint-management artifacts
-preview/         # Directional, non-binding artifacts
-infrastructure/  # IaC, Cloud Build, Terraform files
+deprecated/           # Historical reference only; never a deliverable dependency
+examples/             # Useful templates
+planning/             # Sprint-management artifacts
+preview/              # Directional, non-binding artifacts
+infrastructure/       # IaC, Cloud Build, Terraform files
+tools/brat            # brat (BitBrat Remote Administration Tool) source
+tools/prompt-assembly # prompt spec framework source
 src/
-  apps/          # Service entrypoints
-  common/        # Shared utilities
-  config/        # Configuration
-  services/      # Core microservices
-  types/         # Shared types
+  apps/               # Service entrypoints
+  common/             # Shared utilities
+  config/             # Configuration
+  services/           # Core microservices
+  types/              # Shared types
 ```
 
 ## Code Style

@@ -603,8 +603,8 @@ describe('ContextResolver Integration Tests - Sprint 349', () => {
       // Second call (should reload)
       await resolver.resolve('local');
 
-      // Should read file again
-      expect(mockFs.readFileSync).toHaveBeenCalledTimes(2);
+      // Should read file again (2 reads per call: architecture.yaml + ephemeral-contexts.yaml)
+      expect(mockFs.readFileSync).toHaveBeenCalledTimes(4);
     });
   });
 

@@ -136,7 +136,32 @@ export class ContextResolver {
   }
 
   /**
-   * Load execution contexts from architecture.yaml
+   * Load ephemeral execution contexts from .brat/ephemeral-contexts.yaml
+   * Sprint 358: Agent-dev contexts stored separately from architecture.yaml
+   *
+   * @returns Ephemeral contexts or empty object if file doesn't exist
+   */
+  private loadEphemeralContexts(): ExecutionContexts {
+    const ephemeralPath = path.join(this.repoRoot, '.brat', 'ephemeral-contexts.yaml');
+
+    if (!fs.existsSync(ephemeralPath)) {
+      return {};
+    }
+
+    try {
+      const content = fs.readFileSync(ephemeralPath, 'utf8');
+      const parsed = yaml.load(content) as any;
+      return (parsed?.executionContexts || {}) as ExecutionContexts;
+    } catch (error) {
+      // Warn but don't fail - ephemeral contexts are optional
+      console.warn(`Warning: Failed to load ephemeral contexts: ${(error as Error).message}`);
+      return {};
+    }
+  }
+
+  /**
+   * Load execution contexts from architecture.yaml and .brat/ephemeral-contexts.yaml
+   * Sprint 358: Ephemeral contexts (agent-dev) override permanent contexts on name collision
    */
   private async loadExecutionContexts(): Promise<ExecutionContexts> {
     // Check cache
@@ -156,18 +181,29 @@ export class ContextResolver {
       const content = fs.readFileSync(archPath, 'utf8');
       const arch = yaml.load(content) as Architecture;
 
-      if (!arch.executionContexts || Object.keys(arch.executionContexts).length === 0) {
+      const permanentContexts = arch.executionContexts || {};
+
+      if (Object.keys(permanentContexts).length === 0) {
         throw new ContextResolutionError(
           'No execution contexts defined in architecture.yaml. ' +
           'Run \'brat migrate-contexts\' to migrate from deploymentTargets.'
         );
       }
 
-      // Cache contexts and mtime
-      this.architectureCache = arch.executionContexts;
+      // Load ephemeral contexts (Sprint 358)
+      const ephemeralContexts = this.loadEphemeralContexts();
+
+      // Merge: ephemeral contexts override permanent on name collision
+      const mergedContexts = {
+        ...permanentContexts,
+        ...ephemeralContexts,
+      };
+
+      // Cache merged contexts and mtime
+      this.architectureCache = mergedContexts;
       this.architectureMtime = fs.statSync(archPath).mtimeMs;
 
-      return arch.executionContexts;
+      return mergedContexts;
     } catch (error) {
       if (error instanceof ContextResolutionError) {
         throw error;

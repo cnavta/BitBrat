@@ -25,6 +25,7 @@ export interface DockerOrchestratorOptions {
   loki?: boolean; // Enable Loki + Promtail observability stack
   noDeps?: boolean; // Don't start linked services (docker compose up --no-deps)
   forceRecreate?: boolean; // Force recreate containers (docker compose up --force-recreate)
+  noCache?: boolean; // Build without cache (docker compose build --no-cache)
 }
 
 export class DockerOrchestrator {
@@ -34,13 +35,24 @@ export class DockerOrchestrator {
 
   constructor(private readonly options: DockerOrchestratorOptions) {
     this.envResolver = new EnvironmentResolver(options.repoRoot);
-    this.composeFactory = new ComposeFactory(options.repoRoot);
+
+    // Sprint 358: Use context-specific docker-compose file if it exists
+    let baseComposePath: string | undefined;
+    if (options.context) {
+      const contextComposePath = `infrastructure/docker-compose/docker-compose.${options.context}.yaml`;
+      const fullPath = path.join(options.repoRoot, contextComposePath);
+      if (fs.existsSync(fullPath)) {
+        baseComposePath = contextComposePath;
+      }
+    }
+
+    this.composeFactory = new ComposeFactory(options.repoRoot, baseComposePath);
     this.portManager = new PortManager();
   }
 
   public async up(): Promise<void> {
-    const { arch, targetConfig, envName, contextName } = await this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
+    const { arch, targetConfig, envName, contextName, securePath } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName, securePath);
 
     // Deploy must honor architecture.yaml `active`. Services marked active:false (or absent,
     // which defaults to DISABLED) are never built/started here: on `--all` they are silently
@@ -85,7 +97,12 @@ export class DockerOrchestrator {
         for (let i = 0; i < buildServices.length; i += maxConcurrent) {
           const batch = buildServices.slice(i, i + maxConcurrent);
           console.log(`[brat] Building batch: ${batch.join(', ')}`);
-          await this.executeDockerCompose(targetConfig, [...composeArgs, 'build', ...batch]);
+          const buildArgs = [...composeArgs, 'build'];
+          if (this.options.noCache) {
+            buildArgs.push('--no-cache');
+          }
+          buildArgs.push(...batch);
+          await this.executeDockerCompose(targetConfig, buildArgs);
         }
 
         // If --force-recreate was specified, explicitly stop AND remove the services first to release ports
@@ -134,6 +151,9 @@ export class DockerOrchestrator {
         }
 
         const upArgs = [...composeArgs, 'up', '-d', '--build'];
+        if (this.options.noCache) {
+          upArgs.push('--no-cache');
+        }
         if (this.options.forceRecreate) {
           upArgs.push('--force-recreate');
         }
@@ -151,8 +171,8 @@ export class DockerOrchestrator {
   }
 
   public async down(): Promise<void> {
-    const { targetConfig, envName, contextName } = await this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
+    const { targetConfig, envName, contextName, securePath } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName, securePath);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
     try {
@@ -165,8 +185,8 @@ export class DockerOrchestrator {
   }
 
   public async logs(follow: boolean = false): Promise<void> {
-    const { targetConfig, envName, contextName } = await this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
+    const { targetConfig, envName, contextName, securePath } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName, securePath);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
     try {
@@ -182,8 +202,8 @@ export class DockerOrchestrator {
   }
 
   public async ps(): Promise<void> {
-    const { targetConfig, envName, contextName } = await this.prepare();
-    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName);
+    const { targetConfig, envName, contextName, securePath } = await this.prepare();
+    const tempEnvPath = await this.writeEnvFile(envName, targetConfig, contextName, securePath);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
     try {
@@ -195,8 +215,8 @@ export class DockerOrchestrator {
     }
   }
 
-  private async writeEnvFile(envName: string, targetConfig: any, contextName?: string): Promise<string> {
-    const env = this.envResolver.resolve(envName);
+  private async writeEnvFile(envName: string, targetConfig: any, contextName?: string, securePath?: string): Promise<string> {
+    const env = this.envResolver.resolve(envName, securePath);
     const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
     const assignments = await this.portManager.resolvePorts(composeFileSet.serviceFiles, env, targetConfig);
     const portOverrides = this.portManager.getEnvOverrides(assignments);
@@ -422,35 +442,14 @@ export class DockerOrchestrator {
   }
 
   private async ensureNetworkExists(target: any): Promise<void> {
+    // Docker Compose automatically creates networks defined in the compose file.
+    // We no longer pre-create networks here to avoid conflicts with compose-managed networks
+    // that use the `name:` override (e.g., bitbrat-network -> bitbrat-staging-network).
+    // This was causing duplicate networks on every deployment.
     if (this.options.dryRun) return;
 
-    const isRemote = target.host?.startsWith('ssh://');
-    const networkName = 'bitbrat-network';
-
-    if (target.host?.startsWith('ssh://') && target.remoteDir) {
-      const sshTarget = target.host.replace('ssh://', '');
-      const checkCmd = `sh -c 'docker network inspect ${networkName} >/dev/null 2>&1 || docker network create ${networkName} --label bitbrat-platform=true'`;
-
-      console.log(`[brat] Ensuring network ${networkName} exists on remote...`);
-      const result = await execCmd('ssh', [sshTarget, checkCmd], { cwd: this.options.repoRoot });
-      if (result.code !== 0) {
-        throw new Error(`Failed to ensure network ${networkName} exists on remote host ${sshTarget}`);
-      }
-    } else {
-      // Local check (even if DOCKER_HOST is set, it will use that)
-      const env: Record<string, string> = { ...process.env as Record<string, string> };
-      if (target.host) env['DOCKER_HOST'] = target.host;
-      if (target.context) env['DOCKER_CONTEXT'] = target.context;
-
-      const result = await execCmd('docker', ['network', 'inspect', networkName], { cwd: this.options.repoRoot, env });
-      if (result.code !== 0) {
-        console.log(`[brat] Creating network ${networkName}...`);
-        await execCmd('docker', ['network', 'create', networkName, '--label', 'bitbrat-platform=true'], { 
-          cwd: this.options.repoRoot,
-          env
-        });
-      }
-    }
+    // No-op: Let docker-compose handle network creation
+    return;
   }
 
   /**
@@ -487,8 +486,9 @@ export class DockerOrchestrator {
       };
 
       const envName = rawContext.runtime.envOverlay?.path?.replace('env/', '') || this.options.context;
+      const securePath = rawContext.runtime.envOverlay?.secure; // Sprint 358: Context-specific secure file
 
-      return { arch, targetConfig, envName, contextName: this.options.context };
+      return { arch, targetConfig, envName, contextName: this.options.context, securePath };
     }
 
     // Legacy path: Use deploymentTargets from architecture.yaml
@@ -507,14 +507,23 @@ export class DockerOrchestrator {
   private async executeDockerCompose(target: any, args: string[]): Promise<void> {
     const arch = loadArchitecture(this.options.repoRoot);
     let maxConcurrent = target.maxConcurrent || arch.deploymentDefaults?.maxConcurrentDeployments || 3;
-    
+
     if (target.host?.startsWith('ssh://') && !target.maxConcurrent) {
       maxConcurrent = 1;
     }
 
-    const env: Record<string, string> = { 
+    // Extract project name from args (-p <name>) to set as environment variable
+    // This allows ${COMPOSE_PROJECT_NAME} interpolation in compose files
+    let projectName = 'bitbratplatform';
+    const pIndex = args.indexOf('-p');
+    if (pIndex !== -1 && pIndex + 1 < args.length) {
+      projectName = args[pIndex + 1];
+    }
+
+    const env: Record<string, string> = {
       ...process.env as Record<string, string>,
-      COMPOSE_PARALLEL_LIMIT: maxConcurrent.toString()
+      COMPOSE_PARALLEL_LIMIT: maxConcurrent.toString(),
+      COMPOSE_PROJECT_NAME: projectName
     };
     
     const cmd = 'docker';
@@ -532,16 +541,19 @@ export class DockerOrchestrator {
     const isSsh = target.host?.startsWith('ssh://');
     const isBuild = args.includes('build');
 
-    // If it's a remote target with a remoteDir, and NOT a build command,
-    // we execute via SSH directly on the remote host. This ensures that:
+    // If it's a remote target with a remoteDir, execute via SSH directly on the remote host.
+    // This ensures that:
     // 1. Relative paths in compose files resolve correctly to the remote files.
     // 2. Bind mounts refer to paths on the remote host.
-    if (isSsh && target.remoteDir && !isBuild) {
+    // 3. Build contexts work correctly with relative paths (../.. etc)
+    if (isSsh && target.remoteDir) {
       const sshTarget = target.host.replace('ssh://', '');
       const quotedArgs = args.map(arg => arg.includes(' ') ? `"${arg}"` : arg).join(' ');
-      
+
       // Try 'docker compose' first, then 'docker-compose'. Use /bin/sh -c for Alpine compatibility.
-      const remoteCmd = `sh -c 'cd "${target.remoteDir}" && (docker compose version >/dev/null 2>&1 && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker compose --project-directory . ${quotedArgs} || COMPOSE_PARALLEL_LIMIT=${maxConcurrent} docker-compose --project-directory . ${quotedArgs})'`;
+      // Don't use --project-directory for remote execution - it breaks build context path resolution
+      // Set COMPOSE_PROJECT_NAME to enable ${COMPOSE_PROJECT_NAME} interpolation in compose files
+      const remoteCmd = `sh -c 'cd "${target.remoteDir}" && (docker compose version >/dev/null 2>&1 && COMPOSE_PARALLEL_LIMIT=${maxConcurrent} COMPOSE_PROJECT_NAME=${projectName} docker compose ${quotedArgs} || COMPOSE_PARALLEL_LIMIT=${maxConcurrent} COMPOSE_PROJECT_NAME=${projectName} docker-compose ${quotedArgs})'`;
       
       if (this.options.dryRun || process.env.DEBUG === 'brat:*') {
         console.log(`[brat:docker] Executing remotely: ssh ${sshTarget} "${remoteCmd}"`);
@@ -572,14 +584,27 @@ export class DockerOrchestrator {
       return;
     }
 
-    const result = await execCmd(cmd, finalArgs, { 
+    const result = await execCmd(cmd, finalArgs, {
       cwd: this.options.repoRoot,
-      env,
-      stdio: 'inherit'
+      env
     });
 
     if (result.code !== 0) {
-      throw new Error(`Docker command failed with exit code ${result.code}`);
+      // Truncate output to last 5000 characters to avoid overwhelming error messages
+      const truncatedStdout = result.stdout && result.stdout.length > 5000
+        ? '...[truncated]...\n' + result.stdout.slice(-5000)
+        : result.stdout;
+      const truncatedStderr = result.stderr && result.stderr.length > 5000
+        ? '...[truncated]...\n' + result.stderr.slice(-5000)
+        : result.stderr;
+
+      const errorMsg = [
+        `Docker command failed with exit code ${result.code}`,
+        `Command: ${cmd} ${finalArgs.join(' ')}`,
+        truncatedStderr ? `Error: ${truncatedStderr}` : '',
+        truncatedStdout ? `Output: ${truncatedStdout}` : ''
+      ].filter(Boolean).join('\n');
+      throw new Error(errorMsg);
     }
   }
 }

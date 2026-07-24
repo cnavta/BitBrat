@@ -9,11 +9,16 @@ export interface ComposeFileSet {
 }
 
 export class ComposeFactory {
-  private readonly baseComposePath = 'infrastructure/docker-compose/docker-compose.local.yaml';
+  private readonly baseComposePath: string;
   private readonly servicesDir = 'infrastructure/docker-compose/services';
   private readonly observabilityPath = 'infrastructure/docker-compose/observability/docker-compose.observability.yaml';
 
-  constructor(private readonly repoRoot: string) {}
+  constructor(
+    private readonly repoRoot: string,
+    baseComposePath?: string
+  ) {
+    this.baseComposePath = baseComposePath || 'infrastructure/docker-compose/docker-compose.local.yaml';
+  }
 
   /**
    * Resolve the compose file set for a deploy/run operation.
@@ -33,6 +38,13 @@ export class ComposeFactory {
   public getComposeFiles(targetService?: string, inactiveServices?: Iterable<string>, enableLoki?: boolean): ComposeFileSet {
     const baseFile = this.baseComposePath;
     const serviceFiles: string[] = [];
+
+    // Sprint 358: If using a context-specific compose file (not docker-compose.local.yaml),
+    // skip service files since the context compose file already has all services defined
+    const isContextSpecificCompose = !this.baseComposePath.endsWith('docker-compose.local.yaml');
+    if (isContextSpecificCompose) {
+      return { baseFile, serviceFiles: [], observabilityFile: undefined };
+    }
 
     const fullServicesDir = path.join(this.repoRoot, this.servicesDir);
 
