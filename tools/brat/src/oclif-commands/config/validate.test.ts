@@ -1,0 +1,55 @@
+/**
+ * oclif Command Tests: config validate
+ * Sprint 360: CFG-001
+ *
+ * NOTE: Smoke tests only. Comprehensive testing with business logic mocks
+ * deferred to Phase 4. See sprint-360 shared-business-logic-analysis.md
+ * for testing strategy rationale.
+ *
+ * Business logic is tested separately in:
+ * - validateConfig (business/config-validator.test.ts) - 15 tests
+ * - formatConfigValidationResult (business/config-validator.test.ts)
+ */
+
+import ConfigValidate from './validate';
+import { BratCommand } from '../base';
+
+describe('oclif Command: config validate (Smoke Tests)', () => {
+  describe('Class Structure', () => {
+    it('should extend BratCommand', () => {
+      expect(ConfigValidate.prototype).toBeInstanceOf(BratCommand);
+    });
+
+    it('should have description', () => {
+      expect(ConfigValidate.description).toBe('Validate architecture.yaml configuration');
+    });
+
+    it('should have examples', () => {
+      expect(ConfigValidate.examples).toBeDefined();
+      expect(ConfigValidate.examples.length).toBe(2);
+      expect(ConfigValidate.examples[0]).toContain('command.id');
+    });
+  });
+
+  describe('Flags', () => {
+    it('should have format flag', () => {
+      expect(ConfigValidate.flags.format).toBeDefined();
+      expect((ConfigValidate.flags.format as any).options).toEqual(['text', 'json']);
+      expect((ConfigValidate.flags.format as any).default).toBe('text');
+    });
+
+    it('should inherit BratCommand baseFlags', () => {
+      expect(ConfigValidate.flags).toHaveProperty('context');
+      expect(ConfigValidate.flags).toHaveProperty('verbose');
+    });
+  });
+
+  describe('Command Metadata', () => {
+    it('should be properly configured for oclif', () => {
+      // Verify oclif can instantiate the command
+      const command = new ConfigValidate([], {} as any);
+      expect(command).toBeInstanceOf(ConfigValidate);
+      expect(command).toBeInstanceOf(BratCommand);
+    });
+  });
+});

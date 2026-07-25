@@ -1,0 +1,686 @@
+# Sprint 363: Development Tools Command Migration - Backlog
+# Date: 2026-07-25
+# Sprint: 363 (Development Tools)
+# Estimated Total Effort: 8-10 hours
+
+meta:
+  sprint: 363
+  title: Development Tools Command Migration
+  goal: Migrate docker and chat commands from legacy CLI to oclif framework
+  commands: 5
+  businessModules: 1
+  pattern1Commands: 4  # docker up/down/logs/ps
+  pattern2Commands: 1  # chat
+  estimatedEffort: 8-10h
+  actualEffort: TBD
+
+phases:
+  - id: phase-0
+    name: Planning
+    duration: 1h
+    status: complete
+    tasks:
+      - PLAN-001
+      - PLAN-002
+      - PLAN-003
+      - PLAN-004
+
+  - id: phase-1
+    name: Extract ChatController
+    duration: 2-3h
+    status: pending
+    dependencies: [phase-0]
+    tasks:
+      - EXTRACT-001
+      - EXTRACT-002
+      - EXTRACT-003
+      - EXTRACT-004
+
+  - id: phase-2
+    name: Migrate docker commands
+    duration: 3-4h
+    status: pending
+    dependencies: [phase-0]
+    tasks:
+      - DOCKER-001
+      - DOCKER-002
+      - DOCKER-003
+      - DOCKER-004
+      - DOCKER-005
+      - DOCKER-006
+      - DOCKER-007
+      - DOCKER-008
+      - DOCKER-009
+      - DOCKER-010
+
+  - id: phase-3
+    name: Migrate chat command
+    duration: 1h
+    status: pending
+    dependencies: [phase-1]
+    tasks:
+      - CHAT-001
+      - CHAT-002
+
+  - id: phase-4
+    name: Testing & Validation
+    duration: 1h
+    status: pending
+    dependencies: [phase-2, phase-3]
+    tasks:
+      - TEST-001
+      - TEST-002
+      - TEST-003
+      - TEST-004
+      - TEST-005
+
+tasks:
+  # Phase 0: Planning ===============================================
+  PLAN-001:
+    title: Analyze existing docker and chat implementations
+    phase: phase-0
+    effort: 0.3h
+    status: complete
+    description: |
+      Read cli/docker.ts, cli/chat.ts, orchestration/docker/orchestrator.ts
+      to understand business logic separation and migration patterns
+    files:
+      - tools/brat/src/cli/docker.ts
+      - tools/brat/src/cli/chat.ts
+      - tools/brat/src/orchestration/docker/orchestrator.ts
+
+  PLAN-002:
+    title: Create shared-logic-analysis.md
+    phase: phase-0
+    effort: 0.3h
+    status: complete
+    dependencies: [PLAN-001]
+    description: |
+      Document business logic separation status for all 5 commands.
+      Identify Pattern 1 vs Pattern 2 commands.
+    deliverables:
+      - planning/sprint-363-brat-cli-dev-tools-migration/shared-logic-analysis.md
+
+  PLAN-003:
+    title: Create implementation-plan.md
+    phase: phase-0
+    effort: 0.2h
+    status: complete
+    dependencies: [PLAN-002]
+    description: |
+      Create detailed implementation plan with phase breakdown,
+      acceptance criteria, and risk assessment.
+    deliverables:
+      - planning/sprint-363-brat-cli-dev-tools-migration/implementation-plan.md
+
+  PLAN-004:
+    title: Create backlog.yaml
+    phase: phase-0
+    effort: 0.2h
+    status: complete
+    dependencies: [PLAN-003]
+    description: |
+      Create task backlog with effort estimates and dependencies.
+    deliverables:
+      - planning/sprint-363-brat-cli-dev-tools-migration/backlog.yaml
+
+  # Phase 1: Extract ChatController =================================
+  EXTRACT-001:
+    title: Create business/chat.ts with ChatController class
+    phase: phase-1
+    effort: 1h
+    status: pending
+    dependencies: [PLAN-004]
+    description: |
+      Extract ChatController class from cli/chat.ts to business/chat.ts.
+      Move ChatOptions interface and all related types.
+      Maintain identical behavior.
+    deliverables:
+      - tools/brat/src/business/chat.ts
+    implementation:
+      - Create tools/brat/src/business/chat.ts
+      - Copy ChatController class (390 lines)
+      - Copy ChatOptions interface
+      - Export: export { ChatController, ChatOptions }
+      - Import dependencies: WebSocket, readline, ContextResolver
+
+  EXTRACT-002:
+    title: Update cli/chat.ts to import ChatController
+    phase: phase-1
+    effort: 0.5h
+    status: pending
+    dependencies: [EXTRACT-001]
+    description: |
+      Update cli/chat.ts to import ChatController from business/chat.
+      Maintain backward compatibility with legacy CLI.
+    files:
+      - tools/brat/src/cli/chat.ts
+    implementation:
+      - Replace ChatController class definition with import
+      - Update imports: import { ChatController } from '../business/chat'
+      - Verify no behavior changes
+
+  EXTRACT-003:
+    title: Test ChatController extraction
+    phase: phase-1
+    effort: 0.5h
+    status: pending
+    dependencies: [EXTRACT-002]
+    description: |
+      Verify ChatController extraction works correctly.
+      Test both legacy CLI and extracted module.
+    tests:
+      - npm run build (TypeScript compilation)
+      - npm run brat -- chat (legacy CLI interactive mode)
+      - npm run brat -- chat --message "test" (one-shot mode)
+    acceptance:
+      - TypeScript compiles without errors
+      - Legacy CLI chat works (interactive + one-shot)
+      - No regressions in WebSocket connection
+
+  EXTRACT-004:
+    title: Create unit tests for ChatController
+    phase: phase-1
+    effort: 0.5h
+    status: pending
+    dependencies: [EXTRACT-003]
+    description: |
+      Create unit tests for ChatController business logic.
+      Test URL resolution, WebSocket connection, message handling.
+    deliverables:
+      - tools/brat/src/business/chat.test.ts
+    tests:
+      - URL resolution from context
+      - WebSocket connection lifecycle
+      - Message sending and receiving
+      - Heartbeat mechanism
+      - Error handling
+
+  # Phase 2: Migrate docker commands ================================
+  DOCKER-001:
+    title: Create docker/up.ts command
+    phase: phase-2
+    effort: 0.7h
+    status: pending
+    dependencies: [PLAN-004]
+    description: |
+      Create oclif command for 'docker up' using Pattern 1 (Simple Delegation).
+      Delegate to DockerOrchestrator.up()
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/up.ts
+    implementation:
+      - Extend BratCommand
+      - Add flags: service, loki, no-deps, force-recreate, no-cache, dry-run
+      - Inherit baseFlags (--context)
+      - Create DockerOrchestrator with options
+      - Call orchestrator.up()
+      - Add logger.info for observability
+      - Success message
+
+  DOCKER-002:
+    title: Create docker/up.test.ts
+    phase: phase-2
+    effort: 0.3h
+    status: pending
+    dependencies: [DOCKER-001]
+    description: |
+      Create smoke tests for docker up command.
+      Verify command structure and flags.
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/up.test.ts
+    tests:
+      - extends BratCommand
+      - has description
+      - has examples
+      - has all required flags
+      - inherits baseFlags
+      - is instantiable by oclif
+
+  DOCKER-003:
+    title: Create docker/down.ts command
+    phase: phase-2
+    effort: 0.5h
+    status: pending
+    dependencies: [DOCKER-002]
+    description: |
+      Create oclif command for 'docker down' using Pattern 1.
+      Delegate to DockerOrchestrator.down()
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/down.ts
+    implementation:
+      - Similar structure to docker/up.ts
+      - Simpler flags: service, dry-run
+      - Call orchestrator.down()
+
+  DOCKER-004:
+    title: Create docker/down.test.ts
+    phase: phase-2
+    effort: 0.3h
+    status: pending
+    dependencies: [DOCKER-003]
+    description: |
+      Create smoke tests for docker down command.
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/down.test.ts
+
+  DOCKER-005:
+    title: Create docker/logs.ts command
+    phase: phase-2
+    effort: 0.5h
+    status: pending
+    dependencies: [DOCKER-004]
+    description: |
+      Create oclif command for 'docker logs' using Pattern 1.
+      Delegate to DockerOrchestrator.logs(follow)
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/logs.ts
+    implementation:
+      - Flags: service, follow (char: 'f')
+      - Call orchestrator.logs(flags.follow)
+
+  DOCKER-006:
+    title: Create docker/logs.test.ts
+    phase: phase-2
+    effort: 0.3h
+    status: pending
+    dependencies: [DOCKER-005]
+    description: |
+      Create smoke tests for docker logs command.
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/logs.test.ts
+
+  DOCKER-007:
+    title: Create docker/ps.ts command
+    phase: phase-2
+    effort: 0.5h
+    status: pending
+    dependencies: [DOCKER-006]
+    description: |
+      Create oclif command for 'docker ps' using Pattern 1.
+      Delegate to DockerOrchestrator.ps()
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/ps.ts
+    implementation:
+      - Flags: service
+      - Call orchestrator.ps()
+
+  DOCKER-008:
+    title: Create docker/ps.test.ts
+    phase: phase-2
+    effort: 0.3h
+    status: pending
+    dependencies: [DOCKER-007]
+    description: |
+      Create smoke tests for docker ps command.
+    deliverables:
+      - tools/brat/src/oclif-commands/docker/ps.test.ts
+
+  DOCKER-009:
+    title: Build and test all docker commands
+    phase: phase-2
+    effort: 0.3h
+    status: pending
+    dependencies: [DOCKER-008]
+    description: |
+      Build TypeScript and run all docker command tests.
+      Verify smoke tests pass.
+    tests:
+      - npm run build
+      - npm test -- docker/up.test.ts
+      - npm test -- docker/down.test.ts
+      - npm test -- docker/logs.test.ts
+      - npm test -- docker/ps.test.ts
+    acceptance:
+      - All 4 docker commands compile
+      - All 20 docker tests pass (4 commands × 5 tests each)
+
+  DOCKER-010:
+    title: Dry-run smoke tests for docker commands
+    phase: phase-2
+    effort: 0.2h
+    status: pending
+    dependencies: [DOCKER-009]
+    description: |
+      Run dry-run smoke tests to verify command execution paths.
+    tests:
+      - brat docker up --dry-run --context local
+      - brat docker down --dry-run --context local
+      - brat docker logs --service llm-bot --context local
+      - brat docker ps --context local
+    acceptance:
+      - No errors during dry-run execution
+      - Logger output is present
+      - Context resolution works
+
+  # Phase 3: Migrate chat command ===================================
+  CHAT-001:
+    title: Create chat.ts command
+    phase: phase-3
+    effort: 0.7h
+    status: pending
+    dependencies: [EXTRACT-004]
+    description: |
+      Create oclif command for 'chat' using Pattern 2.
+      Delegate to ChatController from business/chat.ts
+    deliverables:
+      - tools/brat/src/oclif-commands/chat.ts
+    implementation:
+      - Extend BratCommand
+      - Flags: url, message (char: 'm'), user (char: 'u')
+      - Create ChatController with options
+      - try/finally for WebSocket cleanup
+      - Call controller.runInteractive() or controller.runOneShot()
+      - Ensure disconnect() is always called
+
+  CHAT-002:
+    title: Create chat.test.ts
+    phase: phase-3
+    effort: 0.3h
+    status: pending
+    dependencies: [CHAT-001]
+    description: |
+      Create smoke tests for chat command.
+    deliverables:
+      - tools/brat/src/oclif-commands/chat.test.ts
+    tests:
+      - extends BratCommand
+      - has description
+      - has examples
+      - has all required flags (url, message, user)
+      - inherits baseFlags
+      - is instantiable by oclif
+
+  # Phase 4: Testing & Validation ===================================
+  TEST-001:
+    title: Run full test suite
+    phase: phase-4
+    effort: 0.3h
+    status: pending
+    dependencies: [DOCKER-010, CHAT-002]
+    description: |
+      Run complete test suite to verify all tests pass.
+      Check for regressions.
+    tests:
+      - npm run build
+      - npm test
+    acceptance:
+      - TypeScript compiles with 0 errors
+      - All oclif tests pass (206+ tests)
+      - Sprint 360-362 tests still pass (regression check)
+
+  TEST-002:
+    title: Smoke test all new commands
+    phase: phase-4
+    effort: 0.3h
+    status: pending
+    dependencies: [TEST-001]
+    description: |
+      Run smoke tests for all 5 new commands.
+      Verify end-to-end execution paths.
+    tests:
+      - brat docker up --dry-run --context local
+      - brat docker down --dry-run --context local
+      - brat docker logs --service llm-bot --context local
+      - brat docker ps --context local
+      - brat chat --message "!ping" --user TestUser --context local
+    acceptance:
+      - All commands execute without errors
+      - Logger output is present and correct
+      - Context resolution works for all commands
+
+  TEST-003:
+    title: Integration test - docker workflow
+    phase: phase-4
+    effort: 0.2h
+    status: pending
+    dependencies: [TEST-002]
+    description: |
+      Test complete docker workflow: up → logs → ps → down.
+      Verify DockerOrchestrator integration.
+    tests:
+      - brat docker up --service api-gateway --context local
+      - brat docker ps --context local (verify api-gateway running)
+      - brat docker logs --service api-gateway --context local (verify logs)
+      - brat docker down --service api-gateway --context local
+    acceptance:
+      - Service starts successfully
+      - ps command shows running container
+      - logs command shows output
+      - down command stops container
+
+  TEST-004:
+    title: Integration test - chat workflow
+    phase: phase-4
+    effort: 0.1h
+    status: pending
+    dependencies: [TEST-002]
+    description: |
+      Test chat command in one-shot and interactive modes.
+      Verify WebSocket connection and message handling.
+    tests:
+      - brat chat --message "!ping" --user TestUser --context local
+      - brat chat --context local (interactive mode, manual test)
+    acceptance:
+      - One-shot mode sends message and receives response
+      - Interactive mode prompts for input
+      - WebSocket connection established
+      - Cleanup works (disconnect() called)
+
+  TEST-005:
+    title: Update documentation
+    phase: phase-4
+    effort: 0.1h
+    status: pending
+    dependencies: [TEST-003, TEST-004]
+    description: |
+      Update remaining-commands.md with Sprint 363 progress.
+      Update migration status from 29 → 34 commands (60% → 71%).
+    files:
+      - planning/sprint-361-brat-cli-data-deploy-migration/remaining-commands.md
+    changes:
+      - Update "Migrated" count: 29 → 34
+      - Update "Remaining" count: 19 → 14
+      - Update "Progress": 60% → 71%
+      - Move docker up/down/logs/ps and chat to "COMPLETED" section
+      - Update Sprint 363 status from "Pending" to "✅ COMPLETE"
+
+# Dependencies Graph ================================================
+# PLAN-001 → PLAN-002 → PLAN-003 → PLAN-004
+#
+# EXTRACT path:
+# PLAN-004 → EXTRACT-001 → EXTRACT-002 → EXTRACT-003 → EXTRACT-004
+#
+# DOCKER path:
+# PLAN-004 → DOCKER-001 → DOCKER-002 → DOCKER-003 → DOCKER-004 →
+#            DOCKER-005 → DOCKER-006 → DOCKER-007 → DOCKER-008 →
+#            DOCKER-009 → DOCKER-010
+#
+# CHAT path:
+# EXTRACT-004 → CHAT-001 → CHAT-002
+#
+# TEST path:
+# DOCKER-010 + CHAT-002 → TEST-001 → TEST-002 → TEST-003
+#                                              → TEST-004
+# TEST-003 + TEST-004 → TEST-005
+
+# Success Metrics ===================================================
+successCriteria:
+  functional:
+    - title: All 5 commands migrated to oclif
+      status: pending
+
+    - title: Pattern 1 (Simple Delegation) - 4 docker commands
+      status: pending
+
+    - title: Pattern 2 (Business Logic Module) - 1 chat command
+      status: pending
+
+    - title: ChatController extracted to business/chat.ts
+      status: pending
+
+    - title: Legacy CLI still works (backward compatibility)
+      status: pending
+
+  quality:
+    - title: All tests passing (206+ oclif tests)
+      status: pending
+      target: 206
+      current: 181
+
+    - title: Zero TypeScript errors
+      status: pending
+
+    - title: Zero regressions (Sprint 360-362 tests still pass)
+      status: pending
+
+    - title: Consistent error handling and logging
+      status: pending
+
+    - title: Context resolution works for all commands
+      status: pending
+
+  documentation:
+    - title: Command descriptions and examples
+      status: pending
+
+    - title: JSDoc comments for exported functions
+      status: pending
+
+    - title: Planning documents (3 files)
+      status: complete
+
+    - title: Updated remaining-commands.md
+      status: pending
+
+# Deliverables Summary ==============================================
+deliverables:
+  commands:
+    - file: tools/brat/src/oclif-commands/docker/up.ts
+      lines: 90
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/docker/down.ts
+      lines: 60
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/docker/logs.ts
+      lines: 70
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/docker/ps.ts
+      lines: 60
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/chat.ts
+      lines: 90
+      pattern: 2
+
+  tests:
+    - file: tools/brat/src/oclif-commands/docker/up.test.ts
+      lines: 40
+
+    - file: tools/brat/src/oclif-commands/docker/down.test.ts
+      lines: 35
+
+    - file: tools/brat/src/oclif-commands/docker/logs.test.ts
+      lines: 40
+
+    - file: tools/brat/src/oclif-commands/docker/ps.test.ts
+      lines: 35
+
+    - file: tools/brat/src/oclif-commands/chat.test.ts
+      lines: 45
+
+  businessModules:
+    - file: tools/brat/src/business/chat.ts
+      lines: 420
+      description: ChatController extraction from cli/chat.ts
+
+  planning:
+    - file: planning/sprint-363-brat-cli-dev-tools-migration/implementation-plan.md
+      lines: 580
+
+    - file: planning/sprint-363-brat-cli-dev-tools-migration/shared-logic-analysis.md
+      lines: 450
+
+    - file: planning/sprint-363-brat-cli-dev-tools-migration/backlog.yaml
+      lines: 640
+
+  updates:
+    - file: tools/brat/src/cli/chat.ts
+      description: Import ChatController from business/chat
+
+    - file: planning/sprint-361-brat-cli-data-deploy-migration/remaining-commands.md
+      description: Update migration progress (29 → 34 commands, 60% → 71%)
+
+# Risk Register =====================================================
+risks:
+  - id: RISK-001
+    title: WebSocket cleanup in oclif context
+    likelihood: medium
+    impact: high
+    mitigation: Use try/finally to ensure disconnect() is always called
+    status: mitigated
+
+  - id: RISK-002
+    title: Readline interaction with oclif
+    likelihood: low
+    impact: medium
+    mitigation: ChatController encapsulates readline; proven in legacy CLI
+    status: low
+
+  - id: RISK-003
+    title: DockerOrchestrator context resolution
+    likelihood: low
+    impact: medium
+    mitigation: DockerOrchestrator supports Sprint 349+ contexts
+    status: low
+
+  - id: RISK-004
+    title: Port conflicts in docker up
+    likelihood: medium
+    impact: medium
+    mitigation: PortManager handles conflict resolution
+    status: low
+
+# Comparison to Previous Sprints ====================================
+comparison:
+  sprint360:
+    commands: 14
+    businessModules: 0
+    pattern1: 7
+    pattern2: 7
+    estimatedEffort: 12-16h
+    actualEffort: ~12h
+
+  sprint361:
+    commands: 9
+    businessModules: 3
+    pattern1: 4
+    pattern2: 5
+    estimatedEffort: 12-18h
+    actualEffort: ~8h
+
+  sprint362:
+    commands: 6
+    businessModules: 0
+    pattern1: 6
+    pattern2: 0
+    estimatedEffort: 12-16h
+    actualEffort: ~7h
+
+  sprint363:
+    commands: 5
+    businessModules: 1
+    pattern1: 4
+    pattern2: 1
+    estimatedEffort: 8-10h
+    actualEffort: TBD
+    velocity: medium  # Slower than 362 due to extraction, faster than 361
+
+# Document Metadata =================================================
+metadata:
+  version: 1.0
+  lastUpdated: 2026-07-25
+  status: planning-complete
+  pendingApproval: true

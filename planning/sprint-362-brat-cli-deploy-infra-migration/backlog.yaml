@@ -1,0 +1,482 @@
+# Sprint 362: Backlog - Deploy & Infrastructure Command Migration
+# Pattern: Simple Delegation (all commands delegate to existing business logic)
+# Total: 7 commands, 49 smoke tests, 0 business logic modules to extract
+
+---
+
+# Phase 0: Planning & Analysis (1-2 hours) - COMPLETE
+phase_0_planning:
+  - id: PLAN-001
+    task: "Analyze cli/index.ts deploy/infra command implementations"
+    status: complete
+    estimated_hours: 0.5
+    actual_hours: 0.5
+    dependencies: []
+    notes: "Analyzed cmdDeployServices, cmdInfra, lb urlmap handlers"
+
+  - id: PLAN-002
+    task: "Verify business logic separation status"
+    status: complete
+    estimated_hours: 0.5
+    actual_hours: 0.3
+    dependencies: [PLAN-001]
+    notes: "Confirmed cloudbuild.ts, terraform.ts, lb/urlmap, lb/importer are well-separated"
+
+  - id: PLAN-003
+    task: "Create implementation-plan.md"
+    status: complete
+    estimated_hours: 1.0
+    actual_hours: 0.8
+    dependencies: [PLAN-002]
+    notes: "Pattern 1 sprint - all commands use Simple Delegation"
+
+  - id: PLAN-004
+    task: "Create backlog.yaml"
+    status: in_progress
+    estimated_hours: 0.5
+    actual_hours: 0
+    dependencies: [PLAN-003]
+
+  - id: PLAN-005
+    task: "Create shared-logic-analysis.md"
+    status: pending
+    estimated_hours: 0.3
+    actual_hours: 0
+    dependencies: [PLAN-003]
+
+---
+
+# Phase 1: Deploy Commands (4-6 hours)
+
+## CMD-001: deploy services --all (2 hours)
+deploy_services:
+  - id: CMD-001-01
+    task: "Create src/oclif-commands/deploy/services.ts scaffold"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [PLAN-005]
+    pattern: "Pattern 1 (Simple Delegation)"
+    notes: "Delegate to selectDeployableServices, submitBuild"
+
+  - id: CMD-001-02
+    task: "Implement flags: context, project-id, region, dry-run, concurrency, allow-no-vpc, image-tag, repo"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-001-01]
+    notes: "Inherit context from baseFlags, add deploy-specific flags"
+
+  - id: CMD-001-03
+    task: "Implement run() method with service selection and orchestration"
+    status: pending
+    estimated_hours: 0.8
+    dependencies: [CMD-001-02]
+    notes: |
+      - Use selectDeployableServices() from cli/index.ts
+      - Use Queue for concurrency
+      - Use submitBuild() from providers/gcp/cloudbuild.ts
+      - Use computeDeploySubstitutions() from cli/index.ts
+      - VPC preflight via assertVpcPreconditions()
+
+  - id: CMD-001-04
+    task: "Add examples and help text"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-001-03]
+    notes: "Examples: --dry-run, --concurrency, --context staging"
+
+  - id: CMD-001-05
+    task: "Create smoke tests (7 tests)"
+    status: pending
+    estimated_hours: 0.4
+    dependencies: [CMD-001-04]
+    file: "src/oclif-commands/deploy/services.test.ts"
+
+## CMD-002: deploy service <name> (1.5 hours)
+deploy_service:
+  - id: CMD-002-01
+    task: "Create src/oclif-commands/deploy/service.ts scaffold"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-001-05]
+    pattern: "Pattern 1 (Simple Delegation)"
+
+  - id: CMD-002-02
+    task: "Implement args: <name> (service name, required)"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-002-01]
+    notes: "Use Args.string() API"
+
+  - id: CMD-002-03
+    task: "Implement run() method - same as deploy services but single target"
+    status: pending
+    estimated_hours: 0.6
+    dependencies: [CMD-002-02]
+    notes: "Reuse logic from deploy services, pass serviceName to selectDeployableServices"
+
+  - id: CMD-002-04
+    task: "Add examples and help text"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-002-03]
+
+  - id: CMD-002-05
+    task: "Create smoke tests (7 tests)"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-002-04]
+    file: "src/oclif-commands/deploy/service.test.ts"
+
+## CMD-003: deploy <name> (alias) (1 hour)
+deploy_alias:
+  - id: CMD-003-01
+    task: "Research oclif default command pattern"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-002-05]
+    notes: "Determine: default command vs separate index.ts vs command alias"
+
+  - id: CMD-003-02
+    task: "Implement deploy <name> as alias to deploy service <name>"
+    status: pending
+    estimated_hours: 0.4
+    dependencies: [CMD-003-01]
+    notes: "Option 1: Make deploy/service.ts the default for deploy topic"
+
+  - id: CMD-003-03
+    task: "Create smoke tests (7 tests)"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-003-02]
+    file: "src/oclif-commands/deploy/index.test.ts"
+
+---
+
+# Phase 2: Infrastructure Commands (3-4 hours)
+
+## CMD-004: infra plan [<module>] (1.5 hours)
+infra_plan:
+  - id: CMD-004-01
+    task: "Create src/oclif-commands/infra/plan.ts scaffold"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-003-03]
+    pattern: "Pattern 1 (Simple Delegation)"
+
+  - id: CMD-004-02
+    task: "Implement args: [module] (optional: network, load-balancer, connectors)"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-004-01]
+    notes: "Use Args.string() with options array"
+
+  - id: CMD-004-03
+    task: "Implement flags: context, project-id, region, module (alternative to positional)"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-004-02]
+
+  - id: CMD-004-04
+    task: "Implement run() method with module selection and terraform delegation"
+    status: pending
+    estimated_hours: 0.5
+    dependencies: [CMD-004-03]
+    notes: |
+      - synthModule() from providers/cdktf-synth.ts
+      - terraformPlanGeneric() from providers/terraform.ts
+      - Load balancer preflight for lb module (preflightLbExistingResources)
+      - Module alias: lb → load-balancer
+
+  - id: CMD-004-05
+    task: "Add examples and help text"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-004-04]
+
+  - id: CMD-004-06
+    task: "Create smoke tests (7 tests)"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-004-05]
+    file: "src/oclif-commands/infra/plan.test.ts"
+
+## CMD-005: infra apply [<module>] (2 hours)
+infra_apply:
+  - id: CMD-005-01
+    task: "Create src/oclif-commands/infra/apply.ts scaffold"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-004-06]
+    pattern: "Pattern 1 (Simple Delegation) with CI guards"
+
+  - id: CMD-005-02
+    task: "Implement args and flags (same as infra plan)"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-005-01]
+
+  - id: CMD-005-03
+    task: "Implement CI guard: block apply if CI=true or --dry-run"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-005-02]
+    notes: "Error message with hints: unset CI, remove --dry-run"
+
+  - id: CMD-005-04
+    task: "Implement run() method with terraform apply and post-hooks"
+    status: pending
+    estimated_hours: 0.7
+    dependencies: [CMD-005-03]
+    notes: |
+      - synthModule()
+      - terraformApplyGeneric()
+      - Post-apply hook for LB: renderAndWrite + importUrlMap in non-prod
+      - Skip import in prod (plan-only)
+      - Capture outputs.json
+
+  - id: CMD-005-05
+    task: "Add examples and help text"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-005-04]
+
+  - id: CMD-005-06
+    task: "Create smoke tests (7 tests)"
+    status: pending
+    estimated_hours: 0.4
+    dependencies: [CMD-005-05]
+    file: "src/oclif-commands/infra/apply.test.ts"
+
+---
+
+# Phase 3: Load Balancer Commands (2-3 hours)
+
+## CMD-006: lb urlmap render (1 hour)
+lb_urlmap_render:
+  - id: CMD-006-01
+    task: "Create src/oclif-commands/lb/urlmap/render.ts scaffold"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-005-06]
+    pattern: "Pattern 1 (Simple Delegation)"
+
+  - id: CMD-006-02
+    task: "Implement flags: context, project-id, out, json"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-006-01]
+
+  - id: CMD-006-03
+    task: "Implement run() method delegating to renderAndWrite()"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-006-02]
+    notes: |
+      - renderAndWrite() from lb/urlmap/renderer.ts
+      - Reads architecture.yaml infrastructure.resources.main-load-balancer.routing
+      - Default output: infrastructure/cdktf/lb/url-maps/<env>/url-map.yaml
+
+  - id: CMD-006-04
+    task: "Add examples and help text"
+    status: pending
+    estimated_hours: 0.1
+    dependencies: [CMD-006-03]
+
+  - id: CMD-006-05
+    task: "Create smoke tests (7 tests)"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-006-04]
+    file: "src/oclif-commands/lb/urlmap/render.test.ts"
+
+## CMD-007: lb urlmap import (1.5 hours)
+lb_urlmap_import:
+  - id: CMD-007-01
+    task: "Create src/oclif-commands/lb/urlmap/import.ts scaffold"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-006-05]
+    pattern: "Pattern 1 (Simple Delegation)"
+
+  - id: CMD-007-02
+    task: "Implement flags: context, project-id, dry-run"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-007-01]
+
+  - id: CMD-007-03
+    task: "Implement run() method delegating to importUrlMap()"
+    status: pending
+    estimated_hours: 0.6
+    dependencies: [CMD-007-02]
+    notes: |
+      - importUrlMap() from lb/importer/importer.ts
+      - Drift detection via describeUrlMap + diffObjects
+      - Production guard: import disabled in prod
+      - Backend preflight: verify all referenced backend services exist
+      - Parity check: verify import succeeded
+
+  - id: CMD-007-04
+    task: "Add examples and help text"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [CMD-007-03]
+
+  - id: CMD-007-05
+    task: "Create smoke tests (7 tests)"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-007-04]
+    file: "src/oclif-commands/lb/urlmap/import.test.ts"
+
+---
+
+# Phase 4: Testing & Validation (2-3 hours)
+
+testing_validation:
+  - id: TEST-001
+    task: "Run all smoke tests (49 tests expected)"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [CMD-007-05]
+    notes: "7 commands × 7 checks per command = 49 tests"
+
+  - id: TEST-002
+    task: "Fix any test failures (this.logger vs this.getLogger, Args API, etc.)"
+    status: pending
+    estimated_hours: 1.0
+    dependencies: [TEST-001]
+    notes: "Budget for ~3-5 common errors (based on Sprint 361 experience)"
+
+  - id: TEST-003
+    task: "Run comprehensive test suite (342 + 49 = 391 tests)"
+    status: pending
+    estimated_hours: 0.2
+    dependencies: [TEST-002]
+
+  - id: TEST-004
+    task: "Regression validation - verify Sprint 360-361 commands still work"
+    status: pending
+    estimated_hours: 0.5
+    dependencies: [TEST-003]
+    script: |
+      npm run brat -- context list
+      npm run brat -- fleet list
+      npm run brat -- backup list
+      npm run brat -- pg:backup --help
+
+  - id: TEST-005
+    task: "Help text validation - all examples are syntactically correct"
+    status: pending
+    estimated_hours: 0.5
+    dependencies: [TEST-004]
+    script: |
+      ./bin/run deploy services --help
+      ./bin/run deploy service api-gateway --help
+      ./bin/run infra plan --help
+      ./bin/run lb urlmap render --help
+
+  - id: TEST-006
+    task: "Build validation - zero TypeScript errors"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [TEST-005]
+    script: "npm run build"
+
+---
+
+# Phase 5: Documentation & Completion (1-2 hours)
+
+documentation:
+  - id: DOC-001
+    task: "Create completion-summary.md"
+    status: pending
+    estimated_hours: 0.8
+    dependencies: [TEST-006]
+    deliverable: "planning/sprint-362-brat-cli-deploy-infra-migration/completion-summary.md"
+    content: |
+      - Executive summary
+      - Deliverables completed (7 commands, 49 tests)
+      - Test results (391 tests passing)
+      - Code metrics (lines added, patterns used)
+      - Quality metrics (0 TS errors, coverage)
+      - Files created
+      - Sprint timeline
+      - Success criteria verification
+      - Lessons learned
+      - Next steps (Sprint 363)
+
+  - id: DOC-002
+    task: "Create validate_deliverable.sh"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [TEST-006]
+    deliverable: "planning/sprint-362-brat-cli-deploy-infra-migration/validate_deliverable.sh"
+    content: |
+      #!/bin/bash
+      set -e
+      npm run build
+      npm test
+      ./bin/run deploy services --help
+      ./bin/run deploy service api-gateway --help
+      ./bin/run infra plan --help
+      ./bin/run lb urlmap render --help
+
+  - id: DOC-003
+    task: "Update remaining-commands.md"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [DOC-001]
+    notes: "Mark Sprint 362 complete, update progress to 33/48 (69%)"
+
+  - id: DOC-004
+    task: "Create verification-report.md (if needed)"
+    status: pending
+    estimated_hours: 0.3
+    dependencies: [DOC-003]
+    notes: "Only if deferred items or partial completions"
+
+---
+
+# Summary
+
+total_tasks: 52
+estimated_total_hours: 14.0
+phases:
+  - phase_0_planning: 1.6h (COMPLETE)
+  - phase_1_deploy: 4.5h
+  - phase_2_infra: 3.2h
+  - phase_3_lb: 2.5h
+  - phase_4_testing: 2.8h
+  - phase_5_documentation: 1.7h
+
+commands_to_migrate: 7
+business_logic_modules_to_extract: 0  # All logic already separated!
+test_files: 7
+estimated_test_count: 49
+
+patterns:
+  - pattern_1_simple_delegation: 7 commands
+  - pattern_2_business_logic_module: 0 commands
+
+critical_path:
+  - PLAN-001 → PLAN-002 → PLAN-003 → PLAN-004 → PLAN-005
+  - CMD-001-01 → CMD-001-05 (deploy services)
+  - CMD-002-01 → CMD-002-05 (deploy service)
+  - CMD-004-01 → CMD-004-06 (infra plan)
+  - CMD-005-01 → CMD-005-06 (infra apply)
+  - CMD-006-01 → CMD-006-05 (lb urlmap render)
+  - CMD-007-01 → CMD-007-05 (lb urlmap import)
+  - TEST-001 → TEST-006 (validation)
+  - DOC-001 → DOC-003 (documentation)
+
+dependencies_external:
+  - Sprint 361 complete: ✅
+  - Business logic separation: ✅ (cloudbuild.ts, terraform.ts, lb/urlmap, lb/importer)
+  - BratCommand base class: ✅
+  - Context resolution: ✅
+
+risks:
+  - low: Cloud Build API quota (mitigation: already handled in cloudbuild.ts)
+  - low: Terraform state lock (mitigation: -lock=false for plan)
+  - low: CI guard blocks testing (mitigation: unset CI, use --dry-run)

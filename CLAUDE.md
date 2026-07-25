@@ -763,6 +763,241 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
 
 ---
 
+### Building oclif Commands for the brat CLI
+
+**Sprint 359+**: The `brat` CLI is built with [oclif](https://oclif.io/), an enterprise CLI framework from Salesforce.
+
+**RULE: All new brat commands MUST extend `BratCommand` and follow oclif patterns.**
+
+**The Pattern:** Extend BratCommand → Define Flags → Implement run()
+
+All brat CLI commands extend `BratCommand` which provides:
+- **Pino logger**: `this.logger` with structured logging
+- **Execution context**: `this.context` (local, staging, prod)
+- **Repository root**: `this.repoRoot`
+- **Global flags**: `--context`, `--verbose` inherited automatically
+- **Dependency injection**: `getDeps()` pattern for testability
+
+**Complete Example:**
+
+```typescript
+// File: tools/brat/src/oclif-commands/doctor.ts
+import { Flags } from '@oclif/core';
+import { BratCommand } from './base';
+import { execCmd } from '../orchestration/exec';
+
+export default class Doctor extends BratCommand {
+  // Description appears in help text (auto-generated)
+  static description = 'Run system diagnostics and verify prerequisites';
+
+  // Examples appear in help text
+  static examples = [
+    '<%= config.bin %> <%= command.id %>',
+    '<%= config.bin %> <%= command.id %> --json',
+  ];
+
+  // Define command-specific flags (global flags inherited from BratCommand)
+  static flags = {
+    ...BratCommand.baseFlags,  // Inherits --context, --verbose
+    json: Flags.boolean({
+      description: 'Output results as JSON',
+      default: false,
+    }),
+    ci: Flags.boolean({
+      description: 'CI mode - skip tool probes',
+      default: false,
+    }),
+  };
+
+  // Main command logic
+  async run(): Promise<void> {
+    const { flags } = await this.parse(Doctor);
+
+    // Logger is available from BratCommand
+    this.logger.debug('Running system diagnostics');
+
+    // Implement command logic
+    const checks: Record<string, { ok: boolean; version: string }> = {};
+    checks.node = { ok: true, version: process.version };
+
+    // Use helper functions
+    if (!flags.ci) {
+      const res = await execCmd('docker', ['--version']);
+      checks.docker = { ok: res.code === 0, version: res.stdout.trim() };
+    }
+
+    // Output results
+    if (flags.json) {
+      this.log(JSON.stringify(checks, null, 2));
+    } else {
+      this.log('Doctor results:');
+      for (const [name, check] of Object.entries(checks)) {
+        this.log(`- ${name}: ${check.ok ? 'OK' : 'MISSING'} (${check.version})`);
+      }
+    }
+
+    // Exit with appropriate code
+    const ok = Object.values(checks).every(c => c.ok);
+    if (!ok) this.exit(3);
+  }
+}
+```
+
+**Namespace Commands:**
+
+Commands in subdirectories automatically become namespaced:
+
+```
+tools/brat/src/oclif-commands/
+├── doctor.ts           → brat doctor
+├── setup.ts            → brat setup
+├── release.ts          → brat release
+├── fleet/
+│   ├── list.ts         → brat fleet list
+│   ├── info.ts         → brat fleet info
+│   └── health.ts       → brat fleet health
+└── config/
+    └── show.ts         → brat config show
+```
+
+**Dependency Injection Pattern:**
+
+For testability, use dependency injection:
+
+```typescript
+// Define deps interface
+export interface FleetListDeps {
+  resolveIdentityFn?: (opts: any, logger?: Logger) => FleetIdentity;
+  gatewayTransportFactory?: (url: string, identity: FleetIdentity) => FleetTransport;
+}
+
+export default class FleetList extends BratCommand {
+  private fleetDeps?: FleetListDeps;
+
+  // Provide getter for deps
+  protected getFleetDeps(overrides?: Partial<FleetListDeps>): FleetListDeps {
+    if (overrides) {
+      this.fleetDeps = { ...this.fleetDeps, ...overrides };
+    }
+    if (!this.fleetDeps) {
+      this.fleetDeps = {
+        resolveIdentityFn: (opts, logger) => resolveIdentity(opts, logger),
+        gatewayTransportFactory: (url, id) => new GatewayTransport({ baseUrl: url }),
+      };
+    }
+    return this.fleetDeps;
+  }
+
+  async run(): Promise<void> {
+    // Use injected dependencies
+    const deps = this.getFleetDeps();
+    const identity = deps.resolveIdentityFn!({ roles: ['bit:read'] }, this.logger);
+    const transport = deps.gatewayTransportFactory!(gatewayUrl, identity);
+    // ... rest of implementation
+  }
+}
+```
+
+**Testing oclif Commands:**
+
+```typescript
+// Use @oclif/test utilities
+import { expect, test } from '@oclif/test';
+import FleetList from '../fleet/list';
+
+describe('fleet list', () => {
+  test
+    .stdout()
+    .command(['fleet', 'list'])
+    .it('lists all bits', ctx => {
+      expect(ctx.stdout).to.contain('BIT');
+    });
+
+  // Test with mock dependencies
+  it('uses injected dependencies', async () => {
+    const mockDeps = {
+      resolveIdentityFn: () => ({ userId: 'test', token: 'mock' }),
+      gatewayTransportFactory: () => mockTransport,
+    };
+
+    const cmd = new FleetList([], {} as any);
+    cmd['fleetDeps'] = mockDeps;
+    await cmd.run();
+    // Assert expectations
+  });
+});
+```
+
+**Auto-Generated Help:**
+
+oclif automatically generates rich help text:
+
+```bash
+$ brat fleet list --help
+List all live Bits in the fleet
+
+USAGE
+  $ brat fleet list [-c <value>] [-v] [-f table|json|yaml]
+
+FLAGS
+  -c, --context=<value>  Execution context (local, staging, prod)
+  -f, --format=<option>  [default: table] Output format
+  -v, --verbose          Enable verbose debug logging
+
+EXAMPLES
+  $ brat fleet list
+  $ brat fleet list --format json
+```
+
+**Migration Patterns:**
+
+When migrating existing brat commands to oclif:
+
+1. **Pattern 1: Simple Command** (doctor, config show)
+   - Direct migration, minimal dependencies
+   - Focus on flag definitions and output formatting
+
+2. **Pattern 2: Configuration Display** (config show)
+   - Redaction of sensitive values
+   - Multiple output formats (yaml, json)
+   - `--raw` flag for unredacted output
+
+3. **Pattern 3: Fleet Commands** (fleet list)
+   - Dependency injection for MCP client
+   - Registry creation based on persistence driver
+   - Gateway URL resolution
+
+4. **Pattern 4: Complex Orchestration** (release)
+   - Multi-step workflows
+   - Validation between steps
+   - `--dry-run` support
+   - Progress reporting
+
+5. **Pattern 5: Interactive Commands** (setup)
+   - Inquirer prompts for user input
+   - `--non-interactive` mode for CI/CD
+   - Validation and confirmation
+
+**Critical Rules:**
+
+- ✅ ALWAYS extend `BratCommand` (never oclif `Command` directly)
+- ✅ ALWAYS include `...BratCommand.baseFlags` in flags definition
+- ✅ ALWAYS use `this.logger` (never `console.log`)
+- ✅ ALWAYS use `this.log()` for user-facing output
+- ✅ ALWAYS use `this.error()` for errors (auto-exits with code)
+- ✅ ALWAYS provide `description` and `examples` static properties
+- ❌ NEVER access `this.context` or `this.logger` in constructor (use in `run()`)
+- ❌ NEVER use `process.cwd()` (use `this.repoRoot`)
+
+**Full Documentation:**
+
+- [oclif Documentation](https://oclif.io/)
+- [Migration Guide](../planning/sprint-359-brat-cli-reorganization/oclif-migration-guide.md)
+- [Technical Architecture](../planning/sprint-359-brat-cli-reorganization/technical-architecture.md)
+- [Command Directory README](./tools/brat/src/oclif-commands/README.md)
+
+---
+
 ### Creating a New Bit (Service)
 1. Run `npm run brat -- bit create <name> [options]`
    - `--profile <p>`: Capability profile (core, gateway, llm, mcp-server) [default: core]

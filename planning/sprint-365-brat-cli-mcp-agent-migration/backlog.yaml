@@ -1,0 +1,286 @@
+# Sprint 365: MCP/Agent Tools Migration - Backlog
+
+sprint:
+  id: 365
+  name: "MCP/Agent Tools Migration"
+  focus: "MCP and coding agent integration commands"
+  pattern: "Pattern 1 (Simple Delegation)"
+  estimatedHours: 3.5-4
+  commands: 3
+
+phases:
+  - id: PHASE-1
+    name: "Create code command"
+    duration: 60min
+    tasks:
+      - CODE-001
+      - CODE-002
+
+  - id: PHASE-2
+    name: "Create mcp setup command"
+    duration: 45min
+    tasks:
+      - MCP-001
+      - MCP-002
+
+  - id: PHASE-3
+    name: "Create dev-mcp start command"
+    duration: 45min
+    tasks:
+      - DEV-MCP-001
+      - DEV-MCP-002
+
+  - id: PHASE-4
+    name: "Validation and testing"
+    duration: 60min
+    tasks:
+      - VAL-001
+      - VAL-002
+      - VAL-003
+      - VAL-004
+
+tasks:
+  # Phase 1: code command
+  - id: CODE-001
+    phase: PHASE-1
+    name: "Create code.ts command"
+    description: "Create oclif command for 'brat code'"
+    dependencies: []
+    acceptance:
+      - Command created at tools/brat/src/oclif-commands/code.ts
+      - Extends BratCommand
+      - Has flags: --agent, --list, --project-root
+      - Allows pass-through args (strict: false)
+      - Delegates to cmdCode() from cli/code/code-command.ts
+      - Includes examples and description
+
+  - id: CODE-002
+    phase: PHASE-1
+    name: "Create code.test.ts"
+    description: "Create smoke tests for code command"
+    dependencies:
+      - CODE-001
+    acceptance:
+      - Test file created at tools/brat/src/oclif-commands/code.test.ts
+      - 7 smoke tests (description, examples, flags, strict mode, inheritance, instantiable)
+      - All tests passing
+
+  # Phase 2: mcp setup command
+  - id: MCP-001
+    phase: PHASE-2
+    name: "Create mcp/setup.ts command"
+    description: "Create oclif command for 'brat mcp setup'"
+    dependencies:
+      - CODE-002
+    acceptance:
+      - Command created at tools/brat/src/oclif-commands/mcp/setup.ts
+      - Extends BratCommand
+      - Has flags: --scope, --server-name, --log-level, --audit-log, --dry-run, --json
+      - Delegates to cmdMcpSetup() from cli/mcp-setup.ts
+      - Maps flags to McpSetupFlags interface
+      - Includes examples and description
+
+  - id: MCP-002
+    phase: PHASE-2
+    name: "Create mcp/setup.test.ts"
+    description: "Create smoke tests for mcp setup command"
+    dependencies:
+      - MCP-001
+    acceptance:
+      - Test file created at tools/brat/src/oclif-commands/mcp/setup.test.ts
+      - 7 smoke tests
+      - All tests passing
+
+  # Phase 3: dev-mcp start command
+  - id: DEV-MCP-001
+    phase: PHASE-3
+    name: "Create dev-mcp/start.ts command"
+    description: "Create oclif command for 'brat dev-mcp start'"
+    dependencies:
+      - MCP-002
+    acceptance:
+      - Command created at tools/brat/src/oclif-commands/dev-mcp/start.ts
+      - Extends BratCommand
+      - Has flags: --log-level, --audit-log
+      - Delegates to cmdDevMcp() from cli/dev-mcp.ts
+      - Passes 'start' as action argument
+      - Includes examples and description
+
+  - id: DEV-MCP-002
+    phase: PHASE-3
+    name: "Create dev-mcp/start.test.ts"
+    description: "Create smoke tests for dev-mcp start command"
+    dependencies:
+      - DEV-MCP-001
+    acceptance:
+      - Test file created at tools/brat/src/oclif-commands/dev-mcp/start.test.ts
+      - 7 smoke tests
+      - All tests passing
+
+  # Phase 4: Validation and testing
+  - id: VAL-001
+    phase: PHASE-4
+    name: "Build validation"
+    description: "Run npm run build and verify no errors"
+    dependencies:
+      - DEV-MCP-002
+    acceptance:
+      - npm run build succeeds
+      - Zero TypeScript errors
+      - All imports resolved
+
+  - id: VAL-002
+    phase: PHASE-4
+    name: "Run test suite"
+    description: "Run oclif test suite and verify all tests pass"
+    dependencies:
+      - VAL-001
+    acceptance:
+      - npm test -- --testPathPattern="oclif-commands" succeeds
+      - 272+ tests passing (+21 from Sprint 364)
+      - Zero regressions
+      - Test suites: 44+ passed
+
+  - id: VAL-003
+    phase: PHASE-4
+    name: "Manual testing"
+    description: "Manually test all 3 commands"
+    dependencies:
+      - VAL-002
+    acceptance:
+      - "code --list works (shows available agents)"
+      - "code --agent <name> works (launches agent)"
+      - "code -- 'prompt' works (pass-through args)"
+      - "mcp setup --dry-run works (shows config preview)"
+      - "mcp setup works (creates ~/.claude.json)"
+      - "dev-mcp start works (requires MCP_DEV_TOKEN)"
+      - First-run detection works (code command)
+      - Context resolution works (all commands)
+
+  - id: VAL-004
+    phase: PHASE-4
+    name: "Update documentation"
+    description: "Update remaining-commands.md and create completion summary"
+    dependencies:
+      - VAL-003
+    acceptance:
+      - remaining-commands.md updated (40 → 43 commands, 83% → 90%)
+      - completion-summary.md created
+      - Sprint history documented
+      - Next steps identified
+
+successCriteria:
+  functional:
+    - All 3 commands migrated to oclif
+    - Zero regressions (legacy behavior preserved)
+    - All flags properly mapped
+    - Context resolution working
+    - Pass-through args working (code command)
+    - First-run detection working (code command)
+    - MCP config creation working (mcp setup)
+    - Dev MCP server startup working (dev-mcp start)
+
+  quality:
+    - Build successful (npm run build)
+    - All tests passing (272+ tests)
+    - Test coverage: 7 tests per command (21 new tests)
+    - Zero TypeScript errors
+    - Manual testing complete
+
+  documentation:
+    - remaining-commands.md updated
+    - completion-summary.md created
+    - Sprint history documented
+
+risks:
+  - name: "Breaking agent integrations"
+    likelihood: Low
+    impact: High
+    mitigation: "Extensive manual testing with all 4 agents"
+
+  - name: "MCP config corruption"
+    likelihood: Low
+    impact: Medium
+    mitigation: "Always test with --dry-run first, create config backups"
+
+  - name: "Dev MCP server auth issues"
+    likelihood: Low
+    impact: Medium
+    mitigation: "Document auth token requirements clearly"
+
+  - name: "Pass-through args breaking"
+    likelihood: Low
+    impact: Medium
+    mitigation: "Test with various argument patterns"
+
+  - name: "First-run detection regression"
+    likelihood: Low
+    impact: Low
+    mitigation: "Delete .bitbrat.json and test first-run flow"
+
+deliverables:
+  commands:
+    - path: tools/brat/src/oclif-commands/code.ts
+      type: Command
+      pattern: Pattern 1
+      loc: ~150
+
+    - path: tools/brat/src/oclif-commands/mcp/setup.ts
+      type: Command
+      pattern: Pattern 1
+      loc: ~90
+
+    - path: tools/brat/src/oclif-commands/dev-mcp/start.ts
+      type: Command
+      pattern: Pattern 1
+      loc: ~80
+
+  tests:
+    - path: tools/brat/src/oclif-commands/code.test.ts
+      tests: 7
+
+    - path: tools/brat/src/oclif-commands/mcp/setup.test.ts
+      tests: 7
+
+    - path: tools/brat/src/oclif-commands/dev-mcp/start.test.ts
+      tests: 7
+
+  documentation:
+    - path: planning/sprint-365-brat-cli-mcp-agent-migration/completion-summary.md
+      type: Sprint summary
+
+    - path: planning/sprint-361-brat-cli-data-deploy-migration/remaining-commands.md
+      type: Progress tracking (updated)
+
+metrics:
+  estimated:
+    duration: 3.5-4h
+    commands: 3
+    tests: 21
+    loc: 320
+
+  targets:
+    efficiency: "75%+ (based on Sprint 364 pattern)"
+    regressions: 0
+    testCoverage: "100% (smoke tests)"
+
+notes:
+  - "100% Pattern 1 sprint (no business logic extraction)"
+  - "All business logic already well-separated"
+  - "Expected efficiency similar to Sprint 364 (80%)"
+  - "This completes all production-critical commands"
+  - "Only 5 optional/deprecated commands remain after this"
+
+postSprint:
+  progress:
+    before: "40/48 commands (83%)"
+    after: "43/48 commands (90%)"
+    remaining: "5 optional/deprecated commands"
+
+  recommendation: |
+    Consider migration complete after Sprint 365. The remaining 5 commands are
+    optional/deprecated and can be migrated on-demand if needed. Focus should
+    shift to:
+    1. Documentation improvements
+    2. Integration testing
+    3. Production deployment validation

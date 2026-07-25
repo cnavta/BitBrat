@@ -1,0 +1,742 @@
+# Sprint 359: Brat CLI Reorganization - oclif Migration Foundation
+# Trackable Prioritized Backlog
+#
+# Priority Levels:
+#   P0 - Critical (must complete for sprint success)
+#   P1 - High (should complete, minor risk if deferred)
+#   P2 - Medium (nice to have, can defer to next sprint)
+#
+# Story Points: Fibonacci scale (1, 2, 3, 5, 8, 13)
+# Status: not_started | in_progress | blocked | completed | deferred
+
+metadata:
+  sprint: 359
+  title: "Brat CLI Reorganization - oclif Migration Foundation"
+  start_date: null
+  end_date: null
+  goal: "Establish oclif foundation with working PoC of 5 commands, preserving critical patterns"
+  scope:
+    in_scope: ["Infrastructure setup", "Base command pattern", "5 PoC commands", "Backward compatibility"]
+    out_of_scope: ["Full migration of 30+ commands", "Plugin system", "Cloud deployment"]
+
+# ============================================================================
+# PHASE 0: INFRASTRUCTURE SETUP (Days 1-2)
+# ============================================================================
+
+tasks:
+  - id: INFRA-001
+    title: "Install oclif dependencies"
+    description: |
+      Install @oclif/core and @oclif/plugin-help as production dependencies.
+      Install @oclif/test as devDependency.
+    phase: 0
+    priority: P0
+    story_points: 1
+    status: not_started
+    dependencies: []
+    assignee: null
+    acceptance_criteria:
+      - "@oclif/core added to package.json dependencies"
+      - "@oclif/plugin-help added to package.json dependencies"
+      - "@oclif/test added to package.json devDependencies"
+      - "npm install succeeds without errors"
+      - "package-lock.json updated"
+    validation_commands:
+      - "npm ls @oclif/core @oclif/plugin-help @oclif/test"
+      - "npm audit | grep -i oclif"
+    notes: "Version constraints: @oclif/core ^3.x, @oclif/plugin-help ^6.x"
+
+  - id: INFRA-002
+    title: "Create oclif command directory structure"
+    description: |
+      Create tools/brat/src/oclif-commands/ directory structure following oclif conventions.
+      Establish namespace hierarchy: infra/, deploy/, data/, fleet/, dev/, context/.
+    phase: 0
+    priority: P0
+    story_points: 1
+    status: not_started
+    dependencies: [INFRA-001]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/ directory exists"
+      - "Subdirectories created: infra/, deploy/, data/, fleet/, dev/, context/"
+      - "Each subdirectory has index.ts exporting namespace"
+      - "Directory structure documented in README.md"
+    validation_commands:
+      - "ls -la tools/brat/src/oclif-commands/"
+      - "find tools/brat/src/oclif-commands -type d"
+    notes: "Follow oclif topic pattern: tools/brat/src/oclif-commands/fleet/list.ts → `brat fleet list`"
+
+  - id: INFRA-003
+    title: "Update TypeScript configuration for oclif"
+    description: |
+      Update tsconfig.json to include oclif command paths.
+      Ensure decorators are enabled for oclif metadata.
+      Add path aliases for oclif commands if needed.
+    phase: 0
+    priority: P0
+    story_points: 2
+    status: not_started
+    dependencies: [INFRA-002]
+    assignee: null
+    acceptance_criteria:
+      - "tsconfig.json includes oclif-commands/** in paths"
+      - "experimentalDecorators: true set"
+      - "emitDecoratorMetadata: true set"
+      - "npm run build succeeds"
+      - "No TypeScript errors in oclif-commands/"
+    validation_commands:
+      - "npm run build"
+      - "tsc --noEmit"
+    notes: "May need separate tsconfig for oclif commands if conflicts with existing config"
+
+  - id: INFRA-004
+    title: "Configure oclif in package.json"
+    description: |
+      Add oclif configuration block to package.json.
+      Set bin entry point, topic separator, plugin configuration.
+      Configure help system and command discovery.
+    phase: 0
+    priority: P0
+    story_points: 2
+    status: not_started
+    dependencies: [INFRA-001, INFRA-002]
+    assignee: null
+    acceptance_criteria:
+      - "package.json has oclif configuration block"
+      - "bin points to oclif entry point (dist/tools/brat/src/oclif-entry.js)"
+      - "topics configured for namespace hierarchy"
+      - "plugins array configured"
+      - "topicSeparator set to space (default)"
+      - "Configuration validated with oclif doctor command"
+    validation_commands:
+      - "npx oclif readme"
+      - "node dist/tools/brat/src/oclif-entry.js --help"
+    example_config: |
+      "oclif": {
+        "bin": "brat",
+        "dirname": "brat",
+        "commands": "./dist/tools/brat/src/oclif-commands",
+        "plugins": ["@oclif/plugin-help"],
+        "topicSeparator": " ",
+        "topics": {
+          "fleet": {"description": "Fleet management and MCP control plane"},
+          "infra": {"description": "Infrastructure provisioning and management"},
+          "deploy": {"description": "Service deployment"},
+          "data": {"description": "Data operations (backup, restore, seed)"},
+          "dev": {"description": "Development tooling"}
+        }
+      }
+
+  - id: INFRA-005
+    title: "Create oclif entry point (bin/run)"
+    description: |
+      Create tools/brat/src/oclif-entry.ts as the new oclif-based entry point.
+      Configure oclif.run() with error handling and process.exit.
+      Keep existing tools/brat/src/cli/index.ts as legacy fallback.
+    phase: 0
+    priority: P0
+    story_points: 2
+    status: not_started
+    dependencies: [INFRA-004]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-entry.ts created"
+      - "Imports oclif.run() from @oclif/core"
+      - "Error handling wraps oclif.run()"
+      - "Process exits with correct codes (0 success, 1 error)"
+      - "Builds to dist/tools/brat/src/oclif-entry.js"
+      - "package.json bin points to compiled entry"
+    validation_commands:
+      - "npm run build"
+      - "node dist/tools/brat/src/oclif-entry.js --version"
+      - "node dist/tools/brat/src/oclif-entry.js --help"
+    reference: "See oclif-migration-guide.md section 'Entry Point Pattern'"
+
+# ============================================================================
+# PHASE 1: BASE COMMAND PATTERN (Days 2-3)
+# ============================================================================
+
+  - id: BASE-001
+    title: "Create BratCommand base class"
+    description: |
+      Create tools/brat/src/oclif-commands/base.ts extending oclif Command.
+      Integrate pino logger, context resolver, dependency injection.
+      Provide shared utilities for all brat commands.
+    phase: 1
+    priority: P0
+    story_points: 5
+    status: not_started
+    dependencies: [INFRA-005]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/base.ts created"
+      - "Extends Command from @oclif/core"
+      - "Integrates createLogger() from orchestration/logger.ts"
+      - "Provides getContext() returning execution context"
+      - "Provides getDeps() for dependency injection"
+      - "Exposes logger as this.logger (pino instance)"
+      - "Handles --context flag parsing"
+      - "Handles --verbose/-v flag for log level"
+      - "TypeScript compiles without errors"
+    validation_commands:
+      - "npm run build"
+      - "grep -A 20 'export abstract class BratCommand' tools/brat/src/oclif-commands/base.ts"
+    reference: "See oclif-migration-guide.md section 'Base Command Pattern'"
+    notes: |
+      Critical patterns to preserve:
+      1. Pino logging with metadata
+      2. Context resolution (local, staging, prod)
+      3. Dependency injection for testability
+
+  - id: BASE-002
+    title: "Implement context resolution in BratCommand"
+    description: |
+      Integrate ContextResolver into BratCommand.init().
+      Support --context flag, BITBRAT_CONTEXT env var, ~/.bratrc.
+      Cache resolved context for command lifecycle.
+    phase: 1
+    priority: P0
+    story_points: 3
+    status: not_started
+    dependencies: [BASE-001]
+    assignee: null
+    acceptance_criteria:
+      - "BratCommand.init() resolves context using ContextResolver"
+      - "--context flag registered as global flag"
+      - "BITBRAT_CONTEXT environment variable honored"
+      - "~/.bratrc read as fallback"
+      - "Default context is 'local' if none specified"
+      - "Resolved context available via this.context"
+      - "Context resolution logged at debug level"
+      - "Invalid context throws error with helpful message"
+    validation_commands:
+      - "BITBRAT_CONTEXT=staging node dist/tools/brat/src/oclif-entry.js config show"
+      - "node dist/tools/brat/src/oclif-entry.js config show --context staging"
+    reference: "See context/context-resolver.ts for existing implementation"
+
+  - id: BASE-003
+    title: "Implement logger integration in BratCommand"
+    description: |
+      Integrate pino logger into BratCommand with --verbose flag support.
+      Set log level based on --verbose (debug) vs default (info).
+      Ensure structured logging with correlation IDs.
+    phase: 1
+    priority: P0
+    story_points: 2
+    status: not_started
+    dependencies: [BASE-001]
+    assignee: null
+    acceptance_criteria:
+      - "BratCommand.init() creates pino logger via createLogger()"
+      - "--verbose/-v flag registered as global flag"
+      - "Log level 'debug' if --verbose, else 'info'"
+      - "Logger available as this.logger throughout command"
+      - "Logger outputs JSON in production, pretty in dev"
+      - "Logger includes command name in metadata"
+      - "No console.log() calls in BratCommand"
+    validation_commands:
+      - "node dist/tools/brat/src/oclif-entry.js config show --verbose 2>&1 | grep -i debug"
+      - "node dist/tools/brat/src/oclif-entry.js config show 2>&1 | grep -v debug"
+    reference: "See orchestration/logger.ts for createLogger() implementation"
+
+  - id: BASE-004
+    title: "Implement dependency injection pattern in BratCommand"
+    description: |
+      Create getDeps() method supporting optional dependency overrides.
+      Enable constructor injection for testability.
+      Preserve existing FleetDeps, OrchestratorDeps patterns.
+    phase: 1
+    priority: P0
+    story_points: 3
+    status: not_started
+    dependencies: [BASE-001]
+    assignee: null
+    acceptance_criteria:
+      - "BratCommand has protected getDeps<T>() method"
+      - "Supports optional deps parameter in constructor"
+      - "Default deps created if none provided"
+      - "Deps cached for command lifecycle"
+      - "FleetDeps, OrchestratorDeps interfaces preserved"
+      - "Test utilities provide mock deps"
+      - "Example test demonstrates DI pattern"
+    validation_commands:
+      - "npm test -- --testPathPattern=oclif-commands.*base"
+    reference: "See oclif-migration-guide.md section 'Dependency Injection Pattern'"
+    notes: |
+      Example:
+      class FleetListCommand extends BratCommand {
+        async run() {
+          const deps = this.getDeps<FleetDeps>();
+          const client = deps.createMcpClient(...);
+        }
+      }
+
+  - id: BASE-005
+    title: "Create BratCommand unit tests"
+    description: |
+      Create comprehensive test suite for BratCommand base class.
+      Test context resolution, logger integration, dependency injection.
+      Establish testing patterns for all oclif commands.
+    phase: 1
+    priority: P1
+    story_points: 3
+    status: not_started
+    dependencies: [BASE-001, BASE-002, BASE-003, BASE-004]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/base.test.ts created"
+      - "Tests context resolution (--context, env var, .bratrc, default)"
+      - "Tests logger creation (--verbose vs default)"
+      - "Tests dependency injection (default deps, mock deps)"
+      - "Uses @oclif/test for command testing"
+      - "All tests pass"
+      - "Code coverage >80% for base.ts"
+    validation_commands:
+      - "npm test -- tools/brat/src/oclif-commands/base.test.ts"
+      - "npm test -- --coverage --collectCoverageFrom='**/oclif-commands/base.ts'"
+
+# ============================================================================
+# PHASE 2: PROOF OF CONCEPT - 5 COMMANDS (Days 3-6)
+# ============================================================================
+
+  - id: POC-001
+    title: "Migrate `brat setup` to oclif"
+    description: |
+      Create tools/brat/src/oclif-commands/setup.ts.
+      Migrate interactive setup flow with inquirer prompts.
+      Preserve existing setupPlatform() business logic.
+      Pattern 5: Interactive setup with prompts.
+    phase: 2
+    priority: P0
+    story_points: 5
+    status: not_started
+    dependencies: [BASE-005]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/setup.ts created"
+      - "Extends BratCommand"
+      - "Uses inquirer for interactive prompts"
+      - "Delegates to existing setupPlatform() function"
+      - "Help text auto-generated by oclif"
+      - "Command works: `brat setup`"
+      - "Creates .bitbrat.json in home directory"
+      - "Seeds Firestore/PostgreSQL with initial data"
+      - "Existing tests updated to use oclif command"
+    validation_commands:
+      - "npm run build"
+      - "node dist/tools/brat/src/oclif-entry.js setup --help"
+      - "echo 'n' | node dist/tools/brat/src/oclif-entry.js setup"
+    reference: "See oclif-migration-guide.md Pattern 5"
+    notes: "Non-interactive mode can come later (out of scope for PoC)"
+
+  - id: POC-002
+    title: "Migrate `brat doctor` to oclif"
+    description: |
+      Create tools/brat/src/oclif-commands/doctor.ts.
+      Migrate system diagnostics and validation checks.
+      Pattern 1: Simple validation command with structured output.
+    phase: 2
+    priority: P0
+    story_points: 3
+    status: not_started
+    dependencies: [BASE-005]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/doctor.ts created"
+      - "Extends BratCommand"
+      - "Checks Docker, Node.js, PostgreSQL, NATS prerequisites"
+      - "Validates architecture.yaml schema"
+      - "Checks ~/.bratrc and .bitbrat.json"
+      - "Outputs structured diagnostic report"
+      - "Help text auto-generated by oclif"
+      - "Command works: `brat doctor`"
+      - "Exit code 0 if healthy, 1 if issues found"
+    validation_commands:
+      - "npm run build"
+      - "node dist/tools/brat/src/oclif-entry.js doctor"
+      - "node dist/tools/brat/src/oclif-entry.js doctor --verbose"
+    reference: "See oclif-migration-guide.md Pattern 1"
+
+  - id: POC-003
+    title: "Migrate `brat fleet list` to oclif"
+    description: |
+      Create tools/brat/src/oclif-commands/fleet/list.ts.
+      Migrate fleet listing with MCP client integration.
+      Pattern 3: Fleet commands with dependency injection.
+      Establish pattern for all fleet subcommands.
+    phase: 2
+    priority: P0
+    story_points: 5
+    status: not_started
+    dependencies: [BASE-005]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/fleet/list.ts created"
+      - "Extends BratCommand"
+      - "Uses FleetDeps interface for dependency injection"
+      - "Integrates MCP client via getDeps()"
+      - "Supports --format flag (table, json, yaml)"
+      - "Supports --context flag (inherited from BratCommand)"
+      - "Help text auto-generated by oclif"
+      - "Command works: `brat fleet list`"
+      - "Unit tests with mock FleetDeps"
+    validation_commands:
+      - "npm run build"
+      - "node dist/tools/brat/src/oclif-entry.js fleet list --help"
+      - "node dist/tools/brat/src/oclif-entry.js fleet list --format json"
+      - "npm test -- --testPathPattern=fleet/list"
+    reference: "See oclif-migration-guide.md Complete Reference Example"
+    notes: "This is the flagship example - get it right and others will follow"
+
+  - id: POC-004
+    title: "Migrate `brat config show` to oclif"
+    description: |
+      Create tools/brat/src/oclif-commands/config/show.ts.
+      Migrate configuration display with redaction.
+      Pattern 2: Configuration display with structured output.
+    phase: 2
+    priority: P0
+    story_points: 3
+    status: not_started
+    dependencies: [BASE-005]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/config/show.ts created"
+      - "Extends BratCommand"
+      - "Displays resolved architecture.yaml for current context"
+      - "Supports --raw flag to show unredacted values"
+      - "Supports --format flag (yaml, json)"
+      - "Redacts passwords, tokens, secrets by default"
+      - "Help text auto-generated by oclif"
+      - "Command works: `brat config show`"
+      - "Command works: `brat config show --raw`"
+    validation_commands:
+      - "npm run build"
+      - "node dist/tools/brat/src/oclif-entry.js config show"
+      - "node dist/tools/brat/src/oclif-entry.js config show --format json"
+      - "node dist/tools/brat/src/oclif-entry.js config show --raw | grep -i password"
+    reference: "See oclif-migration-guide.md Pattern 2"
+
+  - id: POC-005
+    title: "Migrate `brat release` to oclif"
+    description: |
+      Create tools/brat/src/oclif-commands/release.ts.
+      Migrate version bumping with changelog generation.
+      Pattern 4: Complex orchestration with multiple steps.
+    phase: 2
+    priority: P1
+    story_points: 5
+    status: not_started
+    dependencies: [BASE-005]
+    assignee: null
+    acceptance_criteria:
+      - "tools/brat/src/oclif-commands/release.ts created"
+      - "Extends BratCommand"
+      - "Supports bump type argument: patch|minor|major"
+      - "Supports explicit version argument"
+      - "Supports --dry-run flag"
+      - "Supports --tag flag to create git tag"
+      - "Updates architecture.yaml, package.json, package-lock.json"
+      - "Generates CHANGELOG.md entry"
+      - "Help text auto-generated by oclif"
+      - "Command works: `brat release patch --dry-run`"
+      - "Command works: `brat release 1.0.0 --tag`"
+    validation_commands:
+      - "npm run build"
+      - "node dist/tools/brat/src/oclif-entry.js release --help"
+      - "node dist/tools/brat/src/oclif-entry.js release patch --dry-run"
+    reference: "See oclif-migration-guide.md Pattern 4"
+    notes: "This is the most complex command - validate dry-run thoroughly"
+
+  - id: POC-006
+    title: "Create backward compatibility layer"
+    description: |
+      Implement deprecation hook system to redirect old commands to new oclif commands.
+      Preserve existing tools/brat/src/cli/index.ts as legacy router.
+      Add deprecation warnings for old command syntax.
+    phase: 2
+    priority: P0
+    story_points: 5
+    status: not_started
+    dependencies: [POC-001, POC-002, POC-003, POC-004, POC-005]
+    assignee: null
+    acceptance_criteria:
+      - "Old commands still work via legacy router"
+      - "Deprecation warnings logged to stderr"
+      - "Warning includes old syntax → new syntax mapping"
+      - "Warning can be suppressed with BRAT_SUPPRESS_DEPRECATION=1"
+      - "Legacy router delegates to oclif entry point"
+      - "All 5 PoC commands work via both old and new syntax"
+      - "Documentation updated with migration guide for users"
+    validation_commands:
+      - "node dist/tools/brat/src/cli/index.js setup 2>&1 | grep -i deprecated"
+      - "node dist/tools/brat/src/oclif-entry.js setup 2>&1 | grep -v deprecated"
+    example_warning: |
+      [DEPRECATED] Command syntax `brat setup` is deprecated.
+      Use `brat setup` via oclif entry point instead.
+      Legacy support will be removed in Sprint 362.
+    notes: "3-sprint deprecation window per technical-architecture.md"
+
+# ============================================================================
+# PHASE 3: TESTING & VALIDATION (Days 6-7)
+# ============================================================================
+
+  - id: TEST-001
+    title: "Create integration test suite for PoC commands"
+    description: |
+      Create comprehensive integration tests for all 5 PoC commands.
+      Test both oclif entry point and legacy compatibility.
+      Validate help text, flag parsing, error handling.
+    phase: 3
+    priority: P0
+    story_points: 5
+    status: not_started
+    dependencies: [POC-006]
+    assignee: null
+    acceptance_criteria:
+      - "Integration tests for setup, doctor, fleet list, config show, release"
+      - "Tests cover happy path and error cases"
+      - "Tests validate help text output"
+      - "Tests validate flag parsing (--verbose, --format, --context)"
+      - "Tests validate exit codes (0 success, 1 error)"
+      - "Tests use @oclif/test framework"
+      - "All tests pass"
+      - "Test coverage >80% for PoC commands"
+    validation_commands:
+      - "npm test -- --testPathPattern=oclif-commands"
+      - "npm test -- --coverage --collectCoverageFrom='**/oclif-commands/**/*.ts'"
+    notes: "Use stub/mock for external dependencies (MCP client, Docker, PostgreSQL)"
+
+  - id: TEST-002
+    title: "Create end-to-end validation script"
+    description: |
+      Create planning/sprint-359-brat-cli-reorganization/validate_deliverable.sh.
+      Automated script to validate all PoC deliverables.
+      Test build, help text, command execution, backward compatibility.
+    phase: 3
+    priority: P0
+    story_points: 3
+    status: not_started
+    dependencies: [TEST-001]
+    assignee: null
+    acceptance_criteria:
+      - "validate_deliverable.sh created and executable"
+      - "Script runs: npm run build"
+      - "Script runs: npm test"
+      - "Script validates help text for all 5 PoC commands"
+      - "Script tests both oclif and legacy entry points"
+      - "Script validates deprecation warnings"
+      - "Script validates exit codes"
+      - "Script outputs clear pass/fail status"
+      - "Script exits 0 on success, 1 on failure"
+    validation_commands:
+      - "bash planning/sprint-359-brat-cli-reorganization/validate_deliverable.sh"
+    reference: "See AGENTS.md Sprint Protocol - Validation Phase"
+
+  - id: TEST-003
+    title: "Manual testing and bug fixing"
+    description: |
+      Perform manual testing of all PoC commands in various scenarios.
+      Test context switching (local, staging, prod).
+      Test error handling and edge cases.
+      Fix any bugs discovered during manual testing.
+    phase: 3
+    priority: P1
+    story_points: 5
+    status: not_started
+    dependencies: [TEST-001]
+    assignee: null
+    acceptance_criteria:
+      - "Manual test plan documented"
+      - "All 5 PoC commands tested with --context local"
+      - "All 5 PoC commands tested with --context staging"
+      - "All 5 PoC commands tested with invalid flags"
+      - "All 5 PoC commands tested with --help"
+      - "Error messages are clear and actionable"
+      - "No unhandled promise rejections"
+      - "No console.log() in production code"
+      - "All critical bugs fixed"
+    validation_commands:
+      - "node dist/tools/brat/src/oclif-entry.js setup --help"
+      - "node dist/tools/brat/src/oclif-entry.js doctor"
+      - "node dist/tools/brat/src/oclif-entry.js fleet list --context local"
+      - "node dist/tools/brat/src/oclif-entry.js config show --format json"
+      - "node dist/tools/brat/src/oclif-entry.js release patch --dry-run"
+    notes: "Document any bugs in planning/sprint-359-brat-cli-reorganization/bugs.md"
+
+  - id: TEST-004
+    title: "Performance benchmarking"
+    description: |
+      Benchmark command startup time: oclif vs legacy.
+      Measure help text generation performance.
+      Ensure oclif doesn't introduce significant overhead.
+    phase: 3
+    priority: P2
+    story_points: 3
+    status: not_started
+    dependencies: [POC-006]
+    assignee: null
+    acceptance_criteria:
+      - "Benchmark script created"
+      - "Measures `brat --help` startup time (oclif vs legacy)"
+      - "Measures individual command startup time"
+      - "Measures help text generation time"
+      - "Results documented in planning/sprint-359/performance.md"
+      - "oclif overhead <100ms for typical commands"
+      - "No regression in user-facing performance"
+    validation_commands:
+      - "time node dist/tools/brat/src/oclif-entry.js --help"
+      - "time node dist/tools/brat/src/cli/index.js --help"
+    notes: "Acceptable if oclif is slightly slower due to better help generation"
+
+# ============================================================================
+# DOCUMENTATION & KNOWLEDGE TRANSFER
+# ============================================================================
+
+  - id: DOC-001
+    title: "Update CLAUDE.md with oclif patterns"
+    description: |
+      Add section to CLAUDE.md documenting oclif migration patterns.
+      Provide guidance for future command migrations.
+      Document BratCommand base class usage.
+    phase: 3
+    priority: P1
+    story_points: 2
+    status: not_started
+    dependencies: [POC-006]
+    assignee: null
+    acceptance_criteria:
+      - "CLAUDE.md section 'Building oclif Commands' added"
+      - "Documents BratCommand base class"
+      - "Documents 6 migration patterns"
+      - "Provides code examples"
+      - "Links to oclif-migration-guide.md"
+      - "Documents backward compatibility approach"
+    validation_commands:
+      - "grep -i 'oclif' CLAUDE.md"
+    notes: "Keep concise - defer to migration guide for details"
+
+  - id: DOC-002
+    title: "Create user migration guide"
+    description: |
+      Create documentation/guides/brat-cli-migration.md for end users.
+      Document deprecated commands and new syntax.
+      Provide examples of old vs new command usage.
+    phase: 3
+    priority: P1
+    story_points: 2
+    status: not_started
+    dependencies: [POC-006]
+    assignee: null
+    acceptance_criteria:
+      - "documentation/guides/brat-cli-migration.md created"
+      - "Documents deprecation timeline (3 sprints)"
+      - "Provides command mapping table (old → new)"
+      - "Examples for all 5 PoC commands"
+      - "Documents new help system features"
+      - "Documents global flags (--context, --verbose)"
+    validation_commands:
+      - "cat documentation/guides/brat-cli-migration.md"
+    notes: "User-facing, non-technical language"
+
+  - id: DOC-003
+    title: "Update README.md with oclif commands"
+    description: |
+      Update README.md to reflect new oclif command structure.
+      Update command examples to use new syntax.
+      Add note about backward compatibility.
+    phase: 3
+    priority: P1
+    story_points: 1
+    status: not_started
+    dependencies: [DOC-002]
+    assignee: null
+    acceptance_criteria:
+      - "README.md updated with oclif command examples"
+      - "Command examples use new oclif syntax"
+      - "Backward compatibility note added"
+      - "Links to user migration guide"
+      - "No references to deprecated command syntax"
+    validation_commands:
+      - "grep -i 'brat setup' README.md"
+    notes: "Update 'Common Development Commands' section"
+
+# ============================================================================
+# FUTURE WORK (OUT OF SCOPE FOR SPRINT 359)
+# ============================================================================
+
+future_tasks:
+  - id: FUTURE-001
+    title: "Migrate remaining 25+ commands to oclif"
+    priority: P0
+    estimated_sprints: 2
+    depends_on: [Sprint 359 completion]
+    commands:
+      - "brat bit create/list/describe"
+      - "brat context create/list/show/use"
+      - "brat docker up/down/logs/restart"
+      - "brat deploy service/services/infra"
+      - "brat data backup/restore/seed"
+      - "brat fleet info/health/config/flags/log/drain/shutdown"
+      - "brat lb urlmap render/validate/deploy"
+      - "brat infra plan/apply/destroy"
+
+  - id: FUTURE-002
+    title: "Implement plugin system for extensions"
+    priority: P1
+    estimated_sprints: 1
+    depends_on: [FUTURE-001]
+    description: |
+      Use oclif plugin system to allow third-party extensions.
+      Extract domain-specific commands to plugins.
+      Example: brat-plugin-gcp, brat-plugin-aws.
+
+  - id: FUTURE-003
+    title: "Remove legacy CLI router"
+    priority: P0
+    estimated_sprints: 1
+    depends_on: [FUTURE-001, "3 sprint deprecation window"]
+    description: |
+      After 3-sprint deprecation window, remove tools/brat/src/cli/index.ts.
+      Make oclif entry point the only entry point.
+      Update package.json bin to point to oclif entry only.
+
+  - id: FUTURE-004
+    title: "Cloud deployment via oclif commands"
+    priority: P2
+    estimated_sprints: 1
+    depends_on: [FUTURE-001]
+    description: |
+      Ensure all deploy commands work in cloud environments.
+      Test with GCP Cloud Build, GitHub Actions, GitLab CI.
+      Document CI/CD integration.
+
+# ============================================================================
+# SUMMARY STATISTICS
+# ============================================================================
+
+summary:
+  total_tasks: 29
+  in_scope: 23
+  future_work: 6
+  story_points:
+    phase_0: 8
+    phase_1: 16
+    phase_2: 26
+    phase_3: 16
+    documentation: 5
+    total: 71
+  priority_distribution:
+    P0: 17
+    P1: 9
+    P2: 2
+    future: 6
+  estimated_duration: "7 working days (1 sprint)"
+  risk_level: "Medium"
+  success_criteria:
+    - "All P0 tasks completed"
+    - "All 5 PoC commands working via oclif"
+    - "Backward compatibility preserved"
+    - "validate_deliverable.sh passes"
+    - "No regression in existing functionality"

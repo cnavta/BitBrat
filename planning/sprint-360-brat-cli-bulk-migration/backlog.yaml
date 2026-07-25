@@ -1,0 +1,939 @@
+# Sprint 360: Brat CLI Bulk Migration - Prioritized Backlog
+# Context, Fleet, and Config Command Families
+# Sprint Protocol v3
+
+sprint:
+  id: 360
+  title: "Brat CLI Bulk Migration - Context, Fleet, Config Families"
+  description: "Migrate 14 high-priority commands organized into 3 cohesive families"
+  startDate: "2026-07-24"
+  targetCompletion: "2026-07-29"
+  estimatedHours: 25
+  foundationSprint: 359
+
+objectives:
+  primary:
+    - id: OBJ-1
+      description: "Context family complete (6 commands)"
+      successMetric: "All context commands pass tests"
+    - id: OBJ-2
+      description: "Fleet family complete (7 commands)"
+      successMetric: "All fleet commands pass tests"
+    - id: OBJ-3
+      description: "Config validate migrated"
+      successMetric: "config validate passes tests"
+    - id: OBJ-4
+      description: "Zero regressions"
+      successMetric: "100% existing tests pass"
+    - id: OBJ-5
+      description: "Help text polished"
+      successMetric: "All commands have examples"
+
+  secondary:
+    - id: OBJ-6
+      description: "Test coverage ≥80%"
+      successMetric: "Jest coverage report"
+    - id: OBJ-7
+      description: "Performance validated"
+      successMetric: "No regression vs Sprint 359"
+    - id: OBJ-8
+      description: "Documentation updated"
+      successMetric: "Migration guide enhanced"
+
+# Phase 0: Planning & Setup
+phase0:
+  name: "Planning & Setup"
+  duration: "4 hours"
+  day: 1
+
+  tasks:
+    - id: PLAN-001
+      title: "Read all source implementations"
+      description: "Review current implementations of all 14 target commands"
+      estimatedHours: 1
+      priority: P0
+      dependencies: []
+      files:
+        - "src/commands/context/list.ts"
+        - "src/commands/context/show.ts"
+        - "src/commands/context/create.ts"
+        - "src/commands/context/validate.ts"
+        - "src/commands/use.ts"
+        - "src/commands/current.ts"
+        - "src/cli/fleet.ts"
+        - "src/cli/index.ts"
+      deliverable: "Command complexity notes"
+
+    - id: PLAN-002
+      title: "Identify shared business logic"
+      description: "Map business logic that should be extracted/reused"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [PLAN-001]
+      deliverable: "shared-logic-map.md"
+
+    - id: PLAN-003
+      title: "Validate BratCommand base class"
+      description: "Ensure base class has all needed patterns for 14 commands"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: []
+      acceptanceCriteria:
+        - "Logger pattern sufficient"
+        - "Context resolution working"
+        - "DI pattern documented"
+      deliverable: "Base class validation report"
+
+    - id: PLAN-004
+      title: "Review Sprint 359 lessons learned"
+      description: "Read retro.md and key-learnings.md from Sprint 359"
+      estimatedHours: 0.5
+      priority: P1
+      dependencies: []
+      files:
+        - "planning/sprint-359-brat-cli-reorganization/retro.md"
+        - "planning/sprint-359-brat-cli-reorganization/key-learnings.md"
+      deliverable: "Lessons applied checklist"
+
+    - id: PLAN-005
+      title: "Validate Sprint 359 foundation"
+      description: "Run all Sprint 359 commands to ensure stability"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: []
+      validation:
+        - "npm run build succeeds"
+        - "npm test passes"
+        - "All 5 PoC commands work"
+      deliverable: "Foundation validation report"
+
+    - id: PLAN-006
+      title: "Create detailed task breakdown"
+      description: "This backlog.yaml with all tasks and estimates"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: [PLAN-001, PLAN-002, PLAN-003]
+      deliverable: "backlog.yaml (this file)"
+
+# Phase 1: Context Commands
+phase1:
+  name: "Context Commands (6 commands)"
+  duration: "8 hours"
+  day: "1-2"
+
+  tasks:
+    # context list
+    - id: CTX-001
+      title: "Migrate context list"
+      description: "List all execution contexts with table/JSON/YAML output"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [PLAN-006]
+      pattern: "Simple table/JSON output (Pattern 2)"
+      files:
+        create:
+          - "src/oclif-commands/context/list.ts"
+          - "src/oclif-commands/context/list.test.ts"
+        read:
+          - "src/commands/context/list.ts"
+      flags:
+        - name: "--format"
+          type: "option"
+          options: ["table", "json", "yaml"]
+          default: "table"
+      acceptanceCriteria:
+        - "brat context list displays table"
+        - "brat context list --format json outputs JSON"
+        - "brat context list --format yaml outputs YAML"
+        - "Current context marked with *"
+        - "Columns: NAME, TYPE, DESCRIPTION, TAGS"
+        - "Tests pass"
+      validation:
+        - "./bin/run context list"
+        - "./bin/run context list --format json | jq ."
+        - "./bin/run context list --format yaml"
+
+    # context show
+    - id: CTX-002
+      title: "Migrate context show"
+      description: "Display context configuration with smart redaction"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [PLAN-006]
+      pattern: "Config display with smart redaction (Pattern 2)"
+      files:
+        create:
+          - "src/oclif-commands/context/show.ts"
+          - "src/oclif-commands/context/show.test.ts"
+        read:
+          - "src/commands/context/show.ts"
+          - "src/oclif-commands/config/show.ts" # Reuse redaction logic
+      args:
+        - name: "<name>"
+          description: "Context name"
+          required: true
+      flags:
+        - name: "--raw"
+          description: "Show unredacted values (passwords, tokens)"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat context show local displays YAML"
+        - "Passwords/tokens redacted by default"
+        - "brat context show local --raw shows unredacted"
+        - "${VAR} → ${********} redaction"
+        - "Tests pass"
+      validation:
+        - "./bin/run context show local"
+        - "./bin/run context show staging --raw"
+
+    # context create
+    - id: CTX-003
+      title: "Migrate context create"
+      description: "Create new execution context (interactive + non-interactive)"
+      estimatedHours: 3
+      priority: P0
+      dependencies: [PLAN-006]
+      pattern: "Interactive wizard with non-interactive mode (Pattern 5)"
+      files:
+        create:
+          - "src/oclif-commands/context/create.ts"
+          - "src/oclif-commands/context/create.test.ts"
+        read:
+          - "src/commands/context/create.ts"
+          - "src/oclif-commands/setup.ts" # Reuse interactive pattern
+      args:
+        - name: "<name>"
+          description: "Context name"
+          required: true
+      flags:
+        - name: "--type"
+          options: ["docker-compose", "cloud-run", "k8s"]
+        - name: "--description"
+          type: "string"
+        - name: "--persistence-driver"
+          options: ["postgres", "firestore"]
+        - name: "--pg-host"
+          type: "string"
+        - name: "--pg-port"
+          type: "number"
+        - name: "--pg-database"
+          type: "string"
+        - name: "--pg-username"
+          type: "string"
+        - name: "--pg-password"
+          type: "string"
+        - name: "--docker-host"
+          type: "string"
+        - name: "--docker-remote-dir"
+          type: "string"
+        - name: "--gcp-project"
+          type: "string"
+        - name: "--gcp-region"
+          type: "string"
+        - name: "--gateway-url"
+          type: "string"
+        - name: "--gateway-auth-token"
+          type: "string"
+        - name: "--env-path"
+          type: "string"
+        - name: "--tags"
+          type: "string"
+          multiple: true
+        - name: "--non-interactive"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat context create prod runs interactive wizard"
+        - "Non-interactive mode works with flags"
+        - "Scaffolds env/<context>/ directory"
+        - "Creates global.yaml, infra.yaml"
+        - "Updates architecture.yaml"
+        - "Validates context name (lowercase, no spaces)"
+        - "Tests pass"
+      validation:
+        - "./bin/run context create test-ctx --type docker-compose --non-interactive ..."
+        - "[ -d env/test-ctx ]"
+        - "[ -f env/test-ctx/global.yaml ]"
+
+    # context validate
+    - id: CTX-004
+      title: "Migrate context validate"
+      description: "Validate context configuration"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [PLAN-006]
+      pattern: "Simple validation (Pattern 1)"
+      files:
+        create:
+          - "src/oclif-commands/context/validate.ts"
+          - "src/oclif-commands/context/validate.test.ts"
+        read:
+          - "src/commands/context/validate.ts"
+      args:
+        - name: "<name>"
+          description: "Context name"
+          required: true
+      flags:
+        - name: "--format"
+          options: ["text", "json"]
+          default: "text"
+        - name: "--verbose"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat context validate local runs checks"
+        - "Exit code 0 on success, 1 on failure"
+        - "--format json outputs structured results"
+        - "--verbose shows detailed steps"
+        - "Tests pass"
+      validation:
+        - "./bin/run context validate local"
+        - "./bin/run context validate staging --format json"
+        - "./bin/run context validate invalid; echo $? # Should be 1"
+
+    # use
+    - id: CTX-005
+      title: "Migrate use command"
+      description: "Switch to different execution context"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: [PLAN-006]
+      pattern: "Simple mutation (Pattern 1)"
+      files:
+        create:
+          - "src/oclif-commands/use.ts"
+          - "src/oclif-commands/use.test.ts"
+        read:
+          - "src/commands/use.ts"
+      args:
+        - name: "<context>"
+          description: "Context name"
+          required: true
+      acceptanceCriteria:
+        - "brat use staging switches context"
+        - "Updates ~/.bratrc with currentContext"
+        - "Validates context exists"
+        - "Prints confirmation message"
+        - "Tests pass"
+      validation:
+        - "./bin/run use local"
+        - "cat ~/.bratrc | grep currentContext"
+        - "./bin/run use nonexistent # Should fail"
+
+    # current
+    - id: CTX-006
+      title: "Migrate current command"
+      description: "Show current execution context"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: [PLAN-006]
+      pattern: "Simple query (Pattern 1)"
+      files:
+        create:
+          - "src/oclif-commands/current.ts"
+          - "src/oclif-commands/current.test.ts"
+        read:
+          - "src/commands/current.ts"
+      acceptanceCriteria:
+        - "brat current displays current context"
+        - "Handles missing ~/.bratrc gracefully"
+        - "Falls back to 'local' if not set"
+        - "Tests pass"
+      validation:
+        - "./bin/run current"
+
+# Phase 2: Fleet Commands
+phase2:
+  name: "Fleet Commands (7 commands + 2 subcommands)"
+  duration: "10 hours"
+  day: "2-3"
+
+  tasks:
+    # fleet info
+    - id: FLEET-001
+      title: "Migrate fleet info"
+      description: "Get bit.info from Bits (all or specific)"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [CTX-006]
+      pattern: "Fleet with DI (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/info.ts"
+          - "src/oclif-commands/fleet/info.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+          - "src/oclif-commands/fleet/list.ts" # Reuse FleetClient pattern
+      flags:
+        - name: "--bit"
+          description: "Specific Bit name (optional, default: all)"
+          type: "string"
+        - name: "--json"
+          type: "boolean"
+        - name: "--yaml"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat fleet info gets info from all Bits"
+        - "brat fleet info --bit api-gateway gets specific Bit"
+        - "--json outputs structured JSON"
+        - "Table shows: BIT, VERSION, UPTIME, PROFILE"
+        - "DI pattern allows mocking"
+        - "Tests pass"
+      validation:
+        - "npm run local"
+        - "./bin/run fleet info"
+        - "./bin/run fleet info --bit api-gateway"
+        - "./bin/run fleet info --json | jq ."
+
+    # fleet health
+    - id: FLEET-002
+      title: "Migrate fleet health"
+      description: "Get bit.health from specific Bit"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [FLEET-001]
+      pattern: "Fleet with DI (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/health.ts"
+          - "src/oclif-commands/fleet/health.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+      args:
+        - name: "<bit>"
+          description: "Bit name"
+          required: true
+      flags:
+        - name: "--json"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat fleet health api-gateway gets health"
+        - "Exit code 0 if healthy, 1 if unhealthy"
+        - "--json outputs structured JSON"
+        - "Shows: status, checks, uptime, memory"
+        - "Tests pass"
+      validation:
+        - "./bin/run fleet health api-gateway; echo $?"
+        - "./bin/run fleet health nonexistent; echo $? # Should be 1"
+
+    # fleet config
+    - id: FLEET-003
+      title: "Migrate fleet config"
+      description: "View effective config for Bit with smart redaction"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [FLEET-001]
+      pattern: "Fleet with DI + smart redaction (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/config.ts"
+          - "src/oclif-commands/fleet/config.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+          - "src/oclif-commands/config/show.ts" # Reuse redaction
+      args:
+        - name: "<bit>"
+          description: "Bit name"
+          required: true
+      flags:
+        - name: "--describe"
+          description: "Show all config"
+          type: "boolean"
+        - name: "--key"
+          description: "Get specific config key"
+          type: "string"
+        - name: "--json"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat fleet config api-gateway --describe shows all"
+        - "brat fleet config api-gateway --key PORT shows key"
+        - "Sensitive values redacted by default"
+        - "--json outputs structured JSON"
+        - "Tests pass"
+      validation:
+        - "./bin/run fleet config api-gateway --describe"
+        - "./bin/run fleet config api-gateway --key PORT"
+
+    # fleet flags get
+    - id: FLEET-004
+      title: "Migrate fleet flags get"
+      description: "Inspect feature flag value"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [FLEET-001]
+      pattern: "Fleet with DI (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/flags/get.ts"
+          - "src/oclif-commands/fleet/flags/get.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+      args:
+        - name: "<bit>"
+          description: "Bit name"
+          required: true
+      flags:
+        - name: "--key"
+          description: "Flag name"
+          type: "string"
+          required: true
+        - name: "--json"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat fleet flags <bit> get --key k gets flag"
+        - "--json outputs structured JSON"
+        - "Shows: key, value, type, description"
+        - "Tests pass"
+      validation:
+        - "./bin/run fleet flags api-gateway get --key enableCors"
+        - "./bin/run fleet flags api-gateway get --key enableCors --json"
+
+    # fleet flags set
+    - id: FLEET-005
+      title: "Migrate fleet flags set"
+      description: "Toggle feature flag value (requires bit:operate)"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [FLEET-004]
+      pattern: "Fleet with DI (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/flags/set.ts"
+          - "src/oclif-commands/fleet/flags/set.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+      args:
+        - name: "<bit>"
+          description: "Bit name"
+          required: true
+      flags:
+        - name: "--key"
+          description: "Flag name"
+          type: "string"
+          required: true
+        - name: "--value"
+          description: "Flag value"
+          type: "string"
+          required: true
+        - name: "--json"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat fleet flags <bit> set --key k --value v sets flag"
+        - "Requires bit:operate scope"
+        - "--json outputs confirmation"
+        - "Validates flag exists"
+        - "Tests pass"
+      validation:
+        - "./bin/run fleet flags api-gateway set --key enableCors --value true"
+        - "./bin/run fleet flags api-gateway get --key enableCors # Verify change"
+
+    # fleet log
+    - id: FLEET-006
+      title: "Migrate fleet log"
+      description: "Change runtime log level (requires bit:operate)"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [FLEET-001]
+      pattern: "Fleet with DI (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/log.ts"
+          - "src/oclif-commands/fleet/log.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+      args:
+        - name: "<bit>"
+          description: "Bit name"
+          required: true
+      flags:
+        - name: "--level"
+          description: "Log level"
+          options: ["debug", "info", "warn", "error"]
+          required: true
+      acceptanceCriteria:
+        - "brat fleet log api-gateway --level debug changes level"
+        - "Requires bit:operate scope"
+        - "Validates log level"
+        - "Prints confirmation"
+        - "Tests pass"
+      validation:
+        - "./bin/run fleet log api-gateway --level debug"
+        - "./bin/run fleet log api-gateway --level invalid # Should fail"
+
+    # fleet drain
+    - id: FLEET-007
+      title: "Migrate fleet drain"
+      description: "Graceful drain Bit (requires bit:operate + --confirm)"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [FLEET-001]
+      pattern: "Fleet with DI + confirmation (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/drain.ts"
+          - "src/oclif-commands/fleet/drain.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+      args:
+        - name: "<bit>"
+          description: "Bit name"
+          required: true
+      flags:
+        - name: "--confirm"
+          description: "Confirm drain operation"
+          type: "boolean"
+          required: true
+      acceptanceCriteria:
+        - "brat fleet drain <bit> --confirm drains Bit"
+        - "Requires --confirm flag"
+        - "Requires bit:operate scope"
+        - "Shows drain progress"
+        - "Waits for completion"
+        - "Tests pass"
+      validation:
+        - "./bin/run fleet drain api-gateway # Should fail (no --confirm)"
+        - "./bin/run fleet drain api-gateway --confirm"
+
+    # fleet shutdown
+    - id: FLEET-008
+      title: "Migrate fleet shutdown"
+      description: "Shutdown Bit (requires bit:operate + --confirm)"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [FLEET-001]
+      pattern: "Fleet with DI + confirmation (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/fleet/shutdown.ts"
+          - "src/oclif-commands/fleet/shutdown.test.ts"
+        read:
+          - "src/cli/fleet.ts"
+      args:
+        - name: "<bit>"
+          description: "Bit name"
+          required: true
+      flags:
+        - name: "--confirm"
+          description: "Confirm shutdown operation"
+          type: "boolean"
+          required: true
+      acceptanceCriteria:
+        - "brat fleet shutdown <bit> --confirm shuts down"
+        - "Requires --confirm flag"
+        - "Requires bit:operate scope"
+        - "Shows shutdown confirmation"
+        - "Tests pass"
+      validation:
+        - "./bin/run fleet shutdown api-gateway # Should fail"
+        - "./bin/run fleet shutdown api-gateway --confirm"
+
+# Phase 3: Config Validate
+phase3:
+  name: "Config Validate (1 command)"
+  duration: "1 hour"
+  day: 3
+
+  tasks:
+    - id: CONFIG-001
+      title: "Migrate config validate"
+      description: "Validate architecture.yaml against schema"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [CTX-006]
+      pattern: "Simple validation (Pattern 1)"
+      files:
+        create:
+          - "src/oclif-commands/config/validate.ts"
+          - "src/oclif-commands/config/validate.test.ts"
+        read:
+          - "src/cli/index.ts"
+      flags:
+        - name: "--json"
+          type: "boolean"
+      acceptanceCriteria:
+        - "brat config validate validates architecture.yaml"
+        - "Exit code 0 on success, 1 on errors"
+        - "--json outputs structured results"
+        - "Shows: warnings, errors, suggestions"
+        - "Tests pass"
+      validation:
+        - "./bin/run config validate"
+        - "./bin/run config validate --json | jq ."
+
+# Phase 4: Testing & Validation
+phase4:
+  name: "Testing & Validation"
+  duration: "6 hours"
+  day: "3-4"
+
+  tasks:
+    # Unit Tests
+    - id: TEST-001
+      title: "Write unit tests for context commands"
+      description: "Create test files for all 6 context commands"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [CTX-006]
+      files:
+        create:
+          - "src/oclif-commands/context/list.test.ts"
+          - "src/oclif-commands/context/show.test.ts"
+          - "src/oclif-commands/context/create.test.ts"
+          - "src/oclif-commands/context/validate.test.ts"
+          - "src/oclif-commands/use.test.ts"
+          - "src/oclif-commands/current.test.ts"
+      testCoverage:
+        - "Command initialization"
+        - "Flag parsing"
+        - "Help text generation"
+        - "Error handling"
+        - "Output formatting"
+      validation:
+        - "npm test -- tools/brat/src/oclif-commands/context"
+        - "npm test -- tools/brat/src/oclif-commands/use.test.ts"
+        - "npm test -- tools/brat/src/oclif-commands/current.test.ts"
+
+    - id: TEST-002
+      title: "Write unit tests for fleet commands"
+      description: "Create test files for all 7 fleet commands + 2 subcommands"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [FLEET-008]
+      files:
+        create:
+          - "src/oclif-commands/fleet/info.test.ts"
+          - "src/oclif-commands/fleet/health.test.ts"
+          - "src/oclif-commands/fleet/config.test.ts"
+          - "src/oclif-commands/fleet/log.test.ts"
+          - "src/oclif-commands/fleet/drain.test.ts"
+          - "src/oclif-commands/fleet/shutdown.test.ts"
+          - "src/oclif-commands/fleet/flags/get.test.ts"
+          - "src/oclif-commands/fleet/flags/set.test.ts"
+      testCoverage:
+        - "FleetClient integration"
+        - "MCP transport mocking"
+        - "Dependency injection"
+        - "Permission checks (bit:operate)"
+        - "Error handling"
+      validation:
+        - "npm test -- tools/brat/src/oclif-commands/fleet"
+
+    - id: TEST-003
+      title: "Write unit tests for config validate"
+      description: "Create test file for config validate"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: [CONFIG-001]
+      files:
+        create:
+          - "src/oclif-commands/config/validate.test.ts"
+      validation:
+        - "npm test -- tools/brat/src/oclif-commands/config/validate.test.ts"
+
+    # Integration Tests
+    - id: TEST-004
+      title: "E2E integration tests - Context workflow"
+      description: "Test full context management workflow"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [TEST-001]
+      workflow:
+        - "context create → validate → use → current → show"
+      validation:
+        - "npm run local"
+        - "./bin/run context create test-ctx --non-interactive ..."
+        - "./bin/run context validate test-ctx"
+        - "./bin/run use test-ctx"
+        - "./bin/run current # Should show test-ctx"
+        - "./bin/run context show test-ctx"
+
+    - id: TEST-005
+      title: "E2E integration tests - Fleet workflow"
+      description: "Test full fleet management workflow"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [TEST-002]
+      workflow:
+        - "fleet list → info → health → config → flags get/set"
+      validation:
+        - "npm run local"
+        - "./bin/run fleet list"
+        - "./bin/run fleet info"
+        - "./bin/run fleet info --bit api-gateway"
+        - "./bin/run fleet health api-gateway"
+        - "./bin/run fleet config api-gateway --describe"
+        - "./bin/run fleet flags api-gateway get --key someFlag"
+        - "./bin/run fleet flags api-gateway set --key someFlag --value true"
+
+    # Performance
+    - id: TEST-006
+      title: "Performance benchmarking"
+      description: "Validate no regression vs Sprint 359"
+      estimatedHours: 1
+      priority: P1
+      dependencies: [TEST-005]
+      metrics:
+        - target: "Startup time < 200ms"
+          command: "time ./bin/run --version"
+        - target: "Help generation < 50ms"
+          command: "time ./bin/run context list --help"
+        - target: "No regression vs Sprint 359"
+          baseline: "Sprint 359 performance data"
+      deliverable: "performance-report.md"
+
+    # Regression
+    - id: TEST-007
+      title: "Regression testing"
+      description: "Ensure all existing tests still pass"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [TEST-006]
+      checklist:
+        - "All Sprint 359 commands work"
+        - "All existing business logic tests pass"
+        - "No changes to non-CLI code"
+        - "architecture.yaml unchanged"
+        - "No breaking changes"
+      validation:
+        - "npm test"
+        - "./bin/run setup --help"
+        - "./bin/run doctor"
+        - "./bin/run fleet list"
+        - "./bin/run config show"
+        - "./bin/run release --help"
+        - "node dist/cli/index.js context list > old.txt"
+        - "./bin/run context list > new.txt"
+        - "diff old.txt new.txt # Should be similar"
+
+# Phase 5: Documentation & Review
+phase5:
+  name: "Documentation & Review"
+  duration: "2 hours"
+  day: 4
+
+  tasks:
+    - id: DOC-001
+      title: "Update migration guide"
+      description: "Add bulk migration learnings to oclif-migration-guide.md"
+      estimatedHours: 0.5
+      priority: P1
+      dependencies: [TEST-007]
+      files:
+        update:
+          - "planning/sprint-359-brat-cli-reorganization/oclif-migration-guide.md"
+      content:
+        - "Bulk migration workflow"
+        - "Command family patterns"
+        - "Testing strategies at scale"
+        - "Common pitfalls from Sprint 360"
+      deliverable: "Updated migration guide"
+
+    - id: DOC-002
+      title: "Update CLAUDE.md"
+      description: "Add Sprint 360 command examples"
+      estimatedHours: 0.5
+      priority: P1
+      dependencies: [TEST-007]
+      files:
+        update:
+          - "CLAUDE.md"
+      content:
+        - "Context command examples"
+        - "Fleet command examples"
+        - "Batch migration tips"
+      deliverable: "Updated CLAUDE.md"
+
+    - id: DOC-003
+      title: "Polish help text"
+      description: "Ensure all 14 commands have examples in --help"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: [TEST-007]
+      checklist:
+        - "All commands have description"
+        - "All commands have usage examples"
+        - "All flags documented"
+        - "Consistent formatting"
+      validation:
+        - "./bin/run context list --help"
+        - "./bin/run fleet info --help"
+        - "./bin/run config validate --help"
+
+    - id: DOC-004
+      title: "Create sprint retrospective"
+      description: "Document Sprint 360 learnings"
+      estimatedHours: 0.5
+      priority: P1
+      dependencies: [TEST-007]
+      files:
+        create:
+          - "planning/sprint-360-brat-cli-bulk-migration/retro.md"
+      content:
+        - "What went well"
+        - "What could be improved"
+        - "Lessons learned"
+        - "Recommendations for Sprint 361"
+      deliverable: "retro.md"
+
+# Success Criteria
+successCriteria:
+  code:
+    - "All 14 commands migrated to oclif"
+    - "All commands follow BratCommand patterns"
+    - "Zero regressions (all existing tests pass)"
+    - "New tests written (≥80% coverage)"
+
+  documentation:
+    - "Migration guide updated"
+    - "CLAUDE.md updated"
+    - "All commands have help text with examples"
+
+  validation:
+    - "All unit tests pass"
+    - "All integration tests pass"
+    - "Performance benchmarks met"
+    - "Manual E2E testing successful"
+
+  process:
+    - "Retrospective completed"
+    - "Learnings documented"
+    - "Backlog for Sprint 361 created"
+
+# Metrics
+metrics:
+  quantitative:
+    - metric: "Commands migrated"
+      target: "14/14 (100%)"
+    - metric: "Test coverage"
+      target: "≥80%"
+    - metric: "Test pass rate"
+      target: "100%"
+    - metric: "Startup time"
+      target: "< 200ms"
+    - metric: "Help generation"
+      target: "< 50ms"
+
+  qualitative:
+    - metric: "Help text quality"
+      target: "Excellent"
+    - metric: "Code maintainability"
+      target: "Improved"
+    - metric: "DI consistency"
+      target: "100%"
+
+# Next Sprint Preview
+nextSprint:
+  id: 361
+  title: "Data, Deploy, and Infra Command Families"
+  scope:
+    - "Data/Migration commands (8 commands)"
+    - "Deploy commands (3 commands)"
+    - "Infra commands (5 commands)"
+  estimatedCommands: 16
+  estimatedDuration: "2 sprints"
+
+# Meta
+meta:
+  version: "1.0"
+  created: "2026-07-24"
+  lastUpdated: "2026-07-24"
+  author: "Lead Implementor (Sprint Protocol v3)"
+  reviewers: []

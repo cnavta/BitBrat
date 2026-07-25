@@ -1,6 +1,6 @@
 {
   "name": "bitbrat-platform",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/src/common/prompt-assembly/index.d.ts",
@@ -27,16 +27,18 @@
     "local:down": "npm run brat -- docker down --env local",
     "local:logs": "npm run brat -- docker logs --env local",
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
-    "brat": "node dist/tools/brat/src/cli/index.js",
-    "release": "node dist/tools/brat/src/cli/index.js release",
-    "release:dry": "node dist/tools/brat/src/cli/index.js release --dry-run",
+    "brat": "node dist/tools/brat/src/oclif-entry.js",
+    "brat:legacy": "node dist/tools/brat/src/cli/index.js",
+    "release": "node dist/tools/brat/src/oclif-entry.js release",
+    "release:dry": "node dist/tools/brat/src/oclif-entry.js release --dry-run",
     "firestore:upsert": "node dist/tools/firestore-upsert.js",
     "migrate:tokens": "node dist/tools/migrate-tokens.js",
     "test-migration": "node dist/tools/brat/src/test-migration.js",
     "init-streams": "ts-node tools/init-nats-streams.ts"
   },
   "bin": {
-    "brat": "dist/tools/brat/src/cli/index.js",
+    "brat": "dist/tools/brat/src/oclif-entry.js",
+    "brat-legacy": "dist/tools/brat/src/cli/index.js",
     "prompt-assembly": "dist/tools/prompt-assembly/src/cli/index.js"
   },
   "keywords": [],
@@ -48,6 +50,8 @@
     "@google-cloud/pubsub": "^5.2.0",
     "@guhcostan/web-search-mcp": "^1.0.5",
     "@modelcontextprotocol/sdk": "^1.25.1",
+    "@oclif/core": "^3.0.0",
+    "@oclif/plugin-help": "^6.0.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^1.26.0",
     "@opentelemetry/resources": "^2.10.0",
@@ -83,12 +87,13 @@
     "pino": "^9.4.0",
     "safe-regex": "^2.1.1",
     "twilio": "^5.11.1",
-    "uuid": "^10.0.0",
+    "uuid": "^14.0.1",
     "ws": "^8.19.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@oclif/test": "^3.0.0",
     "@types/cli-progress": "^3.11.6",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.24",
@@ -97,7 +102,6 @@
     "@types/pg": "^8.20.0",
     "@types/safe-regex": "^1.1.6",
     "@types/supertest": "^6.0.2",
-    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
     "eslint": "^9.39.1",
@@ -119,5 +123,37 @@
   },
   "overrides": {
     "websocket-driver": "^0.7.5"
+  },
+  "oclif": {
+    "bin": "brat",
+    "dirname": "brat",
+    "commands": "./dist/tools/brat/src/oclif-commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ],
+    "topicSeparator": " ",
+    "topics": {
+      "fleet": {
+        "description": "Fleet management and MCP control plane"
+      },
+      "infra": {
+        "description": "Infrastructure provisioning and management"
+      },
+      "deploy": {
+        "description": "Service deployment"
+      },
+      "data": {
+        "description": "Data operations (backup, restore, seed)"
+      },
+      "dev": {
+        "description": "Development tooling"
+      },
+      "context": {
+        "description": "Execution context management"
+      },
+      "config": {
+        "description": "Configuration management"
+      }
+    }
   }
 }
