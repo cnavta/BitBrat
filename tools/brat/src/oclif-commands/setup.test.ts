@@ -10,11 +10,16 @@ import { cmdSetup, isAlreadyInitialized } from '../cli/setup';
 
 // Mock dependencies
 jest.mock('fs');
-jest.mock('inquirer');
 jest.mock('../cli/setup');
 
+// Mock inquirer with a factory function to avoid ES module issues
+const mockPrompt = jest.fn();
+jest.mock('inquirer', () => ({
+  prompt: mockPrompt,
+  default: { prompt: mockPrompt },
+}));
+
 const mockFs = fs as jest.Mocked<typeof fs>;
-const mockInquirer = require('inquirer') as any;
 const mockCmdSetup = cmdSetup as jest.MockedFunction<typeof cmdSetup>;
 const mockIsAlreadyInitialized = isAlreadyInitialized as jest.MockedFunction<
   typeof isAlreadyInitialized
@@ -95,7 +100,7 @@ describe.skip('brat setup', () => {
     test
       .stdout()
       .do(() => {
-        (mockInquirer.prompt as any) = jest.fn().mockResolvedValue({
+        mockPrompt.mockResolvedValue({
           projectId: 'interactive-project',
           openaiKey: 'sk-interactive',
           botName: 'InteractiveBot',
@@ -103,7 +108,7 @@ describe.skip('brat setup', () => {
       })
       .command(['setup'])
       .it('should prompt for inputs in interactive mode', () => {
-        expect(mockInquirer.prompt).toHaveBeenCalled();
+        expect(mockPrompt).toHaveBeenCalled();
         expect(mockCmdSetup).toHaveBeenCalledWith(
           expect.objectContaining({
             projectId: 'interactive-project',
@@ -117,7 +122,7 @@ describe.skip('brat setup', () => {
     test
       .stdout()
       .do(() => {
-        (mockInquirer.prompt as any) = jest.fn().mockResolvedValue({
+        mockPrompt.mockResolvedValue({
           projectId: '',
           openaiKey: 'sk-test',
           botName: 'Bot',
@@ -126,7 +131,7 @@ describe.skip('brat setup', () => {
       .command(['setup'])
       .it('should validate project ID is required', () => {
         // Validation happens in promptSetupQuestions
-        expect(mockInquirer.prompt).toHaveBeenCalledWith(
+        expect(mockPrompt).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({
               name: 'projectId',
@@ -139,7 +144,7 @@ describe.skip('brat setup', () => {
     test
       .stdout()
       .do(() => {
-        (mockInquirer.prompt as any) = jest.fn().mockResolvedValue({
+        mockPrompt.mockResolvedValue({
           projectId: 'test',
           openaiKey: 'invalid-key',
           botName: 'Bot',
@@ -147,7 +152,7 @@ describe.skip('brat setup', () => {
       })
       .command(['setup'])
       .it('should validate OpenAI key format', () => {
-        expect(mockInquirer.prompt).toHaveBeenCalledWith(
+        expect(mockPrompt).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({
               name: 'openaiKey',
@@ -160,7 +165,7 @@ describe.skip('brat setup', () => {
     test
       .stdout()
       .do(() => {
-        (mockInquirer.prompt as any) = jest.fn().mockResolvedValue({
+        mockPrompt.mockResolvedValue({
           projectId: 'test',
           openaiKey: 'sk-test',
           botName: 'A',
@@ -168,7 +173,7 @@ describe.skip('brat setup', () => {
       })
       .command(['setup'])
       .it('should validate bot name length', () => {
-        expect(mockInquirer.prompt).toHaveBeenCalledWith(
+        expect(mockPrompt).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({
               name: 'botName',
@@ -184,7 +189,7 @@ describe.skip('brat setup', () => {
       .stdout()
       .do(() => {
         mockIsAlreadyInitialized.mockReturnValue(['.bitbrat.json', '.secure.local']);
-        (mockInquirer.prompt as any) = jest.fn().mockResolvedValue({
+        mockPrompt.mockResolvedValue({
           confirm: false,
         });
       })
@@ -199,7 +204,7 @@ describe.skip('brat setup', () => {
       .stdout()
       .do(() => {
         mockIsAlreadyInitialized.mockReturnValue(['.bitbrat.json']);
-        (mockInquirer.prompt as any) = jest.fn().mockResolvedValue({
+        mockPrompt.mockResolvedValue({
           confirm: true,
           projectId: 'test',
           openaiKey: 'sk-test',
@@ -218,7 +223,7 @@ describe.skip('brat setup', () => {
       })
       .command(['setup', '--force', '--non-interactive', '--openai-key=sk-test'])
       .it('should skip confirmation with --force flag', () => {
-        expect(mockInquirer.prompt).not.toHaveBeenCalled();
+        expect(mockPrompt).not.toHaveBeenCalled();
         expect(mockCmdSetup).toHaveBeenCalled();
       });
 
@@ -264,7 +269,7 @@ describe.skip('brat setup', () => {
     test
       .stdout()
       .do(() => {
-        (mockInquirer.prompt as any) = jest.fn().mockRejectedValue(new Error('Prompt error'));
+        mockPrompt.mockRejectedValue(new Error('Prompt error'));
       })
       .command(['setup'])
       .catch((error: any) => {
@@ -359,7 +364,7 @@ describe.skip('brat setup', () => {
       .stdout()
       .do(() => {
         mockIsAlreadyInitialized.mockReturnValue(['.bitbrat.json', '.secure.local']);
-        (mockInquirer.prompt as any) = jest.fn().mockResolvedValue({ confirm: false });
+        mockPrompt.mockResolvedValue({ confirm: false });
       })
       .command(['setup'])
       .it('should warn about existing initialization', (ctx) => {
