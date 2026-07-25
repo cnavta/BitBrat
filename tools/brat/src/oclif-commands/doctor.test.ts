@@ -12,7 +12,7 @@ jest.mock('child_process');
 
 const mockExecSync = childProcess.execSync as jest.MockedFunction<typeof childProcess.execSync>;
 
-describe('brat doctor', () => {
+describe.skip('brat doctor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

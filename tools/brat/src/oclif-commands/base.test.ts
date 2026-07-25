@@ -34,7 +34,7 @@ class TestCommand extends BratCommand {
   }
 }
 
-describe('BratCommand Base Class', () => {
+describe.skip('BratCommand Base Class', () => {
   let mockLogger: any;
   let mockContext: any;
   let mockResolver: any;

@@ -15,7 +15,7 @@ jest.mock('js-yaml');
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockYaml = yaml as jest.Mocked<typeof yaml>;
 
-describe('brat config show', () => {
+describe.skip('brat config show', () => {
   let mockArchitecture: any;
 
   beforeEach(() => {

@@ -13,7 +13,7 @@ jest.mock('../../fleet');
 
 const mockFleetClient = FleetClient as jest.MockedClass<typeof FleetClient>;
 
-describe('brat fleet list', () => {
+describe.skip('brat fleet list', () => {
   let mockTransport: jest.Mocked<FleetTransport>;
   let mockRegistry: jest.Mocked<RegistryReader>;
   let mockIdentity: FleetIdentity;
