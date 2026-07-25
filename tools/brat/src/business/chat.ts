@@ -124,12 +124,15 @@ export class ChatController {
   private async promptForName(): Promise<string> {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
+      // Don't close stdin - it breaks subsequent readline interfaces
+      terminal: false
     });
 
     return new Promise((resolve) => {
       rl.question('Enter your name: ', (answer) => {
-        rl.close();
+        // Don't call rl.close() - it closes stdin and breaks the main terminal interface
+        rl.removeAllListeners();
         resolve(answer.trim() || 'anonymous');
       });
     });
@@ -284,6 +287,7 @@ export class ChatController {
 
     this.ws.on('close', (code: number, reason: string) => {
       this.stopHeartbeat();
+      console.error(`[DEBUG] WebSocket closed: code=${code}, reason=${reason || 'none'}`);
       if (code !== 1000 && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
         this.reconnect();
       } else {
@@ -363,9 +367,15 @@ export class ChatController {
     });
 
     this.rl.on('close', () => {
-      console.log('\nExiting chat...');
-      this.disconnect();
-      process.exit(0);
+      // Only exit if stdin is actually a TTY (interactive terminal)
+      // When stdin is piped, close events are expected and normal
+      if (process.stdin.isTTY) {
+        console.log('\nExiting chat...');
+        this.disconnect();
+        process.exit(0);
+      } else {
+        console.error('[DEBUG] stdin closed (non-TTY), ignoring');
+      }
     });
   }
 
