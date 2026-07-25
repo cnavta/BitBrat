@@ -35,13 +35,14 @@ async function main() {
     } else {
       console.log(`✅ Successfully cleaned up ${cleaned.length} agent-dev context(s)\n`);
       console.log('Cleaned contexts:');
-      cleaned.forEach(name => console.log(`   - ${name}`));
+      cleaned.forEach((name: string) => console.log(`   - ${name}`));
       console.log('');
     }
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Cleanup failed:', error.message);
+    const err = error as Error;
+    console.error('❌ Cleanup failed:', err.message);
     console.error('\nTry running manually:');
     console.error('  rm -rf ./env/agent-dev-*');
     console.error('  rm -f ./infrastructure/docker-compose/docker-compose.agent-dev-*.yaml');
