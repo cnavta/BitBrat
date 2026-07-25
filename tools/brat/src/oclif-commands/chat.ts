@@ -57,10 +57,11 @@ export default class Chat extends BratCommand {
       url: flags.url || 'resolved-from-context'
     }, 'Starting chat session');
 
-    try {
-      await controller.start();
-    } finally {
-      controller.disconnect();
-    }
+    // Start the chat session - this will block in interactive mode
+    // until the user exits (Ctrl+D) or the connection closes
+    await controller.start();
+
+    // Don't call disconnect() here - it's handled by the controller's
+    // cleanup handlers (rl.on('close'), ws.on('close'))
   }
 }

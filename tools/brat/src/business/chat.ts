@@ -45,6 +45,8 @@ export class ChatController {
   private reconnectAttempts = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_DELAY_MS = 2000;
+  private sessionEndPromise: Promise<void> | null = null;
+  private sessionEndResolve: (() => void) | null = null;
 
   constructor(private options: ChatOptions) {}
 
@@ -54,15 +56,22 @@ export class ChatController {
   public async start(): Promise<void> {
     const isOneShotMode = !!this.options.message;
 
+    // Create promise that resolves when session ends
+    this.sessionEndPromise = new Promise((resolve) => {
+      this.sessionEndResolve = resolve;
+    });
+
     if (!isOneShotMode) {
       const contextName = this.options.context || 'local';
       console.log(`\n--- BitBrat Chat CLI (${contextName}) ---`);
     }
 
     try {
-      // In one-shot mode, use provided user or default to "cli-user"
-      if (isOneShotMode) {
-        this.name = this.options.user || 'cli-user';
+      // Use provided user flag, or prompt in interactive mode
+      if (this.options.user) {
+        this.name = this.options.user;
+      } else if (isOneShotMode) {
+        this.name = 'cli-user';
       } else if (process.env.NODE_ENV !== 'test') {
         this.name = await this.promptForName();
       }
@@ -102,6 +111,9 @@ export class ChatController {
           }
         }, 10000); // 10 second timeout
       }
+
+      // Wait for session to end (in interactive mode, this blocks until user exits)
+      await this.sessionEndPromise;
     } catch (err: any) {
       console.error(`${COLORS.red}Initialization error: ${err.message}${COLORS.reset}`);
       process.exit(1);
@@ -367,14 +379,11 @@ export class ChatController {
     });
 
     this.rl.on('close', () => {
-      // Only exit if stdin is actually a TTY (interactive terminal)
-      // When stdin is piped, close events are expected and normal
-      if (process.stdin.isTTY) {
-        console.log('\nExiting chat...');
-        this.disconnect();
-        process.exit(0);
-      } else {
-        console.error('[DEBUG] stdin closed (non-TTY), ignoring');
+      console.log('\nExiting chat...');
+      this.disconnect();
+      // Resolve the session end promise to unblock start()
+      if (this.sessionEndResolve) {
+        this.sessionEndResolve();
       }
     });
   }
