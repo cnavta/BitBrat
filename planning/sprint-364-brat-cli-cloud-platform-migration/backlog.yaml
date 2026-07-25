@@ -1,0 +1,602 @@
+# Sprint 364: Cloud/Platform Command Migration - Backlog
+# Date: 2026-07-25
+# Sprint: 364 (Cloud/Platform Tools)
+# Estimated Total Effort: 7.5-10 hours
+
+meta:
+  sprint: 364
+  title: Cloud/Platform Command Migration
+  goal: Migrate GCP operations and service generator commands to oclif
+  commands: 6
+  businessModules: 0
+  pattern1Commands: 6  # All commands
+  pattern2Commands: 0  # No extraction needed
+  estimatedEffort: 7.5-10h
+  actualEffort: TBD
+
+phases:
+  - id: phase-0
+    name: Planning
+    duration: 1h
+    status: complete
+    tasks:
+      - PLAN-001
+      - PLAN-002
+      - PLAN-003
+      - PLAN-004
+
+  - id: phase-1
+    name: Migrate trigger commands
+    duration: 2-3h
+    status: pending
+    dependencies: [phase-0]
+    tasks:
+      - TRIGGER-001
+      - TRIGGER-002
+      - TRIGGER-003
+      - TRIGGER-004
+      - TRIGGER-005
+      - TRIGGER-006
+
+  - id: phase-2
+    name: Migrate cloud-run and apis commands
+    duration: 1.5-2h
+    status: pending
+    dependencies: [phase-0]
+    tasks:
+      - CLOUD-001
+      - CLOUD-002
+      - APIS-001
+      - APIS-002
+
+  - id: phase-3
+    name: Migrate bit create command
+    duration: 2-3h
+    status: pending
+    dependencies: [phase-0]
+    tasks:
+      - BIT-001
+      - BIT-002
+
+  - id: phase-4
+    name: Testing & Validation
+    duration: 1h
+    status: pending
+    dependencies: [phase-1, phase-2, phase-3]
+    tasks:
+      - TEST-001
+      - TEST-002
+      - TEST-003
+      - TEST-004
+
+tasks:
+  # Phase 0: Planning ===============================================
+  PLAN-001:
+    title: Analyze existing cloud, trigger, apis, and bit implementations
+    phase: phase-0
+    effort: 0.3h
+    status: complete
+    description: |
+      Read cli/index.ts (trigger, cloud-run, apis commands) and cli/bit/create.ts
+      to understand business logic separation and migration patterns
+    files:
+      - tools/brat/src/cli/index.ts
+      - tools/brat/src/cli/bit/create.ts
+      - tools/brat/src/providers/gcp/cloudbuild-triggers.ts
+      - tools/brat/src/providers/gcp/apis.ts
+
+  PLAN-002:
+    title: Create shared-logic-analysis.md
+    phase: phase-0
+    effort: 0.3h
+    status: complete
+    dependencies: [PLAN-001]
+    description: |
+      Document business logic separation status for all 6 commands.
+      Key finding: 100% Pattern 1 (all logic already separated).
+    deliverables:
+      - planning/sprint-364-brat-cli-cloud-platform-migration/shared-logic-analysis.md
+
+  PLAN-003:
+    title: Create implementation-plan.md
+    phase: phase-0
+    effort: 0.2h
+    status: complete
+    dependencies: [PLAN-002]
+    description: |
+      Create detailed implementation plan with phase breakdown,
+      acceptance criteria, and risk assessment.
+    deliverables:
+      - planning/sprint-364-brat-cli-cloud-platform-migration/implementation-plan.md
+
+  PLAN-004:
+    title: Create backlog.yaml
+    phase: phase-0
+    effort: 0.2h
+    status: complete
+    dependencies: [PLAN-003]
+    description: |
+      Create task backlog with effort estimates and dependencies.
+    deliverables:
+      - planning/sprint-364-brat-cli-cloud-platform-migration/backlog.yaml
+
+  # Phase 1: Migrate trigger commands ===============================
+  TRIGGER-001:
+    title: Create trigger/create.ts command
+    phase: phase-1
+    effort: 0.7h
+    status: pending
+    dependencies: [PLAN-004]
+    description: |
+      Create oclif command for 'trigger create' using Pattern 1.
+      Delegate to createTrigger() from providers/gcp/cloudbuild-triggers.ts
+    deliverables:
+      - tools/brat/src/oclif-commands/trigger/create.ts
+    implementation:
+      - Extend BratCommand
+      - Add args: name (required)
+      - Add flags: repo (required), branch (default: '.*'), config (default: 'cloudbuild.yaml'), dry-run
+      - Inherit baseFlags (--context, --project-id)
+      - Create TriggerSpec from flags
+      - Call createTrigger(projectId, spec, dryRun)
+      - Log result
+
+  TRIGGER-002:
+    title: Create trigger/create.test.ts
+    phase: phase-1
+    effort: 0.3h
+    status: pending
+    dependencies: [TRIGGER-001]
+    description: |
+      Create smoke tests for trigger create command.
+    deliverables:
+      - tools/brat/src/oclif-commands/trigger/create.test.ts
+    tests:
+      - extends BratCommand
+      - has description
+      - has examples
+      - has name arg
+      - has all required flags
+      - inherits baseFlags
+      - is instantiable by oclif
+
+  TRIGGER-003:
+    title: Create trigger/update.ts command
+    phase: phase-1
+    effort: 0.5h
+    status: pending
+    dependencies: [TRIGGER-002]
+    description: |
+      Create oclif command for 'trigger update' using Pattern 1.
+      Similar to trigger create, delegates to updateTrigger()
+    deliverables:
+      - tools/brat/src/oclif-commands/trigger/update.ts
+    implementation:
+      - Similar structure to trigger/create.ts
+      - Call updateTrigger(projectId, spec, dryRun)
+
+  TRIGGER-004:
+    title: Create trigger/update.test.ts
+    phase: phase-1
+    effort: 0.3h
+    status: pending
+    dependencies: [TRIGGER-003]
+    description: |
+      Create smoke tests for trigger update command.
+    deliverables:
+      - tools/brat/src/oclif-commands/trigger/update.test.ts
+
+  TRIGGER-005:
+    title: Create trigger/delete.ts command
+    phase: phase-1
+    effort: 0.3h
+    status: pending
+    dependencies: [TRIGGER-004]
+    description: |
+      Create oclif command for 'trigger delete' using Pattern 1.
+      Simpler than create/update (no repo/branch/config flags).
+    deliverables:
+      - tools/brat/src/oclif-commands/trigger/delete.ts
+    implementation:
+      - Extend BratCommand
+      - Add args: name (required)
+      - Add flags: dry-run
+      - Call deleteTrigger(projectId, name, dryRun)
+
+  TRIGGER-006:
+    title: Create trigger/delete.test.ts
+    phase: phase-1
+    effort: 0.2h
+    status: pending
+    dependencies: [TRIGGER-005]
+    description: |
+      Create smoke tests for trigger delete command.
+    deliverables:
+      - tools/brat/src/oclif-commands/trigger/delete.test.ts
+
+  # Phase 2: Migrate cloud-run and apis commands ====================
+  CLOUD-001:
+    title: Create cloud-run/shutdown.ts command
+    phase: phase-2
+    effort: 0.7h
+    status: pending
+    dependencies: [PLAN-004]
+    description: |
+      Create oclif command for 'cloud-run shutdown' using Pattern 1.
+      Inline logic (gcloud CLI wrapper, similar to legacy implementation).
+    deliverables:
+      - tools/brat/src/oclif-commands/cloud-run/shutdown.ts
+    implementation:
+      - Extend BratCommand
+      - Add flags: region (optional), dry-run
+      - Load services from architecture.yaml via resolveConfig()
+      - Iterate through services
+      - Call gcloud run services update <name> --min-instances=0 via execCmd()
+      - Log results per service
+
+  CLOUD-002:
+    title: Create cloud-run/shutdown.test.ts
+    phase: phase-2
+    effort: 0.3h
+    status: pending
+    dependencies: [CLOUD-001]
+    description: |
+      Create smoke tests for cloud-run shutdown command.
+    deliverables:
+      - tools/brat/src/oclif-commands/cloud-run/shutdown.test.ts
+    tests:
+      - extends BratCommand
+      - has description
+      - has examples
+      - has all required flags
+      - inherits baseFlags
+      - is instantiable by oclif
+
+  APIS-001:
+    title: Create apis/enable.ts command
+    phase: phase-2
+    effort: 0.5h
+    status: pending
+    dependencies: [PLAN-004]
+    description: |
+      Create oclif command for 'apis enable' using Pattern 1.
+      Delegate to getRequiredApis() and enableApis() from providers/gcp/apis.ts
+    deliverables:
+      - tools/brat/src/oclif-commands/apis/enable.ts
+    implementation:
+      - Extend BratCommand
+      - Add flags: dry-run, json
+      - Call getRequiredApis(contextName)
+      - Call enableApis({ projectId, env, apis, dryRun })
+      - Output: JSON or formatted list
+
+  APIS-002:
+    title: Create apis/enable.test.ts
+    phase: phase-2
+    effort: 0.3h
+    status: pending
+    dependencies: [APIS-001]
+    description: |
+      Create smoke tests for apis enable command.
+    deliverables:
+      - tools/brat/src/oclif-commands/apis/enable.test.ts
+
+  # Phase 3: Migrate bit create command =============================
+  BIT-001:
+    title: Create bit/create.ts command
+    phase: phase-3
+    effort: 1h
+    status: pending
+    dependencies: [PLAN-004]
+    description: |
+      Create oclif command for 'bit create' using Pattern 1.
+      Delegate to cmdBitCreate() from cli/bit/create.ts
+    deliverables:
+      - tools/brat/src/oclif-commands/bit/create.ts
+    implementation:
+      - Extend BratCommand
+      - Add args: name (required)
+      - Add flags: profile (default: 'core'), exposure, kind, port, entry, description, stage, register, active, force
+      - Delegate to cmdBitCreate(cmd, rest, flags, logger)
+      - Pass this.repoRoot and this.logger
+
+  BIT-002:
+    title: Create bit/create.test.ts
+    phase: phase-3
+    effort: 1h
+    status: pending
+    dependencies: [BIT-001]
+    description: |
+      Create smoke tests for bit create command.
+      More complex due to file generation logic.
+    deliverables:
+      - tools/brat/src/oclif-commands/bit/create.test.ts
+    tests:
+      - extends BratCommand
+      - has description
+      - has examples
+      - has name arg
+      - has all required flags (profile, exposure, register, active, force)
+      - inherits baseFlags
+      - is instantiable by oclif
+      - validates flag defaults (profile='core', port=3000)
+
+  # Phase 4: Testing & Validation ===================================
+  TEST-001:
+    title: Run full test suite
+    phase: phase-4
+    effort: 0.3h
+    status: pending
+    dependencies: [TRIGGER-006, CLOUD-002, APIS-002, BIT-002]
+    description: |
+      Run complete test suite to verify all tests pass.
+      Check for regressions.
+    tests:
+      - npm run build
+      - npm test -- --testPathPattern="oclif-commands"
+    acceptance:
+      - TypeScript compiles with 0 errors
+      - All oclif tests pass (241+ tests)
+      - Sprint 360-363 tests still pass (regression check)
+
+  TEST-002:
+    title: Smoke test all new commands
+    phase: phase-4
+    effort: 0.3h
+    status: pending
+    dependencies: [TEST-001]
+    description: |
+      Run smoke tests for all 6 new commands.
+      Verify end-to-end execution paths with dry-run.
+    tests:
+      - brat trigger create test-trigger --repo owner/repo --dry-run
+      - brat trigger update test-trigger --repo owner/repo --dry-run
+      - brat trigger delete test-trigger --dry-run
+      - brat cloud-run shutdown --dry-run --context local
+      - brat apis enable --dry-run --context local
+      - brat bit create test-service --force
+    acceptance:
+      - All commands execute without errors
+      - Logger output is present and correct
+      - Context resolution works for all commands
+      - Dry-run mode prevents actual API calls
+
+  TEST-003:
+    title: Integration test - trigger workflow
+    phase: phase-4
+    effort: 0.2h
+    status: pending
+    dependencies: [TEST-002]
+    description: |
+      Test trigger workflow: create → update → delete (all dry-run).
+    tests:
+      - brat trigger create integration-test --repo bitbrat/platform --branch main --dry-run
+      - brat trigger update integration-test --repo bitbrat/platform --branch develop --dry-run
+      - brat trigger delete integration-test --dry-run
+    acceptance:
+      - All commands succeed in dry-run mode
+      - Logs show correct parameters
+      - No actual API calls made
+
+  TEST-004:
+    title: Update documentation
+    phase: phase-4
+    effort: 0.2h
+    status: pending
+    dependencies: [TEST-003]
+    description: |
+      Update remaining-commands.md with Sprint 364 progress.
+      Update migration status from 34 → 40 commands (71% → 83%).
+    files:
+      - planning/sprint-361-brat-cli-data-deploy-migration/remaining-commands.md
+    changes:
+      - Update "Migrated" count: 34 → 40
+      - Update "Remaining" count: 14 → 8
+      - Update "Progress": 71% → 83%
+      - Move trigger create/update/delete, cloud-run shutdown, apis enable, bit create to "COMPLETED" section
+      - Update Sprint 364 status from "Pending" to "✅ COMPLETE"
+
+# Dependencies Graph ================================================
+# PLAN-001 → PLAN-002 → PLAN-003 → PLAN-004
+#
+# TRIGGER path:
+# PLAN-004 → TRIGGER-001 → TRIGGER-002 → TRIGGER-003 → TRIGGER-004 →
+#            TRIGGER-005 → TRIGGER-006
+#
+# CLOUD path:
+# PLAN-004 → CLOUD-001 → CLOUD-002
+#
+# APIS path:
+# PLAN-004 → APIS-001 → APIS-002
+#
+# BIT path:
+# PLAN-004 → BIT-001 → BIT-002
+#
+# TEST path:
+# TRIGGER-006 + CLOUD-002 + APIS-002 + BIT-002 → TEST-001 → TEST-002 → TEST-003 → TEST-004
+
+# Success Metrics ===================================================
+successCriteria:
+  functional:
+    - title: All 6 commands migrated to oclif
+      status: pending
+
+    - title: Pattern 1 (Simple Delegation) - 6 commands (100%)
+      status: pending
+
+    - title: No business logic extraction required
+      status: complete  # Already verified in shared-logic-analysis.md
+
+    - title: Legacy CLI still works (backward compatibility)
+      status: pending
+
+  quality:
+    - title: All tests passing (241+ oclif tests)
+      status: pending
+      target: 241
+      current: 211
+
+    - title: Zero TypeScript errors
+      status: pending
+
+    - title: Zero regressions (Sprint 360-363 tests still pass)
+      status: pending
+
+    - title: Consistent error handling and logging
+      status: pending
+
+    - title: Context resolution works for all commands
+      status: pending
+
+  documentation:
+    - title: Command descriptions and examples
+      status: pending
+
+    - title: JSDoc comments for exported functions
+      status: pending
+
+    - title: Planning documents (3 files)
+      status: complete
+
+    - title: Updated remaining-commands.md
+      status: pending
+
+# Deliverables Summary ==============================================
+deliverables:
+  commands:
+    - file: tools/brat/src/oclif-commands/trigger/create.ts
+      lines: 100
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/trigger/update.ts
+      lines: 90
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/trigger/delete.ts
+      lines: 70
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/cloud-run/shutdown.ts
+      lines: 90
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/apis/enable.ts
+      lines: 80
+      pattern: 1
+
+    - file: tools/brat/src/oclif-commands/bit/create.ts
+      lines: 100
+      pattern: 1
+
+  tests:
+    - file: tools/brat/src/oclif-commands/trigger/create.test.ts
+      lines: 40
+
+    - file: tools/brat/src/oclif-commands/trigger/update.test.ts
+      lines: 40
+
+    - file: tools/brat/src/oclif-commands/trigger/delete.test.ts
+      lines: 35
+
+    - file: tools/brat/src/oclif-commands/cloud-run/shutdown.test.ts
+      lines: 45
+
+    - file: tools/brat/src/oclif-commands/apis/enable.test.ts
+      lines: 40
+
+    - file: tools/brat/src/oclif-commands/bit/create.test.ts
+      lines: 45
+
+  planning:
+    - file: planning/sprint-364-brat-cli-cloud-platform-migration/implementation-plan.md
+      lines: 700
+
+    - file: planning/sprint-364-brat-cli-cloud-platform-migration/shared-logic-analysis.md
+      lines: 500
+
+    - file: planning/sprint-364-brat-cli-cloud-platform-migration/backlog.yaml
+      lines: 700
+
+  updates:
+    - file: planning/sprint-361-brat-cli-data-deploy-migration/remaining-commands.md
+      description: Update migration progress (34 → 40 commands, 71% → 83%)
+
+# Risk Register =====================================================
+risks:
+  - id: RISK-001
+    title: GCP authentication required
+    likelihood: high
+    impact: medium
+    mitigation: All commands have --dry-run flag for testing without credentials
+    status: mitigated
+
+  - id: RISK-002
+    title: Bit create file generation complexity
+    likelihood: low
+    impact: medium
+    mitigation: Existing validation.ts and templates.ts already battle-tested
+    status: low
+
+  - id: RISK-003
+    title: Cloud Build API changes
+    likelihood: low
+    impact: medium
+    mitigation: cloudbuild-triggers.ts actively used in production
+    status: low
+
+  - id: RISK-004
+    title: Regional configuration
+    likelihood: medium
+    impact: low
+    mitigation: cloud-run shutdown reads region from architecture.yaml per-service
+    status: low
+
+# Comparison to Previous Sprints ====================================
+comparison:
+  sprint360:
+    commands: 14
+    businessModules: 0
+    pattern1: 7
+    pattern2: 7
+    estimatedEffort: 12-16h
+    actualEffort: ~12h
+
+  sprint361:
+    commands: 9
+    businessModules: 3
+    pattern1: 4
+    pattern2: 5
+    estimatedEffort: 12-18h
+    actualEffort: ~8h
+
+  sprint362:
+    commands: 6
+    businessModules: 0
+    pattern1: 6
+    pattern2: 0
+    estimatedEffort: 12-16h
+    actualEffort: ~7h
+
+  sprint363:
+    commands: 5
+    businessModules: 1
+    pattern1: 4
+    pattern2: 1
+    estimatedEffort: 6-8h
+    actualEffort: ~3h
+
+  sprint364:
+    commands: 6
+    businessModules: 0
+    pattern1: 6
+    pattern2: 0
+    estimatedEffort: 7.5-10h
+    actualEffort: TBD
+    velocity: expected-similar-to-362  # 100% Pattern 1
+
+# Document Metadata =================================================
+metadata:
+  version: 1.0
+  lastUpdated: 2026-07-25
+  status: planning-complete
+  pendingApproval: true

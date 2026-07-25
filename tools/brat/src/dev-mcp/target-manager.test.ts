@@ -5,11 +5,41 @@
  */
 
 import { TargetConnectionManager } from './target-manager';
+import { TargetConnection } from './types';
 import { createLogger } from '../orchestration/logger';
+import { ContextAdapter } from './adapters/context-adapter';
+
+// Mock ContextAdapter to avoid real database connections
+jest.mock('./adapters/context-adapter');
 
 describe('TargetConnectionManager', () => {
   const logger = createLogger({ base: { component: 'test' }, level: 'silent' });
   const repoRoot = process.cwd(); // Use current directory for tests
+
+  beforeEach(() => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
+
+    // Mock ContextAdapter.createConnection to return a fake connection
+    (ContextAdapter.prototype.createConnection as jest.Mock) = jest.fn().mockImplementation(async (resolved) => {
+      const connection: TargetConnection = {
+        name: resolved.name,
+        type: 'local',
+        persistenceDriver: 'postgres',
+        gateway: {
+          url: resolved.runtime.gateway.url || 'http://localhost:3000',
+          authToken: resolved.runtime.gateway.authToken || 'mock-token',
+        },
+        firestore: {
+          db: null as any,
+          projectId: '',
+          databaseId: undefined,
+        },
+        cleanup: jest.fn().mockResolvedValue(undefined),
+      };
+      return connection;
+    });
+  });
 
   describe('getActiveConnection()', () => {
     it('should resolve default context when no name provided', async () => {

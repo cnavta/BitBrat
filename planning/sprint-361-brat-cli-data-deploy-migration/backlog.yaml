@@ -1,0 +1,837 @@
+# Sprint 361: Brat CLI Data & Migration Commands - Prioritized Backlog
+# Backup, PostgreSQL, Database Validation, and Migration Command Families
+# Sprint Protocol v3
+
+sprint:
+  id: 361
+  title: "Brat CLI Data & Migration Command Migration"
+  description: "Migrate 9 data/migration commands: backup, pg, db, migrate families"
+  startDate: "2026-07-25"
+  targetCompletion: "2026-07-30"
+  estimatedHours: 25
+  foundationSprint: 360
+
+objectives:
+  primary:
+    - id: OBJ-1
+      description: "Backup family complete (3 commands)"
+      successMetric: "All backup commands pass tests"
+    - id: OBJ-2
+      description: "PostgreSQL family complete (2 commands)"
+      successMetric: "All pg:backup/restore commands pass tests"
+    - id: OBJ-3
+      description: "Database family complete (4 commands)"
+      successMetric: "All seed/validate/migrate commands pass tests"
+    - id: OBJ-4
+      description: "Zero regressions"
+      successMetric: "100% existing tests pass"
+    - id: OBJ-5
+      description: "Help text polished"
+      successMetric: "All commands have examples"
+
+  secondary:
+    - id: OBJ-6
+      description: "Test coverage ≥80%"
+      successMetric: "Jest coverage report"
+    - id: OBJ-7
+      description: "Performance validated"
+      successMetric: "No regression vs Sprint 360"
+    - id: OBJ-8
+      description: "Documentation updated"
+      successMetric: "Sprint completion report created"
+
+# Phase 0: Planning & Setup
+phase0:
+  name: "Planning & Setup"
+  duration: "3-4 hours"
+  day: 1
+
+  tasks:
+    - id: PLAN-001
+      title: "Read all source implementations"
+      description: "Review current implementations of all 9 target commands"
+      estimatedHours: 1
+      priority: P0
+      dependencies: []
+      files:
+        - "src/cli/backup.ts"
+        - "src/cli/pg-backup.ts"
+        - "src/cli/db-validate.ts"
+        - "src/cli/migrate.ts"
+        - "src/cli/index.ts (cmdSeed)"
+      deliverable: "Command complexity notes"
+
+    - id: PLAN-002
+      title: "Identify shared business logic"
+      description: "Map business logic for extraction/reuse"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [PLAN-001]
+      businessLogic:
+        - "Backup operations (Firestore read/write)"
+        - "PostgreSQL operations (pg_dump/pg_restore wrapper)"
+        - "Migration logic (Firestore → PostgreSQL)"
+        - "Validation logic (consistency checks)"
+        - "Progress tracking"
+        - "Dry-run mode handling"
+      deliverable: "shared-logic-analysis.md"
+
+    - id: PLAN-003
+      title: "Review Sprint 360 lessons learned"
+      description: "Read retro.md and completion-report.md from Sprint 360"
+      estimatedHours: 0.5
+      priority: P1
+      dependencies: []
+      files:
+        - "planning/sprint-360-brat-cli-bulk-migration/retro.md"
+        - "planning/sprint-360-brat-cli-bulk-migration/completion-report.md"
+      deliverable: "Lessons applied checklist"
+
+    - id: PLAN-004
+      title: "Validate Sprint 360 foundation"
+      description: "Run all Sprint 360 commands to ensure stability"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: []
+      validation:
+        - "npm run build succeeds"
+        - "npm test passes"
+        - "All 14 Sprint 360 commands work"
+      deliverable: "Foundation validation report"
+
+    - id: PLAN-005
+      title: "Create detailed task breakdown"
+      description: "This backlog.yaml with all tasks and estimates"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: [PLAN-001, PLAN-002]
+      deliverable: "backlog.yaml (this file)"
+
+# Phase 0B: Business Logic Extraction
+phase0B:
+  name: "Business Logic Extraction"
+  duration: "4-6 hours"
+  day: 1
+
+  tasks:
+    - id: BIZ-001
+      title: "Extract backup business logic"
+      description: "Create business/backup.ts with Firestore backup/restore operations"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [PLAN-002]
+      files:
+        create:
+          - "src/business/backup.ts"
+          - "src/business/backup.test.ts"
+      functions:
+        - "listBackups(path): BackupFile[]"
+        - "exportFirestore(options): Promise<ExportResult>"
+        - "importFirestore(options): Promise<ImportResult>"
+      acceptanceCriteria:
+        - "Handles Firestore read/write"
+        - "Supports collection filtering"
+        - "Secret redaction"
+        - "Progress callbacks"
+        - "Dry-run mode"
+        - "Tests pass"
+
+    - id: BIZ-002
+      title: "Extract PostgreSQL backup business logic"
+      description: "Create business/pg-backup.ts with PostgreSQL operations"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [PLAN-002]
+      files:
+        create:
+          - "src/business/pg-backup.ts"
+          - "src/business/pg-backup.test.ts"
+      functions:
+        - "backupPostgres(options): Promise<BackupResult>"
+        - "restorePostgres(options): Promise<RestoreResult>"
+        - "detectFormat(filePath): 'json' | 'sql'"
+      acceptanceCriteria:
+        - "Wraps pg_dump/pg_restore"
+        - "Handles JSON and SQL formats"
+        - "Compression support"
+        - "Progress callbacks"
+        - "Tests pass"
+
+    - id: BIZ-003
+      title: "Extract migration business logic"
+      description: "Create business/migration.ts with Firestore → PostgreSQL logic"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [PLAN-002]
+      files:
+        create:
+          - "src/business/migration.ts"
+          - "src/business/migration.test.ts"
+      functions:
+        - "migrateCollection(name, options): Promise<MigrationResult>"
+        - "migrateAll(options): Promise<MigrationSummary>"
+        - "validateMigration(collection): Promise<ValidationResult>"
+      acceptanceCriteria:
+        - "Batched reads from Firestore"
+        - "Batched writes to PostgreSQL"
+        - "Progress callbacks"
+        - "Error recovery"
+        - "Idempotent"
+        - "Tests pass"
+
+    - id: BIZ-004
+      title: "Extract database validation business logic"
+      description: "Create business/db-validation.ts with consistency checks"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [PLAN-002]
+      files:
+        create:
+          - "src/business/db-validation.ts"
+          - "src/business/db-validation.test.ts"
+      functions:
+        - "validateCollection(name, options): Promise<ValidationResult>"
+        - "validateAll(options): Promise<ValidationSummary>"
+        - "compareCounts(collection): Promise<CountComparison>"
+        - "sampleDocuments(collection, n): Promise<SampleResult>"
+      acceptanceCriteria:
+        - "Count comparison"
+        - "Document sampling"
+        - "Field-level comparison"
+        - "Mismatch reporting"
+        - "Tests pass"
+
+# Phase 1: Backup Commands
+phase1:
+  name: "Backup Commands (3 commands)"
+  duration: "6-8 hours"
+  day: "1-2"
+
+  tasks:
+    # backup list
+    - id: BACKUP-001
+      title: "Migrate backup list"
+      description: "List available Firestore backups"
+      estimatedHours: 1.5
+      priority: P0
+      dependencies: [BIZ-001]
+      pattern: "Simple table/JSON output (Pattern 2)"
+      files:
+        create:
+          - "src/oclif-commands/backup/list.ts"
+          - "src/oclif-commands/backup/list.test.ts"
+        read:
+          - "src/cli/backup.ts"
+      flags:
+        - name: "--json"
+          type: "boolean"
+          description: "Output JSON"
+      acceptanceCriteria:
+        - "brat backup list displays table"
+        - "brat backup list --json outputs JSON"
+        - "Columns: FILENAME, SIZE, DATE, COLLECTIONS"
+        - "Handles empty directory gracefully"
+        - "Tests pass"
+      validation:
+        - "./bin/run backup list"
+        - "./bin/run backup list --json"
+
+    # backup export
+    - id: BACKUP-002
+      title: "Migrate backup export"
+      description: "Export Firestore data to JSON"
+      estimatedHours: 3
+      priority: P0
+      dependencies: [BIZ-001]
+      pattern: "Complex operation with progress (Pattern 4)"
+      files:
+        create:
+          - "src/oclif-commands/backup/export.ts"
+          - "src/oclif-commands/backup/export.test.ts"
+        read:
+          - "src/cli/backup.ts"
+      flags:
+        - name: "--project-id"
+          type: "string"
+          description: "GCP project ID"
+        - name: "--target"
+          type: "string"
+          description: "Target execution context"
+        - name: "--out"
+          type: "string"
+          description: "Output path"
+          default: "backups/backup-<timestamp>.json"
+        - name: "--collections"
+          type: "string"
+          description: "Comma-separated collection names"
+        - name: "--include-secrets"
+          type: "boolean"
+          description: "Include secret values"
+        - name: "--pretty"
+          type: "boolean"
+          description: "Pretty-print JSON"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON status output"
+      acceptanceCriteria:
+        - "brat backup export works"
+        - "Custom output path with --out"
+        - "Collection filtering with --collections"
+        - "Secrets redacted by default"
+        - "Progress tracking"
+        - "Never exports events/logs collections"
+        - "Tests pass"
+      validation:
+        - "./bin/run backup export --dry-run"
+        - "./bin/run backup export --out test.json --pretty"
+        - "./bin/run backup export --collections commands"
+
+    # backup import
+    - id: BACKUP-003
+      title: "Migrate backup import"
+      description: "Import Firestore data from JSON"
+      estimatedHours: 3.5
+      priority: P0
+      dependencies: [BIZ-001, BACKUP-002]
+      pattern: "Dangerous operation with confirmation (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/backup/import.ts"
+          - "src/oclif-commands/backup/import.test.ts"
+        read:
+          - "src/cli/backup.ts"
+      flags:
+        - name: "--in"
+          type: "string"
+          required: true
+          description: "Input backup file"
+        - name: "--project-id"
+          type: "string"
+          description: "GCP project ID"
+        - name: "--target"
+          type: "string"
+          description: "Target execution context"
+        - name: "--mode"
+          type: "option"
+          options: ["merge", "overwrite", "skip"]
+          default: "merge"
+          description: "Import mode"
+        - name: "--collections"
+          type: "string"
+          description: "Comma-separated collection names"
+        - name: "--include-secrets"
+          type: "boolean"
+          description: "Restore secret values"
+        - name: "--dry-run"
+          type: "boolean"
+          default: true
+          description: "Preview changes without writing"
+        - name: "--confirm"
+          type: "boolean"
+          description: "Actually perform import"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON status output"
+      acceptanceCriteria:
+        - "Dry-run by default"
+        - "Requires --confirm to write"
+        - "--mode merge merges data"
+        - "--mode overwrite replaces data"
+        - "--mode skip skips existing"
+        - "Shows preview in dry-run"
+        - "Tests pass"
+      validation:
+        - "./bin/run backup import --in test.json"
+        - "./bin/run backup import --in test.json --confirm --mode merge"
+
+# Phase 2: PostgreSQL Commands
+phase2:
+  name: "PostgreSQL Commands (2 commands)"
+  duration: "3-4 hours"
+  day: 2
+
+  tasks:
+    # pg:backup
+    - id: PG-001
+      title: "Migrate pg:backup"
+      description: "Export PostgreSQL data"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [BIZ-002]
+      pattern: "Data export with format options (Pattern 2)"
+      files:
+        create:
+          - "src/oclif-commands/pg/backup.ts"
+          - "src/oclif-commands/pg/backup.test.ts"
+        read:
+          - "src/cli/pg-backup.ts"
+      flags:
+        - name: "--output"
+          type: "string"
+          description: "Output path"
+          default: "backups/pg-backup-<timestamp>.json"
+        - name: "--format"
+          type: "option"
+          options: ["json", "sql"]
+          default: "json"
+          description: "Export format"
+        - name: "--compress"
+          type: "boolean"
+          description: "Compress output with gzip"
+        - name: "--collections"
+          type: "string"
+          description: "Comma-separated collection names"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON status output"
+      acceptanceCriteria:
+        - "brat pg:backup exports to JSON"
+        - "brat pg:backup --format sql exports SQL"
+        - "brat pg:backup --compress creates .gz"
+        - "Collection filtering works"
+        - "Progress tracking"
+        - "Uses context PostgreSQL connection"
+        - "Tests pass"
+      validation:
+        - "./bin/run pg:backup"
+        - "./bin/run pg:backup --format sql"
+        - "./bin/run pg:backup --compress"
+
+    # pg:restore
+    - id: PG-002
+      title: "Migrate pg:restore"
+      description: "Import PostgreSQL data"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [BIZ-002, PG-001]
+      pattern: "Dangerous operation with confirmation (Pattern 3)"
+      files:
+        create:
+          - "src/oclif-commands/pg/restore.ts"
+          - "src/oclif-commands/pg/restore.test.ts"
+        read:
+          - "src/cli/pg-backup.ts"
+      flags:
+        - name: "--input"
+          type: "string"
+          required: true
+          description: "Input backup file"
+        - name: "--format"
+          type: "option"
+          options: ["json", "sql"]
+          description: "Import format (auto-detected if not specified)"
+        - name: "--mode"
+          type: "option"
+          options: ["merge", "overwrite"]
+          default: "merge"
+          description: "Import mode"
+        - name: "--dry-run"
+          type: "boolean"
+          description: "Preview changes without writing"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON status output"
+      acceptanceCriteria:
+        - "brat pg:restore --input backup.json works"
+        - "Auto-detects format from extension"
+        - "--mode merge merges data"
+        - "--mode overwrite truncates first"
+        - "Shows preview in dry-run"
+        - "Uses context PostgreSQL connection"
+        - "Tests pass"
+      validation:
+        - "./bin/run pg:restore --input test.json --dry-run"
+        - "./bin/run pg:restore --input test.json --mode merge"
+
+# Phase 3: Database Commands
+phase3:
+  name: "Database Commands (4 commands)"
+  duration: "6-8 hours"
+  day: "2-3"
+
+  tasks:
+    # seed
+    - id: DB-001
+      title: "Migrate seed command"
+      description: "Populate initial data (routing rules, reflexes, personalities)"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [PLAN-004]
+      pattern: "Idempotent data population (Pattern 1)"
+      files:
+        create:
+          - "src/oclif-commands/db/seed.ts"
+          - "src/oclif-commands/db/seed.test.ts"
+        read:
+          - "src/cli/index.ts (cmdSeed)"
+          - "src/cli/seed.ts"
+      flags:
+        - name: "--context"
+          type: "string"
+          description: "Execution context"
+        - name: "--bot-name"
+          type: "string"
+          description: "Bot name for personalities"
+        - name: "--dry-run"
+          type: "boolean"
+          description: "Preview changes without writing"
+        - name: "--wipe"
+          type: "boolean"
+          description: "Clear existing data before seeding"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON status output"
+      acceptanceCriteria:
+        - "brat seed populates initial data"
+        - "brat seed --context local works"
+        - "brat seed --wipe clears first"
+        - "brat seed --dry-run previews"
+        - "Idempotent (safe to re-run)"
+        - "Works with PostgreSQL and Firestore"
+        - "Tests pass"
+      validation:
+        - "./bin/run seed --dry-run"
+        - "./bin/run seed --context local"
+        - "./bin/run seed --wipe --context local"
+
+    # db:validate
+    - id: DB-002
+      title: "Migrate db:validate command"
+      description: "Validate Firestore ↔ PostgreSQL consistency"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [BIZ-004]
+      pattern: "Validation with sampling (Pattern 1)"
+      files:
+        create:
+          - "src/oclif-commands/db/validate.ts"
+          - "src/oclif-commands/db/validate.test.ts"
+        read:
+          - "src/cli/db-validate.ts"
+      flags:
+        - name: "--collection"
+          type: "string"
+          description: "Specific collection to validate"
+        - name: "--all"
+          type: "boolean"
+          description: "Validate all collections"
+        - name: "--sample"
+          type: "number"
+          default: 100
+          description: "Sample size per collection"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON output"
+      acceptanceCriteria:
+        - "brat db:validate --all validates all"
+        - "brat db:validate --collection commands validates one"
+        - "Custom sample size with --sample"
+        - "Shows: collection, PG count, FS count, mismatches"
+        - "Exit code 0 if consistent, 1 if mismatches"
+        - "Detailed mismatch reporting"
+        - "Tests pass"
+      validation:
+        - "./bin/run db:validate --all"
+        - "./bin/run db:validate --collection commands --sample 50"
+
+    # migrate collection
+    - id: MIGRATE-001
+      title: "Migrate migrate collection command"
+      description: "Migrate single Firestore collection to PostgreSQL"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [BIZ-003]
+      pattern: "Long-running migration with progress (Pattern 4)"
+      files:
+        create:
+          - "src/oclif-commands/migrate/collection.ts"
+          - "src/oclif-commands/migrate/collection.test.ts"
+        read:
+          - "src/cli/migrate.ts"
+      args:
+        - name: "<name>"
+          description: "Collection name"
+          required: true
+      flags:
+        - name: "--dry-run"
+          type: "boolean"
+          description: "Preview migration without writing"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON status output"
+      acceptanceCriteria:
+        - "brat migrate collection commands works"
+        - "brat migrate collection commands --dry-run previews"
+        - "Progress tracking shows document counts"
+        - "Handles large collections with batching"
+        - "Idempotent (safe to re-run)"
+        - "Shows summary: total, migrated, skipped, failed"
+        - "Tests pass"
+      validation:
+        - "./bin/run migrate collection commands --dry-run"
+        - "./bin/run migrate collection packs"
+
+    # migrate all
+    - id: MIGRATE-002
+      title: "Migrate migrate all command"
+      description: "Migrate all Firestore collections to PostgreSQL"
+      estimatedHours: 2
+      priority: P0
+      dependencies: [BIZ-003, MIGRATE-001]
+      pattern: "Long-running batch migration (Pattern 4)"
+      files:
+        create:
+          - "src/oclif-commands/migrate/all.ts"
+          - "src/oclif-commands/migrate/all.test.ts"
+        read:
+          - "src/cli/migrate.ts"
+      flags:
+        - name: "--dry-run"
+          type: "boolean"
+          description: "Preview migration without writing"
+        - name: "--json"
+          type: "boolean"
+          description: "JSON status output"
+      acceptanceCriteria:
+        - "brat migrate all migrates all collections"
+        - "brat migrate all --dry-run previews"
+        - "Progress tracking per collection"
+        - "Continues on individual failures"
+        - "Shows summary: collections, documents, failures"
+        - "Excludes events/logs collections"
+        - "Tests pass"
+      validation:
+        - "./bin/run migrate all --dry-run"
+        - "./bin/run migrate all"
+
+# Phase 4: Testing & Validation
+phase4:
+  name: "Testing & Validation"
+  duration: "4-6 hours"
+  day: "3-4"
+
+  tasks:
+    - id: TEST-001
+      title: "Write unit tests for backup commands"
+      description: "Create test files for backup list/export/import"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [BACKUP-003]
+      files:
+        create:
+          - "src/oclif-commands/backup/list.test.ts"
+          - "src/oclif-commands/backup/export.test.ts"
+          - "src/oclif-commands/backup/import.test.ts"
+      validation:
+        - "npm test -- tools/brat/src/oclif-commands/backup"
+
+    - id: TEST-002
+      title: "Write unit tests for PostgreSQL commands"
+      description: "Create test files for pg:backup/restore"
+      estimatedHours: 0.5
+      priority: P0
+      dependencies: [PG-002]
+      files:
+        create:
+          - "src/oclif-commands/pg/backup.test.ts"
+          - "src/oclif-commands/pg/restore.test.ts"
+      validation:
+        - "npm test -- tools/brat/src/oclif-commands/pg"
+
+    - id: TEST-003
+      title: "Write unit tests for database commands"
+      description: "Create test files for seed/validate/migrate commands"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [MIGRATE-002]
+      files:
+        create:
+          - "src/oclif-commands/db/seed.test.ts"
+          - "src/oclif-commands/db/validate.test.ts"
+          - "src/oclif-commands/migrate/collection.test.ts"
+          - "src/oclif-commands/migrate/all.test.ts"
+      validation:
+        - "npm test -- tools/brat/src/oclif-commands/db"
+        - "npm test -- tools/brat/src/oclif-commands/migrate"
+
+    - id: TEST-004
+      title: "E2E integration tests - Backup workflow"
+      description: "Test full backup/restore workflow"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [TEST-001]
+      workflow:
+        - "backup export → backup list → backup import"
+      validation:
+        - "./bin/run backup export --out test.json"
+        - "./bin/run backup list"
+        - "./bin/run backup import --in test.json --dry-run"
+
+    - id: TEST-005
+      title: "E2E integration tests - Migration workflow"
+      description: "Test full migration workflow"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [TEST-003]
+      workflow:
+        - "seed → db:validate → migrate collection → migrate all"
+      validation:
+        - "./bin/run seed --context local"
+        - "./bin/run db:validate --all"
+        - "./bin/run migrate collection commands --dry-run"
+        - "./bin/run migrate all --dry-run"
+
+    - id: TEST-006
+      title: "Performance benchmarking"
+      description: "Validate no regression vs Sprint 360"
+      estimatedHours: 1
+      priority: P1
+      dependencies: [TEST-005]
+      metrics:
+        - target: "Startup time < 200ms"
+          command: "time ./bin/run --version"
+        - target: "Help generation < 50ms"
+          command: "time ./bin/run backup export --help"
+        - target: "No regression vs Sprint 360"
+          baseline: "Sprint 360 performance data"
+      deliverable: "performance-report.md"
+
+    - id: TEST-007
+      title: "Regression testing"
+      description: "Ensure all existing tests still pass"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [TEST-006]
+      checklist:
+        - "All Sprint 360 commands work"
+        - "All existing business logic tests pass"
+        - "No changes to non-CLI code"
+        - "architecture.yaml unchanged"
+        - "No breaking changes"
+      validation:
+        - "npm test"
+        - "./bin/run context list"
+        - "./bin/run fleet list"
+        - "./bin/run config validate"
+
+# Phase 5: Documentation
+phase5:
+  name: "Documentation"
+  duration: "2 hours"
+  day: 4
+
+  tasks:
+    - id: DOC-001
+      title: "Create sprint completion report"
+      description: "Document Sprint 361 deliverables and metrics"
+      estimatedHours: 1
+      priority: P0
+      dependencies: [TEST-007]
+      files:
+        create:
+          - "planning/sprint-361-brat-cli-data-deploy-migration/completion-report.md"
+      content:
+        - "Executive summary"
+        - "Commands migrated (9)"
+        - "Business logic extracted (4 modules)"
+        - "Test results"
+        - "Performance metrics"
+        - "Lessons learned"
+      deliverable: "completion-report.md"
+
+    - id: DOC-002
+      title: "Create sprint retrospective"
+      description: "Document Sprint 361 learnings"
+      estimatedHours: 0.5
+      priority: P1
+      dependencies: [DOC-001]
+      files:
+        create:
+          - "planning/sprint-361-brat-cli-data-deploy-migration/retro.md"
+      content:
+        - "What went well"
+        - "What could be improved"
+        - "Lessons learned"
+        - "Recommendations for Sprint 362"
+      deliverable: "retro.md"
+
+    - id: DOC-003
+      title: "Update migration guide"
+      description: "Add data/migration command patterns to guide"
+      estimatedHours: 0.5
+      priority: P1
+      dependencies: [DOC-001]
+      files:
+        update:
+          - "planning/sprint-359-brat-cli-reorganization/oclif-migration-guide.md"
+      content:
+        - "Backup/restore patterns"
+        - "Migration patterns"
+        - "Progress tracking patterns"
+        - "Dry-run mode patterns"
+      deliverable: "Updated migration guide"
+
+# Success Criteria
+successCriteria:
+  code:
+    - "All 9 commands migrated to oclif"
+    - "All commands follow BratCommand patterns"
+    - "Zero regressions (all existing tests pass)"
+    - "New tests written (≥80% coverage)"
+    - "Business logic extracted (4 modules)"
+
+  documentation:
+    - "Sprint completion report created"
+    - "All commands have help text with examples"
+    - "Migration patterns documented"
+
+  validation:
+    - "All unit tests pass"
+    - "All integration tests pass"
+    - "Performance benchmarks met"
+    - "Manual E2E testing successful"
+
+  process:
+    - "Retrospective completed"
+    - "Learnings documented"
+    - "Backlog for Sprint 362 created"
+
+# Metrics
+metrics:
+  quantitative:
+    - metric: "Commands migrated"
+      target: "9/9 (100%)"
+    - metric: "Business logic modules"
+      target: "4 modules extracted"
+    - metric: "Test coverage"
+      target: "≥80%"
+    - metric: "Test pass rate"
+      target: "100%"
+    - metric: "Startup time"
+      target: "< 200ms"
+
+  qualitative:
+    - metric: "Help text quality"
+      target: "Excellent"
+    - metric: "Code maintainability"
+      target: "Improved"
+    - metric: "Error messages"
+      target: "User-friendly"
+
+# Next Sprint Preview
+nextSprint:
+  id: 362
+  title: "Deploy & Infra Command Migration"
+  scope:
+    - "Deploy commands (3 commands)"
+    - "Infra commands (5 commands)"
+  estimatedCommands: 8
+  estimatedDuration: "1 sprint"
+
+# Meta
+meta:
+  version: "1.0"
+  created: "2026-07-25"
+  lastUpdated: "2026-07-25"
+  author: "Lead Implementor (Sprint Protocol v3)"
+  reviewers: []

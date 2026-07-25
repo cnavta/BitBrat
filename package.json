@@ -27,16 +27,18 @@
     "local:down": "npm run brat -- docker down --env local",
     "local:logs": "npm run brat -- docker logs --env local",
     "deploy:cloud": "bash ./infrastructure/deploy-cloud.sh",
-    "brat": "node dist/tools/brat/src/cli/index.js",
-    "release": "node dist/tools/brat/src/cli/index.js release",
-    "release:dry": "node dist/tools/brat/src/cli/index.js release --dry-run",
+    "brat": "node dist/tools/brat/src/oclif-entry.js",
+    "brat:legacy": "node dist/tools/brat/src/cli/index.js",
+    "release": "node dist/tools/brat/src/oclif-entry.js release",
+    "release:dry": "node dist/tools/brat/src/oclif-entry.js release --dry-run",
     "firestore:upsert": "node dist/tools/firestore-upsert.js",
     "migrate:tokens": "node dist/tools/migrate-tokens.js",
     "test-migration": "node dist/tools/brat/src/test-migration.js",
     "init-streams": "ts-node tools/init-nats-streams.ts"
   },
   "bin": {
-    "brat": "dist/tools/brat/src/cli/index.js",
+    "brat": "dist/tools/brat/src/oclif-entry.js",
+    "brat-legacy": "dist/tools/brat/src/cli/index.js",
     "prompt-assembly": "dist/tools/prompt-assembly/src/cli/index.js"
   },
   "keywords": [],
