@@ -30,13 +30,15 @@ describe('Agent-Dev E2E Lifecycle Tests - Sprint 358', () => {
   });
 
   afterAll(async () => {
-    // Cleanup any contexts that weren't destroyed during tests
-    for (const contextName of provisionedContexts) {
-      try {
-        await manager.destroy(contextName);
-      } catch (error) {
-        // Ignore errors during cleanup
+    // Sprint 358: Use cleanupAll() for robust cleanup of all agent-dev contexts
+    // This ensures orphaned contexts from failed tests are also cleaned up
+    try {
+      const cleaned = await manager.cleanupAll();
+      if (cleaned.length > 0) {
+        console.log(`Cleaned up ${cleaned.length} agent-dev context(s)`);
       }
+    } catch (error) {
+      console.warn('Cleanup failed:', (error as Error).message);
     }
   });
 

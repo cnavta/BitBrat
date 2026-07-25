@@ -34,7 +34,8 @@
     "firestore:upsert": "node dist/tools/firestore-upsert.js",
     "migrate:tokens": "node dist/tools/migrate-tokens.js",
     "test-migration": "node dist/tools/brat/src/test-migration.js",
-    "init-streams": "ts-node tools/init-nats-streams.ts"
+    "init-streams": "ts-node tools/init-nats-streams.ts",
+    "cleanup:agent-dev": "node tools/cleanup-agent-dev.ts"
   },
   "bin": {
     "brat": "dist/tools/brat/src/oclif-entry.js",
