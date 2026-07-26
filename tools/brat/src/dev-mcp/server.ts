@@ -58,6 +58,7 @@ function findRootDir(): string {
  * - Tool registration and dispatch
  * - Audit logging
  * - MCP protocol handling
+ * Sprint 366: Runtime context switching support.
  */
 export class DevMcpServer {
   private server: Server;
@@ -66,6 +67,7 @@ export class DevMcpServer {
   private auditLogger: AuditLogger;
   private logger: Logger;
   private transport?: StdioServerTransport;
+  private defaultContext?: string; // Sprint 366: Default context for fallback
 
   constructor(options: DevMcpServerOptions = {}) {
     this.logger = createLogger({
@@ -83,6 +85,9 @@ export class DevMcpServer {
       }, 'DEPRECATION WARNING: options.target is deprecated. Use options.context instead.');
       defaultContext = options.target;
     }
+
+    // Sprint 366: Store default context for runtime fallback
+    this.defaultContext = defaultContext || 'local';
 
     // Initialize MCP server
     this.server = new Server(
@@ -171,22 +176,42 @@ export class DevMcpServer {
       this.logger.info({ tool: name, args }, 'Tool called');
 
       try {
-        // Get active connection (uses default target if not specified in args)
-        const connection = await this.targetManager.getActiveConnection(
-          (args as any).target
-        );
+        // Sprint 366: Runtime context switching
+        // Extract context from args (runtime override) or use default
+        const contextName = (args as any).context || this.defaultContext;
 
-        // Call tool
-        const result = await this.toolRouter.callTool(name, args, connection);
+        this.logger.debug({ tool: name, context: contextName }, 'Extracted context from args');
+
+        // Sprint 366: Validate context exists (early fail with clear error)
+        const contextExists = await this.targetManager.validateContext(contextName);
+        if (!contextExists) {
+          throw new Error(
+            `Unknown execution context: '${contextName}'. ` +
+            `Run 'brat context list' to see available contexts.`
+          );
+        }
+
+        // Get active connection (uses cache if available)
+        const connection = await this.targetManager.getActiveConnection(contextName);
+
+        // Sprint 366: Remove 'context' and deprecated 'target' from args before passing to tool
+        const { context, target, ...toolArgs } = args as any;
+
+        this.logger.debug({ removedFields: { context, target } }, 'Sanitized args before tool call');
+
+        // Call tool with sanitized args
+        const result = await this.toolRouter.callTool(name, toolArgs, connection);
 
         // Log success
         const durationMs = Date.now() - startTime;
 
         // Sprint 358: Enhanced audit logging for agent-dev tools
+        // Sprint 366: Add context field
         const auditEntry: any = {
           tool: name,
-          args,
-          target: connection.name,
+          args: toolArgs,  // Sprint 366: Use sanitized args (context/target removed)
+          context: contextName,  // Sprint 366: Add execution context
+          target: connection.name,  // Keep for backward compatibility
           durationMs,
           success: true,
         };
@@ -216,9 +241,11 @@ export class DevMcpServer {
         const durationMs = Date.now() - startTime;
 
         // Sprint 358: Enhanced audit logging for agent-dev tools
+        // Sprint 366: Add context field
         const auditEntry: any = {
           tool: name,
-          args,
+          args: args as any,  // Keep original args in error logs for debugging
+          context: (args as any).context || this.defaultContext,  // Sprint 366: Add execution context
           target: 'unknown',
           durationMs,
           success: false,

@@ -29,8 +29,42 @@ describe('TargetConnectionManager', () => {
   });
 
   it('should create manager with default target', () => {
-    const managerWithDefault = new TargetConnectionManager('local', undefined, logger);
+    const managerWithDefault = new TargetConnectionManager(process.cwd(), 'local', logger);
     expect(managerWithDefault).toBeDefined();
+  });
+
+  describe('validateContext()', () => {
+    it('should return true for valid context (local)', async () => {
+      // Local context should always exist (default)
+      const result = await manager.validateContext('local');
+      expect(result).toBe(true);
+    });
+
+    it('should return false for invalid context', async () => {
+      // Invalid context names should return false
+      const result = await manager.validateContext('invalid-context-that-does-not-exist');
+      expect(result).toBe(false);
+    });
+
+    it('should use defaultContext when contextName not provided', async () => {
+      // Create manager with explicit default
+      const managerWithDefault = new TargetConnectionManager(process.cwd(), 'local', logger);
+      const result = await managerWithDefault.validateContext();
+      expect(result).toBe(true);
+    });
+
+    it('should handle undefined contextName with undefined defaultContext', async () => {
+      // Manager with no default should fallback to 'local'
+      const result = await manager.validateContext();
+      expect(result).toBe(true); // Fallback to 'local' which should exist
+    });
+
+    it('should validate staging context if it exists in architecture.yaml', async () => {
+      // This test assumes staging might not exist in all environments
+      // So we just verify it doesn't throw an error
+      const result = await manager.validateContext('staging');
+      expect(typeof result).toBe('boolean');
+    });
   });
 
   // TODO: DM-007 - Add comprehensive tests with mocks

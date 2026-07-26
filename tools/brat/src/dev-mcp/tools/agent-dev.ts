@@ -49,6 +49,7 @@ function getManager(): AgentDevContextManager {
  *
  * Creates a new ephemeral execution context for agent development.
  * Returns connection details (gateway URL, PostgreSQL, etc.).
+ * Sprint 366: Runtime context switching support.
  */
 export const agentDevProvisionTool: ToolDefinition = {
   name: 'agent_dev.provision',
@@ -57,6 +58,7 @@ export const agentDevProvisionTool: ToolDefinition = {
     name: z.string().optional().describe('Custom context name (must start with agent-dev-). Auto-generated if omitted.'),
     profile: z.enum(['dev', 'staging']).optional().describe('Deployment profile (default: dev)'),
     persistence: z.enum(['postgres', 'firestore']).optional().describe('Persistence driver (default: postgres)'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args) => {
     try {
@@ -137,6 +139,7 @@ export const agentDevProvisionTool: ToolDefinition = {
  *
  * Launches all services in the agent-dev context via DockerOrchestrator.
  * Waits for PostgreSQL and NATS readiness, seeds database.
+ * Sprint 366: Runtime context switching support.
  */
 export const agentDevStartTool: ToolDefinition = {
   name: 'agent_dev.start',
@@ -144,6 +147,7 @@ export const agentDevStartTool: ToolDefinition = {
   inputSchema: z.object({
     name: z.string().describe('Context name to start (must start with agent-dev-)'),
     service: z.string().optional().describe('Optional: start only this specific service'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args) => {
     try {
@@ -219,12 +223,14 @@ export const agentDevStartTool: ToolDefinition = {
  *
  * Gracefully stops all services while preserving data for restart.
  * Volumes and database are NOT removed (use destroy for full cleanup).
+ * Sprint 366: Runtime context switching support.
  */
 export const agentDevStopTool: ToolDefinition = {
   name: 'agent_dev.stop',
   description: 'Stop all services in an agent-dev execution context (preserves data for restart)',
   inputSchema: z.object({
     name: z.string().describe('Context name to stop (must start with agent-dev-)'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args) => {
     try {
@@ -290,6 +296,7 @@ export const agentDevStopTool: ToolDefinition = {
  * - Ephemeral context entry
  *
  * This operation is IRREVERSIBLE. All data will be lost.
+ * Sprint 366: Runtime context switching support.
  */
 export const agentDevDestroyTool: ToolDefinition = {
   name: 'agent_dev.destroy',
@@ -297,6 +304,7 @@ export const agentDevDestroyTool: ToolDefinition = {
   inputSchema: z.object({
     name: z.string().describe('Context name to destroy (must start with agent-dev-)'),
     confirm: z.boolean().optional().describe('Confirmation flag (must be true)'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args) => {
     // Require confirmation

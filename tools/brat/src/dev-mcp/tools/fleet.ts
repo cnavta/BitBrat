@@ -41,8 +41,11 @@ function createRegistryReader(connection: TargetConnection): RegistryReader {
  *
  * Discovers Bits from both the fabric (gateway tool list) and the registry (mcp_servers collection).
  * Returns name, profile, exposure metadata for each Bit.
+ * Sprint 366: Runtime context switching support.
  */
-const fleetListSchema = z.object({});
+const fleetListSchema = z.object({
+  context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
+});
 
 async function fleetListHandler(
   args: z.infer<typeof fleetListSchema>,
@@ -148,7 +151,8 @@ export const fleetListTool: ToolDefinition = {
  * Returns version, uptime, config, capabilities.
  */
 const fleetInfoSchema = z.object({
-  bit: z.string().optional().describe('Name of the Bit to query (omit for all Bits)')
+  bit: z.string().optional().describe('Name of the Bit to query (omit for all Bits)'),
+  context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
 });
 
 async function fleetInfoHandler(
@@ -289,7 +293,8 @@ const fleetLogsSchema = z.object({
   correlationId: z.string().optional()
     .describe('Filter by correlation ID'),
   format: z.enum(['text', 'json', 'raw']).default('text')
-    .describe('Output format')
+    .describe('Output format'),
+  context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
 });
 
 async function fleetLogsHandler(
@@ -524,7 +529,8 @@ function buildTimeline(logs: LogEntry[], correlationId: string): TraceTimeline {
 const fleetTraceSchema = z.object({
   correlationId: z.string().describe('Correlation ID to trace across the fleet'),
   format: z.enum(['timeline', 'json']).default('timeline')
-    .describe('Output format (timeline or json)')
+    .describe('Output format (timeline or json)'),
+  context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
 });
 
 async function fleetTraceHandler(
