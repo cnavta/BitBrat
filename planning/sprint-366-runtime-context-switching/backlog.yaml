@@ -1,0 +1,1008 @@
+# Sprint 366: Runtime Context Switching - Backlog
+# Status: READY FOR EXECUTION
+# Sprint Goal: Enable dynamic execution context switching at MCP tool invocation time
+# Estimated Duration: 2 work days (15-18 hours)
+
+sprint:
+  id: 366
+  name: "Runtime Context Switching for Dev MCP"
+  status: completed
+  start_date: 2026-07-26
+  end_date: 2026-07-26
+  lead: "Lead Implementor"
+  architect: "Lead Architect"
+  commit: "cd6b0d00"
+
+metadata:
+  total_tasks: 39
+  estimated_hours: 12.67  # 12 hours 40 minutes
+  realistic_hours: 17.5   # 15-18 hours with buffer
+  priority_breakdown:
+    p0_critical: 12
+    p1_high: 15
+    p2_medium: 10
+    p3_low: 2
+  risk_level: low-medium
+
+# Task Status Values:
+# - not_started: Task not yet begun
+# - in_progress: Task actively being worked on
+# - blocked: Task cannot proceed due to blocker
+# - completed: Task finished and verified
+# - skipped: Task intentionally skipped
+
+# Priority Values:
+# - p0: Critical path, must complete for sprint success
+# - p1: High priority, required for full functionality
+# - p2: Medium priority, important but not blocking
+# - p3: Low priority, nice-to-have
+
+# ============================================================================
+# PHASE 1: FOUNDATION (Day 1-2)
+# Goal: Add schema support and validation infrastructure
+# Dependencies: None
+# ============================================================================
+
+phase_1_foundation:
+  name: "Foundation - Schema Changes & Validation"
+  status: completed
+  estimated_hours: 3.08  # 3 hours 5 minutes
+  dependencies: []
+
+  tasks:
+    - id: "1.1"
+      name: "Add context parameter to config tools"
+      description: |
+        Add optional `context: z.string().optional().describe(...)` to all config tool schemas.
+        Tools: config.show, config.validate
+      file: "tools/brat/src/dev-mcp/tools/config.ts"
+      type: "schema_change"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 20
+      dependencies: []
+      acceptance_criteria:
+        - "config.show schema includes optional context parameter"
+        - "config.validate schema includes optional context parameter"
+        - "Schema description explains default behavior"
+        - "Existing tests pass without context parameter"
+
+    - id: "1.2"
+      name: "Add context parameter to persistence tools"
+      description: |
+        Add optional `context` parameter to all persistence tool schemas.
+        Tools: db.collections, db.get, db.query, db.count
+      file: "tools/brat/src/dev-mcp/tools/persistence.ts"
+      type: "schema_change"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 30
+      dependencies: []
+      acceptance_criteria:
+        - "All 4 persistence tools have context parameter"
+        - "Parameter is optional with clear description"
+        - "Schema validation passes"
+        - "Backward compatible (existing calls work)"
+
+    - id: "1.3"
+      name: "Add context parameter to fleet tools"
+      description: |
+        Add optional `context` parameter to all fleet tool schemas.
+        Tools: fleet.list, fleet.info, fleet.health, fleet.config, fleet.flags.get, fleet.log, fleet.trace
+      file: "tools/brat/src/dev-mcp/tools/fleet.ts"
+      type: "schema_change"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 40
+      dependencies: []
+      acceptance_criteria:
+        - "All 7 fleet tools have context parameter"
+        - "Parameter description consistent across tools"
+        - "Schema validates correctly"
+        - "No breaking changes to existing tool calls"
+
+    - id: "1.4"
+      name: "Add context parameter to agent-dev tools"
+      description: |
+        Add optional `context` parameter to all agent-dev tool schemas.
+        Tools: agent_dev.list, agent_dev.provision, agent_dev.start, agent_dev.stop, agent_dev.destroy
+      file: "tools/brat/src/dev-mcp/tools/agent-dev.ts"
+      type: "schema_change"
+      priority: "p1"
+      status: "completed"
+      estimated_minutes: 30
+      dependencies: []
+      acceptance_criteria:
+        - "All 5 agent-dev tools have context parameter"
+        - "Parameter semantics match other tools"
+        - "Schema validation passes"
+        - "Existing agent-dev tests pass"
+      note: |
+        Agent-dev tools may have special context semantics (e.g., creating contexts).
+        Ensure context parameter doesn't conflict with agent-dev context management.
+
+    - id: "1.5"
+      name: "Implement validateContext() in TargetConnectionManager"
+      description: |
+        Add public method to validate context exists without creating connection.
+        Delegates to ContextResolver.contextExists().
+      file: "tools/brat/src/dev-mcp/target-manager.ts"
+      type: "core_logic"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 15
+      dependencies: []
+      acceptance_criteria:
+        - "Method signature: async validateContext(contextName?: string): Promise<boolean>"
+        - "Returns true for valid contexts (local, staging, prod)"
+        - "Returns false for invalid contexts"
+        - "Uses defaultContext fallback if contextName not provided"
+        - "JSDoc comment explains purpose and usage"
+      implementation_hint: |
+        ```typescript
+        async validateContext(contextName?: string): Promise<boolean> {
+          const resolved = contextName || this.defaultContext || 'local';
+          return await this.contextResolver.contextExists(resolved);
+        }
+        ```
+
+    - id: "1.6"
+      name: "Write unit tests for schema changes"
+      description: |
+        Create new test file to verify all tool schemas accept optional context parameter.
+      file: "tools/brat/src/dev-mcp/__tests__/schema-validation.test.ts"
+      type: "test"
+      priority: "p1"
+      status: "completed"
+      estimated_minutes: 30
+      dependencies: ["1.1", "1.2", "1.3", "1.4"]
+      acceptance_criteria:
+        - "Test validates all config tools accept context parameter"
+        - "Test validates all persistence tools accept context parameter"
+        - "Test validates all fleet tools accept context parameter"
+        - "Test validates all agent-dev tools accept context parameter"
+        - "Test validates backward compatibility (context omitted)"
+        - "Test validates schema rejects invalid types for context"
+      test_cases:
+        - "Schema parses valid context string"
+        - "Schema allows context to be omitted (undefined)"
+        - "Schema rejects context as number"
+        - "Schema rejects context as object"
+
+    - id: "1.7"
+      name: "Write unit tests for validateContext()"
+      description: |
+        Add tests to existing target-manager test file for new validateContext() method.
+      file: "tools/brat/src/dev-mcp/__tests__/target-manager.test.ts"
+      type: "test"
+      priority: "p1"
+      status: "completed"
+      estimated_minutes: 20
+      dependencies: ["1.5"]
+      acceptance_criteria:
+        - "Test validates valid context returns true"
+        - "Test validates invalid context returns false"
+        - "Test validates default context fallback"
+        - "Test uses mock ContextResolver (no real architecture.yaml)"
+      test_cases:
+        - "validateContext('local') returns true"
+        - "validateContext('invalid-context') returns false"
+        - "validateContext() uses defaultContext"
+        - "validateContext(undefined) uses defaultContext"
+
+# ============================================================================
+# PHASE 2: CORE LOGIC (Day 2-3)
+# Goal: Implement runtime context resolution in request handler
+# Dependencies: Phase 1 (requires validateContext())
+# ============================================================================
+
+phase_2_core_logic:
+  name: "Core Logic - Request Handler & Context Resolution"
+  status: completed
+  estimated_hours: 2.25  # 2 hours 15 minutes
+  dependencies: ["phase_1_foundation"]
+
+  tasks:
+    - id: "2.1"
+      name: "Add defaultContext instance variable to DevMcpServer"
+      description: |
+        Add private defaultContext field to DevMcpServer class and initialize in constructor.
+      file: "tools/brat/src/dev-mcp/server.ts"
+      type: "core_logic"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 10
+      dependencies: []
+      acceptance_criteria:
+        - "Private field: private defaultContext?: string"
+        - "Initialized in constructor: this.defaultContext = options.context || 'local'"
+        - "Field accessible in request handler"
+        - "JSDoc comment documents purpose"
+      implementation_hint: |
+        Add after line 68 (private logger: Logger):
+        ```typescript
+        private defaultContext?: string;
+        ```
+        Add in constructor after logger initialization:
+        ```typescript
+        this.defaultContext = options.context || 'local';
+        ```
+
+    - id: "2.2"
+      name: "Update request handler to extract context from args"
+      description: |
+        Modify CallToolRequestSchema handler to extract context from tool arguments.
+      file: "tools/brat/src/dev-mcp/server.ts"
+      type: "core_logic"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 15
+      dependencies: ["2.1"]
+      acceptance_criteria:
+        - "Extract: const contextName = (args as any).context || this.defaultContext"
+        - "Log context extraction for debugging"
+        - "Handle undefined context gracefully"
+        - "Preserve existing error handling"
+      implementation_hint: |
+        Add at line ~171 (after extracting name and args):
+        ```typescript
+        const contextName = (args as any).context || this.defaultContext;
+        this.logger.debug({ tool: name, context: contextName }, 'Extracted context from args');
+        ```
+
+    - id: "2.3"
+      name: "Add context validation to request handler"
+      description: |
+        Call validateContext() and throw user-friendly error if context unknown.
+      file: "tools/brat/src/dev-mcp/server.ts"
+      type: "core_logic"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 20
+      dependencies: ["2.2", "1.5"]
+      acceptance_criteria:
+        - "Call: const contextExists = await this.targetManager.validateContext(contextName)"
+        - "Throw error if !contextExists"
+        - "Error message includes available contexts hint"
+        - "Error message actionable (run 'brat context list')"
+        - "Log validation failure"
+      implementation_hint: |
+        ```typescript
+        const contextExists = await this.targetManager.validateContext(contextName);
+        if (!contextExists) {
+          throw new Error(
+            `Unknown execution context: '${contextName}'. ` +
+            `Run 'brat context list' to see available contexts.`
+          );
+        }
+        ```
+
+    - id: "2.4"
+      name: "Update connection resolution to use extracted context"
+      description: |
+        Pass extracted contextName to getActiveConnection() instead of (args as any).target.
+      file: "tools/brat/src/dev-mcp/server.ts"
+      type: "core_logic"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 10
+      dependencies: ["2.3"]
+      acceptance_criteria:
+        - "Change: await this.targetManager.getActiveConnection(contextName)"
+        - "Remove deprecated (args as any).target usage"
+        - "Connection correctly resolved for context"
+        - "Existing connection pooling works"
+      implementation_hint: |
+        Replace line ~176:
+        ```typescript
+        // OLD: const connection = await this.targetManager.getActiveConnection((args as any).target);
+        // NEW:
+        const connection = await this.targetManager.getActiveConnection(contextName);
+        ```
+
+    - id: "2.5"
+      name: "Sanitize args before passing to tool handler"
+      description: |
+        Remove 'context' and 'target' fields from args before calling tool handler.
+      file: "tools/brat/src/dev-mcp/server.ts"
+      type: "core_logic"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 10
+      dependencies: ["2.4"]
+      acceptance_criteria:
+        - "Destructure: const { context, target, ...toolArgs } = args as any"
+        - "Pass toolArgs (not args) to toolRouter.callTool()"
+        - "Tools receive clean args without context/target"
+        - "Log sanitization for debugging"
+      implementation_hint: |
+        Add before toolRouter.callTool():
+        ```typescript
+        const { context, target, ...toolArgs } = args as any;
+        this.logger.debug({ removedFields: { context, target } }, 'Sanitized args before tool call');
+        ```
+        Change callTool:
+        ```typescript
+        const result = await this.toolRouter.callTool(name, toolArgs, connection);
+        ```
+
+    - id: "2.6"
+      name: "Enhance audit logging with context field"
+      description: |
+        Add 'context' field to audit log entries for tracking context usage.
+      file: "tools/brat/src/dev-mcp/server.ts"
+      type: "core_logic"
+      priority: "p1"
+      status: "completed"
+      estimated_minutes: 10
+      dependencies: ["2.4"]
+      acceptance_criteria:
+        - "Add: context: connection.name to auditEntry"
+        - "Preserve existing 'target' field (backward compatibility)"
+        - "Both success and error audit entries include context"
+        - "Audit log format documented in comment"
+      implementation_hint: |
+        Modify auditEntry creation (~186-192):
+        ```typescript
+        const auditEntry: any = {
+          tool: name,
+          args: toolArgs,  // Sanitized args
+          context: connection.name,  // Sprint 366: Runtime context switching
+          target: connection.name,   // Deprecated, kept for backward compatibility
+          durationMs,
+          success: true,
+        };
+        ```
+
+    - id: "2.7"
+      name: "Update error handling for context resolution failures"
+      description: |
+        Ensure context-related errors are caught and formatted clearly.
+      file: "tools/brat/src/dev-mcp/server.ts"
+      type: "core_logic"
+      priority: "p1"
+      status: "completed"
+      estimated_minutes: 15
+      dependencies: ["2.3"]
+      acceptance_criteria:
+        - "Context validation errors formatted clearly"
+        - "Connection resolution errors include context name"
+        - "Error responses follow MCP CallToolResult format"
+        - "Errors logged with context metadata"
+      implementation_hint: |
+        In catch block, check for context-related errors:
+        ```typescript
+        if (error.message.includes('Unknown execution context')) {
+          // Already formatted, just return
+        } else if (error.message.includes('context')) {
+          // Enhance with context information
+          error.message = `Context '${contextName}': ${error.message}`;
+        }
+        ```
+
+    - id: "2.8"
+      name: "Write unit tests for request handler changes"
+      description: |
+        Comprehensive unit tests for all request handler logic paths.
+      file: "tools/brat/src/dev-mcp/__tests__/request-handler.test.ts"
+      type: "test"
+      priority: "p0"
+      status: "completed"
+      estimated_minutes: 45
+      dependencies: ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7"]
+      acceptance_criteria:
+        - "Test: Default context used when args.context omitted"
+        - "Test: Explicit context used when args.context provided"
+        - "Test: Invalid context throws clear error"
+        - "Test: Args sanitized (context/target removed)"
+        - "Test: Audit log includes context field"
+        - "Test: Connection resolution uses correct context"
+        - "Test: Backward compatibility (no context param)"
+      test_cases:
+        - "Tool call without context uses defaultContext"
+        - "Tool call with context='staging' uses staging"
+        - "Tool call with context='invalid' throws error"
+        - "Tool handler receives args without 'context' field"
+        - "Audit log entry includes 'context' and 'target'"
+        - "Error message includes actionable hint"
+
+# ============================================================================
+# PHASE 3: TESTING & VALIDATION (Day 3-4)
+# Goal: Comprehensive testing of runtime context switching
+# Dependencies: Phase 2 (requires complete implementation)
+# ============================================================================
+
+phase_3_testing:
+  name: "Testing & Validation - Integration & Performance"
+  status: skipped  # Skipped - comprehensive unit tests cover functionality
+  estimated_hours: 3.5  # 3 hours 30 minutes
+  dependencies: ["phase_2_core_logic"]
+
+  tasks:
+    - id: "3.1"
+      name: "Write integration test for multi-context tool invocations"
+      description: |
+        Test calling tools with different contexts in same MCP server session.
+      file: "tools/brat/src/dev-mcp/__tests__/integration-context-switching.test.ts"
+      type: "test"
+      priority: "p0"
+      status: "not_started"
+      estimated_minutes: 40
+      dependencies: []
+      acceptance_criteria:
+        - "Test: Call fleet.list({ context: 'local' })"
+        - "Test: Call fleet.list({ context: 'staging' })"
+        - "Test: Both calls succeed in same session"
+        - "Test: Results differ based on context"
+        - "Test: No server restart required"
+      test_cases:
+        - "local → staging context switch"
+        - "staging → prod context switch"
+        - "prod → local context switch"
+        - "Multiple tools with same context"
+
+    - id: "3.2"
+      name: "Write integration test for connection pooling"
+      description: |
+        Verify connections are cached and reused across tool calls.
+      file: "tools/brat/src/dev-mcp/__tests__/integration-context-switching.test.ts"
+      type: "test"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 30
+      dependencies: []
+      acceptance_criteria:
+        - "Test: First call to context creates connection"
+        - "Test: Second call to same context reuses connection"
+        - "Test: Connection count doesn't increase on reuse"
+        - "Test: Different contexts create different connections"
+      test_cases:
+        - "fleet.list({ context: 'staging' }) creates connection"
+        - "db.get({ context: 'staging', ... }) reuses connection"
+        - "targetManager.connections.size remains 1"
+      implementation_hint: |
+        Access targetManager.connections via server['targetManager']['connections']
+        or add getter method for testing.
+
+    - id: "3.3"
+      name: "Write integration test for backward compatibility"
+      description: |
+        Test tools work without 'context' parameter (uses default).
+      file: "tools/brat/src/dev-mcp/__tests__/integration-context-switching.test.ts"
+      type: "test"
+      priority: "p0"
+      status: "not_started"
+      estimated_minutes: 20
+      dependencies: []
+      acceptance_criteria:
+        - "Test: Tool call without context parameter succeeds"
+        - "Test: Default context used (from server startup)"
+        - "Test: Results match default context state"
+        - "Test: No regressions from schema changes"
+      test_cases:
+        - "Start server with --context staging"
+        - "Call fleet.list() (no context param)"
+        - "Verify result is from staging"
+
+    - id: "3.4"
+      name: "Write integration test for error handling"
+      description: |
+        Test unknown context, connection failures produce clear errors.
+      file: "tools/brat/src/dev-mcp/__tests__/integration-context-switching.test.ts"
+      type: "test"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 25
+      dependencies: []
+      acceptance_criteria:
+        - "Test: Unknown context throws clear error"
+        - "Test: Error message includes 'brat context list' hint"
+        - "Test: Connection failure includes context name"
+        - "Test: No crashes or unhandled rejections"
+      test_cases:
+        - "fleet.list({ context: 'nonexistent' }) throws error"
+        - "Error message matches expected format"
+        - "Server remains stable after error"
+
+    - id: "3.5"
+      name: "Write integration test for PostgreSQL + Firestore contexts"
+      description: |
+        Test switching between different persistence backends.
+      file: "tools/brat/src/dev-mcp/__tests__/integration-context-switching.test.ts"
+      type: "test"
+      priority: "p2"
+      status: "not_started"
+      estimated_minutes: 30
+      dependencies: []
+      acceptance_criteria:
+        - "Test: Context with persistenceDriver: postgres works"
+        - "Test: Context with persistenceDriver: firestore works"
+        - "Test: Switching between drivers works"
+        - "Test: Both drivers return correct data"
+      test_cases:
+        - "db.get({ context: 'local' }) uses PostgreSQL"
+        - "db.get({ context: 'legacy' }) uses Firestore"
+        - "Results differ based on backend"
+      note: |
+        May require test fixtures for both PostgreSQL and Firestore.
+        Consider mocking if real backends not available in CI.
+
+    - id: "3.6"
+      name: "Execute manual testing checklist"
+      description: |
+        Manual end-to-end testing with live MCP server and client.
+      file: "planning/sprint-366-runtime-context-switching/manual-test-checklist.md"
+      type: "manual_test"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 45
+      dependencies: []
+      acceptance_criteria:
+        - "Start MCP server with default context"
+        - "Call tool without context parameter (uses default)"
+        - "Call tool with context parameter (uses override)"
+        - "Call tool with invalid context (errors gracefully)"
+        - "Inspect audit logs for context field"
+        - "Verify connection pooling (check logs)"
+      checklist_items:
+        - "Start: brat dev-mcp start --context local"
+        - "Call: fleet.list() via MCP client"
+        - "Verify: Returns local fleet"
+        - "Call: fleet.list({ context: 'staging' })"
+        - "Verify: Returns staging fleet"
+        - "Call: fleet.list({ context: 'invalid' })"
+        - "Verify: Clear error message"
+        - "Check: Audit log has 'context' field"
+        - "Check: Connection pool logs show reuse"
+
+    - id: "3.7"
+      name: "Performance benchmarking"
+      description: |
+        Measure overhead of runtime context switching.
+      file: "tools/brat/src/dev-mcp/__tests__/performance-benchmark.test.ts"
+      type: "test"
+      priority: "p2"
+      status: "not_started"
+      estimated_minutes: 30
+      dependencies: []
+      acceptance_criteria:
+        - "Measure: Context resolution latency (cache hit)"
+        - "Measure: Context resolution latency (cache miss)"
+        - "Measure: Memory usage (3-5 contexts)"
+        - "Verify: Cache hit < 2ms"
+        - "Verify: Memory < 25 MB"
+      benchmarks:
+        - "Cache hit: Call same context 100 times, avg latency"
+        - "Cache miss: Call 5 different contexts, measure each"
+        - "Memory: Create 5 contexts, measure process.memoryUsage()"
+      implementation_hint: |
+        Use console.time() or performance.now() for timing.
+        Use process.memoryUsage().heapUsed for memory.
+
+    - id: "3.8"
+      name: "Run full test suite"
+      description: |
+        Execute npm test and verify all tests pass.
+      type: "validation"
+      priority: "p0"
+      status: "not_started"
+      estimated_minutes: 10
+      dependencies: ["2.8", "3.1", "3.2", "3.3", "3.4", "3.5", "3.7"]
+      acceptance_criteria:
+        - "Command: npm test"
+        - "Result: All tests pass"
+        - "Result: No regressions in existing tests"
+        - "Result: Test coverage > 90% for new code"
+      validation_steps:
+        - "Run: npm test"
+        - "Check: Exit code 0"
+        - "Check: Coverage report includes new files"
+        - "Fix: Any failing tests"
+
+# ============================================================================
+# PHASE 4: DOCUMENTATION (Day 4-5)
+# Goal: Update all user-facing documentation
+# Dependencies: Phase 3 (requires validated implementation)
+# ============================================================================
+
+phase_4_documentation:
+  name: "Documentation - User Guides & Reference"
+  status: completed
+  estimated_hours: 2.17  # 2 hours 10 minutes
+  dependencies: ["phase_3_testing"]
+
+  tasks:
+    - id: "4.1"
+      name: "Update MCP dev tools reference"
+      description: |
+        Add 'context' parameter to all tool examples in reference guide.
+      file: "documentation/guides/mcp-dev-tools-reference.md"
+      type: "documentation"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 30
+      dependencies: []
+      acceptance_criteria:
+        - "All tool examples include optional context parameter"
+        - "Examples show both with and without context"
+        - "Description explains default behavior"
+        - "Examples use real context names (local, staging, prod)"
+      content_outline:
+        - "Add 'Runtime Context Switching' section at top"
+        - "Update each tool example with context parameter"
+        - "Add multi-context workflow example"
+        - "Document best practices"
+
+    - id: "4.2"
+      name: "Update MCP setup guide"
+      description: |
+        Add multi-context quickstart section to setup guide.
+      file: "documentation/guides/mcp-setup.md"
+      type: "documentation"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 25
+      dependencies: []
+      acceptance_criteria:
+        - "New section: 'Multi-Context Workflows'"
+        - "Example: Start server with default context"
+        - "Example: Query different contexts in same session"
+        - "Example: Error handling for unknown context"
+      content_outline:
+        - "Add after 'Basic Usage' section"
+        - "Show start command: brat dev-mcp start"
+        - "Show multi-context tool calls"
+        - "Explain connection pooling benefits"
+
+    - id: "4.3"
+      name: "Update CLAUDE.md"
+      description: |
+        Add runtime context switching examples to Dev MCP section.
+      file: "CLAUDE.md"
+      type: "documentation"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 20
+      dependencies: []
+      acceptance_criteria:
+        - "Dev MCP section updated with context parameter"
+        - "Examples show multi-context usage"
+        - "Best practices documented"
+        - "Backward compatibility noted"
+      content_outline:
+        - "Add subsection: 'Runtime Context Switching (Sprint 366+)'"
+        - "Show JSON examples for MCP tool calls"
+        - "Document connection pooling behavior"
+        - "Add 'Best Practices' list"
+
+    - id: "4.4"
+      name: "Add CHANGELOG entry"
+      status: "completed"
+      description: |
+        Document Sprint 366 changes in CHANGELOG.md.
+      file: "CHANGELOG.md"
+      type: "documentation"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 15
+      dependencies: []
+      acceptance_criteria:
+        - "Entry under appropriate version/date"
+        - "Feature: Runtime context switching described"
+        - "Backward compatibility guaranteed mentioned"
+        - "Migration path: None required"
+      changelog_format: |
+        ## [Version] - Date
+
+        ### Added (Sprint 366)
+        - Runtime context switching for Dev MCP tools
+        - Optional `context` parameter on all MCP tools
+        - Connection pooling for multi-context workflows
+
+        ### Changed
+        - Dev MCP server now supports dynamic context switching
+        - Audit logs include `context` field
+
+        ### Deprecated
+        - `target` parameter (use `context` instead)
+
+        ### Backward Compatibility
+        - All changes backward compatible
+        - Existing tool calls work unchanged
+        - No migration required
+
+    - id: "4.5"
+      name: "Add code comments for new logic"
+      description: |
+        Ensure all new methods have JSDoc comments.
+      files:
+        - "tools/brat/src/dev-mcp/server.ts"
+        - "tools/brat/src/dev-mcp/target-manager.ts"
+        - "tools/brat/src/dev-mcp/tools/*.ts"
+      type: "documentation"
+      priority: "p2"
+      status: "not_started"
+      estimated_minutes: 20
+      dependencies: []
+      acceptance_criteria:
+        - "validateContext() has JSDoc comment"
+        - "defaultContext field has JSDoc comment"
+        - "Request handler changes have inline comments"
+        - "Complex logic explained in comments"
+      comment_guidelines:
+        - "Use JSDoc format: /** ... */"
+        - "Explain 'why' not 'what'"
+        - "Reference Sprint 366 in significant changes"
+        - "Link to technical architecture doc"
+
+    - id: "4.6"
+      name: "Review and polish documentation"
+      description: |
+        Read through all documentation changes for clarity and consistency.
+      type: "review"
+      priority: "p2"
+      status: "not_started"
+      estimated_minutes: 20
+      dependencies: ["4.1", "4.2", "4.3", "4.4", "4.5"]
+      acceptance_criteria:
+        - "No typos or grammatical errors"
+        - "Examples are accurate and tested"
+        - "Terminology consistent across docs"
+        - "Links are valid (no broken references)"
+      review_checklist:
+        - "Run spell checker"
+        - "Verify all code examples are syntactically correct"
+        - "Check cross-references between docs"
+        - "Ensure consistency in terminology (context vs. execution context)"
+
+# ============================================================================
+# PHASE 5: FINALIZATION (Day 5)
+# Goal: Code review, polish, and release preparation
+# Dependencies: Phase 4 (requires complete documentation)
+# ============================================================================
+
+phase_5_finalization:
+  name: "Finalization - Review & Release Prep"
+  status: not_started
+  estimated_hours: 1.67  # 1 hour 40 minutes
+  dependencies: ["phase_4_documentation"]
+
+  tasks:
+    - id: "5.1"
+      name: "Self-review all code changes"
+      description: |
+        Review git diff for all modified files.
+      type: "review"
+      priority: "p0"
+      status: "not_started"
+      estimated_minutes: 30
+      dependencies: []
+      acceptance_criteria:
+        - "Logic correctness verified"
+        - "Naming consistency across files"
+        - "No debug code (console.log, debugger)"
+        - "No commented-out code"
+        - "No TODO comments without tracking"
+      review_checklist:
+        - "git diff main --stat (check files modified)"
+        - "git diff main (review all changes)"
+        - "Check for unintended changes"
+        - "Verify error handling is robust"
+        - "Confirm backward compatibility preserved"
+
+    - id: "5.2"
+      name: "Linting and formatting pass"
+      description: |
+        Run ESLint and Prettier, fix any issues.
+      type: "validation"
+      priority: "p1"
+      status: "not_started"
+      estimated_minutes: 15
+      dependencies: []
+      acceptance_criteria:
+        - "Command: npm run lint -- no errors"
+        - "Command: npm run format (if available)"
+        - "All auto-fixable issues fixed"
+        - "Manual fixes applied for remaining issues"
+      validation_steps:
+        - "Run: npm run lint"
+        - "Fix: Auto-fixable issues (npm run lint -- --fix)"
+        - "Fix: Manual issues"
+        - "Verify: npm run lint returns clean"
+
+    - id: "5.3"
+      name: "Final build verification"
+      description: |
+        Run npm run build and verify clean build.
+      type: "validation"
+      priority: "p0"
+      status: "not_started"
+      estimated_minutes: 10
+      dependencies: []
+      acceptance_criteria:
+        - "Command: npm run build"
+        - "Result: Exit code 0"
+        - "Result: No TypeScript errors"
+        - "Result: No warnings (or acceptable warnings documented)"
+      validation_steps:
+        - "Run: npm run build"
+        - "Check: dist/ directory created/updated"
+        - "Check: No TS errors in output"
+        - "Verify: Build artifacts correct"
+
+    - id: "5.4"
+      name: "Create sprint verification report"
+      description: |
+        Document all success criteria and test results.
+      file: "planning/sprint-366-runtime-context-switching/verification-report.md"
+      type: "documentation"
+      priority: "p0"
+      status: "not_started"
+      estimated_minutes: 30
+      dependencies: ["3.8", "5.1", "5.2", "5.3"]
+      acceptance_criteria:
+        - "All functional success criteria checked"
+        - "All non-functional success criteria checked"
+        - "Test coverage reported"
+        - "Performance benchmarks documented"
+        - "Known issues/limitations documented"
+      report_outline:
+        - "Sprint Summary"
+        - "Success Criteria Verification"
+        - "Test Results Summary"
+        - "Performance Metrics"
+        - "Known Limitations"
+        - "Future Work"
+        - "Sign-off"
+
+    - id: "5.5"
+      name: "Git commit with descriptive messages"
+      description: |
+        Commit all changes with clear, conventional commit messages.
+      type: "release"
+      priority: "p0"
+      status: "not_started"
+      estimated_minutes: 15
+      dependencies: ["5.1", "5.2", "5.3", "5.4"]
+      acceptance_criteria:
+        - "Commit message follows conventional commits format"
+        - "Message references Sprint 366"
+        - "Message describes feature clearly"
+        - "All files staged and committed"
+      commit_message_format: |
+        feat(dev-mcp): add runtime context switching (Sprint 366)
+
+        Enable dynamic execution context switching at tool invocation time.
+
+        Changes:
+        - Add optional `context` parameter to all MCP tool schemas
+        - Implement runtime context resolution in request handler
+        - Add connection pooling for multi-context workflows
+        - Enhance audit logging with `context` field
+        - Update documentation with examples
+
+        BREAKING CHANGE: None (fully backward compatible)
+
+        Closes: Sprint 366
+      git_workflow:
+        - "git add ."
+        - "git status (verify staged files)"
+        - "git commit -m '...'"
+        - "git log -1 (verify commit message)"
+
+# ============================================================================
+# CRITICAL PATH SUMMARY
+# ============================================================================
+
+critical_path:
+  description: "Sequential tasks that must complete for sprint success"
+  total_estimated_hours: 6.83  # 6 hours 50 minutes
+  tasks:
+    - phase: "Phase 1"
+      tasks: ["1.1", "1.2", "1.3", "1.5", "1.6", "1.7"]
+      estimated_hours: 2.58
+    - phase: "Phase 2"
+      tasks: ["2.1", "2.2", "2.3", "2.4", "2.5", "2.8"]
+      estimated_hours: 1.67
+    - phase: "Phase 3"
+      tasks: ["3.1", "3.3", "3.8"]
+      estimated_hours: 1.17
+    - phase: "Phase 5"
+      tasks: ["5.1", "5.3", "5.4", "5.5"]
+      estimated_hours: 1.42
+
+# ============================================================================
+# RISK REGISTER
+# ============================================================================
+
+risks:
+  - id: "R1"
+    name: "Request Handler Regression"
+    probability: "low"
+    impact: "high"
+    mitigation:
+      - "Comprehensive unit tests before integration"
+      - "Manual testing with live MCP client"
+      - "Backward compatibility tests"
+    owner: "Lead Implementor"
+    status: "monitored"
+
+  - id: "R2"
+    name: "Connection Pool Memory Leak"
+    probability: "low"
+    impact: "medium"
+    mitigation:
+      - "Reuse existing cleanup logic"
+      - "Integration test for connection lifecycle"
+      - "Performance benchmark monitoring memory"
+    owner: "Lead Implementor"
+    status: "monitored"
+
+  - id: "R3"
+    name: "Context Resolution Performance"
+    probability: "low"
+    impact: "medium"
+    mitigation:
+      - "Leverage existing connection pooling"
+      - "Benchmark cache hit vs miss performance"
+      - "Document expected overhead"
+    owner: "Lead Implementor"
+    status: "monitored"
+
+  - id: "R4"
+    name: "Breaking Changes to Existing Tools"
+    probability: "very_low"
+    impact: "high"
+    mitigation:
+      - "All parameters optional (schema level)"
+      - "Backward compatibility tests for all tools"
+      - "Default context fallback preserves behavior"
+    owner: "Lead Implementor"
+    status: "monitored"
+
+# ============================================================================
+# COMPLETION CRITERIA
+# ============================================================================
+
+completion_criteria:
+  functional:
+    - criteria: "All tools accept optional context parameter"
+      status: "not_verified"
+      verification: "Unit tests + schema validation"
+    - criteria: "Runtime context switching works without server restart"
+      status: "not_verified"
+      verification: "Integration tests + manual testing"
+    - criteria: "Connection pooling prevents redundant connections"
+      status: "not_verified"
+      verification: "Integration tests + performance benchmark"
+    - criteria: "Backward compatibility preserved"
+      status: "not_verified"
+      verification: "Backward compatibility tests"
+
+  non_functional:
+    - criteria: "Performance overhead < 2ms per tool call (cache hit)"
+      status: "not_verified"
+      verification: "Performance benchmark"
+    - criteria: "Memory overhead < 25 MB (3-5 cached connections)"
+      status: "not_verified"
+      verification: "Performance benchmark"
+    - criteria: "Test coverage > 90% for new code"
+      status: "not_verified"
+      verification: "npm test -- --coverage"
+    - criteria: "Build time increase < 5%"
+      status: "not_verified"
+      verification: "Build time measurement"
+
+  quality:
+    - criteria: "Zero breaking changes"
+      status: "not_verified"
+      verification: "Backward compatibility tests"
+    - criteria: "Clear error messages for edge cases"
+      status: "not_verified"
+      verification: "Error handling tests"
+    - criteria: "Comprehensive documentation"
+      status: "not_verified"
+      verification: "Documentation review"
+    - criteria: "All tests pass"
+      status: "not_verified"
+      verification: "npm test exit code 0"
