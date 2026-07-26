@@ -56,12 +56,14 @@ function loadArchitecture(): any {
  * config.show - Display full architecture.yaml content
  *
  * Returns the complete architecture.yaml as formatted YAML.
+ * Sprint 366: Runtime context switching support.
  */
 export const configShowTool: ToolDefinition = {
   name: 'config.show',
   description: 'Display the full architecture.yaml configuration',
   inputSchema: z.object({
     format: z.enum(['yaml', 'json']).optional().describe('Output format (yaml or json)'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args) => {
     try {
@@ -104,11 +106,14 @@ export const configShowTool: ToolDefinition = {
  * - Missing required sections
  * - Invalid service definitions
  * - Profile/exposure contract violations
+ * Sprint 366: Runtime context switching support.
  */
 export const configValidateTool: ToolDefinition = {
   name: 'config.validate',
   description: 'Validate architecture.yaml structure and detect common issues',
-  inputSchema: z.object({}),
+  inputSchema: z.object({
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
+  }),
   handler: async () => {
     const issues: string[] = [];
     const warnings: string[] = [];
@@ -222,11 +227,14 @@ export const configValidateTool: ToolDefinition = {
  * - Required environment variables
  * - File system permissions
  * - Required dependencies
+ * Sprint 366: Runtime context switching support.
  */
 export const configDoctorTool: ToolDefinition = {
   name: 'config.doctor',
   description: 'Run environment diagnostics and check for common setup issues',
-  inputSchema: z.object({}),
+  inputSchema: z.object({
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
+  }),
   handler: async () => {
     const checks: Array<{ name: string; status: 'ok' | 'warning' | 'error'; message?: string }> = [];
 
@@ -327,12 +335,14 @@ export const configDoctorTool: ToolDefinition = {
  * schema.read - Read a specific schema from documentation/schemas/
  *
  * Provides access to envelope, routing-slip, and other schemas.
+ * Sprint 366: Runtime context switching support.
  */
 export const schemaReadTool: ToolDefinition = {
   name: 'schema.read',
   description: 'Read a schema file from documentation/schemas/',
   inputSchema: z.object({
     name: z.string().describe('Schema name (e.g., "envelope.v1", "routing-slip.v1")'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args) => {
     try {

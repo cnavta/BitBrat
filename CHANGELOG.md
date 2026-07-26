@@ -11,8 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Sprint 366**: Runtime context switching for Dev MCP server
+  - All MCP tools now accept optional `context` parameter for runtime environment switching
+  - Added `validateContext()` method to TargetConnectionManager for early context validation
+  - Enhanced audit logging with context field for tracking tool invocations across environments
+  - Tools can now switch between execution contexts (local, staging, prod) without server restart
+  - Connection pooling automatically caches connections by context for performance
+  - 46 new unit tests for schema validation, context validation, and request handler logic
 
 ### Changed
+- **Dev MCP Server**: Context resolution moved from server initialization to per-tool-call runtime
+  - Server startup now accepts `context` option as default context (backward compatible with deprecated `target` option)
+  - Request handler extracts context from tool arguments and validates before connection creation
+  - Tool arguments are sanitized (context/target fields removed) before passing to tool handlers
+  - All tools maintain backward compatibility (context parameter is optional)
 
 ### Deprecated
 

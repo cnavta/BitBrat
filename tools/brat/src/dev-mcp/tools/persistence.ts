@@ -14,11 +14,14 @@ import { ToolDefinition, TargetConnection } from '../types.js';
  * Returns a list of all top-level collections in the target database.
  * For PostgreSQL: Lists tables in the public schema.
  * For Firestore: Lists top-level collections.
+ * Sprint 366: Runtime context switching support.
  */
 export const dbCollectionsTool: ToolDefinition = {
   name: 'db.collections',
   description: 'List all top-level Firestore collections in the target database',
-  inputSchema: z.object({}),
+  inputSchema: z.object({
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
+  }),
   handler: async (args, connection: TargetConnection) => {
     try {
       // Use PostgreSQL store if available
@@ -89,6 +92,7 @@ export const dbCollectionsTool: ToolDefinition = {
  * db.get - Get a single document by ID
  *
  * Retrieves a document from the persistence backend by collection and document ID.
+ * Sprint 366: Runtime context switching support.
  */
 export const dbGetTool: ToolDefinition = {
   name: 'db.get',
@@ -96,6 +100,7 @@ export const dbGetTool: ToolDefinition = {
   inputSchema: z.object({
     collection: z.string().describe('Collection path (e.g., "commands", "packs", "events")'),
     id: z.string().describe('Document ID'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args, connection: TargetConnection) => {
     try {
@@ -195,6 +200,7 @@ export const dbGetTool: ToolDefinition = {
  * - Filters: ==, !=, <, <=, >, >=, in, array-contains
  * - Ordering: orderBy with asc/desc
  * - Pagination: limit, offset
+ * Sprint 366: Runtime context switching support.
  */
 export const dbQueryTool: ToolDefinition = {
   name: 'db.query',
@@ -213,6 +219,7 @@ export const dbQueryTool: ToolDefinition = {
     }).optional().describe('Ordering specification'),
     limit: z.number().optional().describe('Maximum number of documents to return'),
     offset: z.number().optional().describe('Number of documents to skip'),
+    context: z.string().optional().describe('Execution context (local, staging, prod). Defaults to server startup context.'),
   }),
   handler: async (args, connection: TargetConnection) => {
     try {

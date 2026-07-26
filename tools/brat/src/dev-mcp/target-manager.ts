@@ -65,6 +65,20 @@ export class TargetConnectionManager {
     return connection;
   }
 
+  /**
+   * Validate that a context exists without creating a connection
+   *
+   * Sprint 366: Runtime context switching support.
+   * Provides fast validation before connection creation to enable
+   * early failure with clear error messages.
+   *
+   * @param contextName - Context name to validate (optional, uses default if not provided)
+   * @returns true if context exists, false otherwise
+   */
+  async validateContext(contextName?: string): Promise<boolean> {
+    const resolved = contextName || this.defaultContext || 'local';
+    return await this.contextResolver.contextExists(resolved);
+  }
 
   /**
    * Disconnect a specific target
