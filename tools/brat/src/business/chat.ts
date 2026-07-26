@@ -45,6 +45,8 @@ export class ChatController {
   private reconnectAttempts = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_DELAY_MS = 2000;
+  private sessionEndPromise: Promise<void> | null = null;
+  private sessionEndResolve: (() => void) | null = null;
 
   constructor(private options: ChatOptions) {}
 
@@ -54,15 +56,22 @@ export class ChatController {
   public async start(): Promise<void> {
     const isOneShotMode = !!this.options.message;
 
+    // Create promise that resolves when session ends
+    this.sessionEndPromise = new Promise((resolve) => {
+      this.sessionEndResolve = resolve;
+    });
+
     if (!isOneShotMode) {
       const contextName = this.options.context || 'local';
       console.log(`\n--- BitBrat Chat CLI (${contextName}) ---`);
     }
 
     try {
-      // In one-shot mode, use provided user or default to "cli-user"
-      if (isOneShotMode) {
-        this.name = this.options.user || 'cli-user';
+      // Use provided user flag, or prompt in interactive mode
+      if (this.options.user) {
+        this.name = this.options.user;
+      } else if (isOneShotMode) {
+        this.name = 'cli-user';
       } else if (process.env.NODE_ENV !== 'test') {
         this.name = await this.promptForName();
       }
@@ -102,6 +111,9 @@ export class ChatController {
           }
         }, 10000); // 10 second timeout
       }
+
+      // Wait for session to end (in interactive mode, this blocks until user exits)
+      await this.sessionEndPromise;
     } catch (err: any) {
       console.error(`${COLORS.red}Initialization error: ${err.message}${COLORS.reset}`);
       process.exit(1);
@@ -124,12 +136,15 @@ export class ChatController {
   private async promptForName(): Promise<string> {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
+      // Don't close stdin - it breaks subsequent readline interfaces
+      terminal: false
     });
 
     return new Promise((resolve) => {
       rl.question('Enter your name: ', (answer) => {
-        rl.close();
+        // Don't call rl.close() - it closes stdin and breaks the main terminal interface
+        rl.removeAllListeners();
         resolve(answer.trim() || 'anonymous');
       });
     });
@@ -284,6 +299,7 @@ export class ChatController {
 
     this.ws.on('close', (code: number, reason: string) => {
       this.stopHeartbeat();
+      console.error(`[DEBUG] WebSocket closed: code=${code}, reason=${reason || 'none'}`);
       if (code !== 1000 && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
         this.reconnect();
       } else {
@@ -365,7 +381,10 @@ export class ChatController {
     this.rl.on('close', () => {
       console.log('\nExiting chat...');
       this.disconnect();
-      process.exit(0);
+      // Resolve the session end promise to unblock start()
+      if (this.sessionEndResolve) {
+        this.sessionEndResolve();
+      }
     });
   }
 

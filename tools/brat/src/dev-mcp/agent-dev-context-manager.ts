@@ -314,6 +314,20 @@ export class AgentDevContextManager {
       errors.push(`Failed to delete env directory: ${(error as Error).message}`);
     }
 
+    // Step 3.5: Delete docker-compose file (Sprint 358: Fix artifact cleanup)
+    try {
+      const composeFile = path.join(
+        this.repoRoot,
+        'infrastructure/docker-compose',
+        `docker-compose.${contextName}.yaml`
+      );
+      if (fs.existsSync(composeFile)) {
+        fs.unlinkSync(composeFile);
+      }
+    } catch (error) {
+      errors.push(`Failed to delete docker-compose file: ${(error as Error).message}`);
+    }
+
     // Step 4: Remove from ephemeral storage
     try {
       await this.removeFromEphemeralStorage(contextName);
@@ -567,6 +581,59 @@ export class AgentDevContextManager {
   }
 
   /**
+   * Clean up ALL agent-dev contexts (bulk cleanup utility)
+   *
+   * Use this to clean up orphaned contexts from failed tests or interrupted operations.
+   * Reads all contexts from ephemeral storage and destroys them.
+   *
+   * @returns Array of cleaned context names
+   */
+  async cleanupAll(): Promise<string[]> {
+    const ephemeralPath = path.join(this.repoRoot, '.brat', 'ephemeral-contexts.yaml');
+
+    if (!fs.existsSync(ephemeralPath)) {
+      return []; // No ephemeral contexts
+    }
+
+    try {
+      const content = fs.readFileSync(ephemeralPath, 'utf8');
+      const ephemeral = yaml.load(content) as any;
+      const contexts = Object.keys(ephemeral?.executionContexts || {});
+
+      // Filter to only agent-dev contexts
+      const agentDevContexts = contexts.filter(name => name.startsWith('agent-dev-'));
+
+      const cleaned: string[] = [];
+      const errors: Array<{ context: string; error: string }> = [];
+
+      // Destroy each context
+      for (const contextName of agentDevContexts) {
+        try {
+          await this.destroy(contextName);
+          cleaned.push(contextName);
+        } catch (error) {
+          errors.push({
+            context: contextName,
+            error: (error as Error).message,
+          });
+        }
+      }
+
+      // Report results
+      if (errors.length > 0) {
+        console.warn(`Cleaned up ${cleaned.length} contexts with ${errors.length} partial failures:`);
+        errors.forEach(({ context, error }) => {
+          console.warn(`  - ${context}: ${error}`);
+        });
+      }
+
+      return cleaned;
+    } catch (error) {
+      throw new Error(`Failed to read ephemeral contexts: ${(error as Error).message}`);
+    }
+  }
+
+  /**
    * Validate complete cleanup after destroy
    * Sprint 358: Phase 3 - Verify all resources removed
    *
@@ -615,6 +682,12 @@ export class AgentDevContextManager {
       } catch (error) {
         // Ignore read errors
       }
+    }
+
+    // Check 5: Verify docker-compose file removed (Sprint 358: Fix artifact cleanup)
+    const composeFile = path.join(this.repoRoot, 'infrastructure/docker-compose', `docker-compose.${contextName}.yaml`);
+    if (fs.existsSync(composeFile)) {
+      errors.push(`Docker-compose file still exists: ${composeFile}`);
     }
 
     // Report validation errors
