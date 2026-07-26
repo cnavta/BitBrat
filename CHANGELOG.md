@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.18.2] - 2026-07-26
+### Added
 - **Sprint 366**: Runtime context switching for Dev MCP server
   - All MCP tools now accept optional `context` parameter for runtime environment switching
   - Added `validateContext()` method to TargetConnectionManager for early context validation
