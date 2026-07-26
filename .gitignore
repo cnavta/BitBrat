@@ -110,3 +110,9 @@ validation_output.txt
 
 .scratch/
 
+# Sprint 358: Agent-dev ephemeral execution contexts
+# These are created by tests and MCP tools, cleaned up automatically
+.brat/ephemeral-contexts.yaml
+env/agent-dev-*/
+infrastructure/docker-compose/docker-compose.agent-dev-*.yaml
+
