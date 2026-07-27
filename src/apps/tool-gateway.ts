@@ -106,18 +106,34 @@ export class ToolGatewayServer extends Bit {
     this.registryWatcher = new RegistryWatcher(this as any, {
       store: this.mcpServerStore,
       onServerActive: async (config) => {
-        this.serverConfigs.set(config.name, config);
-        await this.mcpManager.connectServer(config);
-        // After connecting to a new Bit and discovering its tools, notify all connected clients
-        // that the tool/resource/prompt lists have changed. This ensures clients like llm-bot
-        // refresh their tool registries without requiring manual restarts.
-        this.broadcastListChangedNotifications();
+        try {
+          this.serverConfigs.set(config.name, config);
+          await this.mcpManager.connectServer(config);
+          // After connecting to a new Bit and discovering its tools, notify all connected clients
+          // that the tool/resource/prompt lists have changed. This ensures clients like llm-bot
+          // refresh their tool registries without requiring manual restarts.
+          this.broadcastListChangedNotifications();
+        } catch (error: any) {
+          this.getLogger().error('tool_gateway.registry_watcher.on_server_active_error', {
+            name: config.name,
+            error: error.message,
+            stack: error.stack
+          });
+        }
       },
       onServerInactive: async (name) => {
-        this.serverConfigs.delete(name);
-        await this.mcpManager.disconnectServer(name);
-        // Also notify when a server becomes inactive, as tool/resource/prompt lists have changed
-        this.broadcastListChangedNotifications();
+        try {
+          this.serverConfigs.delete(name);
+          await this.mcpManager.disconnectServer(name);
+          // Also notify when a server becomes inactive, as tool/resource/prompt lists have changed
+          this.broadcastListChangedNotifications();
+        } catch (error: any) {
+          this.getLogger().error('tool_gateway.registry_watcher.on_server_inactive_error', {
+            name,
+            error: error.message,
+            stack: error.stack
+          });
+        }
       },
     });
     this.registryWatcher.start();

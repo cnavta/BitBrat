@@ -79,9 +79,17 @@ export default class Seed extends BratCommand {
       if (!conn) {
         this.error('PostgreSQL connection configuration not found in context');
       }
-      const connectionString = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
+
+      // Sprint 368: Fix hostname for host-side seeding
+      // When running from host (not in a container), replace Docker-internal hostnames
+      // with localhost for proper connectivity
+      const isDockerInternalHost = conn.host === 'postgres' || conn.host === 'nats';
+      const effectiveHost = isDockerInternalHost ? 'localhost' : conn.host;
+
+      const connectionString = `postgresql://${conn.username}:${conn.password}@${effectiveHost}:${conn.port}/${conn.database}`;
 
       this.log('Seeding PostgreSQL database...');
+      this.log(`Connection: ${effectiveHost}:${conn.port}/${conn.database}`);
       this.log();
 
       result = await seedPostgres(connectionString, seedingOptions);

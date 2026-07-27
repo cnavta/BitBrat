@@ -176,9 +176,19 @@ const ScheduleIdSchema = z.object({
 
 class SchedulerServer extends Bit {
   private scheduleRepo: IScheduleRepository;
+  private tickInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly TICK_INTERVAL_MS: number;
+  private publishers: Map<string, ReturnType<typeof createMessagePublisher>> = new Map();
 
   constructor() {
     super({ serviceName: SERVICE_NAME, mcpExposure: 'platform+domain' });
+
+    // Read tick interval from environment with validation (Task 1.5)
+    const configuredInterval = parseInt(process.env.SCHEDULER_TICK_INTERVAL_MS || '60000', 10);
+    if (configuredInterval < 1000 || configuredInterval > 3600000) {
+      throw new Error(`Invalid SCHEDULER_TICK_INTERVAL_MS: ${configuredInterval}. Must be between 1000 and 3600000.`);
+    }
+    this.TICK_INTERVAL_MS = configuredInterval;
 
     // Initialize repository (backend auto-detection via factory)
     // Use documentStore (PostgreSQL) or fallback to Firestore (legacy)
@@ -187,30 +197,61 @@ class SchedulerServer extends Bit {
 
     this.setupApp(this.getApp() as any);
     this.registerTools();
+
+    // Start ticker in constructor (like ingress-egress does with statusTimer)
+    this.startTicker();
+
+    // Register cleanup via shutdown hook (called by Bit.close())
+    this.onShutdown(() => {
+      this.stopTicker();
+    });
+  }
+
+  private startTicker(): void {
+    if (this.tickInterval) {
+      this.getLogger().warn('scheduler.ticker.already_running');
+      return;
+    }
+
+    this.getLogger().info('scheduler.ticker.starting', {
+      intervalMs: this.TICK_INTERVAL_MS,
+      intervalSeconds: this.TICK_INTERVAL_MS / 1000
+    });
+
+    this.tickInterval = setInterval(async () => {
+      try {
+        await this.handleTick();
+      } catch (e: any) {
+        this.getLogger().error('scheduler.tick.error', {
+          error: e.message,
+          stack: e.stack
+        });
+      }
+    }, this.TICK_INTERVAL_MS);
+  }
+
+  private stopTicker(): void {
+    if (this.tickInterval) {
+      clearInterval(this.tickInterval);
+      this.tickInterval = null;
+      this.getLogger().info('scheduler.ticker.stopped');
+    }
   }
 
   private async setupApp(app: Express) {
-    // Listen for the "tick" event from Cloud Scheduler (via Pub/Sub or HTTP)
-    // We'll support both for flexibility.
-    
-    // HTTP Trigger (POST /tick)
+    // HTTP Trigger (POST /tick) for manual execution (Task 1.6)
     this.onHTTPRequest({ path: '/tick', method: 'POST' }, async (req: Request, res: Response) => {
-      this.getLogger().info('scheduler.tick.http_received');
-      await this.handleTick();
-      res.status(200).send('OK');
-    });
-
-    // Pub/Sub Trigger (internal.scheduler.tick)
-    void this.onMessage('internal.scheduler.tick', async (_data, _attributes, ctx) => {
-      this.getLogger().info('scheduler.tick.pubsub_received');
+      this.getLogger().info('scheduler.tick.manual_trigger');
       try {
         await this.handleTick();
-        await ctx.ack();
+        res.status(200).json({ success: true, message: 'Tick executed successfully' });
       } catch (e: any) {
-        this.getLogger().error('scheduler.tick.pubsub_failed', { error: e.message });
-        await ctx.ack(); // Avoid loops
+        this.getLogger().error('scheduler.tick.manual_trigger_failed', { error: e.message });
+        res.status(500).json({ success: false, error: e.message });
       }
     });
+
+    // Removed Pub/Sub subscription to internal.scheduler.tick (Task 1.6 - GCP dependency removed)
   }
 
   private registerTools() {
@@ -354,6 +395,13 @@ class SchedulerServer extends Bit {
     );
   }
 
+  private getPublisher(topic: string) {
+    if (!this.publishers.has(topic)) {
+      this.publishers.set(topic, createMessagePublisher(topic));
+    }
+    return this.publishers.get(topic)!;
+  }
+
   private calculateNextRun(type: 'once' | 'cron', value: string): Date | null {
     try {
       if (type === 'once') {
@@ -370,39 +418,92 @@ class SchedulerServer extends Bit {
   }
 
   private async handleTick() {
+    const startTime = Date.now();
     const now = new Date();
     const dueSchedules = await this.scheduleRepo.getDueSchedules(now);
 
-    this.getLogger().info('scheduler.tick.executing', { count: dueSchedules.length });
+    this.getLogger().info('scheduler.tick.started', {
+      timestamp: now.toISOString(),
+      count: dueSchedules.length
+    });
 
-    // Publishers are created/cached per distinct topic so each schedule is emitted on its own
-    // topic (default internal.ingress.v1). Subject IS the publish topic (message-bus contract).
-    const publishers = new Map<string, ReturnType<typeof createMessagePublisher>>();
-    const getPublisher = (topic: string) => {
-      let publisher = publishers.get(topic);
-      if (!publisher) {
-        publisher = createMessagePublisher(topic);
-        publishers.set(topic, publisher);
-      }
-      return publisher;
-    };
+    // Process schedules in batches to prevent overwhelming DB/message bus (Task 1.4)
+    const CONCURRENCY_LIMIT = 10;
+    let executedCount = 0;
+    let errorCount = 0;
 
-    for (const schedule of dueSchedules) {
-      try {
-        const topic = schedule.topic ?? DEFAULT_PUBLISH_TOPIC;
-        await this.executeSchedule(schedule, getPublisher(topic));
+    for (let i = 0; i < dueSchedules.length; i += CONCURRENCY_LIMIT) {
+      const batch = dueSchedules.slice(i, i + CONCURRENCY_LIMIT);
+      const batchNumber = Math.floor(i / CONCURRENCY_LIMIT) + 1;
+      const totalBatches = Math.ceil(dueSchedules.length / CONCURRENCY_LIMIT);
 
-        // Update nextRun
-        const nextRun = this.calculateNextRun(schedule.schedule.type, schedule.schedule.value);
-        await this.scheduleRepo.update(schedule.id, {
-          lastRun: now,
-          nextRun: nextRun ?? null,
-          enabled: schedule.schedule.type === 'once' ? false : schedule.enabled,
-          updatedAt: now,
-        });
-      } catch (e) {
-        this.getLogger().error('scheduler.execute.error', { id: schedule.id, error: e });
-      }
+      this.getLogger().debug('scheduler.tick.batch_processing', {
+        batchNumber,
+        totalBatches,
+        batchSize: batch.length
+      });
+
+      const results = await Promise.allSettled(
+        batch.map(schedule => this.processSingleSchedule(schedule, now))
+      );
+
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          executedCount++;
+        } else {
+          errorCount++;
+        }
+      });
+    }
+
+    const duration = Date.now() - startTime;
+    this.getLogger().info('scheduler.tick.completed', {
+      timestamp: now.toISOString(),
+      durationMs: duration,
+      totalSchedules: dueSchedules.length,
+      executedCount,
+      errorCount
+    });
+  }
+
+  private async processSingleSchedule(schedule: ScheduleDoc, now: Date) {
+    try {
+      const topic = schedule.topic ?? DEFAULT_PUBLISH_TOPIC;
+      const publisher = this.getPublisher(topic);
+
+      this.getLogger().debug('scheduler.schedule.executing', {
+        id: schedule.id,
+        title: schedule.title,
+        type: schedule.schedule.type,
+        topic
+      });
+
+      await this.executeSchedule(schedule, publisher);
+
+      // Update nextRun
+      const nextRun = this.calculateNextRun(schedule.schedule.type, schedule.schedule.value);
+      await this.scheduleRepo.update(schedule.id, {
+        lastRun: now,
+        nextRun: nextRun ?? null,
+        enabled: schedule.schedule.type === 'once' ? false : schedule.enabled,
+        updatedAt: now,
+      });
+
+      this.getLogger().info('scheduler.schedule.executed', {
+        id: schedule.id,
+        title: schedule.title,
+        type: schedule.schedule.type,
+        nextRun: nextRun?.toISOString() ?? null,
+        disabled: schedule.schedule.type === 'once'
+      });
+    } catch (e: any) {
+      this.getLogger().error('scheduler.schedule.error', {
+        id: schedule.id,
+        title: schedule.title,
+        error: e.message,
+        stack: e.stack
+      });
+      throw e; // Re-throw so Promise.allSettled captures it
     }
   }
 

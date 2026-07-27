@@ -38,6 +38,31 @@ All messages are `Envelope v1` (see documentation/schemas/envelope.v1.json) with
 - Selected via `MESSAGE_BUS_DRIVER` environment variable
 - Delivery is at-least-once; all consumers MUST be idempotent
 
+### Scheduler Service (Sprint 369)
+**Platform-agnostic scheduled task execution with internal ticker.**
+
+The scheduler service executes timed and recurring events without external dependencies:
+- **Internal Timer**: Uses `setInterval()` instead of external cron services (no GCP Cloud Scheduler dependency)
+- **Platform-Agnostic**: Works on Docker (local, cloud, self-hosted), GCP, AWS, Azure
+- **Configurable Interval**: `SCHEDULER_TICK_INTERVAL_MS` (default: 60s, range: 1s-1h)
+- **Schedule Types**:
+  - `once` - Execute at specific ISO timestamp
+  - `cron` - Recurring execution with cron expressions
+- **Event Publishing**: Publishes `InternalEventV2` to configurable topics (`internal.ingress.v1` default)
+- **MCP Tools**: `create_schedule`, `list_schedules`, `get_schedule`, `update_schedule`, `delete_schedule`
+- **Manual Trigger**: `POST /tick` endpoint for on-demand execution
+
+Configuration:
+```yaml
+# env/local/scheduler.yaml
+SCHEDULER_TICK_INTERVAL_MS: "10000"  # 10s for local dev
+
+# env/staging/scheduler.yaml
+SCHEDULER_TICK_INTERVAL_MS: "60000"  # 60s for production
+```
+
+See `documentation/guides/scheduler.md` for usage guide.
+
 ### Agent-Dev Contexts (Sprint 358)
 **Ephemeral, self-service execution contexts for coding agents.**
 

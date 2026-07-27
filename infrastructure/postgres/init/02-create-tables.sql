@@ -318,4 +318,26 @@ CREATE TRIGGER sources_updated_at_trigger
   FOR EACH ROW
   EXECUTE FUNCTION update_sources_updated_at();
 
+-- 25. Schedules collection (scheduled task execution - Sprint 369)
+-- Stores schedule definitions for timed and recurring event publication
+CREATE TABLE IF NOT EXISTS schedules (
+  id VARCHAR(255) PRIMARY KEY,
+  data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_schedules_enabled ON schedules((data->>'enabled'));
+CREATE INDEX idx_schedules_next_run ON schedules((data->>'nextRun'));
+CREATE INDEX idx_schedules_last_run ON schedules((data->>'lastRun'));
+CREATE INDEX idx_schedules_type ON schedules((data->'schedule'->>'type'));
+-- Partial index for due schedule queries (optimized for scheduler tick)
+-- This index is also created in migration 015_add_schedules_due_index.sql
+CREATE INDEX IF NOT EXISTS idx_schedules_due ON schedules(
+  (data->>'enabled'),
+  (data->>'nextRun')
+)
+WHERE (data->>'enabled')::boolean = true
+  AND (data->>'nextRun') IS NOT NULL;
+
 SELECT 'All tables created successfully' AS status;
