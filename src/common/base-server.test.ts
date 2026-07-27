@@ -2,9 +2,20 @@ import request from 'supertest';
 import { Bit } from './base-server';
 
 describe('BaseServer', () => {
+  let server: Bit;
+
+  afterEach(async () => {
+    // Cleanup to prevent open handles and resource leaks
+    if (server) {
+      await server.close('test-cleanup');
+    }
+  });
+
   it('exposes health endpoints and root', async () => {
-    const server = new Bit({ serviceName: 'test-svc' });
+    server = new Bit({ serviceName: 'test-svc' });
     const app = server.getApp();
+    // Small delay to ensure async initialization completes (race condition fix)
+    await new Promise(resolve => setImmediate(resolve));
     await request(app).get('/healthz').expect(200);
     await request(app).get('/readyz').expect(200);
     await request(app).get('/livez').expect(200);
@@ -12,13 +23,14 @@ describe('BaseServer', () => {
   });
 
   it('accepts a setup function to register custom routes', async () => {
-    const server = new Bit({
+    server = new Bit({
       serviceName: 'custom',
       setup: (app) => {
         app.get('/custom', (_req, res) => res.status(204).end());
       },
     });
     const app = server.getApp();
+    await new Promise(resolve => setImmediate(resolve));
     await request(app).get('/custom').expect(204);
   });
 
