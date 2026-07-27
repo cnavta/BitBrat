@@ -195,7 +195,8 @@ class LlmBotServer extends Bit {
               logger.debug('llm_bot.processing');
               const status = await processEvent(this, data as InternalEventV2, {
                 registry: this.registry,
-                personalityStore: this.personalityStore
+                personalityStore: this.personalityStore,
+                documentStore: this.getResource<any>('documentStore')
               });
               
               // If status is OK but no candidates were generated, we might want to log it
