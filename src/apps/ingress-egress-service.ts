@@ -251,36 +251,61 @@ export class IngressEgressServer extends Bit {
     }
 
     // Slack initialization (Sprint 348)
+    logger.debug('slack.init.checking', { slackEnabled: cfg.slackEnabled });
     if (cfg.slackEnabled) {
       try {
         const slackAppToken = cfg.slackAppToken;
         const slackBotToken = cfg.slackBotToken;
+        const slackSigningSecret = cfg.slackSigningSecret;
+
+        logger.debug('slack.init.credentials_check', {
+          hasAppToken: !!slackAppToken,
+          hasBotToken: !!slackBotToken,
+          hasSigningSecret: !!slackSigningSecret,
+          appTokenPrefix: slackAppToken?.substring(0, 10),
+          botTokenPrefix: slackBotToken?.substring(0, 10),
+        });
 
         if (!slackAppToken || !slackBotToken) {
           logger.warn('slack.init_missing_credentials', {
             hasAppToken: !!slackAppToken,
-            hasBotToken: !!slackBotToken
+            hasBotToken: !!slackBotToken,
+            hasSigningSecret: !!slackSigningSecret,
           });
         } else {
           // Create publisher for Slack events (reuse existing publisher resource)
+          logger.debug('slack.init.creating_publisher');
           const slackPublisher = {
             publish: async (envelope: any) => {
+              logger.debug('slack.publisher.publish', {
+                correlationId: envelope?.correlationId,
+                type: envelope?.type,
+              });
               await publisher.publish(envelope);
             }
           };
 
+          logger.debug('slack.init.creating_client');
           this.slackClient = new SlackIngressClient(
             slackAppToken,
             slackBotToken,
             slackPublisher as any
           );
 
+          logger.debug('slack.init.registering_connector');
           manager.register('slack', new SlackConnectorAdapter(this.slackClient, cfg));
-          logger.info('slack.init_ok');
+          logger.info('slack.init_ok', {
+            hasClient: !!this.slackClient,
+          });
         }
       } catch (e: any) {
-        logger.error('slack.init_error', { error: e?.message || String(e) });
+        logger.error('slack.init_error', {
+          error: e?.message || String(e),
+          stack: e?.stack,
+        });
       }
+    } else {
+      logger.debug('slack.init.disabled');
     }
 
     // Generic webhook routing (Sprint 342 - IEF-005)
@@ -615,15 +640,46 @@ export class IngressEgressServer extends Bit {
             return 'IGNORED';
           }
         } else if (isSlack) {
+          logger.debug('ingress-egress.egress.slack.start', {
+            correlationId,
+            hasClient: !!this.slackClient,
+            targetChannel,
+            textLength: text.length,
+          });
+
           if (this.slackClient) {
             // Check if Slack client is connected; if not, return IGNORED
             const snap = this.slackClient.getSnapshot();
+            logger.debug('ingress-egress.egress.slack.client_state', {
+              correlationId,
+              state: snap.state,
+              counters: snap.counters,
+            });
+
             if (snap.state !== 'CONNECTED') {
-              logger.debug('ingress-egress.egress.slack.ignored_disconnected', { correlationId });
+              logger.debug('ingress-egress.egress.slack.ignored_disconnected', {
+                correlationId,
+                state: snap.state,
+                lastError: snap.lastError,
+              });
               return 'IGNORED';
             }
+
+            logger.debug('ingress-egress.egress.slack.sending', {
+              correlationId,
+              channel: targetChannel,
+              textPreview: text.substring(0, 100),
+            });
+
             await this.slackClient.sendText(text, targetChannel);
+
+            logger.info('ingress-egress.egress.slack.sent', {
+              correlationId,
+              channel: targetChannel,
+              textLength: text.length,
+            });
           } else {
+            logger.debug('ingress-egress.egress.slack.no_client', { correlationId });
             return 'IGNORED';
           }
         } else if (isTwitch) {
