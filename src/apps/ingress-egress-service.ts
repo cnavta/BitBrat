@@ -20,6 +20,7 @@ import {
   createTwilioIngressPublisherFromConfig
 } from '../services/ingress/twilio';
 import { validateTwilioSignature } from '../services/ingress/twilio/webhook-utils';
+import { SlackConnectorAdapter, SlackIngressClient } from '../services/ingress/slack';
 import twilio from 'twilio';
 import { createAuthTokenStore } from '../services/oauth/auth-token-store';
 import { createTokenStore } from '../services/firestore-token-store';
@@ -50,6 +51,7 @@ export class IngressEgressServer extends Bit {
   private discordClient: DiscordIngressClient | null = null;
   private discordBroadcasterClient: DiscordIngressClient | null = null;
   private twilioClient: TwilioIngressClient | null = null;
+  private slackClient: SlackIngressClient | null = null;
   private unsubscribeEgress: (() => Promise<void>) | null = null;
   private connectorManager: ConnectorManager | null = null;
   private lastStates: Record<string, string> = {};
@@ -248,6 +250,39 @@ export class IngressEgressServer extends Bit {
       }
     }
 
+    // Slack initialization (Sprint 348)
+    if (cfg.slackEnabled) {
+      try {
+        const slackAppToken = cfg.slackAppToken;
+        const slackBotToken = cfg.slackBotToken;
+
+        if (!slackAppToken || !slackBotToken) {
+          logger.warn('slack.init_missing_credentials', {
+            hasAppToken: !!slackAppToken,
+            hasBotToken: !!slackBotToken
+          });
+        } else {
+          // Create publisher for Slack events (reuse existing publisher resource)
+          const slackPublisher = {
+            publish: async (envelope: any) => {
+              await publisher.publish(envelope);
+            }
+          };
+
+          this.slackClient = new SlackIngressClient(
+            slackAppToken,
+            slackBotToken,
+            slackPublisher as any
+          );
+
+          manager.register('slack', new SlackConnectorAdapter(this.slackClient, cfg));
+          logger.info('slack.init_ok');
+        }
+      } catch (e: any) {
+        logger.error('slack.init_error', { error: e?.message || String(e) });
+      }
+    }
+
     // Generic webhook routing (Sprint 342 - IEF-005)
     // Route: POST /webhooks/:platform
     // Delegates to platform-specific WebhookConnector via ConnectorManager
@@ -371,10 +406,11 @@ export class IngressEgressServer extends Bit {
 
               const isDiscord = connector === 'discord' || (connector === '' && (egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord')));
               const isTwilio = connector === 'twilio' || (connector === '' && (egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio')));
-              const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
+              const isSlack = connector === 'slack' || (connector === '' && (egressDest === 'slack' || source.includes('slack') || authProvider === 'slack' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'slack')));
+              const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && !isSlack && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
 
-              logger.debug('ingress-egress.egress.generic.platforms', { isDiscord, isTwilio, isTwitch })
-              if (isDiscord || isTwilio || isTwitch) {
+              logger.debug('ingress-egress.egress.generic.platforms', { isDiscord, isTwilio, isSlack, isTwitch })
+              if (isDiscord || isTwilio || isSlack || isTwitch) {
                 const result = await this.processEgress(evt, genericEgressSubject);
                 if (result === 'FAILED') {
                   const dlqEvent = buildDlqEvent({
@@ -429,6 +465,20 @@ export class IngressEgressServer extends Bit {
           return;
         }
         const snapshot = this.twilioClient.getSnapshot();
+        res.status(200).json({ snapshot, egressTopic });
+      } catch (e: any) {
+        res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
+      }
+    });
+
+    // Slack debug endpoint
+    this.onHTTPRequest('/_debug/slack', (_req: Request, res: Response) => {
+      try {
+        if (!this.slackClient) {
+          res.status(200).json({ snapshot: { state: 'DISABLED' }, egressTopic });
+          return;
+        }
+        const snapshot = this.slackClient.getSnapshot();
         res.status(200).json({ snapshot, egressTopic });
       } catch (e: any) {
         res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
@@ -523,12 +573,13 @@ export class IngressEgressServer extends Bit {
 
         const isDiscord = connector === 'discord' || (connector === '' && (egressDest === 'discord' || source.includes('discord') || authProvider === 'discord' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'discord')));
         const isTwilio = connector === 'twilio' || (connector === '' && (egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio')));
-        const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
+        const isSlack = connector === 'slack' || (connector === '' && (egressDest === 'slack' || source.includes('slack') || authProvider === 'slack' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'slack')));
+        const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && !isSlack && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
 
         const isInternalTopic = egressDest.startsWith('internal.') || egressDest.includes('.egress.');
         const targetChannel = (evt.egress?.channel)
           ? evt.egress.channel
-          : (egressDest && !isInternalTopic && !['twitch', 'discord', 'twilio', 'api', 'system', 'chat', 'dm'].includes(egressDest))
+          : (egressDest && !isInternalTopic && !['twitch', 'discord', 'twilio', 'slack', 'api', 'system', 'chat', 'dm'].includes(egressDest))
             ? egressDest
             : (evt.ingress?.channel || evt.channel);
 
@@ -560,6 +611,18 @@ export class IngressEgressServer extends Bit {
         } else if (isTwilio) {
           if (this.twilioClient) {
             await this.twilioClient.sendText(text, targetChannel);
+          } else {
+            return 'IGNORED';
+          }
+        } else if (isSlack) {
+          if (this.slackClient) {
+            // Check if Slack client is connected; if not, return IGNORED
+            const snap = this.slackClient.getSnapshot();
+            if (snap.state !== 'CONNECTED') {
+              logger.debug('ingress-egress.egress.slack.ignored_disconnected', { correlationId });
+              return 'IGNORED';
+            }
+            await this.slackClient.sendText(text, targetChannel);
           } else {
             return 'IGNORED';
           }
@@ -605,7 +668,7 @@ export class IngressEgressServer extends Bit {
           await publishFinalize('FAILED', { code: 'unsupported_connector', message: `Connector ${connector} not supported` });
           return 'FAILED';
         }
-        logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio });
+        logger.info('ingress-egress.egress.sent', { correlationId, source, isDiscord, isTwilio, isSlack, isTwitch });
         await publishFinalize('SENT');
         return 'DELIVERED';
       } catch (e: any) {

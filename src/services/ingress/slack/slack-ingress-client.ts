@@ -143,23 +143,27 @@ export class SlackIngressClient {
     this.lastMessageAt = new Date().toISOString();
 
     try {
+      // Socket Mode wraps events - extract the actual event payload
+      // event.payload.event contains the actual Slack event (message, app_mention, etc.)
+      const actualEvent = event?.payload?.event || event;
+
       // Filter bot messages to prevent loops
-      if (event.user === this.botUserId || event.bot_id) {
-        logger.debug('slack.client.message_filtered', { user: event.user, botId: event.bot_id });
+      if (actualEvent.user === this.botUserId || actualEvent.bot_id) {
+        logger.debug('slack.client.message_filtered', { user: actualEvent.user, botId: actualEvent.bot_id });
         this.counters.filtered++;
         return;
       }
 
-      // Build envelope
+      // Build envelope from the actual event data
       const envelope = buildSlackEnvelope({
-        type: event.type,
-        user: event.user,
-        channel: event.channel,
-        text: event.text,
-        ts: event.ts,
-        thread_ts: event.thread_ts,
-        team: event.team,
-        event_ts: event.event_ts,
+        type: actualEvent.type,
+        user: actualEvent.user,
+        channel: actualEvent.channel,
+        text: actualEvent.text,
+        ts: actualEvent.ts,
+        thread_ts: actualEvent.thread_ts,
+        team: actualEvent.team || event?.payload?.team_id,
+        event_ts: actualEvent.event_ts,
       });
 
       // Publish to event router
@@ -168,8 +172,8 @@ export class SlackIngressClient {
       this.counters.published++;
       logger.info('slack.client.message_published', {
         correlationId: envelope.correlationId,
-        user: event.user,
-        channel: event.channel,
+        user: actualEvent.user,
+        channel: actualEvent.channel,
       });
     } catch (error: any) {
       this.counters.failed++;
