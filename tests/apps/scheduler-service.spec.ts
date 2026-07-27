@@ -14,31 +14,32 @@ jest.mock('../../src/services/message-bus', () => ({
   }),
 }));
 
-// Mock Firestore
+// Mock DocumentStore (Sprint 344: PostgreSQL migration)
 const setMock = jest.fn(async () => {});
-const updateMock = jest.fn(async () => {});
 const deleteMock = jest.fn(async () => {});
+const queryMock = jest.fn(async () => [] as any[]);
 
-const makeDoc = (id: string, data: any) => ({
-  id,
-  exists: true,
-  data: () => data,
-  ref: { update: updateMock },
-});
+const documentStoreMock = {
+  get: jest.fn(async (collection: string, id: string) => {
+    if (id === 'non-existent') return null;
+    return {};
+  }),
+  set: setMock,
+  delete: deleteMock,
+  query: queryMock,
+  getAll: jest.fn(async () => []),
+  watch: jest.fn(() => () => {}),
+  batch: jest.fn(async () => {}),
+  health: jest.fn(async () => ({ healthy: true })),
+};
 
-const getMock = jest.fn();
-const whereMock = jest.fn();
-
+// Mock Firestore (still needed for some internal dependencies)
+const updateMock = jest.fn(async () => {});
 const dbMock = {
   collection: jest.fn((name: string) => ({
     doc: jest.fn((id: string) => ({
-      get: async () => id === 'non-existent' ? { exists: false } : makeDoc(id, {}),
-      set: setMock,
       update: updateMock,
-      delete: deleteMock,
     })),
-    where: whereMock,
-    get: getMock,
   })),
 };
 
@@ -61,27 +62,26 @@ describe('Scheduler Service', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
+    // Reset query mock to return empty results by default
+    queryMock.mockResolvedValue([]);
+
     // Force getResource to return our mocks
     jest.spyOn(Bit.prototype as any, 'getResource').mockImplementation((...args: any[]) => {
       const name = args[0];
+      if (name === 'documentStore') return documentStoreMock;
       if (name === 'firestore') return dbMock;
       return undefined;
     });
 
     app = createApp();
-    whereMock.mockReturnValue({
-      where: jest.fn().mockReturnValue({
-        get: async () => ({ size: 0, docs: [] })
-      })
-    });
   });
 
   describe('HTTP /tick', () => {
     it('processes due schedules', async () => {
       const now = new Date();
       const past = new Date(now.getTime() - 10000);
-      
+
       const dueSchedule = {
         id: 'sched-1',
         title: 'Test Schedule',
@@ -91,14 +91,8 @@ describe('Scheduler Service', () => {
         event: { type: 'test.event', payload: { foo: 'bar' } },
       };
 
-      whereMock.mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          get: async () => ({
-            size: 1,
-            docs: [makeDoc('sched-1', dueSchedule)]
-          })
-        })
-      });
+      // Mock documentStore.query to return due schedules
+      queryMock.mockResolvedValue([dueSchedule]);
 
       const response = await request(app).post('/tick');
       expect(response.status).toBe(200);
@@ -114,12 +108,14 @@ describe('Scheduler Service', () => {
       // No topic on the schedule -> published on the default topic.
       expect(createMessagePublisherMock).toHaveBeenCalledWith(DEFAULT_PUBLISH_TOPIC);
 
-      // Verify schedule was updated
-      expect(updateMock).toHaveBeenCalled();
-      const updateData = (updateMock.mock.calls as any)[0][0];
+      // Verify schedule was updated (using documentStore.set, not firestore update)
+      expect(setMock).toHaveBeenCalled();
+      const [collection, id, updateData] = (setMock.mock.calls as any)[0];
+      expect(collection).toBe('schedules');
+      expect(id).toBe('sched-1');
       expect(updateData.lastRun).toBeDefined();
       expect(updateData.nextRun).toBeDefined();
-      expect(updateData.nextRun.toDate().getTime()).toBeGreaterThan(now.getTime());
+      expect(new Date(updateData.nextRun).getTime()).toBeGreaterThan(now.getTime());
     });
 
     it('handles once-off schedules by disabling them after run', async () => {
@@ -132,19 +128,14 @@ describe('Scheduler Service', () => {
         event: { type: 'once.event' },
       };
 
-      whereMock.mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          get: async () => ({
-            size: 1,
-            docs: [makeDoc('sched-once', onceSchedule)]
-          })
-        })
-      });
+      queryMock.mockResolvedValue([onceSchedule]);
 
       await request(app).post('/tick');
-      
-      expect(updateMock).toHaveBeenCalled();
-      const updateData = (updateMock.mock.calls as any)[0][0];
+
+      expect(setMock).toHaveBeenCalled();
+      const [collection, id, updateData] = (setMock.mock.calls as any)[0];
+      expect(collection).toBe('schedules');
+      expect(id).toBe('sched-once');
       expect(updateData.enabled).toBe(false);
       expect(updateData.nextRun).toBeNull();
     });
@@ -166,11 +157,7 @@ describe('Scheduler Service', () => {
         },
       };
 
-      whereMock.mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          get: async () => ({ size: 1, docs: [makeDoc('sched-twitch', dueSchedule)] })
-        })
-      });
+      queryMock.mockResolvedValue([dueSchedule]);
 
       await request(app).post('/tick');
 
@@ -199,11 +186,7 @@ describe('Scheduler Service', () => {
         event: { type: 'system.timer.v1' },
       };
 
-      whereMock.mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          get: async () => ({ size: 1, docs: [makeDoc('sched-default-egress', dueSchedule)] })
-        })
-      });
+      queryMock.mockResolvedValue([dueSchedule]);
 
       await request(app).post('/tick');
 

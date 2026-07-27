@@ -1,22 +1,38 @@
 import { processEvent } from '../processor';
 import { Bit } from '../../../common/base-server';
 import type { InternalEventV2 } from '../../../types/events';
+import type { IDocumentStore } from '../../../common/persistence/interfaces';
 
-// Mock Firestore getFirestore used inside processor.ts
-jest.mock('../../../common/firebase', () => {
-  const buildQuery = (docs: any[]) => ({
-    where: (_field: string, _op: string, _value: any) => buildQuery(docs),
-    orderBy: (_field: string, _dir: string) => buildQuery(docs),
-    limit: (_n: number) => buildQuery(docs),
-    get: async () => ({ docs }),
-  });
-  const fakeDoc = { data: () => ({ name: 'p2', text: 'DBTEXT2', status: 'active', version: 9 }) };
-  return {
-    getFirestore: () => ({
-      collection: (_name: string) => buildQuery([fakeDoc]),
-    }),
-  } as any;
-});
+// Mock DocumentStore (Sprint 344: PostgreSQL migration)
+const mockDocumentStore: IDocumentStore = {
+  get: jest.fn(async (collection: string, id: string) => {
+    // Return personality data for query
+    if (collection === 'personalities') {
+      return { name: 'p2', text: 'DBTEXT2', status: 'active', version: 9 };
+    }
+    return null;
+  }) as any,
+  set: jest.fn(async () => {}) as any,
+  delete: jest.fn(async () => {}) as any,
+  query: jest.fn(async (collection: string, options: any) => {
+    // Simulate personality lookup query
+    if (collection === 'personalities') {
+      return [{ name: 'p2', text: 'DBTEXT2', status: 'active', version: 9 }];
+    }
+    return [];
+  }) as any,
+  getAll: jest.fn(async () => []) as any,
+  watch: jest.fn(() => () => {}) as any,
+  batch: jest.fn(async () => {}) as any,
+  health: jest.fn(async () => ({ healthy: true })) as any,
+};
+
+// Mock Firestore (should not be called when documentStore is provided)
+jest.mock('../../../common/firebase', () => ({
+  getFirestore: jest.fn(() => {
+    throw new Error('getFirestore() should not be called when documentStore is provided');
+  }),
+}));
 
 class TestServer extends Bit { constructor() { super({ serviceName: 'test-llm-bot' }); } }
 
@@ -59,6 +75,13 @@ describe('llm-bot processor with mixed personalities (inline + name)', () => {
       callLLM: async (_model, input) => {
         capturedInput = input;
         return 'ok';
+      },
+      documentStore: mockDocumentStore,
+      fetchByName: async (name: string) => {
+        if (name === 'p2') {
+          return { name: 'p2', text: 'DBTEXT2', status: 'active', version: 9 };
+        }
+        return undefined;
       },
     });
     expect(status).toBe('OK');
