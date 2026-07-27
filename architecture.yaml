@@ -745,7 +745,7 @@ services:
     mcp:
       exposure: platform+domain
     active: true
-    description: Scheduler service for periodic tasks
+    description: Platform-agnostic scheduler service with internal timer (Sprint 369)
     kind: pipeline-service
     stage: ingest
     entry: src/apps/scheduler-service.ts
@@ -753,8 +753,7 @@ services:
       publishes:
         - internal.ingress.v1
         - internal.egress.v1
-      consumes:
-        - internal.scheduler.tick
+      consumes: []
     secrets:
       - MCP_AUTH_TOKEN
   api-gateway:

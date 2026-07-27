@@ -1,5 +1,5 @@
 # ============================================================================
-# Scheduler Service Configuration
+# Scheduler Service Configuration (Sprint 369 - Platform-Agnostic Redesign)
 # ============================================================================
 # Purpose: Scheduled task execution (cron jobs, delayed events)
 # Required: No (optional service, not started by default in local stack)
@@ -7,11 +7,19 @@
 # Prerequisites:
 #   - MCP_AUTH_TOKEN in .secure.local (required for MCP tool access)
 #
-# Default Configuration:
-#   This service has minimal configuration - most settings are in global.yaml
+# Configuration:
+#   SCHEDULER_TICK_INTERVAL_MS: How often to check for due schedules (milliseconds)
+#     - Default: 60000 (60 seconds / 1 minute)
+#     - Min: 1000 (1 second)
+#     - Max: 3600000 (1 hour)
+#     - Recommendation: 60000 for production, 10000 for local dev
 #
 # To use the scheduler service:
 #   1. Add MCP_AUTH_TOKEN to .secure.local
 #   2. Start service: docker compose up scheduler
-#   3. Schedule tasks via MCP tools or event-router rules
+#   3. Schedule tasks via MCP tools (create_schedule, list_schedules, etc.)
+#   4. Manual trigger: POST http://localhost:3001/tick
 # ============================================================================
+
+# Tick interval - check for due schedules every 10 seconds (responsive for local dev)
+SCHEDULER_TICK_INTERVAL_MS: "10000"
