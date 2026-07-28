@@ -69,21 +69,28 @@ export class SlackIngressClient {
       // Register event handlers
       logger.debug('slack.client.registering_event_handlers');
 
-      this.socketClient.on('message', async (event: any) => {
-        logger.debug('slack.client.event.message', {
-          eventType: event?.type,
+      // Use 'slack_event' catch-all instead of specific event types
+      // The SDK emits 'slack_event' for all events, but only emits
+      // event-specific names (like 'message', 'app_mention') when event.payload.event exists
+      this.socketClient.on('slack_event', async (args: any) => {
+        const { event, body, ack } = args;
+        logger.debug('slack.client.event.slack_event', {
+          envelopeType: event?.type,
           hasPayload: !!event?.payload,
           payloadType: event?.payload?.type,
+          hasEvent: !!event?.payload?.event,
+          eventType: event?.payload?.event?.type,
         });
-        await this.handleMessage(event);
-      });
 
-      this.socketClient.on('app_mention', async (event: any) => {
-        logger.debug('slack.client.event.app_mention', {
-          eventType: event?.type,
-          hasPayload: !!event?.payload,
-        });
-        await this.handleMessage(event);
+        // Only process events_api events (actual Slack events)
+        if (event?.type === 'events_api') {
+          await this.handleMessage(event);
+        }
+
+        // Acknowledge the event envelope if ack callback provided
+        if (ack) {
+          await ack();
+        }
       });
 
       this.socketClient.on('error', (error: Error) => {
@@ -215,7 +222,10 @@ export class SlackIngressClient {
       eventStructure: {
         hasEvent: !!event?.payload?.event,
         eventType: event?.payload?.event?.type,
-      }
+      },
+      // Log the full event structure for debugging
+      fullEventKeys: Object.keys(event || {}),
+      payloadKeys: Object.keys(event?.payload || {}),
     });
 
     try {
@@ -232,6 +242,14 @@ export class SlackIngressClient {
         user: actualEvent?.user,
         channel: actualEvent?.channel,
         subtype: actualEvent?.subtype,
+        // Log full extracted event for debugging
+        extractedEventKeys: Object.keys(actualEvent || {}),
+        extractedEventSample: {
+          type: actualEvent?.type,
+          user: actualEvent?.user,
+          channel: actualEvent?.channel,
+          text: actualEvent?.text?.substring(0, 100),
+        },
       });
 
       // Filter bot messages to prevent loops

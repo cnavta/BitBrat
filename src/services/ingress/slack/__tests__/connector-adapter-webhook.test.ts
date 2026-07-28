@@ -291,13 +291,13 @@ describe('SlackConnectorAdapter - WebhookConnector', () => {
           headers: {},
           body: {
             type: 'event_callback',
+            team_id: 'T123456',
             event: {
               type: 'message',
               user: 'U123456',
               channel: 'C123456',
               text: 'Hello, world!',
               ts: '1234567890.123456',
-              team: 'T123456',
             },
           },
           url: '/webhooks/slack',
@@ -317,6 +317,70 @@ describe('SlackConnectorAdapter - WebhookConnector', () => {
         expect(publishedEvent.type).toBe('chat.message.v1');
         expect(publishedEvent.ingress.connector).toBe('slack');
         expect(publishedEvent.message?.text).toBe('Hello, world!');
+      });
+
+      it('should correctly extract and map all Slack event fields to InternalEventV2', async () => {
+        const req: WebhookRequest = {
+          headers: {},
+          body: {
+            type: 'event_callback',
+            team_id: 'T123456',
+            event: {
+              type: 'message',
+              user: 'U123456',
+              channel: 'C789012',
+              text: 'Test message content',
+              ts: '1234567890.123456',
+              thread_ts: '1234567800.000000',
+              event_ts: '1234567890.123456',
+            },
+          },
+          url: '/webhooks/slack',
+          method: 'POST',
+        };
+
+        await adapter.handleWebhook(req);
+
+        // Wait for async processing
+        await new Promise(resolve => setImmediate(resolve));
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(mockPublisher.publish).toHaveBeenCalledTimes(1);
+
+        const publishedEvent = (mockPublisher.publish as jest.Mock).mock.calls[0][0];
+
+        // Verify envelope structure
+        expect(publishedEvent.v).toBe('2');
+        expect(publishedEvent.type).toBe('chat.message.v1');
+
+        // Verify message content is extracted
+        expect(publishedEvent.message?.text).toBe('Test message content');
+        expect(publishedEvent.message?.id).toBe('1234567890.123456');
+        expect(publishedEvent.message?.role).toBe('user');
+
+        // Verify rawPlatformPayload contains all fields
+        expect(publishedEvent.message?.rawPlatformPayload).toMatchObject({
+          type: 'message',
+          user: 'U123456',
+          channel: 'C789012',
+          text: 'Test message content',
+          ts: '1234567890.123456',
+          thread_ts: '1234567800.000000',
+          event_ts: '1234567890.123456',
+        });
+
+        // Verify identity extraction
+        expect(publishedEvent.identity?.external?.id).toBe('U123456');
+        expect(publishedEvent.identity?.external?.platform).toBe('slack');
+        expect(publishedEvent.identity?.external?.metadata?.channelId).toBe('C789012');
+        expect(publishedEvent.identity?.external?.metadata?.teamId).toBe('T123456');
+        expect(publishedEvent.identity?.external?.metadata?.threadTs).toBe('1234567800.000000');
+
+        // Verify ingress/egress channels
+        expect(publishedEvent.ingress?.channel).toBe('C789012');
+        expect(publishedEvent.egress?.channel).toBe('C789012');
+        expect(publishedEvent.ingress?.connector).toBe('slack');
+        expect(publishedEvent.egress?.connector).toBe('slack');
       });
 
       it('should handle errors gracefully (logs, does not throw)', async () => {

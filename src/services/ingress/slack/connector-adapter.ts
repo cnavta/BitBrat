@@ -126,7 +126,17 @@ export class SlackConnectorAdapter implements IngressConnector, WebhookConnector
       // Process event asynchronously after response
       setImmediate(async () => {
         try {
-          const envelope = buildSlackEnvelope(event);
+          // Extract Slack event fields to match SlackEventMeta interface
+          const envelope = buildSlackEnvelope({
+            type: event.type,
+            user: event.user,
+            channel: event.channel,
+            text: event.text,
+            ts: event.ts,
+            thread_ts: event.thread_ts,
+            team: req.body.team_id,
+            event_ts: event.event_ts,
+          });
           // Access publisher through client
           await (this.client as any).publisher.publish(envelope);
           logger.debug('slack.webhook.event_published', {
