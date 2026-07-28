@@ -253,14 +253,17 @@ items:
   - id: DBG-009
     title: "Unit tests for Slack debug detection and RBAC"
     priority: P0
-    status: todo
+    status: done
     effort: M
     owner: agent
     phase: 2
     deps: [DBG-003, DBG-005, DBG-006, DBG-007, DBG-008]
     blocked_reason: null
     files:
-      - src/services/ingress/slack/slack-ingress-client.test.ts
+      - src/services/ingress/slack/__tests__/slack-ingress-client-debug.test.ts
+      - src/services/ingress/slack/__tests__/slack-ingress-client-rbac.test.ts
+      - src/services/ingress/slack/__tests__/envelope-builder-debug.test.ts
+      - src/services/ingress/slack/__tests__/slack-ingress-client-activation.test.ts
     acceptance:
       - "Test: detectDebugRequest() matches /^!debug\\s+/i pattern"
       - "Test: detectDebugRequest() strips prefix correctly"
@@ -273,8 +276,14 @@ items:
     notes: |
       Lock in connector behavior with comprehensive unit tests.
       Prevents regressions when modifying base server (Phase 3).
+
+      Implemented across 4 test files with 40 debug-specific tests:
+      - 10 detection tests, 10 RBAC tests, 12 envelope tests, 8 activation tests
     updated_at: 2026-07-28
-    log: []
+    log:
+      - timestamp: 2026-07-28T21:10:00Z
+        action: completed
+        note: "Comprehensive test coverage already implemented in DBG-005 through DBG-008. Total: 40 debug-specific tests across 4 test files. All 88 Slack tests passing."
 
   # ========================================
   # PHASE 3: BASE SERVER DEBUG FLOW (P0)
