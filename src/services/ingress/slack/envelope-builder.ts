@@ -39,6 +39,7 @@ export interface SlackEventMeta {
  *
  * @param event - Slack event metadata
  * @param opts - Optional overrides for testing
+ * @param opts.debugRequested - Sprint 371: Debug mode was requested (from !debug prefix)
  * @returns Envelope v1 event
  *
  * @example
@@ -57,6 +58,7 @@ export function buildSlackEnvelope(
   opts?: {
     uuid?: () => string;
     nowIso?: () => string;
+    debugRequested?: boolean; // Sprint 371: Debug mode flag
   }
 ): InternalEventV2 {
   const uuid = opts?.uuid || randomUUID;

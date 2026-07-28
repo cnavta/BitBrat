@@ -262,25 +262,47 @@ export class SlackIngressClient {
         return;
       }
 
+      // Sprint 371: Detect debug mode command (!debug <message>)
+      // Strip prefix and capture match for RBAC + metadata downstream
+      let messageText = actualEvent.text || '';
+      const debugMatch = messageText.match(/^!debug\s+/i);
+      if (debugMatch) {
+        // Strip debug prefix from message text
+        messageText = messageText.slice(debugMatch[0].length);
+        logger.info('slack.debug.detected', {
+          user: actualEvent.user,
+          channel: actualEvent.channel,
+          originalText: actualEvent.text,
+          strippedText: messageText,
+          prefixLength: debugMatch[0].length,
+        });
+      }
+
       // Build envelope from the actual event data
       logger.debug('slack.client.building_envelope', {
         type: actualEvent.type,
         user: actualEvent.user,
         channel: actualEvent.channel,
-        textPreview: actualEvent.text?.substring(0, 50),
+        textPreview: messageText.substring(0, 50),
         ts: actualEvent.ts,
+        debugMode: !!debugMatch,
       });
 
-      const envelope = buildSlackEnvelope({
-        type: actualEvent.type,
-        user: actualEvent.user,
-        channel: actualEvent.channel,
-        text: actualEvent.text,
-        ts: actualEvent.ts,
-        thread_ts: actualEvent.thread_ts,
-        team: actualEvent.team || body?.team_id,
-        event_ts: actualEvent.event_ts,
-      });
+      const envelope = buildSlackEnvelope(
+        {
+          type: actualEvent.type,
+          user: actualEvent.user,
+          channel: actualEvent.channel,
+          text: messageText, // Use stripped text
+          ts: actualEvent.ts,
+          thread_ts: actualEvent.thread_ts,
+          team: actualEvent.team || body?.team_id,
+          event_ts: actualEvent.event_ts,
+        },
+        {
+          debugRequested: !!debugMatch, // Sprint 371: Pass debug flag for RBAC + metadata
+        }
+      );
 
       logger.debug('slack.client.envelope_built', {
         correlationId: envelope.correlationId,
@@ -289,11 +311,13 @@ export class SlackIngressClient {
         messageText: envelope.message?.text?.substring(0, 100),
         userId: envelope.identity?.external?.id,
         channelId: envelope.ingress?.channel,
+        debugRequested: !!debugMatch,
       });
 
       // Publish to event router
       logger.debug('slack.client.publishing_envelope', {
         correlationId: envelope.correlationId,
+        debugRequested: !!debugMatch,
       });
 
       await this.publisher.publish(envelope);

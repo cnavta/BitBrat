@@ -138,7 +138,7 @@ items:
   - id: DBG-005
     title: "Implement debug detection in SlackIngressClient"
     priority: P0
-    status: todo
+    status: done
     effort: M
     owner: agent
     phase: 2
@@ -146,6 +146,8 @@ items:
     blocked_reason: null
     files:
       - src/services/ingress/slack/slack-ingress-client.ts
+      - src/services/ingress/slack/envelope-builder.ts
+      - src/services/ingress/slack/__tests__/slack-ingress-client-debug.test.ts
     acceptance:
       - "handleMessage() detects /^!debug\\s+/i pattern in message text"
       - "Debug prefix is stripped from text before envelope creation"
@@ -156,7 +158,10 @@ items:
       Add debug command detection to Slack message handler.
       This is the entry point for debug mode activation.
     updated_at: 2026-07-28
-    log: []
+    log:
+      - timestamp: 2026-07-28T19:15:00Z
+        action: completed
+        note: "Implemented debug detection in handleMessage(). Added debugRequested param to buildSlackEnvelope(). 10/10 tests passing."
 
   - id: DBG-006
     title: "Add RBAC authorization check at ingress"
