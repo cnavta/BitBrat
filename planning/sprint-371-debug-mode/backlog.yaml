@@ -20,14 +20,15 @@ items:
   - id: DBG-001
     title: "Add debug configuration to IConfig interface"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     phase: 1
     deps: []
     blocked_reason: null
     files:
-      - src/types/config.ts
+      - src/types/index.ts
+      - src/common/config.ts
     acceptance:
       - "IConfig has debugUsersSlack field (string, optional)"
       - "IConfig has debugUsersTwitch field (string, optional)"
@@ -38,7 +39,13 @@ items:
       Add debug user configuration fields to IConfig interface.
       These fields store comma-separated lists of platform-specific user IDs.
     updated_at: 2026-07-28
-    log: []
+    log:
+      - at: 2026-07-28T10:00:00Z
+        note: "Added debugUsersSlack, debugUsersTwitch, debugUsersDiscord to IConfig in src/types/index.ts"
+      - at: 2026-07-28T10:05:00Z
+        note: "Updated buildConfig() in src/common/config.ts to parse DEBUG_USERS_* env vars"
+      - at: 2026-07-28T10:10:00Z
+        note: "Added Zod schema validation for new debug fields. TypeScript compilation successful."
 
   - id: DBG-002
     title: "Define debug event metadata types"
