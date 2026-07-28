@@ -30,6 +30,11 @@ export class SlackIngressClient {
   private lastMessageAt: string | null = null;
   private botUserId?: string;
 
+  // Deduplication cache: Slack sends both 'message' and 'app_mention' for @mentions
+  // Track recently processed message IDs to prevent duplicate responses
+  private processedMessages = new Set<string>();
+  private readonly DEDUP_TTL_MS = 60000; // 1 minute cache
+
   constructor(
     private readonly appToken: string,
     private readonly botToken: string,
@@ -260,6 +265,27 @@ export class SlackIngressClient {
         });
         this.counters.filtered++;
         return;
+      }
+
+      // Deduplicate messages: Slack sends both 'message' and 'app_mention' events for @mentions
+      // Use message timestamp (ts) as unique identifier
+      const messageId = actualEvent.ts;
+      if (messageId && this.processedMessages.has(messageId)) {
+        logger.debug('slack.client.message_deduplicated', {
+          messageId,
+          eventType: actualEvent.type,
+          reason: 'already_processed',
+        });
+        this.counters.filtered++;
+        return;
+      }
+
+      // Add to deduplication cache and schedule cleanup
+      if (messageId) {
+        this.processedMessages.add(messageId);
+        setTimeout(() => {
+          this.processedMessages.delete(messageId);
+        }, this.DEDUP_TTL_MS);
       }
 
       // Build envelope from the actual event data
