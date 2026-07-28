@@ -277,9 +277,17 @@ export class IngressEgressServer extends Bit {
           logger.debug('slack.init.creating_publisher');
           const slackPublisher = {
             publish: async (envelope: any) => {
+              // Set egress destination so responses can be delivered back to Slack
+              if (envelope && !envelope.egress?.destination) {
+                envelope.egress = {
+                  ...envelope.egress,
+                  destination: egressTopic
+                };
+              }
               logger.debug('slack.publisher.publish', {
                 correlationId: envelope?.correlationId,
                 type: envelope?.type,
+                egressDestination: envelope?.egress?.destination,
               });
               await publisher.publish(envelope);
             }
@@ -522,7 +530,12 @@ export class IngressEgressServer extends Bit {
   private async processEgress(evt: any, destinationTopic: string): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> {
     const tracer = (this as any).getTracer?.();
     const run = async (): Promise<'DELIVERED' | 'IGNORED' | 'FAILED'> => {
-      logger.debug('ingress-egress.egress.received', { evt, destinationTopic });
+      logger.debug('ingress-egress.egress.received', {
+        correlationId: evt.correlationId,
+        connector: evt.egress?.connector,
+        type: evt.type,
+        destinationTopic,
+      });
       // Mark selected candidate on V2 events (if candidates exist) and log rationale
       let evtForDelivery: any = evt;
       try {

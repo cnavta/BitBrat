@@ -69,27 +69,31 @@ export class SlackIngressClient {
       // Register event handlers
       logger.debug('slack.client.registering_event_handlers');
 
-      // Use 'slack_event' catch-all instead of specific event types
-      // The SDK emits 'slack_event' for all events, but only emits
-      // event-specific names (like 'message', 'app_mention') when event.payload.event exists
-      this.socketClient.on('slack_event', async (args: any) => {
-        const { event, body, ack } = args;
+      // Socket Mode event handler
+      // The SDK passes the envelope directly with properties: { type, body, ack, envelope_id, ... }
+      // - type: 'events_api' for Events API events
+      // - body: Contains the actual event payload with body.event being the Slack event
+      // - ack: Acknowledgment callback function
+      this.socketClient.on('slack_event', async (envelope: any) => {
         logger.debug('slack.client.event.slack_event', {
-          envelopeType: event?.type,
-          hasPayload: !!event?.payload,
-          payloadType: event?.payload?.type,
-          hasEvent: !!event?.payload?.event,
-          eventType: event?.payload?.event?.type,
+          envelopeType: envelope.type,
+          envelopeId: envelope.envelope_id,
+          hasBody: !!envelope.body,
+          hasEvent: !!envelope.body?.event,
+          eventType: envelope.body?.event?.type,
+          eventSubtype: envelope.body?.event?.subtype,
+          hasAck: typeof envelope.ack === 'function',
         });
 
-        // Only process events_api events (actual Slack events)
-        if (event?.type === 'events_api') {
-          await this.handleMessage(event);
+        // Only process Events API events (actual Slack workspace events)
+        if (envelope.type === 'events_api' && envelope.body?.event) {
+          // Pass the body which contains the event in body.event
+          await this.handleMessage(envelope.body);
         }
 
-        // Acknowledge the event envelope if ack callback provided
-        if (ack) {
-          await ack();
+        // Always acknowledge the envelope to prevent retries
+        if (envelope.ack) {
+          await envelope.ack();
         }
       });
 
@@ -211,45 +215,39 @@ export class SlackIngressClient {
     };
   }
 
-  private async handleMessage(event: any): Promise<void> {
+  private async handleMessage(body: any): Promise<void> {
     this.counters.received++;
     this.lastMessageAt = new Date().toISOString();
 
     logger.debug('slack.client.handle_message.start', {
-      eventType: event?.type,
-      hasPayload: !!event?.payload,
-      payloadType: event?.payload?.type,
-      eventStructure: {
-        hasEvent: !!event?.payload?.event,
-        eventType: event?.payload?.event?.type,
-      },
-      // Log the full event structure for debugging
-      fullEventKeys: Object.keys(event || {}),
-      payloadKeys: Object.keys(event?.payload || {}),
+      hasEvent: !!body?.event,
+      eventType: body?.event?.type,
+      teamId: body?.team_id,
+      apiAppId: body?.api_app_id,
+      bodyKeys: Object.keys(body || {}),
     });
 
     try {
-      // Socket Mode wraps events - extract the actual event payload
-      // event.payload.event contains the actual Slack event (message, app_mention, etc.)
-      const actualEvent = event?.payload?.event || event;
+      // The body.event contains the actual Slack event (message, app_mention, etc.)
+      const actualEvent = body?.event;
+
+      if (!actualEvent) {
+        logger.warn('slack.client.handle_message.no_event', {
+          bodyKeys: Object.keys(body || {}),
+        });
+        return;
+      }
 
       logger.debug('slack.client.handle_message.extracted_event', {
-        actualEventType: actualEvent?.type,
-        hasUser: !!actualEvent?.user,
-        hasChannel: !!actualEvent?.channel,
-        hasText: !!actualEvent?.text,
-        textLength: actualEvent?.text?.length || 0,
-        user: actualEvent?.user,
-        channel: actualEvent?.channel,
-        subtype: actualEvent?.subtype,
-        // Log full extracted event for debugging
-        extractedEventKeys: Object.keys(actualEvent || {}),
-        extractedEventSample: {
-          type: actualEvent?.type,
-          user: actualEvent?.user,
-          channel: actualEvent?.channel,
-          text: actualEvent?.text?.substring(0, 100),
-        },
+        actualEventType: actualEvent.type,
+        hasUser: !!actualEvent.user,
+        hasChannel: !!actualEvent.channel,
+        hasText: !!actualEvent.text,
+        textLength: actualEvent.text?.length || 0,
+        user: actualEvent.user,
+        channel: actualEvent.channel,
+        subtype: actualEvent.subtype,
+        textPreview: actualEvent.text?.substring(0, 100),
       });
 
       // Filter bot messages to prevent loops
@@ -280,7 +278,7 @@ export class SlackIngressClient {
         text: actualEvent.text,
         ts: actualEvent.ts,
         thread_ts: actualEvent.thread_ts,
-        team: actualEvent.team || event?.payload?.team_id,
+        team: actualEvent.team || body?.team_id,
         event_ts: actualEvent.event_ts,
       });
 
@@ -313,8 +311,8 @@ export class SlackIngressClient {
       logger.error('slack.client.message_failed', {
         error: error.message,
         stack: error.stack,
-        eventType: event?.type,
-        payloadType: event?.payload?.type,
+        eventType: body?.event?.type,
+        teamId: body?.team_id,
         counters: this.counters,
       });
     }
