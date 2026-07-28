@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { Bit } from '../common/base-server';
-import { FirestoreManager } from '../common/resources/firestore-manager';
-import type { Firestore } from 'firebase-admin/firestore';
+import { DocumentStoreManager } from '../common/resources/document-store-manager';
+import type { IDocumentStore } from '../common/persistence/interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { INTERNAL_STORY_ENRICH_V1, InternalEventV2, AnnotationV1, INTERNAL_PERSISTENCE_SNAPSHOT_V1 } from '../types/events';
 import {
@@ -15,6 +15,9 @@ import {
 /**
  * StoryEngineMcpServer
  * Provides tools for interactive Choose Your Own Adventure storytelling.
+ *
+ * Sprint 371: Migrated to use DocumentStoreManager instead of FirestoreManager
+ * to respect PERSISTENCE_DRIVER configuration.
  */
 export class StoryEngineMcpServer extends Bit {
   private readonly storyRepo: IStoryRepository;
@@ -25,13 +28,13 @@ export class StoryEngineMcpServer extends Bit {
       mcpExposure: 'platform+domain',
       healthPaths: ['/health'],
       resources: {
-        firestore: new FirestoreManager(),
+        documentStore: new DocumentStoreManager(),
       },
     });
 
     // Initialize repository (backend auto-detection via factory)
-    // Get documentStore (PostgreSQL) or fallback to Firestore (legacy)
-    const documentStore = this.getResource('documentStore') || this.getResource<Firestore>('firestore');
+    // Get documentStore (respects PERSISTENCE_DRIVER)
+    const documentStore = this.getResource<IDocumentStore>('documentStore');
     this.storyRepo = createStoryRepository(documentStore);
 
     this.setupMcpTools();
