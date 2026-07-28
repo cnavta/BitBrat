@@ -39,7 +39,8 @@ describe('SlackConnectorAdapter - WebhookConnector', () => {
     mockClient = new SlackIngressClient(
       'xapp-test-app-token',
       'xoxb-test-bot-token',
-      mockPublisher
+      mockPublisher,
+      undefined // No debug users for webhook tests
     );
 
     mockConfig = {

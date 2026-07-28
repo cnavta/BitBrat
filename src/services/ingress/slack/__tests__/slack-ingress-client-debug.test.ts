@@ -33,7 +33,8 @@ describe('SlackIngressClient - Debug Mode Detection (DBG-005)', () => {
     client = new SlackIngressClient(
       'xapp-test-token',
       'xoxb-test-token',
-      mockPublisher
+      mockPublisher,
+      undefined // No debug users for basic detection tests
     );
   });
 

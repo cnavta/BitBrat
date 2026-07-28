@@ -297,7 +297,8 @@ export class IngressEgressServer extends Bit {
           this.slackClient = new SlackIngressClient(
             slackAppToken,
             slackBotToken,
-            slackPublisher as any
+            slackPublisher as any,
+            cfg.debugUsersSlack // Sprint 371: Pass debug authorized users
           );
 
           logger.debug('slack.init.registering_connector');

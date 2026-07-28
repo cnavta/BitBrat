@@ -166,7 +166,7 @@ items:
   - id: DBG-006
     title: "Add RBAC authorization check at ingress"
     priority: P0
-    status: todo
+    status: done
     effort: M
     owner: agent
     phase: 2
@@ -174,6 +174,8 @@ items:
     blocked_reason: null
     files:
       - src/services/ingress/slack/slack-ingress-client.ts
+      - src/apps/ingress-egress-service.ts
+      - src/services/ingress/slack/__tests__/slack-ingress-client-rbac.test.ts
     acceptance:
       - "RBAC check occurs BEFORE envelope creation (ingress-level enforcement)"
       - "debugUsersSlack config parsed into array of authorized user IDs"
@@ -185,7 +187,10 @@ items:
       Enforce RBAC at ingress to enable debugging the entire flow (including auth service).
       Unauthorized users get debug prefix stripped but no debug feedback.
     updated_at: 2026-07-28
-    log: []
+    log:
+      - timestamp: 2026-07-28T19:54:00Z
+        action: completed
+        note: "Implemented RBAC checks in SlackIngressClient constructor and handleMessage(). Added debugAuthorizedUsers Set. Updated ingress-egress-service to pass debugUsersSlack config. 10/10 RBAC tests passing."
 
   - id: DBG-007
     title: "Update Slack envelope builder for debug metadata"

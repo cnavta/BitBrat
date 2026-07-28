@@ -29,13 +29,23 @@ export class SlackIngressClient {
   };
   private lastMessageAt: string | null = null;
   private botUserId?: string;
+  private debugAuthorizedUsers: Set<string>; // Sprint 371: RBAC for debug mode
 
   constructor(
     private readonly appToken: string,
     private readonly botToken: string,
-    private readonly publisher: IngressPublisher
+    private readonly publisher: IngressPublisher,
+    debugUsersSlack?: string // Sprint 371: Comma-separated list of authorized Slack User IDs
   ) {
     this.webClient = new WebClient(botToken);
+
+    // Sprint 371: Parse debug authorized users (comma-separated Slack User IDs)
+    this.debugAuthorizedUsers = new Set(
+      (debugUsersSlack || '')
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean)
+    );
   }
 
   async start(): Promise<void> {
@@ -263,19 +273,36 @@ export class SlackIngressClient {
       }
 
       // Sprint 371: Detect debug mode command (!debug <message>)
-      // Strip prefix and capture match for RBAC + metadata downstream
+      // Strip prefix and perform RBAC check BEFORE envelope creation
       let messageText = actualEvent.text || '';
+      let debugAuthorized = false;
       const debugMatch = messageText.match(/^!debug\s+/i);
+
       if (debugMatch) {
         // Strip debug prefix from message text
         messageText = messageText.slice(debugMatch[0].length);
-        logger.info('slack.debug.detected', {
-          user: actualEvent.user,
-          channel: actualEvent.channel,
-          originalText: actualEvent.text,
-          strippedText: messageText,
-          prefixLength: debugMatch[0].length,
-        });
+
+        // RBAC: Check if user is authorized for debug mode
+        const userId = actualEvent.user || 'unknown';
+        debugAuthorized = this.debugAuthorizedUsers.has(userId);
+
+        if (debugAuthorized) {
+          logger.info('slack.debug.authorized', {
+            user: userId,
+            channel: actualEvent.channel,
+            originalText: actualEvent.text,
+            strippedText: messageText,
+            prefixLength: debugMatch[0].length,
+          });
+        } else {
+          logger.warn('slack.debug.unauthorized', {
+            user: userId,
+            channel: actualEvent.channel,
+            originalText: actualEvent.text,
+            reason: 'user_not_in_debug_authorized_list',
+            authorizedCount: this.debugAuthorizedUsers.size,
+          });
+        }
       }
 
       // Build envelope from the actual event data
@@ -285,7 +312,8 @@ export class SlackIngressClient {
         channel: actualEvent.channel,
         textPreview: messageText.substring(0, 50),
         ts: actualEvent.ts,
-        debugMode: !!debugMatch,
+        debugRequested: !!debugMatch,
+        debugAuthorized,
       });
 
       const envelope = buildSlackEnvelope(
@@ -300,7 +328,8 @@ export class SlackIngressClient {
           event_ts: actualEvent.event_ts,
         },
         {
-          debugRequested: !!debugMatch, // Sprint 371: Pass debug flag for RBAC + metadata
+          // Sprint 371: Only pass debug flag if RBAC passed
+          debugRequested: debugAuthorized,
         }
       );
 
@@ -312,12 +341,14 @@ export class SlackIngressClient {
         userId: envelope.identity?.external?.id,
         channelId: envelope.ingress?.channel,
         debugRequested: !!debugMatch,
+        debugAuthorized,
       });
 
       // Publish to event router
       logger.debug('slack.client.publishing_envelope', {
         correlationId: envelope.correlationId,
         debugRequested: !!debugMatch,
+        debugAuthorized,
       });
 
       await this.publisher.publish(envelope);
