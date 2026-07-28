@@ -927,6 +927,38 @@ export class Bit {
     }
     const pub = createMessagePublisher(subject);
 
+    // Sprint 371: Send debug progress update before publishing
+    if (event.qos?.tracer && event.metadata?.debug?.enabled) {
+      try {
+        const debugChannel = event.metadata.debug.feedbackChannel;
+        const connector = event.ingress?.connector || 'slack';
+
+        // Determine current and next step names
+        const currentStepId = step.id || 'unknown';
+        const nextStepId = slip[idxPending + 1]?.id || 'egress';
+
+        // Build progress update message
+        const progressUpdate = `⚙️ **Stage: ${event.routing?.stage || 'unknown'}**\n` +
+          `📍 Step: \`${currentStepId}\` → \`${nextStepId}\`\n` +
+          `🔗 Topic: \`${subject}\``;
+
+        await this.sendDebugUpdate(debugChannel, connector, progressUpdate, event.correlationId);
+
+        this.logger.debug('routing.next.debug', {
+          correlationId: event.correlationId,
+          currentStep: currentStepId,
+          nextStep: nextStepId,
+          topic: subject,
+        });
+      } catch (debugError: any) {
+        // Never break routing due to debug failures
+        this.logger.warn('routing.next.debug_failed', {
+          error: debugError.message,
+          correlationId: event.correlationId,
+        });
+      }
+    }
+
     try {
       await startActiveSpan('routing.next', async () => {
         const spanOptions: any = {};
@@ -1002,6 +1034,46 @@ export class Bit {
     });
 
     const pub = createMessagePublisher(dest);
+
+    // Sprint 371: Send debug completion summary before publishing
+    if (event.qos?.tracer && event.metadata?.debug?.enabled) {
+      try {
+        const debugChannel = event.metadata.debug.feedbackChannel;
+        const connector = event.ingress?.connector || 'slack';
+
+        // Calculate duration
+        const startedAt = new Date(event.metadata.debug.startedAt);
+        const now = new Date();
+        const durationMs = now.getTime() - startedAt.getTime();
+        const durationSec = (durationMs / 1000).toFixed(2);
+
+        // Extract stage progression from routing history
+        const stages = event.routing?.history?.map((h: any) => h.stage).filter(Boolean) || [];
+        const uniqueStages = [...new Set(stages)];
+        const stagesTraversed = uniqueStages.length > 0 ? uniqueStages.join(' → ') : 'none';
+
+        // Build completion summary message
+        const completionSummary = `✅ **Event Complete**\n` +
+          `⏱️ Duration: ${durationSec}s\n` +
+          `🛤️ Stages: ${stagesTraversed}\n` +
+          `📊 Final Status: delivered`;
+
+        await this.sendDebugUpdate(debugChannel, connector, completionSummary, event.correlationId);
+
+        this.logger.debug('routing.complete.debug', {
+          correlationId: event.correlationId,
+          durationMs,
+          stagesTraversed: uniqueStages,
+        });
+      } catch (debugError: any) {
+        // Never break egress due to debug failures
+        this.logger.warn('routing.complete.debug_failed', {
+          error: debugError.message,
+          correlationId: event.correlationId,
+        });
+      }
+    }
+
     try {
       await startActiveSpan('routing.complete', async () => {
         await pub.publishJson(egressEvent, this.buildRoutingAttributes(egressEvent));
@@ -1022,6 +1094,114 @@ export class Bit {
         deliveredAt: new Date().toISOString(),
       },
     });
+  }
+
+  /**
+   * Sprint 371: Send debug feedback message to user
+   *
+   * Protected helper for sending real-time progress updates to the user who initiated debug mode.
+   * Creates a minimal egress event with the debug message and publishes directly to egress topic,
+   * bypassing the routing slip to avoid feedback loops.
+   *
+   * @param channel - Feedback channel (from event.metadata.debug.feedbackChannel)
+   * @param connector - Connector type (slack, twitch, discord)
+   * @param updateText - Debug update message text
+   * @param correlationId - Optional correlation ID for logging (from original event)
+   *
+   * @example
+   * ```typescript
+   * await this.sendDebugUpdate(
+   *   'C9876543210',
+   *   'slack',
+   *   '⚙️ Stage: analysis | Step: llm-bot → internal.reflex.v1'
+   * );
+   * ```
+   *
+   * Critical: Debug feedback events have qos.tracer=false to prevent infinite recursion.
+   */
+  protected async sendDebugUpdate(
+    channel: string,
+    connector: 'slack' | 'twitch' | 'discord' | string,
+    updateText: string,
+    correlationId?: string
+  ): Promise<void> {
+    try {
+      const { randomUUID } = await import('crypto');
+      const now = new Date().toISOString();
+
+      // Import INTERNAL_EGRESS_V1 topic constant
+      const { INTERNAL_EGRESS_V1 } = await import('../types/events');
+
+      // Create minimal egress event with debug message as candidate
+      const debugFeedbackEvent: InternalEventV2 = {
+        v: '2',
+        correlationId: randomUUID(), // Unique ID for feedback event
+        type: 'egress.deliver.v1',
+        ingress: {
+          ingressAt: now,
+          source: `debug.${this.serviceName}`,
+          connector: connector as any,
+          channel,
+        },
+        identity: {
+          external: {
+            id: 'system',
+            platform: connector,
+            displayName: 'Debug System',
+          },
+        },
+        egress: {
+          destination: INTERNAL_EGRESS_V1,
+          connector: connector as any,
+          channel,
+        },
+        message: {
+          id: `debug-${randomUUID()}`,
+          role: 'system',
+          text: updateText,
+        },
+        candidates: [
+          {
+            id: randomUUID(),
+            kind: 'text',
+            source: `debug.${this.serviceName}`,
+            createdAt: now,
+            status: 'selected', // Pre-selected to bypass selection logic
+            priority: 0,
+            text: updateText,
+            format: 'plain',
+          },
+        ],
+        routing: {
+          stage: 'meta', // Meta stage - not part of normal routing flow
+          slip: [],
+          history: [],
+        },
+        qos: {
+          tracer: false, // Critical: Prevent debug feedback loops
+        },
+      };
+
+      // Publish directly to egress topic
+      const publisher = createMessagePublisher(INTERNAL_EGRESS_V1);
+      await publisher.publishJson(debugFeedbackEvent, {});
+
+      this.logger.debug('debug.feedback.sent', {
+        channel,
+        connector,
+        originalCorrelationId: correlationId,
+        feedbackEventId: debugFeedbackEvent.correlationId,
+        textPreview: updateText.substring(0, 100),
+      });
+    } catch (error: any) {
+      // Never throw from debug helpers - log warning and continue
+      this.logger.warn('debug.feedback.send_failed', {
+        error: error.message,
+        channel,
+        connector,
+        correlationId,
+      });
+    }
   }
 
   protected async publishPersistenceSnapshot(params: {

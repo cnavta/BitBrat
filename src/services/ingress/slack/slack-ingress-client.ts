@@ -26,10 +26,13 @@ export class SlackIngressClient {
     published: 0,
     filtered: 0,
     failed: 0,
+    deduplicated: 0, // Track deduplicated events
   };
   private lastMessageAt: string | null = null;
   private botUserId?: string;
   private debugAuthorizedUsers: Set<string>; // Sprint 371: RBAC for debug mode
+  private processedMessageTimestamps: Set<string> = new Set(); // Deduplication cache
+  private deduplicationCleanupInterval?: NodeJS.Timeout;
 
   constructor(
     private readonly appToken: string,
@@ -144,6 +147,13 @@ export class SlackIngressClient {
         botUserId: this.botUserId,
         state: this.state,
       });
+
+      // Start deduplication cache cleanup (clear entries older than 5 minutes every minute)
+      this.deduplicationCleanupInterval = setInterval(() => {
+        const size = this.processedMessageTimestamps.size;
+        this.processedMessageTimestamps.clear();
+        logger.debug('slack.client.dedup_cache_cleared', { previousSize: size });
+      }, 60000); // Clear every 60 seconds
     } catch (error: any) {
       this.state = 'ERROR';
       this.lastError = { code: 'connection_failed', message: error.message };
@@ -160,6 +170,12 @@ export class SlackIngressClient {
     logger.info('slack.client.stopping');
 
     try {
+      // Clear deduplication cleanup interval
+      if (this.deduplicationCleanupInterval) {
+        clearInterval(this.deduplicationCleanupInterval);
+        this.deduplicationCleanupInterval = undefined;
+      }
+
       if (this.socketClient) {
         await this.socketClient.disconnect();
         this.socketClient = undefined;
@@ -270,6 +286,22 @@ export class SlackIngressClient {
         });
         this.counters.filtered++;
         return;
+      }
+
+      // Deduplicate by Slack message timestamp (Slack sometimes sends duplicate events)
+      const messageTs = actualEvent.ts || actualEvent.event_ts;
+      if (messageTs) {
+        if (this.processedMessageTimestamps.has(messageTs)) {
+          logger.warn('slack.client.message_deduplicated', {
+            ts: messageTs,
+            user: actualEvent.user,
+            channel: actualEvent.channel,
+            textPreview: actualEvent.text?.substring(0, 50),
+          });
+          this.counters.deduplicated++;
+          return;
+        }
+        this.processedMessageTimestamps.add(messageTs);
       }
 
       // Sprint 371: Detect debug mode command (!debug <message>)
