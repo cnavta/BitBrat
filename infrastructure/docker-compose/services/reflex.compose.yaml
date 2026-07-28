@@ -2,7 +2,11 @@ services:
   reflex:
     build:
       context: .
-      dockerfile: Dockerfile.reflex
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: reflex
+        SERVICE_ENTRY: dist/apps/reflex-service.js
+        SERVICE_PORT: "3000"
     ports:
       - "${REFLEX_HOST_PORT:-3000}:3000"
     environment:

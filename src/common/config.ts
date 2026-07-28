@@ -79,6 +79,12 @@ const ConfigSchema = z.object({
   twilioChatServiceSid: z.string().optional(),
   twilioIdentity: z.string().optional(),
   debugUsers: z.array(z.string()).default([]),
+
+  // Slack configuration
+  slackEnabled: z.boolean().optional(),
+  slackBotToken: z.string().optional(),
+  slackAppToken: z.string().optional(),
+  slackSigningSecret: z.string().optional(),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -134,6 +140,12 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     twilioChatServiceSid: env.TWILIO_CHAT_SERVICE_SID,
     twilioIdentity: env.TWILIO_IDENTITY,
     debugUsers: parseList(env.DEBUG_USERS),
+
+    // Slack
+    slackEnabled: parseBool(env.SLACK_ENABLED, false),
+    slackBotToken: env.SLACK_BOT_TOKEN,
+    slackAppToken: env.SLACK_APP_TOKEN,
+    slackSigningSecret: env.SLACK_SIGNING_SECRET,
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last
@@ -171,6 +183,9 @@ export function safeConfig(cfg: IConfig = getConfig()): Record<string, unknown> 
     discordClientSecret,
     twilioAuthToken,
     twilioApiSecret,
+    slackBotToken,
+    slackAppToken,
+    slackSigningSecret,
     ...rest
   } = cfg;
   return {
@@ -182,6 +197,9 @@ export function safeConfig(cfg: IConfig = getConfig()): Record<string, unknown> 
     discordClientSecret: discordClientSecret ? '***REDACTED***' : undefined,
     twilioAuthToken: twilioAuthToken ? '***REDACTED***' : undefined,
     twilioApiSecret: twilioApiSecret ? '***REDACTED***' : undefined,
+    slackBotToken: slackBotToken ? '***REDACTED***' : undefined,
+    slackAppToken: slackAppToken ? '***REDACTED***' : undefined,
+    slackSigningSecret: slackSigningSecret ? '***REDACTED***' : undefined,
   };
 }
 

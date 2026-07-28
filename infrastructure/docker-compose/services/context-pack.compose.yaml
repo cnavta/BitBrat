@@ -2,7 +2,11 @@ services:
   context-pack:
     build:
       context: .
-      dockerfile: Dockerfile.context-pack
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: context-pack
+        SERVICE_ENTRY: dist/apps/context-pack-service.js
+        SERVICE_PORT: "3000"
     ports:
       - "${CONTEXT_PACK_HOST_PORT:-3000}:3000"
     environment:

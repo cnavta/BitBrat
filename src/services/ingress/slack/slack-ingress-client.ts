@@ -39,57 +39,109 @@ export class SlackIngressClient {
   }
 
   async start(): Promise<void> {
-    logger.info('slack.client.starting');
+    logger.info('slack.client.starting', {
+      hasAppToken: !!this.appToken,
+      hasBotToken: !!this.botToken,
+      appTokenPrefix: this.appToken?.substring(0, 10),
+    });
     this.state = 'CONNECTING';
 
     try {
       // Initialize Socket Mode client
+      logger.debug('slack.client.socket_mode.initializing');
       this.socketClient = new SocketModeClient({ appToken: this.appToken });
+      logger.debug('slack.client.socket_mode.initialized');
 
       // Fetch bot user ID for filtering (prevent loops)
       if (!this.webClient) {
         throw new Error('slack_web_client_not_initialized');
       }
+      logger.debug('slack.client.auth_test.start');
       const authTest = await this.webClient.auth.test();
       this.botUserId = authTest.user_id as string;
-      logger.info('slack.client.bot_user_id_resolved', { botUserId: this.botUserId });
-
-      // Register event handlers
-      this.socketClient.on('message', async (event: any) => {
-        await this.handleMessage(event);
+      logger.info('slack.client.bot_user_id_resolved', {
+        botUserId: this.botUserId,
+        teamId: authTest.team_id,
+        teamName: authTest.team,
+        botName: authTest.user,
       });
 
-      this.socketClient.on('app_mention', async (event: any) => {
-        await this.handleMessage(event);
+      // Register event handlers
+      logger.debug('slack.client.registering_event_handlers');
+
+      // Socket Mode event handler
+      // The SDK passes the envelope directly with properties: { type, body, ack, envelope_id, ... }
+      // - type: 'events_api' for Events API events
+      // - body: Contains the actual event payload with body.event being the Slack event
+      // - ack: Acknowledgment callback function
+      this.socketClient.on('slack_event', async (envelope: any) => {
+        logger.debug('slack.client.event.slack_event', {
+          envelopeType: envelope.type,
+          envelopeId: envelope.envelope_id,
+          hasBody: !!envelope.body,
+          hasEvent: !!envelope.body?.event,
+          eventType: envelope.body?.event?.type,
+          eventSubtype: envelope.body?.event?.subtype,
+          hasAck: typeof envelope.ack === 'function',
+        });
+
+        // Only process Events API events (actual Slack workspace events)
+        if (envelope.type === 'events_api' && envelope.body?.event) {
+          // Pass the body which contains the event in body.event
+          await this.handleMessage(envelope.body);
+        }
+
+        // Always acknowledge the envelope to prevent retries
+        if (envelope.ack) {
+          await envelope.ack();
+        }
       });
 
       this.socketClient.on('error', (error: Error) => {
-        logger.error('slack.client.error', { error: error.message });
+        logger.error('slack.client.error', {
+          error: error.message,
+          stack: error.stack,
+        });
         this.lastError = { code: 'socket_error', message: error.message };
         this.state = 'ERROR';
       });
 
       this.socketClient.on('disconnect', () => {
-        logger.warn('slack.client.disconnected');
+        logger.warn('slack.client.disconnected', {
+          previousState: this.state,
+          counters: this.counters,
+        });
         this.state = 'DISCONNECTED';
       });
 
       this.socketClient.on('reconnect', () => {
-        logger.info('slack.client.reconnected');
+        logger.info('slack.client.reconnected', {
+          counters: this.counters,
+        });
         this.state = 'CONNECTED';
         this.lastError = null;
       });
 
+      logger.debug('slack.client.event_handlers_registered');
+
       // Start the connection
+      logger.debug('slack.client.socket_mode.connecting');
       await this.socketClient.start();
 
       this.state = 'CONNECTED';
       this.lastError = null;
-      logger.info('slack.client.connected');
+      logger.info('slack.client.connected', {
+        botUserId: this.botUserId,
+        state: this.state,
+      });
     } catch (error: any) {
       this.state = 'ERROR';
       this.lastError = { code: 'connection_failed', message: error.message };
-      logger.error('slack.client.connection_failed', { error: error.message });
+      logger.error('slack.client.connection_failed', {
+        error: error.message,
+        stack: error.stack,
+        state: this.state,
+      });
       throw error;
     }
   }
@@ -111,18 +163,43 @@ export class SlackIngressClient {
   }
 
   async sendText(text: string, channel: string): Promise<void> {
+    logger.debug('slack.client.send_text.start', {
+      channel,
+      textLength: text?.length,
+      hasWebClient: !!this.webClient,
+      state: this.state,
+    });
+
     if (!this.webClient) {
+      logger.error('slack.client.send_text.no_web_client', { channel });
       throw new Error('slack_client_not_initialized');
     }
 
     try {
-      await this.webClient.chat.postMessage({
+      logger.debug('slack.client.send_text.calling_api', {
+        channel,
+        textPreview: text?.substring(0, 100),
+      });
+
+      const result = await this.webClient.chat.postMessage({
         channel,
         text,
       });
-      logger.info('slack.client.message_sent', { channel });
+
+      logger.info('slack.client.message_sent', {
+        channel,
+        textLength: text?.length,
+        ok: result.ok,
+        ts: result.ts,
+      });
     } catch (error: any) {
-      logger.error('slack.client.send_failed', { error: error.message, channel });
+      logger.error('slack.client.send_failed', {
+        error: error.message,
+        stack: error.stack,
+        channel,
+        errorCode: error.code,
+        errorData: error.data,
+      });
       throw error;
     }
   }
@@ -138,44 +215,105 @@ export class SlackIngressClient {
     };
   }
 
-  private async handleMessage(event: any): Promise<void> {
+  private async handleMessage(body: any): Promise<void> {
     this.counters.received++;
     this.lastMessageAt = new Date().toISOString();
 
+    logger.debug('slack.client.handle_message.start', {
+      hasEvent: !!body?.event,
+      eventType: body?.event?.type,
+      teamId: body?.team_id,
+      apiAppId: body?.api_app_id,
+      bodyKeys: Object.keys(body || {}),
+    });
+
     try {
+      // The body.event contains the actual Slack event (message, app_mention, etc.)
+      const actualEvent = body?.event;
+
+      if (!actualEvent) {
+        logger.warn('slack.client.handle_message.no_event', {
+          bodyKeys: Object.keys(body || {}),
+        });
+        return;
+      }
+
+      logger.debug('slack.client.handle_message.extracted_event', {
+        actualEventType: actualEvent.type,
+        hasUser: !!actualEvent.user,
+        hasChannel: !!actualEvent.channel,
+        hasText: !!actualEvent.text,
+        textLength: actualEvent.text?.length || 0,
+        user: actualEvent.user,
+        channel: actualEvent.channel,
+        subtype: actualEvent.subtype,
+        textPreview: actualEvent.text?.substring(0, 100),
+      });
+
       // Filter bot messages to prevent loops
-      if (event.user === this.botUserId || event.bot_id) {
-        logger.debug('slack.client.message_filtered', { user: event.user, botId: event.bot_id });
+      if (actualEvent.user === this.botUserId || actualEvent.bot_id) {
+        logger.debug('slack.client.message_filtered', {
+          user: actualEvent.user,
+          botId: actualEvent.bot_id,
+          botUserId: this.botUserId,
+          reason: actualEvent.user === this.botUserId ? 'user_matches_bot' : 'has_bot_id',
+        });
         this.counters.filtered++;
         return;
       }
 
-      // Build envelope
+      // Build envelope from the actual event data
+      logger.debug('slack.client.building_envelope', {
+        type: actualEvent.type,
+        user: actualEvent.user,
+        channel: actualEvent.channel,
+        textPreview: actualEvent.text?.substring(0, 50),
+        ts: actualEvent.ts,
+      });
+
       const envelope = buildSlackEnvelope({
-        type: event.type,
-        user: event.user,
-        channel: event.channel,
-        text: event.text,
-        ts: event.ts,
-        thread_ts: event.thread_ts,
-        team: event.team,
-        event_ts: event.event_ts,
+        type: actualEvent.type,
+        user: actualEvent.user,
+        channel: actualEvent.channel,
+        text: actualEvent.text,
+        ts: actualEvent.ts,
+        thread_ts: actualEvent.thread_ts,
+        team: actualEvent.team || body?.team_id,
+        event_ts: actualEvent.event_ts,
+      });
+
+      logger.debug('slack.client.envelope_built', {
+        correlationId: envelope.correlationId,
+        envelopeType: envelope.type,
+        messageId: envelope.message?.id,
+        messageText: envelope.message?.text?.substring(0, 100),
+        userId: envelope.identity?.external?.id,
+        channelId: envelope.ingress?.channel,
       });
 
       // Publish to event router
+      logger.debug('slack.client.publishing_envelope', {
+        correlationId: envelope.correlationId,
+      });
+
       await this.publisher.publish(envelope);
 
       this.counters.published++;
       logger.info('slack.client.message_published', {
         correlationId: envelope.correlationId,
-        user: event.user,
-        channel: event.channel,
+        user: actualEvent.user,
+        channel: actualEvent.channel,
+        textLength: actualEvent.text?.length || 0,
+        counters: this.counters,
       });
     } catch (error: any) {
       this.counters.failed++;
       logger.error('slack.client.message_failed', {
         error: error.message,
-        event: event.type,
+        stack: error.stack,
+        eventType: body?.event?.type,
+        teamId: body?.team_id,
+        counters: this.counters,
       });
     }
   }

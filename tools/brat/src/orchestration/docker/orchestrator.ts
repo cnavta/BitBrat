@@ -306,6 +306,10 @@ export class DockerOrchestrator {
     // firebase.json and firestore.rules from the mounted /workspace, so all three
     // must be synced to the remote; otherwise the emulator fails on startup with
     // `cp: cannot stat '/workspace/firestore.rules': No such file or directory`.
+    //
+    // CRITICAL: Source code and build context must be synced for Docker builds
+    // to work correctly. Without src/, dist/, package.json, and Dockerfiles,
+    // remote builds will use stale cached layers or fail entirely.
     const filesToSync = [
       'infrastructure/docker-compose',
       '.env.brat',
@@ -313,7 +317,18 @@ export class DockerOrchestrator {
       'architecture.yaml',
       'firebase.json',
       'firestore.rules',
-      'firestore.indexes.json'
+      'firestore.indexes.json',
+      // Source code and build context (required for Docker builds)
+      'src',
+      'dist',
+      'package.json',
+      'package-lock.json',
+      'tsconfig.json',
+      'Dockerfile.service',
+      'Dockerfile.brat',
+      'Dockerfile.obs-mcp',
+      // Tools directory (contains brat CLI source)
+      'tools',
     ].filter(file => fs.existsSync(path.join(this.options.repoRoot, file)));
 
     if (filesToSync.length === 0) return;

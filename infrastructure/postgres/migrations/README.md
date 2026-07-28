@@ -8,6 +8,21 @@ This directory contains SQL migration scripts for evolving the PostgreSQL schema
 
 - `001-rename-commands-to-routing-rules.sql` - Renames `commands` table to `routing_rules` for clarity
 - `002-add-persistence-tables.sql` - Adds core persistence layer tables (`sources`, `snapshots`, `state`, `mutation_log`)
+- `003-add-twitch-tokens-table.sql` - Adds `twitch_tokens` table for Twitch OAuth token storage
+- `004-add-api-tokens-table.sql` - Adds `api_tokens` table for API authentication
+- `005-add-tool-usage-table.sql` - Adds `tool_usage` table for MCP tool analytics
+- `006-add-reflexes-table.sql` - Adds `reflexes` table for reactive behaviors
+- `007-add-snapshots-table.sql` - Extends snapshots table with additional metadata
+- `008-add-prompt-logs-table.sql` - Adds `prompt_logs` table for LLM request tracking
+- `009-add-disposition-observations-table.sql` - Adds `disposition_observations` table for user behavior tracking
+- `010-add-state-tables.sql` - Adds `user_state` and `global_state` tables for stateful operations
+- `011-backfill-identity-roles.sql` - Backfills identity roles from Firestore to PostgreSQL
+- `012-add-sources-table.sql` - Extends sources table with event metadata
+- `013-add-personalities-table.sql` - Adds `personalities` table for LLM bot personality system
+- `014-add-prompt-logs-service-index.sql` - Adds index on `prompt_logs.service` for faster queries
+- `015-add-schedules-due-index.sql` - Adds composite index on schedules for due schedule queries
+- `016-add-bot-roles-table.sql` - Adds `bot_roles` table for user context roles (LLM bot)
+- `017-add-users-table.sql` - Adds `users` table for user data and personalization
 
 ## Applying Migrations
 

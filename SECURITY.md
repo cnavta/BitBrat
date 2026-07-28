@@ -1,4 +1,4 @@
-# Security Policy
+An # Security Policy
 
 > [!IMPORTANT]
 > **Early Development Notice**: BitBrat Platform is currently in **early development**. While we take security seriously, the codebase has not yet undergone a formal security audit. Users should exercise caution and avoid using sensitive production data during this phase.

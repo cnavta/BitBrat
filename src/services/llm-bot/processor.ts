@@ -423,6 +423,7 @@ export async function processEvent(
     fetchByName?: (name: string) => Promise<PersonalityDoc | undefined>;
     fetchDisposition?: (userKey: string) => Promise<DispositionSnapshotV1 | undefined>;
     personalityStore?: IPersonalityStore;
+    documentStore?: any; // IDocumentStore from persistence layer
   }
 ): Promise<'SKIP'|'OK'|'ERROR'> {
   const logger = (server as any).getLogger?.();
@@ -453,7 +454,7 @@ export async function processEvent(
           maxChars: server.getConfig<number>('PERSONALITY_MAX_CHARS', { default: 4000, parser: (v: any) => Number(v) }),
           injectionMode: server.getConfig<string>('USER_CONTEXT_INJECTION_MODE', { default: 'append' }),
         };
-        const ann = await buildUserContextAnnotation(evt, cfg as any);
+        const ann = await buildUserContextAnnotation(evt, cfg as any, deps?.documentStore);
         if (ann) {
           if (!Array.isArray(evt.annotations)) evt.annotations = [];
           evt.annotations.push(ann);
@@ -473,15 +474,20 @@ export async function processEvent(
         if (userKey) {
           const fetchDisposition = async (key: string): Promise<DispositionSnapshotV1 | undefined> => {
             if (deps?.fetchDisposition) return deps.fetchDisposition(key);
-            const db = getFirestore();
-            // Best-effort lookup: bound it so a slow/unreachable Firestore degrades
+            if (!deps?.documentStore) {
+              logger?.warn?.('llm_bot.disposition.no_store', {
+                message: 'No documentStore provided, skipping disposition lookup'
+              });
+              return undefined;
+            }
+            // Best-effort lookup: bound it so a slow/unreachable store degrades
             // gracefully (caught below) instead of hanging the request hot path.
             const doc = await withTimeout(
-              db.collection('state').doc(dispositionStateKey(key)).get(),
+              deps.documentStore.get('state', dispositionStateKey(key)),
               dispositionLookupTimeoutMs(),
               'llm-bot.disposition.get'
             );
-            return doc.data()?.value as DispositionSnapshotV1 | undefined;
+            return doc as DispositionSnapshotV1 | undefined;
           };
           const snapshot = await fetchDisposition(userKey);
           if (isDispositionSnapshotActive(snapshot)) {
@@ -624,20 +630,17 @@ export async function processEvent(
           cacheTtlMs: server.getConfig<number>('PERSONALITY_CACHE_TTL_MS', { default: 300000, parser: (v: any) => Number(v) }),
         };
         const fetchByName = async (name: string): Promise<PersonalityDoc | undefined> => {
-          // Priority: deps.fetchByName (tests) > deps.personalityStore (injected) > fallback to Firestore (legacy)
+          // Priority: deps.fetchByName (tests) > deps.personalityStore (injected)
           if (deps?.fetchByName) return deps.fetchByName(name);
           if (deps?.personalityStore) {
             return deps.personalityStore.getActive(name);
           }
-          // Legacy fallback to Firestore (deprecated, will be removed in future sprint)
-          logger?.warn?.('llm_bot.personality.legacy_firestore_fallback', {
+          // No personality store available - warn and return undefined
+          logger?.warn?.('llm_bot.personality.no_store', {
             correlationId: corr,
-            message: 'Using deprecated Firestore fallback for personality lookup. Inject personalityStore via deps.'
+            message: 'No personalityStore provided, cannot resolve personality by name. Inject personalityStore via deps.'
           });
-          const collection = server.getConfig<string>('PERSONALITY_COLLECTION', { default: 'personalities' });
-          const db = getFirestore();
-          const snap = await db.collection(collection).where('name', '==', name).where('status', '==', 'active').orderBy('version', 'desc').limit(1).get();
-          return snap.docs[0]?.data() as PersonalityDoc | undefined;
+          return undefined;
         };
         resolvedParts = await resolvePersonalityParts(anns as any, opts, { fetchByName, logger });
         resolvedIdentity = resolvedParts.map((p: any) => p.text || p.payload?.text || p.summary || p.name).filter(Boolean).join('\n\n');

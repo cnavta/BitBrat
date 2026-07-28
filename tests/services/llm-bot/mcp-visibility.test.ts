@@ -1,10 +1,14 @@
 import { processEvent } from '../../../src/services/llm-bot/processor';
 import { features } from '../../../src/common/feature-flags';
-import { getFirestore } from '../../../src/common/firebase';
 import { generateText } from 'ai';
+import type { IDocumentStore } from '../../../src/common/persistence/interfaces';
+import type { IPersonalityStore, PersonalityDoc } from '../../../src/services/llm-bot/personality-store';
 
+// Mock Firestore (should not be called when personalityStore is provided)
 jest.mock('../../../src/common/firebase', () => ({
-  getFirestore: jest.fn(),
+  getFirestore: jest.fn(() => {
+    throw new Error('getFirestore() should not be called when personalityStore is provided');
+  }),
 }));
 
 jest.mock('ai', () => ({
@@ -30,8 +34,8 @@ function makeEvent(overrides: any = {}): any {
 
 describe('llm-bot processor — MCP Visibility', () => {
   let mockSet: jest.Mock;
-  let mockDocumentStore: any;
-  let mockDb: any;
+  let mockDocumentStore: IDocumentStore;
+  let mockPersonalityStore: IPersonalityStore;
 
   class StubServer {
     public cfg: Record<string, any> = {
@@ -64,27 +68,35 @@ describe('llm-bot processor — MCP Visibility', () => {
     jest.clearAllMocks();
     features.setOverride('llm.promptLogging.enabled', 'true');
 
-    // Sprint 344: Mock documentStore (PostgreSQL) instead of Firestore
+    // Sprint 344: Mock documentStore (PostgreSQL)
     mockSet = jest.fn().mockResolvedValue(undefined);
     mockDocumentStore = {
       set: mockSet,
-      get: jest.fn(),
-      query: jest.fn(),
-      delete: jest.fn(),
+      get: jest.fn(async () => null),
+      query: jest.fn(async () => []),
+      delete: jest.fn(async () => {}),
+      getAll: jest.fn(async () => []),
+      watch: jest.fn(() => () => {}),
+      batch: jest.fn(async () => {}),
+      health: jest.fn(async () => ({ healthy: true })),
     };
 
-    // Mock Firestore for personality lookups (still used for personalities in this test)
-    const mockCollection = jest.fn().mockImplementation((name) => {
-        if (name === 'personalities') return {
-            where: jest.fn().mockReturnThis(),
-            orderBy: jest.fn().mockReturnThis(),
-            limit: jest.fn().mockReturnThis(),
-            get: jest.fn().mockResolvedValue({ docs: [{ data: () => ({ name: 'Bratty', text: 'You are bratty.', status: 'active' }) }] })
-        };
-        return {};
-    });
-    mockDb = { collection: mockCollection };
-    (getFirestore as jest.Mock).mockReturnValue(mockDb);
+    // Sprint 344: Mock personalityStore for personality lookups
+    mockPersonalityStore = {
+      getByName: jest.fn(async (name: string) => {
+        if (name === 'Bratty') {
+          return { name: 'Bratty', text: 'You are bratty.', status: 'active' };
+        }
+        return undefined;
+      }),
+      getActive: jest.fn(async (name: string) => {
+        if (name === 'Bratty') {
+          return { name: 'Bratty', text: 'You are bratty.', status: 'active' };
+        }
+        return undefined;
+      }),
+      list: jest.fn(async () => []),
+    };
   });
 
   test('logs personality names and tool calls to prompt_logs', async () => {
@@ -101,7 +113,11 @@ describe('llm-bot processor — MCP Visibility', () => {
       ]
     });
 
-    await processEvent(server, evt, { registry: { getTools: () => ({}) } as any });
+    await processEvent(server, evt, {
+      registry: { getTools: () => ({}) } as any,
+      personalityStore: mockPersonalityStore,
+      documentStore: mockDocumentStore,
+    });
 
     expect(mockSet).toHaveBeenCalled();
     const [_tableName, _id, logData] = mockSet.mock.calls[0];
@@ -131,7 +147,11 @@ describe('llm-bot processor — MCP Visibility', () => {
       ]
     });
 
-    await processEvent(server, evt, { registry: { getTools: () => ({}) } as any });
+    await processEvent(server, evt, {
+      registry: { getTools: () => ({}) } as any,
+      personalityStore: mockPersonalityStore,
+      documentStore: mockDocumentStore,
+    });
 
     expect(mockSet).toHaveBeenCalled();
     const [_tableName, _id, logData] = mockSet.mock.calls[0];
