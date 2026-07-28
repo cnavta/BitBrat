@@ -1,0 +1,442 @@
+meta:
+  backlog_id: debug-mode-sprint-371
+  created_at: 2026-07-28
+  updated_at: 2026-07-28
+  status_values: [todo, in_progress, blocked, done]
+
+sprint:
+  id: sprint-371
+  name: "Debug Mode - Real-Time Event Tracing"
+  start: 2026-07-28
+  end: 2026-08-04
+  wip_limit: 3
+  goal: "Enable authorized users to trace events through the platform in real-time via !debug command"
+
+items:
+  # ========================================
+  # PHASE 1: FOUNDATION (P0)
+  # ========================================
+
+  - id: DBG-001
+    title: "Add debug configuration to IConfig interface"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    phase: 1
+    deps: []
+    blocked_reason: null
+    files:
+      - src/types/config.ts
+    acceptance:
+      - "IConfig has debugUsersSlack field (string, optional)"
+      - "IConfig has debugUsersTwitch field (string, optional)"
+      - "IConfig has debugUsersDiscord field (string, optional)"
+      - "buildConfig() parses DEBUG_USERS_* environment variables"
+      - "TypeScript compilation passes"
+    notes: |
+      Add debug user configuration fields to IConfig interface.
+      These fields store comma-separated lists of platform-specific user IDs.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-002
+    title: "Define debug event metadata types"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    phase: 1
+    deps: []
+    blocked_reason: null
+    files:
+      - src/types/events.ts
+    acceptance:
+      - "DebugMetadata interface defined with enabled, initiatedBy, feedbackChannel, startedAt"
+      - "InternalEventV2.metadata.debug field typed as DebugMetadata"
+      - "QOSV1.tracer field documented for debug mode usage"
+      - "TypeScript compilation passes"
+      - "JSDocs explain debug metadata purpose and usage"
+    notes: |
+      Extend InternalEventV2 metadata to support debug mode.
+      Use existing qos.tracer flag to activate platform-wide debug behavior.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-003
+    title: "Create debug test utilities and fixtures"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    phase: 1
+    deps: [DBG-002]
+    blocked_reason: null
+    files:
+      - src/services/ingress/slack/__tests__/debug-fixtures.ts
+    acceptance:
+      - "createDebugEvent() helper creates InternalEventV2 with debug metadata"
+      - "createMockSlackMessage() helper creates Slack event with !debug prefix"
+      - "assertDebugMetadata() helper validates debug metadata structure"
+      - "Test utilities exported and reusable across test files"
+    notes: |
+      Create reusable test utilities for debug mode testing.
+      Enables TDD approach for subsequent tasks.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-004
+    title: "Update environment configuration files"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    phase: 1
+    deps: [DBG-001]
+    blocked_reason: null
+    files:
+      - env/local/global.yaml
+      - architecture.yaml
+    acceptance:
+      - "env/local/global.yaml has DEBUG_USERS_SLACK with example value"
+      - "env/local/global.yaml has DEBUG_USERS_TWITCH with example value"
+      - "architecture.yaml services.ingress-egress.env lists DEBUG_USERS_SLACK"
+      - "architecture.yaml services.ingress-egress.env lists DEBUG_USERS_TWITCH"
+      - "Configuration loads successfully in local environment"
+    notes: |
+      Add debug user configuration to environment files.
+      Use correct architecture.yaml format (env: [VAR_NAME] not env: {VAR_NAME: value}).
+    updated_at: 2026-07-28
+    log: []
+
+  # ========================================
+  # PHASE 2: SLACK CONNECTOR (P0)
+  # ========================================
+
+  - id: DBG-005
+    title: "Implement debug detection in SlackIngressClient"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    phase: 2
+    deps: [DBG-002, DBG-004]
+    blocked_reason: null
+    files:
+      - src/services/ingress/slack/slack-ingress-client.ts
+    acceptance:
+      - "handleMessage() detects /^!debug\\s+/i pattern in message text"
+      - "Debug prefix is stripped from text before envelope creation"
+      - "debugMatch variable captures match result for downstream use"
+      - "Logger emits 'slack.debug.detected' event when pattern matches"
+      - "Non-debug messages are unaffected (no regression)"
+    notes: |
+      Add debug command detection to Slack message handler.
+      This is the entry point for debug mode activation.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-006
+    title: "Add RBAC authorization check at ingress"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    phase: 2
+    deps: [DBG-005]
+    blocked_reason: null
+    files:
+      - src/services/ingress/slack/slack-ingress-client.ts
+    acceptance:
+      - "RBAC check occurs BEFORE envelope creation (ingress-level enforcement)"
+      - "debugUsersSlack config parsed into array of authorized user IDs"
+      - "Authorized users proceed with debug mode enabled"
+      - "Unauthorized users have debug prefix stripped but qos.tracer NOT set"
+      - "Logger emits 'slack.debug.authorized' or 'slack.debug.unauthorized'"
+      - "Audit log includes userId, channel, authorized status"
+    notes: |
+      Enforce RBAC at ingress to enable debugging the entire flow (including auth service).
+      Unauthorized users get debug prefix stripped but no debug feedback.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-007
+    title: "Update Slack envelope builder for debug metadata"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    phase: 2
+    deps: [DBG-002]
+    blocked_reason: null
+    files:
+      - src/services/ingress/slack/envelope-builder.ts
+    acceptance:
+      - "buildSlackEnvelope() accepts optional debugMetadata in opts parameter"
+      - "When debugMetadata provided, qos.tracer set to true"
+      - "When debugMetadata provided, metadata.debug set to debugMetadata"
+      - "Debug metadata includes: enabled, initiatedBy, feedbackChannel, startedAt"
+      - "Non-debug envelopes unaffected (backward compatibility)"
+      - "TypeScript types updated for opts.debugMetadata"
+    notes: |
+      Extend envelope builder to propagate debug metadata from connector to event.
+      This bridges detection (DBG-005) and base server consumption (DBG-010).
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-008
+    title: "Implement activation confirmation message"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    phase: 2
+    deps: [DBG-006, DBG-007]
+    blocked_reason: null
+    files:
+      - src/services/ingress/slack/slack-ingress-client.ts
+    acceptance:
+      - "Authorized debug request triggers immediate confirmation message"
+      - "Confirmation includes: 'Debug mode ON', correlation ID, 'Watching event flow...'"
+      - "Message sent via webClient.chat.postMessage to originating channel"
+      - "Confirmation sent BEFORE envelope published to message bus"
+      - "Logger emits 'slack.debug.activation_sent' with correlationId"
+    notes: |
+      Provide immediate user feedback when debug mode activates.
+      Proves egress path works before event enters routing flow.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-009
+    title: "Unit tests for Slack debug detection and RBAC"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    phase: 2
+    deps: [DBG-003, DBG-005, DBG-006, DBG-007, DBG-008]
+    blocked_reason: null
+    files:
+      - src/services/ingress/slack/slack-ingress-client.test.ts
+    acceptance:
+      - "Test: detectDebugRequest() matches /^!debug\\s+/i pattern"
+      - "Test: detectDebugRequest() strips prefix correctly"
+      - "Test: authorized user has qos.tracer=true"
+      - "Test: unauthorized user has qos.tracer=undefined"
+      - "Test: activation message sent for authorized users"
+      - "Test: no activation message sent for unauthorized users"
+      - "Test: non-debug messages pass through unchanged"
+      - "All tests pass with >90% coverage of debug code paths"
+    notes: |
+      Lock in connector behavior with comprehensive unit tests.
+      Prevents regressions when modifying base server (Phase 3).
+    updated_at: 2026-07-28
+    log: []
+
+  # ========================================
+  # PHASE 3: BASE SERVER DEBUG FLOW (P0)
+  # ========================================
+
+  - id: DBG-010
+    title: "Implement sendDebugUpdate helper in Bit base class"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    phase: 3
+    deps: [DBG-002, DBG-009]
+    blocked_reason: null
+    files:
+      - src/common/base-server.ts
+    acceptance:
+      - "Protected method sendDebugUpdate(channel, connector, update) defined"
+      - "Creates minimal egress event with debug message as candidate text"
+      - "Publishes to INTERNAL_EGRESS_V1 topic (bypasses routing slip)"
+      - "Debug feedback events have qos.tracer=false (no recursion)"
+      - "Error handling: logs warning if publish fails, doesn't throw"
+      - "Logger emits 'debug.feedback.send' with correlationId and type"
+    notes: |
+      Reusable helper for sending debug feedback to user.
+      Used by Bit.next() and Bit.complete() to send progress updates.
+      Critical: Must NOT create feedback loops.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-011
+    title: "Add debug progress logging to Bit.next()"
+    priority: P0
+    status: todo
+    effort: M
+    owner: agent
+    phase: 3
+    deps: [DBG-010]
+    blocked_reason: null
+    files:
+      - src/common/base-server.ts
+    acceptance:
+      - "Check if event.qos.tracer === true before debug logic (early exit)"
+      - "Extract debugChannel from event.metadata.debug.feedbackChannel"
+      - "Call sendDebugUpdate() with progress update before publish"
+      - "Progress update includes: stage, current step ID, next step ID, topic"
+      - "Debug logic wrapped in try/catch (never breaks routing)"
+      - "Non-debug events have <5ms latency overhead (measure in tests)"
+      - "Logger emits 'routing.next.debug' when debug update sent"
+    notes: |
+      Core value proposition: real-time progress updates at each stage transition.
+      Performance-critical code path - must be fast and safe.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-012
+    title: "Add debug completion summary to Bit.complete()"
+    priority: P0
+    status: todo
+    effort: S
+    owner: agent
+    phase: 3
+    deps: [DBG-010]
+    blocked_reason: null
+    files:
+      - src/common/base-server.ts
+    acceptance:
+      - "Check if event.qos.tracer === true before debug logic"
+      - "Calculate duration from event.metadata.debug.startedAt to now"
+      - "Extract stage progression from event.routing.history"
+      - "Call sendDebugUpdate() with completion summary"
+      - "Summary includes: duration (seconds), stages traversed, final status"
+      - "Debug logic wrapped in try/catch (never breaks egress)"
+      - "Logger emits 'routing.complete.debug' when summary sent"
+    notes: |
+      Provides closure and summary metrics when event completes.
+      Helps users understand total processing time and flow.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-013
+    title: "Integration tests for end-to-end debug flow"
+    priority: P0
+    status: todo
+    effort: L
+    owner: agent
+    phase: 3
+    deps: [DBG-011, DBG-012]
+    blocked_reason: null
+    files:
+      - src/apps/ingress-egress-service.test.ts
+    acceptance:
+      - "Test: Authorized user sends !debug command"
+      - "Test: Activation confirmation received"
+      - "Test: Progress updates received at auth stage"
+      - "Test: Progress updates received at llm-bot stage (if applicable)"
+      - "Test: Completion summary received with duration and stages"
+      - "Test: Unauthorized user receives no debug feedback"
+      - "Test: Non-debug events unaffected (no regression)"
+      - "All integration tests pass"
+    notes: |
+      Validates end-to-end flow across multiple services.
+      Most comprehensive test - should catch integration issues.
+      May require mocking auth, llm-bot services or using real stack.
+    updated_at: 2026-07-28
+    log: []
+
+  # ========================================
+  # PHASE 4: POLISH & DOCUMENTATION (P1)
+  # ========================================
+
+  - id: DBG-014
+    title: "Add error handling and graceful degradation"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    phase: 4
+    deps: [DBG-013]
+    blocked_reason: null
+    files:
+      - src/common/base-server.ts
+      - src/services/ingress/slack/slack-ingress-client.ts
+    acceptance:
+      - "sendDebugUpdate() never throws (all errors caught and logged)"
+      - "Egress publish failure logs warning but doesn't crash service"
+      - "Invalid debug metadata (missing fields) logs warning and skips debug"
+      - "WebClient API errors (Slack rate limit) logged and retried"
+      - "Integration test validates graceful degradation"
+    notes: |
+      Production readiness: ensure debug mode never breaks core functionality.
+      Debug is a nice-to-have feature - must degrade gracefully.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-015
+    title: "Write user documentation (setup guide, RBAC)"
+    priority: P1
+    status: todo
+    effort: M
+    owner: agent
+    phase: 4
+    deps: [DBG-013]
+    blocked_reason: null
+    files:
+      - documentation/guides/debug-mode-setup.md
+    acceptance:
+      - "Guide: How to enable debug mode for Slack"
+      - "Guide: How to authorize users (add to DEBUG_USERS_SLACK)"
+      - "Guide: Example debug session with screenshots/terminal output"
+      - "Guide: Troubleshooting common issues (not authorized, no feedback)"
+      - "Guide: Security considerations (who should have debug access)"
+      - "Documentation links functional and up-to-date"
+    notes: |
+      Enable self-service setup for operators and developers.
+      Should include example commands and expected output.
+    updated_at: 2026-07-28
+    log: []
+
+  - id: DBG-016
+    title: "Write developer documentation (adding debug to new connector)"
+    priority: P1
+    status: todo
+    effort: S
+    owner: agent
+    phase: 4
+    deps: [DBG-013]
+    blocked_reason: null
+    files:
+      - documentation/guides/connector-debug-implementation.md
+    acceptance:
+      - "Guide: Overview of debug mode architecture"
+      - "Guide: Step-by-step instructions for adding debug to Twitch connector"
+      - "Guide: Code examples for detection, RBAC, envelope building"
+      - "Guide: Reference to connector-debug-interface.md (future)"
+      - "Guide: Links to Slack implementation as reference"
+    notes: |
+      Prepare for future sprints (multi-platform support).
+      Developer should be able to add debug to Twitch by following this guide.
+    updated_at: 2026-07-28
+    log: []
+
+# ========================================
+# BACKLOG SUMMARY
+# ========================================
+#
+# Total Tasks: 16
+# Phase 1 (Foundation): 4 tasks - 6 hours
+# Phase 2 (Slack Connector): 5 tasks - 14 hours
+# Phase 3 (Base Server): 4 tasks - 12 hours
+# Phase 4 (Polish): 3 tasks - 8 hours
+#
+# Total Estimated Effort: 40 hours (5-7 days)
+#
+# Priority Breakdown:
+# - P0 (Must Have): 13 tasks (DBG-001 through DBG-013)
+# - P1 (Should Have): 3 tasks (DBG-014 through DBG-016)
+#
+# Critical Path:
+# DBG-001 → DBG-002 → DBG-005 → DBG-006 → DBG-007 → DBG-009 → DBG-010 → DBG-011 → DBG-013
+#
+# Parallel Tracks:
+# - DBG-004 can be done in parallel with DBG-002
+# - DBG-008 can be done in parallel with DBG-007
+# - DBG-012 can be done in parallel with DBG-011
+# - DBG-014, DBG-015, DBG-016 can all be done in parallel
+#
+# ========================================
