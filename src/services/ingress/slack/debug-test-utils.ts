@@ -7,7 +7,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { InternalEventV2, DebugMetadata } from '../../../../types/events';
+import type { InternalEventV2, DebugMetadata } from '../../../types/events';
 
 /**
  * Create a debug-enabled InternalEventV2 event for testing

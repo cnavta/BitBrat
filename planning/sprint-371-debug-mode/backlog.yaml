@@ -195,7 +195,7 @@ items:
   - id: DBG-007
     title: "Update Slack envelope builder for debug metadata"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     phase: 2
@@ -203,6 +203,9 @@ items:
     blocked_reason: null
     files:
       - src/services/ingress/slack/envelope-builder.ts
+      - src/services/ingress/slack/slack-ingress-client.ts
+      - src/services/ingress/slack/debug-test-utils.ts
+      - src/services/ingress/slack/__tests__/envelope-builder-debug.test.ts
     acceptance:
       - "buildSlackEnvelope() accepts optional debugMetadata in opts parameter"
       - "When debugMetadata provided, qos.tracer set to true"
@@ -214,7 +217,10 @@ items:
       Extend envelope builder to propagate debug metadata from connector to event.
       This bridges detection (DBG-005) and base server consumption (DBG-010).
     updated_at: 2026-07-28
-    log: []
+    log:
+      - timestamp: 2026-07-28T20:25:00Z
+        action: completed
+        note: "Updated buildSlackEnvelope() to accept DebugMetadata and attach qos.tracer + metadata.debug. Moved debug-fixtures.ts to debug-test-utils.ts (outside __tests__). 12/12 envelope builder tests passing, 80/80 total Slack tests passing."
 
   - id: DBG-008
     title: "Implement activation confirmation message"

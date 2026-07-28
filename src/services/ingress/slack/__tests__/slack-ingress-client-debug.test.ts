@@ -7,7 +7,7 @@
  */
 
 import { SlackIngressClient } from '../slack-ingress-client';
-import { createMockSlackMessage } from './debug-fixtures';
+import { createMockSlackMessage } from '../debug-test-utils';
 import type { InternalEventV2 } from '../../../../types/events';
 import type { IngressPublisher } from '../../core';
 

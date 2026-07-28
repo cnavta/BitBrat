@@ -316,6 +316,14 @@ export class SlackIngressClient {
         debugAuthorized,
       });
 
+      // Sprint 371: Build debug metadata if authorized
+      const debugMetadata = debugAuthorized ? {
+        enabled: true as const,
+        initiatedBy: actualEvent.user || 'unknown',
+        feedbackChannel: actualEvent.channel || 'unknown',
+        startedAt: new Date().toISOString(),
+      } : undefined;
+
       const envelope = buildSlackEnvelope(
         {
           type: actualEvent.type,
@@ -328,8 +336,8 @@ export class SlackIngressClient {
           event_ts: actualEvent.event_ts,
         },
         {
-          // Sprint 371: Only pass debug flag if RBAC passed
-          debugRequested: debugAuthorized,
+          // Sprint 371: Pass debug metadata if RBAC passed
+          debugMetadata,
         }
       );
 
