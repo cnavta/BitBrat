@@ -276,6 +276,7 @@ export class SlackIngressClient {
       // Strip prefix and perform RBAC check BEFORE envelope creation
       let messageText = actualEvent.text || '';
       let debugAuthorized = false;
+      let debugCorrelationId: string | undefined;
       const debugMatch = messageText.match(/^!debug\s+/i);
 
       if (debugMatch) {
@@ -287,13 +288,41 @@ export class SlackIngressClient {
         debugAuthorized = this.debugAuthorizedUsers.has(userId);
 
         if (debugAuthorized) {
+          // Generate correlation ID early for confirmation message and envelope
+          const { randomUUID } = await import('crypto');
+          debugCorrelationId = randomUUID();
+
           logger.info('slack.debug.authorized', {
             user: userId,
             channel: actualEvent.channel,
             originalText: actualEvent.text,
             strippedText: messageText,
             prefixLength: debugMatch[0].length,
+            correlationId: debugCorrelationId,
           });
+
+          // Sprint 371: Send activation confirmation BEFORE publishing envelope
+          // This proves egress path works before event enters routing flow
+          try {
+            await this.webClient?.chat.postMessage({
+              channel: actualEvent.channel,
+              text: `🔍 *Debug mode ON*\n\`Correlation ID:\` \`${debugCorrelationId}\`\n_Watching event flow..._`,
+            });
+
+            logger.info('slack.debug.activation_sent', {
+              user: userId,
+              channel: actualEvent.channel,
+              correlationId: debugCorrelationId,
+            });
+          } catch (error: any) {
+            logger.error('slack.debug.activation_failed', {
+              error: error.message,
+              user: userId,
+              channel: actualEvent.channel,
+              correlationId: debugCorrelationId,
+            });
+            // Continue processing even if confirmation fails
+          }
         } else {
           logger.warn('slack.debug.unauthorized', {
             user: userId,
@@ -336,7 +365,8 @@ export class SlackIngressClient {
           event_ts: actualEvent.event_ts,
         },
         {
-          // Sprint 371: Pass debug metadata if RBAC passed
+          // Sprint 371: Pass pre-generated correlation ID and debug metadata if RBAC passed
+          correlationId: debugCorrelationId,
           debugMetadata,
         }
       );

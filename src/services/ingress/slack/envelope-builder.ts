@@ -73,13 +73,15 @@ export function buildSlackEnvelope(
   opts?: {
     uuid?: () => string;
     nowIso?: () => string;
+    correlationId?: string; // Sprint 371: Pre-generated correlation ID for debug mode
     debugMetadata?: DebugMetadata; // Sprint 371: Debug metadata
   }
 ): InternalEventV2 {
   const uuid = opts?.uuid || randomUUID;
   const nowIso = opts?.nowIso || (() => new Date().toISOString());
 
-  const correlationId = uuid();
+  // Sprint 371: Use provided correlationId (for debug mode) or generate new one
+  const correlationId = opts?.correlationId || uuid();
   const traceId = uuid();
 
   const userId = event.user || 'unknown';

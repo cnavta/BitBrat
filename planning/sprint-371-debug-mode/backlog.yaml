@@ -225,7 +225,7 @@ items:
   - id: DBG-008
     title: "Implement activation confirmation message"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     phase: 2
@@ -233,6 +233,8 @@ items:
     blocked_reason: null
     files:
       - src/services/ingress/slack/slack-ingress-client.ts
+      - src/services/ingress/slack/envelope-builder.ts
+      - src/services/ingress/slack/__tests__/slack-ingress-client-activation.test.ts
     acceptance:
       - "Authorized debug request triggers immediate confirmation message"
       - "Confirmation includes: 'Debug mode ON', correlation ID, 'Watching event flow...'"
@@ -243,7 +245,10 @@ items:
       Provide immediate user feedback when debug mode activates.
       Proves egress path works before event enters routing flow.
     updated_at: 2026-07-28
-    log: []
+    log:
+      - timestamp: 2026-07-28T21:00:00Z
+        action: completed
+        note: "Implemented activation confirmation message sent BEFORE envelope publication. Pre-generate correlationId for use in both activation message and envelope. Updated buildSlackEnvelope to accept optional correlationId. 8/8 activation tests passing, 88/88 total Slack tests passing."
 
   - id: DBG-009
     title: "Unit tests for Slack debug detection and RBAC"
