@@ -108,7 +108,7 @@ export function createMockSlackMessage(options: {
     text = 'test message',
     user = 'U0123456789',
     channel = 'C9876543210',
-    ts = '1234567890.123456',
+    ts = `${Date.now() / 1000}.${Math.floor(Math.random() * 1000000)}`, // Generate unique timestamp
     thread_ts,
     team = 'T0987654321',
   } = options;
