@@ -50,7 +50,7 @@ items:
   - id: DBG-002
     title: "Define debug event metadata types"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     phase: 1
@@ -68,7 +68,13 @@ items:
       Extend InternalEventV2 metadata to support debug mode.
       Use existing qos.tracer flag to activate platform-wide debug behavior.
     updated_at: 2026-07-28
-    log: []
+    log:
+      - at: 2026-07-28T10:15:00Z
+        note: "Created DebugMetadata interface with enabled, initiatedBy, feedbackChannel, startedAt fields"
+      - at: 2026-07-28T10:18:00Z
+        note: "Updated InternalEventV2.metadata to properly type debug field as DebugMetadata"
+      - at: 2026-07-28T10:20:00Z
+        note: "Added JSDoc to QOSV1.tracer explaining Sprint 371 debug mode usage. TypeScript compilation successful."
 
   - id: DBG-003
     title: "Create debug test utilities and fixtures"
