@@ -107,7 +107,7 @@ items:
   - id: DBG-004
     title: "Update environment configuration files"
     priority: P0
-    status: todo
+    status: done
     effort: S
     owner: agent
     phase: 1
@@ -126,7 +126,10 @@ items:
       Add debug user configuration to environment files.
       Use correct architecture.yaml format (env: [VAR_NAME] not env: {VAR_NAME: value}).
     updated_at: 2026-07-28
-    log: []
+    log:
+      - timestamp: 2026-07-28T18:33:27Z
+        action: completed
+        note: "Added DEBUG_USERS_* to env/local/global.yaml and architecture.yaml ingress-egress.env. Config validation passed."
 
   # ========================================
   # PHASE 2: SLACK CONNECTOR (P0)
