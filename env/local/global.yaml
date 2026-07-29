@@ -56,6 +56,36 @@ PERSISTENCE_MAX_SNAPSHOT_BYTES: 1048576
 #   - Set to 30-90 for production (balance between history and storage costs)
 PERSISTENCE_TTL_DAYS: 7
 
+# Storage Configuration (Platform-Agnostic: Filesystem or Cloud Storage)
+# Sprint 373+: Storage abstraction supports filesystem (default) and cloud storage (GCS, S3, Azure Blob)
+#
+# STORAGE_DRIVER: Storage backend selection
+# Options: "filesystem" (default, platform-agnostic) | "gcs" (Google Cloud Storage) | "s3" (AWS S3, not yet implemented) | "azure-blob" (Azure Blob Storage, not yet implemented)
+# Default: filesystem (no cloud credentials required, suitable for local/self-hosted deployments)
+# Legacy: If GCS_BUCKET_NAME is set without STORAGE_DRIVER, auto-selects GCS driver for backward compatibility
+STORAGE_DRIVER: filesystem
+
+# Filesystem Storage Configuration (STORAGE_DRIVER=filesystem)
+# STORAGE_FILESYSTEM_PATH: Base directory for stored files
+# Example: /var/storage, /opt/BitBratPlatform/storage, or any writable directory
+# Default: None (required when using filesystem driver)
+STORAGE_FILESYSTEM_PATH: "/tmp/bitbrat-storage"
+
+# STORAGE_FILESYSTEM_PUBLIC_URL_BASE: Base URL for accessing stored files via HTTP
+# Example: http://api-gateway:3100/storage (local), https://cdn.example.com/files (production)
+# Files will be available at: {publicUrlBase}/{filename}
+# Default: None (required when using filesystem driver)
+STORAGE_FILESYSTEM_PUBLIC_URL_BASE: "http://localhost:3100/storage"
+
+# Google Cloud Storage Configuration (STORAGE_DRIVER=gcs)
+# Uncomment these when using GCS driver:
+# STORAGE_GCS_BUCKET_NAME: "bitbrat-media-gen"
+# STORAGE_GCS_KEY_FILENAME: "/path/to/service-account-key.json"  # Optional: uses ADC if not set
+# STORAGE_GCS_PROJECT_ID: "your-gcp-project-id"  # Optional: uses default project if not set
+#
+# Legacy variable (backward compatibility):
+# GCS_BUCKET_NAME: "bitbrat-media-gen"  # Auto-selects GCS driver if STORAGE_DRIVER not set
+
 # Debug Users: Enable verbose logging for specific users (format: "platform:user-id,platform:username")
 # Leave empty to disable debug logging for all users
 DEBUG_USERS: ""

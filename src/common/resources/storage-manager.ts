@@ -80,6 +80,55 @@ export function buildResilientStorageOptions(base: StorageOptions = {}): Storage
   };
 }
 
+/**
+ * NEW: Storage Manager using IStorageDriver abstraction (Sprint 373)
+ *
+ * Manages storage driver lifecycle using the factory pattern.
+ * Replaces direct GCS Storage client with driver abstraction.
+ *
+ * BACKWARD COMPATIBILITY: Existing code that calls getResource<Storage>('storage')
+ * will need to be updated to getResource<IStorageDriver>('storage') during migration.
+ */
+import type { IStorageDriver } from '../storage/types';
+import { createStorageDriver } from '../storage/factory';
+
+export class NewStorageManager implements ResourceManager<IStorageDriver> {
+  private driver: IStorageDriver | null = null;
+
+  async setup(ctx: SetupContext): Promise<IStorageDriver> {
+    const log = ctx?.logger || globalLogger;
+    if (this.driver) {
+      log.info('storage.manager.setup.reuse');
+      return this.driver;
+    }
+
+    log.info('storage.manager.setup');
+
+    // Create storage driver using factory (auto-detects from environment)
+    this.driver = await createStorageDriver(process.env, log);
+
+    log.info('storage.manager.setup.complete', {
+      driver: this.driver.name,
+    });
+
+    return this.driver;
+  }
+
+  async shutdown(instance: IStorageDriver): Promise<void> {
+    const log = globalLogger;
+    log.info('storage.manager.shutdown');
+    await instance.shutdown();
+  }
+}
+
+/**
+ * LEGACY: Original StorageManager for backward compatibility
+ *
+ * This class remains unchanged to support existing code that depends on
+ * the GCS Storage client directly. Will be deprecated in future sprints.
+ *
+ * New code should use NewStorageManager (or update to use IStorageDriver).
+ */
 export class StorageManager implements ResourceManager<Storage> {
   private storage: Storage | null = null;
 
