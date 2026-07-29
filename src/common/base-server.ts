@@ -121,6 +121,12 @@ export class Bit {
   private readonly registeredContextPacks: Map<string, ContextPack> = new Map();
   private readonly registeredContextBindings: ContextBinding[] = [];
 
+  // Debug Message Deduplication (Story 2): In-memory cache to prevent duplicate debug updates.
+  // Key format: ${originalCorrelationId}:${serviceName}:${messageType}
+  // Value: timestamp when message was sent
+  private readonly debugMessageCache: Map<string, number> = new Map();
+  private debugCacheCleanupInterval?: NodeJS.Timeout;
+
   /**
    * Creates an instance of BaseServer.
    * @param opts - Configuration options for the server.
@@ -183,6 +189,12 @@ export class Bit {
     // from runtime capability. Runs after initializeMcp so profiles may register bit.* control-plane
     // tools (e.g. bit.llm.*) onto an already-initialized MCP server.
     this.bootstrapProfiles();
+
+    // Start debug message cache cleanup interval (Story 2)
+    const cleanupIntervalMs = 60000; // 1 minute
+    this.debugCacheCleanupInterval = setInterval(() => {
+      this.cleanupDebugMessageCache();
+    }, cleanupIntervalMs);
   }
 
   /** Returns the underlying Express app instance */
@@ -280,6 +292,13 @@ export class Bit {
     if (this.shutdownBound) return; // idempotent
     this.shutdownBound = true;
     this.logger.info('base_server.shutdown.start', { reason });
+
+    // Story 2: Clear debug message cache cleanup interval
+    if (this.debugCacheCleanupInterval) {
+      clearInterval(this.debugCacheCleanupInterval);
+      this.debugCacheCleanupInterval = undefined;
+    }
+
     // Bit model: run profile-registered shutdown hooks first (e.g. McpClientProfile manager.shutdown
     // + registry-watcher stop), matching the prior hand-rolled teardown order (before unsubscribe).
     for (const fn of this.shutdownHooks.splice(0)) {
@@ -942,7 +961,7 @@ export class Bit {
           `📍 Step: \`${currentStepId}\` → \`${nextStepId}\`\n` +
           `🔗 Topic: \`${subject}\``;
 
-        await this.sendDebugUpdate(debugChannel, connector, progressUpdate, event.correlationId);
+        await this.sendDebugUpdate(debugChannel, connector, progressUpdate, event.correlationId, 'progress');
 
         this.logger.debug('routing.next.debug', {
           correlationId: event.correlationId,
@@ -1058,7 +1077,7 @@ export class Bit {
           `🛤️ Stages: ${stagesTraversed}\n` +
           `📊 Final Status: delivered`;
 
-        await this.sendDebugUpdate(debugChannel, connector, completionSummary, event.correlationId);
+        await this.sendDebugUpdate(debugChannel, connector, completionSummary, event.correlationId, 'completion');
 
         this.logger.debug('routing.complete.debug', {
           correlationId: event.correlationId,
@@ -1097,23 +1116,52 @@ export class Bit {
   }
 
   /**
+   * Story 2: Cleanup debug message cache by removing expired entries
+   *
+   * Removes entries older than DEBUG_MESSAGE_DEDUPE_TTL_MS (default 5 minutes).
+   * Called periodically by debugCacheCleanupInterval.
+   */
+  private cleanupDebugMessageCache(): void {
+    const now = Date.now();
+    const ttlMs = this.getConfig('DEBUG_MESSAGE_DEDUPE_TTL_MS', { default: 300000 }); // 5 min
+
+    for (const [key, timestamp] of this.debugMessageCache.entries()) {
+      if (now - timestamp > ttlMs) {
+        this.debugMessageCache.delete(key);
+      }
+    }
+
+    if (this.debugMessageCache.size > 0) {
+      this.logger.debug('debug.cache.cleanup', {
+        entriesRemaining: this.debugMessageCache.size,
+        ttlMs,
+      });
+    }
+  }
+
+  /**
    * Sprint 371: Send debug feedback message to user
    *
    * Protected helper for sending real-time progress updates to the user who initiated debug mode.
    * Creates a minimal egress event with the debug message and publishes directly to egress topic,
    * bypassing the routing slip to avoid feedback loops.
    *
+   * Story 2: Enhanced with deduplication to prevent sending identical debug messages multiple times.
+   *
    * @param channel - Feedback channel (from event.metadata.debug.feedbackChannel)
    * @param connector - Connector type (slack, twitch, discord)
    * @param updateText - Debug update message text
    * @param correlationId - Optional correlation ID for logging (from original event)
+   * @param messageType - Type of debug message (progress or completion)
    *
    * @example
    * ```typescript
    * await this.sendDebugUpdate(
    *   'C9876543210',
    *   'slack',
-   *   '⚙️ Stage: analysis | Step: llm-bot → internal.reflex.v1'
+   *   '⚙️ Stage: analysis | Step: llm-bot → internal.reflex.v1',
+   *   'event-correlation-id',
+   *   'progress'
    * );
    * ```
    *
@@ -1123,7 +1171,8 @@ export class Bit {
     channel: string,
     connector: 'slack' | 'twitch' | 'discord' | string,
     updateText: string,
-    correlationId?: string
+    correlationId?: string,
+    messageType: 'progress' | 'completion' = 'progress'
   ): Promise<void> {
     try {
       const { randomUUID } = await import('crypto');
@@ -1131,6 +1180,27 @@ export class Bit {
 
       // Import INTERNAL_EGRESS_V1 topic constant
       const { INTERNAL_EGRESS_V1 } = await import('../types/events');
+
+      // Story 2: Check if deduplication is enabled and deduplicate if needed
+      const dedupeEnabled = this.getConfig('DEBUG_MESSAGE_DEDUPE_ENABLED', {
+        default: 'true'
+      }).toLowerCase() === 'true';
+
+      if (dedupeEnabled && correlationId) {
+        const dedupeKey = `${correlationId}:${this.serviceName}:${messageType}`;
+
+        if (this.debugMessageCache.has(dedupeKey)) {
+          this.logger.debug('debug.feedback.deduplicated', {
+            originalCorrelationId: correlationId,
+            service: this.serviceName,
+            messageType,
+            dedupeKey,
+          });
+          return; // Skip duplicate
+        }
+
+        this.debugMessageCache.set(dedupeKey, Date.now());
+      }
 
       // Create minimal egress event with debug message as candidate
       const debugFeedbackEvent: InternalEventV2 = {
@@ -1179,6 +1249,11 @@ export class Bit {
         },
         qos: {
           tracer: false, // Critical: Prevent debug feedback loops
+        },
+        metadata: {
+          originalCorrelationId: correlationId,
+          debugMessageType: messageType,
+          debugSource: this.serviceName,
         },
       };
 

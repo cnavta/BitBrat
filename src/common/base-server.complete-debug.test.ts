@@ -110,7 +110,8 @@ describe('Bit - complete() Debug Flow (DBG-012)', () => {
         'C_DEBUG_CHANNEL',
         'slack',
         expect.stringContaining('Event Complete'),
-        'test-correlation-id'
+        'test-correlation-id',
+        'completion'
       );
 
       // Verify completion summary includes duration

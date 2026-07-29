@@ -184,6 +184,15 @@ export class NatsSubscriber implements MessageSubscriber {
       for await (const m of sub) {
         const dataBuf = Buffer.from(m.data);
         const attrs = headersToMap(m.headers);
+
+        // Story 3: Extract redelivery metadata from NATS message info
+        const info = (m as any)?.info;
+        if (info) {
+          attrs['Nats-Msg-Redelivered'] = String(info.redelivered || false);
+          attrs['Nats-Delivery-Count'] = String(info.deliveryCount || 1);
+          attrs['Nats-Stream-Sequence'] = String(info.streamSequence || 0);
+        }
+
         // Wrap ack/nack to add logging and avoid unhandled errors
         const ack = async () => {
           try {

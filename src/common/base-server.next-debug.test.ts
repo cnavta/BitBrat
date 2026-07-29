@@ -102,12 +102,13 @@ describe('Bit - next() Debug Flow (DBG-011)', () => {
       // @ts-expect-error - accessing protected method for testing
       await testBit.next(event);
 
-      // Verify sendDebugUpdate was called
+      // Verify sendDebugUpdate was called (Story 1: added messageType parameter)
       expect(sendDebugUpdateSpy).toHaveBeenCalledWith(
         'C_DEBUG_CHANNEL',
         'slack',
         expect.stringContaining('Stage: analysis'),
-        'test-correlation-id'
+        'test-correlation-id',
+        'progress'
       );
 
       // Verify progress update includes step information
