@@ -18,15 +18,28 @@ describe('egress selection', () => {
     expect(best.id).toBe('b');
   });
 
-  test('tie-breaker by higher confidence, then earliest createdAt', () => {
+  test('tie-breaker by higher confidence, then random selection for ties', () => {
     const candidates: CandidateV1[] = [
       { id: 'a', kind: 'text', source: 'svc', createdAt: '2025-01-02T00:00:00Z', status: 'proposed', priority: 5, confidence: 0.7, text: 'A' },
       { id: 'b', kind: 'text', source: 'svc', createdAt: '2025-01-01T00:00:00Z', status: 'proposed', priority: 5, confidence: 0.8, text: 'B' },
       { id: 'c', kind: 'text', source: 'svc', createdAt: '2025-01-01T12:00:00Z', status: 'proposed', priority: 5, confidence: 0.8, text: 'C' },
     ];
     const best = selectBestCandidate(candidates)!;
-    // b and c tie on priority and confidence; b is earlier createdAt
-    expect(best.id).toBe('b');
+    // b and c tie on priority and confidence; one of them should be selected randomly
+    expect(['b', 'c']).toContain(best.id);
+
+    // Verify randomization over multiple runs
+    const results = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      const selected = selectBestCandidate(candidates)!;
+      results.add(selected.id);
+    }
+    // Should see both b and c selected over 30 runs (not just one deterministically)
+    expect(results.size).toBeGreaterThan(1);
+    expect(results.has('b')).toBe(true);
+    expect(results.has('c')).toBe(true);
+    // 'a' should never be selected (lower confidence)
+    expect(results.has('a')).toBe(false);
   });
 
   test('extractEgressTextFromEvent prefers V2 candidates then legacy payload', () => {

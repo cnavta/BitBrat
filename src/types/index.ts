@@ -97,7 +97,7 @@ export interface IConfig {
   twilioChatServiceSid?: string;
   /** Twilio identity for the bot */
   twilioIdentity?: string;
-  /** Authorized debug users (connector:username list) */
+  /** Authorized debug users (connector:username list) - DEPRECATED: Use platform-specific fields */
   debugUsers?: string[];
 
   /** Slack integration master switch */
@@ -108,6 +108,20 @@ export interface IConfig {
   slackAppToken?: string; // secret
   /** Slack Signing Secret (webhook signature verification) */
   slackSigningSecret?: string; // secret
+
+  /**
+   * Debug Mode Configuration (Sprint 371)
+   * Platform-specific comma-separated lists of authorized debug users.
+   * User identifiers are platform-specific:
+   * - Slack: User IDs (e.g., "U0123456789,U9876543210")
+   * - Twitch: Usernames (e.g., "christophernavta,admin_user")
+   * - Discord: User IDs (snowflakes, e.g., "123456789012345678,987654321098765432")
+   *
+   * @since Sprint 371
+   */
+  debugUsersSlack?: string;
+  debugUsersTwitch?: string;
+  debugUsersDiscord?: string;
 }
 
 export interface TwitchTokenData {

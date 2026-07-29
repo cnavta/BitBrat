@@ -15,7 +15,7 @@
  * @since Sprint 348
  */
 
-import type { InternalEventV2 } from '../../../types/events';
+import type { InternalEventV2, DebugMetadata } from '../../../types/events';
 import { randomUUID } from 'crypto';
 
 /**
@@ -39,6 +39,7 @@ export interface SlackEventMeta {
  *
  * @param event - Slack event metadata
  * @param opts - Optional overrides for testing
+ * @param opts.debugMetadata - Sprint 371: Debug metadata (when authorized user activates debug mode)
  * @returns Envelope v1 event
  *
  * @example
@@ -51,24 +52,43 @@ export interface SlackEventMeta {
  *   ts: '1234567890.123456'
  * });
  * ```
+ *
+ * @example Debug mode
+ * ```typescript
+ * const envelope = buildSlackEnvelope(
+ *   { type: 'message', user: 'U123', channel: 'C456', text: 'test', ts: '123.456' },
+ *   {
+ *     debugMetadata: {
+ *       enabled: true,
+ *       initiatedBy: 'U123',
+ *       feedbackChannel: 'C456',
+ *       startedAt: new Date().toISOString()
+ *     }
+ *   }
+ * );
+ * ```
  */
 export function buildSlackEnvelope(
   event: SlackEventMeta,
   opts?: {
     uuid?: () => string;
     nowIso?: () => string;
+    correlationId?: string; // Sprint 371: Pre-generated correlation ID for debug mode
+    debugMetadata?: DebugMetadata; // Sprint 371: Debug metadata
   }
 ): InternalEventV2 {
   const uuid = opts?.uuid || randomUUID;
   const nowIso = opts?.nowIso || (() => new Date().toISOString());
 
-  const correlationId = uuid();
+  // Sprint 371: Use provided correlationId (for debug mode) or generate new one
+  const correlationId = opts?.correlationId || uuid();
   const traceId = uuid();
 
   const userId = event.user || 'unknown';
   const channelId = event.channel || 'unknown';
 
-  return {
+  // Sprint 371: Build base envelope
+  const envelope: InternalEventV2 = {
     v: '2',
     type: 'chat.message.v1',
     correlationId,
@@ -117,4 +137,16 @@ export function buildSlackEnvelope(
       history: [],
     }
   };
+
+  // Sprint 371: Attach debug metadata if provided
+  if (opts?.debugMetadata) {
+    envelope.qos = {
+      tracer: true, // Enable high-verbosity tracing
+    };
+    envelope.metadata = {
+      debug: opts.debugMetadata,
+    };
+  }
+
+  return envelope;
 }

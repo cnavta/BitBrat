@@ -2,9 +2,8 @@ import { Request, Response } from 'express';
 import { Bit } from '../../common/base-server';
 import { experimental_generateImage as generateImage } from 'ai';
 import { getLlmProvider } from '../../common/llm/provider-factory';
-import { StorageManager } from '../../common/resources/storage-manager';
-import { retryAsync, isTransientError } from '../../common/retry';
-import type { Storage } from '@google-cloud/storage';
+import { NewStorageManager } from '../../common/resources/storage-manager';
+import type { IStorageDriver } from '../../common/storage/types';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { getFirestore } from '../../common/firebase';
@@ -27,7 +26,7 @@ export class ImageGenMcpServer extends Bit {
       mcpExposure: 'platform+domain',
       healthPaths: ['/health'],
       resources: {
-        storage: new StorageManager(),
+        storage: new NewStorageManager(),
       },
     });
 
@@ -42,7 +41,7 @@ export class ImageGenMcpServer extends Bit {
   private setupMcpTools() {
     this.registerTool(
       'generate_image',
-      'Generate an image based on a prompt using DALL-E 3 and persist it to GCS.',
+      'Generate an image based on a prompt using DALL-E 3 and persist it to storage.',
       z.object({
         prompt: z.string().describe('The descriptive prompt for the image.'),
         aspect_ratio: z.enum(['1:1', '16:9', '9:16']).optional().default('1:1').describe('The aspect ratio of the generated image.'),
@@ -153,20 +152,17 @@ export class ImageGenMcpServer extends Bit {
             size: size as any,
           });
 
-          this.getLogger().info('Image generated successfully, preparing GCS upload');
+          this.getLogger().info('Image generated successfully, preparing storage upload');
 
-          // 3. Persist to GCS (BL-005)
-          const storage = this.getResource<Storage>('storage');
-          if (!storage) {
-            throw new Error('Storage resource not initialized');
+          // 3. Persist to storage (BL-005)
+          const storageDriver = this.getResource<IStorageDriver>('storage');
+          if (!storageDriver) {
+            throw new Error('Storage driver not initialized');
           }
 
-          const bucketName = this.getConfig('GCS_BUCKET_NAME', { default: 'bitbrat-media-gen' });
           const fileName = `${uuidv4()}.png`;
-          const bucket = storage.bucket(bucketName);
-          const file = bucket.file(fileName);
 
-          // Resolve the image bytes once so retries don't re-encode.
+          // Resolve the image bytes once for upload
           let imageBuffer: Buffer;
           if (genResult.image.base64) {
             imageBuffer = Buffer.from(genResult.image.base64, 'base64');
@@ -176,45 +172,28 @@ export class ImageGenMcpServer extends Bit {
             throw new Error('No image data returned from generation');
           }
 
-          // Upload the image data. Wrap the save in a backoff retry: ADC token fetches
-          // against https://www.googleapis.com/oauth2/v4/token intermittently fail with a
-          // transient "Premature close" / "socket hang up", which would otherwise surface
-          // as a hard persistence failure. Only transient network errors are retried.
-          //
-          // `resumable: false` forces a simple (all-or-nothing) multipart upload. This is the
-          // recommended path for small payloads like a single generated image, and — critically —
-          // it avoids the resumable-upload code path, which attaches an `abort-controller`
-          // (node polyfill) `signal` to the request. Because the Storage auth transport is now
-          // pinned to undici (global `fetch`) to dodge node-fetch's "Premature close" token bug,
-          // that foreign signal is rejected by undici with:
-          //   RequestInit: Expected signal ("AbortSignal {}") to be an instance of AbortSignal.
-          // The simple upload sets no signal, so it round-trips cleanly through undici.
-          await retryAsync(
-            () =>
-              file.save(imageBuffer, {
-                resumable: false,
-                metadata: { contentType: 'image/png' },
-              }),
-            {
-              attempts: 4,
-              baseDelayMs: 250,
-              maxDelayMs: 4000,
-              shouldRetry: (err, attempt) => {
-                const transient = isTransientError(err);
-                if (transient) {
-                  this.getLogger().warn('GCS upload failed with transient error; retrying', {
-                    attempt,
-                    error: err?.message,
-                  });
-                }
-                return transient;
-              },
+          // Upload using storage driver abstraction
+          // The driver handles retries internally (GCS driver has built-in retry logic)
+          const uploadResult = await storageDriver.upload(imageBuffer, fileName, {
+            contentType: 'image/png',
+            size: imageBuffer.length,
+            createdAt: new Date().toISOString(),
+            customMetadata: {
+              userId,
+              correlationId,
+              prompt: redactText(prompt),
+              aspectRatio,
+              model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' }),
             },
-          );
+          });
 
-          const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
-          
-          this.getLogger().info('Image persisted to GCS', { publicUrl });
+          const publicUrl = uploadResult.publicUrl;
+
+          this.getLogger().info('Image persisted to storage', {
+            publicUrl,
+            driver: storageDriver.name,
+            fileName: uploadResult.fileName,
+          });
 
           this.logPrompt({
             correlationId,
@@ -226,7 +205,14 @@ export class ImageGenMcpServer extends Bit {
             size,
             userId,
             processingTimeMs: Date.now() - start,
-            image: { url: publicUrl, bucket: bucketName, fileName, contentType: 'image/png' },
+            image: {
+              url: publicUrl,
+              fileName: uploadResult.fileName,
+              size: uploadResult.size,
+              uploadedAt: uploadResult.uploadedAt,
+              driver: storageDriver.name,
+              contentType: 'image/png',
+            },
             moderation: { flagged: false, categories: [] },
           });
 

@@ -1,0 +1,1061 @@
+# Sprint 372: Unified Bit Deployment - Trackable Backlog
+# Generated: 2026-07-28
+# Format: YAML task tracking with priority, status, estimates, and dependencies
+
+metadata:
+  sprint: 372
+  name: "Unified Bit Deployment"
+  goal: "Implement brat bit deploy command with strategy-based deployment, replacing legacy commands"
+  duration: "9 working days"
+  team_size: 1
+  start_date: "2026-07-29"
+  end_date: "2026-08-08"
+
+phases:
+  foundation:
+    name: "Phase 1: Foundation"
+    days: "1-5"
+    goal: "Build deployment strategy framework"
+
+  integration:
+    name: "Phase 2: Integration"
+    days: "6-9"
+    goal: "Implement unified command, remove legacy commands, and comprehensive testing"
+
+tasks:
+  # ==============================================================================
+  # DAY 1: Strategy Interface & Types
+  # ==============================================================================
+
+  - id: DEPLOY-001
+    title: "Create base strategy interface"
+    description: |
+      Create orchestration/deployment/strategy.ts with base DeploymentStrategy interface
+      and all related types (DeploymentPlan, DeploymentResult, ValidationResult, DeployOptions).
+    phase: foundation
+    day: 1
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies: []
+    files:
+      - tools/brat/src/orchestration/deployment/strategy.ts
+    acceptance_criteria:
+      - DeploymentStrategy interface defined with prepare/validate/execute methods
+      - DeploymentPlan type includes service, context, envVars, secrets, metadata
+      - DeploymentResult type includes status, durationMs, error, url fields
+      - ValidationResult type includes valid, errors, warnings arrays
+      - DeployOptions type includes all flags (dryRun, forceRecreate, etc.)
+      - All types exported and documented with JSDoc
+    tests:
+      - Type validation tests
+      - Interface contract tests
+
+  - id: DEPLOY-002
+    title: "Create strategy factory skeleton"
+    description: |
+      Create StrategyFactory class with create() method that returns strategy
+      instances based on deployment type.
+    phase: foundation
+    day: 1
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-001
+    files:
+      - tools/brat/src/orchestration/deployment/strategy.ts
+    acceptance_criteria:
+      - StrategyFactory.create(deploymentType) method implemented
+      - Throws clear error for unknown deployment types
+      - Returns appropriate strategy instance for known types
+    tests:
+      - Test factory with 'docker-compose' type
+      - Test factory with 'cloud-run' type
+      - Test factory with unknown type throws error
+
+  - id: DEPLOY-003
+    title: "Write unit tests for strategy types"
+    description: |
+      Create comprehensive unit tests for strategy interface and factory.
+    phase: foundation
+    day: 1
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-001
+      - DEPLOY-002
+    files:
+      - tools/brat/src/orchestration/deployment/strategy.test.ts
+    acceptance_criteria:
+      - Type validation tests pass
+      - Factory tests pass
+      - 100% coverage on strategy.ts
+    tests:
+      - Unit tests for StrategyFactory
+      - Type guard tests
+      - Error handling tests
+
+  # ==============================================================================
+  # DAY 2: Docker Compose Strategy (Part 1)
+  # ==============================================================================
+
+  - id: DEPLOY-004
+    title: "Create Docker Compose strategy file"
+    description: |
+      Create orchestration/deployment/docker-compose-strategy.ts extending DeploymentStrategy.
+      Implement class skeleton with constructor and property definitions.
+    phase: foundation
+    day: 2
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-001
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    acceptance_criteria:
+      - DockerComposeStrategy class extends DeploymentStrategy
+      - Constructor accepts repoRoot and logger
+      - name getter returns 'docker-compose'
+      - prepare/validate/execute methods stubbed
+
+  - id: DEPLOY-005
+    title: "Implement Docker Compose prepare() method"
+    description: |
+      Implement prepare() method that loads environment variables, resolves
+      compose files, and builds DeploymentPlan.
+    phase: foundation
+    day: 2
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - DEPLOY-004
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    acceptance_criteria:
+      - Loads env vars from context
+      - Determines compose files for service
+      - Detects dockerfile location
+      - Returns valid DeploymentPlan
+      - Handles both local and remote contexts
+    tests:
+      - Test prepare with local context
+      - Test prepare with remote context
+      - Test prepare with missing service
+
+  - id: DEPLOY-006
+    title: "Implement Docker Compose validate() method"
+    description: |
+      Implement validate() method that checks dockerfile exists, compose files
+      exist, and no conflicting configurations.
+    phase: foundation
+    day: 2
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-005
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    acceptance_criteria:
+      - Validates dockerfile exists
+      - Validates compose files exist
+      - Returns validation errors for missing files
+      - Returns warnings for non-critical issues
+    tests:
+      - Test validate with valid plan
+      - Test validate with missing dockerfile
+      - Test validate with missing compose file
+
+  - id: DEPLOY-007
+    title: "Write unit tests for Docker Compose prepare/validate"
+    description: |
+      Create comprehensive unit tests for prepare() and validate() methods.
+    phase: foundation
+    day: 2
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-006
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.test.ts
+    acceptance_criteria:
+      - Test prepare with various contexts
+      - Test validate with various plans
+      - Mock filesystem and config loading
+      - 90%+ coverage
+
+  # ==============================================================================
+  # DAY 3: Docker Compose Strategy (Part 2)
+  # ==============================================================================
+
+  - id: DEPLOY-008
+    title: "Implement Docker Compose execute() method"
+    description: |
+      Implement execute() method that delegates to DockerOrchestrator.up()
+      and returns DeploymentResult.
+    phase: foundation
+    day: 3
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - DEPLOY-006
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    acceptance_criteria:
+      - Creates DockerOrchestrator with correct options
+      - Calls orchestrator.up()
+      - Measures duration
+      - Returns success DeploymentResult
+      - Returns failed DeploymentResult on error
+      - Preserves error messages
+    tests:
+      - Test execute success path
+      - Test execute failure path
+      - Mock DockerOrchestrator
+
+  - id: DEPLOY-009
+    title: "Integrate Docker Compose strategy with orchestrator"
+    description: |
+      Ensure DockerOrchestrator can be called from strategy without breaking
+      existing brat docker up command.
+    phase: foundation
+    day: 3
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-008
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+      - tools/brat/src/orchestration/docker/orchestrator.ts
+    acceptance_criteria:
+      - Strategy can create and call orchestrator
+      - Existing brat docker up still works
+      - No breaking changes to orchestrator API
+    tests:
+      - Integration test with real orchestrator (dry-run)
+      - Backward compat test for docker up
+
+  - id: DEPLOY-010
+    title: "Complete Docker Compose strategy tests"
+    description: |
+      Write comprehensive unit and integration tests for complete Docker Compose strategy.
+    phase: foundation
+    day: 3
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - DEPLOY-009
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.test.ts
+    acceptance_criteria:
+      - Test full prepare -> validate -> execute flow
+      - Test with local context
+      - Test with remote context
+      - Test error scenarios
+      - 90%+ coverage on strategy
+
+  # ==============================================================================
+  # DAY 4: Cloud Run Strategy (Part 1)
+  # ==============================================================================
+
+  - id: DEPLOY-011
+    title: "Create Cloud Run strategy file"
+    description: |
+      Create orchestration/deployment/cloud-run-strategy.ts extending DeploymentStrategy.
+    phase: foundation
+    day: 4
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-001
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    acceptance_criteria:
+      - CloudRunStrategy class extends DeploymentStrategy
+      - Constructor accepts repoRoot and logger
+      - name getter returns 'cloud-run'
+      - prepare/validate/execute methods stubbed
+
+  - id: DEPLOY-012
+    title: "Implement Cloud Run prepare() method"
+    description: |
+      Implement prepare() method that loads env vars, resolves secrets,
+      detects dockerfile, and computes image tag.
+    phase: foundation
+    day: 4
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - DEPLOY-011
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    acceptance_criteria:
+      - Loads env vars from context overlays
+      - Resolves secrets to numeric versions
+      - Filters env vars against secrets
+      - Detects dockerfile or uses external image
+      - Computes image tag from git or flag
+      - Returns valid DeploymentPlan with GCP metadata
+    tests:
+      - Test prepare with secrets
+      - Test prepare without secrets
+      - Test prepare with external image
+      - Test prepare with git-derived tag
+
+  - id: DEPLOY-013
+    title: "Implement Cloud Run validate() method"
+    description: |
+      Implement validate() method that runs VPC preflight checks, validates
+      dockerfile exists, and checks required env keys.
+    phase: foundation
+    day: 4
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-012
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    acceptance_criteria:
+      - Runs VPC preflight check (unless --allow-no-vpc)
+      - Validates dockerfile exists (if not external image)
+      - Validates required env keys present
+      - Returns validation errors with clear messages
+    tests:
+      - Test validate with VPC check success
+      - Test validate with VPC check failure
+      - Test validate with missing dockerfile
+      - Test validate with missing env keys
+      - Mock assertVpcPreconditions
+
+  - id: DEPLOY-014
+    title: "Write unit tests for Cloud Run prepare/validate"
+    description: |
+      Create comprehensive unit tests for prepare() and validate() methods.
+    phase: foundation
+    day: 4
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-013
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.test.ts
+    acceptance_criteria:
+      - Test prepare with various configurations
+      - Test validate with various plans
+      - Mock GCP providers (secrets, VPC)
+      - 90%+ coverage
+
+  # ==============================================================================
+  # DAY 5: Cloud Run Strategy (Part 2) + Factory Completion
+  # ==============================================================================
+
+  - id: DEPLOY-015
+    title: "Implement Cloud Run execute() method"
+    description: |
+      Implement execute() method that writes env vars file, computes substitutions,
+      and submits Cloud Build.
+    phase: foundation
+    day: 5
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - DEPLOY-013
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    acceptance_criteria:
+      - Writes env vars to .cloudbuild/ file
+      - Computes Cloud Build substitutions
+      - Submits build via submitBuild()
+      - Measures duration
+      - Returns success DeploymentResult with service URL
+      - Returns failed DeploymentResult on error
+    tests:
+      - Test execute success path
+      - Test execute Cloud Build failure
+      - Test env vars file writing
+      - Mock submitBuild
+
+  - id: DEPLOY-016
+    title: "Complete strategy factory implementation"
+    description: |
+      Update StrategyFactory to instantiate Docker Compose and Cloud Run strategies.
+    phase: foundation
+    day: 5
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-010
+      - DEPLOY-015
+    files:
+      - tools/brat/src/orchestration/deployment/strategy.ts
+    acceptance_criteria:
+      - Factory returns DockerComposeStrategy for 'docker-compose'
+      - Factory returns CloudRunStrategy for 'cloud-run'
+      - Factory throws for 'k8s' (not implemented)
+      - Factory throws for unknown types
+    tests:
+      - Test factory creates docker-compose strategy
+      - Test factory creates cloud-run strategy
+      - Test factory rejects k8s
+      - Test factory rejects unknown types
+
+  - id: DEPLOY-017
+    title: "Complete Cloud Run strategy tests"
+    description: |
+      Write comprehensive unit and integration tests for complete Cloud Run strategy.
+    phase: foundation
+    day: 5
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-015
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.test.ts
+    acceptance_criteria:
+      - Test full prepare -> validate -> execute flow
+      - Test with various GCP configurations
+      - Test error scenarios
+      - 90%+ coverage on strategy
+
+  - id: DEPLOY-018
+    title: "Integration test Cloud Run strategy (dry-run)"
+    description: |
+      Create integration test that runs Cloud Run strategy with --dry-run against
+      real architecture.yaml config.
+    phase: foundation
+    day: 5
+    priority: P1
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-017
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.test.ts
+    acceptance_criteria:
+      - Test runs with actual architecture.yaml
+      - Test uses --dry-run to avoid real deployment
+      - Test validates substitutions computed correctly
+      - Test succeeds without errors
+
+  # ==============================================================================
+  # DAY 6: brat bit deploy Command (Part 1)
+  # ==============================================================================
+
+  - id: DEPLOY-019
+    title: "Create brat bit deploy command file"
+    description: |
+      Create oclif-commands/bit/deploy.ts extending BratCommand with basic structure.
+    phase: integration
+    day: 6
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-016
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - File created with oclif command structure
+      - Extends BratCommand
+      - Description and examples defined
+      - Args and flags stubbed
+
+  - id: DEPLOY-020
+    title: "Define command args and flags"
+    description: |
+      Define service name arg and all flags (--all, --dry-run, --concurrency, etc.).
+    phase: integration
+    day: 6
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-019
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - service arg defined (optional string)
+      - --all flag defined (boolean)
+      - --dry-run flag defined (boolean)
+      - --concurrency flag defined (integer)
+      - --force-recreate flag defined (boolean, docker-compose only)
+      - --no-cache flag defined (boolean, docker-compose only)
+      - --image-tag flag defined (string, cloud-run only)
+      - --allow-no-vpc flag defined (boolean, cloud-run only)
+      - All flags have descriptions and defaults
+
+  - id: DEPLOY-021
+    title: "Implement service selection logic"
+    description: |
+      Implement logic to select services based on args and --all flag.
+    phase: integration
+    day: 6
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-020
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - Loads architecture.yaml config
+      - If service arg provided, select single service
+      - If --all flag, select all active services
+      - Throws error if neither service nor --all provided
+      - Throws error if service not found or inactive
+      - Uses existing selectDeployableServices() function
+
+  - id: DEPLOY-022
+    title: "Implement context resolution and strategy selection"
+    description: |
+      Implement logic to resolve execution context and select appropriate strategy.
+    phase: integration
+    day: 6
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-021
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - Resolves context from this.context (BratCommand)
+      - Gets deployment.type from context
+      - Creates strategy via StrategyFactory.create()
+      - Handles unknown deployment types with clear error
+
+  - id: DEPLOY-023
+    title: "Write unit tests for command structure"
+    description: |
+      Write unit tests for arg/flag parsing and basic command logic.
+    phase: integration
+    day: 6
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-022
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.test.ts
+    acceptance_criteria:
+      - Test arg parsing
+      - Test flag parsing
+      - Test service selection logic
+      - Test context resolution
+      - Test strategy selection
+      - Mock dependencies
+
+  # ==============================================================================
+  # DAY 7: brat bit deploy Command (Part 2)
+  # ==============================================================================
+
+  - id: DEPLOY-024
+    title: "Implement single service deployment"
+    description: |
+      Implement logic to deploy a single service using selected strategy.
+    phase: integration
+    day: 7
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-022
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - Calls strategy.prepare(service, context, options)
+      - Calls strategy.validate(plan)
+      - Calls strategy.execute(plan)
+      - Handles validation errors gracefully
+      - Logs deployment progress
+      - Returns deployment result
+
+  - id: DEPLOY-025
+    title: "Implement --all deployment with concurrency"
+    description: |
+      Implement logic to deploy multiple services with concurrency control.
+    phase: integration
+    day: 7
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - DEPLOY-024
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - Gets concurrency from flag or context or arch
+      - Creates Queue with concurrency limit
+      - Creates deployment task for each service
+      - Executes tasks with queue.add()
+      - Collects all results
+      - Handles partial failures gracefully
+
+  - id: DEPLOY-026
+    title: "Implement result reporting"
+    description: |
+      Implement logic to report deployment results to user.
+    phase: integration
+    day: 7
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-025
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - Displays success message for each service
+      - Displays error message for failures
+      - Shows deployment duration
+      - Shows service URLs (if available)
+      - Exits with code 1 if any failures
+      - Exits with code 0 if all success
+
+  - id: DEPLOY-027
+    title: "Write integration tests for command"
+    description: |
+      Write integration tests for full command execution.
+    phase: integration
+    day: 7
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-026
+    files:
+      - tools/brat/src/oclif-commands/bit/deploy.test.ts
+    acceptance_criteria:
+      - Test single service deployment
+      - Test --all deployment
+      - Test concurrency control
+      - Test result reporting
+      - Mock strategies
+
+  # ==============================================================================
+  # DAY 8: Remove Legacy Commands & Integration Testing
+  # ==============================================================================
+
+  - id: DEPLOY-028
+    title: "Delete legacy deploy commands directory"
+    description: |
+      Remove tools/brat/src/oclif-commands/deploy/ directory containing
+      legacy deployment commands (service.ts, services.ts).
+    phase: integration
+    day: 8
+    priority: P0
+    status: completed
+    estimate: "30 minutes"
+    dependencies:
+      - DEPLOY-027
+    files:
+      - tools/brat/src/oclif-commands/deploy/ (DELETE)
+    acceptance_criteria:
+      - deploy/ directory removed
+      - brat deploy commands no longer available
+      - No references to deleted files in imports
+
+  - id: DEPLOY-029
+    title: "Remove docker-compose specific commands"
+    description: |
+      Search for and remove any docker-compose specific deployment commands
+      that are now redundant with unified brat bit deploy.
+    phase: integration
+    day: 8
+    priority: P1
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-028
+    files:
+      - tools/brat/src/oclif-commands/ (SEARCH AND CLEAN)
+    acceptance_criteria:
+      - Redundant docker commands identified and removed
+      - No orphaned command files
+
+  - id: DEPLOY-030
+    title: "Update internal references to legacy commands"
+    description: |
+      Search codebase for any references to old deployment commands
+      in documentation, scripts, or code comments.
+    phase: integration
+    day: 8
+    priority: P1
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-029
+    files:
+      - "**/*.ts"
+      - "**/*.md"
+      - "**/*.sh"
+    acceptance_criteria:
+      - No references to brat deploy service
+      - No references to brat deploy services
+      - No references to brat docker up (deployment context)
+      - grep search confirms clean removal
+
+  - id: DEPLOY-031
+    title: "BUG FIX: Single service deployment builds all services"
+    description: |
+      Fix bug where `brat bit deploy <service>` to context-specific compose file
+      (e.g., staging) builds ALL services instead of just the target service.
+
+      Root cause: ComposeFactory returns empty serviceFiles array for context-specific
+      compose files, causing orchestrator to build all buildable services from base file.
+
+      Fix: Track target service via synthetic service file path, and only build
+      target service when single-service deployment is requested.
+    phase: integration
+    day: 8
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-027
+    files:
+      - tools/brat/src/orchestration/docker/compose-factory.ts
+      - tools/brat/src/orchestration/docker/orchestrator.ts
+    acceptance_criteria:
+      - Single service deployment builds only that service
+      - All-services deployment still builds all services
+      - Tests pass (no regressions)
+      - Dry-run shows correct service count
+    notes: |
+      Two-part fix:
+      1. compose-factory.ts: Store synthetic service file path for single-service
+         deployments to context-specific compose files
+      2. orchestrator.ts: Only build target service when this.options.service
+         is set and services array is non-empty
+
+  - id: DEPLOY-031-E2E
+    title: "E2E test: Deploy single service to local"
+    description: |
+      E2E test deploying single service to local docker-compose context.
+    phase: integration
+    day: 9
+    priority: P1
+    status: pending
+    estimate: "1.5 hours"
+    dependencies:
+      - DEPLOY-031
+    files:
+      - tools/brat/src/oclif-commands/bit/__tests__/deploy.e2e.test.ts
+    acceptance_criteria:
+      - Test runs brat bit deploy llm-bot --context local --dry-run
+      - Test verifies DockerComposeStrategy used
+      - Test verifies plan created correctly
+      - Test verifies validation passes
+      - Test succeeds without errors
+
+  - id: DEPLOY-032
+    title: "E2E test: Deploy all services to local"
+    description: |
+      E2E test deploying all active services to local context.
+    phase: integration
+    day: 9
+    priority: P1
+    status: pending
+    estimate: "1.5 hours"
+    dependencies:
+      - DEPLOY-031-E2E
+    files:
+      - tools/brat/src/oclif-commands/bit/__tests__/deploy.e2e.test.ts
+    acceptance_criteria:
+      - Test runs brat bit deploy --all --context local --dry-run
+      - Test verifies all active services selected
+      - Test verifies concurrency respected
+      - Test succeeds without errors
+
+  - id: DEPLOY-033
+    title: "E2E test: Deploy to staging (dry-run)"
+    description: |
+      E2E test deploying to remote staging context with dry-run.
+    phase: integration
+    day: 9
+    priority: P2
+    status: pending
+    estimate: "1.5 hours"
+    dependencies:
+      - DEPLOY-032
+    files:
+      - tools/brat/src/oclif-commands/bit/__tests__/deploy.e2e.test.ts
+    acceptance_criteria:
+      - Test runs brat bit deploy api-gateway --context staging --dry-run
+      - Test verifies DockerComposeStrategy with SSH host
+      - Test succeeds without errors
+
+  - id: DEPLOY-034
+    title: "E2E test: Error scenarios"
+    description: |
+      E2E tests for various error scenarios.
+    phase: integration
+    day: 8
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-033
+    files:
+      - tools/brat/src/oclif-commands/bit/__tests__/deploy.e2e.test.ts
+    acceptance_criteria:
+      - Test missing dockerfile error
+      - Test invalid context error
+      - Test missing required env vars error
+      - Test VPC preflight failure (mocked)
+      - All errors have clear messages
+
+  # ==============================================================================
+  # DAY 9: Documentation & Polish
+  # ==============================================================================
+
+  - id: DEPLOY-035
+    title: "Update CLAUDE.md with new command examples"
+    description: |
+      Update CLAUDE.md to reference brat bit deploy instead of old commands.
+      Remove all references to brat deploy service/services.
+    phase: integration
+    day: 9
+    priority: P0
+    status: pending
+    estimate: "1.5 hours"
+    dependencies:
+      - DEPLOY-034
+    files:
+      - CLAUDE.md
+    acceptance_criteria:
+      - All deployment examples use brat bit deploy
+      - No references to brat deploy service
+      - No references to brat deploy services
+      - Examples show --all flag usage
+      - Examples show --dry-run flag usage
+
+  - id: DEPLOY-036
+    title: "Remove references to old commands from all docs"
+    description: |
+      Search and update all documentation files to remove legacy command references.
+    phase: integration
+    day: 9
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-035
+    files:
+      - "documentation/**/*.md"
+      - "README.md"
+      - "planning/**/*.md"
+    acceptance_criteria:
+      - No brat deploy service references in docs
+      - No brat deploy services references in docs
+      - All deployment guides updated
+      - Sprint planning docs preserved as historical record
+
+  - id: DEPLOY-037
+    title: "Add JSDoc comments to new code"
+    description: |
+      Add comprehensive JSDoc comments to all new public methods and classes.
+    phase: integration
+    day: 9
+    priority: P1
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - DEPLOY-036
+    files:
+      - tools/brat/src/orchestration/deployment/*.ts
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - All public methods have JSDoc comments
+      - All parameters documented with @param
+      - All return values documented with @returns
+      - All exceptions documented with @throws
+      - Examples provided for complex methods
+
+  - id: DEPLOY-038
+    title: "Code cleanup and refactoring"
+    description: |
+      Final cleanup pass: remove dead code, improve naming, extract helpers.
+    phase: integration
+    day: 9
+    priority: P2
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-037
+    files:
+      - tools/brat/src/orchestration/deployment/*.ts
+      - tools/brat/src/oclif-commands/bit/deploy.ts
+    acceptance_criteria:
+      - No unused imports
+      - No commented-out code
+      - Consistent naming conventions
+      - Helper functions extracted where appropriate
+      - Linter passes with no warnings
+
+  - id: DEPLOY-039
+    title: "Final test run and validation"
+    description: |
+      Run complete test suite and validate all acceptance criteria met.
+    phase: integration
+    day: 9
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - DEPLOY-038
+    files:
+      - All test files
+    acceptance_criteria:
+      - npm test passes all tests
+      - npm run build succeeds
+      - Test coverage ≥ 90%
+      - All E2E tests pass
+      - No linter warnings
+      - All acceptance criteria in execution-plan.md verified
+
+# ==============================================================================
+# Summary Statistics
+# ==============================================================================
+
+summary:
+  total_tasks: 39
+  p0_tasks: 28
+  p1_tasks: 10
+  p2_tasks: 1
+
+  by_phase:
+    foundation: 18
+    integration: 21
+
+  by_day:
+    day_1: 3
+    day_2: 4
+    day_3: 3
+    day_4: 4
+    day_5: 4
+    day_6: 5
+    day_7: 4
+    day_8: 7
+    day_9: 5
+
+  estimated_hours:
+    day_1: 7
+    day_2: 8
+    day_3: 8
+    day_4: 8
+    day_5: 8
+    day_6: 8
+    day_7: 8
+    day_8: 9.5
+    day_9: 7.5
+    total: 72
+
+# ==============================================================================
+# Dependencies Graph
+# ==============================================================================
+
+dependency_graph: |
+  DEPLOY-001 (Day 1: Base Interface)
+    ├─> DEPLOY-002 (Day 1: Factory Skeleton)
+    │   ├─> DEPLOY-003 (Day 1: Tests)
+    │   └─> DEPLOY-016 (Day 5: Factory Completion)
+    │       └─> DEPLOY-019 (Day 6: Command File)
+    │           └─> ... (Command chain)
+    ├─> DEPLOY-004 (Day 2: Docker Strategy File)
+    │   └─> DEPLOY-005 (Day 2: Docker Prepare)
+    │       └─> DEPLOY-006 (Day 2: Docker Validate)
+    │           └─> DEPLOY-007 (Day 2: Tests)
+    │               └─> DEPLOY-008 (Day 3: Docker Execute)
+    │                   └─> DEPLOY-009 (Day 3: Integration)
+    │                       └─> DEPLOY-010 (Day 3: Tests)
+    └─> DEPLOY-011 (Day 4: Cloud Run File)
+        └─> DEPLOY-012 (Day 4: Cloud Run Prepare)
+            └─> DEPLOY-013 (Day 4: Cloud Run Validate)
+                └─> DEPLOY-014 (Day 4: Tests)
+                    └─> DEPLOY-015 (Day 5: Cloud Run Execute)
+                        └─> DEPLOY-017 (Day 5: Tests)
+                            └─> DEPLOY-018 (Day 5: Integration)
+
+# ==============================================================================
+# Risk Mitigation
+# ==============================================================================
+
+risks:
+  - id: RISK-001
+    description: "Docker Compose strategy refactoring may have edge cases"
+    probability: medium
+    impact: medium
+    mitigation: "Extract logic incrementally, comprehensive tests, verify with local deployment"
+    related_tasks:
+      - DEPLOY-009
+      - DEPLOY-030
+
+  - id: RISK-002
+    description: "Concurrency handling may have edge cases"
+    probability: medium
+    impact: medium
+    mitigation: "Reuse existing Queue implementation, test with varying concurrency"
+    related_tasks:
+      - DEPLOY-025
+      - DEPLOY-036
+
+  - id: RISK-003
+    description: "VPC preflight checks may fail in unexpected ways"
+    probability: low
+    impact: medium
+    mitigation: "Reuse existing assertVpcPreconditions, add --allow-no-vpc flag"
+    related_tasks:
+      - DEPLOY-013
+      - DEPLOY-035
+
+# ==============================================================================
+# Success Criteria Checklist
+# ==============================================================================
+
+acceptance_criteria:
+  functional:
+    - id: AC-F1
+      description: "brat bit deploy <service> works for docker-compose contexts"
+      tasks: [DEPLOY-031]
+    - id: AC-F2
+      description: "brat bit deploy <service> works for cloud-run contexts"
+      tasks: [DEPLOY-018]
+    - id: AC-F3
+      description: "brat bit deploy --all deploys all active services"
+      tasks: [DEPLOY-032]
+    - id: AC-F4
+      description: "All flags work consistently across deployment types"
+      tasks: [DEPLOY-020, DEPLOY-027]
+    - id: AC-F5
+      description: "Dry-run mode works for all strategies"
+      tasks: [DEPLOY-031, DEPLOY-032, DEPLOY-033]
+    - id: AC-F6
+      description: "Legacy deployment commands removed cleanly"
+      tasks: [DEPLOY-028, DEPLOY-029, DEPLOY-030]
+
+  quality:
+    - id: AC-Q1
+      description: "90%+ test coverage"
+      tasks: [DEPLOY-039]
+    - id: AC-Q2
+      description: "All CI tests passing"
+      tasks: [DEPLOY-039]
+    - id: AC-Q3
+      description: "Documentation complete (no references to old commands)"
+      tasks: [DEPLOY-035, DEPLOY-036, DEPLOY-037]

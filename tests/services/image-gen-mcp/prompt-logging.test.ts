@@ -24,7 +24,6 @@ describe('image-gen-mcp generate_image — Prompt Logging', () => {
   let server: ImageGenMcpServer;
   let mockAdd: jest.Mock;
   let mockCollection: jest.Mock;
-  let mockSave: jest.Mock;
   let mockLogger: { debug: jest.Mock; info: jest.Mock; warn: jest.Mock; error: jest.Mock };
 
   function setModerationFlagged(flagged: boolean, categories: Record<string, boolean> = {}) {
@@ -62,15 +61,21 @@ describe('image-gen-mcp generate_image — Prompt Logging', () => {
 
     server = new ImageGenMcpServer();
 
-    // Stub out external/inherited dependencies so no live calls occur.
-    mockSave = jest.fn().mockResolvedValue(undefined);
-    const mockBucket = { file: jest.fn().mockReturnValue({ save: mockSave }) };
-    const mockStorage = { bucket: jest.fn().mockReturnValue(mockBucket) };
+    // Stub out storage driver (new abstraction layer)
+    const mockDriver = {
+      name: 'mock-driver',
+      upload: jest.fn().mockResolvedValue({
+        fileName: 'test-image.png',
+        publicUrl: 'https://storage.example.com/test-image.png',
+        size: 16,
+        uploadedAt: new Date().toISOString(),
+      }),
+    };
 
     mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
     jest.spyOn(server as any, 'getSecret').mockResolvedValue('test-openai-key');
-    jest.spyOn(server as any, 'getResource').mockReturnValue(mockStorage);
+    jest.spyOn(server as any, 'getResource').mockReturnValue(mockDriver);
     jest.spyOn(server as any, 'getLogger').mockReturnValue(mockLogger);
   });
 
@@ -98,12 +103,12 @@ describe('image-gen-mcp generate_image — Prompt Logging', () => {
     expect(doc.status).toBe('success');
     expect(doc.platform).toBe('openai');
     expect(doc.prompt).toBe('REDACTED: a happy cat');
-    expect(doc.response).toMatch(/^REDACTED: https:\/\/storage\.googleapis\.com\//);
+    expect(doc.response).toMatch(/^REDACTED: https:\/\//); // Platform-agnostic URL check
     expect(doc.aspectRatio).toBe('16:9');
     expect(doc.size).toBe('1536x1024');
     expect(typeof doc.processingTimeMs).toBe('number');
     expect(doc.image).toEqual(
-      expect.objectContaining({ url: expect.stringContaining('https://storage.googleapis.com/'), contentType: 'image/png' }),
+      expect.objectContaining({ url: expect.stringContaining('https://'), contentType: 'image/png' }),
     );
     expect(doc.moderation).toEqual({ flagged: false, categories: [] });
     expect(doc.createdAt).toBeInstanceOf(Date);

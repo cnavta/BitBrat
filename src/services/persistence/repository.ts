@@ -217,14 +217,9 @@ export class DocumentStorePersistenceStore implements IPersistenceStore {
   }
 
   async applyFinalization(correlationId: string, patch: Partial<EventAggregateV2>): Promise<void> {
-    // PostgreSQL: Fetch-modify-update
-    const existing = await this.store.get(COLLECTION_EVENTS, correlationId);
-    if (!existing) {
-      throw new Error(`Aggregate not found: ${correlationId}`);
-    }
-
-    const merged = { ...existing, ...stripUndefinedDeep(patch) };
-    await this.store.set(COLLECTION_EVENTS, correlationId, merged);
+    // PostgreSQL: Use merge mode to atomically merge the patch
+    // This is more efficient than fetch-modify-update and matches Firestore behavior
+    await this.store.set(COLLECTION_EVENTS, correlationId, stripUndefinedDeep(patch) as any, true);
   }
 
   async applySnapshotEvent(
@@ -279,10 +274,9 @@ export class DocumentStorePersistenceStore implements IPersistenceStore {
   }
 
   async upsertSourceState(docId: string, patch: any): Promise<void> {
-    // PostgreSQL: Fetch-modify-update with merge
-    const existing = await this.store.get(COLLECTION_SOURCES, docId);
-    const merged = existing ? { ...existing, ...stripUndefinedDeep(patch) } : stripUndefinedDeep(patch);
-    await this.store.set(COLLECTION_SOURCES, docId, merged);
+    // PostgreSQL: Use merge mode to atomically merge the patch
+    // This is more efficient than fetch-modify-update and matches Firestore behavior
+    await this.store.set(COLLECTION_SOURCES, docId, stripUndefinedDeep(patch), true);
   }
 }
 

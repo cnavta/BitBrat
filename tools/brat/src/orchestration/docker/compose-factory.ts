@@ -6,6 +6,7 @@ export interface ComposeFileSet {
   baseFile: string;
   serviceFiles: string[];
   observabilityFile?: string; // Optional Loki + Promtail stack
+  targetService?: string; // Sprint 372: For single-service deployments to context-specific compose files
 }
 
 export class ComposeFactory {
@@ -34,15 +35,38 @@ export class ComposeFactory {
    * down or inspect a previously-deployed disabled Bit) simply omit `inactiveServices`.
    *
    * `enableLoki` adds the optional observability stack (Loki + Promtail) for centralized logging.
+   *
+   * Sprint 372: `targetService` is now honored even for context-specific compose files.
+   * When a single service is specified, we return the target service name in metadata
+   * so orchestrator can pass it to `docker compose up <service>`.
    */
   public getComposeFiles(targetService?: string, inactiveServices?: Iterable<string>, enableLoki?: boolean): ComposeFileSet {
     const baseFile = this.baseComposePath;
     const serviceFiles: string[] = [];
 
     // Sprint 358: If using a context-specific compose file (not docker-compose.local.yaml),
-    // skip service files since the context compose file already has all services defined
+    // the context compose file already has all services defined. However, we still need
+    // to track targetService for single-service deployments.
     const isContextSpecificCompose = !this.baseComposePath.endsWith('docker-compose.local.yaml');
     if (isContextSpecificCompose) {
+      // Sprint 372: For single-service deployments, we need to track which service to deploy
+      // even though the compose file is monolithic. Store the target service name directly
+      // in the ComposeFileSet metadata (not as a file path).
+      if (targetService) {
+        const kebabService = targetService.replace(/_/g, '-');
+        const inactive = new Set<string>();
+        for (const name of inactiveServices ?? []) {
+          inactive.add(name.replace(/_/g, '-'));
+        }
+        if (inactive.has(kebabService)) {
+          throw new Error(
+            `Service '${targetService}' is inactive (active:false) in architecture.yaml and cannot be deployed. ` +
+            `Set active:true to deploy it.`
+          );
+        }
+        // Return with targetService metadata (serviceFiles remains empty for context-specific compose)
+        return { baseFile, serviceFiles: [], observabilityFile: undefined, targetService: kebabService };
+      }
       return { baseFile, serviceFiles: [], observabilityFile: undefined };
     }
 

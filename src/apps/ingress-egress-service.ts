@@ -56,6 +56,9 @@ export class IngressEgressServer extends Bit {
   private connectorManager: ConnectorManager | null = null;
   private lastStates: Record<string, string> = {};
   private statusTimer: NodeJS.Timeout | null = null;
+  // Story 4: Store instance ID for health endpoint
+  private instanceId: string = '';
+  private egressTopic: string = '';
 
   constructor() {
     super({ serviceName: SERVICE_NAME });
@@ -83,6 +86,9 @@ export class IngressEgressServer extends Bit {
 
     // Resolve instance identity → used to compute per-instance egress topic
     const kRevision = process.env.K_REVISION;
+    const hostname = process.env.HOSTNAME;
+    const manualId = process.env.EGRESS_INSTANCE_ID || process.env.SERVICE_INSTANCE_ID;
+
     if (kRevision) {
       process.env.EGRESS_INSTANCE_ID = kRevision;
       process.env.SERVICE_INSTANCE_ID = kRevision;
@@ -90,10 +96,28 @@ export class IngressEgressServer extends Bit {
     const instanceId =
       process.env.EGRESS_INSTANCE_ID ||
       process.env.SERVICE_INSTANCE_ID ||
-      process.env.HOSTNAME ||
+      hostname ||
       `proc-${Math.random().toString(36).slice(2, 10)}`;
     const egressTopic = `${INTERNAL_EGRESS_V1}.${instanceId}`; // without BUS_PREFIX in the value
     const egressSubject = `${cfg.busPrefix || ''}${egressTopic}`; // with BUS_PREFIX for subscription
+
+    // Story 4: Store instance ID for health endpoint
+    this.instanceId = instanceId;
+    this.egressTopic = egressTopic;
+
+    // Story 4: Enhanced logging with instance ID sources
+    logger.info('ingress-egress.instance_id.resolved', {
+      instanceId,
+      sources: {
+        K_REVISION: kRevision || null,
+        HOSTNAME: hostname || null,
+        EGRESS_INSTANCE_ID: manualId || null,
+        fallback: !kRevision && !hostname && !manualId,
+      },
+      egressTopic,
+      egressSubject,
+      queueName: `ingress-egress.${instanceId}`,
+    });
 
     const envelopeBuilder = new TwitchEnvelopeBuilder();
     const pubRes = this.getResource<PublisherResource>('publisher');
@@ -297,7 +321,8 @@ export class IngressEgressServer extends Bit {
           this.slackClient = new SlackIngressClient(
             slackAppToken,
             slackBotToken,
-            slackPublisher as any
+            slackPublisher as any,
+            cfg.debugUsersSlack // Sprint 371: Pass debug authorized users
           );
 
           logger.debug('slack.init.registering_connector');
@@ -426,12 +451,18 @@ export class IngressEgressServer extends Bit {
       try {
         await this.onMessage<InternalEventV2>(
           { destination: genericEgressTopic, queue: genericQueue, ack: 'explicit' },
-          async (evt: InternalEventV2, _attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
-            logger.debug('ingress-egress.egress.generic.received', { correlationId: evt?.correlationId });
+          async (evt: InternalEventV2, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => {
+            const startTime = Date.now();
+
+            // Story 3: Extract NATS redelivery info from attributes
+            const redelivered = attributes?.['Nats-Msg-Redelivered'] === 'true';
+            const redeliveryCount = parseInt(attributes?.['Nats-Delivery-Count'] || '1', 10);
+
+            logger.debug('ingress-egress.egress.generic.received', { correlationId: evt?.correlationId, redelivered, redeliveryCount });
             try {
               // Determine if this service supports the platform for this event
               const connector = (evt?.egress?.connector || '').toLowerCase();
-              
+
               const source = (evt?.ingress?.source || '').toLowerCase();
               const annotations = Array.isArray(evt?.annotations) ? evt.annotations : [];
               const egressDest = (evt?.egress?.destination || '').toLowerCase();
@@ -441,6 +472,24 @@ export class IngressEgressServer extends Bit {
               const isTwilio = connector === 'twilio' || (connector === '' && (egressDest === 'twilio' || source.includes('twilio') || authProvider === 'twilio' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'twilio')));
               const isSlack = connector === 'slack' || (connector === '' && (egressDest === 'slack' || source.includes('slack') || authProvider === 'slack' || annotations.some((a: any) => a.kind === 'custom' && a.source === 'slack')));
               const isTwitch = connector === 'twitch' || (connector === '' && (egressDest === 'twitch' || source.includes('twitch') || authProvider === 'twitch' || (!isDiscord && !isTwilio && !isSlack && (egressDest === '' || egressDest === 'chat' || egressDest === 'twitch' || authProvider === ''))));
+
+              // Story 3: Log debug message processing with enhanced context
+              const isDebugMessage = source.startsWith('debug.');
+              if (isDebugMessage) {
+                const deliveryLatency = Date.now() - startTime;
+                logger.info('ingress-egress.egress.debug_message', {
+                  correlationId: evt.correlationId,
+                  originalCorrelationId: evt.metadata?.originalCorrelationId,
+                  source: evt.ingress?.source,
+                  debugMessageType: evt.metadata?.debugMessageType,
+                  debugSource: evt.metadata?.debugSource,
+                  connector: evt.egress?.connector,
+                  redelivered,
+                  redeliveryCount,
+                  deliveryLatency,
+                  stage: evt.routing?.stage,
+                });
+              }
 
               logger.debug('ingress-egress.egress.generic.platforms', { isDiscord, isTwilio, isSlack, isTwitch })
               if (isDiscord || isTwilio || isSlack || isTwitch) {
@@ -516,6 +565,17 @@ export class IngressEgressServer extends Bit {
       } catch (e: any) {
         res.status(200).json({ snapshot: { state: 'ERROR', lastError: { message: e?.message || String(e) } }, egressTopic });
       }
+    });
+
+    // Story 4: Add instance ID to health endpoint
+    this.onHTTPRequest('/_debug/instance', (_req: Request, res: Response) => {
+      res.status(200).json({
+        status: 'ok',
+        service: SERVICE_NAME,
+        instanceId,
+        egressTopic,
+        timestamp: new Date().toISOString(),
+      });
     });
 
     // Start status change monitoring

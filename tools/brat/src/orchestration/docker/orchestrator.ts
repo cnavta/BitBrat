@@ -80,14 +80,28 @@ export class DockerOrchestrator {
         maxConcurrent = 1; // Default to 1 for SSH if not specified, to avoid "only one connection allowed"
       }
 
-      const services = composeFileSet.serviceFiles.map(f => path.basename(f, '.compose.yaml'));
+      // Sprint 372: For context-specific compose files, targetService is stored in metadata
+      // instead of being extracted from serviceFiles (which would be empty).
+      const services = composeFileSet.targetService
+        ? [composeFileSet.targetService]
+        : composeFileSet.serviceFiles.map(f => path.basename(f, '.compose.yaml'));
 
       // Base-file services with their own `build:` (e.g. firebase-emulator) are NOT part of
       // the per-service compose set, so `docker compose build <service>` never builds them.
       // On remote targets we run `up --no-build`, so they must be built explicitly here;
       // otherwise the remote `up` fails with "No such image" (e.g. bitbratplatform-firebase-emulator).
+      //
+      // Sprint 372: When deploying a single service to a context-specific compose file,
+      // only build that service, not all buildable services from the base file.
       const baseBuildServices = this.composeFactory.getBuildableBaseServices();
-      const buildServices = [...baseBuildServices, ...services.filter(s => !baseBuildServices.includes(s))];
+      let buildServices: string[];
+      if (this.options.service && services.length > 0) {
+        // Single-service deployment: only build the target service
+        buildServices = services;
+      } else {
+        // All-services deployment: build base-file services + per-service compose files
+        buildServices = [...baseBuildServices, ...services.filter(s => !baseBuildServices.includes(s))];
+      }
 
       if (isRemote) {
         console.log(`[brat] Remote target detected. Building and deploying ${buildServices.length} services...`);

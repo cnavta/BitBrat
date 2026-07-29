@@ -179,8 +179,31 @@ export interface ErrorEntryV1 {
  */
 export interface QOSV1 {
   persistenceTtlSec?: number; // Duration (in seconds) to keep the event in persistence.
-  tracer?: boolean; // When set to true, enables high-verbosity tracing and logging.
+  /**
+   * When set to true, enables high-verbosity tracing and logging.
+   * Sprint 371: Also activates debug mode real-time feedback to user.
+   */
+  tracer?: boolean;
   maxResponseMs?: number; // Maximum time allowed for complete processing (in ms) before timeout.
+}
+
+/**
+ * Debug Mode Metadata (Sprint 371)
+ *
+ * Attached to events when debug mode is activated via !debug command.
+ * Enables real-time progress feedback to the user who initiated debug mode.
+ *
+ * @since Sprint 371
+ */
+export interface DebugMetadata {
+  /** Debug mode is enabled */
+  enabled: true;
+  /** Platform-specific user ID who initiated debug mode */
+  initiatedBy: string;
+  /** Channel/conversation where debug feedback should be sent */
+  feedbackChannel: string;
+  /** ISO8601 timestamp when debug mode was activated */
+  startedAt: string;
 }
 
 /**
@@ -219,7 +242,10 @@ export interface InternalEventV2 {
 
   routing: Routing;
   errors?: ErrorEntryV1[];
-  metadata?: Record<string, any>;
+  metadata?: {
+    debug?: DebugMetadata;
+    [key: string]: any;
+  };
 }
 
 export type AggregateStatus = 'INGESTED' | 'IN_PROGRESS' | 'FINALIZED' | 'ERROR';
