@@ -861,11 +861,18 @@ services:
     secrets:
       - OPENAI_API_KEY
       - MCP_AUTH_TOKEN
-      - GOOGLE_APPLICATION_CREDENTIALS  # Path to GCP service account JSON key (required for self-hosted)
     env:
       - MCP_TRANSPORT
       - GCS_BUCKET_NAME
       - IMAGE_GEN_RATE_LIMIT_MS
+    # Sprint 374: Secure file deployment for GCP credentials
+    secureFiles:
+      - local: .secure.local/gcp-credentials.json
+        target: /var/secrets/gcp-credentials.json
+        env: GOOGLE_APPLICATION_CREDENTIALS
+        permissions: "0400"
+        required: false  # Optional in local development (image-gen works with filesystem storage)
+        context: local
   stream-analyst-service:
     category: domain
     profile: llm

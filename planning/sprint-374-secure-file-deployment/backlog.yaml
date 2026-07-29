@@ -71,7 +71,7 @@ tasks:
     files:
       - tools/brat/src/config/types.ts
     dependencies: []
-    status: pending
+    status: completed
     estimated_hours: 2
 
   - id: SF-002
@@ -93,7 +93,7 @@ tasks:
       - tools/brat/src/config/loader.ts
     dependencies:
       - SF-001
-    status: pending
+    status: completed
     estimated_hours: 1
 
   - id: SF-003
@@ -116,7 +116,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/secure-files-validator.ts
     dependencies:
       - SF-001
-    status: pending
+    status: completed
     estimated_hours: 3
 
   - id: SF-004
@@ -138,7 +138,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/secure-files-validator.ts
     dependencies:
       - SF-003
-    status: pending
+    status: completed
     estimated_hours: 3
     technical_notes: |
       Use execCmd from existing exec utils:
@@ -166,7 +166,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/secure-files-validator.ts
     dependencies:
       - SF-003
-    status: pending
+    status: completed
     estimated_hours: 2
     security_notes: |
       Blocked patterns:
@@ -193,7 +193,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/secure-files-validator.ts
     dependencies:
       - SF-003
-    status: pending
+    status: completed
     estimated_hours: 2
 
   - id: SF-007
@@ -219,7 +219,7 @@ tasks:
       - SF-004
       - SF-005
       - SF-006
-    status: pending
+    status: completed
     estimated_hours: 4
 
   - id: SF-008
@@ -240,7 +240,7 @@ tasks:
       - architecture.yaml
     dependencies:
       - SF-001
-    status: pending
+    status: completed
     estimated_hours: 1
 
   # ========================================================================
@@ -266,7 +266,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
     dependencies:
       - SF-007
-    status: pending
+    status: completed
     estimated_hours: 3
 
   - id: SF-010
@@ -288,7 +288,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
     dependencies:
       - SF-009
-    status: pending
+    status: completed
     estimated_hours: 3
     technical_notes: |
       Volume mount format:
@@ -317,7 +317,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
     dependencies:
       - SF-010
-    status: pending
+    status: completed
     estimated_hours: 2
 
   - id: SF-012
@@ -340,7 +340,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
     dependencies:
       - SF-011
-    status: pending
+    status: completed
     estimated_hours: 4
     technical_notes: |
       Remote path structure:
@@ -370,7 +370,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/docker-compose-strategy.test.ts
     dependencies:
       - SF-012
-    status: pending
+    status: completed
     estimated_hours: 3
 
   - id: SF-014
@@ -393,7 +393,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/docker-compose-integration.test.ts
     dependencies:
       - SF-013
-    status: pending
+    status: completed
     estimated_hours: 3
 
   # ========================================================================
@@ -419,7 +419,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
     dependencies:
       - SF-007
-    status: pending
+    status: completed
     estimated_hours: 3
 
   - id: SF-016
@@ -441,7 +441,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
     dependencies:
       - SF-015
-    status: pending
+    status: completed
     estimated_hours: 2
     technical_notes: |
       Secret naming convention:
@@ -470,7 +470,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
     dependencies:
       - SF-016
-    status: pending
+    status: completed
     estimated_hours: 2
 
   - id: SF-018
@@ -492,7 +492,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
     dependencies:
       - SF-017
-    status: pending
+    status: completed
     estimated_hours: 2
     technical_notes: |
       Flag format:
@@ -519,7 +519,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/cloud-run-strategy.test.ts
     dependencies:
       - SF-018
-    status: pending
+    status: completed
     estimated_hours: 3
 
   # ========================================================================
@@ -547,7 +547,7 @@ tasks:
       - .secure.staging/.gitkeep
       - .secure.staging/.gitignore
     dependencies: []
-    status: pending
+    status: completed
     estimated_hours: 0.5
 
   - id: SF-021
@@ -567,7 +567,7 @@ tasks:
       - .gitignore
     dependencies:
       - SF-020
-    status: pending
+    status: completed
     estimated_hours: 0.5
 
   - id: SF-022
@@ -590,7 +590,7 @@ tasks:
     dependencies:
       - SF-001
       - SF-020
-    status: pending
+    status: completed
     estimated_hours: 1
     migration_notes: |
       Before:
@@ -624,7 +624,7 @@ tasks:
       - CLAUDE.md
     dependencies:
       - SF-022
-    status: pending
+    status: completed
     estimated_hours: 1.5
 
   - id: SF-024
@@ -647,7 +647,7 @@ tasks:
       - documentation/guides/secure-file-deployment.md
     dependencies:
       - SF-022
-    status: pending
+    status: completed
     estimated_hours: 2
 
   # ========================================================================
@@ -675,7 +675,7 @@ tasks:
     dependencies:
       - SF-014
       - SF-022
-    status: pending
+    status: completed
     estimated_hours: 2
 
   - id: SF-026
@@ -699,7 +699,7 @@ tasks:
     dependencies:
       - SF-014
       - SF-022
-    status: pending
+    status: completed
     estimated_hours: 2
     technical_notes: |
       Requires staging Docker host accessible via SSH.
@@ -725,7 +725,7 @@ tasks:
     dependencies:
       - SF-025
       - SF-026
-    status: pending
+    status: completed
     estimated_hours: 1
 
   - id: SF-028
@@ -750,7 +750,7 @@ tasks:
       - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
     dependencies:
       - SF-025
-    status: pending
+    status: completed
     estimated_hours: 1
 
   - id: SF-029
@@ -775,7 +775,7 @@ tasks:
     dependencies:
       - SF-025
       - SF-026
-    status: pending
+    status: completed
     estimated_hours: 1
 
   - id: SF-030
@@ -800,7 +800,7 @@ tasks:
     dependencies:
       - SF-023
       - SF-024
-    status: pending
+    status: completed
     estimated_hours: 1
 
 # ============================================================================
