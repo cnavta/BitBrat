@@ -26,8 +26,8 @@ BitBrat currently suffers from **environment confusion** across CLI commands, co
 #### 1. **Inconsistent Terminology**
 
 ```bash
-# Some commands use --env
-brat deploy service llm-bot --env staging
+# Some commands use --env (DEPRECATED - use --context)
+brat bit deploy llm-bot --context staging
 
 # Others use --target
 brat docker up --target staging
@@ -357,7 +357,7 @@ brat use staging
 brat docker up                    # Uses staging (from ~/.bratrc)
 brat chat --message "!ping"       # Uses staging
 brat fleet list                   # Uses staging
-brat deploy service llm-bot       # Uses staging
+brat bit deploy llm-bot           # Uses staging
 
 # Check current context
 brat current
@@ -368,7 +368,7 @@ brat use local
 brat docker up                    # Now uses local
 
 brat use prod
-brat deploy service llm-bot       # Now uses prod
+brat bit deploy llm-bot           # Now uses prod
 ```
 
 **Explicit Override (When Needed)**
@@ -386,7 +386,7 @@ brat fleet list                    # Uses staging again
 ```bash
 # For automation/CI where ~/.bratrc doesn't exist
 export BITBRAT_CONTEXT=staging
-brat deploy service llm-bot        # Uses $BITBRAT_CONTEXT
+brat bit deploy llm-bot            # Uses $BITBRAT_CONTEXT
 ```
 
 **Resolution Priority (Highest to Lowest)**
@@ -398,8 +398,8 @@ brat deploy service llm-bot        # Uses $BITBRAT_CONTEXT
 **Backward Compatibility (Warn + Redirect)**
 
 ```bash
-brat deploy service llm-bot --env staging  # ⚠️  --env is deprecated, use --context or 'brat use'
-brat docker up --target staging            # ⚠️  --target is deprecated, use --context or 'brat use'
+brat bit deploy llm-bot --context staging  # ✅  Use --context
+brat docker up --context staging           # ✅  Use --context (legacy: --env and --target deprecated)
 ```
 
 #### New Commands: brat use / brat current
@@ -973,7 +973,7 @@ brat current
 
 # Switch to prod for deployment
 brat use prod
-brat deploy service llm-bot
+brat bit deploy llm-bot
 brat fleet info
 # All commands now use prod
 ```

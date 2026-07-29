@@ -211,26 +211,29 @@ npm run brat -- service bootstrap --name <name> [--mcp] [--force]
 
 ### Deployment
 
-#### `brat deploy services --all`
-Deploy all services defined in `architecture.yaml` to the specified environment. Services marked
-`active: false` (or with no `active` flag — disabled by default per `defaults.services.active`) are
-**skipped** with a `deploy.service status=skipped reason=inactive` log, matching the IaC synth path.
+#### `brat bit deploy --all`
+Deploy all services defined in `architecture.yaml` to the specified execution context. Services marked
+`active: false` are automatically skipped. The deployment strategy (docker-compose or cloud-run) is
+automatically selected based on the execution context configuration.
 
 ```bash
-npm run brat -- deploy services --all --env <name> [--concurrency N] [--force]
+npm run brat -- bit deploy --all [--context <name>] [--concurrency N] [--dry-run]
 ```
-- `--env`: Target environment (`local`, `dev`, `prod`).
-- `--concurrency`: Number of simultaneous deployments (default: 3).
-- `--force`: Ignore some safety checks during deployment.
+- `--context`: Target execution context (`local`, `staging`, `prod`). Defaults to `local`.
+- `--concurrency`: Maximum concurrent deployments (default: 1).
+- `--dry-run`: Validate and plan deployment without executing.
+- `--force-recreate`: Force recreate containers (docker-compose only).
+- `--no-cache`: Build images without cache (docker-compose only).
+- `--image-tag`: Image tag for deployment (cloud-run only).
 
-> Deploying an inactive service **by name** fails fast with a `ConfigurationError` (set `active: true`
-> in `architecture.yaml` to enable it) rather than silently deploying or skipping it.
+> Services must have `active: true` in `architecture.yaml` to be deployable. Inactive services
+> are skipped when using `--all`, or cause an error when deployed by name.
 
-#### `brat deploy service <name>`
+#### `brat bit deploy <service>`
 Deploy a specific service.
 
 ```bash
-npm run brat -- deploy service <name> --env <name>
+npm run brat -- bit deploy <service> [--context <name>] [--dry-run]
 ```
 
 ### Infrastructure (IaC)
