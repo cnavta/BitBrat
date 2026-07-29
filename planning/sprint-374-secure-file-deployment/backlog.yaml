@@ -1,0 +1,908 @@
+# Sprint 374: Secure File Deployment - Backlog
+# Generated: 2026-07-29
+# Sprint Duration: 7 days
+# Total Story Points: 40
+
+sprint:
+  id: 374
+  name: "Secure File Deployment"
+  goal: "Implement platform-agnostic secure file deployment for Bits with automatic mounting across Docker Compose and Cloud Run"
+  duration_days: 7
+  start_date: "2026-07-29"
+  total_story_points: 40
+
+phases:
+  - id: phase-1
+    name: "Foundation - Types & Validation"
+    duration_days: 2
+    story_points: 10
+    days: [1, 2]
+
+  - id: phase-2
+    name: "Docker Compose Strategy"
+    duration_days: 2
+    story_points: 12
+    days: [3, 4]
+
+  - id: phase-3
+    name: "Cloud Run Strategy"
+    duration_days: 1
+    story_points: 8
+    days: [5]
+
+  - id: phase-4
+    name: "Migration & Documentation"
+    duration_days: 1
+    story_points: 6
+    days: [6]
+
+  - id: phase-5
+    name: "Validation & Polish"
+    duration_days: 1
+    story_points: 4
+    days: [7]
+
+tasks:
+  # ========================================================================
+  # PHASE 1: Foundation - Types & Validation (Days 1-2)
+  # ========================================================================
+
+  - id: SF-001
+    phase: phase-1
+    day: 1
+    priority: P0
+    story_points: 2
+    title: "Define SecureFile TypeScript interface"
+    description: |
+      Create TypeScript interface for SecureFile schema with all required and optional properties.
+
+      Properties:
+      - local: string (required) - source path relative to repo root
+      - target: string (required) - destination path inside container
+      - env?: string (optional) - environment variable to set
+      - permissions?: string (optional) - file permissions (default: "0400")
+      - required?: boolean (optional) - fail if missing (default: true)
+      - context?: string (optional) - only deploy in specific context
+    acceptance_criteria:
+      - SecureFile interface defined in tools/brat/src/config/types.ts
+      - All properties have JSDoc comments
+      - Interface exported and used in ServiceDefinition
+      - TypeScript compilation succeeds
+    files:
+      - tools/brat/src/config/types.ts
+    dependencies: []
+    status: pending
+    estimated_hours: 2
+
+  - id: SF-002
+    phase: phase-1
+    day: 1
+    priority: P0
+    story_points: 1
+    title: "Update ServiceDefinition type with secureFiles"
+    description: |
+      Add optional secureFiles property to ServiceDefinition interface.
+      Update existing service type references to include new property.
+    acceptance_criteria:
+      - ServiceDefinition.secureFiles?: SecureFile[] added
+      - Type used in loadArchitecture() return type
+      - No breaking changes to existing type consumers
+      - TypeScript compilation succeeds
+    files:
+      - tools/brat/src/config/types.ts
+      - tools/brat/src/config/loader.ts
+    dependencies:
+      - SF-001
+    status: pending
+    estimated_hours: 1
+
+  - id: SF-003
+    phase: phase-1
+    day: 1
+    priority: P0
+    story_points: 3
+    title: "Create SecureFilesValidator skeleton"
+    description: |
+      Create SecureFilesValidator class with method signatures for all validation rules.
+      Implement basic file existence validation.
+    acceptance_criteria:
+      - Class created in tools/brat/src/orchestration/deployment/secure-files-validator.ts
+      - validate() method signature defined
+      - isGitIgnored() private method defined
+      - validateTargetPath() private method defined
+      - validatePermissions() private method defined
+      - Basic file existence check implemented and tested
+    files:
+      - tools/brat/src/orchestration/deployment/secure-files-validator.ts
+    dependencies:
+      - SF-001
+    status: pending
+    estimated_hours: 3
+
+  - id: SF-004
+    phase: phase-1
+    day: 1
+    priority: P0
+    story_points: 3
+    title: "Implement git-ignore validation"
+    description: |
+      Implement isGitIgnored() method using git check-ignore command.
+      Add caching to avoid repeated git calls for same file.
+    acceptance_criteria:
+      - Uses 'git check-ignore --quiet <file>' command
+      - Returns true if file is ignored, false otherwise
+      - Handles non-git repositories gracefully (returns false with warning)
+      - Implements in-memory cache for performance
+      - Error handling for git command failures
+    files:
+      - tools/brat/src/orchestration/deployment/secure-files-validator.ts
+    dependencies:
+      - SF-003
+    status: pending
+    estimated_hours: 3
+    technical_notes: |
+      Use execCmd from existing exec utils:
+      ```typescript
+      const { exitCode } = await execCmd('git', ['check-ignore', '--quiet', filePath], { allowNonZeroExit: true });
+      return exitCode === 0; // 0 = ignored, 1 = not ignored
+      ```
+
+  - id: SF-005
+    phase: phase-1
+    day: 2
+    priority: P0
+    story_points: 2
+    title: "Implement target path validation"
+    description: |
+      Implement validateTargetPath() to ensure target paths are secure.
+      Block path traversal attacks and enforce allowed directories.
+    acceptance_criteria:
+      - Accepts paths under /var/secrets/, /run/secrets/, /etc/secrets/
+      - Rejects paths with ../, ~, or symlink components
+      - Rejects relative paths
+      - Returns {valid: boolean, error?: string}
+      - Comprehensive error messages for each rejection reason
+    files:
+      - tools/brat/src/orchestration/deployment/secure-files-validator.ts
+    dependencies:
+      - SF-003
+    status: pending
+    estimated_hours: 2
+    security_notes: |
+      Blocked patterns:
+      - ../
+      - ~/
+      - Paths not starting with /var/secrets, /run/secrets, or /etc/secrets
+
+  - id: SF-006
+    phase: phase-1
+    day: 2
+    priority: P0
+    story_points: 2
+    title: "Implement file permissions validation"
+    description: |
+      Implement validatePermissions() to check file is readable but not world-readable.
+      Enforce security best practices for credential files.
+    acceptance_criteria:
+      - Checks file permissions using fs.stat()
+      - Ensures file is owner-readable (mode & 0o400)
+      - Warns if file is world-readable (mode & 0o004)
+      - Warns if file is group-readable (mode & 0o040)
+      - Returns {valid: boolean, error?: string}
+    files:
+      - tools/brat/src/orchestration/deployment/secure-files-validator.ts
+    dependencies:
+      - SF-003
+    status: pending
+    estimated_hours: 2
+
+  - id: SF-007
+    phase: phase-1
+    day: 2
+    priority: P0
+    story_points: 4
+    title: "Write comprehensive validator unit tests"
+    description: |
+      Create unit test suite for SecureFilesValidator covering all validation methods.
+      Achieve 95%+ code coverage.
+    acceptance_criteria:
+      - Test file existence validation (missing file, existing file)
+      - Test git-ignore validation (ignored, not ignored, non-git repo)
+      - Test target path validation (valid paths, invalid paths, traversal attacks)
+      - Test permission validation (correct perms, world-readable, group-readable)
+      - Test full validate() method with multiple files
+      - Test context-specific file filtering
+      - Code coverage ≥ 95%
+    files:
+      - tools/brat/src/orchestration/deployment/secure-files-validator.test.ts
+    dependencies:
+      - SF-004
+      - SF-005
+      - SF-006
+    status: pending
+    estimated_hours: 4
+
+  - id: SF-008
+    phase: phase-1
+    day: 2
+    priority: P1
+    story_points: 1
+    title: "Update architecture.yaml with secureFiles example"
+    description: |
+      Add secureFiles property to image-gen-mcp service definition as example.
+      Document schema in comments.
+    acceptance_criteria:
+      - image-gen-mcp.secureFiles array added with GCP credentials example
+      - Schema documented in comments above property
+      - YAML validation passes
+      - Example file paths use .secure.local directory
+    files:
+      - architecture.yaml
+    dependencies:
+      - SF-001
+    status: pending
+    estimated_hours: 1
+
+  # ========================================================================
+  # PHASE 2: Docker Compose Strategy (Days 3-4)
+  # ========================================================================
+
+  - id: SF-009
+    phase: phase-2
+    day: 3
+    priority: P0
+    story_points: 3
+    title: "Extend DockerComposeStrategy.prepare() for secureFiles"
+    description: |
+      Add secure file processing to prepare() method.
+      Call SecureFilesValidator and collect processed file metadata.
+    acceptance_criteria:
+      - prepare() calls SecureFilesValidator.validate()
+      - Validation errors abort deployment with clear message
+      - Validation warnings logged but don't abort
+      - Processed file metadata added to DeploymentPlan.metadata.secureFiles
+      - Context filtering applied (only process files matching current context)
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    dependencies:
+      - SF-007
+    status: pending
+    estimated_hours: 3
+
+  - id: SF-010
+    phase: phase-2
+    day: 3
+    priority: P0
+    story_points: 3
+    title: "Implement local volume mount logic"
+    description: |
+      Implement processSecureFiles() method for local Docker deployments.
+      Generate volume mount strings for docker-compose.
+    acceptance_criteria:
+      - Detects local vs remote deployment (checks deployment.docker.host)
+      - For local: generates volume mount "<local-path>:<target>:ro"
+      - Resolves local path relative to repository root
+      - Returns ProcessedSecureFile[] with volumeMount property
+      - Handles missing files gracefully with error message
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    dependencies:
+      - SF-009
+    status: pending
+    estimated_hours: 3
+    technical_notes: |
+      Volume mount format:
+      ${repoRoot}/${file.local}:${file.target}:ro
+
+      Example:
+      /Users/user/BitBratPlatform/.secure.local/gcp-creds.json:/var/secrets/gcp-creds.json:ro
+
+  - id: SF-011
+    phase: phase-2
+    day: 3
+    priority: P0
+    story_points: 2
+    title: "Implement compose file YAML injection"
+    description: |
+      Implement injectVolumeMounts() to modify docker-compose YAML with volume mounts and env vars.
+      Preserve existing compose file structure.
+    acceptance_criteria:
+      - Loads existing compose file with js-yaml
+      - Adds volume mounts to services.<name>.volumes array
+      - Adds env vars to services.<name>.environment if file.env specified
+      - Preserves all existing compose configuration
+      - Returns modified YAML string
+      - Handles missing volumes/environment arrays gracefully
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    dependencies:
+      - SF-010
+    status: pending
+    estimated_hours: 2
+
+  - id: SF-012
+    phase: phase-2
+    day: 4
+    priority: P0
+    story_points: 4
+    title: "Implement remote scp transfer logic"
+    description: |
+      Implement transferToRemote() method to copy files to remote Docker host via scp.
+      Create remote directory structure and set permissions.
+    acceptance_criteria:
+      - Parses SSH host from ssh://user@host[:port] format
+      - Creates remote directory with 'ssh user@host mkdir -p <dir>'
+      - Transfers file with scp (with -P flag for custom port)
+      - Sets permissions to 0400 with 'ssh user@host chmod 400 <file>'
+      - Implements retry logic (3 attempts with exponential backoff)
+      - Detailed error messages for each failure mode
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+    dependencies:
+      - SF-011
+    status: pending
+    estimated_hours: 4
+    technical_notes: |
+      Remote path structure:
+      ${remoteDir}/.secure/${basename(file.local)}
+
+      Example:
+      /opt/BitBratPlatform/.secure/gcp-credentials.json
+
+  - id: SF-013
+    phase: phase-2
+    day: 4
+    priority: P0
+    story_points: 3
+    title: "Write DockerComposeStrategy unit tests"
+    description: |
+      Unit tests for all new secure file methods in DockerComposeStrategy.
+      Mock file operations and SSH commands.
+    acceptance_criteria:
+      - Test local volume mount generation
+      - Test remote scp transfer (mocked execCmd)
+      - Test compose file YAML injection
+      - Test env var injection
+      - Test error handling for missing files
+      - Test retry logic for scp failures
+      - Code coverage ≥ 95%
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.test.ts
+    dependencies:
+      - SF-012
+    status: pending
+    estimated_hours: 3
+
+  - id: SF-014
+    phase: phase-2
+    day: 4
+    priority: P1
+    story_points: 3
+    title: "Write Docker Compose integration tests"
+    description: |
+      Integration tests for local and remote Docker deployments with secure files.
+      Use mocked SSH for remote tests.
+    acceptance_criteria:
+      - Test local deployment with 1 secure file
+      - Test local deployment with multiple secure files
+      - Test remote deployment with mocked scp
+      - Verify volume mounts in generated compose file
+      - Verify env vars in generated compose file
+      - Test error handling for missing files
+    files:
+      - tools/brat/src/orchestration/deployment/docker-compose-integration.test.ts
+    dependencies:
+      - SF-013
+    status: pending
+    estimated_hours: 3
+
+  # ========================================================================
+  # PHASE 3: Cloud Run Strategy (Day 5)
+  # ========================================================================
+
+  - id: SF-015
+    phase: phase-3
+    day: 5
+    priority: P0
+    story_points: 3
+    title: "Extend CloudRunStrategy.prepare() for Secret Manager"
+    description: |
+      Add secure file processing to CloudRunStrategy.
+      Upload files to GCP Secret Manager and generate secret references.
+    acceptance_criteria:
+      - prepare() processes secureFiles array
+      - Calls uploadToSecretManager() for each file
+      - Generates secret references with targetPath and env
+      - Stores secret references in DeploymentPlan.metadata.secretRefs
+      - Validates GCP project ID exists in context
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    dependencies:
+      - SF-007
+    status: pending
+    estimated_hours: 3
+
+  - id: SF-016
+    phase: phase-3
+    day: 5
+    priority: P0
+    story_points: 2
+    title: "Implement ensureSecret() method"
+    description: |
+      Implement ensureSecret() to create GCP secrets if they don't exist.
+      Use gcloud secrets describe to check existence.
+    acceptance_criteria:
+      - Checks if secret exists with 'gcloud secrets describe'
+      - Creates secret with 'gcloud secrets create' if missing
+      - Uses automatic replication policy
+      - Error handling for permission issues
+      - Idempotent (safe to call multiple times)
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    dependencies:
+      - SF-015
+    status: pending
+    estimated_hours: 2
+    technical_notes: |
+      Secret naming convention:
+      bitbrat-<context>-<filename-without-extension>
+
+      Example:
+      bitbrat-staging-gcp-credentials
+
+  - id: SF-017
+    phase: phase-3
+    day: 5
+    priority: P0
+    story_points: 2
+    title: "Implement addSecretVersion() method"
+    description: |
+      Implement addSecretVersion() to upload file content as new secret version.
+      Handle binary files correctly.
+    acceptance_criteria:
+      - Reads file content to buffer
+      - Writes to temp file for gcloud upload
+      - Calls 'gcloud secrets versions add --data-file'
+      - Cleans up temp file after upload
+      - Error handling for quota limits
+      - Supports binary files (base64 encoding if needed)
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    dependencies:
+      - SF-016
+    status: pending
+    estimated_hours: 2
+
+  - id: SF-018
+    phase: phase-3
+    day: 5
+    priority: P0
+    story_points: 2
+    title: "Generate --set-secrets flags for Cloud Run"
+    description: |
+      Update execute() method to include --set-secrets flags in gcloud run deploy.
+      Set environment variables if file.env specified.
+    acceptance_criteria:
+      - Generates --set-secrets flags in format "TARGET=SECRET:latest"
+      - Adds flags to gcloud run deploy command
+      - Adds --set-env-vars flags for env variables pointing to target paths
+      - Handles multiple secure files correctly
+      - Error handling for deployment failures
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    dependencies:
+      - SF-017
+    status: pending
+    estimated_hours: 2
+    technical_notes: |
+      Flag format:
+      --set-secrets=/var/secrets/gcp-creds.json=bitbrat-staging-gcp-credentials:latest
+      --set-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/gcp-creds.json
+
+  - id: SF-019
+    phase: phase-3
+    day: 5
+    priority: P0
+    story_points: 3
+    title: "Write CloudRunStrategy unit tests"
+    description: |
+      Unit tests for Cloud Run secure file methods with mocked gcloud commands.
+    acceptance_criteria:
+      - Test secret creation (mocked gcloud)
+      - Test version upload (mocked gcloud)
+      - Test --set-secrets flag generation
+      - Test env var setting
+      - Test error handling for quota limits
+      - Test error handling for permission issues
+      - Code coverage ≥ 95%
+    files:
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.test.ts
+    dependencies:
+      - SF-018
+    status: pending
+    estimated_hours: 3
+
+  # ========================================================================
+  # PHASE 4: Migration & Documentation (Day 6)
+  # ========================================================================
+
+  - id: SF-020
+    phase: phase-4
+    day: 6
+    priority: P0
+    story_points: 1
+    title: "Create .secure.local directory structure"
+    description: |
+      Create template .secure.* directories with .gitkeep and .gitignore.
+      Add to repository as template for developers.
+    acceptance_criteria:
+      - .secure.local/.gitkeep created
+      - .secure.local/.gitignore created with "*" pattern
+      - .secure.staging/.gitkeep created
+      - .secure.staging/.gitignore created with "*" pattern
+      - Directories committed to git (only .gitkeep files)
+    files:
+      - .secure.local/.gitkeep
+      - .secure.local/.gitignore
+      - .secure.staging/.gitkeep
+      - .secure.staging/.gitignore
+    dependencies: []
+    status: pending
+    estimated_hours: 0.5
+
+  - id: SF-021
+    phase: phase-4
+    day: 6
+    priority: P0
+    story_points: 1
+    title: "Update root .gitignore"
+    description: |
+      Add .secure.* exclusion pattern to root .gitignore to prevent accidental commits.
+    acceptance_criteria:
+      - Pattern ".secure.*/" added to .gitignore
+      - Pattern "!.secure.*/.gitkeep" added to allow template directories
+      - Comment explaining purpose of exclusion
+      - Verified actual secure files are ignored by git
+    files:
+      - .gitignore
+    dependencies:
+      - SF-020
+    status: pending
+    estimated_hours: 0.5
+
+  - id: SF-022
+    phase: phase-4
+    day: 6
+    priority: P0
+    story_points: 2
+    title: "Migrate image-gen-mcp to secureFiles"
+    description: |
+      Update image-gen-mcp service definition in architecture.yaml to use secureFiles.
+      Remove manual GOOGLE_APPLICATION_CREDENTIALS documentation.
+    acceptance_criteria:
+      - image-gen-mcp.secureFiles array added
+      - GCP credentials entry with all properties
+      - local, target, env, permissions specified
+      - GOOGLE_APPLICATION_CREDENTIALS comment removed from secrets
+      - Service still lists GOOGLE_APPLICATION_CREDENTIALS in secrets catalog (backward compat)
+    files:
+      - architecture.yaml
+    dependencies:
+      - SF-001
+      - SF-020
+    status: pending
+    estimated_hours: 1
+    migration_notes: |
+      Before:
+      secrets:
+        - GOOGLE_APPLICATION_CREDENTIALS  # Path to GCP service account JSON
+
+      After:
+      secrets:
+        - OPENAI_API_KEY
+      secureFiles:
+        - local: .secure.local/gcp-credentials.json
+          target: /var/secrets/gcp-credentials.json
+          env: GOOGLE_APPLICATION_CREDENTIALS
+          permissions: "0400"
+
+  - id: SF-023
+    phase: phase-4
+    day: 6
+    priority: P1
+    story_points: 2
+    title: "Update CLAUDE.md with secure file examples"
+    description: |
+      Add comprehensive secure file section to CLAUDE.md with workflow examples.
+    acceptance_criteria:
+      - New section "Secure File Deployment" added
+      - Workflow example (create directory, add file, update yaml, deploy)
+      - Error message reference
+      - Security best practices documented
+      - Platform-specific behavior documented (Docker vs Cloud Run)
+    files:
+      - CLAUDE.md
+    dependencies:
+      - SF-022
+    status: pending
+    estimated_hours: 1.5
+
+  - id: SF-024
+    phase: phase-4
+    day: 6
+    priority: P1
+    story_points: 2
+    title: "Create secure file deployment guide"
+    description: |
+      Write comprehensive deployment guide in documentation/guides/.
+    acceptance_criteria:
+      - New file: documentation/guides/secure-file-deployment.md
+      - Overview of feature
+      - Step-by-step setup instructions
+      - Architecture.yaml schema reference
+      - Platform-specific behavior (Docker local, Docker remote, Cloud Run)
+      - Troubleshooting section
+      - Migration guide from manual to automated
+    files:
+      - documentation/guides/secure-file-deployment.md
+    dependencies:
+      - SF-022
+    status: pending
+    estimated_hours: 2
+
+  # ========================================================================
+  # PHASE 5: Validation & Polish (Day 7)
+  # ========================================================================
+
+  - id: SF-025
+    phase: phase-5
+    day: 7
+    priority: P0
+    story_points: 2
+    title: "End-to-end test: Local Docker deployment"
+    description: |
+      E2E test deploying image-gen-mcp to local Docker with GCP credentials.
+      Verify service can read credentials and initialize storage driver.
+    acceptance_criteria:
+      - Test creates .secure.local/test-credentials.json
+      - Test deploys image-gen-mcp with brat bit deploy
+      - Test verifies file mounted at /var/secrets/gcp-credentials.json
+      - Test verifies permissions are 0400
+      - Test verifies env var GOOGLE_APPLICATION_CREDENTIALS set
+      - Test cleans up after completion
+    files:
+      - tests/e2e/secure-file-deployment.test.ts
+    dependencies:
+      - SF-014
+      - SF-022
+    status: pending
+    estimated_hours: 2
+
+  - id: SF-026
+    phase: phase-5
+    day: 7
+    priority: P1
+    story_points: 2
+    title: "End-to-end test: Remote Docker deployment"
+    description: |
+      E2E test deploying to remote Docker host (staging) with secure file transfer.
+      Verify scp transfer and remote mounting.
+    acceptance_criteria:
+      - Test targets staging execution context
+      - Test deploys image-gen-mcp with brat bit deploy --context staging
+      - Test verifies file transferred to remote host
+      - Test verifies file permissions on remote (0400)
+      - Test verifies service functionality
+      - Test cleans up remote files after completion
+    files:
+      - tests/e2e/secure-file-deployment-remote.test.ts
+    dependencies:
+      - SF-014
+      - SF-022
+    status: pending
+    estimated_hours: 2
+    technical_notes: |
+      Requires staging Docker host accessible via SSH.
+      May need to be manual test if CI doesn't have SSH access.
+
+  - id: SF-027
+    phase: phase-5
+    day: 7
+    priority: P2
+    story_points: 1
+    title: "Performance benchmarking"
+    description: |
+      Benchmark deployment time with and without secure files.
+      Verify performance requirements met.
+    acceptance_criteria:
+      - Baseline: Deploy without secure files (measure time)
+      - Test 1: Deploy with 1 secure file (measure time, verify < +10% overhead)
+      - Test 2: Deploy with 5 secure files (measure time, verify < +20% overhead)
+      - Test remote deployment (verify scp speed > 1MB/s)
+      - Document results in performance-benchmarks.md
+    files:
+      - planning/sprint-374-secure-file-deployment/performance-benchmarks.md
+    dependencies:
+      - SF-025
+      - SF-026
+    status: pending
+    estimated_hours: 1
+
+  - id: SF-028
+    phase: phase-5
+    day: 7
+    priority: P1
+    story_points: 1
+    title: "Error message polish"
+    description: |
+      Review all error messages for clarity and helpfulness.
+      Add actionable hints to each error.
+    acceptance_criteria:
+      - File not found error includes hint to create file
+      - Git-tracked file error includes hint to add to .gitignore
+      - Invalid target path error suggests allowed directories
+      - World-readable permissions warning suggests chmod command
+      - Remote scp failure includes detailed SSH troubleshooting
+      - All errors include error code for documentation reference
+    files:
+      - tools/brat/src/orchestration/deployment/secure-files-validator.ts
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+      - tools/brat/src/orchestration/deployment/cloud-run-strategy.ts
+    dependencies:
+      - SF-025
+    status: pending
+    estimated_hours: 1
+
+  - id: SF-029
+    phase: phase-5
+    day: 7
+    priority: P1
+    story_points: 1
+    title: "Security review"
+    description: |
+      Comprehensive security review of implementation.
+      Verify all security requirements met.
+    acceptance_criteria:
+      - Checklist: Git-ignore validation prevents commits
+      - Checklist: Default permissions enforced (0400)
+      - Checklist: Path traversal attacks blocked
+      - Checklist: Encrypted transfer (SSH/TLS)
+      - Checklist: No secrets in logs
+      - Checklist: Remote file cleanup on failed deploy
+      - Document findings in security-review.md
+    files:
+      - planning/sprint-374-secure-file-deployment/security-review.md
+    dependencies:
+      - SF-025
+      - SF-026
+    status: pending
+    estimated_hours: 1
+
+  - id: SF-030
+    phase: phase-5
+    day: 7
+    priority: P1
+    story_points: 1
+    title: "Documentation final review"
+    description: |
+      Review all documentation for accuracy and completeness.
+    acceptance_criteria:
+      - CLAUDE.md secure file section reviewed
+      - deployment guide reviewed
+      - All code examples tested
+      - All links validated
+      - Spelling and grammar checked
+      - Technical accuracy verified
+    files:
+      - CLAUDE.md
+      - documentation/guides/secure-file-deployment.md
+      - planning/sprint-374-secure-file-deployment/execution-plan.md
+    dependencies:
+      - SF-023
+      - SF-024
+    status: pending
+    estimated_hours: 1
+
+# ============================================================================
+# SUMMARY & METRICS
+# ============================================================================
+
+summary:
+  total_tasks: 30
+  total_story_points: 40
+  estimated_hours: 61.5
+
+  by_phase:
+    phase-1:
+      tasks: 8
+      story_points: 10
+      estimated_hours: 19
+
+    phase-2:
+      tasks: 6
+      story_points: 12
+      estimated_hours: 18
+
+    phase-3:
+      tasks: 5
+      story_points: 8
+      estimated_hours: 12
+
+    phase-4:
+      tasks: 5
+      story_points: 6
+      estimated_hours: 7.5
+
+    phase-5:
+      tasks: 6
+      story_points: 4
+      estimated_hours: 8
+
+  by_priority:
+    P0: 17  # Critical path
+    P1: 11  # Important
+    P2: 2   # Nice to have
+
+  risk_areas:
+    - Remote scp reliability (SF-012, SF-014)
+    - Secret Manager quota limits (SF-017, SF-019)
+    - Git-ignore performance (SF-004, SF-007)
+    - Backward compatibility (SF-022)
+
+  dependencies:
+    external:
+      - js-yaml (already installed)
+      - "@google-cloud/secret-manager" (new, optional for Cloud Run)
+
+    internal:
+      - DockerComposeStrategy (existing)
+      - CloudRunStrategy (existing)
+      - DockerOrchestrator (existing)
+      - execCmd utility (existing)
+
+# ============================================================================
+# ACCEPTANCE CRITERIA SUMMARY
+# ============================================================================
+
+acceptance_criteria:
+  functional:
+    - SecureFile interface defined and documented
+    - Validator blocks git-tracked files
+    - Validator enforces secure target paths
+    - Validator checks file permissions
+    - Docker Compose local: files mounted via volumes
+    - Docker Compose remote: files transferred via scp
+    - Cloud Run: files in Secret Manager
+    - Env vars automatically set
+    - image-gen-mcp migrated and working
+    - No breaking changes to existing deployments
+
+  non_functional:
+    - Unit test coverage ≥ 95%
+    - Integration tests for all deployment modes
+    - Deployment time increase < 10% for 1 file
+    - Deployment time increase < 20% for 5 files
+    - Clear error messages for all failures
+    - Audit logs show file operations
+    - Documentation complete
+
+  security:
+    - Files never committed to git (enforced)
+    - Default permissions 0400
+    - No world-readable files
+    - Path traversal blocked
+    - Encrypted transfer (SSH/TLS)
+    - Secrets stored outside repo
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes:
+  - Sprint 374 builds on Sprint 372 (Unified Bit Deploy)
+  - All secure file operations are opt-in via architecture.yaml
+  - No breaking changes to existing services
+  - Validator runs in prepare() phase before deployment
+  - Remote Docker requires SSH access to target host
+  - Cloud Run requires @google-cloud/secret-manager npm package
+  - Performance benchmarks run on Day 7 to validate SLAs
