@@ -1,0 +1,1249 @@
+# Sprint 373: Storage Abstraction Layer - Trackable Backlog
+# Generated: 2026-07-29
+# Format: YAML task tracking with priority, status, estimates, and dependencies
+
+metadata:
+  sprint: 373
+  name: "Storage Abstraction Layer"
+  goal: "Introduce configurable storage abstraction making GCP Storage optional, with local filesystem as platform-agnostic default"
+  duration: "8 working days"
+  team_size: 1
+  start_date: "2026-07-30"
+  end_date: "2026-08-08"
+  status: "READY"
+
+phases:
+  foundation:
+    name: "Phase 1: Foundation"
+    days: "1-2"
+    goal: "Create storage abstraction layer and filesystem driver"
+
+  gcs_driver:
+    name: "Phase 2: GCS Driver"
+    days: "3"
+    goal: "Refactor existing GCS code into driver pattern"
+
+  factory_manager:
+    name: "Phase 3: Factory & Manager"
+    days: "4"
+    goal: "Create driver selection and resource management"
+
+  service_integration:
+    name: "Phase 4: Service Integration"
+    days: "5-6"
+    goal: "Refactor image-gen-mcp to use driver abstraction"
+
+  infrastructure:
+    name: "Phase 5: Infrastructure"
+    days: "7"
+    goal: "Add Docker volume and API gateway static serving"
+
+  documentation:
+    name: "Phase 6: Documentation & Validation"
+    days: "8"
+    goal: "Complete documentation and migration guides"
+
+tasks:
+  # ==============================================================================
+  # DAY 1: Interface & Types
+  # ==============================================================================
+
+  - id: STORAGE-001
+    title: "Define IStorageDriver interface"
+    description: |
+      Create the core storage driver interface that all storage backends must implement.
+
+      Interface must include:
+      - upload(buffer, fileName, metadata): Promise<StorageUploadResult>
+      - download(fileName): Promise<Buffer>
+      - delete(fileName): Promise<void>
+      - exists(fileName): Promise<boolean>
+      - getMetadata(fileName): Promise<StorageFileMetadata>
+      - list(prefix?): Promise<string[]>
+      - initialize(): Promise<void>
+      - shutdown(): Promise<void>
+      - name: string (readonly property)
+
+      Follow patterns from IDeploymentStrategy (Sprint 372) and IDocumentStore (Sprint 344).
+    phase: foundation
+    day: 1
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    files:
+      - src/common/storage/types.ts
+    acceptance_criteria:
+      - Interface defines all 8 required methods
+      - TypeScript compiles without errors
+      - JSDoc comments on all methods
+      - Types exported from index file
+    tests:
+      - TypeScript type checking passes
+      - No linting errors
+    notes: |
+      Critical path item - all subsequent work depends on this interface.
+      Keep interface simple and generic (platform-agnostic).
+
+  - id: STORAGE-002
+    title: "Define storage types and metadata"
+    description: |
+      Create supporting types for storage operations.
+
+      Types to define:
+      - StorageFileMetadata (contentType, size, customMetadata)
+      - StorageUploadResult (fileName, publicUrl, metadata)
+      - StorageDriverType ('filesystem' | 'gcs' | 's3' | 'azure-blob')
+
+      All types must be well-documented with JSDoc and examples.
+    phase: foundation
+    day: 1
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-001
+    files:
+      - src/common/storage/types.ts
+    acceptance_criteria:
+      - All 3 types defined
+      - JSDoc comments with examples
+      - Exported from module
+      - TypeScript compiles
+    tests:
+      - Type checking passes
+      - Example usage compiles
+
+  - id: STORAGE-003
+    title: "Add comprehensive JSDoc to storage types"
+    description: |
+      Add detailed JSDoc documentation to all interfaces and types.
+
+      Documentation must include:
+      - Interface purpose and use cases
+      - Method parameters and return types
+      - Example usage code
+      - Error conditions
+      - Performance characteristics
+    phase: foundation
+    day: 1
+    priority: P1
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-001
+      - STORAGE-002
+    files:
+      - src/common/storage/types.ts
+    acceptance_criteria:
+      - Every interface has @description
+      - Every method has @param and @returns
+      - At least one @example per interface
+      - Error conditions documented
+    tests:
+      - Documentation review passes
+      - Examples compile
+
+  - id: STORAGE-004
+    title: "Create storage types test file"
+    description: |
+      Create test file to validate type definitions compile correctly.
+
+      Tests should verify:
+      - All types are exported
+      - Types can be instantiated
+      - Example usage compiles
+      - Type constraints work as expected
+    phase: foundation
+    day: 1
+    priority: P1
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-001
+      - STORAGE-002
+    files:
+      - src/common/storage/types.test.ts
+    acceptance_criteria:
+      - Test file compiles
+      - All exports verified
+      - Example implementations compile
+      - Type constraints tested
+    tests:
+      - npm test passes
+      - No TypeScript errors
+
+  # ==============================================================================
+  # DAY 2: Filesystem Driver
+  # ==============================================================================
+
+  - id: STORAGE-005
+    title: "Implement FilesystemStorageDriver"
+    description: |
+      Implement filesystem storage driver for local/self-hosted deployments.
+
+      Implementation must:
+      - Create storage directory on initialize()
+      - Support subdirectories (auto-create parent dirs)
+      - Write files atomically (temp file + rename)
+      - Handle concurrent access safely
+      - Use UUID-only filenames (no directory traversal)
+
+      Platform-agnostic: works on Linux, macOS, Windows, Docker, K8s.
+    phase: foundation
+    day: 2
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - STORAGE-001
+    files:
+      - src/common/storage/drivers/filesystem-driver.ts
+    acceptance_criteria:
+      - Implements IStorageDriver interface
+      - All 8 methods implemented
+      - Creates directories recursively
+      - Handles errors gracefully
+      - Thread-safe operations
+    tests:
+      - Upload/download/delete work
+      - Subdirectories created
+      - Concurrent access safe
+      - Error handling correct
+
+  - id: STORAGE-006
+    title: "Add metadata sidecar files"
+    description: |
+      Implement metadata persistence via sidecar JSON files.
+
+      For each file (e.g., abc123.png), create sidecar (abc123.png.meta.json):
+      {
+        "contentType": "image/png",
+        "size": 12345,
+        "customMetadata": {...},
+        "uploadedAt": "2026-07-29T12:00:00Z"
+      }
+
+      Used by getMetadata() method.
+    phase: foundation
+    day: 2
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-005
+    files:
+      - src/common/storage/drivers/filesystem-driver.ts
+    acceptance_criteria:
+      - Sidecar created on upload
+      - Sidecar deleted on delete
+      - getMetadata() reads sidecar
+      - Handles missing sidecar gracefully
+    tests:
+      - Metadata persisted correctly
+      - Metadata retrieved correctly
+      - Missing metadata handled
+
+  - id: STORAGE-007
+    title: "Write comprehensive filesystem driver tests"
+    description: |
+      Create comprehensive test suite for FilesystemStorageDriver.
+
+      Test categories:
+      1. Basic operations (upload, download, delete, exists)
+      2. Metadata operations (sidecar files)
+      3. Directory handling (subdirectories, nested paths)
+      4. Error cases (missing files, permission errors, disk full)
+      5. Edge cases (empty files, large files, special characters)
+      6. Concurrent access (multiple uploads simultaneously)
+
+      Target: 100% code coverage.
+    phase: foundation
+    day: 2
+    priority: P0
+    status: completed
+    estimate: "3 hours"
+    dependencies:
+      - STORAGE-005
+      - STORAGE-006
+    files:
+      - src/common/storage/drivers/filesystem-driver.test.ts
+    acceptance_criteria:
+      - 100% code coverage
+      - All operations tested
+      - Error cases covered
+      - Edge cases tested
+      - Concurrent access tested
+    tests:
+      - npm test passes
+      - Coverage report shows 100%
+      - All edge cases pass
+
+  # ==============================================================================
+  # DAY 3: GCS Driver
+  # ==============================================================================
+
+  - id: STORAGE-008
+    title: "Implement GcsStorageDriver"
+    description: |
+      Implement GCS storage driver by refactoring existing GCS code.
+
+      Reuse existing logic from:
+      - src/common/resources/storage-manager.ts (buildResilientStorageOptions)
+      - src/services/image-gen-mcp/index.ts (upload logic)
+
+      Must maintain same retry behavior and error handling.
+    phase: gcs_driver
+    day: 3
+    priority: P0
+    status: completed
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-001
+    files:
+      - src/common/storage/drivers/gcs-driver.ts
+    acceptance_criteria:
+      - Implements IStorageDriver interface
+      - Reuses buildResilientStorageOptions
+      - All 8 methods implemented
+      - Handles transient errors
+      - Supports ADC and key file auth
+    tests:
+      - All operations work
+      - Retries on transient errors
+      - Auth methods tested
+
+  - id: STORAGE-009
+    title: "Add bucket validation to GCS driver"
+    description: |
+      Add bucket existence validation on initialize().
+
+      Validation should:
+      - Check bucket exists
+      - Throw error if bucket missing
+      - Log bucket name and region
+      - Validate credentials work
+    phase: gcs_driver
+    day: 3
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-008
+    files:
+      - src/common/storage/drivers/gcs-driver.ts
+    acceptance_criteria:
+      - Bucket existence checked
+      - Clear error if bucket missing
+      - Credentials validated
+      - Logs bucket info
+    tests:
+      - Valid bucket passes
+      - Missing bucket throws error
+      - Invalid credentials throw error
+
+  - id: STORAGE-010
+    title: "Write comprehensive GCS driver tests"
+    description: |
+      Create comprehensive test suite for GcsStorageDriver.
+
+      Test categories:
+      1. Basic operations (with mock GCS client)
+      2. Error handling (bucket missing, auth failure, network errors)
+      3. Retry logic (transient errors)
+      4. Metadata operations
+      5. List operations
+
+      Use mocks for GCS client (no real GCS calls in unit tests).
+      Target: 100% code coverage.
+    phase: gcs_driver
+    day: 3
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-008
+      - STORAGE-009
+    files:
+      - src/common/storage/drivers/gcs-driver.test.ts
+    acceptance_criteria:
+      - 100% code coverage
+      - All operations mocked
+      - Error cases covered
+      - Retry logic tested
+      - No real GCS calls
+    tests:
+      - npm test passes
+      - Coverage report shows 100%
+      - All mocks verified
+
+  - id: STORAGE-011
+    title: "Add GCS driver integration tests"
+    description: |
+      Add integration tests with real GCS bucket (or emulator).
+
+      Tests should:
+      - Upload real file to test bucket
+      - Download and verify content
+      - Delete file
+      - Verify file deleted
+
+      Requires: GCS test bucket or emulator setup.
+      Can be skipped in CI if no test bucket available.
+    phase: gcs_driver
+    day: 3
+    priority: P2
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-008
+    files:
+      - src/common/storage/drivers/gcs-driver.integration.test.ts
+    acceptance_criteria:
+      - Real GCS operations work
+      - Upload/download verified
+      - Cleanup after test
+      - Skippable in CI (env var check)
+    tests:
+      - Integration test passes (when GCS available)
+      - Gracefully skips when no GCS
+    notes: |
+      Optional - can be deferred if no test bucket available.
+
+  # ==============================================================================
+  # DAY 4: Factory & Manager
+  # ==============================================================================
+
+  - id: STORAGE-012
+    title: "Implement storage driver factory"
+    description: |
+      Create factory to instantiate correct driver based on environment config.
+
+      Factory logic:
+      1. STORAGE_DRIVER=filesystem → FilesystemStorageDriver
+      2. STORAGE_DRIVER=gcs → GcsStorageDriver
+      3. GCS_BUCKET_NAME set (no STORAGE_DRIVER) → GcsStorageDriver (backward compat)
+      4. Default (no config) → FilesystemStorageDriver
+
+      Validate required config for each driver.
+    phase: factory_manager
+    day: 4
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-005
+      - STORAGE-008
+    files:
+      - src/common/storage/factory.ts
+    acceptance_criteria:
+      - Factory creates filesystem driver by default
+      - Factory creates GCS driver when configured
+      - Backward compatibility with GCS_BUCKET_NAME
+      - Clear errors for missing config
+      - Logger integration
+    tests:
+      - Default → filesystem
+      - STORAGE_DRIVER=gcs → GCS
+      - GCS_BUCKET_NAME only → GCS
+      - Missing config → error
+
+  - id: STORAGE-013
+    title: "Add environment variable parsing"
+    description: |
+      Add robust environment variable parsing to factory.
+
+      Handle:
+      - Missing variables (defaults)
+      - Invalid values (validation)
+      - Type conversion (paths, URLs)
+      - Interpolation (${VAR} syntax)
+
+      Log parsed config for debugging.
+    phase: factory_manager
+    day: 4
+    priority: P0
+    status: completed
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-012
+    files:
+      - src/common/storage/factory.ts
+    acceptance_criteria:
+      - All env vars parsed correctly
+      - Defaults applied
+      - Validation errors clear
+      - Logs parsed config
+    tests:
+      - Valid config parsed
+      - Invalid config throws error
+      - Defaults applied correctly
+
+  - id: STORAGE-014
+    title: "Add backward compatibility for GCS_BUCKET_NAME"
+    description: |
+      Ensure existing deployments using GCS_BUCKET_NAME continue working.
+
+      Compatibility logic:
+      - If GCS_BUCKET_NAME set but no STORAGE_DRIVER → use GCS driver
+      - If both GCS_BUCKET_NAME and STORAGE_GCS_BUCKET_NAME set → prefer STORAGE_GCS_BUCKET_NAME
+      - Log deprecation warning for GCS_BUCKET_NAME
+
+      This ensures zero breaking changes for existing deployments.
+    phase: factory_manager
+    day: 4
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-012
+    files:
+      - src/common/storage/factory.ts
+    acceptance_criteria:
+      - GCS_BUCKET_NAME still works
+      - No breaking changes
+      - Deprecation warning logged
+      - New variable preferred
+    tests:
+      - GCS_BUCKET_NAME → GCS driver
+      - Both set → new variable wins
+      - Warning logged
+
+  - id: STORAGE-015
+    title: "Refactor StorageManager to use factory"
+    description: |
+      Refactor StorageManager to use factory and return IStorageDriver.
+
+      Changes:
+      - setup() returns IStorageDriver (not Storage)
+      - Call factory to create driver
+      - Call driver.initialize()
+      - Store driver instance
+      - shutdown() calls driver.shutdown()
+
+      Maintain ResourceManager interface.
+    phase: factory_manager
+    day: 4
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-012
+    files:
+      - src/common/resources/storage-manager.ts
+    acceptance_criteria:
+      - setup() uses factory
+      - Returns IStorageDriver
+      - Initializes driver
+      - shutdown() works
+      - Implements ResourceManager<IStorageDriver>
+    tests:
+      - Setup creates driver
+      - Shutdown cleans up
+      - Reuse logic works
+
+  - id: STORAGE-016
+    title: "Write factory tests"
+    description: |
+      Create comprehensive test suite for factory.
+
+      Test categories:
+      1. Driver selection (all combinations)
+      2. Environment parsing
+      3. Backward compatibility
+      4. Error cases (missing config, invalid values)
+      5. Logging
+
+      Target: 100% code coverage.
+    phase: factory_manager
+    day: 4
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-012
+      - STORAGE-013
+      - STORAGE-014
+    files:
+      - src/common/storage/factory.test.ts
+    acceptance_criteria:
+      - 100% code coverage
+      - All driver combinations tested
+      - Error cases covered
+      - Backward compat verified
+    tests:
+      - npm test passes
+      - Coverage report shows 100%
+
+  - id: STORAGE-017
+    title: "Write StorageManager tests"
+    description: |
+      Create test suite for refactored StorageManager.
+
+      Test categories:
+      1. setup() creates driver via factory
+      2. shutdown() cleans up driver
+      3. Reuse logic (multiple setup() calls)
+      4. Error handling
+
+      Use mock factory and driver.
+    phase: factory_manager
+    day: 4
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-015
+    files:
+      - src/common/resources/storage-manager.test.ts
+    acceptance_criteria:
+      - All manager methods tested
+      - Mock factory used
+      - Mock driver used
+      - Error cases covered
+    tests:
+      - npm test passes
+      - All methods covered
+
+  # ==============================================================================
+  # DAY 5: Service Integration (Part 1)
+  # ==============================================================================
+
+  - id: STORAGE-018
+    title: "Refactor image-gen-mcp upload logic"
+    description: |
+      Refactor image-gen-mcp to use IStorageDriver instead of GCS-specific code.
+
+      Changes:
+      - Remove direct @google-cloud/storage imports
+      - Get IStorageDriver from resources
+      - Replace bucket.file(fileName).save() with driver.upload()
+      - Update publicUrl from driver result
+      - Keep retry logic (now in driver)
+
+      Must maintain same functionality, just different implementation.
+    phase: service_integration
+    day: 5
+    priority: P0
+    status: pending
+    estimate: "3 hours"
+    dependencies:
+      - STORAGE-015
+    files:
+      - src/services/image-gen-mcp/index.ts
+    acceptance_criteria:
+      - No GCS-specific imports
+      - Uses IStorageDriver only
+      - Upload works with filesystem
+      - Upload works with GCS
+      - Same error handling
+    tests:
+      - Upload succeeds
+      - Public URL correct
+      - Errors handled
+
+  - id: STORAGE-019
+    title: "Remove GCS-specific code from image-gen-mcp"
+    description: |
+      Remove all GCS-specific code after refactor.
+
+      Remove:
+      - GCS bucket name config reading
+      - bucket.file() calls
+      - GCS-specific error handling
+      - Hard-coded GCS public URL format
+
+      Keep:
+      - Retry logic (if still needed)
+      - Error logging
+      - Metrics
+    phase: service_integration
+    day: 5
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-018
+    files:
+      - src/services/image-gen-mcp/index.ts
+    acceptance_criteria:
+      - No GCS-specific code
+      - No @google-cloud/storage imports
+      - No GCS_BUCKET_NAME references
+      - Service still works
+    tests:
+      - Grep finds no GCS references
+      - Service compiles
+      - Tests pass
+
+  - id: STORAGE-020
+    title: "Update error handling in image-gen-mcp"
+    description: |
+      Update error handling to work with generic storage driver errors.
+
+      Changes:
+      - Catch StorageError (generic)
+      - Log driver name in errors
+      - Update error messages (no GCS-specific text)
+      - Add correlation IDs to storage operations
+    phase: service_integration
+    day: 5
+    priority: P1
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-018
+    files:
+      - src/services/image-gen-mcp/index.ts
+    acceptance_criteria:
+      - Generic error handling
+      - Driver name logged
+      - Correlation IDs added
+      - Clear error messages
+    tests:
+      - Error cases tested
+      - Logs verified
+      - User-friendly messages
+
+  - id: STORAGE-021
+    title: "Update logging in image-gen-mcp"
+    description: |
+      Update logging to be storage-driver agnostic.
+
+      Changes:
+      - Log driver name (filesystem, gcs)
+      - Log storage operation metrics
+      - Log public URL
+      - Remove GCS-specific log fields
+    phase: service_integration
+    day: 5
+    priority: P2
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-018
+    files:
+      - src/services/image-gen-mcp/index.ts
+    acceptance_criteria:
+      - Driver name logged
+      - Metrics logged
+      - No GCS-specific fields
+      - Structured logging
+    tests:
+      - Log output verified
+      - All operations logged
+      - Metrics accurate
+
+  # ==============================================================================
+  # DAY 6: Service Integration (Part 2)
+  # ==============================================================================
+
+  - id: STORAGE-022
+    title: "Update image-gen-mcp tests"
+    description: |
+      Update image-gen-mcp test suite for new storage abstraction.
+
+      Changes:
+      - Replace GCS mocks with IStorageDriver mocks
+      - Test with filesystem driver
+      - Test with GCS driver
+      - Test error cases
+      - Update test data (public URLs)
+
+      Ensure all existing tests still pass.
+    phase: service_integration
+    day: 6
+    priority: P0
+    status: pending
+    estimate: "3 hours"
+    dependencies:
+      - STORAGE-018
+    files:
+      - src/services/image-gen-mcp/index.test.ts
+    acceptance_criteria:
+      - All tests updated
+      - Mock driver used
+      - Both drivers tested
+      - Error cases covered
+      - All tests pass
+    tests:
+      - npm test passes
+      - No GCS mocks remain
+      - Coverage maintained
+
+  - id: STORAGE-023
+    title: "Add integration tests for both drivers"
+    description: |
+      Add integration tests that run with real drivers.
+
+      Tests:
+      1. Filesystem driver: Upload → verify file on disk → access via URL
+      2. GCS driver: Upload → verify in bucket → access via public URL
+
+      Use test helpers to set up/tear down storage.
+    phase: service_integration
+    day: 6
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-022
+    files:
+      - src/services/image-gen-mcp/storage.integration.test.ts
+    acceptance_criteria:
+      - Filesystem integration works
+      - GCS integration works (if available)
+      - Cleanup after tests
+      - No test pollution
+    tests:
+      - Integration tests pass
+      - Filesystem verified
+      - GCS verified (when available)
+
+  - id: STORAGE-024
+    title: "Test backward compatibility"
+    description: |
+      Verify existing GCS deployments continue working unchanged.
+
+      Test scenarios:
+      1. GCS_BUCKET_NAME only → GCS driver selected
+      2. STORAGE_DRIVER=gcs + STORAGE_GCS_BUCKET_NAME → works
+      3. Old environment config → still works
+      4. Image upload → same public URL format
+
+      This validates zero breaking changes.
+    phase: service_integration
+    day: 6
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-022
+    files:
+      - src/services/image-gen-mcp/backward-compat.test.ts
+    acceptance_criteria:
+      - GCS_BUCKET_NAME still works
+      - Public URLs unchanged
+      - No config changes needed
+      - All scenarios pass
+    tests:
+      - Backward compat tests pass
+      - No breaking changes detected
+
+  # ==============================================================================
+  # DAY 7: Infrastructure
+  # ==============================================================================
+
+  - id: STORAGE-025
+    title: "Add Docker volume to compose files"
+    description: |
+      Add persistent volume for filesystem storage to Docker Compose.
+
+      Changes:
+      - Add bitbrat-storage volume
+      - Mount to /opt/BitBratPlatform/storage
+      - Add to image-gen-mcp service
+      - Add to api-gateway service (for static serving)
+      - Use COMPOSE_PROJECT_NAME for volume naming
+
+      Volume persists across container restarts.
+    phase: infrastructure
+    day: 7
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-018
+    files:
+      - infrastructure/docker-compose/services/image-gen-mcp.compose.yaml
+      - infrastructure/docker-compose/services/api-gateway.compose.yaml
+      - infrastructure/docker-compose/docker-compose.local.yaml
+    acceptance_criteria:
+      - Volume defined
+      - Mounted in both services
+      - Named with COMPOSE_PROJECT_NAME
+      - Persists across restarts
+    tests:
+      - Docker compose up succeeds
+      - Volume created
+      - Files persist after restart
+
+  - id: STORAGE-026
+    title: "Add /storage static route to API gateway"
+    description: |
+      Add static file serving route to api-gateway for filesystem storage.
+
+      Implementation:
+      - Add Express.static middleware
+      - Serve from /opt/BitBratPlatform/storage
+      - Route: GET /storage/:filename
+      - Add cache headers (max-age=86400)
+      - Add CORS headers (if needed)
+
+      Allows: http://localhost:3100/storage/abc123.png
+    phase: infrastructure
+    day: 7
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-025
+    files:
+      - src/apps/api-gateway.ts
+    acceptance_criteria:
+      - /storage route added
+      - Static files served
+      - Cache headers set
+      - CORS configured
+      - Works with Docker volume
+    tests:
+      - GET /storage/test.png works
+      - Cache headers present
+      - CORS headers correct
+
+  - id: STORAGE-027
+    title: "Update env/local configuration"
+    description: |
+      Update local environment configuration for filesystem storage.
+
+      Add to env/local/global.yaml:
+      - STORAGE_DRIVER: filesystem
+      - STORAGE_FILESYSTEM_PATH: /opt/BitBratPlatform/storage
+      - STORAGE_FILESYSTEM_PUBLIC_URL_BASE: http://localhost:3100/storage
+
+      Remove/comment GCS config (optional for local).
+    phase: infrastructure
+    day: 7
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-026
+    files:
+      - env/local/global.yaml
+      - env/local/image-gen-mcp.yaml
+    acceptance_criteria:
+      - Filesystem config added
+      - GCS config optional
+      - Public URL correct
+      - Paths correct for Docker
+    tests:
+      - Config loads correctly
+      - Filesystem driver selected
+      - Public URLs generated correctly
+
+  - id: STORAGE-028
+    title: "Update env/staging configuration"
+    description: |
+      Update staging environment to explicitly use GCS (backward compat test).
+
+      Add to env/staging/global.yaml:
+      - STORAGE_DRIVER: gcs  (explicit, for clarity)
+      - STORAGE_GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
+
+      Keep existing GCS_BUCKET_NAME for backward compat verification.
+    phase: infrastructure
+    day: 7
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-027
+    files:
+      - env/staging/global.yaml
+      - env/staging/image-gen-mcp.yaml
+    acceptance_criteria:
+      - GCS driver explicitly set
+      - Bucket name configured
+      - Backward compat maintained
+      - Config clear and documented
+    tests:
+      - Config loads correctly
+      - GCS driver selected
+      - Bucket name resolved
+
+  - id: STORAGE-029
+    title: "Test end-to-end local flow"
+    description: |
+      Test complete local development workflow without GCP credentials.
+
+      Test flow:
+      1. Start local stack (npm run local)
+      2. Verify storage volume created
+      3. Generate image via MCP tool
+      4. Verify file written to /opt/BitBratPlatform/storage
+      5. Access image via http://localhost:3100/storage/[uuid].png
+      6. Verify image displays correctly
+
+      Must work without GCP credentials.
+    phase: infrastructure
+    day: 7
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-026
+      - STORAGE-027
+    acceptance_criteria:
+      - Local stack starts without GCP
+      - Image generation works
+      - File written to volume
+      - Image accessible via gateway
+      - No GCP errors
+    tests:
+      - E2E test passes
+      - No GCP credentials needed
+      - Image accessible
+
+  # ==============================================================================
+  # DAY 8: Documentation & Validation
+  # ==============================================================================
+
+  - id: STORAGE-030
+    title: "Create storage guide documentation"
+    description: |
+      Create comprehensive storage guide in documentation/guides/storage.md.
+
+      Guide must cover:
+      1. Overview of storage abstraction
+      2. Available drivers (filesystem, GCS)
+      3. Configuration examples for each driver
+      4. Deployment scenarios (local, staging, production, self-hosted)
+      5. Troubleshooting common issues
+      6. Performance characteristics
+      7. Security considerations
+
+      Follow LLM-first documentation principles.
+    phase: documentation
+    day: 8
+    priority: P0
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-029
+    files:
+      - documentation/guides/storage.md
+    acceptance_criteria:
+      - All drivers documented
+      - Configuration examples provided
+      - Troubleshooting section complete
+      - Performance data included
+      - Security considerations listed
+    tests:
+      - Documentation review passes
+      - Examples tested and verified
+
+  - id: STORAGE-031
+    title: "Create migration guide (GCS to filesystem)"
+    description: |
+      Create migration guide for moving from GCS to filesystem storage.
+
+      Guide must cover:
+      1. When to migrate (cost, self-hosting, compliance)
+      2. Pre-migration checklist
+      3. Step-by-step migration process
+      4. Data transfer (gsutil commands)
+      5. Configuration changes
+      6. Validation steps
+      7. Rollback procedure
+
+      Include example commands and expected output.
+    phase: documentation
+    day: 8
+    priority: P1
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-030
+    files:
+      - documentation/guides/storage-migration.md
+    acceptance_criteria:
+      - Step-by-step process documented
+      - All commands provided
+      - Rollback procedure included
+      - Validation steps clear
+      - Tested on staging
+    tests:
+      - Migration guide tested
+      - All commands verified
+      - Rollback works
+
+  - id: STORAGE-032
+    title: "Update architecture.yaml examples"
+    description: |
+      Update architecture.yaml with storage driver configuration examples.
+
+      Add to architecture.yaml:
+      - Comment documenting STORAGE_DRIVER
+      - Example filesystem config
+      - Example GCS config
+      - Example S3 config (placeholder for future)
+
+      Update service definitions with storage requirements.
+    phase: documentation
+    day: 8
+    priority: P1
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-030
+    files:
+      - architecture.yaml
+    acceptance_criteria:
+      - Storage config documented
+      - Examples provided for each driver
+      - Service requirements updated
+      - Backward compat maintained
+    tests:
+      - architecture.yaml validates
+      - Examples tested
+
+  - id: STORAGE-033
+    title: "Create validation script"
+    description: |
+      Create validation script to test storage abstraction end-to-end.
+
+      Script should:
+      1. Check storage driver configuration
+      2. Verify driver loads correctly
+      3. Test upload operation
+      4. Test download operation
+      5. Test delete operation
+      6. Verify public URL works
+      7. Check for common misconfigurations
+
+      Exit with clear pass/fail status.
+    phase: documentation
+    day: 8
+    priority: P1
+    status: pending
+    estimate: "2 hours"
+    dependencies:
+      - STORAGE-029
+    files:
+      - planning/sprint-373-storage-abstraction/validate_deliverable.sh
+    acceptance_criteria:
+      - Tests all operations
+      - Clear pass/fail output
+      - Detects misconfigurations
+      - Tests both drivers
+      - CI-compatible
+    tests:
+      - Validation script passes
+      - All checks succeed
+      - Errors caught correctly
+
+  - id: STORAGE-034
+    title: "Final E2E testing and verification"
+    description: |
+      Run complete end-to-end testing of storage abstraction.
+
+      Test matrix:
+      - Local development (filesystem)
+      - Staging deployment (GCS)
+      - Backward compatibility (GCS_BUCKET_NAME)
+      - Performance benchmarks
+      - Security validation
+
+      Verify all acceptance criteria met.
+    phase: documentation
+    day: 8
+    priority: P0
+    status: pending
+    estimate: "1 hour"
+    dependencies:
+      - STORAGE-033
+    acceptance_criteria:
+      - All test scenarios pass
+      - Performance meets targets
+      - Security validated
+      - No regressions found
+      - All tests passing
+    tests:
+      - E2E test suite passes
+      - Benchmarks meet targets
+      - All acceptance criteria met
+
+# ==============================================================================
+# Sprint Summary
+# ==============================================================================
+
+summary:
+  total_tasks: 34
+  p0_tasks: 26  # Critical path
+  p1_tasks: 7   # Important but not blocking
+  p2_tasks: 1   # Nice to have
+  estimated_hours: 64
+  estimated_days: 8
+  phases: 6
+
+  deliverables:
+    - src/common/storage/types.ts
+    - src/common/storage/drivers/filesystem-driver.ts
+    - src/common/storage/drivers/gcs-driver.ts
+    - src/common/storage/factory.ts
+    - src/common/resources/storage-manager.ts (refactored)
+    - src/services/image-gen-mcp/index.ts (refactored)
+    - src/apps/api-gateway.ts (static serving)
+    - Updated Docker Compose configurations
+    - documentation/guides/storage.md
+    - documentation/guides/storage-migration.md
+
+  success_metrics:
+    - Local development works without GCP credentials
+    - Zero breaking changes for existing deployments
+    - Filesystem upload < 10ms
+    - 100% unit test coverage for drivers
+    - All existing tests passing (409+ suites)
+
+# ==============================================================================
+# Day-by-Day Task Assignment
+# ==============================================================================
+
+schedule:
+  day_1:
+    focus: "Interface & Types"
+    tasks: [STORAGE-001, STORAGE-002, STORAGE-003, STORAGE-004]
+    estimated_hours: 5
+    deliverable: "src/common/storage/types.ts"
+
+  day_2:
+    focus: "Filesystem Driver"
+    tasks: [STORAGE-005, STORAGE-006, STORAGE-007]
+    estimated_hours: 7
+    deliverable: "src/common/storage/drivers/filesystem-driver.ts + tests"
+
+  day_3:
+    focus: "GCS Driver"
+    tasks: [STORAGE-008, STORAGE-009, STORAGE-010, STORAGE-011]
+    estimated_hours: 6
+    deliverable: "src/common/storage/drivers/gcs-driver.ts + tests"
+
+  day_4:
+    focus: "Factory & Manager"
+    tasks: [STORAGE-012, STORAGE-013, STORAGE-014, STORAGE-015, STORAGE-016, STORAGE-017]
+    estimated_hours: 9
+    deliverable: "src/common/storage/factory.ts + storage-manager.ts (refactored)"
+
+  day_5:
+    focus: "Service Integration (Part 1)"
+    tasks: [STORAGE-018, STORAGE-019, STORAGE-020, STORAGE-021]
+    estimated_hours: 6
+    deliverable: "src/services/image-gen-mcp/index.ts (refactored)"
+
+  day_6:
+    focus: "Service Integration (Part 2)"
+    tasks: [STORAGE-022, STORAGE-023, STORAGE-024]
+    estimated_hours: 6
+    deliverable: "Updated tests and backward compatibility validation"
+
+  day_7:
+    focus: "Infrastructure"
+    tasks: [STORAGE-025, STORAGE-026, STORAGE-027, STORAGE-028, STORAGE-029]
+    estimated_hours: 7
+    deliverable: "Docker volumes + API gateway static serving"
+
+  day_8:
+    focus: "Documentation & Validation"
+    tasks: [STORAGE-030, STORAGE-031, STORAGE-032, STORAGE-033, STORAGE-034]
+    estimated_hours: 8
+    deliverable: "Complete documentation + validation script"

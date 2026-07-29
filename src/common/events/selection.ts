@@ -29,25 +29,39 @@ function unwrapQuoted(input: string | undefined | null): string | undefined {
 
 /**
  * Select the best candidate from a list based on priority (lowest wins),
- * confidence (highest wins), and creation time (earliest wins).
+ * confidence (highest wins), and random selection for ties.
+ *
+ * When multiple candidates have the same priority and confidence, one is
+ * selected randomly rather than deterministically by creation time.
  */
 export function selectBestCandidate(candidates: CandidateV1[] | undefined | null): CandidateV1 | null {
   if (!Array.isArray(candidates) || candidates.length === 0) return null;
-  const sorted = [...candidates].sort((a, b) => {
-    // Primary: lowest priority wins (undefined treated as Infinity)
-    const pa = typeof a.priority === 'number' ? a.priority : Number.POSITIVE_INFINITY;
-    const pb = typeof b.priority === 'number' ? b.priority : Number.POSITIVE_INFINITY;
-    if (pa !== pb) return pa - pb;
-    // Secondary: higher confidence wins (undefined treated as -1)
-    const ca = typeof a.confidence === 'number' ? a.confidence : -1;
-    const cb = typeof b.confidence === 'number' ? b.confidence : -1;
-    if (ca !== cb) return cb - ca;
-    // Tertiary: earliest createdAt wins
-    const ta = toDate(a.createdAt);
-    const tb = toDate(b.createdAt);
-    return ta - tb;
-  });
-  return sorted[0] ?? null;
+
+  // Find all candidates with the best (lowest) priority
+  const minPriority = Math.min(...candidates.map(c =>
+    typeof c.priority === 'number' ? c.priority : Number.POSITIVE_INFINITY
+  ));
+  const topPriority = candidates.filter(c =>
+    (typeof c.priority === 'number' ? c.priority : Number.POSITIVE_INFINITY) === minPriority
+  );
+
+  // If only one candidate at top priority, return it
+  if (topPriority.length === 1) return topPriority[0];
+
+  // Find all candidates with the best (highest) confidence among top priority
+  const maxConfidence = Math.max(...topPriority.map(c =>
+    typeof c.confidence === 'number' ? c.confidence : -1
+  ));
+  const topConfidence = topPriority.filter(c =>
+    (typeof c.confidence === 'number' ? c.confidence : -1) === maxConfidence
+  );
+
+  // If only one candidate, return it
+  if (topConfidence.length === 1) return topConfidence[0];
+
+  // Multiple candidates tied on priority and confidence - select randomly
+  const randomIndex = Math.floor(Math.random() * topConfidence.length);
+  return topConfidence[randomIndex];
 }
 
 /**

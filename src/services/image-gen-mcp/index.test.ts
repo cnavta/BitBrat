@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { ImageGenMcpServer } from './index';
+import type { IStorageDriver, StorageUploadResult } from '../../common/storage/types';
 
 // Mock the AI SDK image generation so the handler can run without a real OpenAI call.
 jest.mock('ai', () => ({
@@ -37,17 +38,29 @@ describe('image-gen-mcp', () => {
     expect(registeredTools.has('generate_image')).toBe(true);
   });
 
-  it('persists with a simple (non-resumable) upload to stay undici-compatible', async () => {
-    // The resumable-upload path in @google-cloud/storage attaches an `abort-controller`
-    // signal that undici (our pinned auth transport) rejects with
-    // `RequestInit: Expected signal ("AbortSignal {}") to be an instance of AbortSignal.`.
-    // Forcing `resumable: false` avoids that path, so guard it with a regression test.
-    const save = jest.fn().mockResolvedValue(undefined);
-    const file = jest.fn(() => ({ save }));
-    const fakeStorage = { bucket: jest.fn(() => ({ file })) };
+  it('uploads image using storage driver abstraction', async () => {
+    // Create mock storage driver
+    const mockUploadResult: StorageUploadResult = {
+      fileName: 'test-uuid.png',
+      publicUrl: 'https://storage.example.com/test-uuid.png',
+      size: 16,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    const mockDriver: jest.Mocked<IStorageDriver> = {
+      name: 'mock-driver',
+      initialize: jest.fn().mockResolvedValue(undefined),
+      upload: jest.fn().mockResolvedValue(mockUploadResult),
+      download: jest.fn(),
+      delete: jest.fn(),
+      exists: jest.fn(),
+      getMetadata: jest.fn(),
+      list: jest.fn(),
+      shutdown: jest.fn(),
+    };
 
     jest.spyOn(server as any, 'getSecret').mockResolvedValue('test-openai-key');
-    jest.spyOn(server as any, 'getResource').mockReturnValue(fakeStorage);
+    jest.spyOn(server as any, 'getResource').mockReturnValue(mockDriver);
 
     // Moderation call uses global fetch; stub it to a clean (not flagged) response.
     const fetchSpy = jest
@@ -61,9 +74,20 @@ describe('image-gen-mcp', () => {
     const res = await tool.handler({ prompt: 'a tiny test image', aspect_ratio: '1:1' }, {});
 
     expect(res.isError).toBeFalsy();
-    expect(save).toHaveBeenCalledTimes(1);
-    const saveOptions = save.mock.calls[0][1];
-    expect(saveOptions).toMatchObject({ resumable: false });
+    expect(mockDriver.upload).toHaveBeenCalledTimes(1);
+
+    // Verify upload was called with correct metadata
+    const uploadCall = mockDriver.upload.mock.calls[0];
+    expect(uploadCall[0]).toBeInstanceOf(Buffer); // imageBuffer
+    expect(uploadCall[1]).toMatch(/\.png$/); // fileName
+    expect(uploadCall[2]).toMatchObject({
+      contentType: 'image/png',
+      size: 16, // Buffer.from('fake-image-bytes').length
+    });
+    expect(uploadCall[2].customMetadata).toBeDefined();
+
+    // Verify public URL is returned in response
+    expect(res.content[0].text).toContain(mockUploadResult.publicUrl);
 
     fetchSpy.mockRestore();
   });

@@ -2,6 +2,7 @@ import {
   buildResilientStorageOptions,
   createResilientFetch,
   StorageManager,
+  NewStorageManager,
 } from './storage-manager';
 
 const storageCtorArgs: any[] = [];
@@ -132,5 +133,153 @@ describe('createResilientFetch', () => {
 
     expect(calls[0].duplex).toBe('full');
     expect(calls[1].duplex).toBeUndefined();
+  });
+});
+
+// Mock the storage factory
+jest.mock('../storage/factory');
+import { createStorageDriver } from '../storage/factory';
+import type { IStorageDriver } from '../storage/types';
+import type { SetupContext } from './types';
+
+describe('NewStorageManager', () => {
+  let mockDriver: jest.Mocked<IStorageDriver>;
+  let mockContext: SetupContext;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Create mock driver
+    mockDriver = {
+      name: 'mock-driver',
+      initialize: jest.fn().mockResolvedValue(undefined),
+      upload: jest.fn(),
+      download: jest.fn(),
+      delete: jest.fn(),
+      exists: jest.fn(),
+      getMetadata: jest.fn(),
+      list: jest.fn(),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Create complete SetupContext mock
+    mockContext = {
+      config: {} as any,
+      logger: { info: jest.fn(), debug: jest.fn(), error: jest.fn(), warn: jest.fn() } as any,
+      serviceName: 'test-service',
+      env: {},
+      app: {} as any,
+    };
+
+    // Mock createStorageDriver to return our mock driver
+    (createStorageDriver as jest.Mock).mockResolvedValue(mockDriver);
+  });
+
+  describe('setup()', () => {
+    it('creates storage driver using factory', async () => {
+      const manager = new NewStorageManager();
+
+      const driver = await manager.setup(mockContext);
+
+      expect(createStorageDriver).toHaveBeenCalledWith(process.env, mockContext.logger);
+      expect(driver).toBe(mockDriver);
+      expect(mockContext.logger.info).toHaveBeenCalledWith('storage.manager.setup');
+      expect(mockContext.logger.info).toHaveBeenCalledWith('storage.manager.setup.complete', {
+        driver: 'mock-driver',
+      });
+    });
+
+    it('reuses the same driver instance on repeated setup', async () => {
+      const manager = new NewStorageManager();
+
+      const driver1 = await manager.setup(mockContext);
+      const driver2 = await manager.setup(mockContext);
+      const driver3 = await manager.setup(mockContext);
+
+      expect(driver1).toBe(mockDriver);
+      expect(driver2).toBe(mockDriver);
+      expect(driver3).toBe(mockDriver);
+
+      // Factory should only be called once
+      expect(createStorageDriver).toHaveBeenCalledTimes(1);
+
+      // Second call should log reuse
+      expect(mockContext.logger.info).toHaveBeenCalledWith('storage.manager.setup.reuse');
+    });
+
+    it('uses global logger when ctx.logger is not provided', async () => {
+      const manager = new NewStorageManager();
+      const ctxWithoutLogger = {
+        ...mockContext,
+        logger: undefined as any,
+      };
+
+      const driver = await manager.setup(ctxWithoutLogger);
+
+      expect(driver).toBe(mockDriver);
+      expect(createStorageDriver).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles missing context parameter', async () => {
+      const manager = new NewStorageManager();
+
+      const driver = await manager.setup(undefined as any);
+
+      expect(driver).toBe(mockDriver);
+      expect(createStorageDriver).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('shutdown()', () => {
+    it('calls driver shutdown method', async () => {
+      const manager = new NewStorageManager();
+
+      await manager.shutdown(mockDriver);
+
+      expect(mockDriver.shutdown).toHaveBeenCalledTimes(1);
+    });
+
+    it('can shutdown without prior setup', async () => {
+      const manager = new NewStorageManager();
+      const driver = {
+        shutdown: jest.fn().mockResolvedValue(undefined),
+      } as any;
+
+      await manager.shutdown(driver);
+
+      expect(driver.shutdown).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('lifecycle integration', () => {
+    it('supports full lifecycle: setup → shutdown', async () => {
+      const manager = new NewStorageManager();
+
+      // Setup
+      const driver = await manager.setup(mockContext);
+      expect(driver).toBe(mockDriver);
+
+      // Shutdown
+      await manager.shutdown(driver);
+      expect(mockDriver.shutdown).toHaveBeenCalled();
+    });
+
+    it('propagates factory errors during setup', async () => {
+      const manager = new NewStorageManager();
+
+      const factoryError = new Error('Factory initialization failed');
+      (createStorageDriver as jest.Mock).mockRejectedValueOnce(factoryError);
+
+      await expect(manager.setup(mockContext)).rejects.toThrow('Factory initialization failed');
+    });
+
+    it('propagates driver errors during shutdown', async () => {
+      const manager = new NewStorageManager();
+      const driver = {
+        shutdown: jest.fn().mockRejectedValue(new Error('Shutdown failed')),
+      } as any;
+
+      await expect(manager.shutdown(driver)).rejects.toThrow('Shutdown failed');
+    });
   });
 });
