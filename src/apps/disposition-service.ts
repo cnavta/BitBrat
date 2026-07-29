@@ -83,7 +83,9 @@ export class DocumentStoreDispositionObservationStore implements IDispositionObs
   ) {}
 
   async upsert(docId: string, observation: StoredDispositionObservation): Promise<void> {
-    await this.store.set(this.tableName, docId, observation);
+    // Use merge mode to preserve manual changes to disposition observations
+    // This matches Firestore behavior: set(data, { merge: true })
+    await this.store.set(this.tableName, docId, observation, true);
   }
 
   async queryActive(userKey: string, cutoffIso: string, maxEvents: number): Promise<DispositionObservationEventV1[]> {

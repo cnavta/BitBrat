@@ -861,6 +861,7 @@ services:
     secrets:
       - OPENAI_API_KEY
       - MCP_AUTH_TOKEN
+      - GOOGLE_APPLICATION_CREDENTIALS  # Path to GCP service account JSON key (required for self-hosted)
     env:
       - MCP_TRANSPORT
       - GCS_BUCKET_NAME

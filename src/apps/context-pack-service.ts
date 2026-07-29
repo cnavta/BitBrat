@@ -99,11 +99,13 @@ export class DocumentStoreContextPackStore implements IContextPackStore {
         const embedding = data.embedding;
         delete docData.embedding; // Remove from JSONB data
 
+        // Use JSONB merge operator (||) to preserve manual changes to context packs
+        // This matches Firestore behavior: set(data, { merge: true })
         const query = `
           INSERT INTO ${this.tableName} (id, data, embedding, created_at, updated_at)
           VALUES ($1, $2, $3, NOW(), NOW())
           ON CONFLICT (id) DO UPDATE SET
-            data = $2,
+            data = ${this.tableName}.data || $2::jsonb,
             embedding = $3,
             updated_at = NOW()
         `;
@@ -114,8 +116,8 @@ export class DocumentStoreContextPackStore implements IContextPackStore {
         client.release();
       }
     } else {
-      // Fallback: use standard IDocumentStore (no vector support)
-      await this.store.set(this.tableName, packId, docData);
+      // Fallback: use standard IDocumentStore with merge mode
+      await this.store.set(this.tableName, packId, docData, true);
     }
   }
 }

@@ -112,7 +112,16 @@ export class ToolGatewayServer extends Bit {
           // After connecting to a new Bit and discovering its tools, notify all connected clients
           // that the tool/resource/prompt lists have changed. This ensures clients like llm-bot
           // refresh their tool registries without requiring manual restarts.
-          this.broadcastListChangedNotifications();
+          // Wrap in try-catch to prevent crashes from notification failures
+          try {
+            this.broadcastListChangedNotifications();
+          } catch (notifyError: any) {
+            this.getLogger().warn('tool_gateway.registry_watcher.broadcast_failed', {
+              name: config.name,
+              error: notifyError.message,
+              stack: notifyError.stack
+            });
+          }
         } catch (error: any) {
           this.getLogger().error('tool_gateway.registry_watcher.on_server_active_error', {
             name: config.name,
@@ -126,7 +135,16 @@ export class ToolGatewayServer extends Bit {
           this.serverConfigs.delete(name);
           await this.mcpManager.disconnectServer(name);
           // Also notify when a server becomes inactive, as tool/resource/prompt lists have changed
-          this.broadcastListChangedNotifications();
+          // Wrap in try-catch to prevent crashes from notification failures
+          try {
+            this.broadcastListChangedNotifications();
+          } catch (notifyError: any) {
+            this.getLogger().warn('tool_gateway.registry_watcher.broadcast_failed_inactive', {
+              name,
+              error: notifyError.message,
+              stack: notifyError.stack
+            });
+          }
         } catch (error: any) {
           this.getLogger().error('tool_gateway.registry_watcher.on_server_inactive_error', {
             name,
@@ -409,7 +427,10 @@ export class ToolGatewayServer extends Bit {
     let successCount = 0;
     let errorCount = 0;
 
-    for (const [sessionId, server] of this.sessionServers.entries()) {
+    // Convert to array to avoid modification-during-iteration issues
+    const sessions = Array.from(this.sessionServers.entries());
+
+    for (const [sessionId, server] of sessions) {
       try {
         // Send tools list changed notification
         server.notification({
@@ -441,12 +462,14 @@ export class ToolGatewayServer extends Bit {
             sessionId,
             reason: 'disconnected'
           });
+        } else {
+          // Log unexpected errors differently
+          logger.warn('tool_gateway.notifications.send_failed', {
+            sessionId,
+            error: error.message,
+            stack: error.stack
+          });
         }
-
-        logger.warn('tool_gateway.notifications.send_failed', {
-          sessionId,
-          error: error.message
-        });
       }
     }
 

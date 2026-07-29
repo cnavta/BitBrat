@@ -78,7 +78,9 @@ export class DocumentStoreMcpServerStore implements IMcpServerStore {
   ) {}
 
   async upsert(name: string, data: McpServerDocument): Promise<void> {
-    await this.store.set(this.tableName, name, data);
+    // Use merge mode to preserve manual changes to service_registry entries
+    // This matches Firestore behavior: set(data, { merge: true })
+    await this.store.set(this.tableName, name, data, true);
   }
 
   watch(callback: (configs: McpServerConfig[]) => void): () => void {
