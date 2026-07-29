@@ -86,3 +86,19 @@ RAG_CONTEXT_ENABLED: false
 RAG_CONTEXT_MAX_RESULTS: 5
 RAG_CONTEXT_MIN_SIMILARITY: 0.65
 RAG_CONTEXT_TIMEOUT_MS: 5000
+
+# Debug Mode Configuration (Sprint 371)
+# Platform-specific comma-separated lists of authorized debug users
+# User identifiers are platform-specific:
+# - Slack: User IDs (e.g., "U0123456789,U9876543210")
+# - Twitch: Usernames (e.g., "christophernavta,admin_user")
+# - Discord: User IDs (snowflakes, e.g., "123456789012345678,987654321098765432")
+#
+# Debug mode allows privileged users to trace events through the platform in real-time
+# by sending: !debug <message>
+#
+# WARNING: Debug mode exposes internal platform state. Only authorize trusted users.
+# See: documentation/guides/debug-mode-setup.md
+DEBUG_USERS_SLACK: ""  # Add your Slack User IDs here (comma-separated)
+DEBUG_USERS_TWITCH: ""  # Add your Twitch usernames here (comma-separated)
+DEBUG_USERS_DISCORD: ""  # Add your Discord User IDs here (comma-separated)

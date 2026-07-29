@@ -26,16 +26,29 @@ export class SlackIngressClient {
     published: 0,
     filtered: 0,
     failed: 0,
+    deduplicated: 0, // Track deduplicated events
   };
   private lastMessageAt: string | null = null;
   private botUserId?: string;
+  private debugAuthorizedUsers: Set<string>; // Sprint 371: RBAC for debug mode
+  private processedMessageTimestamps: Set<string> = new Set(); // Deduplication cache
+  private deduplicationCleanupInterval?: NodeJS.Timeout;
 
   constructor(
     private readonly appToken: string,
     private readonly botToken: string,
-    private readonly publisher: IngressPublisher
+    private readonly publisher: IngressPublisher,
+    debugUsersSlack?: string // Sprint 371: Comma-separated list of authorized Slack User IDs
   ) {
     this.webClient = new WebClient(botToken);
+
+    // Sprint 371: Parse debug authorized users (comma-separated Slack User IDs)
+    this.debugAuthorizedUsers = new Set(
+      (debugUsersSlack || '')
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean)
+    );
   }
 
   async start(): Promise<void> {
@@ -134,6 +147,13 @@ export class SlackIngressClient {
         botUserId: this.botUserId,
         state: this.state,
       });
+
+      // Start deduplication cache cleanup (clear entries older than 5 minutes every minute)
+      this.deduplicationCleanupInterval = setInterval(() => {
+        const size = this.processedMessageTimestamps.size;
+        this.processedMessageTimestamps.clear();
+        logger.debug('slack.client.dedup_cache_cleared', { previousSize: size });
+      }, 60000); // Clear every 60 seconds
     } catch (error: any) {
       this.state = 'ERROR';
       this.lastError = { code: 'connection_failed', message: error.message };
@@ -150,6 +170,12 @@ export class SlackIngressClient {
     logger.info('slack.client.stopping');
 
     try {
+      // Clear deduplication cleanup interval
+      if (this.deduplicationCleanupInterval) {
+        clearInterval(this.deduplicationCleanupInterval);
+        this.deduplicationCleanupInterval = undefined;
+      }
+
       if (this.socketClient) {
         await this.socketClient.disconnect();
         this.socketClient = undefined;
@@ -262,25 +288,120 @@ export class SlackIngressClient {
         return;
       }
 
+      // Deduplicate by Slack message timestamp (Slack sometimes sends duplicate events)
+      const messageTs = actualEvent.ts || actualEvent.event_ts;
+      if (messageTs) {
+        if (this.processedMessageTimestamps.has(messageTs)) {
+          logger.warn('slack.client.message_deduplicated', {
+            ts: messageTs,
+            user: actualEvent.user,
+            channel: actualEvent.channel,
+            textPreview: actualEvent.text?.substring(0, 50),
+          });
+          this.counters.deduplicated++;
+          return;
+        }
+        this.processedMessageTimestamps.add(messageTs);
+      }
+
+      // Sprint 371: Detect debug mode command (!debug <message>)
+      // Strip prefix and perform RBAC check BEFORE envelope creation
+      let messageText = actualEvent.text || '';
+      let debugAuthorized = false;
+      let debugCorrelationId: string | undefined;
+      const debugMatch = messageText.match(/^!debug\s+/i);
+
+      if (debugMatch) {
+        // Strip debug prefix from message text
+        messageText = messageText.slice(debugMatch[0].length);
+
+        // RBAC: Check if user is authorized for debug mode
+        const userId = actualEvent.user || 'unknown';
+        debugAuthorized = this.debugAuthorizedUsers.has(userId);
+
+        if (debugAuthorized) {
+          // Generate correlation ID early for confirmation message and envelope
+          const { randomUUID } = await import('crypto');
+          debugCorrelationId = randomUUID();
+
+          logger.info('slack.debug.authorized', {
+            user: userId,
+            channel: actualEvent.channel,
+            originalText: actualEvent.text,
+            strippedText: messageText,
+            prefixLength: debugMatch[0].length,
+            correlationId: debugCorrelationId,
+          });
+
+          // Sprint 371: Send activation confirmation BEFORE publishing envelope
+          // This proves egress path works before event enters routing flow
+          try {
+            await this.webClient?.chat.postMessage({
+              channel: actualEvent.channel,
+              text: `🔍 *Debug mode ON*\n\`Correlation ID:\` \`${debugCorrelationId}\`\n_Watching event flow..._`,
+            });
+
+            logger.info('slack.debug.activation_sent', {
+              user: userId,
+              channel: actualEvent.channel,
+              correlationId: debugCorrelationId,
+            });
+          } catch (error: any) {
+            logger.error('slack.debug.activation_failed', {
+              error: error.message,
+              user: userId,
+              channel: actualEvent.channel,
+              correlationId: debugCorrelationId,
+            });
+            // Continue processing even if confirmation fails
+          }
+        } else {
+          logger.warn('slack.debug.unauthorized', {
+            user: userId,
+            channel: actualEvent.channel,
+            originalText: actualEvent.text,
+            reason: 'user_not_in_debug_authorized_list',
+            authorizedCount: this.debugAuthorizedUsers.size,
+          });
+        }
+      }
+
       // Build envelope from the actual event data
       logger.debug('slack.client.building_envelope', {
         type: actualEvent.type,
         user: actualEvent.user,
         channel: actualEvent.channel,
-        textPreview: actualEvent.text?.substring(0, 50),
+        textPreview: messageText.substring(0, 50),
         ts: actualEvent.ts,
+        debugRequested: !!debugMatch,
+        debugAuthorized,
       });
 
-      const envelope = buildSlackEnvelope({
-        type: actualEvent.type,
-        user: actualEvent.user,
-        channel: actualEvent.channel,
-        text: actualEvent.text,
-        ts: actualEvent.ts,
-        thread_ts: actualEvent.thread_ts,
-        team: actualEvent.team || body?.team_id,
-        event_ts: actualEvent.event_ts,
-      });
+      // Sprint 371: Build debug metadata if authorized
+      const debugMetadata = debugAuthorized ? {
+        enabled: true as const,
+        initiatedBy: actualEvent.user || 'unknown',
+        feedbackChannel: actualEvent.channel || 'unknown',
+        startedAt: new Date().toISOString(),
+      } : undefined;
+
+      const envelope = buildSlackEnvelope(
+        {
+          type: actualEvent.type,
+          user: actualEvent.user,
+          channel: actualEvent.channel,
+          text: messageText, // Use stripped text
+          ts: actualEvent.ts,
+          thread_ts: actualEvent.thread_ts,
+          team: actualEvent.team || body?.team_id,
+          event_ts: actualEvent.event_ts,
+        },
+        {
+          // Sprint 371: Pass pre-generated correlation ID and debug metadata if RBAC passed
+          correlationId: debugCorrelationId,
+          debugMetadata,
+        }
+      );
 
       logger.debug('slack.client.envelope_built', {
         correlationId: envelope.correlationId,
@@ -289,11 +410,15 @@ export class SlackIngressClient {
         messageText: envelope.message?.text?.substring(0, 100),
         userId: envelope.identity?.external?.id,
         channelId: envelope.ingress?.channel,
+        debugRequested: !!debugMatch,
+        debugAuthorized,
       });
 
       // Publish to event router
       logger.debug('slack.client.publishing_envelope', {
         correlationId: envelope.correlationId,
+        debugRequested: !!debugMatch,
+        debugAuthorized,
       });
 
       await this.publisher.publish(envelope);

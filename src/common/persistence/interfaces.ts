@@ -49,8 +49,11 @@ export interface IDocumentStore {
 
   /**
    * Set (create or update) a document
+   *
+   * @param merge - If true, merge new data with existing document (preserves unspecified fields)
+   *                If false or undefined, replace entire document (default behavior)
    */
-  set<T = any>(collection: string, id: string, data: T): Promise<void>;
+  set<T = any>(collection: string, id: string, data: T, merge?: boolean): Promise<void>;
 
   /**
    * Delete a document by ID
@@ -101,6 +104,7 @@ export interface BatchOperation {
   collection: string;
   id: string;
   data?: any;
+  merge?: boolean; // Only applies to 'set' operations
 }
 
 /**

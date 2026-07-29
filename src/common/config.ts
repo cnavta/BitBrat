@@ -85,6 +85,11 @@ const ConfigSchema = z.object({
   slackBotToken: z.string().optional(),
   slackAppToken: z.string().optional(),
   slackSigningSecret: z.string().optional(),
+
+  // Debug mode configuration (Sprint 371)
+  debugUsersSlack: z.string().optional(),
+  debugUsersTwitch: z.string().optional(),
+  debugUsersDiscord: z.string().optional(),
 });
 
 let cachedConfig: IConfig | null = null;
@@ -146,6 +151,11 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env, overrides: Par
     slackBotToken: env.SLACK_BOT_TOKEN,
     slackAppToken: env.SLACK_APP_TOKEN,
     slackSigningSecret: env.SLACK_SIGNING_SECRET,
+
+    // Debug mode (Sprint 371)
+    debugUsersSlack: env.DEBUG_USERS_SLACK,
+    debugUsersTwitch: env.DEBUG_USERS_TWITCH,
+    debugUsersDiscord: env.DEBUG_USERS_DISCORD,
   } satisfies Partial<IConfig> as IConfig;
 
   // Apply overrides last

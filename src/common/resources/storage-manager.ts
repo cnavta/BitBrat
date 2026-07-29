@@ -91,7 +91,21 @@ export class StorageManager implements ResourceManager<Storage> {
     }
 
     log.info('storage.manager.setup');
-    this.storage = new Storage(buildResilientStorageOptions());
+
+    // Build storage options with credential support
+    const baseOptions: StorageOptions = {};
+
+    // Support explicit credentials via GOOGLE_APPLICATION_CREDENTIALS env var
+    // This allows self-hosted deployments to authenticate without ADC
+    const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (credPath) {
+      log.info('storage.manager.setup.credentials', { source: 'GOOGLE_APPLICATION_CREDENTIALS' });
+      baseOptions.keyFilename = credPath;
+    } else {
+      log.info('storage.manager.setup.credentials', { source: 'ADC or metadata server' });
+    }
+
+    this.storage = new Storage(buildResilientStorageOptions(baseOptions));
     return this.storage;
   }
 

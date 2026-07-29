@@ -82,19 +82,34 @@ export class PostgresDocumentStore implements IDocumentStore {
 
   /**
    * Set (create or update) a document
+   *
+   * @param merge - If true, merge new data with existing document using JSONB || operator
+   *                If false or undefined, replace entire document (default)
    */
-  async set<T = any>(collection: string, id: string, data: T): Promise<void> {
+  async set<T = any>(collection: string, id: string, data: T, merge = false): Promise<void> {
     const startTime = Date.now();
     try {
-      await this.pool.query(
-        `INSERT INTO ${this.sanitizeCollectionName(collection)} (id, data, updated_at)
-         VALUES ($1, $2, NOW())
-         ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
-        [id, JSON.stringify(data)]
-      );
+      if (merge) {
+        // Merge mode: Use JSONB || operator to merge new data with existing
+        // This preserves fields not present in the new data (same as Firestore merge: true)
+        await this.pool.query(
+          `INSERT INTO ${this.sanitizeCollectionName(collection)} (id, data, updated_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (id) DO UPDATE SET data = ${this.sanitizeCollectionName(collection)}.data || $2::jsonb, updated_at = NOW()`,
+          [id, JSON.stringify(data)]
+        );
+      } else {
+        // Replace mode: Replace entire document (original behavior)
+        await this.pool.query(
+          `INSERT INTO ${this.sanitizeCollectionName(collection)} (id, data, updated_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
+          [id, JSON.stringify(data)]
+        );
+      }
 
       const latency = Date.now() - startTime;
-      this.logger.debug?.(`[PostgresDocumentStore] set ${collection}/${id} (${latency}ms)`);
+      this.logger.debug?.(`[PostgresDocumentStore] set ${collection}/${id} (${latency}ms) [merge=${merge}]`);
     } catch (error) {
       this.logger.error?.(`[PostgresDocumentStore] set error:`, error);
       throw error;
@@ -262,12 +277,23 @@ export class PostgresDocumentStore implements IDocumentStore {
 
       for (const op of operations) {
         if (op.type === 'set') {
-          await client.query(
-            `INSERT INTO ${this.sanitizeCollectionName(op.collection)} (id, data, updated_at)
-             VALUES ($1, $2, NOW())
-             ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
-            [op.id, JSON.stringify(op.data)]
-          );
+          if (op.merge) {
+            // Merge mode: preserve existing fields not in new data
+            await client.query(
+              `INSERT INTO ${this.sanitizeCollectionName(op.collection)} (id, data, updated_at)
+               VALUES ($1, $2, NOW())
+               ON CONFLICT (id) DO UPDATE SET data = ${this.sanitizeCollectionName(op.collection)}.data || $2::jsonb, updated_at = NOW()`,
+              [op.id, JSON.stringify(op.data)]
+            );
+          } else {
+            // Replace mode: replace entire document
+            await client.query(
+              `INSERT INTO ${this.sanitizeCollectionName(op.collection)} (id, data, updated_at)
+               VALUES ($1, $2, NOW())
+               ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
+              [op.id, JSON.stringify(op.data)]
+            );
+          }
         } else if (op.type === 'delete') {
           await client.query(
             `DELETE FROM ${this.sanitizeCollectionName(op.collection)} WHERE id = $1`,
