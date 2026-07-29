@@ -32,9 +32,9 @@ oclif-commands/
 │   ├── plan.ts          #   → brat infra plan
 │   ├── apply.ts         #   → brat infra apply
 │   └── destroy.ts       #   → brat infra destroy
-├── deploy/              # Deployment commands (brat deploy <subcommand>)
-│   ├── service.ts       #   → brat deploy service
-│   └── services.ts      #   → brat deploy services
+├── bit/                 # Bit management commands (brat bit <subcommand>)
+│   ├── create.ts        #   → brat bit create
+│   └── deploy.ts        #   → brat bit deploy [UNIFIED DEPLOYMENT]
 ├── data/                # Data operations (brat data <subcommand>)
 │   ├── backup.ts        #   → brat data backup
 │   ├── restore.ts       #   → brat data restore
