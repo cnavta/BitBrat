@@ -1,15 +1,27 @@
 # Sprint 372: Unified Bit Deployment - Trackable Backlog
 # Generated: 2026-07-28
+# Completed: 2026-07-29
 # Format: YAML task tracking with priority, status, estimates, and dependencies
 
 metadata:
   sprint: 372
   name: "Unified Bit Deployment"
   goal: "Implement brat bit deploy command with strategy-based deployment, replacing legacy commands"
-  duration: "9 working days"
+  duration: "8 working days (truncated from 9)"
   team_size: 1
   start_date: "2026-07-29"
-  end_date: "2026-08-08"
+  end_date: "2026-07-29"
+  status: "COMPLETE"
+  completion_summary:
+    tasks_completed: 31
+    tasks_total: 39
+    tasks_deferred: 8
+    completion_rate: "79%"
+    core_deliverable: "100% complete"
+    bugs_fixed: 1
+    files_changed: 22
+    lines_added: 4686
+    lines_removed: 759
 
 phases:
   foundation:
