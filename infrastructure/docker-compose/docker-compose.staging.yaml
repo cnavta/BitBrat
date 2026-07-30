@@ -3,6 +3,17 @@
 # Generated: 2026-07-21T21:07:29.221Z
 
 services:
+  # Sprint 375 Phase 2: Shared base image for all BitBrat services
+  # This service is build-only (never starts during docker compose up)
+  bitbrat-base:
+    profiles:
+      - build-only
+    build:
+      context: ../..
+      dockerfile: Dockerfile.base
+    image: bitbrat-base:${BITBRAT_VERSION:-latest}
+    # No ports, networks, or command - this is build-only
+
   nats:
     env_file:
       - ".env.brat"
@@ -84,6 +95,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "oauth-flow"
         SERVICE_ENTRY: "dist/apps/oauth-service.js"
         SERVICE_PORT: "3000"
@@ -124,6 +136,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "ingress-egress"
         SERVICE_ENTRY: "dist/apps/ingress-egress-service.js"
         SERVICE_PORT: "3000"
@@ -173,6 +186,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "auth"
         SERVICE_ENTRY: "dist/apps/auth-service.js"
         SERVICE_PORT: "3000"
@@ -205,6 +219,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "query-analyzer"
         SERVICE_ENTRY: "dist/apps/query-analyzer.js"
         SERVICE_PORT: "3000"
@@ -241,6 +256,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "event-router"
         SERVICE_ENTRY: "dist/apps/event-router-service.js"
         SERVICE_PORT: "3000"
@@ -271,6 +287,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "llm-bot"
         SERVICE_ENTRY: "dist/apps/llm-bot-service.js"
         SERVICE_PORT: "3000"
@@ -320,6 +337,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "persistence"
         SERVICE_ENTRY: "dist/apps/persistence-service.js"
         SERVICE_PORT: "3000"
@@ -357,6 +375,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "scheduler"
         SERVICE_ENTRY: "dist/apps/scheduler-service.js"
         SERVICE_PORT: "3000"
@@ -389,6 +408,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "api-gateway"
         SERVICE_ENTRY: "dist/apps/api-gateway.js"
         SERVICE_PORT: "3000"
@@ -429,6 +449,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "state-engine"
         SERVICE_ENTRY: "dist/apps/state-engine.js"
         SERVICE_PORT: "3000"
@@ -463,6 +484,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "disposition-service"
         SERVICE_ENTRY: "dist/apps/disposition-service.js"
         SERVICE_PORT: "3000"
@@ -505,6 +527,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "tool-gateway"
         SERVICE_ENTRY: "dist/apps/tool-gateway.js"
         SERVICE_PORT: "3000"
@@ -537,6 +560,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "image-gen-mcp"
         SERVICE_ENTRY: "dist/services/image-gen-mcp/index.js"
         SERVICE_PORT: "3000"
@@ -574,6 +598,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "stream-analyst"
         SERVICE_ENTRY: "dist/apps/stream-analyst-service.js"
         SERVICE_PORT: "3000"
@@ -606,6 +631,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "story-engine-mcp"
         SERVICE_ENTRY: "dist/apps/story-engine-mcp.js"
         SERVICE_PORT: "3000"
@@ -638,6 +664,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "reflex"
         SERVICE_ENTRY: "dist/apps/reflex-service.js"
         SERVICE_PORT: "3000"
@@ -668,6 +695,7 @@ services:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: "context-pack"
         SERVICE_ENTRY: "dist/apps/context-pack-service.js"
         SERVICE_PORT: "3000"

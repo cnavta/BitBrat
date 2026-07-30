@@ -4,6 +4,7 @@ import { ComposeFactory } from './compose-factory';
 import { PortManager } from './port-manager';
 import { loadArchitecture, resolveServices } from '../../config/loader';
 import { ContextResolver } from '../../context/context-resolver';
+import { shouldRebuildBase, computeBaseCacheKey, storeCacheKey } from './base-cache';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -26,6 +27,7 @@ export interface DockerOrchestratorOptions {
   noDeps?: boolean; // Don't start linked services (docker compose up --no-deps)
   forceRecreate?: boolean; // Force recreate containers (docker compose up --force-recreate)
   noCache?: boolean; // Build without cache (docker compose build --no-cache)
+  rebuildBase?: boolean; // Sprint 375: Force rebuild base image regardless of cache key
 }
 
 export class DockerOrchestrator {
@@ -74,6 +76,9 @@ export class DockerOrchestrator {
 
       await this.ensureRemoteSynced(targetConfig);
       await this.ensureNetworkExists(targetConfig);
+
+      // Sprint 375: Build shared base image before building services
+      await this.buildBaseImage(targetConfig, composeArgs);
 
       let maxConcurrent = targetConfig.maxConcurrent || arch.deploymentDefaults?.maxConcurrentDeployments || 3;
       if (isRemote && !targetConfig.maxConcurrent) {
@@ -182,6 +187,41 @@ export class DockerOrchestrator {
     } finally {
       this.cleanupEnvFile(tempEnvPath);
     }
+  }
+
+  /**
+   * Build the shared base image (bitbrat-base) if needed.
+   * Sprint 375: Checks cache key to skip rebuild when dependencies unchanged.
+   *
+   * @param targetConfig - Deployment target configuration
+   * @param composeArgs - Docker Compose arguments (for project name, env files, etc.)
+   * @private
+   */
+  private async buildBaseImage(targetConfig: any, composeArgs: string[]): Promise<void> {
+    const forceRebuild = this.options.rebuildBase || this.options.noCache;
+
+    // Check if base image needs rebuilding
+    if (!shouldRebuildBase(this.options.repoRoot, forceRebuild)) {
+      console.log('[brat] Base image cache is up-to-date, skipping rebuild');
+      return;
+    }
+
+    console.log('[brat] Building shared base image (bitbrat-base)...');
+
+    // Build using docker compose with the build-only profile
+    const buildArgs = [...composeArgs, 'build'];
+    if (this.options.noCache) {
+      buildArgs.push('--no-cache');
+    }
+    buildArgs.push('bitbrat-base');
+
+    await this.executeDockerCompose(targetConfig, buildArgs);
+
+    // Store new cache key after successful build
+    const newCacheKey = computeBaseCacheKey(this.options.repoRoot);
+    storeCacheKey(this.options.repoRoot, newCacheKey);
+
+    console.log('[brat] Base image built successfully');
   }
 
   public async down(): Promise<void> {
@@ -294,7 +334,67 @@ export class DockerOrchestrator {
   private async ensureRemoteSynced(targetConfig: any): Promise<void> {
     const isRemote = targetConfig.host?.startsWith('ssh://');
     if (isRemote && targetConfig.remoteDir) {
+      await this.cleanupRemoteDeployment(targetConfig);
       await this.syncRemoteFiles(targetConfig);
+    }
+  }
+
+  /**
+   * Clean up stale deployment files on remote host before syncing new code.
+   * This ensures the most recent code is always deployed without conflicts from old files.
+   *
+   * What gets cleaned:
+   * - Source code (src/, dist/)
+   * - Docker Compose files (infrastructure/docker-compose/)
+   * - Configuration files (architecture.yaml, package.json, etc.)
+   * - Build artifacts (.env.brat)
+   *
+   * What gets preserved:
+   * - Docker volumes (postgres-data, nats-data) - contain persistent data
+   * - .secure.{ENV}/ directories - contain secrets (will be re-synced if changed)
+   * - Docker images - will be rebuilt only if Dockerfile changed
+   */
+  private async cleanupRemoteDeployment(target: any): Promise<void> {
+    const remoteDir = target.remoteDir;
+    if (!remoteDir) return;
+
+    const sshTarget = target.host.replace('ssh://', '');
+    console.log(`[brat] Cleaning up stale deployment files on remote: ${sshTarget}:${remoteDir}`);
+
+    // Determine environment name for .secure.{ENV} cleanup
+    const envName = this.options.env || target.env || 'local';
+    const securePattern = `.secure.${envName}`;
+
+    // List of files/directories to remove (relative to remoteDir)
+    // These will be re-synced with fresh content
+    const filesToClean = [
+      'src',
+      'dist',
+      'infrastructure/docker-compose',
+      'tools',
+      'architecture.yaml',
+      'package.json',
+      'package-lock.json',
+      'tsconfig.json',
+      '.env.brat',
+      'Dockerfile.*',
+      'firebase.json',
+      'firestore.rules',
+      'firestore.indexes.json',
+      'dummy-creds.json',
+      // Sprint 374: Remove old .secure.{ENV} file/directory for fresh sync
+      securePattern,
+    ];
+
+    // Build rm command (safely quoted)
+    const rmTargets = filesToClean.map(f => `"${remoteDir}/${f}"`).join(' ');
+    const rmCommand = `cd "${remoteDir}" && rm -rf ${rmTargets} 2>/dev/null || true`;
+
+    const rmResult = await execCmd('ssh', [sshTarget, rmCommand], { cwd: this.options.repoRoot });
+    if (rmResult.code === 0) {
+      console.log(`[brat] Cleaned up ${filesToClean.length} stale file/directory patterns`);
+    } else {
+      console.warn(`[brat] Warning: cleanup command exited with code ${rmResult.code}, continuing anyway...`);
     }
   }
 
@@ -324,6 +424,12 @@ export class DockerOrchestrator {
     // CRITICAL: Source code and build context must be synced for Docker builds
     // to work correctly. Without src/, dist/, package.json, and Dockerfiles,
     // remote builds will use stale cached layers or fail entirely.
+    //
+    // Sprint 374: Sync .secure.{ENV}/ directories for secure file deployment
+    // These contain .env files and credential files needed for deployment
+    const envName = this.options.env || target.env || 'local';
+    const secureDir = `.secure.${envName}`;
+
     const filesToSync = [
       'infrastructure/docker-compose',
       '.env.brat',
@@ -338,11 +444,15 @@ export class DockerOrchestrator {
       'package.json',
       'package-lock.json',
       'tsconfig.json',
+      'Dockerfile.base',  // Sprint 375: Shared base image
       'Dockerfile.service',
       'Dockerfile.brat',
       'Dockerfile.obs-mcp',
       // Tools directory (contains brat CLI source)
       'tools',
+      // Sprint 374: Secure files directory (if exists as directory)
+      ...(fs.existsSync(path.join(this.options.repoRoot, secureDir)) &&
+          fs.statSync(path.join(this.options.repoRoot, secureDir)).isDirectory() ? [secureDir] : []),
     ].filter(file => fs.existsSync(path.join(this.options.repoRoot, file)));
 
     if (filesToSync.length === 0) return;
@@ -408,37 +518,74 @@ export class DockerOrchestrator {
     if (!target.remoteDir) return;
 
     const envName = this.options.env || target.env || 'local';
-    const env = this.envResolver.resolve(envName);
+    const securePath = this.options.context ?
+      (await this.prepare()).securePath :
+      undefined;
+    const env = this.envResolver.resolve(envName, securePath);
 
-    // Check if GCP services are actually being used
-    const persistenceDriver = env['PERSISTENCE_DRIVER'] || 'postgres'; // Default is postgres (Sprint 344)
-    const messageBusDriver = env['MESSAGE_BUS_DRIVER'] || 'nats';
-    const needsGcp = persistenceDriver === 'firestore' || messageBusDriver === 'pubsub';
+    let localKeyPath = env['GOOGLE_APPLICATION_CREDENTIALS'] as string | undefined;
 
-    if (!needsGcp) {
-      console.log(
-        `[brat] Skipping GCP credentials sync (PERSISTENCE_DRIVER=${persistenceDriver}, ` +
-        `MESSAGE_BUS_DRIVER=${messageBusDriver} do not require GCP)`,
-      );
-      return;
-    }
+    // Sprint 374: Handle GOOGLE_APPLICATION_CREDENTIALS in different contexts:
+    // - If it's an absolute path (for remote deployment), look for local file in .secure.{ENV}/
+    // - If it's a relative path, resolve from repo root
+    // - If not set, check .secure.{ENV}/gcp-credentials.json as fallback
+    if (localKeyPath && typeof localKeyPath === 'string') {
+      // If it's an absolute path (e.g., /opt/BitBratPlatform/...), treat it as a remote path
+      // and look for the local source file instead
+      if (path.isAbsolute(localKeyPath)) {
+        console.log(`[brat] GOOGLE_APPLICATION_CREDENTIALS is set to remote path: ${localKeyPath}`);
+        const secureDir = securePath || `.secure.${envName}`;
+        const fallbackKeyPath = path.join(this.options.repoRoot, secureDir, 'gcp-credentials.json');
 
-    const localKeyPath = env['GOOGLE_APPLICATION_CREDENTIALS'];
+        if (fs.existsSync(fallbackKeyPath)) {
+          console.log(`[brat] Using local credentials file: ${secureDir}/gcp-credentials.json`);
+          localKeyPath = fallbackKeyPath;
+        } else {
+          console.warn(
+            `[brat] GOOGLE_APPLICATION_CREDENTIALS points to remote path but local file not found at ${fallbackKeyPath}; ` +
+            'skipping ADC key sync to remote host. Services that need GCP access will fail to authenticate.',
+          );
+          return;
+        }
+      } else {
+        // Relative path - resolve from repo root
+        const resolvedKeyPath = path.join(this.options.repoRoot, localKeyPath);
+        if (!fs.existsSync(resolvedKeyPath)) {
+          console.warn(
+            `[brat] GCP credentials path '${localKeyPath}' does not exist; ` +
+            'skipping ADC key sync to remote host. Services that need GCP access will fail to authenticate.',
+          );
+          return;
+        }
+        localKeyPath = resolvedKeyPath;
+      }
+    } else {
+      // GOOGLE_APPLICATION_CREDENTIALS not set, check fallback location
+      const secureDir = securePath || `.secure.${envName}`;
+      const fallbackKeyPath = path.join(this.options.repoRoot, secureDir, 'gcp-credentials.json');
 
-    if (!localKeyPath || typeof localKeyPath !== 'string') {
-      console.warn(
-        '[brat] GOOGLE_APPLICATION_CREDENTIALS is not set; skipping ADC key sync to remote host. ' +
-          'Services that need GCP access will fail to authenticate.',
-      );
-      return;
-    }
+      if (fs.existsSync(fallbackKeyPath)) {
+        console.log(`[brat] Found GCP credentials at ${secureDir}/gcp-credentials.json (GOOGLE_APPLICATION_CREDENTIALS not set)`);
+        localKeyPath = fallbackKeyPath;
+      } else {
+        // Check if GCP services are actually being used
+        const persistenceDriver = env['PERSISTENCE_DRIVER'] || 'postgres'; // Default is postgres (Sprint 344)
+        const messageBusDriver = env['MESSAGE_BUS_DRIVER'] || 'nats';
+        const needsGcp = persistenceDriver === 'firestore' || messageBusDriver === 'pubsub';
 
-    if (!fs.existsSync(localKeyPath)) {
-      console.warn(
-        `[brat] GOOGLE_APPLICATION_CREDENTIALS is set to '${localKeyPath}' but file does not exist; ` +
-        'skipping ADC key sync to remote host. Services that need GCP access will fail to authenticate.',
-      );
-      return;
+        if (needsGcp) {
+          console.warn(
+            '[brat] GOOGLE_APPLICATION_CREDENTIALS is not set but GCP services are in use; ' +
+              'skipping ADC key sync to remote host. Services that need GCP access will fail to authenticate.',
+          );
+        } else {
+          console.log(
+            `[brat] Skipping GCP credentials sync (PERSISTENCE_DRIVER=${persistenceDriver}, ` +
+            `MESSAGE_BUS_DRIVER=${messageBusDriver}, no credentials file found)`,
+          );
+        }
+        return;
+      }
     }
 
     const sshTarget = target.host.replace('ssh://', '');

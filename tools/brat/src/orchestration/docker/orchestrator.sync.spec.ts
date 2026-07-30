@@ -50,6 +50,66 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
     expect(rsyncArgs).toContain('firebase.json');
   });
 
+  it('syncs .secure.{ENV}/ directory when it exists', async () => {
+    const repoRoot = makeRepo([
+      'infrastructure/docker-compose/docker-compose.local.yaml',
+      '.env.brat',
+    ]);
+
+    // Create .secure.staging/ directory with .env file
+    fs.mkdirSync(path.join(repoRoot, '.secure.staging'), { recursive: true });
+    fs.writeFileSync(
+      path.join(repoRoot, '.secure.staging', '.env'),
+      'OPENAI_API_KEY=sk-test\n',
+    );
+
+    const orch = new DockerOrchestrator({ repoRoot, env: 'staging' });
+    const target = { host: 'ssh://user@example', remoteDir: '/remote/dir', env: 'staging' };
+
+    await (orch as any).syncRemoteFiles(target);
+
+    const rsyncCall = execCmdMock.mock.calls.find(([cmd]) => cmd === 'rsync');
+    expect(rsyncCall).toBeDefined();
+    const rsyncArgs = rsyncCall![1] as string[];
+    expect(rsyncArgs).toContain('.secure.staging');
+  });
+
+  it('cleans up stale deployment files before syncing to remote', async () => {
+    const repoRoot = makeRepo([
+      'infrastructure/docker-compose/docker-compose.local.yaml',
+      '.env.brat',
+    ]);
+
+    const orch = new DockerOrchestrator({ repoRoot });
+    const target = { host: 'ssh://user@example', remoteDir: '/remote/dir' };
+
+    await (orch as any).cleanupRemoteDeployment(target);
+
+    // Find the ssh call that runs the cleanup command
+    const sshCleanupCall = execCmdMock.mock.calls.find(
+      ([cmd, args]) =>
+        cmd === 'ssh' &&
+        Array.isArray(args) &&
+        args.length === 2 &&
+        args[0] === 'user@example' &&
+        typeof args[1] === 'string' &&
+        args[1].includes('rm -rf'),
+    );
+
+    expect(sshCleanupCall).toBeDefined();
+    const cleanupCommand = sshCleanupCall![1][1] as string;
+
+    // Verify cleanup targets
+    expect(cleanupCommand).toContain('src');
+    expect(cleanupCommand).toContain('dist');
+    expect(cleanupCommand).toContain('infrastructure/docker-compose');
+    expect(cleanupCommand).toContain('architecture.yaml');
+    expect(cleanupCommand).toContain('.env.brat');
+
+    // Verify it's safe (uses || true to continue on errors)
+    expect(cleanupCommand).toContain('|| true');
+  });
+
   it('copies the real GCP ADC key to the remote host at the deterministic path', async () => {
     const repoRoot = makeRepo([
       'infrastructure/docker-compose/docker-compose.local.yaml',
@@ -64,12 +124,16 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
       'PERSISTENCE_DRIVER: firestore\nMESSAGE_BUS_DRIVER: pubsub\n',
     );
 
-    // Real SA key on the local machine, referenced via .secure.local.
-    const keyPath = path.join(repoRoot, 'sa-key.json');
-    fs.writeFileSync(keyPath, '{"type":"service_account"}');
+    // Real SA key on the local machine, referenced via .secure.staging/.env
+    // Sprint 374: Use relative path to avoid absolute path detection
+    const relativeKeyPath = 'sa-key.json';
+    const absoluteKeyPath = path.join(repoRoot, relativeKeyPath);
+    fs.writeFileSync(absoluteKeyPath, '{"type":"service_account"}');
+    // Sprint 374: Create .secure.staging directory with .env file
+    fs.mkdirSync(path.join(repoRoot, '.secure.staging'), { recursive: true });
     fs.writeFileSync(
-      path.join(repoRoot, '.secure.local'),
-      `GOOGLE_APPLICATION_CREDENTIALS=${keyPath}\n`,
+      path.join(repoRoot, '.secure.staging', '.env'),
+      `GOOGLE_APPLICATION_CREDENTIALS=${relativeKeyPath}\n`,
     );
 
     const orch = new DockerOrchestrator({ repoRoot, target: 'staging', env: 'staging' });
@@ -82,7 +146,7 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
       ([cmd, args]) =>
         cmd === 'scp' &&
         Array.isArray(args) &&
-        args[0] === keyPath &&
+        args[0] === absoluteKeyPath && // Sprint 374: Expect resolved absolute path
         args[1] === `user@example:${remoteKeyPath}`,
     );
     expect(scpKeyCall).toBeDefined();
@@ -111,9 +175,12 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
       'PERSISTENCE_DRIVER: firestore\nMESSAGE_BUS_DRIVER: pubsub\n',
     );
 
+    // Sprint 374: Create .secure.staging directory with .env file pointing to remote path
+    // (absolute path is treated as remote path, so it should look for fallback file)
+    fs.mkdirSync(path.join(repoRoot, '.secure.staging'), { recursive: true });
     fs.writeFileSync(
-      path.join(repoRoot, '.secure.local'),
-      `GOOGLE_APPLICATION_CREDENTIALS=${path.join(repoRoot, 'missing-key.json')}\n`,
+      path.join(repoRoot, '.secure.staging', '.env'),
+      `GOOGLE_APPLICATION_CREDENTIALS=/opt/BitBratPlatform/secrets/google-app-creds.json\n`,
     );
 
     const orch = new DockerOrchestrator({ repoRoot, target: 'staging', env: 'staging' });
@@ -124,10 +191,10 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
 
     await expect((orch as any).syncRemoteFiles(target)).resolves.toBeUndefined();
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('GOOGLE_APPLICATION_CREDENTIALS is set'),
+      expect.stringContaining('GOOGLE_APPLICATION_CREDENTIALS points to remote path'),
     );
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('but file does not exist'),
+      expect.stringContaining('but local file not found'),
     );
 
     warnSpy.mockRestore();
@@ -147,12 +214,12 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
       'PERSISTENCE_DRIVER: postgres\nMESSAGE_BUS_DRIVER: nats\n',
     );
 
-    // Set up GCP credentials (they exist but should not be synced)
-    const keyPath = path.join(repoRoot, 'sa-key.json');
-    fs.writeFileSync(keyPath, '{"type":"service_account"}');
+    // Sprint 374: Don't set GOOGLE_APPLICATION_CREDENTIALS, and don't create fallback file
+    // This tests the skip path when no credentials are found
+    fs.mkdirSync(path.join(repoRoot, '.secure.staging'), { recursive: true });
     fs.writeFileSync(
-      path.join(repoRoot, '.secure.local'),
-      `GOOGLE_APPLICATION_CREDENTIALS=${keyPath}\n`,
+      path.join(repoRoot, '.secure.staging', '.env'),
+      '# No GCP credentials configured\n',
     );
 
     const orch = new DockerOrchestrator({ repoRoot, target: 'staging', env: 'staging' });
@@ -194,8 +261,10 @@ describe('DockerOrchestrator.writeEnvFile ADC path', () => {
     ]);
     const keyPath = path.join(repoRoot, 'sa-key.json');
     fs.writeFileSync(keyPath, '{}');
+    // Sprint 374: Create .secure.staging directory with .env file (not .secure.local)
+    fs.mkdirSync(path.join(repoRoot, '.secure.staging'), { recursive: true });
     fs.writeFileSync(
-      path.join(repoRoot, '.secure.local'),
+      path.join(repoRoot, '.secure.staging', '.env'),
       `GOOGLE_APPLICATION_CREDENTIALS=${keyPath}\n`,
     );
 
@@ -217,8 +286,10 @@ describe('DockerOrchestrator.writeEnvFile ADC path', () => {
     ]);
     const keyPath = path.join(repoRoot, 'sa-key.json');
     fs.writeFileSync(keyPath, '{}');
+    // Sprint 374: Create .secure.local directory with .env file
+    fs.mkdirSync(path.join(repoRoot, '.secure.local'), { recursive: true });
     fs.writeFileSync(
-      path.join(repoRoot, '.secure.local'),
+      path.join(repoRoot, '.secure.local', '.env'),
       `GOOGLE_APPLICATION_CREDENTIALS=${keyPath}\n`,
     );
 

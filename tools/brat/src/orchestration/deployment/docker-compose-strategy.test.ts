@@ -8,11 +8,20 @@
 import { DockerComposeStrategy } from './docker-compose-strategy';
 import type { ServiceWithName } from './strategy';
 import type { ResolvedContext } from '../../context/types';
-import * as fs from 'fs';
 
-// Mock fs module
-jest.mock('fs');
+// Mock fs module with promises for Sprint 375 ComposeMerger integration
+jest.mock('fs', () => ({
+  existsSync: jest.fn(),
+  promises: {
+    readFile: jest.fn(),
+    writeFile: jest.fn(),
+  },
+}));
+
+import * as fs from 'fs';
 const mockFs = fs as jest.Mocked<typeof fs>;
+const mockReadFile = (mockFs.promises.readFile as jest.MockedFunction<any>);
+const mockWriteFile = (mockFs.promises.writeFile as jest.MockedFunction<any>);
 
 // Mock DockerOrchestrator
 jest.mock('../docker/orchestrator', () => ({
@@ -29,6 +38,17 @@ describe('DockerComposeStrategy', () => {
   beforeEach(() => {
     strategy = new DockerComposeStrategy();
     jest.clearAllMocks();
+
+    // Sprint 375: Mock fs.promises for ComposeMerger integration
+    // Simulate reading base compose file and writing merged file
+    mockReadFile.mockResolvedValue(`
+services:
+  test-service:
+    image: test:latest
+    environment:
+      NODE_ENV: production
+`);
+    mockWriteFile.mockResolvedValue(undefined);
 
     mockService = {
       name: 'test-service',

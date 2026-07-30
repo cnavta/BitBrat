@@ -3,9 +3,10 @@ services:
     env_file:
       - .env.brat
     build:
-      context: .
+      context: ../..  # Sprint 375: Build context is repository root (for Dockerfile.base/Dockerfile.service)
       dockerfile: Dockerfile.service
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: image-gen-mcp
         SERVICE_ENTRY: dist/services/image-gen-mcp/index.js
         SERVICE_PORT: "3000"
@@ -19,10 +20,11 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/gcp-credentials.json
     # Sprint 374: Mount shared storage volume for persistent file storage
     # This volume is shared across all services that need persistent storage
-    # For GCS credentials (if using GCS storage), mount would be:
-    #   - ../../secrets/google-app-creds.json:/var/secrets/gcp-credentials.json:ro
     volumes:
       - bitbrat-storage:/var/bitbrat/storage
+      # Sprint 374: Mount GCP credentials for GCS storage
+      # Path on host will be: /opt/BitBratPlatform/secrets/google-app-creds.json (deployed by brat bit deploy)
+      - ../../secrets/google-app-creds.json:/var/secrets/gcp-credentials.json:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_PORT:-8080}/health"]
       interval: 30s
@@ -39,3 +41,9 @@ services:
       bitbrat-network:
         aliases:
           - image-gen-mcp.bitbrat.local
+
+# Sprint 375: Top-level volumes referenced by this service
+# These will be merged into the base compose file during deployment
+volumes:
+  bitbrat-storage:
+    driver: local

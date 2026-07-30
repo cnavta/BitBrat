@@ -16,13 +16,23 @@ node_modules/
 *.iml
 .vscode
 
-# Local secure configuration storage. NEVER COMMIT THIS FILE
+# Sprint 374: Secure file deployment
+# All secrets (env vars + credential files) stored in .secure.{ENV}/ directories
+# NEVER COMMIT ACTUAL CREDENTIALS - only directory structure allowed
+
+# Block all .secure.* files and directories by default
 .secure.local
 .secure.local.*
 .secure.*
-# But DO allow .secure.local.example template
+
+# Allow specific directory structure (.gitignore/.gitkeep inside directories)
 !.secure.local.example
 !**/.secure.local.example
+!.secure.local/
+!.secure.staging/
+!.secure.prod/
+!.secure.*/.gitignore
+!.secure.*/.gitkeep
 # Local .terraform directories
 .terraform
 
@@ -115,4 +125,16 @@ validation_output.txt
 .brat/ephemeral-contexts.yaml
 env/agent-dev-*/
 infrastructure/docker-compose/docker-compose.agent-dev-*.yaml
+
+# Sprint 375: Docker Compose merge temporary files
+# Generated during deployment when merging service-specific compose files
+# These should never be committed (cleaned up automatically)
+*.merged.tmp
+docker-compose.*.merged.yaml
+infrastructure/docker-compose/*.merged.yaml
+
+# Sprint 375: Base image cache key
+# Generated during deployment to track base image changes
+# Auto-regenerated on each build, no need to commit
+.base-image-cache-key
 

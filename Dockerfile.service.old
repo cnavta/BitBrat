@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1
+# Reusable standard service Dockerfile for all Node/TypeScript BitBrat services.
+# Per-service behavior is supplied via --build-arg; nothing here is service-specific.
+#
+# Build example (matches the Cloud Build invocation shape):
+#   docker build -f Dockerfile.service \
+#     --build-arg SERVICE_NAME=llm-bot \
+#     --build-arg SERVICE_ENTRY=dist/apps/llm-bot-service.js \
+#     --build-arg SERVICE_PORT=3000 \
+#     -t llm-bot:latest .
+#
+# SERVICE_ENTRY is derived deterministically from architecture.yaml's `entry:` field
+# (src/apps/<x>.ts -> dist/apps/<x>.js under the standard tsconfig output layout); see
+# documentation/technical-architecture/reusable-service-dockerfile.md and
+# documentation/technical-architecture/standard-service-dockerfile-usage.md.
+
+ARG NODE_IMAGE=node:24-bookworm-slim
+
+# ---------- builder ----------
+FROM ${NODE_IMAGE} AS builder
+WORKDIR /workspace
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -ex; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then rm -f /etc/apt/sources.list.d/debian.sources; fi && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
+    apt-get update -o Acquire::Check-Valid-Until=false
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+# ---------- runner ----------
+FROM ${NODE_IMAGE} AS runner
+WORKDIR /workspace
+ENV NODE_ENV=production
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -ex; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then rm -f /etc/apt/sources.list.d/debian.sources; fi && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
+    apt-get update -o Acquire::Check-Valid-Until=false && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm ci --omit=dev
+# Copy compiled app and architecture.yaml for runtime config lookups
+COPY --from=builder /workspace/dist ./dist
+COPY architecture.yaml ./architecture.yaml
+
+# --- service-specific parameters (supplied via --build-arg) ---
+ARG SERVICE_NAME
+ARG SERVICE_ENTRY
+ARG SERVICE_PORT=3000
+ENV SERVICE_NAME=${SERVICE_NAME}
+ENV SERVICE_PORT=${SERVICE_PORT}
+ENV SERVICE_ENTRY=${SERVICE_ENTRY}
+EXPOSE ${SERVICE_PORT}
+
+# Use the shell form so ${SERVICE_ENTRY} is expanded at runtime from ENV.
+CMD ["sh", "-c", "exec node \"$SERVICE_ENTRY\""]

@@ -1,0 +1,71 @@
+# syntax=docker/dockerfile:1
+# Shared base image for all BitBrat services (Sprint 375 Phase 2).
+#
+# This image contains all common build layers that don't change frequently:
+# - Node.js dependencies (node_modules/)
+# - TypeScript compilation (dist/)
+# - Runtime dependencies
+# - architecture.yaml config file
+#
+# Service-specific layers (SERVICE_ENTRY, CMD) are added by Dockerfile.service.
+#
+# Build example:
+#   docker build -f Dockerfile.base -t bitbrat-base:latest .
+#
+# Benefits:
+# - 70-85% faster service builds (cached node_modules + dist/)
+# - Single rebuild point when dependencies change
+# - Consistent runtime environment across all services
+
+ARG NODE_IMAGE=node:24-bookworm-slim
+
+# ---------- builder ----------
+FROM ${NODE_IMAGE} AS builder
+WORKDIR /workspace
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Configure Debian repositories (Sprint 369: Debian security fix)
+RUN set -ex; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then rm -f /etc/apt/sources.list.d/debian.sources; fi && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
+    apt-get update -o Acquire::Check-Valid-Until=false
+
+# Install ALL dependencies (Sprint 375: Cached across all services)
+COPY package*.json ./
+RUN npm ci
+
+# Build ALL services (Sprint 375: Shared compilation step)
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+# ---------- runner ----------
+FROM ${NODE_IMAGE} AS runner
+WORKDIR /workspace
+ENV NODE_ENV=production
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Configure Debian repositories and install runtime dependencies
+RUN set -ex; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then rm -f /etc/apt/sources.list.d/debian.sources; fi && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
+    apt-get update -o Acquire::Check-Valid-Until=false && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install production dependencies (Sprint 375: Cached across all services)
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled application from builder stage
+COPY --from=builder /workspace/dist ./dist
+
+# Copy architecture.yaml for runtime config lookups
+COPY architecture.yaml ./architecture.yaml
+
+# Sprint 375: Base image stops here
+# Service-specific layers (SERVICE_NAME, SERVICE_ENTRY, CMD) added by Dockerfile.service

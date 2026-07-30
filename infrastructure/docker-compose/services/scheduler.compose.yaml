@@ -3,9 +3,10 @@ services:
     env_file:
       - .env.brat
     build:
-      context: .
+      context: ../..  # Sprint 375: Build context is repository root (for Dockerfile.base/Dockerfile.service)
       dockerfile: Dockerfile.service
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: scheduler
         SERVICE_ENTRY: dist/apps/scheduler-service.js
         SERVICE_PORT: "3000"

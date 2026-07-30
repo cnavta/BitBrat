@@ -57,11 +57,23 @@ export default class BitDeploy extends BratCommand {
       description: 'Build images without cache (docker-compose only)',
       default: false,
     }),
+    'rebuild-base': Flags.boolean({
+      description: 'Force rebuild base image regardless of cache key (docker-compose only, Sprint 375)',
+      default: false,
+    }),
     'image-tag': Flags.string({
       description: 'Image tag for deployment (cloud-run only, defaults to git-derived tag)',
     }),
     'allow-no-vpc': Flags.boolean({
       description: 'Skip VPC preflight checks (cloud-run only, local dev)',
+      default: false,
+    }),
+    loki: Flags.boolean({
+      description: 'Enable Loki + Promtail observability stack (docker-compose only)',
+      default: false,
+    }),
+    'no-deps': Flags.boolean({
+      description: "Don't start linked services (docker-compose only)",
       default: false,
     }),
   };
@@ -133,9 +145,13 @@ export default class BitDeploy extends BratCommand {
       dryRun: flags['dry-run'],
       forceRecreate: flags['force-recreate'],
       forceBuild: flags['no-cache'],
+      rebuildBase: flags['rebuild-base'], // Sprint 375: Force rebuild base image
       concurrency: flags.concurrency,
       verbose: flags.verbose,
-      // Strategy-specific options
+      // Docker Compose-specific options
+      loki: flags.loki, // Enable Loki + Promtail observability stack
+      noDeps: flags['no-deps'], // Don't start linked services
+      // Cloud Run-specific options
       imageTag: flags['image-tag'],
       allowNoVpc: flags['allow-no-vpc'],
     };
@@ -145,7 +161,14 @@ export default class BitDeploy extends BratCommand {
     }
 
     // Deploy services
-    const results = await this.deployServices(servicesToDeploy, resolvedContext, strategy, deployOptions);
+    // Use bulk deployment if strategy supports it and --all flag is used
+    let results: any[];
+    if (flags.all && strategy.supportsBulkDeployment && strategy.deployAll) {
+      this.log(`Using bulk deployment (single docker compose up for all services)`);
+      results = await strategy.deployAll(servicesToDeploy, resolvedContext, deployOptions);
+    } else {
+      results = await this.deployServices(servicesToDeploy, resolvedContext, strategy, deployOptions);
+    }
 
     // Summary
     const successful = results.filter(r => r.status === 'success').length;
