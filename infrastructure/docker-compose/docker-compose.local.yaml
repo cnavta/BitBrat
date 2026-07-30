@@ -117,3 +117,6 @@ volumes:
     driver: local
   firebase-data-v2:
     driver: local
+  # Sprint 374: Shared storage volume for services that need persistent file storage
+  bitbrat-storage:
+    driver: local

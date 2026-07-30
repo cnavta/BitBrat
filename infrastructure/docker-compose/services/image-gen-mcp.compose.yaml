@@ -15,6 +15,14 @@ services:
       - NODE_ENV=local
       - BITBRAT_ENV=local
       - PORT=${SERVICE_PORT:-8080}
+      # Sprint 374: Override GOOGLE_APPLICATION_CREDENTIALS to point to mounted path inside container
+      - GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/gcp-credentials.json
+    # Sprint 374: Mount shared storage volume for persistent file storage
+    # This volume is shared across all services that need persistent storage
+    # For GCS credentials (if using GCS storage), mount would be:
+    #   - ../../secrets/google-app-creds.json:/var/secrets/gcp-credentials.json:ro
+    volumes:
+      - bitbrat-storage:/var/bitbrat/storage
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_PORT:-8080}/health"]
       interval: 30s

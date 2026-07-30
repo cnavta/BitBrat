@@ -551,6 +551,9 @@ services:
     depends_on:
       nats:
         condition: "service_healthy"
+    # Sprint 374: Mount shared storage volume for persistent file storage
+    volumes:
+      - "bitbrat-storage:/var/bitbrat/storage"
     healthcheck:
       test:
         - "CMD"
@@ -694,3 +697,6 @@ networks:
 volumes:
   postgres-data: {}
   nats-data: {}
+  # Sprint 374: Shared storage volume for services that need persistent file storage
+  # Mounted at /var/bitbrat/storage in containers that require it (e.g., image-gen-mcp)
+  bitbrat-storage: {}
