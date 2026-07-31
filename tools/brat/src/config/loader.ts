@@ -105,6 +105,15 @@ export interface ResolvedServiceConfig {
   active: boolean;
   envKeys: string[];
   secrets: string[];
+  // Sprint 374: Include secureFiles for deployment strategies
+  secureFiles?: Array<{
+    local: string;
+    target: string;
+    env?: string;
+    permissions?: string;
+    required?: boolean;
+    context?: string;
+  }>;
 }
 
 export interface ResolvedConfig {
@@ -184,7 +193,9 @@ export function resolveServices(arch: Architecture): Record<string, ResolvedServ
     const active = (svc.active ?? d.active ?? false) === true;
     const envKeys = Array.from(new Set([...(d.env || []), ...(svc.env || [])]));
     const secrets = Array.from(new Set([...(svc.secrets || [])]));
-    out[name] = { name, image, region, port, minInstances: min, maxInstances: max, cpu, memory, allowUnauth, active, envKeys, secrets };
+    // Sprint 374: Include secureFiles from service definition
+    const secureFiles = svc.secureFiles;
+    out[name] = { name, image, region, port, minInstances: min, maxInstances: max, cpu, memory, allowUnauth, active, envKeys, secrets, secureFiles };
   }
   return out;
 }

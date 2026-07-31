@@ -17,6 +17,8 @@ jest.mock('../../providers/gcp/preflight');
 jest.mock('../../util/git');
 jest.mock('../../config/loader');
 jest.mock('../../providers/gcp/secrets');
+jest.mock('../../validation/secure-files-validator');
+jest.mock('../exec');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 
@@ -467,6 +469,240 @@ describe('CloudRunStrategy', () => {
 
       const validation = await strategy.validate(plan);
       expect(validation.valid).toBe(true);
+    });
+  });
+
+  describe('Sprint 374: Secure File Deployment', () => {
+    beforeEach(() => {
+      // Mock SecureFilesValidator
+      const { SecureFilesValidator } = require('../../validation/secure-files-validator');
+      SecureFilesValidator.mockImplementation(() => ({
+        validate: jest.fn().mockResolvedValue({
+          valid: true,
+          errors: [],
+          warnings: [],
+        }),
+      }));
+
+      // Mock execCmd
+      const { execCmd } = require('../exec');
+      execCmd.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    });
+
+    it('should validate and upload secure files to Secret Manager', async () => {
+      const serviceWithSecureFiles: ServiceWithName = {
+        ...mockService,
+        secureFiles: [
+          {
+            local: '.secure.staging/gcp-credentials.json',
+            target: '/var/secrets/gcp-credentials.json',
+            env: 'GOOGLE_APPLICATION_CREDENTIALS',
+            permissions: '0400',
+            required: true,
+          },
+        ],
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+
+      const { execCmd } = require('../exec');
+      execCmd.mockResolvedValue({ code: 0, stdout: 'Created version 1', stderr: '' });
+
+      const plan = await strategy.prepare(serviceWithSecureFiles, mockContext, {});
+
+      // Verify secure file refs were created
+      const secretFileRefs = plan.metadata.secretFileRefs as Array<{ secretName: string; targetPath: string; envVar?: string }>;
+      expect(secretFileRefs).toHaveLength(1);
+      expect(secretFileRefs[0]).toMatchObject({
+        secretName: 'bitbrat-staging-gcp-credentials',
+        targetPath: '/var/secrets/gcp-credentials.json',
+        envVar: 'GOOGLE_APPLICATION_CREDENTIALS',
+      });
+
+      // Verify --set-secrets flags were generated
+      const subs = plan.metadata.substitutions as Record<string, string>;
+      expect(subs._SECRET_FILE_MOUNTS).toBe('/var/secrets/gcp-credentials.json=bitbrat-staging-gcp-credentials:latest');
+
+      // Verify env var was added
+      expect(subs._ENV_VARS_ARG).toContain('GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/gcp-credentials.json');
+
+      // Verify gcloud commands were called
+      expect(execCmd).toHaveBeenCalledWith('gcloud', expect.arrayContaining(['secrets', 'describe']));
+      expect(execCmd).toHaveBeenCalledWith('gcloud', expect.arrayContaining(['secrets', 'versions', 'add']));
+    });
+
+    it('should handle multiple secure files', async () => {
+      const serviceWithMultipleFiles: ServiceWithName = {
+        ...mockService,
+        secureFiles: [
+          {
+            local: '.secure.staging/gcp-credentials.json',
+            target: '/var/secrets/gcp-credentials.json',
+            env: 'GOOGLE_APPLICATION_CREDENTIALS',
+          },
+          {
+            local: '.secure.staging/db-cert.pem',
+            target: '/var/secrets/db-cert.pem',
+            env: 'DB_CERT_PATH',
+          },
+        ],
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+
+      const { execCmd } = require('../exec');
+      execCmd.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+
+      const plan = await strategy.prepare(serviceWithMultipleFiles, mockContext, {});
+
+      // Verify both files processed
+      const secretFileRefs = plan.metadata.secretFileRefs as Array<{ secretName: string; targetPath: string; envVar?: string }>;
+      expect(secretFileRefs).toHaveLength(2);
+
+      const subs = plan.metadata.substitutions as Record<string, string>;
+      expect(subs._SECRET_FILE_MOUNTS).toContain('gcp-credentials');
+      expect(subs._SECRET_FILE_MOUNTS).toContain('db-cert');
+      expect(subs._ENV_VARS_ARG).toContain('GOOGLE_APPLICATION_CREDENTIALS');
+      expect(subs._ENV_VARS_ARG).toContain('DB_CERT_PATH');
+    });
+
+    it('should skip upload in dry-run mode', async () => {
+      const serviceWithSecureFiles: ServiceWithName = {
+        ...mockService,
+        secureFiles: [
+          {
+            local: '.secure.staging/gcp-credentials.json',
+            target: '/var/secrets/gcp-credentials.json',
+          },
+        ],
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+
+      const { execCmd } = require('../exec');
+      execCmd.mockClear();
+
+      const plan = await strategy.prepare(serviceWithSecureFiles, mockContext, { dryRun: true });
+
+      // Verify secret refs generated (for substitutions)
+      const secretFileRefs = plan.metadata.secretFileRefs as Array<{ secretName: string; targetPath: string; envVar?: string }>;
+      expect(secretFileRefs).toHaveLength(1);
+
+      // Verify gcloud commands NOT called in dry-run
+      expect(execCmd).not.toHaveBeenCalled();
+    });
+
+    it('should filter files by execution context', async () => {
+      const serviceWithContextSpecificFiles: ServiceWithName = {
+        ...mockService,
+        secureFiles: [
+          {
+            local: '.secure.local/gcp-credentials.json',
+            target: '/var/secrets/gcp-credentials.json',
+            context: 'local',
+          },
+          {
+            local: '.secure.staging/gcp-credentials.json',
+            target: '/var/secrets/gcp-credentials.json',
+            context: 'staging',
+          },
+        ],
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+
+      const { execCmd } = require('../exec');
+      execCmd.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+
+      const plan = await strategy.prepare(serviceWithContextSpecificFiles, mockContext, {});
+
+      // Only staging file should be processed (context.name = 'staging')
+      const secretFileRefs = plan.metadata.secretFileRefs as Array<{ secretName: string; targetPath: string; envVar?: string }>;
+      expect(secretFileRefs).toHaveLength(1);
+      expect(secretFileRefs[0].secretName).toContain('staging');
+    });
+
+    it('should abort on validation errors', async () => {
+      const serviceWithInvalidFiles: ServiceWithName = {
+        ...mockService,
+        secureFiles: [
+          {
+            local: '.secure.staging/gcp-credentials.json',
+            target: '/var/secrets/gcp-credentials.json',
+          },
+        ],
+      };
+
+      // Mock validation failure
+      const { SecureFilesValidator } = require('../../validation/secure-files-validator');
+      SecureFilesValidator.mockImplementation(() => ({
+        validate: jest.fn().mockResolvedValue({
+          valid: false,
+          errors: ['File is not git-ignored: .secure.staging/gcp-credentials.json'],
+          warnings: [],
+        }),
+      }));
+
+      await expect(strategy.prepare(serviceWithInvalidFiles, mockContext, {})).rejects.toThrow(
+        'Secure file validation failed'
+      );
+    });
+
+    it('should create secret if it does not exist', async () => {
+      const serviceWithSecureFiles: ServiceWithName = {
+        ...mockService,
+        secureFiles: [
+          {
+            local: '.secure.staging/new-secret.json',
+            target: '/var/secrets/new-secret.json',
+          },
+        ],
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+
+      const { execCmd } = require('../exec');
+      // First call (describe) returns non-zero (secret doesn't exist)
+      // Second call (create) returns success
+      // Third call (add version) returns success
+      execCmd
+        .mockResolvedValueOnce({ code: 1, stdout: '', stderr: 'NOT_FOUND' })
+        .mockResolvedValueOnce({ code: 0, stdout: 'Created secret', stderr: '' })
+        .mockResolvedValueOnce({ code: 0, stdout: 'Created version 1', stderr: '' });
+
+      const plan = await strategy.prepare(serviceWithSecureFiles, mockContext, {});
+
+      const secretFileRefs = plan.metadata.secretFileRefs as Array<{ secretName: string; targetPath: string; envVar?: string }>;
+      expect(secretFileRefs).toHaveLength(1);
+
+      // Verify gcloud secrets create was called
+      expect(execCmd).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining(['secrets', 'create', 'bitbrat-staging-new-secret'])
+      );
+    });
+
+    it('should throw error if gcloud upload fails', async () => {
+      const serviceWithSecureFiles: ServiceWithName = {
+        ...mockService,
+        secureFiles: [
+          {
+            local: '.secure.staging/gcp-credentials.json',
+            target: '/var/secrets/gcp-credentials.json',
+          },
+        ],
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+
+      const { execCmd } = require('../exec');
+      execCmd
+        .mockResolvedValueOnce({ code: 0, stdout: '', stderr: '' }) // describe success
+        .mockResolvedValueOnce({ code: 1, stdout: '', stderr: 'PERMISSION_DENIED' }); // add version fails
+
+      await expect(strategy.prepare(serviceWithSecureFiles, mockContext, {})).rejects.toThrow(
+        'Failed to upload secure file'
+      );
     });
   });
 });

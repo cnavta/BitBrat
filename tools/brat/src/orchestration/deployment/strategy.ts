@@ -32,11 +32,20 @@ export interface DeployOptions {
   /** Build images even if they exist */
   forceBuild?: boolean;
 
+  /** Force rebuild base image regardless of cache key (docker-compose only, Sprint 375) */
+  rebuildBase?: boolean;
+
   /** Maximum concurrent deployments (for --all) */
   concurrency?: number;
 
   /** Verbose output */
   verbose?: boolean;
+
+  /** Enable Loki + Promtail observability stack (docker-compose only) */
+  loki?: boolean;
+
+  /** Don't start linked services (docker-compose only) */
+  noDeps?: boolean;
 
   /** Additional deployment-specific options */
   [key: string]: unknown;
@@ -142,6 +151,12 @@ export interface DeploymentStrategy {
   readonly name: string;
 
   /**
+   * Whether this strategy supports bulk deployment of multiple services at once.
+   * Docker Compose returns true (single compose up), Cloud Run returns false (individual deployments).
+   */
+  supportsBulkDeployment?: boolean;
+
+  /**
    * Prepare deployment plan.
    * Loads configuration, resolves secrets, computes metadata.
    *
@@ -175,6 +190,23 @@ export interface DeploymentStrategy {
    * @throws Error if deployment fails
    */
   execute(plan: DeploymentPlan): Promise<DeploymentResult>;
+
+  /**
+   * Deploy multiple services at once (optional, for strategies that support bulk deployment).
+   * For Docker Compose, this runs a single `docker compose up` with all services.
+   * For Cloud Run, this is not implemented (each service deploys individually).
+   *
+   * @param services - All services to deploy
+   * @param context - Resolved execution context
+   * @param options - Deployment options
+   * @returns Array of deployment results
+   * @throws Error if bulk deployment fails
+   */
+  deployAll?(
+    services: ServiceWithName[],
+    context: ResolvedContext,
+    options: DeployOptions
+  ): Promise<DeploymentResult[]>;
 }
 
 /**

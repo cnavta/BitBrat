@@ -1,5 +1,16 @@
 
 services:
+  # Sprint 375 Phase 2: Shared base image for all BitBrat services
+  # This service is build-only (never starts during docker compose up)
+  bitbrat-base:
+    profiles:
+      - build-only
+    build:
+      context: ../..
+      dockerfile: Dockerfile.base
+    image: bitbrat-base:${BITBRAT_VERSION:-latest}
+    # No ports, networks, or command - this is build-only
+
   nats:
     env_file:
       - .env.brat
@@ -116,4 +127,7 @@ volumes:
   postgres-data:
     driver: local
   firebase-data-v2:
+    driver: local
+  # Sprint 374: Shared storage volume for services that need persistent file storage
+  bitbrat-storage:
     driver: local

@@ -1055,6 +1055,119 @@ When migrating existing brat commands to oclif:
 5. Implement service logic in `src/apps/<name>-service.ts`
 6. Deploy via `npm run brat -- deploy service <name>`
 
+### Deploying Secure Files (Sprint 374)
+
+**RULE: Use this pattern for deploying credentials, certificates, and other sensitive files that must NEVER be committed to git.**
+
+**The Pattern:** Declare secureFiles in architecture.yaml → Deploy automatically
+
+Services often need access to credentials (GCP service accounts, SSL certificates, API keys in JSON format). The secure file deployment feature automatically handles:
+- **Validation**: Ensures files are git-ignored (prevents accidental commits)
+- **Local deployment**: Direct volume mounts
+- **Remote deployment**: SCP transfer with secure permissions
+- **Cloud Run**: Upload to GCP Secret Manager and mount as files
+
+**Complete Example:**
+
+```yaml
+# architecture.yaml
+services:
+  image-gen-mcp:
+    secureFiles:
+      # Local development (optional - filesystem storage works without GCP)
+      - local: .secure.local/gcp-credentials.json
+        target: /var/secrets/gcp-credentials.json
+        env: GOOGLE_APPLICATION_CREDENTIALS
+        permissions: "0400"
+        required: false
+        context: local
+
+      # Staging deployment (required - uses GCS)
+      - local: .secure.staging/gcp-credentials.json
+        target: /var/secrets/gcp-credentials.json
+        env: GOOGLE_APPLICATION_CREDENTIALS
+        permissions: "0400"
+        required: true
+        context: staging
+```
+
+**Important:** All secrets are stored in `.secure.{ENV}/` directories:
+- **`.secure.{ENV}/.env`** → Environment variables (API keys, tokens) - loaded by EnvironmentResolver
+- **`.secure.{ENV}/*.json`** → Credential files (GCP service accounts, etc.) - mounted via secureFiles
+- **`.secure.{ENV}/*.pem`** → Certificates and keys - mounted via secureFiles
+
+This keeps all secrets in one directory per environment, with the directory structure tracked in git but all actual secret content git-ignored.
+
+**Workflow:**
+
+1. **Secure file directories already exist**:
+   ```bash
+   ls .secure.local/      # For local development credential files
+   ls .secure.staging/    # For staging credential files
+   ls .secure.prod/       # For production credential files
+   ```
+
+2. **Add credential file**:
+   ```bash
+   # Download GCP service account key
+   cp ~/Downloads/my-project-credentials.json .secure.local/gcp-credentials.json
+
+   # Verify it's git-ignored
+   git status .secure.local/gcp-credentials.json
+   # Should show: "Untracked files" or nothing (ignored)
+   ```
+
+3. **Configure in architecture.yaml** (see example above)
+
+4. **Deploy normally**:
+   ```bash
+   # Local Docker: file is mounted directly
+   npm run brat -- deploy service image-gen-mcp --context local
+
+   # Remote Docker: file is transferred via SCP
+   npm run brat -- deploy service image-gen-mcp --context staging
+
+   # Cloud Run: file is uploaded to Secret Manager
+   npm run brat -- deploy service image-gen-mcp --context prod
+   ```
+
+**RULES: Secure File Properties**
+
+- **local** (required): Path relative to repo root (must be git-ignored)
+- **target** (required): Destination path inside container (must be under `/var/secrets/` or `/run/secrets/`)
+- **env** (optional): Environment variable to set (e.g., `GOOGLE_APPLICATION_CREDENTIALS`)
+- **permissions** (optional): File permissions (default: `"0400"` - owner read-only)
+- **required** (optional): Fail deployment if missing (default: `true`)
+- **context** (optional): Only deploy in specific execution context (e.g., `local`, `staging`, `prod`)
+
+**Validation Rules:**
+
+- ✅ **Git-ignore check**: Files MUST be git-ignored (validator checks `.gitignore`)
+- ✅ **Target path check**: Must be under `/var/secrets/` or `/run/secrets/`
+- ✅ **Permissions format**: Must match `/^0[0-7]{3}$/` (octal string)
+- ✅ **Existence check**: Required files must exist (optional files warn but don't fail)
+
+**Platform-Specific Behavior:**
+
+| Platform | Mechanism | Notes |
+|----------|-----------|-------|
+| Docker Compose (local) | Volume mount | Direct mount: `${local}:${target}:ro` |
+| Docker Compose (remote) | SCP + volume mount | Transfers via SSH, sets chmod 400, mounts remotely |
+| Cloud Run | GCP Secret Manager | Uploads to Secret Manager, mounts via `--set-secrets` flag |
+
+**Anti-Patterns (NEVER):**
+
+- ❌ Commit credentials to git (validator blocks this)
+- ❌ Use target paths outside `/var/secrets/` or `/run/secrets/` (security violation)
+- ❌ Set world-readable permissions (validator warns)
+- ❌ Manually transfer files (use declarative secureFiles instead)
+
+**Full Documentation:**
+- [Secure File Deployment Guide](./documentation/guides/secure-file-deployment.md) — Complete feature reference
+- [Architecture YAML Schema](./architecture.yaml) — See `image-gen-mcp` for working example
+
+---
+
 ### Adding a New MCP Tool
 - For domain tools, use `--profile mcp-server` when creating the Bit (automatically sets exposure to platform+domain)
 - Implement tools using `this.registerTool(name, description, zodSchema, handler)`
