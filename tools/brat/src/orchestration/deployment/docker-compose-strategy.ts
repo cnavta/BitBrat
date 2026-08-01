@@ -642,6 +642,27 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         );
       }
 
+      // Sprint 378: Fix build context paths for services in base file
+      // docker-compose.local.yaml uses context: ../.. (from infrastructure/docker-compose/ to repo root)
+      // but merged file is at repo root, so context should be . (repo root itself)
+      for (const [serviceName, serviceConfig] of Object.entries(baseCompose.services)) {
+        const service = serviceConfig as any;
+        if (service.build && typeof service.build === 'object') {
+          const buildConfig = service.build as any;
+          if (buildConfig.context === '../..') {
+            buildConfig.context = '.';
+            console.log(
+              `[docker-compose-strategy] Fixed build context for ${serviceName}: ../.. → .`
+            );
+          } else if (buildConfig.context === '../../..') {
+            buildConfig.context = '..';
+            console.log(
+              `[docker-compose-strategy] Fixed build context for ${serviceName}: ../../.. → ..`
+            );
+          }
+        }
+      }
+
       // Convert back to YAML
       baseYaml = yaml.dump(baseCompose, {
         indent: 2,
