@@ -381,7 +381,7 @@ services:
         }).toThrow("Service 'test-service' not found in base compose file");
       });
 
-      it('should return base unchanged when service missing (lenient mode)', () => {
+      it('should add service when missing from base (lenient mode)', () => {
         const baseYaml = `
 services:
   other-service:
@@ -399,8 +399,11 @@ services:
           validationMode: 'lenient',
         });
 
-        expect(result.yaml).toBe(baseYaml);
-        expect(result.stats.volumesAdded).toBe(0);
+        // Sprint 378: In lenient mode, if service doesn't exist in base, ADD it from override
+        expect(result.yaml).toContain('test-service');
+        expect(result.yaml).toContain('other-service');
+        expect(result.parsed.services['test-service']).toBeDefined();
+        expect(result.parsed.services['test-service'].image).toBe('test:latest');
       });
 
       it('should return base unchanged when service missing from override (lenient mode)', () => {

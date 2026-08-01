@@ -154,23 +154,58 @@ export class ComposeMerger {
       throw new Error(`Failed to parse service compose YAML: ${error.message}`);
     }
 
-    // Validate service exists in both files
+    // Validate service exists in service override file
     const baseService = baseCompose.services[serviceName];
     const serviceOverride = serviceCompose.services[serviceName];
 
     if (!baseService) {
+      // Service doesn't exist in base - add it from override (Sprint 378)
+      // This handles bulk deployments where base is infrastructure-only
       const errorMsg = `Service '${serviceName}' not found in base compose file`;
       if (validationMode === 'strict') {
         throw new Error(errorMsg);
       }
-      // Lenient mode - return base unchanged if service missing
+      // Lenient mode: ADD service from override to base
+      if (!serviceOverride) {
+        // Service missing from both base and override - return base unchanged
+        return {
+          yaml: baseYaml,
+          parsed: baseCompose,
+          stats: {
+            volumesAdded: 0,
+            environmentAdded: 0,
+            dependenciesAdded: 0,
+            secureFilesMounted: 0,
+          },
+        };
+      }
+      // Add service from override to base
+      baseCompose.services[serviceName] = serviceOverride;
+
+      // Sprint 378: Also merge additional services and top-level volumes
+      this.mergeAdditionalServices(baseCompose, serviceCompose, serviceName);
+      this.mergeTopLevelVolumes(baseCompose, serviceCompose);
+
+      // Convert back to YAML
+      const mergedYaml = yaml.dump(baseCompose, {
+        indent: 2,
+        lineWidth: 120,
+        noRefs: true,
+      });
+
       return {
-        yaml: baseYaml,
+        yaml: mergedYaml,
         parsed: baseCompose,
         stats: {
-          volumesAdded: 0,
-          environmentAdded: 0,
-          dependenciesAdded: 0,
+          volumesAdded: serviceOverride.volumes?.length || 0,
+          environmentAdded: Array.isArray(serviceOverride.environment)
+            ? serviceOverride.environment.length
+            : Object.keys(serviceOverride.environment || {}).length,
+          dependenciesAdded: typeof serviceOverride.depends_on === 'object' && !Array.isArray(serviceOverride.depends_on)
+            ? Object.keys(serviceOverride.depends_on).length
+            : Array.isArray(serviceOverride.depends_on)
+            ? serviceOverride.depends_on.length
+            : 0,
           secureFilesMounted: 0,
         },
       };
