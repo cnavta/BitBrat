@@ -176,6 +176,11 @@ export class FeedbackMiddleware {
    * @param event - Event being published
    */
   async beforeNext(event: InternalEventV2): Promise<void> {
+    this.logger.debug('FeedbackMiddleware.beforeNext called', {
+      correlationId: event.correlationId,
+      enabled: this.config.enabled,
+    });
+
     if (!this.config.enabled) {
       return;
     }
@@ -184,6 +189,11 @@ export class FeedbackMiddleware {
     const operationContext = this.extractOperationContext(event);
     if (!operationContext) {
       // No operation tracking requested
+      this.logger.debug('FeedbackMiddleware.beforeNext: No operation_context annotation found', {
+        correlationId: event.correlationId,
+        annotationCount: event.annotations?.length || 0,
+        annotationKinds: event.annotations?.map(a => a.kind).join(', ') || 'none',
+      });
       return;
     }
 
