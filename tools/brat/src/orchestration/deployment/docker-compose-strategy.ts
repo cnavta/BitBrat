@@ -663,6 +663,20 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         }
       }
 
+      // Sprint 378: Fix network declarations - change external: true to external: false
+      // so Docker Compose will create the network if it doesn't exist on the remote host
+      if (baseCompose.networks && typeof baseCompose.networks === 'object') {
+        for (const [networkName, networkConfig] of Object.entries(baseCompose.networks)) {
+          const network = networkConfig as any;
+          if (network && network.external === true) {
+            network.external = false;
+            console.log(
+              `[docker-compose-strategy] Changed network ${networkName} from external: true → external: false`
+            );
+          }
+        }
+      }
+
       // Convert back to YAML
       baseYaml = yaml.dump(baseCompose, {
         indent: 2,
