@@ -7,6 +7,7 @@ import { ContextResolver } from '../../context/context-resolver';
 import { shouldRebuildBase, computeBaseCacheKey, storeCacheKey } from './base-cache';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 
 // Location (relative to a remote target's `remoteDir`) where the GCP ADC service
 // account key is placed on the remote host. The per-service compose files bind-mount
@@ -106,7 +107,18 @@ export class DockerOrchestrator {
       //
       // Sprint 372: When deploying a single service to a context-specific compose file,
       // only build that service, not all buildable services from the base file.
-      const baseBuildServices = this.composeFactory.getBuildableBaseServices();
+      //
+      // Sprint 378: When using a custom compose file (bulk deployments), extract buildable
+      // services from that file instead of from the base file.
+      let baseBuildServices: string[];
+      if (this.options.composeFile) {
+        // Extract buildable services from custom compose file
+        baseBuildServices = this.getBuildableServicesFromFile(this.options.composeFile);
+      } else {
+        // Extract buildable services from base compose file
+        baseBuildServices = this.composeFactory.getBuildableBaseServices();
+      }
+
       let buildServices: string[];
       if (this.options.service && services.length > 0) {
         // Single-service deployment: only build the target service
@@ -634,6 +646,34 @@ export class DockerOrchestrator {
 
     // No-op: Let docker-compose handle network creation
     return;
+  }
+
+  /**
+   * Sprint 378: Extract buildable services from a custom compose file
+   * This is used for bulk deployments where the merged compose file
+   * contains all services (not just the base file).
+   */
+  private getBuildableServicesFromFile(filePath: string): string[] {
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+
+    let doc: any;
+    try {
+      doc = yaml.load(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+      return [];
+    }
+
+    const services = doc?.services;
+    if (!services || typeof services !== 'object') {
+      return [];
+    }
+
+    return Object.keys(services).filter((name) => {
+      const svc = services[name];
+      return svc && typeof svc === 'object' && svc.build != null;
+    });
   }
 
   /**
