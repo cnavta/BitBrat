@@ -754,14 +754,30 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       for (const service of services) {
         if (service.secureFiles && service.secureFiles.length > 0) {
           try {
-            // Validate secureFiles declarations
-            await validator.validate(service.secureFiles, context.name);
+            // Filter secureFiles by current execution context
+            // Only include files where:
+            // 1. file.context is undefined (applies to all contexts), OR
+            // 2. file.context matches current context name
+            const contextFilteredFiles = service.secureFiles.filter((file: SecureFile) => {
+              return !file.context || file.context === context.name;
+            });
 
-            allSecureFiles.set(service.name, service.secureFiles);
+            // Skip if no files match the current context
+            if (contextFilteredFiles.length === 0) {
+              console.log(
+                `[docker-compose-strategy] No secureFiles match context '${context.name}' for ${service.name}`
+              );
+              continue;
+            }
+
+            // Validate context-filtered secureFiles
+            await validator.validate(contextFilteredFiles, context.name);
+
+            allSecureFiles.set(service.name, contextFilteredFiles);
 
             console.log(
-              `[docker-compose-strategy] Collected ${service.secureFiles.length} secureFile(s) ` +
-                `for ${service.name}`
+              `[docker-compose-strategy] Collected ${contextFilteredFiles.length} secureFile(s) ` +
+                `for ${service.name} (context: ${context.name})`
             );
           } catch (error: any) {
             secureFilesErrors.push({
