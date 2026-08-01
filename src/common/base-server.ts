@@ -909,6 +909,21 @@ export class Bit {
     }
     (event as any)[NEXT_MARK] = true;
 
+    // Sprint 377: Check for long-running operations and emit progress feedback
+    // IMPORTANT: Do this BEFORE checking routing slip, so it works for both
+    // next-step dispatch AND fallback-to-egress paths
+    if (this.feedbackMiddleware) {
+      try {
+        await this.feedbackMiddleware.beforeNext(event);
+      } catch (feedbackError: any) {
+        // Never break routing due to feedback failures
+        this.logger.warn('routing.next.feedback_failed', {
+          error: feedbackError.message,
+          correlationId: event.correlationId,
+        });
+      }
+    }
+
     const slip: RoutingStep[] = Array.isArray(event.routing?.slip) ? (event.routing.slip as RoutingStep[]) : [];
     // Only consider explicitly PENDING steps as dispatch targets. Steps marked ERROR should not be retried here.
     const idxPending = slip.findIndex((s) => s && s.status === 'PENDING');
@@ -996,19 +1011,6 @@ export class Bit {
         // Never break routing due to debug failures
         this.logger.warn('routing.next.debug_failed', {
           error: debugError.message,
-          correlationId: event.correlationId,
-        });
-      }
-    }
-
-    // Sprint 377: Check for long-running operations and emit progress feedback
-    if (this.feedbackMiddleware) {
-      try {
-        await this.feedbackMiddleware.beforeNext(event);
-      } catch (feedbackError: any) {
-        // Never break routing due to feedback failures
-        this.logger.warn('routing.next.feedback_failed', {
-          error: feedbackError.message,
           correlationId: event.correlationId,
         });
       }
