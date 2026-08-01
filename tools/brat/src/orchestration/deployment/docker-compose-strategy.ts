@@ -582,6 +582,9 @@ export class DockerComposeStrategy implements DeploymentStrategy {
    * This avoids port conflicts and container recreation issues that occur
    * when deploying services sequentially.
    *
+   * Sprint 378: Enhanced to process service-specific compose files and secureFiles
+   * identically to single-service deployments.
+   *
    * @param services - All services to deploy
    * @param context - Resolved execution context
    * @param options - Deployment options
@@ -597,12 +600,278 @@ export class DockerComposeStrategy implements DeploymentStrategy {
 
     console.log(`[docker-compose-strategy] Bulk deployment of ${services.length} services`);
 
+    // Temporary merged compose file path
+    const tempMergedPath = path.join(repoRoot, '.docker-compose.merged.yaml');
+
     try {
-      // Use DockerOrchestrator to deploy all services at once
+      // ============================================================================
+      // STAGE 1: Read base compose file
+      // ============================================================================
+      const baseComposePath = this.getComposeFilePath(context, services[0]);
+      const baseYaml = await fs.promises.readFile(baseComposePath, 'utf-8');
+
+      console.log(`[docker-compose-strategy] Base compose file: ${baseComposePath}`);
+
+      // ============================================================================
+      // STAGE 2: Collect service-specific compose files
+      // ============================================================================
+      interface ServiceComposeFile {
+        service: string;
+        path: string;
+        yaml: string;
+      }
+
+      const serviceFiles: ServiceComposeFile[] = [];
+      const collectionErrors: Array<{ service: string; error: string }> = [];
+
+      for (const service of services) {
+        const serviceComposePath = path.join(
+          repoRoot,
+          'infrastructure/docker-compose/services',
+          `${service.name}.compose.yaml`
+        );
+
+        if (fs.existsSync(serviceComposePath)) {
+          try {
+            const yaml = await fs.promises.readFile(serviceComposePath, 'utf-8');
+            serviceFiles.push({
+              service: service.name,
+              path: serviceComposePath,
+              yaml,
+            });
+
+            console.log(
+              `[docker-compose-strategy] Found service-specific compose file for ${service.name}`
+            );
+          } catch (error: any) {
+            collectionErrors.push({
+              service: service.name,
+              error: `Failed to read service-specific compose file: ${error.message}`,
+            });
+
+            console.error(
+              `[docker-compose-strategy] Failed to read ${serviceComposePath}: ${error.message}`
+            );
+          }
+        } else {
+          console.log(
+            `[docker-compose-strategy] No service-specific compose file for ${service.name}`
+          );
+        }
+      }
+
+      console.log(
+        `[docker-compose-strategy] Found ${serviceFiles.length} service-specific compose file(s) ` +
+          `out of ${services.length} service(s)`
+      );
+
+      // Fail if any file read errors occurred
+      if (collectionErrors.length > 0) {
+        const errorSummary = collectionErrors.map((e) => `  - ${e.service}: ${e.error}`).join('\n');
+        throw new Error(
+          `Failed to read ${collectionErrors.length} service-specific compose file(s):\n` +
+            `${errorSummary}\n\n` +
+            `Fix the file permissions or paths and try again.`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 3: Iteratively merge service-specific files
+      // ============================================================================
+      let mergedYaml = baseYaml;
+      const merger = new ComposeMerger();
+      const mergeErrors: Array<{ service: string; error: string }> = [];
+      const mergeStats: Array<{ service: string; stats: any }> = [];
+
+      for (const serviceFile of serviceFiles) {
+        try {
+          const mergeResult = merger.merge(mergedYaml, serviceFile.yaml, {
+            serviceName: serviceFile.service,
+            validationMode: 'lenient', // Don't fail if service missing in override
+          });
+
+          mergedYaml = mergeResult.yaml;
+          mergeStats.push({
+            service: serviceFile.service,
+            stats: mergeResult.stats,
+          });
+
+          console.log(
+            `[docker-compose-strategy] Merged ${serviceFile.service}: ` +
+              `+${mergeResult.stats.volumesAdded} volumes, ` +
+              `+${mergeResult.stats.environmentAdded} env vars, ` +
+              `+${mergeResult.stats.dependenciesAdded} dependencies`
+          );
+        } catch (error: any) {
+          mergeErrors.push({
+            service: serviceFile.service,
+            error: error.message || String(error),
+          });
+
+          console.error(
+            `[docker-compose-strategy] Failed to merge ${serviceFile.service}: ${error.message}`
+          );
+        }
+      }
+
+      // Fail if any merges failed
+      if (mergeErrors.length > 0) {
+        const errorSummary = mergeErrors.map((e) => `  - ${e.service}: ${e.error}`).join('\n');
+        throw new Error(
+          `Failed to merge ${mergeErrors.length}/${serviceFiles.length} service-specific compose file(s):\n` +
+            `${errorSummary}\n\n` +
+            `Fix the invalid compose files and try again.`
+        );
+      }
+
+      // Log total merge statistics
+      if (mergeStats.length > 0) {
+        const totalStats = mergeStats.reduce(
+          (acc, { stats }) => ({
+            volumesAdded: acc.volumesAdded + stats.volumesAdded,
+            environmentAdded: acc.environmentAdded + stats.environmentAdded,
+            dependenciesAdded: acc.dependenciesAdded + stats.dependenciesAdded,
+          }),
+          { volumesAdded: 0, environmentAdded: 0, dependenciesAdded: 0 }
+        );
+
+        console.log(
+          `[docker-compose-strategy] Total merge stats: ` +
+            `+${totalStats.volumesAdded} volumes, ` +
+            `+${totalStats.environmentAdded} env vars, ` +
+            `+${totalStats.dependenciesAdded} dependencies`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 4: Collect and validate secureFiles for all services
+      // ============================================================================
+      const isRemote = context.deployment?.docker?.host?.startsWith('ssh://');
+      const allSecureFiles = new Map<string, SecureFile[]>();
+      const secureFilesErrors: Array<{ service: string; error: string }> = [];
+      const validator = new SecureFilesValidator(repoRoot);
+
+      for (const service of services) {
+        if (service.secureFiles && service.secureFiles.length > 0) {
+          try {
+            // Validate secureFiles declarations
+            await validator.validate(service.secureFiles, context.name);
+
+            allSecureFiles.set(service.name, service.secureFiles);
+
+            console.log(
+              `[docker-compose-strategy] Collected ${service.secureFiles.length} secureFile(s) ` +
+                `for ${service.name}`
+            );
+          } catch (error: any) {
+            secureFilesErrors.push({
+              service: service.name,
+              error: error.message || String(error),
+            });
+
+            console.error(
+              `[docker-compose-strategy] SecureFiles validation failed for ${service.name}: ` +
+                `${error.message}`
+            );
+          }
+        }
+      }
+
+      // Fail if any secureFiles validation failed
+      if (secureFilesErrors.length > 0) {
+        const errorSummary = secureFilesErrors
+          .map((e) => `  - ${e.service}: ${e.error}`)
+          .join('\n');
+        throw new Error(
+          `SecureFiles validation failed for ${secureFilesErrors.length} service(s):\n` +
+            `${errorSummary}\n\n` +
+            `Fix the secureFiles declarations and try again.`
+        );
+      }
+
+      console.log(
+        `[docker-compose-strategy] Collected secureFiles for ${allSecureFiles.size} service(s)`
+      );
+
+      // ============================================================================
+      // STAGE 5: Process secureFiles for all services
+      // ============================================================================
+      for (const [serviceName, secureFiles] of allSecureFiles) {
+        let volumeMounts: string[];
+        const secureFileEnvVars = ComposeMerger.extractEnvVars(secureFiles);
+
+        if (!isRemote) {
+          // Local deployment: Generate volume mounts with local paths
+          volumeMounts = ComposeMerger.generateVolumeMounts(secureFiles, repoRoot);
+
+          console.log(
+            `[docker-compose-strategy] Generated ${volumeMounts.length} local volume mount(s) ` +
+              `for ${serviceName}`
+          );
+        } else {
+          // Remote deployment: Transfer files via SCP
+          const remoteHost = context.deployment!.docker!.host!;
+          const remoteDir = context.deployment!.docker!.remoteDir;
+
+          if (!remoteDir) {
+            throw new Error(
+              `Remote directory not configured in context '${context.name}'. ` +
+                `Set deployment.docker.remoteDir in architecture.yaml`
+            );
+          }
+
+          const remotePaths = await this.transferSecureFilesToRemote(
+            secureFiles,
+            remoteHost,
+            remoteDir,
+            repoRoot
+          );
+
+          // Generate volume mounts using remote paths
+          volumeMounts = secureFiles.map((file) => {
+            const remotePath = remotePaths.get(file.local)!;
+            return `${remotePath}:${file.target}:ro`;
+          });
+
+          console.log(
+            `[docker-compose-strategy] Transferred and mounted ${volumeMounts.length} remote file(s) ` +
+              `for ${serviceName}`
+          );
+        }
+
+        // Inject into merged YAML
+        mergedYaml = merger.injectSecureFiles(
+          mergedYaml,
+          serviceName,
+          volumeMounts,
+          secureFileEnvVars
+        );
+
+        console.log(
+          `[docker-compose-strategy] Injected ${volumeMounts.length} volume mount(s) and ` +
+            `${Object.keys(secureFileEnvVars).length} env var(s) for ${serviceName}`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 6: Write temporary merged compose file
+      // ============================================================================
+      await fs.promises.writeFile(tempMergedPath, mergedYaml, 'utf-8');
+
+      const fileSizeKb = (mergedYaml.length / 1024).toFixed(2);
+      console.log(
+        `[docker-compose-strategy] Wrote temporary merged compose file: ${tempMergedPath} ` +
+          `(${fileSizeKb} KB)`
+      );
+
+      // ============================================================================
+      // STAGE 7: Execute orchestrator with merged compose file
+      // ============================================================================
       const orchestratorOptions: DockerOrchestratorOptions = {
         repoRoot,
         context: context.name,
-        service: undefined, // No specific service - deploy all
+        service: undefined, // Deploy all services
+        composeFile: tempMergedPath, // Use merged compose file
         dryRun: options.dryRun || false,
         forceRecreate: options.forceRecreate || false,
         noCache: options.forceBuild || false,
@@ -616,6 +885,8 @@ export class DockerComposeStrategy implements DeploymentStrategy {
 
       const durationMs = Date.now() - startTime;
 
+      console.log(`[docker-compose-strategy] Bulk deployment completed successfully`);
+
       // Return success for all services
       return services.map((service) => ({
         status: 'success' as const,
@@ -628,6 +899,8 @@ export class DockerComposeStrategy implements DeploymentStrategy {
     } catch (error: any) {
       const durationMs = Date.now() - startTime;
 
+      console.error(`[docker-compose-strategy] Bulk deployment failed: ${error.message}`);
+
       // Return failure for all services
       return services.map((service) => ({
         status: 'failed' as const,
@@ -635,6 +908,20 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         durationMs,
         error: error.message || String(error),
       }));
+    } finally {
+      // ============================================================================
+      // STAGE 8: Cleanup temporary merged file
+      // ============================================================================
+      try {
+        if (fs.existsSync(tempMergedPath)) {
+          await fs.promises.unlink(tempMergedPath);
+          console.log(`[docker-compose-strategy] Cleaned up temporary merged compose file`);
+        }
+      } catch (cleanupError: any) {
+        console.warn(
+          `[docker-compose-strategy] Failed to cleanup temporary file: ${cleanupError.message}`
+        );
+      }
     }
   }
 

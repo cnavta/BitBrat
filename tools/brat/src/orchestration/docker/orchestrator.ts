@@ -28,6 +28,7 @@ export interface DockerOrchestratorOptions {
   forceRecreate?: boolean; // Force recreate containers (docker compose up --force-recreate)
   noCache?: boolean; // Build without cache (docker compose build --no-cache)
   rebuildBase?: boolean; // Sprint 375: Force rebuild base image regardless of cache key
+  composeFile?: string; // Sprint 378: Override compose file path (for bulk deployments)
 }
 
 export class DockerOrchestrator {
@@ -65,7 +66,14 @@ export class DockerOrchestrator {
       .filter((s) => !s.active)
       .map((s) => s.name);
 
-    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, inactiveServices, this.options.loki);
+    // Sprint 378: Use custom compose file if provided (for bulk deployments)
+    const composeFileSet = this.options.composeFile
+      ? {
+          baseFile: this.options.composeFile,
+          serviceFiles: [],
+          targetService: undefined,
+        }
+      : this.composeFactory.getComposeFiles(this.options.service, inactiveServices, this.options.loki);
 
     // Sprint 349: Determine compose project name from context or env
     const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
