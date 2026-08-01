@@ -942,7 +942,44 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // ============================================================================
-      // STAGE 6: Write temporary merged compose file
+      // STAGE 6: Inject image tags for buildable services
+      // ============================================================================
+
+      // Sprint 378: Services with build: sections need explicit image: tags
+      // to prevent Docker from trying to pull them from a registry.
+      // We inject image tags following Docker Compose naming convention:
+      // ${COMPOSE_PROJECT_NAME}-${service_name}:${BITBRAT_VERSION:-latest}
+      const finalCompose = yaml.load(mergedYaml) as any;
+      const composeProjectName = `bitbrat-${context.name}`;
+
+      let imageTagsInjected = 0;
+      if (finalCompose?.services && typeof finalCompose.services === 'object') {
+        for (const [serviceName, serviceConfig] of Object.entries(finalCompose.services)) {
+          const service = serviceConfig as any;
+          // If service has build section but no image tag, inject one
+          if (service && typeof service === 'object' && service.build && !service.image) {
+            service.image = `${composeProjectName}-${serviceName}:\${BITBRAT_VERSION:-latest}`;
+            imageTagsInjected++;
+            console.log(
+              `[docker-compose-strategy] Injected image tag for ${serviceName}: ${service.image}`
+            );
+          }
+        }
+      }
+
+      if (imageTagsInjected > 0) {
+        mergedYaml = yaml.dump(finalCompose, {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true,
+        });
+        console.log(
+          `[docker-compose-strategy] Injected ${imageTagsInjected} image tag(s) for buildable services`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 7: Write temporary merged compose file
       // ============================================================================
       await fs.promises.writeFile(tempMergedPath, mergedYaml, 'utf-8');
 
@@ -979,7 +1016,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // ============================================================================
-      // STAGE 7: Extract buildable services from merged compose file
+      // STAGE 8: Extract buildable services from merged compose file
       // ============================================================================
 
       // Sprint 378: For bulk deployments, we need to tell the orchestrator which services
@@ -1004,7 +1041,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       );
 
       // ============================================================================
-      // STAGE 8: Execute orchestrator with merged compose file
+      // STAGE 9: Execute orchestrator with merged compose file
       // ============================================================================
 
       // For remote deployments, use the remote path (file has been transferred above)
