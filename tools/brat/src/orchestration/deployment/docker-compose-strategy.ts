@@ -24,6 +24,7 @@ import { ComposeMerger } from '../docker/compose-merger';
 import { execCmd } from '../exec';
 import * as fs from 'fs';
 import * as path from 'path';
+import yaml from 'js-yaml';
 
 /**
  * Docker Compose deployment strategy.
@@ -624,9 +625,29 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         repoRoot,
         'infrastructure/docker-compose/docker-compose.local.yaml'
       );
-      const baseYaml = await fs.promises.readFile(baseComposePath, 'utf-8');
+      let baseYaml = await fs.promises.readFile(baseComposePath, 'utf-8');
 
       console.log(`[docker-compose-strategy] Base compose file: ${baseComposePath}`);
+
+      // Filter out infrastructure services that aren't needed for this deployment
+      // This prevents errors from required variables in unused services (e.g., firebase-emulator)
+      const baseCompose = yaml.load(baseYaml) as any;
+
+      // Remove firebase-emulator if using PostgreSQL (not Firestore)
+      const persistenceDriver = context.runtime?.persistence?.driver || 'postgres';
+      if (persistenceDriver !== 'firestore' && baseCompose.services['firebase-emulator']) {
+        delete baseCompose.services['firebase-emulator'];
+        console.log(
+          `[docker-compose-strategy] Filtered out firebase-emulator (persistence driver: ${persistenceDriver})`
+        );
+      }
+
+      // Convert back to YAML
+      baseYaml = yaml.dump(baseCompose, {
+        indent: 2,
+        lineWidth: 120,
+        noRefs: true,
+      });
 
       // ============================================================================
       // STAGE 2: Collect service-specific compose files
