@@ -21,6 +21,7 @@ import type { SecureFile } from '../../config/types';
 import { DockerOrchestrator, DockerOrchestratorOptions } from '../docker/orchestrator';
 import { SecureFilesValidator } from '../../validation/secure-files-validator';
 import { ComposeMerger } from '../docker/compose-merger';
+import { execCmd } from '../exec';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -880,11 +881,37 @@ export class DockerComposeStrategy implements DeploymentStrategy {
           `(${fileSizeKb} KB)`
       );
 
+      // For remote deployments, transfer the merged compose file to the remote machine
+      // The orchestrator's syncRemoteFiles() doesn't include .docker-compose.merged.yaml
+      // in its file list, so we must transfer it manually before calling orchestrator.up()
+      if (isRemote) {
+        const remoteDir = context.deployment!.docker!.remoteDir || '/opt/BitBratPlatform';
+        const sshHost = context.deployment!.docker!.host!.replace('ssh://', '');
+        const remotePath = `${remoteDir}/.docker-compose.merged.yaml`;
+
+        console.log(
+          `[docker-compose-strategy] Transferring merged compose file to ${sshHost}:${remotePath}...`
+        );
+
+        // Transfer file using SCP
+        const scpResult = await execCmd('scp', [tempMergedPath, `${sshHost}:${remotePath}`], {
+          cwd: repoRoot,
+        });
+
+        if (scpResult.code !== 0) {
+          throw new Error(
+            `Failed to transfer merged compose file to remote: ${scpResult.stderr || scpResult.stdout}`
+          );
+        }
+
+        console.log(`[docker-compose-strategy] ✓ Merged compose file transferred successfully`);
+      }
+
       // ============================================================================
       // STAGE 7: Execute orchestrator with merged compose file
       // ============================================================================
 
-      // For remote deployments, use the remote path (file will be synced by orchestrator)
+      // For remote deployments, use the remote path (file has been transferred above)
       // For local deployments, use the local path
       let composeFilePath = tempMergedPath;
       if (isRemote) {
