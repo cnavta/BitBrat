@@ -30,6 +30,7 @@ export interface DockerOrchestratorOptions {
   noCache?: boolean; // Build without cache (docker compose build --no-cache)
   rebuildBase?: boolean; // Sprint 375: Force rebuild base image regardless of cache key
   composeFile?: string; // Sprint 378: Override compose file path (for bulk deployments)
+  servicesToStart?: string[]; // Sprint 378: Explicit list of services to start (for bulk deployments)
 }
 
 export class DockerOrchestrator {
@@ -96,9 +97,16 @@ export class DockerOrchestrator {
 
       // Sprint 372: For context-specific compose files, targetService is stored in metadata
       // instead of being extracted from serviceFiles (which would be empty).
-      const services = composeFileSet.targetService
-        ? [composeFileSet.targetService]
-        : composeFileSet.serviceFiles.map(f => path.basename(f, '.compose.yaml'));
+      // Sprint 378: For bulk deployments, servicesToStart is provided explicitly
+      let services: string[];
+      if (this.options.servicesToStart) {
+        // Sprint 378: Use explicit list of services (for bulk deployments)
+        services = this.options.servicesToStart;
+      } else if (composeFileSet.targetService) {
+        services = [composeFileSet.targetService];
+      } else {
+        services = composeFileSet.serviceFiles.map(f => path.basename(f, '.compose.yaml'));
+      }
 
       // Base-file services with their own `build:` (e.g. firebase-emulator) are NOT part of
       // the per-service compose set, so `docker compose build <service>` never builds them.
@@ -108,11 +116,13 @@ export class DockerOrchestrator {
       // Sprint 372: When deploying a single service to a context-specific compose file,
       // only build that service, not all buildable services from the base file.
       //
-      // Sprint 378: When using a custom compose file (bulk deployments), extract buildable
-      // services from that file instead of from the base file.
+      // Sprint 378: For bulk deployments with servicesToStart, use that list directly
       let baseBuildServices: string[];
-      if (this.options.composeFile) {
-        // Extract buildable services from custom compose file
+      if (this.options.servicesToStart) {
+        // Sprint 378: For bulk deployments, servicesToStart already contains all buildable services
+        baseBuildServices = [];
+      } else if (this.options.composeFile) {
+        // Extract buildable services from custom compose file (shouldn't happen for bulk deployments)
         baseBuildServices = this.getBuildableServicesFromFile(this.options.composeFile);
       } else {
         // Extract buildable services from base compose file
@@ -162,6 +172,7 @@ export class DockerOrchestrator {
         // Up all services in one go. Since this runs remotely via SSH (in executeDockerCompose),
         // it doesn't hit local SSH connection limits, and respects COMPOSE_PARALLEL_LIMIT on the remote host.
         // If --service was specified, pass the service names to docker compose up to start only those services.
+        // Sprint 378: If servicesToStart was provided, use that list (for bulk deployments)
         // If --no-deps was specified, add --no-deps to skip starting dependencies (nats, firebase-emulator, etc.)
         // If --force-recreate was specified, force recreation even if config unchanged (fixes port allocation issues)
         const upArgs = [...composeArgs, 'up', '-d', '--no-build'];
@@ -171,7 +182,10 @@ export class DockerOrchestrator {
         if (this.options.noDeps) {
           upArgs.push('--no-deps');
         }
-        if (this.options.service) {
+        if (this.options.servicesToStart && this.options.servicesToStart.length > 0) {
+          // Sprint 378: Use explicit service list for bulk deployments
+          upArgs.push(...this.options.servicesToStart);
+        } else if (this.options.service) {
           upArgs.push(...services);
         }
         await this.executeDockerCompose(targetConfig, upArgs);

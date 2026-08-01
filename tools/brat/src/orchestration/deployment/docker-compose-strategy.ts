@@ -979,7 +979,32 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // ============================================================================
-      // STAGE 7: Execute orchestrator with merged compose file
+      // STAGE 7: Extract buildable services from merged compose file
+      // ============================================================================
+
+      // Sprint 378: For bulk deployments, we need to tell the orchestrator which services
+      // to build and start. We extract this from the LOCAL merged file BEFORE passing
+      // the path to the orchestrator (which might be a remote path).
+      const mergedCompose = yaml.load(mergedYaml) as any;
+      const buildableServices: string[] = [];
+
+      if (mergedCompose?.services && typeof mergedCompose.services === 'object') {
+        for (const [serviceName, serviceConfig] of Object.entries(mergedCompose.services)) {
+          const service = serviceConfig as any;
+          // Include services that have a build section
+          if (service && typeof service === 'object' && service.build != null) {
+            buildableServices.push(serviceName);
+          }
+        }
+      }
+
+      console.log(
+        `[docker-compose-strategy] Extracted ${buildableServices.length} buildable service(s): ` +
+          buildableServices.join(', ')
+      );
+
+      // ============================================================================
+      // STAGE 8: Execute orchestrator with merged compose file
       // ============================================================================
 
       // For remote deployments, use the remote path (file has been transferred above)
@@ -995,6 +1020,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         context: context.name,
         service: undefined, // Deploy all services
         composeFile: composeFilePath, // Use merged compose file (local or remote path)
+        servicesToStart: buildableServices, // Sprint 378: Explicit list of services to build/start
         dryRun: options.dryRun || false,
         forceRecreate: options.forceRecreate || false,
         noCache: options.forceBuild || false,
