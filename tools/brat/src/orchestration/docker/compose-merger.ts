@@ -211,6 +211,11 @@ export class ComposeMerger {
     // Update base compose with merged service
     baseCompose.services[serviceName] = mergedService;
 
+    // Sprint 378: Merge additional services from service-specific compose file
+    // Service-specific compose files may define additional services (e.g., ollama in query-analyzer.compose.yaml)
+    // that are dependencies of the main service. These must be included in the merged file.
+    this.mergeAdditionalServices(baseCompose, serviceCompose, serviceName);
+
     // Sprint 375: Merge top-level volumes from service override file
     this.mergeTopLevelVolumes(baseCompose, serviceCompose);
 
@@ -226,6 +231,43 @@ export class ComposeMerger {
       parsed: baseCompose,
       stats,
     };
+  }
+
+  /**
+   * Merge additional services from service-specific compose file into base compose.
+   *
+   * **Sprint 378:** Service-specific compose files may define additional services
+   * that are dependencies of the main service. For example, query-analyzer.compose.yaml
+   * defines both the query-analyzer service and an ollama service that query-analyzer
+   * depends on. This method ensures those additional services are included in the
+   * merged compose file to prevent "undefined service" errors.
+   *
+   * **Merge Rules:**
+   * - Additional services (not matching serviceName) are copied from override to base
+   * - Services already present in base are NOT overridden (base takes precedence)
+   * - This preserves infrastructure-defined services while adding service-specific dependencies
+   *
+   * @param baseCompose - Base compose file to modify
+   * @param serviceCompose - Service override file with potential additional services
+   * @param serviceName - Name of the main service being merged (skip this one)
+   */
+  private mergeAdditionalServices(
+    baseCompose: ComposeFile,
+    serviceCompose: ComposeFile,
+    serviceName: string
+  ): void {
+    // Iterate over all services in the service-specific compose file
+    for (const [name, config] of Object.entries(serviceCompose.services)) {
+      // Skip the main service (already merged above)
+      if (name === serviceName) {
+        continue;
+      }
+
+      // Only add if not already in base (base takes precedence)
+      if (!baseCompose.services[name]) {
+        baseCompose.services[name] = config;
+      }
+    }
   }
 
   /**
