@@ -122,6 +122,24 @@ export interface IConfig {
   debugUsersSlack?: string;
   debugUsersTwitch?: string;
   debugUsersDiscord?: string;
+
+  /**
+   * Long-Running Task Feedback Configuration (Sprint 377)
+   *
+   * Controls automatic progress feedback for operations that exceed configured thresholds.
+   *
+   * @since Sprint 377
+   */
+  /** Enable progress feedback feature (default: true) */
+  progressEnabled?: boolean;
+  /** Use custom LLM-generated messages instead of templates (default: false, Phase 1) */
+  progressUseCustom?: boolean;
+  /** Time threshold (ms) before sending initial progress message (default: 2000) */
+  progressInitialThresholdMs?: number;
+  /** Interval (ms) between subsequent progress updates (default: 5000) */
+  progressUpdateIntervalMs?: number;
+  /** Time threshold (ms) before sending timeout warning (default: 30000) */
+  progressTimeoutThresholdMs?: number;
 }
 
 export interface TwitchTokenData {

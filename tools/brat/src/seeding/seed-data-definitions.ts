@@ -192,6 +192,37 @@ function getInitialRoutingRules(botName: string) {
         ],
       },
     },
+
+    // 5. Progress Message Generation (Sprint 377)
+    {
+      id: 'progress-to-llm-bot',
+      enabled: true,
+      priority: 95,
+      description: 'Route progress events to llm-bot for contextual message generation (Sprint 377)',
+      logic: JSON.stringify({
+        and: [
+          { '==': [{ var: 'type' }, 'chat.progress.v1'] },
+        ],
+      }),
+      routing: {
+        slip: [
+          {
+            v: '1',
+            id: 'llm-bot-progress',
+            nextTopic: 'internal.llmbot.v1',
+            attributes: {
+              origin: 'event-router',
+              progressMessage: true,
+            },
+            maxAttempts: 2,
+          },
+        ],
+        stage: 'initial',
+      },
+      enrichments: {
+        annotations: [],
+      },
+    },
   ];
 }
 

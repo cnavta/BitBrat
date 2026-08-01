@@ -17,9 +17,9 @@ This sprint introduces a **Progressive Feedback System** that:
 - **Sends intermediate progress messages** during processing
 - **Adapts to platform capabilities** (typing indicators, message editing, sequential messages)
 - **Degrades gracefully** on limited platforms (Twitch IRC, Twilio SMS)
-- **Preserves existing architecture** (no routing slip changes, minimal service modifications)
+- **Preserves existing architecture** (reuses InternalEventV2 and routing pipeline)
 
-**Key Innovation:** A **Feedback Middleware** layer that intercepts `next()` calls and sends platform-appropriate progress updates without requiring service code changes.
+**Key Innovation:** A **Feedback Middleware** layer that intercepts `next()` calls and publishes standard `InternalEventV2` events with `type: 'chat.progress.v1'` to generate contextual progress messages through the existing LLM pipeline.
 
 ---
 
@@ -87,7 +87,7 @@ Bot: Failed to generate image: The operation was aborted
 | ID | Requirement | Target | Measurement |
 |----|-------------|--------|-------------|
 | **NFR-1** | Progress message latency | <500ms | Time from operation start to first feedback |
-| **NFR-2** | Zero service code changes | 100% | Services shouldn't need modifications |
+| **NFR-2** | Zero service code changes | 100% | Services shouldn't need modifications (except opt-in annotation) |
 | **NFR-3** | Platform rate limit compliance | 100% | Respect Twitch (20msg/30s), Slack (50req/min) |
 | **NFR-4** | Backward compatibility | 100% | Existing flows work without feedback enabled |
 | **NFR-5** | Failure isolation | 100% | Feedback failures don't block primary operations |
@@ -98,1157 +98,1177 @@ Bot: Failed to generate image: The operation was aborted
 |----------|-----------------|-----------------|-----------------|----------------|-------------|
 | **Slack** | ✅ Yes | ✅ Yes | ✅ Blocks | ✅ Yes | 50 req/min |
 | **Discord** | ✅ Yes (10s) | ✅ Yes | ✅ Embeds | ✅ Yes | 5 req/s |
-| **Twitch** | ❌ No (IRC) | ❌ No (IRC) | ❌ No | ❌ No | 20 msg/30s |
-| **Twilio** | ❌ No (SMS) | ❌ No (SMS) | ❌ No | ❌ No | 1 msg/s |
+| **Twitch** | ❌ No | ❌ No | ❌ No | ❌ No | 20 msg/30s |
+| **Twilio** | ❌ No | ❌ No | ❌ Plain text | ❌ No | 1 msg/s |
 
-**Strategy:**
-- **Slack/Discord**: Use typing + message editing (optimal UX)
-- **Twitch**: Use `/me` ACTION messages (italic, third-person)
-- **Twilio**: Use sequential SMS (optional, carrier-dependent)
+**Phase 1 Focus**: Template-based messages for all platforms (no editing, no typing indicators)
+**Future Phases**: Platform-specific strategies (Slack editing, Discord embeds, etc.)
 
 ---
 
-## 3. Proposed Architecture
+## 3. Solution Architecture
 
-### 3.1. System Overview
+### 3.1. Core Concept
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Event Flow with Feedback                    │
-└─────────────────────────────────────────────────────────────────────┘
+**Reuse Existing Pipeline**: Instead of creating new event types and operations, we publish standard `InternalEventV2` events with `type: 'chat.progress.v1'` that flow through the existing routing pipeline. Event-router rules detect this type and route to llm-bot for message generation.
 
-   Ingress Event (user message)
-        │
-        ▼
-   ┌─────────────────┐
-   │  Event Router   │ Attach routing slip
-   └────────┬────────┘
-            │
-            ▼
-   ┌─────────────────────────────────────────────────────────────┐
-   │              Feedback Middleware (NEW)                      │
-   │  - Detects long-running operations                          │
-   │  - Sends initial progress message (typing/placeholder)      │
-   │  - Tracks operation state (correlationId → messageId map)   │
-   └────────┬────────────────────────────────────────────────────┘
-            │
-            ▼
-   ┌─────────────────┐     ┌──────────────────────┐
-   │  Auth Service   │────▶│  Query Analyzer       │ (fast: <500ms)
-   └─────────────────┘     └──────────┬───────────┘
-                                      │
-                                      ▼
-                            ┌─────────────────────┐
-                            │    LLM Bot          │ ⏱ LONG (2-10s)
-                            │  - Middleware sends │
-                            │    "Thinking..."    │
-                            │  - LLM processes    │
-                            │  - Middleware edits │
-                            │    with result      │
-                            └─────────┬───────────┘
-                                      │
-                                      ▼
-                            ┌─────────────────────┐
-                            │  Image Gen MCP      │ ⏱ VERY LONG (10-30s)
-                            │  - Middleware sends │
-                            │    "Generating..."  │
-                            │  - Moderation check │
-                            │  - Middleware edits │
-                            │    "Still working..." (15s)
-                            │  - Image generation │
-                            │  - Middleware edits │
-                            │    with image URL   │
-                            └─────────┬───────────┘
-                                      │
-                                      ▼
-                            ┌─────────────────────┐
-                            │  State Engine       │ (fast: <200ms)
-                            └─────────┬───────────┘
-                                      │
-                                      ▼
-                            ┌─────────────────────┐
-                            │  Ingress-Egress     │
-                            │  - Final delivery   │
-                            │  - Cleanup tracked  │
-                            │    progress messages│
-                            └─────────────────────┘
-```
+**Key Principles**:
+1. **No new event types**: Just `InternalEventV2` with `type: 'chat.progress.v1'`
+2. **No new operations**: llm-bot processes this as a standard chat event with prompt annotation
+3. **Annotations carry context**: Progress stage, operation details, original request all in annotations
+4. **Event-router handles routing**: Standard JsonLogic rule detects type and routes to llm-bot
+5. **User/channel/platform copied**: Progress events inherit targeting info from original event
 
-### 3.2. Core Components
+---
+
+### 3.2. Architecture Components
 
 #### 3.2.1. Feedback Middleware
 
-**Location:** `src/common/feedback/feedback-middleware.ts` (NEW)
+**Location**: `src/common/middleware/feedback-middleware.ts`
 
-**Responsibilities:**
-- Intercept `next()` calls from services
-- Detect long-running operations via:
-  - **Threshold-based:** Event processing time >2s
-  - **Service annotation:** `event.qos.expectsLongRunning = true`
-- Send initial progress message
-- Track operation state (correlationId → progress message ID)
-- Update progress at intervals (5s, 15s, 30s)
-- Clean up progress messages on completion
+**Purpose**: Intercepts `Bit.next()` calls to detect long-running operations and publish progress events.
 
-**API:**
+**Responsibilities**:
+- Monitor time elapsed since event entered current service
+- Detect when operation exceeds threshold (2s default, configurable via annotation)
+- Publish `InternalEventV2` with `type: 'chat.progress.v1'` to `internal.ingress.v1`
+- Track progress message state (initial sent, updates sent, completion sent)
+
+**Integration**:
 ```typescript
-interface FeedbackMiddleware {
-  /**
-   * Wrap a service's next() call with feedback logic
-   */
-  wrapNext(
-    originalNext: (event: InternalEventV2) => Promise<void>,
-    serviceName: string
-  ): (event: InternalEventV2) => Promise<void>;
+// In Bit base class (src/common/base-server.ts)
+export abstract class Bit {
+  private feedbackMiddleware: FeedbackMiddleware;
 
-  /**
-   * Manually send progress update (for services with internal checkpoints)
-   */
-  sendProgress(
-    correlationId: string,
-    message: string,
-    options?: { replace?: boolean }
-  ): Promise<void>;
-
-  /**
-   * Mark operation as complete (cleanup progress messages)
-   */
-  markComplete(correlationId: string): Promise<void>;
-}
-```
-
-**Usage (in Bit base class):**
-```typescript
-// src/common/base-server.ts (automatic injection)
-protected async next(event: InternalEventV2, status: MessageStatus = 'PROCESSED'): Promise<void> {
-  // Feedback middleware intercepts here
-  if (this.feedbackMiddleware && this.isLongRunningService()) {
-    await this.feedbackMiddleware.wrapNext(() => this.publishNext(event, status), this.name);
-  } else {
-    await this.publishNext(event, status);
-  }
-}
-```
-
-#### 3.2.2. Progress Message Manager
-
-**Location:** `src/common/feedback/progress-message-manager.ts` (NEW)
-
-**Responsibilities:**
-- Abstract platform-specific feedback mechanisms
-- Negotiate platform capabilities (typing, editing, sequential)
-- Manage message lifecycle (send, update, delete)
-- Track progress message IDs (Redis or in-memory map)
-
-**API:**
-```typescript
-interface ProgressMessageManager {
-  /**
-   * Send initial progress message
-   * Returns message ID for future updates
-   */
-  sendInitial(
-    platform: string,
-    target: string,
-    correlationId: string,
-    message: string
-  ): Promise<string>;
-
-  /**
-   * Update existing progress message (if platform supports editing)
-   */
-  update(
-    platform: string,
-    messageId: string,
-    message: string
-  ): Promise<void>;
-
-  /**
-   * Clean up progress message (delete or mark complete)
-   */
-  cleanup(
-    platform: string,
-    messageId: string
-  ): Promise<void>;
-}
-```
-
-**Platform Strategies:**
-
-**Slack Strategy:**
-```typescript
-class SlackProgressStrategy implements ProgressStrategy {
-  async sendInitial(channel: string, message: string): Promise<string> {
-    // 1. Send typing indicator (instant)
-    await this.client.chat.postMessage({ channel, text: '...' });
-
-    // 2. Send editable placeholder
-    const result = await this.client.chat.postMessage({
-      channel,
-      text: message,
-      unfurl_links: false
+  constructor(options: BitOptions) {
+    // ... existing setup
+    this.feedbackMiddleware = new FeedbackMiddleware({
+      messageBus: this.messageBus,
+      logger: this.logger,
+      serviceName: this.name,
     });
-
-    return result.ts; // Message timestamp (ID)
   }
 
-  async update(channel: string, ts: string, message: string): Promise<void> {
-    await this.client.chat.update({ channel, ts, text: message });
-  }
+  protected async next(event: InternalEventV2): Promise<void> {
+    // Before publishing to next step, check if feedback needed
+    await this.feedbackMiddleware.beforeNext(event);
 
-  async cleanup(channel: string, ts: string): Promise<void> {
-    // Option 1: Delete message
-    await this.client.chat.delete({ channel, ts });
-
-    // Option 2: Replace with final response (preferred)
-    // No-op - final response replaces progress message
+    // Existing next() logic
+    await this.publishNext(event);
   }
 }
 ```
 
-**Discord Strategy:**
+**Threshold Detection**:
 ```typescript
-class DiscordProgressStrategy implements ProgressStrategy {
-  async sendInitial(channelId: string, message: string): Promise<string> {
-    const channel = this.client.channels.cache.get(channelId);
+class FeedbackMiddleware {
+  async beforeNext(event: InternalEventV2): Promise<void> {
+    // Check if progress feedback is enabled
+    if (event.qos?.progress?.enabled === false) return;
 
-    // 1. Send typing indicator (10s duration)
-    await channel.sendTyping();
+    // Check if service annotated as long-running
+    const expectsLongRunning = event.qos?.progress?.expectsLongRunning;
 
-    // 2. Send editable embed
-    const msg = await channel.send({
-      embeds: [{ description: message, color: 0x3498db }]
-    });
+    // Calculate elapsed time
+    const elapsedMs = Date.now() - new Date(event.timestamp).getTime();
+    const threshold = this.getThreshold(event);
 
-    // 3. Retrigger typing every 8s (async loop)
-    this.scheduleTypingRetrigger(channel);
+    // Determine stage
+    const stage = this.determineStage(event, elapsedMs, threshold);
 
-    return msg.id;
+    if (stage) {
+      await this.publishProgressEvent(event, stage, elapsedMs);
+    }
   }
 
-  async update(channelId: string, messageId: string, message: string): Promise<void> {
-    const channel = this.client.channels.cache.get(channelId);
-    const msg = await channel.messages.fetch(messageId);
-    await msg.edit({ embeds: [{ description: message, color: 0x3498db }] });
-  }
+  private determineStage(
+    event: InternalEventV2,
+    elapsedMs: number,
+    threshold: number
+  ): 'initial' | 'update' | 'timeout' | null {
+    const tracking = this.getTracking(event.correlationId);
 
-  async cleanup(channelId: string, messageId: string): Promise<void> {
-    const channel = this.client.channels.cache.get(channelId);
-    const msg = await channel.messages.fetch(messageId);
-    await msg.delete();
-  }
-}
-```
-
-**Twitch Strategy:**
-```typescript
-class TwitchProgressStrategy implements ProgressStrategy {
-  async sendInitial(channel: string, message: string): Promise<string> {
-    // Use ACTION message (italic, third-person)
-    await this.chat.say(channel, `/me ${message}`);
-
-    // No message ID (IRC doesn't support editing)
-    return 'twitch-no-id';
-  }
-
-  async update(channel: string, messageId: string, message: string): Promise<void> {
-    // Send new ACTION message (append-only)
-    await this.chat.say(channel, `/me ${message}`);
-  }
-
-  async cleanup(channel: string, messageId: string): Promise<void> {
-    // No-op (IRC messages can't be deleted)
-  }
-}
-```
-
-**Twilio Strategy:**
-```typescript
-class TwilioProgressStrategy implements ProgressStrategy {
-  async sendInitial(conversationSid: string, message: string): Promise<string> {
-    // Optional: Send progress SMS (may annoy users, use sparingly)
-    const msg = await this.conversationService
-      .conversations(conversationSid)
-      .messages.create({ body: message });
-
-    return msg.sid;
-  }
-
-  async update(conversationSid: string, messageSid: string, message: string): Promise<void> {
-    // Send new SMS (append-only)
-    await this.conversationService
-      .conversations(conversationSid)
-      .messages.create({ body: message });
-  }
-
-  async cleanup(conversationSid: string, messageSid: string): Promise<void> {
-    // No-op (SMS can't be deleted)
-  }
-}
-```
-
-#### 3.2.3. Progress Message Templates
-
-**Location:** `src/common/feedback/templates.ts` (NEW)
-
-**Purpose:** Centralized, customizable progress messages
-
-**API:**
-```typescript
-interface ProgressTemplates {
-  initial: {
-    llm: string;              // "🤔 Thinking..."
-    imagegen: string;         // "🎨 Generating image..."
-    tool: string;             // "🔧 Running {toolName}..."
-    generic: string;          // "⏳ Processing..."
-  };
-
-  periodic: {
-    still_working: string;    // "Still working on it..."
-    almost_done: string;      // "Almost done..."
-    taking_longer: string;    // "This is taking longer than usual..."
-  };
-
-  timeout: {
-    approaching: string;      // "This is taking a while, but still processing..."
-    exceeded: string;         // "Request timed out after {duration}s. Please try again."
-  };
-}
-```
-
-**Customization:**
-- **Per-service templates:** `LLM_BOT_PROGRESS_INITIAL="Consulting my neural networks..."`
-- **Per-platform templates:** `TWITCH_PROGRESS_INITIAL="is thinking..."` (for `/me` messages)
-- **User preferences:** Store in user profile (`user.preferences.progressMessages = false`)
-
-#### 3.2.4. QoS Extensions
-
-**Location:** `src/types/events.ts` (EXTEND existing QOSV1)
-
-**New Fields:**
-```typescript
-interface QOSV1 {
-  // Existing fields...
-  routingTimeoutMs?: number;
-  tracer?: boolean;
-
-  // NEW: Progress feedback fields
-  expectsLongRunning?: boolean;        // Service annotates known long operations
-  progressFeedbackEnabled?: boolean;   // User preference (opt-out)
-  progressMessageId?: string;          // Track progress message for updates
-  progressLastUpdate?: string;         // ISO timestamp of last progress message
-  progressStage?: string;              // Current stage (e.g., "moderation", "generation", "upload")
-}
-```
-
-**Usage (service annotation):**
-```typescript
-// image-gen-mcp/index.ts (line 120)
-this.registerTool(
-  'generate_image',
-  'Generate an image using AI',
-  generateImageSchema,
-  async (args, correlationId) => {
-    // Annotate event as long-running
-    const event = this.getCurrentEvent(correlationId);
-    if (event?.qos) {
-      event.qos.expectsLongRunning = true;
-      event.qos.progressStage = 'moderation';
+    // Initial message (first time crossing threshold)
+    if (elapsedMs >= threshold && !tracking.initialSent) {
+      return 'initial';
     }
 
-    // Moderation check (500ms)
-    const moderationResult = await this.moderatePrompt(args.prompt);
-
-    // Update progress stage
-    if (event?.qos) {
-      event.qos.progressStage = 'generation';
+    // Update message (every 5s after initial)
+    if (elapsedMs >= threshold + 5000 &&
+        elapsedMs - tracking.lastUpdate >= 5000) {
+      return 'update';
     }
 
-    // Image generation (10-30s)
-    const imageResult = await generateImage({ ... });
-
-    // Update progress stage
-    if (event?.qos) {
-      event.qos.progressStage = 'upload';
+    // Timeout message (approaching 75s limit)
+    if (elapsedMs >= 60000 && !tracking.timeoutSent) {
+      return 'timeout';
     }
 
-    // Storage upload (500ms-2s)
-    const uploadResult = await storageDriver.upload(...);
-
-    return { ... };
+    return null;
   }
+}
+```
+
+#### 3.2.2. Derived Event Utility (Platform-Wide Pattern)
+
+**New Utility**: `src/common/events/derived-event.ts`
+
+Progress messages are a specific use case of a broader pattern: **derived events**. A derived event is a new event created from an existing event, preserving routing context and establishing correlation links.
+
+**Why This Matters**:
+- **Consistency**: All derived events follow the same pattern
+- **Traceability**: `derived_from` annotation links to original event
+- **Reusability**: Common logic for progress, errors, confirmations, timeouts
+- **Maintainability**: One place to update derivation logic
+
+**Core Function**:
+```typescript
+import { createDerivedEvent, createProgressEvent } from '../../common/events/derived-event';
+
+// Generic derived event
+const derivedEvent = createDerivedEvent(originalEvent, {
+  type: 'chat.progress.v1',
+  source: 'feedback-middleware',
+  annotations: [
+    { kind: 'progress_context', value: { ... }, ... },
+    { kind: 'prompt', value: '...', ... },
+  ],
+});
+
+// Convenience wrapper for progress events
+const progressEvent = createProgressEvent(
+  originalEvent,
+  'initial',  // stage
+  { operation: 'image_generation', parameters: { ... }, elapsedMs: 5000 },  // context
+  'Generate brief progress message...',  // prompt
+  'feedback-middleware'  // source
 );
 ```
 
+**What `createDerivedEvent()` Does**:
+1. ✅ Generates new `correlationId`, `eventId`, `timestamp`
+2. ✅ Copies routing context: `platform`, `channel`, `user`
+3. ✅ Copies `message` from original (provides context for llm-bot)
+4. ✅ Copies `qos` from original (unless overridden)
+5. ✅ Adds `derived_from` annotation with correlation link
+6. ✅ Sets `type` at root level (not in payload)
+7. ✅ Sets `routing.stage` to `'initial'`
+8. ✅ Includes custom annotations (progress_context, prompt, etc.)
+
+**Traceability Helpers**:
+```typescript
+import {
+  getOriginalCorrelationId,
+  isDerivedEvent,
+  getDerivationChain,
+} from '../../common/events/derived-event';
+
+// Extract original correlationId
+const originalId = getOriginalCorrelationId(progressEvent);
+// → 'abc123' (from original request)
+
+// Check if event is derived
+if (isDerivedEvent(event)) {
+  logger.debug('Derived event', { originalId: getOriginalCorrelationId(event) });
+}
+
+// Get full derivation chain
+const chain = getDerivationChain(progressEvent);
+// → ['abc123', 'def456', 'ghi789']  // Original → Progress → Update
+```
+
+**Standard Derived Event Types**:
+```typescript
+import { DerivedEventTypes } from '../../common/events/derived-event';
+
+DerivedEventTypes.PROGRESS;        // 'chat.progress.v1'
+DerivedEventTypes.ERROR;           // 'chat.error.v1'
+DerivedEventTypes.STATUS;          // 'chat.status.v1'
+DerivedEventTypes.CONFIRM;         // 'chat.confirm.v1'
+DerivedEventTypes.TIMEOUT_WARNING; // 'chat.timeout.v1'
+DerivedEventTypes.CANCELLED;       // 'chat.cancelled.v1'
+```
+
+#### 3.2.3. Progress Event Structure
+
+**Using Derived Event Utility**:
+
+```typescript
+import { createProgressEvent } from '../../common/events/derived-event';
+
+// In feedback-middleware.ts
+async publishProgressEvent(
+  originalEvent: InternalEventV2,
+  stage: 'initial' | 'update' | 'timeout',
+  elapsedMs: number
+): Promise<void> {
+  // Extract operation context from original event annotations
+  const operationContext = originalEvent.annotations?.find(
+    (a) => a.kind === 'operation_context'
+  )?.value as any;
+
+  const progressEvent = createProgressEvent(
+    originalEvent,
+    stage,
+    {
+      operation: operationContext?.operation || 'unknown',
+      parameters: operationContext?.parameters || {},
+      startedAt: originalEvent.timestamp,
+      elapsedMs,
+    },
+    this.buildPrompt(stage, operationContext?.operation),
+    'feedback-middleware'
+  );
+
+  // Publish to internal.ingress.v1 (event-router will attach routing slip)
+  await this.messageBus.publish('internal.ingress.v1', progressEvent);
+}
+```
+
+**Resulting Event Structure**:
+
+```typescript
+// Result from createProgressEvent()
+{
+  // New identifiers
+  correlationId: 'def456',  // New correlation ID for progress message
+  eventId: 'xyz789',
+  timestamp: '2026-07-31T12:05:00.000Z',
+
+  // Type at root level (event-router matches on this)
+  type: 'chat.progress.v1',
+
+  // Routing context (copied from original)
+  platform: 'slack',
+  channel: { id: 'C123', name: 'general' },
+  user: { id: 'U123', username: 'testuser' },
+
+  // Message (copied from original, provides context for llm-bot)
+  message: { text: '!image a sunset over mountains' },
+
+  // QoS (copied from original)
+  qos: {
+    routingTimeoutMs: 75000,
+    tracer: true,
+    progress: {
+      enabled: true,
+      useCustomMessage: true,
+    },
+  },
+
+  // Routing (starts at initial stage)
+  routing: { stage: 'initial' },
+  routingSlip: undefined,  // Event-router will attach
+
+  // Annotations (derived_from + progress_context + prompt)
+  annotations: [
+    // 1. Correlation link (added automatically by createDerivedEvent)
+    {
+      kind: 'derived_from',
+      value: {
+        correlationId: 'abc123',  // Original event's correlationId
+        eventId: 'original-456',
+        timestamp: '2026-07-31T12:00:00.000Z',
+        type: 'chat.message.v1',
+        source: 'feedback-middleware',
+        derivedAt: '2026-07-31T12:05:00.000Z',
+      },
+      source: 'feedback-middleware',
+      id: 'annotation-123',
+      createdAt: '2026-07-31T12:05:00.000Z',
+    },
+
+    // 2. Progress context (added by createProgressEvent)
+    {
+      kind: 'progress_context',
+      value: {
+        originalCorrelationId: 'abc123',
+        originalMessage: '!image a sunset over mountains',
+        stage: 'initial',
+        operation: 'image_generation',
+        parameters: {
+          prompt: 'a sunset over mountains',
+          aspectRatio: '16:9',
+        },
+        startedAt: '2026-07-31T12:00:00.000Z',
+        elapsedMs: 5000,
+      },
+      source: 'feedback-middleware',
+      id: 'annotation-456',
+      createdAt: '2026-07-31T12:05:00.000Z',
+    },
+
+    // 3. Prompt for llm-bot (added by createProgressEvent)
+    {
+      kind: 'prompt',
+      value: 'Generate a brief, encouraging message (max 100 chars) that the user\'s image is being created. Reference the image subject from the prompt. Use an emoji. Be concise and friendly.',
+      source: 'feedback-middleware',
+      id: 'annotation-789',
+      createdAt: '2026-07-31T12:05:00.000Z',
+    },
+
+    // 4. Personality (added by event-router rule)
+    {
+      kind: 'personality',
+      value: 'helpful',
+      source: 'event-router',
+      id: 'annotation-abc',
+      createdAt: '2026-07-31T12:05:01.000Z',
+    },
+  ],
+}
+```
+
+#### 3.2.4. QoS Extensions (Progress Preferences Only)
+
+**Updated QOSV1 Interface**:
+
+```typescript
+/**
+ * QoS extensions for progress feedback (Sprint 377)
+ *
+ * IMPORTANT: Only user preferences belong in QoS.
+ * Implementation details (stage, operation, timing) belong in annotations.
+ */
+interface QOSV1 {
+  // Existing fields
+  routingTimeoutMs?: number;
+  tracer?: boolean;
+
+  // NEW: Progress feedback preferences
+  progress?: {
+    /**
+     * Whether user wants progress feedback (opt-out mechanism).
+     * Default: true
+     */
+    enabled?: boolean;
+
+    /**
+     * Whether to use LLM-generated contextual messages vs template messages.
+     * - true: Publish chat.progress.v1 event, route through llm-bot
+     * - false: Use hardcoded template messages
+     * Default: true
+     */
+    useCustomMessage?: boolean;
+  };
+}
+```
+
+**Service Annotation (Opt-In)**:
+
+Services that expect long-running operations can annotate events BEFORE calling `next()`:
+
+```typescript
+// In image-gen-mcp/index.ts
+async generateImage(event: InternalEventV2): Promise<void> {
+  // Annotate as long-running operation BEFORE processing
+  event.annotations.push({
+    kind: 'operation_context',
+    value: {
+      operation: 'image_generation',
+      parameters: {
+        prompt: args.prompt,
+        aspectRatio: args.aspect_ratio,
+      },
+      expectedDurationMs: 15000,  // Hint for feedback middleware
+    },
+    source: this.name,
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+  });
+
+  // Set QoS preference (optional - defaults to enabled)
+  if (!event.qos) event.qos = {};
+  event.qos.progress = {
+    enabled: true,
+    useCustomMessage: true,
+  };
+
+  // Start processing (feedback middleware watches elapsed time)
+  const result = await this.performImageGeneration(args);
+
+  // Add result annotation
+  event.annotations.push({
+    kind: 'image_result',
+    value: { url: result.publicUrl },
+    source: this.name,
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+  });
+
+  // Advance to next step (feedback middleware triggers here)
+  await this.next(event);
+}
+```
+
+#### 3.2.5. Event-Router Rule (Seed Data)
+
+**New Routing Rule** to detect `chat.progress.v1` and route to llm-bot:
+
+```json
+{
+  "id": "progress-message-generation",
+  "command": "generate_progress_message",
+  "description": "Route progress message requests through llm-bot for contextual message generation",
+  "conditions": {
+    "and": [
+      { "==": [{ "var": "payload.type" }, "chat.progress.v1"] },
+      { "==": [{ "var": "routing.stage" }, "initial"] }
+    ]
+  },
+  "actions": {
+    "attachRoutingSlip": {
+      "steps": [
+        {
+          "service": "llm-bot",
+          "operation": "chat",
+          "timeout": 3000
+        },
+        {
+          "service": "ingress-egress",
+          "operation": "deliver"
+        }
+      ]
+    },
+    "addAnnotations": [
+      {
+        "kind": "personality",
+        "value": "helpful",
+        "source": "event-router"
+      }
+    ]
+  },
+  "priority": 100,
+  "active": true
+}
+```
+
+**Key Points**:
+- Matches on `payload.type === 'chat.progress.v1'` and `routing.stage === 'initial'`
+- Routes to `llm-bot` with standard `chat` operation (NO new operation needed)
+- Optionally adds `personality` annotation
+- Uses short timeout (3s) since progress messages need low latency
+
+#### 3.2.6. LLM-Bot Processing (Zero Changes Needed)
+
+**Existing llm-bot behavior** already handles this:
+
+1. Receives `InternalEventV2` with `payload.type: 'chat.progress.v1'`
+2. Finds `prompt` annotation (instructions on how to generate message)
+3. Finds `progress_context` annotation (operation details, parameters, timing)
+4. Generates message using existing LLM call logic
+5. Sets `event.message.text` to generated message
+6. Calls `next()` to advance to ingress-egress
+
+**No code changes required** - llm-bot already processes events with prompt annotations.
+
+**Example LLM Call**:
+```typescript
+// Existing llm-bot code (no changes)
+const promptAnnotation = event.annotations.find(a => a.kind === 'prompt');
+const contextAnnotation = event.annotations.find(a => a.kind === 'progress_context');
+
+const systemPrompt = promptAnnotation?.value || 'Generate a helpful response.';
+const userContext = JSON.stringify(contextAnnotation?.value || {});
+
+const response = await this.callLLM({
+  model: 'gpt-4o-mini',  // Fast, cheap model for progress messages
+  messages: [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userContext }
+  ],
+  max_tokens: 50,
+  temperature: 0.7,
+});
+
+event.message = {
+  text: response.content,
+  // ... other message fields
+};
+
+await this.next(event);  // Send to ingress-egress
+```
+
+#### 3.2.7. Ingress-Egress Delivery (Zero Changes Needed)
+
+**Existing ingress-egress behavior** already handles this:
+
+1. Receives event with `message.text` set by llm-bot
+2. Uses `platform`, `channel`, `user` fields to determine delivery target
+3. Sends message to platform via appropriate connector
+4. Returns (no further routing)
+
+**No code changes required** - ingress-egress already delivers events with populated message fields.
+
+**Future Enhancement (Out of Scope for Sprint 377)**:
+- Message editing support (requires tracking platform messageId)
+- Typing indicators (platform-specific)
+
+---
+
 ### 3.3. Data Flow
 
-#### 3.3.1. Happy Path (Slack - Optimal UX)
+#### 3.3.1. Happy Path (Template Messages - Phase 1)
 
 ```
-User: !image a sunset
+User: !image a sunset over mountains
    │
    ▼
-[Event Router] Attach routing slip
+[Ingress-Egress] Normalize to InternalEventV2
+   │             payload: { type: 'chat.message.v1' }
    │
    ▼
-[Feedback Middleware] Detect image-gen-mcp in routing slip
-   │                   Check platform: Slack (supports editing)
-   │                   Send initial: "🎨 Generating image..."
-   │                   Store: correlationId → messageTs
+[Event Router] Match command: !image
+   │           Attach routing slip: [query-analyzer, image-gen-mcp, ingress-egress]
    │
    ▼
-[Image Gen MCP] Stage: moderation (500ms)
-   │
-   ▼ (5s elapsed)
-[Feedback Middleware] Update: "🎨 Still generating..."
+[Query Analyzer] Extract: { prompt: "a sunset over mountains" }
+   │             Call next()
    │
    ▼
-[Image Gen MCP] Stage: generation (25s total)
-   │
-   ▼ (15s elapsed)
-[Feedback Middleware] Update: "🎨 Almost done..."
+[Feedback Middleware] Check elapsed time: 150ms (< 2s threshold)
+   │                   No action needed
    │
    ▼
-[Image Gen MCP] Stage: upload (27s total)
-   │           Complete → publishNext()
+[Image Gen MCP] Annotate as long-running operation
+   │             Add operation_context annotation
+   │             Set qos.progress.enabled = true
+   │             Start image generation (OpenAI DALL-E)
+   │
+   │ [5 seconds elapse - still generating]
    │
    ▼
-[Feedback Middleware] Detect completion
-   │                   Update: "Image generated! https://..."
-   │                   Cleanup: Delete messageTs from tracking
+[Image Gen MCP] Still processing... (15s elapsed)
+   │             Call next() to advance routing slip
    │
    ▼
-[Ingress-Egress] Final delivery (no-op, already sent)
+[Feedback Middleware] Detect: 15s elapsed (> 2s threshold)
+   │                   Create InternalEventV2:
+   │                   - type: 'chat.progress.v1'
+   │                   - platform/channel/user: copied from original
+   │                   - annotations: [progress_context, prompt]
+   │                   Publish to internal.ingress.v1
+   │
+   ├─────────────────────────────────────────────┐
+   │                                             │
+   ▼ (original continues)                        ▼ (progress message flow)
+[Image Gen MCP]                            [Event Router] Match: type == 'chat.progress.v1'
+Continue processing                             │  Attach slip: [llm-bot, ingress-egress]
+   │                                             │
+   │                                             ▼
+   │                                        [LLM Bot] Read prompt annotation
+   │                                             │  Read progress_context annotation
+   │                                             │  Generate: "🎨 Creating your sunset over mountains image..."
+   │                                             │  Set event.message.text
+   │                                             │  Call next()
+   │                                             │
+   │                                             ▼
+   │                                        [Ingress-Egress] Deliver to user
+   │                                             │
+   │◄────────────────────────────────────────────┘
+   │ (user sees: "🎨 Creating your sunset over mountains image...")
+   │
+   ▼ (20 seconds elapse)
+[Feedback Middleware] Detect: 20s elapsed (5s since last update)
+   │                   Create chat.progress.v1 event (stage: 'update')
+   │                   Publish to internal.ingress.v1
+   │
+   ├─────────────────────────────────────────────┐
+   │                                             │
+   ▼ (original continues)                        ▼ (update message flow)
+[Image Gen MCP]                            [Event Router] → [LLM Bot]
+Still processing (25s total)                    │  Generate: "🎨 Your sunset image is almost ready..."
+   │                                             │
+   │                                             ▼
+   │                                        [Ingress-Egress] Deliver
+   │                                             │
+   │◄────────────────────────────────────────────┘
+   │ (user sees: "🎨 Your sunset image is almost ready...")
+   │
+   ▼ (27s total)
+[Image Gen MCP] Complete!
+   │             Add image_result annotation
+   │             Call next()
+   │
+   ▼
+[Feedback Middleware] Detect completion (no more routing steps)
+   │                   Mark correlationId as complete
+   │                   No further progress messages
+   │
+   ▼
+[Ingress-Egress] Deliver final result
+   │
+   ▼
+User: "Image generated! https://storage.googleapis.com/..."
 ```
 
-#### 3.3.2. Degraded Path (Twitch - Limited Platform)
-
-```
-User: !image a sunset
-   │
-   ▼
-[Event Router] Attach routing slip
-   │
-   ▼
-[Feedback Middleware] Detect image-gen-mcp in routing slip
-   │                   Check platform: Twitch (no editing, rate limits)
-   │                   Send initial: "/me is generating an image..."
-   │
-   ▼
-[Image Gen MCP] Stage: moderation (500ms)
-   │
-   ▼ (10s elapsed - skip 5s update due to rate limits)
-[Feedback Middleware] Update: "/me still working on your image..."
-   │
-   ▼
-[Image Gen MCP] Stage: generation (25s total)
-   │
-   ▼ (25s elapsed - skip 15s update due to rate limits)
-[Feedback Middleware] Update: "/me almost done..."
-   │
-   ▼
-[Image Gen MCP] Stage: upload (27s total)
-   │           Complete → publishNext()
-   │
-   ▼
-[Feedback Middleware] Detect completion
-   │                   No cleanup needed (Twitch doesn't support deletion)
-   │
-   ▼
-[Ingress-Egress] Final delivery: "Image generated! https://..."
-```
-
-#### 3.3.3. Timeout Path
+#### 3.3.2. Timeout Path
 
 ```
 User: !image an incredibly complex scene with thousands of details
    │
    ▼
-[Feedback Middleware] Send initial: "🎨 Generating image..."
+[Event Router] Attach routing slip
    │
    ▼
-[Image Gen MCP] Stage: generation (45s... 60s... 75s...)
+[Image Gen MCP] Start generation (OpenAI API)
    │
-   ▼ (60s elapsed)
-[Feedback Middleware] Detect approaching timeout (75s limit)
-   │                   Update: "⏳ This is taking longer than usual, but still processing..."
+   │ [5s] → Feedback: "🎨 Creating your complex scene image..."
+   │ [10s] → Still processing
+   │ [15s] → Feedback: "🎨 Still working on your image..."
+   │ [20s] → Still processing
+   │ [25s] → Feedback: "🎨 Almost done..."
+   │ [30s] → Still processing
+   │ ...
+   │ [60s] → Detect approaching timeout
    │
-   ▼ (75s elapsed)
+   ▼
+[Feedback Middleware] Detect: 60s elapsed (approaching 75s timeout)
+   │                   Create chat.progress.v1 event (stage: 'timeout')
+   │                   Prompt: "This is taking longer than expected, apologize"
+   │
+   ▼
+[LLM Bot] Generate: "⏳ This is taking longer than usual, but still processing..."
+   │
+   ▼
+[Ingress-Egress] Deliver timeout warning
+   │
+   ▼ [75s] → Timeout!
 [Image Gen MCP] AbortSignal.timeout() triggers
-   │           Throw AbortError
+   │             Throw AbortError
    │
    ▼
-[Feedback Middleware] Catch timeout error
-   │                   Update: "⏱ Request timed out after 75s. The image was too complex. Try a simpler prompt."
-   │                   markComplete(correlationId)
+[Error Handler] Catch error, send friendly message
    │
    ▼
-[Ingress-Egress] Final delivery: (error already sent, skip)
+User: "⏳ Image generation timed out after 75s. This prompt may be too complex. Try simplifying it."
 ```
 
----
+#### 3.3.3. Template-Based Progress (Phase 1 Fallback)
 
-## 4. Implementation Strategy
+If `qos.progress.useCustomMessage === false`, feedback middleware sends hardcoded messages directly:
 
-### 4.1. Phase 1: Foundation (Days 1-2)
-
-**Goal:** Build core feedback infrastructure without platform integration
-
-**Deliverables:**
-1. **Progress Message Manager** (`progress-message-manager.ts`)
-   - Interface definitions
-   - In-memory message ID tracking (Map<correlationId, messageId>)
-   - No-op strategy (for testing without platforms)
-
-2. **Progress Templates** (`templates.ts`)
-   - Default templates for common operations
-   - Environment variable overrides
-   - User preference placeholders
-
-3. **QoS Extensions** (`types/events.ts`)
-   - Add `expectsLongRunning`, `progressFeedbackEnabled`, `progressMessageId`, `progressStage` fields
-   - Update schema validation
-
-4. **Unit Tests**
-   - Template rendering
-   - Message ID tracking (add, get, delete)
-   - QoS field validation
-
-### 4.2. Phase 2: Feedback Middleware (Days 3-4)
-
-**Goal:** Implement core middleware logic with threshold detection
-
-**Deliverables:**
-1. **Feedback Middleware** (`feedback-middleware.ts`)
-   - `wrapNext()` implementation
-   - Threshold-based detection (>2s)
-   - Service annotation detection (`event.qos.expectsLongRunning`)
-   - Periodic update scheduling (5s, 15s, 30s)
-   - Timeout detection (approaching, exceeded)
-
-2. **Bit Integration** (`common/base-server.ts`)
-   - Inject feedback middleware into `next()` method
-   - Opt-out logic (check `event.qos.progressFeedbackEnabled`)
-   - Error handling (feedback failures don't block primary flow)
-
-3. **Integration Tests**
-   - Middleware wraps `next()` correctly
-   - Threshold detection triggers at 2s
-   - Service annotations are respected
-   - Opt-out works (no progress messages sent)
-
-### 4.3. Phase 3: Platform Strategies (Days 5-7)
-
-**Goal:** Implement platform-specific feedback mechanisms
-
-**Deliverables:**
-1. **Slack Strategy** (`feedback/strategies/slack-strategy.ts`)
-   - Typing indicator + editable message
-   - Message update via `chat.update`
-   - Cleanup via message deletion
-
-2. **Discord Strategy** (`feedback/strategies/discord-strategy.ts`)
-   - Typing indicator (10s retriggerable)
-   - Editable embeds
-   - Progress bar in embed description (optional)
-
-3. **Twitch Strategy** (`feedback/strategies/twitch-strategy.ts`)
-   - `/me` ACTION messages
-   - Rate limit throttling (max 3 progress messages per operation)
-   - No cleanup (IRC limitation)
-
-4. **Twilio Strategy** (`feedback/strategies/twilio-strategy.ts`)
-   - Optional progress SMS (disabled by default)
-   - Sequential messages
-   - No cleanup (SMS limitation)
-
-5. **Platform Integration Tests**
-   - Mock Slack Web API (`chat.postMessage`, `chat.update`, `chat.delete`)
-   - Mock Discord Gateway (`sendTyping`, `message.edit`, `message.delete`)
-   - Mock Twitch IRC (`chat.say`)
-   - Mock Twilio Conversations API (`messages.create`)
-
-### 4.4. Phase 4: Service Integration (Days 8-9)
-
-**Goal:** Enable feedback in high-impact services (llm-bot, image-gen-mcp)
-
-**Deliverables:**
-1. **Image Gen MCP** (`services/image-gen-mcp/index.ts`)
-   - Annotate `generate_image` tool with `expectsLongRunning = true`
-   - Add stage annotations (`moderation`, `generation`, `upload`)
-   - No other code changes (middleware handles feedback)
-
-2. **LLM Bot** (`services/llm-bot/processor.ts`)
-   - Annotate events with `expectsLongRunning = true` when tools are involved
-   - Add stage annotations (`enrichment`, `llm_call`, `tool_execution`)
-   - No other code changes
-
-3. **End-to-End Tests**
-   - Generate image in Slack (verify typing + editable message)
-   - Generate image in Twitch (verify ACTION messages)
-   - LLM call with tools (verify progress during tool execution)
-   - Timeout scenario (verify user-friendly timeout message)
-
-### 4.5. Phase 5: User Preferences (Day 10)
-
-**Goal:** Allow users to opt-in/opt-out of progress feedback
-
-**Deliverables:**
-1. **User Preference Storage**
-   - Add `progressMessages` field to user profile (PostgreSQL or Firestore)
-   - Default: `true` (enabled for all users)
-
-2. **Preference Commands**
-   - `!settings progress on` - Enable progress messages
-   - `!settings progress off` - Disable progress messages
-   - `!settings` - Show current settings
-
-3. **Ingress Integration**
-   - Load user preferences during auth enrichment
-   - Set `event.qos.progressFeedbackEnabled` based on preference
-
-4. **Preference Tests**
-   - User disables progress → no progress messages sent
-   - User enables progress → progress messages sent
-   - Default behavior (new users) → progress enabled
-
----
-
-## 5. Configuration
-
-### 5.1. Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FEEDBACK_ENABLED` | `true` | Global feature flag (kill switch) |
-| `FEEDBACK_THRESHOLD_MS` | `2000` | Threshold for long-running detection |
-| `FEEDBACK_UPDATE_INTERVALS` | `5000,15000,30000` | Comma-separated update intervals (ms) |
-| `FEEDBACK_TIMEOUT_WARNING_MS` | `60000` | Warn user when approaching timeout (75s - 15s) |
-| `FEEDBACK_PLATFORM_SLACK_ENABLED` | `true` | Enable Slack-specific feedback |
-| `FEEDBACK_PLATFORM_DISCORD_ENABLED` | `true` | Enable Discord-specific feedback |
-| `FEEDBACK_PLATFORM_TWITCH_ENABLED` | `true` | Enable Twitch-specific feedback (ACTION msgs) |
-| `FEEDBACK_PLATFORM_TWILIO_ENABLED` | `false` | Enable Twilio-specific feedback (SMS) |
-| `FEEDBACK_TEMPLATE_LLM_INITIAL` | `🤔 Thinking...` | LLM initial progress message |
-| `FEEDBACK_TEMPLATE_IMAGEGEN_INITIAL` | `🎨 Generating image...` | Image gen initial message |
-| `FEEDBACK_TEMPLATE_TIMEOUT` | `⏱ Request timed out after {duration}s. Please try again.` | Timeout message |
-
-### 5.2. Feature Flags
-
-**Flag:** `feedback.progressMessages.enabled`
-
-**Scope:** Global (platform-wide)
-
-**Values:**
-- `true` (default): Progress feedback enabled for all users
-- `false`: Progress feedback disabled (fallback to silent processing)
-
-**Override:** User preference (`user.preferences.progressMessages`)
-
-### 5.3. Service Configuration
-
-**llm-bot:**
-```yaml
-# env/local/llm-bot.yaml
-FEEDBACK_ENABLED: true
-FEEDBACK_THRESHOLD_MS: 3000  # LLM calls often >3s
-FEEDBACK_TEMPLATE_LLM_INITIAL: "🤔 Thinking..."
-```
-
-**image-gen-mcp:**
-```yaml
-# env/local/image-gen-mcp.yaml
-FEEDBACK_ENABLED: true
-FEEDBACK_THRESHOLD_MS: 5000  # Image gen always >5s
-FEEDBACK_TEMPLATE_IMAGEGEN_INITIAL: "🎨 Generating your image..."
-FEEDBACK_UPDATE_INTERVALS: "10000,20000,40000"  # Longer intervals for image gen
-```
-
----
-
-## 6. Error Handling
-
-### 6.1. Failure Modes
-
-| Failure | Impact | Handling |
-|---------|--------|----------|
-| **Progress message send fails** | LOW | Log warning, continue primary operation |
-| **Message editing fails (platform API error)** | LOW | Log warning, skip future edits |
-| **Rate limit exceeded** | MEDIUM | Throttle updates, skip intermediate messages |
-| **Feedback middleware crashes** | MEDIUM | Catch error, disable feedback for this event |
-| **User preference lookup fails** | LOW | Default to `enabled = true` |
-
-### 6.2. Circuit Breaker
-
-**Pattern:** If progress message failures exceed **10% over 1 minute**, disable feedback for **5 minutes**
-
-**Implementation:**
 ```typescript
-class FeedbackCircuitBreaker {
-  private failureCount = 0;
-  private totalAttempts = 0;
-  private resetTime?: number;
+// In feedback-middleware.ts
+async publishProgressEvent(event: InternalEventV2, stage: string, elapsedMs: number): Promise<void> {
+  const useCustomMessage = event.qos?.progress?.useCustomMessage !== false;  // Default true
 
-  checkCircuit(): boolean {
-    if (this.resetTime && Date.now() < this.resetTime) {
-      return false; // Circuit open (disabled)
-    }
-
-    const failureRate = this.failureCount / this.totalAttempts;
-    if (failureRate > 0.1 && this.totalAttempts >= 10) {
-      this.resetTime = Date.now() + 300000; // 5 minutes
-      logger.warn('feedback.circuit_breaker.open', { failureRate, totalAttempts: this.totalAttempts });
-      return false;
-    }
-
-    return true; // Circuit closed (enabled)
+  if (useCustomMessage) {
+    // Create chat.progress.v1 event (flows through llm-bot)
+    await this.publishLLMProgressEvent(event, stage, elapsedMs);
+  } else {
+    // Send template message directly (no LLM call)
+    await this.sendTemplateMessage(event, stage);
   }
+}
 
-  recordSuccess(): void {
-    this.totalAttempts++;
-  }
+private async sendTemplateMessage(event: InternalEventV2, stage: string): Promise<void> {
+  const templates = {
+    initial: '⏳ Processing your request...',
+    update: '⏳ Still working on it...',
+    timeout: '⏳ This is taking longer than expected, but still processing...',
+  };
 
-  recordFailure(): void {
-    this.totalAttempts++;
-    this.failureCount++;
-  }
+  const message = templates[stage] || templates.initial;
+
+  // Publish directly to internal.egress.v1 (bypass routing)
+  const egressEvent: InternalEventV2 = {
+    ...event,  // Copy platform/channel/user
+    correlationId: randomUUID(),
+    eventId: randomUUID(),
+    timestamp: new Date().toISOString(),
+    message: { text: message },
+    routingSlip: undefined,
+  };
+
+  await this.messageBus.publish('internal.egress.v1', egressEvent);
 }
 ```
 
-### 6.3. Graceful Degradation
+---
 
-| Scenario | Degradation Strategy |
-|----------|---------------------|
-| **Slack API unavailable** | Skip typing indicator, send single final message |
-| **Discord typing fails** | Skip typing, use embed-only approach |
-| **Twitch rate limit hit** | Skip intermediate updates, send only final message |
-| **Twilio carrier blocks SMS** | Disable Twilio feedback, send only final SMS |
+### 3.4. Implementation Phases
+
+#### Phase 1: Foundation (Days 1-3)
+**Goal**: Basic progress feedback with template messages
+
+**Deliverables**:
+1. ✅ Feedback Middleware implementation
+   - Threshold detection (2s default)
+   - Progress tracking (initial/update/timeout stages)
+   - Template message generation
+2. ✅ QoS extensions (`qos.progress.enabled`, `qos.progress.useCustomMessage`)
+3. ✅ Unit tests for middleware (threshold detection, stage determination)
+4. ✅ Integration test: image-gen-mcp with template messages
+
+**Validation**:
+```bash
+# Local test
+User: !image a sunset
+[2s] Bot: ⏳ Processing your request...
+[7s] Bot: ⏳ Still working on it...
+[15s] Bot: Image generated! https://...
+```
+
+#### Phase 2: LLM-Generated Progress (Days 4-6)
+**Goal**: Contextual progress messages via existing pipeline
+
+**Deliverables**:
+1. ✅ Event-router rule for `chat.progress.v1`
+2. ✅ Prompt annotation generation in feedback middleware
+3. ✅ Seed data update (add routing rule to `commands` collection)
+4. ✅ Integration test: chat.progress.v1 → llm-bot → ingress-egress
+5. ✅ Service opt-in: image-gen-mcp adds operation_context annotation
+
+**Validation**:
+```bash
+# Local test
+User: !image a sunset over ocean waves
+[2s] Bot: 🎨 Creating your sunset over ocean waves image...
+[7s] Bot: 🎨 Your sunset image is almost ready...
+[15s] Bot: Image generated! https://...
+```
+
+#### Phase 3: Service Integration (Days 7-8)
+**Goal**: Enable progress feedback for llm-bot and image-gen-mcp
+
+**Deliverables**:
+1. ✅ image-gen-mcp: Add operation_context annotation before generation
+2. ✅ llm-bot: Add operation_context annotation for tool execution
+3. ✅ Configuration flags: `PROGRESS_ENABLED`, `PROGRESS_USE_CUSTOM`
+4. ✅ Staging deployment and smoke tests
+
+**Validation**:
+```bash
+# Staging test (Slack)
+User: !image a dragon
+[2s] Bot: 🐉 Creating your dragon image...
+[7s] Bot: 🐉 Your dragon is taking shape...
+[12s] Bot: Image generated! https://...
+
+User: What's the weather in Paris?
+[2s] Bot: 🌤️ Checking the weather in Paris...
+[4s] Bot: Paris is 22°C and sunny.
+```
+
+#### Phase 4: User Preferences (Days 9-10)
+**Goal**: Allow users to opt-out of progress messages
+
+**Deliverables**:
+1. ✅ User preference storage (Firestore or PostgreSQL)
+2. ✅ Preference enforcement in feedback middleware
+3. ✅ Chat command: `!settings progress off`
+4. ✅ Documentation update
+
+**Validation**:
+```bash
+User: !settings progress off
+Bot: Progress messages disabled.
+
+User: !image a sunset
+[10s of silence]
+Bot: Image generated! https://...
+
+User: !settings progress on
+Bot: Progress messages enabled.
+```
+
+#### Phase 5: Monitoring & Refinement (Day 10)
+**Goal**: Production readiness
+
+**Deliverables**:
+1. ✅ Logging: Progress message published, delivered, failed
+2. ✅ Metrics: Progress message latency, LLM call duration
+3. ✅ Error handling: LLM timeout → fallback to template
+4. ✅ Documentation: Architecture, user guide, troubleshooting
 
 ---
 
-## 7. Testing Strategy
+## 4. Technical Decisions
 
-### 7.1. Unit Tests
+### 4.1. Why Not New Event Types?
 
-**Target:** 90% coverage on feedback components
+**Decision**: Reuse `InternalEventV2` with `type: 'chat.progress.v1'` instead of creating `ChatProgressV1` interface.
 
-**Key Test Cases:**
-- Template rendering with placeholders
-- Message ID tracking (add, get, delete)
-- Threshold detection (2s, 5s, 10s)
-- Service annotation detection
-- User preference parsing
-- Timeout detection (approaching, exceeded)
+**Rationale**:
+1. **Simplicity**: No new TypeScript types, no schema changes
+2. **Compatibility**: Existing services already handle `InternalEventV2`
+3. **Routing**: Event-router already matches on `payload.type`
+4. **Consistency**: Same pattern as `chat.message.v1`, `chat.command.v1`, etc.
 
-### 7.2. Integration Tests
+### 4.2. Why Not New LLM Operations?
 
-**Target:** Platform-specific feedback mechanisms
+**Decision**: Use existing `chat` operation in llm-bot instead of `generate_progress_message` operation.
 
-**Key Test Cases:**
-- **Slack:** Mock `chat.postMessage`, `chat.update`, `chat.delete`
-- **Discord:** Mock `sendTyping`, `message.edit`, `message.delete`
-- **Twitch:** Mock `chat.say` (ACTION messages)
-- **Twilio:** Mock `messages.create`
+**Rationale**:
+1. **Zero code changes**: llm-bot already processes events with prompt annotations
+2. **Reuse existing logic**: Personality, LLM provider selection, error handling
+3. **No special cases**: Progress messages are just short chat responses
 
-**Assertions:**
-- Initial progress message sent within 500ms
-- Updates sent at configured intervals
-- Final message replaces/deletes progress message
-- Rate limits are respected
+### 4.3. Why Annotations Instead of QoS?
 
-### 7.3. End-to-End Tests
+**Decision**: Store implementation details (stage, operation, timing) in annotations, not QoS.
 
-**Target:** Real user flows with feedback
+**Rationale**:
+1. **QoS is for preferences**: User wants progress feedback (yes/no), not implementation details
+2. **Annotations are for context**: Progress stage, operation type, parameters are context
+3. **Separation of concerns**: QoS = "what user wants", Annotations = "what system knows"
 
-**Key Scenarios:**
-1. **Image Generation (Slack):**
-   - User sends `!image a sunset`
-   - Assert: Typing indicator appears within 500ms
-   - Assert: "🎨 Generating image..." appears within 1s
-   - Assert: Message updates to "🎨 Still generating..." after 10s
-   - Assert: Final message shows image URL after 25s
+### 4.4. Why Feedback Middleware Instead of Service Code?
 
-2. **LLM with Tools (Discord):**
-   - User sends `What's the weather in Paris?`
-   - Assert: Typing indicator triggered
-   - Assert: Embed shows "🤔 Thinking..."
-   - Assert: Typing retriggered every 8s
-   - Assert: Embed updates to "🔧 Checking weather..."
-   - Assert: Final embed shows weather result
+**Decision**: Intercept `next()` calls in Bit base class instead of modifying each service.
 
-3. **Timeout (Twitch):**
-   - User sends `!image an impossibly complex scene`
-   - Assert: ACTION message "/me is generating an image..." sent
-   - Assert: ACTION message "/me still working..." sent after 30s
-   - Assert: ACTION message "/me this is taking longer..." sent after 60s
-   - Assert: Final message shows timeout error after 75s
-
-4. **User Opt-Out (all platforms):**
-   - User sends `!settings progress off`
-   - User sends `!image a sunset`
-   - Assert: No progress messages sent
-   - Assert: Only final message delivered
-
-### 7.4. Performance Tests
-
-**Target:** Feedback overhead <100ms
-
-**Metrics:**
-- Time from operation start to first progress message
-- Message ID lookup latency (in-memory map or Redis)
-- Platform API call latency (Slack, Discord)
-- End-to-end latency with vs without feedback
-
-**Assertions:**
-- P50 feedback latency <50ms
-- P99 feedback latency <500ms
-- Primary operation latency increase <5%
+**Rationale**:
+1. **Zero service changes**: Services don't need to call feedback APIs
+2. **Automatic detection**: Threshold-based triggering requires no opt-in
+3. **Consistent UX**: All long-running operations get feedback automatically
+4. **Opt-in available**: Services can annotate events for better context
 
 ---
 
-## 8. Rollout Plan
+## 5. Testing Strategy
 
-### 8.1. Alpha (Local Dev Only)
+### 5.1. Unit Tests
 
-**Duration:** 2 days
-**Scope:** Local development environment
-**Features:** Basic feedback with no-op strategy (logs only, no platform integration)
-
-**Validation:**
-- Unit tests pass
-- Middleware wraps `next()` correctly
-- Logs show progress messages without sending to platforms
-
-### 8.2. Beta (Staging - Internal Users)
-
-**Duration:** 3 days
-**Scope:** Staging environment (Slack only)
-**Features:** Full Slack integration with typing + editable messages
-
-**Validation:**
-- Slack typing indicators appear
-- Messages update correctly
-- No rate limit issues
-- Circuit breaker doesn't trigger
-
-### 8.3. Gamma (Production - Opt-In)
-
-**Duration:** 1 week
-**Scope:** Production (all platforms), opt-in via command
-**Features:** Full platform support, default disabled, opt-in via `!settings progress on`
-
-**Validation:**
-- <1% error rate on progress messages
-- User feedback is positive
-- No performance degradation (P99 latency <5% increase)
-
-### 8.4. General Availability
-
-**Duration:** Ongoing
-**Scope:** Production (all platforms), default enabled
-**Features:** All users get progress feedback by default, opt-out via `!settings progress off`
-
-**Monitoring:**
-- Progress message success rate >99%
-- User opt-out rate <10%
-- Circuit breaker trigger rate <1%
-
----
-
-## 9. Monitoring & Observability
-
-### 9.1. Metrics
-
-| Metric | Type | Description | Alert Threshold |
-|--------|------|-------------|-----------------|
-| `feedback.message.sent` | Counter | Progress messages sent (by platform) | N/A |
-| `feedback.message.updated` | Counter | Progress messages updated (by platform) | N/A |
-| `feedback.message.failed` | Counter | Progress message failures (by platform, reason) | >1% failure rate |
-| `feedback.latency.initial` | Histogram | Time from operation start to first message | P99 >500ms |
-| `feedback.latency.update` | Histogram | Time to update progress message | P99 >1s |
-| `feedback.circuit_breaker.open` | Counter | Circuit breaker activations | >1 per hour |
-| `feedback.user.opt_out` | Gauge | Users with progress disabled | >10% |
-
-### 9.2. Logs
-
-**Structured Logging:**
+**Feedback Middleware** (`feedback-middleware.test.ts`):
 ```typescript
-logger.info('feedback.message.sent', {
-  platform: 'slack',
-  correlationId: '7f3a1b2c...',
-  messageId: '1234567890.123456',
-  template: 'llm_initial',
-  latencyMs: 45
-});
+describe('FeedbackMiddleware', () => {
+  it('should not send progress for fast operations (<2s)', async () => {
+    const event = createMockEvent();
+    event.timestamp = new Date(Date.now() - 1500).toISOString();
 
-logger.warn('feedback.message.failed', {
-  platform: 'discord',
-  correlationId: '8a4b2c3d...',
-  error: 'Rate limit exceeded',
-  retryable: false
-});
+    await middleware.beforeNext(event);
 
-logger.debug('feedback.circuit_breaker.open', {
-  failureRate: 0.12,
-  totalAttempts: 50,
-  resetTime: '2026-07-31T12:00:00Z'
+    expect(messageBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('should send initial progress at 2s threshold', async () => {
+    const event = createMockEvent();
+    event.timestamp = new Date(Date.now() - 2100).toISOString();
+
+    await middleware.beforeNext(event);
+
+    expect(messageBus.publish).toHaveBeenCalledWith(
+      'internal.ingress.v1',
+      expect.objectContaining({
+        payload: { type: 'chat.progress.v1' },
+        annotations: expect.arrayContaining([
+          expect.objectContaining({ kind: 'progress_context' }),
+          expect.objectContaining({ kind: 'prompt' }),
+        ]),
+      })
+    );
+  });
+
+  it('should send update at 7s (5s after initial)', async () => {
+    const event = createMockEvent();
+    event.timestamp = new Date(Date.now() - 7100).toISOString();
+
+    // Simulate initial already sent
+    middleware.tracking.set(event.correlationId, {
+      initialSent: true,
+      lastUpdate: Date.now() - 5100,
+      timeoutSent: false,
+    });
+
+    await middleware.beforeNext(event);
+
+    expect(messageBus.publish).toHaveBeenCalledWith(
+      'internal.ingress.v1',
+      expect.objectContaining({
+        annotations: expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'progress_context',
+            value: expect.objectContaining({ stage: 'update' }),
+          }),
+        ]),
+      })
+    );
+  });
+
+  it('should respect user opt-out', async () => {
+    const event = createMockEvent();
+    event.qos = { progress: { enabled: false } };
+    event.timestamp = new Date(Date.now() - 5000).toISOString();
+
+    await middleware.beforeNext(event);
+
+    expect(messageBus.publish).not.toHaveBeenCalled();
+  });
 });
 ```
 
-### 9.3. Alerts
+### 5.2. Integration Tests
 
-| Alert | Condition | Severity | Action |
-|-------|-----------|----------|--------|
-| **High Failure Rate** | `feedback.message.failed >1% over 5min` | WARNING | Investigate platform API issues |
-| **Circuit Breaker Open** | `feedback.circuit_breaker.open` event | WARNING | Disable feedback globally if sustained |
-| **Latency Spike** | `feedback.latency.initial P99 >500ms` | INFO | Check platform API latency |
-| **Mass Opt-Out** | `feedback.user.opt_out >20%` | CRITICAL | Investigate UX complaints, disable feature |
+**End-to-End Progress Flow** (`progress-flow.integration.test.ts`):
+```typescript
+describe('Progress Message Flow', () => {
+  it('should generate contextual progress message via LLM', async () => {
+    // 1. Create original image request
+    const originalEvent: InternalEventV2 = {
+      correlationId: randomUUID(),
+      eventId: randomUUID(),
+      timestamp: new Date(Date.now() - 5000).toISOString(),  // 5s ago
+      platform: 'slack',
+      channel: { id: 'C123', name: 'general' },
+      user: { id: 'U123', username: 'testuser' },
+      payload: { type: 'chat.message.v1' },
+      message: { text: '!image a sunset' },
+      qos: { progress: { enabled: true, useCustomMessage: true } },
+      annotations: [
+        {
+          kind: 'operation_context',
+          value: {
+            operation: 'image_generation',
+            parameters: { prompt: 'a sunset' },
+          },
+          source: 'image-gen-mcp',
+          id: randomUUID(),
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+
+    // 2. Feedback middleware triggers
+    const middleware = new FeedbackMiddleware({ messageBus, logger });
+    await middleware.beforeNext(originalEvent);
+
+    // 3. Verify chat.progress.v1 event published
+    expect(messageBus.publish).toHaveBeenCalledWith(
+      'internal.ingress.v1',
+      expect.objectContaining({
+        payload: { type: 'chat.progress.v1' },
+        platform: 'slack',
+        channel: { id: 'C123' },
+        user: { id: 'U123' },
+      })
+    );
+
+    // 4. Simulate event-router attaching routing slip
+    const progressEvent = messageBus.publish.mock.calls[0][1];
+    progressEvent.routingSlip = {
+      steps: [
+        { service: 'llm-bot', operation: 'chat' },
+        { service: 'ingress-egress', operation: 'deliver' },
+      ],
+      currentStep: 0,
+    };
+
+    // 5. Simulate llm-bot processing
+    const llmBot = new LLMBotService();
+    await llmBot.handleMessage(progressEvent);
+
+    // 6. Verify message generated
+    expect(progressEvent.message?.text).toMatch(/sunset/i);
+    expect(progressEvent.message?.text).toMatch(/🎨/);
+    expect(progressEvent.message?.text.length).toBeLessThan(100);
+
+    // 7. Verify next() called (sends to ingress-egress)
+    expect(messageBus.publish).toHaveBeenCalledWith(
+      'internal.contextualization.v1',  // Or next topic in routing slip
+      expect.objectContaining({
+        message: expect.objectContaining({
+          text: expect.stringContaining('sunset'),
+        }),
+      })
+    );
+  });
+});
+```
+
+### 5.3. Manual Testing Plan
+
+**Test Case 1: Image Generation Progress**
+```bash
+# Setup
+npm run local
+npm run brat -- chat
+
+# Test
+User: !image a sunset over ocean waves
+Expected:
+  [2s] Bot: 🎨 Creating your sunset over ocean waves image...
+  [7s] Bot: 🎨 Your sunset image is almost ready...
+  [15s] Bot: Image generated! https://storage.googleapis.com/...
+```
+
+**Test Case 2: LLM Tool Execution Progress**
+```bash
+User: What's the weather in Paris and London?
+Expected:
+  [2s] Bot: 🌤️ Checking the weather...
+  [5s] Bot: Paris is 22°C and sunny. London is 18°C and cloudy.
+```
+
+**Test Case 3: Timeout Warning**
+```bash
+User: !image an incredibly detailed fantasy landscape with thousands of intricate details
+Expected:
+  [2s] Bot: 🎨 Creating your detailed fantasy landscape...
+  [7s] Bot: 🎨 Still working on your landscape...
+  [60s] Bot: ⏳ This is taking longer than usual, but still processing...
+  [75s] Bot: ⏳ Image generation timed out. Try simplifying your prompt.
+```
+
+**Test Case 4: User Opt-Out**
+```bash
+User: !settings progress off
+Bot: Progress messages disabled.
+
+User: !image a sunset
+[10s of silence]
+Bot: Image generated! https://...
+```
 
 ---
 
-## 10. Security & Privacy
+## 6. Risks & Mitigations
 
-### 10.1. Data Exposure
-
-**Risk:** Progress messages may reveal internal system state (service names, stages)
-
-**Mitigation:**
-- **User-facing templates only:** No internal service names in messages
-- **Generic stage names:** "Thinking" instead of "llm-bot.enrichment"
-- **No sensitive metadata:** Correlation IDs not shown to users
-
-### 10.2. Rate Limit Abuse
-
-**Risk:** Malicious users trigger expensive operations to spam progress messages
-
-**Mitigation:**
-- **Existing rate limits apply:** Image gen has 5-minute cooldown per user
-- **Progress message throttling:** Max 5 progress messages per operation
-- **Circuit breaker:** Disables feedback if platform APIs fail
-
-### 10.3. Message Injection
-
-**Risk:** User input in progress messages could inject malicious content
-
-**Mitigation:**
-- **Static templates:** No user input in progress messages
-- **Platform escaping:** Use platform-native APIs (e.g., Slack Blocks, Discord Embeds)
-- **No eval/exec:** Templates are static strings, not code
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| **LLM latency degrades UX** | HIGH | MEDIUM | Use fast model (gpt-4o-mini), 3s timeout, fallback to templates |
+| **Progress message spam** | MEDIUM | MEDIUM | Rate limiting (5s between updates), platform-aware throttling |
+| **Event-router rule mismatch** | HIGH | LOW | Comprehensive seed data tests, rule validation in setup |
+| **Feedback failures block operations** | CRITICAL | LOW | Isolate feedback in try-catch, log errors, continue operation |
+| **User preference conflicts** | LOW | LOW | Default to enabled, clear opt-out command |
 
 ---
 
-## 11. Future Enhancements (Out of Scope)
-
-### 11.1. Streaming LLM Responses
-
-**Goal:** Stream LLM token-by-token to user (like ChatGPT)
-
-**Complexity:** HIGH (requires Vercel AI SDK streaming + platform WebSocket support)
-
-**Dependencies:**
-- Slack: Requires WebSocket updates (not supported via Web API)
-- Discord: Requires message editing on every token (rate limits)
-- Twitch: Not supported (IRC is append-only)
-
-**Sprint:** 380+ (dedicated streaming sprint)
-
-### 11.2. User-Initiated Cancellation
-
-**Goal:** Allow users to abort in-flight operations (e.g., `!cancel`)
-
-**Complexity:** MEDIUM (requires AbortSignal propagation across services)
-
-**Dependencies:**
-- Track in-flight operations (correlationId → AbortController map)
-- Propagate cancellation across routing slip
-- Handle partial completions (e.g., image moderated but not generated)
-
-**Sprint:** 378 (follow-up to this sprint)
-
-### 11.3. Progress Bars / Visual Indicators
-
-**Goal:** Show visual progress (e.g., "Image generation: 60% complete")
-
-**Complexity:** MEDIUM (requires stage-level progress reporting from services)
-
-**Dependencies:**
-- Discord Embeds (supports progress bar emoji)
-- Slack Blocks (supports progress bar layout)
-- Twitch: Not supported (IRC is text-only)
-
-**Sprint:** 379 (UI/UX enhancement sprint)
-
----
-
-## 12. Success Criteria
+## 7. Success Metrics
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
-| **User Satisfaction** | >80% positive feedback | Post-sprint user survey |
-| **Adoption Rate** | <10% opt-out rate | User preference analytics |
-| **Performance Impact** | <5% latency increase | P99 latency comparison (before/after) |
-| **Reliability** | >99% progress message success | `feedback.message.failed` metric |
-| **Platform Coverage** | 4/4 platforms (Slack, Discord, Twitch, Twilio) | Platform-specific tests pass |
-| **Code Quality** | >90% test coverage | Jest coverage report |
+| **User satisfaction** | >80% positive feedback | Post-sprint user survey |
+| **Progress message latency** | <500ms | p95 from logs |
+| **LLM call duration** | <2s | p95 from logs |
+| **Feedback failure rate** | <1% | Error logs / total operations |
+| **Opt-out rate** | <10% | User preferences count |
 
 ---
 
-## 13. Risks & Mitigation
+## 8. Future Enhancements (Out of Scope)
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| **Platform API changes** | MEDIUM | HIGH | Abstract platform logic, version API calls |
-| **Rate limit issues** | LOW | MEDIUM | Implement throttling, circuit breaker |
-| **User annoyance (too many messages)** | MEDIUM | MEDIUM | Allow opt-out, tune update intervals |
-| **Performance degradation** | LOW | HIGH | Async feedback (fire-and-forget), measure latency |
-| **Increased complexity** | HIGH | MEDIUM | Comprehensive testing, staged rollout |
+### Sprint 378+: Platform-Specific Strategies
+- **Slack**: Message editing (update same message instead of new ones)
+- **Discord**: Typing indicators (3-dot animation)
+- **Twitch**: Rate-limited sequential messages (respect 20msg/30s limit)
 
----
-
-## 14. References
-
-- **Sprint 371:** Debug Mode (proves multi-message feedback is possible)
-- **Vercel AI SDK:** https://sdk.vercel.ai/docs (streaming LLM support)
-- **Slack Web API:** https://api.slack.com/methods (chat.postMessage, chat.update)
-- **Discord.js:** https://discord.js.org (sendTyping, message.edit)
-- **Twitch IRC:** https://dev.twitch.tv/docs/irc (ACTION messages, rate limits)
-- **Twilio Conversations API:** https://www.twilio.com/docs/conversations (messages.create)
+### Sprint 379+: Advanced Features
+- **User cancellation**: `!cancel` command to abort long operations
+- **Progress percentage**: "🎨 Creating image... 45% complete"
+- **Streaming responses**: Progressive reveal for LLM text (token-by-token)
+- **Multi-step progress**: "Step 1/3: Moderation check ✅"
 
 ---
 
-## Appendix A: Example User Flows
+## 9. Appendix
 
-### A.1. Image Generation (Optimal - Slack)
+### A. Annotation Schemas
 
-**Before (Silent):**
-```
-User: !image a sunset over mountains
-[10 seconds pass]
-[20 seconds pass]
-[30 seconds pass]
-Bot: Image generated! https://storage.googleapis.com/bitbrat-media-gen/abc123.png
-```
-
-**After (With Feedback):**
-```
-User: !image a sunset over mountains
-[500ms] Bot: 🎨 Generating your image...
-[10s] Bot: 🎨 Still generating... (message edits in place)
-[20s] Bot: 🎨 Almost done... (message edits in place)
-[30s] Bot: Image generated! https://storage.googleapis.com/bitbrat-media-gen/abc123.png
-        (replaces progress message)
-```
-
-### A.2. LLM with Multi-Tool (Discord)
-
-**Before (Silent):**
-```
-User: What's the weather in Paris and London?
-[8 seconds pass]
-Bot: Paris is 22°C and sunny. London is 18°C and cloudy.
+**progress_context**:
+```typescript
+{
+  kind: 'progress_context',
+  value: {
+    originalCorrelationId: string;      // Link to original request
+    originalMessage: string;            // User's original message
+    stage: 'initial' | 'update' | 'timeout' | 'completion';
+    operation: string;                  // 'image_generation', 'llm_call', 'tool_execution'
+    parameters: Record<string, any>;    // Request-specific context
+    startedAt: string;                  // ISO timestamp
+    elapsedMs: number;                  // Milliseconds elapsed
+  },
+  source: 'feedback-middleware',
+  id: string;
+  createdAt: string;
+}
 ```
 
-**After (With Feedback):**
-```
-User: What's the weather in Paris and London?
-[typing indicator appears]
-[1s] Bot: 🤔 Thinking... (embed)
-[typing indicator retriggered]
-[3s] Bot: 🔧 Checking weather in Paris... (embed updates)
-[typing indicator retriggered]
-[6s] Bot: 🔧 Checking weather in London... (embed updates)
-[8s] Bot: Paris is 22°C and sunny. London is 18°C and cloudy.
-      (embed updates with final result)
-```
-
-### A.3. Timeout (Twitch)
-
-**Before (Silent):**
-```
-User: !image an impossibly complex scene with thousands of intricate details
-[75 seconds pass]
-Bot: Failed to generate image: The operation was aborted
+**operation_context** (added by services):
+```typescript
+{
+  kind: 'operation_context',
+  value: {
+    operation: string;                  // 'image_generation', 'llm_call', etc.
+    parameters: Record<string, any>;    // Request details
+    expectedDurationMs?: number;        // Hint for feedback middleware
+  },
+  source: string;                       // Service name
+  id: string;
+  createdAt: string;
+}
 ```
 
-**After (With Feedback):**
-```
-User: !image an impossibly complex scene with thousands of intricate details
-[1s] BitBrat: /me is generating an image...
-[30s] BitBrat: /me still working on your image...
-[60s] BitBrat: /me this is taking longer than usual, but still processing...
-[75s] BitBrat: ⏱ Request timed out after 75 seconds. The image was too complex. Try a simpler prompt.
-```
-
----
-
-## Appendix B: Architecture Diagrams
-
-### B.1. Component Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Feedback System Components                  │
-└─────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────┐
-│ Feedback Middleware  │◄─────┐
-│  - wrapNext()        │      │
-│  - detectLongRunning()│     │
-│  - scheduleUpdates() │      │ Injects into Bit.next()
-└──────────┬───────────┘      │
-           │                   │
-           ▼                   │
-┌──────────────────────┐      │
-│ Progress Message Mgr │      │
-│  - sendInitial()     │      │
-│  - update()          │      │
-│  - cleanup()         │      │
-└──────────┬───────────┘      │
-           │                   │
-           ├──────────────┬────┴───────┬────────────┐
-           ▼              ▼            ▼            ▼
-    ┌─────────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐
-    │   Slack     │ │ Discord  │ │ Twitch  │ │ Twilio   │
-    │  Strategy   │ │ Strategy │ │Strategy │ │ Strategy │
-    └─────────────┘ └──────────┘ └─────────┘ └──────────┘
-           │              │            │            │
-           ▼              ▼            ▼            ▼
-    ┌─────────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐
-    │ Slack Web   │ │ Discord  │ │ Twitch  │ │ Twilio   │
-    │    API      │ │ Gateway  │ │   IRC   │ │ Conv API │
-    └─────────────┘ └──────────┘ └─────────┘ └──────────┘
+**prompt** (added by feedback middleware):
+```typescript
+{
+  kind: 'prompt',
+  value: string;  // Instructions for llm-bot on how to generate message
+  source: 'feedback-middleware',
+  id: string;
+  createdAt: string;
+}
 ```
 
-### B.2. Sequence Diagram (Image Generation with Feedback)
+### B. Configuration Reference
 
+**Environment Variables**:
+```yaml
+# Global (env/staging/global.yaml)
+PROGRESS_ENABLED: "true"                    # Enable progress feedback system
+PROGRESS_USE_CUSTOM_MESSAGES: "true"        # Use LLM vs templates
+PROGRESS_THRESHOLD_MS: "2000"               # Minimum elapsed time to trigger (ms)
+PROGRESS_UPDATE_INTERVAL_MS: "5000"         # Time between updates (ms)
+PROGRESS_LLM_MODEL: "gpt-4o-mini"           # Model for progress message generation
+PROGRESS_LLM_TIMEOUT_MS: "3000"             # Timeout for LLM calls
 ```
-User    Event    Feedback    Image     Progress    Slack
-        Router   Middleware  Gen MCP   Msg Mgr     API
- │        │          │          │          │          │
- │─!image─▶          │          │          │          │
- │        │──route──▶│          │          │          │
- │        │          │──detect──▶          │          │
- │        │          │          │          │          │
- │        │          │─────send initial─────▶         │
- │        │          │          │          │──typing──▶
- │        │          │          │          │─message──▶
- │        │          │          │          │◀─────ts──┘
- │        │          │          │          │          │
- │        │          │──process─▶          │          │
- │        │          │          │(10s...)  │          │
- │        │          │          │          │          │
- │        │          │─────update (10s)────▶          │
- │        │          │          │          │─update───▶
- │        │          │          │(20s...)  │          │
- │        │          │          │          │          │
- │        │          │─────update (20s)────▶          │
- │        │          │          │          │─update───▶
- │        │          │          │◀complete─┤          │
- │        │          │          │          │          │
- │        │          │─────final update────▶          │
- │        │          │          │          │─update───▶
- │◀───────────────────────────────────────────────────┘
+
+**Service-Specific** (optional):
+```yaml
+# env/staging/image-gen-mcp.yaml
+IMAGE_GEN_PROGRESS_ENABLED: "true"
+IMAGE_GEN_PROGRESS_CUSTOM: "true"
+```
+
+### C. Example Prompts (by Operation Type)
+
+**image_generation**:
+```
+Stage: initial
+Prompt: "Generate a brief, encouraging message (max 100 chars) that the user's image is being created. Reference the image subject from the prompt. Use an emoji. Be concise and friendly."
+
+Stage: update
+Prompt: "Generate a brief progress update (max 100 chars) that the image is still being generated. Be patient but positive. Don't repeat the exact same message as before."
+
+Stage: timeout
+Prompt: "Generate a brief message (max 100 chars) that the image is taking longer than expected but still processing. Be apologetic but reassuring."
+```
+
+**llm_call**:
+```
+Stage: initial
+Prompt: "Generate a brief message (max 100 chars) that you're thinking about the user's question. Use an emoji. Be friendly."
+
+Stage: update
+Prompt: "Generate a brief update (max 100 chars) that you're still processing. Be patient."
+
+Stage: timeout
+Prompt: "Generate a brief message (max 100 chars) that this is taking longer than usual. Apologize for the wait."
+```
+
+**tool_execution**:
+```
+Stage: initial
+Prompt: "Generate a brief message (max 100 chars) that you're executing the requested tool. Reference the tool name if available. Use an emoji."
+
+Stage: update
+Prompt: "Generate a brief update (max 100 chars) that the tool is still running. Be patient."
+
+Stage: timeout
+Prompt: "Generate a brief message (max 100 chars) that the tool is taking longer than expected. Apologize."
 ```
 
 ---
 
-**END OF TECHNICAL ARCHITECTURE**
+**End of Technical Architecture**
