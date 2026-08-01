@@ -883,11 +883,20 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // ============================================================================
       // STAGE 7: Execute orchestrator with merged compose file
       // ============================================================================
+
+      // For remote deployments, use the remote path (file will be synced by orchestrator)
+      // For local deployments, use the local path
+      let composeFilePath = tempMergedPath;
+      if (isRemote) {
+        const remoteDir = context.deployment!.docker!.remoteDir || '/opt/BitBratPlatform';
+        composeFilePath = `${remoteDir}/.docker-compose.merged.yaml`;
+      }
+
       const orchestratorOptions: DockerOrchestratorOptions = {
         repoRoot,
         context: context.name,
         service: undefined, // Deploy all services
-        composeFile: tempMergedPath, // Use merged compose file
+        composeFile: composeFilePath, // Use merged compose file (local or remote path)
         dryRun: options.dryRun || false,
         forceRecreate: options.forceRecreate || false,
         noCache: options.forceBuild || false,
