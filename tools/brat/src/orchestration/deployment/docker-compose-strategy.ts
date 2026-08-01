@@ -608,7 +608,22 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // ============================================================================
       // STAGE 1: Read base compose file
       // ============================================================================
-      const baseComposePath = this.getComposeFilePath(context, services[0]);
+      // For bulk deployments, use infrastructure-only base file (docker-compose.local.yaml)
+      // to avoid circular dependencies from generated context-specific files
+      // (e.g., docker-compose.staging.yaml which contains all services with dependencies).
+      //
+      // The infrastructure-only base contains:
+      // - Infrastructure services (nats, postgres, firebase-emulator)
+      // - Network definitions
+      // - Volume definitions
+      // - bitbrat-base build-only service
+      //
+      // All application services (auth, tool-gateway, llm-bot, etc.) are added
+      // from service-specific compose files to avoid dependency conflicts.
+      const baseComposePath = path.join(
+        repoRoot,
+        'infrastructure/docker-compose/docker-compose.local.yaml'
+      );
       const baseYaml = await fs.promises.readFile(baseComposePath, 'utf-8');
 
       console.log(`[docker-compose-strategy] Base compose file: ${baseComposePath}`);
