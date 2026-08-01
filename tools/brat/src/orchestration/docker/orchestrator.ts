@@ -226,6 +226,7 @@ export class DockerOrchestrator {
   /**
    * Build the shared base image (bitbrat-base) if needed.
    * Sprint 375: Checks cache key to skip rebuild when dependencies unchanged.
+   * Sprint 378: Always rebuild for remote deployments (cache is local-only).
    *
    * @param targetConfig - Deployment target configuration
    * @param composeArgs - Docker Compose arguments (for project name, env files, etc.)
@@ -233,14 +234,20 @@ export class DockerOrchestrator {
    */
   private async buildBaseImage(targetConfig: any, composeArgs: string[]): Promise<void> {
     const forceRebuild = this.options.rebuildBase || this.options.noCache;
+    const isRemote = targetConfig.host?.startsWith('ssh://');
 
-    // Check if base image needs rebuilding
-    if (!shouldRebuildBase(this.options.repoRoot, forceRebuild)) {
+    // Sprint 378: For remote deployments, always rebuild base image
+    // because the cache file is local but the image needs to exist on remote Docker daemon
+    if (!isRemote && !shouldRebuildBase(this.options.repoRoot, forceRebuild)) {
       console.log('[brat] Base image cache is up-to-date, skipping rebuild');
       return;
     }
 
-    console.log('[brat] Building shared base image (bitbrat-base)...');
+    if (isRemote) {
+      console.log('[brat] Building shared base image (bitbrat-base) for remote deployment...');
+    } else {
+      console.log('[brat] Building shared base image (bitbrat-base)...');
+    }
 
     // Build using docker compose with the build-only profile
     const buildArgs = [...composeArgs, 'build'];
@@ -251,9 +258,11 @@ export class DockerOrchestrator {
 
     await this.executeDockerCompose(targetConfig, buildArgs);
 
-    // Store new cache key after successful build
-    const newCacheKey = computeBaseCacheKey(this.options.repoRoot);
-    storeCacheKey(this.options.repoRoot, newCacheKey);
+    // Store new cache key after successful build (local deployments only)
+    if (!isRemote) {
+      const newCacheKey = computeBaseCacheKey(this.options.repoRoot);
+      storeCacheKey(this.options.repoRoot, newCacheKey);
+    }
 
     console.log('[brat] Base image built successfully');
   }
