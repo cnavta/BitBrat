@@ -182,6 +182,11 @@ export class ComposeMerger {
       // Add service from override to base
       baseCompose.services[serviceName] = serviceOverride;
 
+      // Sprint 378: Fix build context paths for merged services
+      // Service-specific compose files use 'context: ../..' (relative to services/ directory)
+      // When merged into repo-root compose file, this becomes incorrect
+      this.fixBuildContextPaths(baseCompose.services[serviceName]);
+
       // Sprint 378: Also merge additional services and top-level volumes
       this.mergeAdditionalServices(baseCompose, serviceCompose, serviceName);
       this.mergeTopLevelVolumes(baseCompose, serviceCompose);
@@ -246,6 +251,9 @@ export class ComposeMerger {
     // Update base compose with merged service
     baseCompose.services[serviceName] = mergedService;
 
+    // Sprint 378: Fix build context paths for merged services
+    this.fixBuildContextPaths(baseCompose.services[serviceName]);
+
     // Sprint 378: Merge additional services from service-specific compose file
     // Service-specific compose files may define additional services (e.g., ollama in query-analyzer.compose.yaml)
     // that are dependencies of the main service. These must be included in the merged file.
@@ -266,6 +274,41 @@ export class ComposeMerger {
       parsed: baseCompose,
       stats,
     };
+  }
+
+  /**
+   * Fix build context paths when merging services into repo-root compose file.
+   *
+   * **Sprint 378:** Service-specific compose files (located in infrastructure/docker-compose/services/)
+   * use relative build context paths like `context: ../..` to point to the repo root.
+   * When these services are merged into a compose file at the repo root (.docker-compose.merged.yaml),
+   * the relative paths become incorrect.
+   *
+   * This method adjusts build context paths:
+   * - `../..` → `.` (repo root from repo root)
+   * - Absolute paths left unchanged
+   * - Single `.` left unchanged
+   *
+   * @param service - Service definition to fix
+   */
+  private fixBuildContextPaths(service: ComposeService): void {
+    if (!service.build || typeof service.build !== 'object') {
+      return;
+    }
+
+    const buildConfig = service.build;
+    if (buildConfig.context) {
+      // Fix relative paths that point to repo root from services/ directory
+      // `../..` from services/ → `.` from repo root
+      if (buildConfig.context === '../..') {
+        buildConfig.context = '.';
+      }
+      // Other common patterns from services/ directory
+      else if (buildConfig.context === '../../..') {
+        buildConfig.context = '..';
+      }
+      // Leave absolute paths and single '.' unchanged
+    }
   }
 
   /**
@@ -301,6 +344,8 @@ export class ComposeMerger {
       // Only add if not already in base (base takes precedence)
       if (!baseCompose.services[name]) {
         baseCompose.services[name] = config;
+        // Sprint 378: Fix build context paths for additional services
+        this.fixBuildContextPaths(baseCompose.services[name]);
       }
     }
   }
