@@ -1168,6 +1168,71 @@ This keeps all secrets in one directory per environment, with the directory stru
 
 ---
 
+### Automatic Port Assignment (Sprint 379)
+
+**RULE: PortManager automatically assigns unique ports for all deployments (single-service and bulk).**
+
+Both single-service and bulk deployments use PortManager for automatic port conflict resolution. PortManager discovers ports already in use and auto-assigns unique ports starting from 3001.
+
+**How It Works:**
+1. **Discovery**: PortManager queries running containers via `docker ps` (local) or `ssh ... docker ps` (remote)
+2. **Conflict Avoidance**: Identifies ports already allocated (3001, 3002, etc.)
+3. **Auto-Assignment**: Assigns next available port starting from 3001
+4. **Environment Variables**: Generates `{SERVICE}_HOST_PORT` overrides for implicit assignments
+5. **Logging**: Logs all port assignments for visibility
+
+**Examples:**
+
+```bash
+# Single service deployment - auto-assigns port
+npm run brat -- deploy service llm-bot
+
+# Bulk deployment - auto-assigns ports for all services (Sprint 379+)
+npm run brat -- deploy services --all
+
+# Output shows port assignments:
+# [orchestrator] Port assignments: llm-bot:3001(auto), tool-gateway:3002(auto), auth:3003(auto)
+```
+
+**Explicit Port Override:**
+
+You can override automatic assignment with explicit ports:
+
+```bash
+# Override port for single service
+LLM_BOT_HOST_PORT=5000 npm run brat -- deploy service llm-bot
+
+# Override port in bulk deployment
+LLM_BOT_HOST_PORT=5000 npm run brat -- deploy services --all
+```
+
+**Remote Deployments:**
+
+PortManager works seamlessly with remote Docker hosts via SSH:
+
+```bash
+# Deploy to staging - discovers remote ports via SSH
+npm run brat -- deploy services --all --context staging
+
+# PortManager runs: ssh root@bitbrat.lan "docker ps --format '{{.Ports}}'"
+```
+
+**Port Assignment Rules:**
+- **Explicit ports** (via environment variables): Always honored, even if they conflict
+- **Implicit ports** (auto-assigned): Start from 3001, skip any ports in use
+- **Environment generation**: Only implicit assignments generate `{SERVICE}_HOST_PORT` variables
+- **Visibility**: All assignments logged as `service:port(auto)` or `service:port(explicit)`
+
+**Graceful Degradation:**
+
+If port discovery fails (Docker daemon not running, SSH error), PortManager falls back to default behavior without blocking deployment.
+
+**Full Documentation:**
+- [Port Management Implementation](./tools/brat/src/orchestration/docker/port-manager.ts) — Source code
+- [Integration Tests](./tests/integration/port-conflict-resolution.spec.ts) — Port conflict resolution tests
+
+---
+
 ### Adding a New MCP Tool
 - For domain tools, use `--profile mcp-server` when creating the Bit (automatically sets exposure to platform+domain)
 - Implement tools using `this.registerTool(name, description, zodSchema, handler)`
