@@ -1,0 +1,1054 @@
+# Sprint 379: PortManager Integration - Trackable Backlog
+
+sprint:
+  id: 379
+  name: PortManager Integration
+  goal: Integrate PortManager into bulk deployments for automatic port conflict resolution
+  duration: 3 days
+  estimatedHours: 22
+  status: planning
+  branch: feat/sprint-379-port-manager-integration
+
+phases:
+  - id: phase-1
+    name: Core Implementation
+    day: 1
+    estimatedHours: 8
+
+  - id: phase-2
+    name: Testing
+    day: 2
+    estimatedHours: 8
+
+  - id: phase-3
+    name: Validation & Documentation
+    day: 3
+    estimatedHours: 6
+
+tasks:
+  # ============================================================================
+  # PHASE 1: CORE IMPLEMENTATION (Day 1, 8 hours)
+  # ============================================================================
+
+  - id: 379-001
+    name: Extend DockerOrchestratorOptions Interface
+    phase: phase-1
+    priority: critical
+    estimatedHours: 0.5
+    status: pending
+    dependencies: []
+
+    description: |
+      Add optional `allServiceNames` field to DockerOrchestratorOptions interface
+      to enable PortManager integration for bulk deployments.
+
+    files:
+      - path: tools/brat/src/orchestration/docker/orchestrator.ts
+        lines: "20-28"
+        action: modify
+
+    implementation:
+      - Add `allServiceNames?: string[]` to interface
+      - Add JSDoc comment explaining field purpose
+      - Verify TypeScript compilation
+
+    searchPatterns:
+      - "export interface DockerOrchestratorOptions"
+      - "composeFile?: string"
+
+    testCriteria:
+      - TypeScript compilation succeeds
+      - No breaking changes to existing code
+      - JSDoc comment added
+
+    acceptanceCriteria:
+      - Interface extended with optional field
+      - Documentation added
+      - TypeScript compiles without errors
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-002
+    name: Modify deployAll() to Pass Service Names
+    phase: phase-1
+    priority: critical
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-001]
+
+    description: |
+      Update deployAll() method to extract service names and pass them
+      to orchestrator via allServiceNames option.
+
+    files:
+      - path: tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+        lines: "1050-1070"
+        action: modify
+
+    implementation:
+      - Extract service names: `const serviceNames = services.map(s => s.name)`
+      - Add logging: service count and names
+      - Pass to orchestrator: `allServiceNames: serviceNames`
+      - Add inline comment explaining Sprint 379 change
+
+    searchPatterns:
+      - "const orchestratorOptions: DockerOrchestratorOptions"
+      - "composeFile: composeFilePath"
+      - "servicesToStart: buildableServices"
+
+    codeSnippet: |
+      // Sprint 379: Extract service names for PortManager integration
+      const serviceNames = services.map(s => s.name);
+
+      console.log(`[docker-compose-strategy] Services for port resolution: ${serviceNames.join(', ')}`);
+
+      const orchestratorOptions: DockerOrchestratorOptions = {
+        repoRoot,
+        context: context.name,
+        service: undefined,
+        dryRun: options.dryRun || false,
+        forceRecreate: options.forceRecreate || false,
+        noCache: options.forceBuild || false,
+        rebuildBase: options.rebuildBase || false,
+        loki: options.loki || false,
+        noDeps: options.noDeps || false,
+        composeFile: composeFilePath,
+        servicesToStart: buildableServices,
+        allServiceNames: serviceNames,  // Sprint 379: Enable PortManager for bulk deployments
+      };
+
+    testCriteria:
+      - Service names extracted correctly
+      - Logging shows service names
+      - TypeScript compilation succeeds
+
+    acceptanceCriteria:
+      - Service names passed to orchestrator
+      - Logging added
+      - No breaking changes
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-003
+    name: Update Orchestrator writeEnvFile() - Service File Construction
+    phase: phase-1
+    priority: critical
+    estimatedHours: 2
+    status: pending
+    dependencies: [379-001, 379-002]
+
+    description: |
+      Modify writeEnvFile() to construct service file paths from allServiceNames
+      when provided, enabling PortManager to generate port assignments for
+      bulk deployments.
+
+    files:
+      - path: tools/brat/src/orchestration/docker/orchestrator.ts
+        lines: "315-330"
+        action: modify
+
+    implementation:
+      - Add service file construction logic
+      - Differentiate between bulk (allServiceNames) and single-service modes
+      - Add comprehensive logging
+      - Preserve backward compatibility
+
+    searchPatterns:
+      - "private async writeEnvFile"
+      - "const composeFileSet = this.options.composeFile"
+      - "const assignments = await this.portManager.resolvePorts"
+
+    codeSnippet: |
+      private async writeEnvFile(
+        envName: string,
+        targetConfig: any,
+        contextName?: string,
+        securePath?: string
+      ): Promise<string> {
+        const env = this.envResolver.resolve(envName, securePath);
+        const composeFileSet = this.options.composeFile
+          ? {
+              baseFile: this.options.composeFile,
+              serviceFiles: [],
+              targetService: undefined,
+            }
+          : this.composeFactory.getComposeFiles(
+              this.options.service,
+              undefined,
+              this.options.loki
+            );
+
+        // Sprint 379: Construct service file paths for bulk deployments
+        let serviceFiles: string[];
+
+        if (this.options.allServiceNames && this.options.allServiceNames.length > 0) {
+          // Bulk deployment: construct service file paths from provided service names
+          serviceFiles = this.options.allServiceNames.map(name =>
+            path.join(
+              this.options.repoRoot,
+              'infrastructure/docker-compose/services',
+              `${name}.compose.yaml`
+            )
+          );
+
+          console.log(
+            `[orchestrator] Using allServiceNames for port resolution: ${this.options.allServiceNames.join(', ')}`
+          );
+          console.log(
+            `[orchestrator] Constructed ${serviceFiles.length} service file paths for PortManager`
+          );
+        } else {
+          // Single-service deployment: use factory-generated service files
+          serviceFiles = composeFileSet.serviceFiles;
+
+          if (composeFileSet.targetService) {
+            console.log(
+              `[orchestrator] Single-service deployment: ${composeFileSet.targetService}`
+            );
+          }
+        }
+
+        // Sprint 379: PortManager now receives populated service files for bulk deployments
+        const assignments = await this.portManager.resolvePorts(
+          serviceFiles,
+          env,
+          targetConfig
+        );
+
+        console.log(
+          `[orchestrator] Port assignments: ${assignments.map(a => `${a.service}:${a.port}${a.explicit ? '(explicit)' : '(auto)'}`).join(', ')}`
+        );
+
+        const portOverrides = this.portManager.getEnvOverrides(assignments);
+
+        // ... rest of method unchanged ...
+      }
+
+    testCriteria:
+      - Service file paths constructed correctly
+      - Bulk deployments get service files from allServiceNames
+      - Single-service deployments unchanged (backward compatible)
+      - Logging shows service files and port assignments
+
+    acceptanceCriteria:
+      - Service file construction working
+      - PortManager receives populated array
+      - Backward compatibility maintained
+      - Comprehensive logging added
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-004
+    name: Add Error Handling and Validation
+    phase: phase-1
+    priority: high
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-003]
+
+    description: |
+      Add validation to detect missing service compose files and log warnings.
+      Deployment should continue even if some files are missing.
+
+    files:
+      - path: tools/brat/src/orchestration/docker/orchestrator.ts
+        lines: "320-330"
+        action: modify
+
+    implementation:
+      - Check if service file paths exist
+      - Log warnings for missing files (non-blocking)
+      - Allow deployment to continue
+
+    codeSnippet: |
+      // Sprint 379: Validate service file paths (optional but helpful)
+      if (this.options.allServiceNames && this.options.allServiceNames.length > 0) {
+        const missingFiles: string[] = [];
+
+        for (const filePath of serviceFiles) {
+          if (!fs.existsSync(filePath)) {
+            const serviceName = path.basename(filePath, '.compose.yaml');
+            missingFiles.push(serviceName);
+          }
+        }
+
+        if (missingFiles.length > 0) {
+          console.warn(
+            `[orchestrator] Warning: Some services missing compose files: ${missingFiles.join(', ')}`
+          );
+          console.warn(
+            `[orchestrator] PortManager will skip port assignment for these services`
+          );
+        }
+      }
+
+    testCriteria:
+      - Missing files detected
+      - Warnings logged
+      - Deployment continues successfully
+
+    acceptanceCriteria:
+      - Validation added
+      - Non-blocking warnings
+      - Deployment resilient to missing files
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-005
+    name: Verify TypeScript Compilation
+    phase: phase-1
+    priority: critical
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [379-001, 379-002, 379-003, 379-004]
+
+    description: |
+      Run TypeScript compilation to verify no errors introduced.
+
+    commands:
+      - npm run build
+
+    testCriteria:
+      - No TypeScript errors
+      - All files compile successfully
+      - Build output clean
+
+    acceptanceCriteria:
+      - TypeScript compilation successful
+      - No new errors introduced
+      - Clean build
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-006
+    name: Manual Testing - Local Deployment
+    phase: phase-1
+    priority: high
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-005]
+
+    description: |
+      Manually test bulk deployment locally to verify PortManager integration.
+
+    testSteps:
+      - Deploy all services: `brat bit deploy --all --context local`
+      - Check docker ps for port assignments
+      - Verify no port conflicts
+      - Check logs for PortManager output
+
+    expectedResults:
+      - All services start successfully
+      - Unique ports assigned
+      - PortManager logging visible
+      - No "port already allocated" errors
+
+    acceptanceCriteria:
+      - Bulk deployment succeeds
+      - Port assignments logged
+      - No conflicts
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-007
+    name: Commit Phase 1 Implementation
+    phase: phase-1
+    priority: high
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [379-006]
+
+    description: |
+      Commit Phase 1 implementation with comprehensive commit message.
+
+    commitMessage: |
+      feat(sprint-379): Integrate PortManager into bulk deployments
+
+      **Problem:**
+      Bulk deployments (`brat bit deploy --all`) bypassed PortManager,
+      causing port conflicts that didn't occur in single-service deployments.
+
+      **Root Cause:**
+      When `options.composeFile` provided (bulk deployment), orchestrator
+      set `serviceFiles: []` (empty array). PortManager received empty array
+      and couldn't extract service names, so no port assignments generated.
+
+      **Solution:**
+      - Extended DockerOrchestratorOptions with optional `allServiceNames` field
+      - Modified deployAll() to pass service names to orchestrator
+      - Updated orchestrator to construct service file paths from service names
+      - Added validation and comprehensive logging
+
+      **Changes:**
+      - orchestrator.ts: Added service file construction logic (+45 lines)
+      - docker-compose-strategy.ts: Pass service names to orchestrator (+10 lines)
+      - Added error handling for missing compose files
+      - Added comprehensive logging at all stages
+
+      **Testing:**
+      - Manual testing: bulk deployment succeeds locally
+      - Port assignments logged correctly
+      - No port conflicts
+
+      **Next Steps:**
+      - Add unit tests (Phase 2)
+      - Add integration tests (Phase 2)
+      - Staging validation (Phase 3)
+
+      Fixes Bug #19
+
+      🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+      Co-Authored-By: Claude <noreply@anthropic.com>
+
+    acceptanceCriteria:
+      - Code committed to feature branch
+      - Comprehensive commit message
+      - Phase 1 complete
+
+  # ============================================================================
+  # PHASE 2: TESTING (Day 2, 8 hours)
+  # ============================================================================
+
+  - id: 379-008
+    name: Unit Test - Port Assignment for Bulk Deployments
+    phase: phase-2
+    priority: critical
+    estimatedHours: 2
+    status: pending
+    dependencies: [379-007]
+
+    description: |
+      Write unit tests for port assignment in bulk deployments.
+
+    files:
+      - path: tools/brat/src/orchestration/docker/orchestrator.test.ts
+        action: create-or-modify
+
+    testCases:
+      - name: should resolve ports when allServiceNames provided
+        description: Verify PortManager called with service file paths
+
+      - name: should use factory-generated files when allServiceNames not provided
+        description: Verify backward compatibility (single-service mode)
+
+      - name: should handle missing service compose files gracefully
+        description: Verify warnings logged, deployment continues
+
+      - name: should generate port overrides for implicit assignments
+        description: Verify env file contains auto-assigned ports
+
+    estimatedTestCount: 4
+
+    acceptanceCriteria:
+      - 4+ unit tests passing
+      - All edge cases covered
+      - Mocks properly configured
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-009
+    name: Unit Test - Service File Path Construction
+    phase: phase-2
+    priority: high
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-008]
+
+    description: |
+      Test service file path construction logic.
+
+    testCases:
+      - name: should construct correct paths from service names
+        description: Verify paths like "infrastructure/docker-compose/services/{name}.compose.yaml"
+
+      - name: should handle empty allServiceNames array
+        description: Verify falls back to factory-generated files
+
+      - name: should handle null/undefined allServiceNames
+        description: Verify backward compatibility
+
+    estimatedTestCount: 3
+
+    acceptanceCriteria:
+      - 3+ unit tests passing
+      - Path construction verified
+      - Edge cases handled
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-010
+    name: Integration Test - Port Conflict Resolution
+    phase: phase-2
+    priority: critical
+    estimatedHours: 3
+    status: pending
+    dependencies: [379-009]
+
+    description: |
+      Write integration tests for end-to-end port conflict resolution.
+
+    files:
+      - path: tests/integration/port-conflict-resolution.spec.ts
+        action: create
+
+    testCases:
+      - name: should auto-assign ports avoiding conflicts in bulk deployment
+        description: |
+          Start container on port 3001, deploy --all, verify new service
+          gets different port (3002+)
+
+      - name: should respect explicit port overrides in bulk deployment
+        description: |
+          Set LLM_BOT_HOST_PORT=5000, deploy --all, verify service uses
+          explicit port
+
+      - name: should handle multiple bulk deployments without conflicts
+        description: |
+          Deploy --all to local, then deploy --all to agent-dev-test,
+          verify no port conflicts between contexts
+
+      - name: should work with remote deployment (SSH)
+        description: |
+          Mock SSH docker ps with ports 3001-3005 used, deploy --all,
+          verify services get ports 3006+
+
+    estimatedTestCount: 4
+
+    acceptanceCriteria:
+      - 4+ integration tests passing
+      - Port conflicts resolved automatically
+      - Explicit ports honored
+      - Remote (SSH) tested
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-011
+    name: Test Backward Compatibility
+    phase: phase-2
+    priority: critical
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-010]
+
+    description: |
+      Verify single-service deployments still work without allServiceNames.
+
+    testCases:
+      - name: single-service deployment should work without allServiceNames
+        description: Deploy single service, verify port assignment works
+
+      - name: should not break existing env file generation
+        description: Verify .env.brat format unchanged
+
+      - name: should maintain existing orchestrator behavior
+        description: Verify no regressions in orchestrator.up() method
+
+    estimatedTestCount: 3
+
+    acceptanceCriteria:
+      - All single-service tests passing
+      - No regressions
+      - Env file format unchanged
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-012
+    name: Run Full Test Suite
+    phase: phase-2
+    priority: critical
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-008, 379-009, 379-010, 379-011]
+
+    description: |
+      Run complete test suite to verify no regressions.
+
+    commands:
+      - npm test
+      - npm run lint
+
+    testCriteria:
+      - All existing tests passing
+      - All new tests passing (10+ new tests)
+      - No linting errors
+      - No TypeScript errors
+
+    acceptanceCriteria:
+      - 0 new test failures
+      - 10+ new tests passing
+      - Clean lint
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-013
+    name: Commit Phase 2 Tests
+    phase: phase-2
+    priority: high
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [379-012]
+
+    description: |
+      Commit all test files with comprehensive message.
+
+    commitMessage: |
+      test(sprint-379): Add comprehensive tests for PortManager integration
+
+      **Test Coverage:**
+      - 4 unit tests for port assignment in bulk deployments
+      - 3 unit tests for service file path construction
+      - 4 integration tests for port conflict resolution
+      - 3 backward compatibility tests
+
+      **Test Results:**
+      - 14 new tests passing
+      - All existing tests passing (0 regressions)
+      - 100% coverage of new code
+
+      **Test Scenarios:**
+      - Port conflict avoidance in bulk deployments
+      - Explicit port override behavior
+      - Multiple deployment contexts (no conflicts)
+      - Remote (SSH) deployment port discovery
+      - Missing compose file handling
+      - Backward compatibility (single-service mode)
+
+      🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+      Co-Authored-By: Claude <noreply@anthropic.com>
+
+    acceptanceCriteria:
+      - Tests committed
+      - Comprehensive message
+      - Phase 2 complete
+
+  # ============================================================================
+  # PHASE 3: VALIDATION & DOCUMENTATION (Day 3, 6 hours)
+  # ============================================================================
+
+  - id: 379-014
+    name: Staging Validation - Bulk Deployment
+    phase: phase-3
+    priority: critical
+    estimatedHours: 2
+    status: pending
+    dependencies: [379-013]
+
+    description: |
+      Deploy all services to staging environment and verify port assignments.
+
+    validationSteps:
+      - Deploy: `brat bit deploy --all --context staging`
+      - Check ports: `docker ps --format "table {{.Names}}\t{{.Ports}}"`
+      - Check conflicts: `docker compose ps`
+      - Check health: `brat fleet list --context staging`
+      - Review logs: Check for PortManager output
+
+    expectedResults:
+      - All services deployed successfully
+      - No "port already allocated" errors
+      - All services healthy (15/17 minimum)
+      - Port assignments logged correctly
+      - Unique ports for all services
+
+    acceptanceCriteria:
+      - Staging deployment successful
+      - No port conflicts
+      - All services healthy
+      - Port assignments verified
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-015
+    name: Performance Benchmarking
+    phase: phase-3
+    priority: medium
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-014]
+
+    description: |
+      Benchmark deployment time before/after to verify no significant regression.
+
+    metrics:
+      - Deployment time (total)
+      - Port discovery time
+      - Memory usage
+
+    benchmarkSteps:
+      - Baseline: Record current deployment time
+      - With PortManager: Record new deployment time
+      - Calculate overhead
+      - Document results
+
+    targets:
+      - Deployment time increase: <2 seconds
+      - Port discovery time: <500ms (local), <2s (remote)
+      - Memory: No significant increase
+
+    acceptanceCriteria:
+      - No significant performance regression
+      - Overhead documented
+      - Acceptable performance
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-016
+    name: Update CLAUDE.md - Port Assignment Patterns
+    phase: phase-3
+    priority: high
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-014]
+
+    description: |
+      Update CLAUDE.md with automatic port assignment behavior.
+
+    files:
+      - path: CLAUDE.md
+        section: "Common Development Patterns"
+        action: add-section
+
+    contentToAdd: |
+      ### Port Assignment (Automatic)
+
+      Both single-service and bulk deployments use PortManager for automatic port assignment:
+
+      ```bash
+      # Single service - auto-assigns ports
+      brat bit deploy llm-bot
+
+      # Bulk deployment - auto-assigns ports (Sprint 379+)
+      brat bit deploy --all
+      ```
+
+      **How It Works:**
+      - PortManager discovers ports in use via `docker ps` (local or remote via SSH)
+      - Auto-assigns unique ports starting from 3001
+      - Avoids conflicts with running containers
+      - Logs port assignments for visibility
+
+      **Override with explicit port:**
+      ```bash
+      LLM_BOT_HOST_PORT=5000 brat bit deploy llm-bot
+      LLM_BOT_HOST_PORT=5000 brat bit deploy --all
+      ```
+
+      **Port Assignment Priority:**
+      1. Explicit `{SERVICE}_HOST_PORT` environment variables (highest)
+      2. Auto-assigned ports from PortManager (starting at 3001)
+      3. Default ports in compose files (fallback, not recommended)
+
+      See `documentation/guides/port-management.md` for full details.
+
+    acceptanceCriteria:
+      - CLAUDE.md updated
+      - Examples added
+      - Cross-reference to guide
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-017
+    name: Update FUTURE-BACKLOG.md - Mark Item Complete
+    phase: phase-3
+    priority: medium
+    estimatedHours: 0.25
+    status: pending
+    dependencies: [379-014]
+
+    description: |
+      Mark "Document PortManager" backlog item as complete.
+
+    files:
+      - path: planning/FUTURE-BACKLOG.md
+        action: modify
+
+    changes:
+      - Mark item #1 as complete (strikethrough + checkmark)
+      - Add reference to Sprint 379
+      - Update status to "COMPLETE"
+
+    acceptanceCriteria:
+      - Backlog updated
+      - Sprint 379 referenced
+      - Item marked complete
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-018
+    name: Create Port Management Guide
+    phase: phase-3
+    priority: medium
+    estimatedHours: 1
+    status: pending
+    dependencies: [379-016]
+
+    description: |
+      Create comprehensive guide for port management and PortManager.
+
+    files:
+      - path: documentation/guides/port-management.md
+        action: create
+
+    sections:
+      - Overview (what is PortManager)
+      - How It Works (algorithm, port discovery)
+      - Usage Examples (single-service, bulk, explicit overrides)
+      - Remote Deployment (SSH port discovery)
+      - Troubleshooting (common issues, debugging)
+      - Architecture (internals, code locations)
+
+    acceptanceCriteria:
+      - Guide created
+      - All sections complete
+      - Examples included
+      - Cross-referenced from CLAUDE.md
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-019
+    name: Commit Phase 3 Documentation
+    phase: phase-3
+    priority: high
+    estimatedHours: 0.25
+    status: pending
+    dependencies: [379-016, 379-017, 379-018]
+
+    description: |
+      Commit all documentation updates.
+
+    commitMessage: |
+      docs(sprint-379): Document PortManager integration and port assignment
+
+      **Documentation Updates:**
+      - Updated CLAUDE.md with automatic port assignment behavior
+      - Marked FUTURE-BACKLOG.md item #1 as complete (Sprint 379)
+      - Created comprehensive port management guide
+
+      **Guide Contents:**
+      - PortManager overview and algorithm
+      - Usage examples (single-service, bulk, explicit overrides)
+      - Remote deployment (SSH port discovery)
+      - Troubleshooting guide
+      - Architecture and code locations
+
+      **Sprint Status:**
+      - Staging validation: 17/17 services healthy
+      - Performance: <2s overhead
+      - All documentation complete
+
+      🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+      Co-Authored-By: Claude <noreply@anthropic.com>
+
+    acceptanceCriteria:
+      - Documentation committed
+      - Comprehensive message
+      - Phase 3 documentation complete
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-020
+    name: Create Sprint Completion Documents
+    phase: phase-3
+    priority: high
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [379-014, 379-015]
+
+    description: |
+      Create verification report, retrospective, and key learnings.
+
+    files:
+      - path: planning/sprint-379-port-manager-integration/verification-report.md
+        action: create
+      - path: planning/sprint-379-port-manager-integration/retro.md
+        action: create
+      - path: planning/sprint-379-port-manager-integration/key-learnings.md
+        action: create
+
+    contentSections:
+      verification-report:
+        - Deliverables status
+        - Test results
+        - Staging validation
+        - Performance metrics
+        - Success criteria verification
+
+      retro:
+        - What went well
+        - What could improve
+        - Key decisions made
+        - Action items
+
+      key-learnings:
+        - Technical insights
+        - Architectural patterns
+        - Lessons learned
+        - Future improvements
+
+    acceptanceCriteria:
+      - All 3 documents created
+      - Comprehensive coverage
+      - Sprint summary complete
+
+  # --------------------------------------------------------------------------
+
+  - id: 379-021
+    name: Create Pull Request
+    phase: phase-3
+    priority: critical
+    estimatedHours: 0.5
+    status: pending
+    dependencies: [379-019, 379-020]
+
+    description: |
+      Create GitHub pull request for Sprint 379.
+
+    prTitle: "feat(sprint-379): Integrate PortManager into bulk deployments"
+
+    prDescription: |
+      ## Sprint 379: PortManager Integration
+
+      Fixes Bug #19 by integrating PortManager into bulk deployments.
+
+      ### Problem
+      Bulk deployments (`brat bit deploy --all`) bypassed PortManager, causing port conflicts.
+
+      ### Solution
+      Pass service names to orchestrator, enabling PortManager to generate port assignments
+      even when using a pre-merged compose file.
+
+      ### Changes
+      - Extended DockerOrchestratorOptions with optional `allServiceNames` field
+      - Modified deployAll() to pass service names
+      - Updated orchestrator to construct service file paths from service names
+      - Added comprehensive logging and error handling
+
+      ### Testing
+      - 14+ unit tests for port assignment
+      - 4+ integration tests for conflict resolution
+      - Staging validation: 17/17 services healthy
+      - Performance: <2s overhead
+
+      ### Files Changed
+      - orchestrator.ts (+45 lines)
+      - docker-compose-strategy.ts (+10 lines)
+      - orchestrator.test.ts (+200 lines)
+      - Integration tests (+150 lines)
+      - Documentation (+500 lines)
+
+      ### Documentation
+      - Updated CLAUDE.md with port assignment behavior
+      - Created port management guide
+      - Updated FUTURE-BACKLOG.md (item #1 complete)
+
+      Fixes #19
+
+    commands:
+      - git push origin feat/sprint-379-port-manager-integration
+      - gh pr create --title "..." --body "..." --base main
+
+    acceptanceCriteria:
+      - PR created
+      - Comprehensive description
+      - All tests passing in CI
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+summary:
+  totalTasks: 21
+
+  byPhase:
+    phase-1: 7  # Core Implementation
+    phase-2: 6  # Testing
+    phase-3: 8  # Validation & Documentation
+
+  byPriority:
+    critical: 9
+    high: 9
+    medium: 3
+
+  estimatedHours:
+    phase-1: 8.0
+    phase-2: 8.0
+    phase-3: 6.0
+    total: 22.0
+
+  keyMilestones:
+    - Phase 1 Complete: PortManager integrated into bulk deployments
+    - Phase 2 Complete: 14+ tests passing, 100% coverage
+    - Phase 3 Complete: Staging validated, documentation complete, PR created
+
+# ============================================================================
+# ACCEPTANCE CRITERIA (SPRINT LEVEL)
+# ============================================================================
+
+sprintAcceptanceCriteria:
+  functional:
+    - PortManager integrated into bulk deployments
+    - Port assignments generated for all services
+    - Port conflicts resolved automatically
+    - Explicit ports honored
+    - Backward compatibility maintained (single-service unchanged)
+
+  nonFunctional:
+    - Performance overhead <2 seconds
+    - No breaking changes
+    - All tests passing (0 regressions)
+    - Comprehensive logging added
+
+  quality:
+    - 14+ unit and integration tests
+    - 100% test coverage of new code
+    - Staging validation successful (17/17 services)
+    - Documentation complete (CLAUDE.md, port-management.md)
+    - PR created and ready for review
+
+# ============================================================================
+# DEPENDENCIES & BLOCKERS
+# ============================================================================
+
+externalDependencies: []
+
+internalDependencies:
+  - PortManager (existing, battle-tested)
+  - DockerOrchestrator (existing)
+  - DockerComposeStrategy (Sprint 378 enhancements)
+
+potentialBlockers:
+  - name: Staging environment unavailable
+    probability: low
+    mitigation: Use local testing, defer staging to PR review
+
+  - name: Port discovery fails on remote host
+    probability: low
+    mitigation: Reuse existing SSH logic, fallback to defaults
+
+  - name: Performance regression unacceptable
+    probability: low
+    mitigation: Optimize port discovery, add caching
+
+# ============================================================================
+# REFERENCES
+# ============================================================================
+
+references:
+  auditResults:
+    - planning/audit-2025-08-01-deployment-flows/QUICK_REFERENCE.md
+    - planning/audit-2025-08-01-deployment-flows/DEPLOYMENT_FLOWS_AUDIT.md
+    - planning/audit-2025-08-01-deployment-flows/CODE_LOCATIONS.md
+
+  relatedSprints:
+    - Sprint 378: Deploy All Enhancement
+    - Sprint 374: Secure File Deployment
+
+  relatedIssues:
+    - Bug #19: Bulk Deployment Missing PortManager Integration
+
+  documentation:
+    - planning/FUTURE-BACKLOG.md (Item #1: Document PortManager)
+    - CLAUDE.md (Common Development Patterns)
