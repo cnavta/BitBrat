@@ -529,8 +529,6 @@ export function createApp() {
 
 if (require.main === module) {
   Bit.ensureRequiredEnv(SERVICE_NAME);
-  const app = createApp();
-  app.listen(PORT, () => {
-    console.log('[auth] listening on port ' + PORT);
-  });
+  const server = new AuthServer();
+  void server.start(PORT);
 }
