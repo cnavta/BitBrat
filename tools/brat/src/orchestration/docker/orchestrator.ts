@@ -31,6 +31,7 @@ export interface DockerOrchestratorOptions {
   rebuildBase?: boolean; // Sprint 375: Force rebuild base image regardless of cache key
   composeFile?: string; // Sprint 378: Override compose file path (for bulk deployments)
   servicesToStart?: string[]; // Sprint 378: Explicit list of services to start (for bulk deployments)
+  allServiceNames?: string[]; // Sprint 379: Service names for PortManager integration in bulk deployments
 }
 
 export class DockerOrchestrator {
@@ -314,8 +315,70 @@ export class DockerOrchestrator {
 
   private async writeEnvFile(envName: string, targetConfig: any, contextName?: string, securePath?: string): Promise<string> {
     const env = this.envResolver.resolve(envName, securePath);
-    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
-    const assignments = await this.portManager.resolvePorts(composeFileSet.serviceFiles, env, targetConfig);
+    const composeFileSet = this.options.composeFile
+      ? {
+          baseFile: this.options.composeFile,
+          serviceFiles: [],
+          targetService: undefined,
+        }
+      : this.composeFactory.getComposeFiles(this.options.service, undefined, this.options.loki);
+
+    // Sprint 379: Construct service file paths for bulk deployments
+    let serviceFiles: string[];
+
+    if (this.options.allServiceNames && this.options.allServiceNames.length > 0) {
+      // Bulk deployment: construct service file paths from provided service names
+      serviceFiles = this.options.allServiceNames.map((name) =>
+        path.join(
+          this.options.repoRoot,
+          'infrastructure/docker-compose/services',
+          `${name}.compose.yaml`
+        )
+      );
+
+      console.log(
+        `[orchestrator] Using allServiceNames for port resolution: ${this.options.allServiceNames.join(', ')}`
+      );
+      console.log(
+        `[orchestrator] Constructed ${serviceFiles.length} service file paths for PortManager`
+      );
+
+      // Sprint 379: Validate service file paths (optional but helpful)
+      const missingFiles: string[] = [];
+
+      for (const filePath of serviceFiles) {
+        if (!fs.existsSync(filePath)) {
+          const serviceName = path.basename(filePath, '.compose.yaml');
+          missingFiles.push(serviceName);
+        }
+      }
+
+      if (missingFiles.length > 0) {
+        console.warn(
+          `[orchestrator] Warning: Some services missing compose files: ${missingFiles.join(', ')}`
+        );
+        console.warn(
+          `[orchestrator] PortManager will skip port assignment for these services`
+        );
+      }
+    } else {
+      // Single-service deployment: use factory-generated service files
+      serviceFiles = composeFileSet.serviceFiles;
+
+      if (composeFileSet.targetService) {
+        console.log(
+          `[orchestrator] Single-service deployment: ${composeFileSet.targetService}`
+        );
+      }
+    }
+
+    // Sprint 379: PortManager now receives populated service files for bulk deployments
+    const assignments = await this.portManager.resolvePorts(serviceFiles, env, targetConfig);
+
+    console.log(
+      `[orchestrator] Port assignments: ${assignments.map((a) => `${a.service}:${a.port}${a.explicit ? '(explicit)' : '(auto)'}`).join(', ')}`
+    );
+
     const portOverrides = this.portManager.getEnvOverrides(assignments);
 
     // Sprint 349: Use context-specific COMPOSE_PROJECT_NAME if execution context is provided

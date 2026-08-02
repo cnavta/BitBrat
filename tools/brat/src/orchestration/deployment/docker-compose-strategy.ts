@@ -1052,12 +1052,20 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         composeFilePath = `${remoteDir}/.docker-compose.merged.yaml`;
       }
 
+      // Sprint 379: Extract service names for PortManager integration
+      const serviceNames = services.map((s) => s.name);
+
+      console.log(
+        `[docker-compose-strategy] Services for port resolution: ${serviceNames.join(', ')}`
+      );
+
       const orchestratorOptions: DockerOrchestratorOptions = {
         repoRoot,
         context: context.name,
         service: undefined, // Deploy all services
         composeFile: composeFilePath, // Use merged compose file (local or remote path)
         servicesToStart: buildableServices, // Sprint 378: Explicit list of services to build/start
+        allServiceNames: serviceNames, // Sprint 379: Enable PortManager for bulk deployments
         dryRun: options.dryRun || false,
         forceRecreate: options.forceRecreate || false,
         noCache: options.forceBuild || false,
@@ -1065,6 +1073,10 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         loki: options.loki || false,
         noDeps: options.noDeps || false,
       };
+
+      console.log(
+        `[docker-compose-strategy] Orchestrator options: composeFile=${composeFilePath}, allServiceNames=${serviceNames.length} services`
+      );
 
       const orchestrator = new DockerOrchestrator(orchestratorOptions);
       await orchestrator.up();

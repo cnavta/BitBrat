@@ -35,7 +35,7 @@ tasks:
     phase: phase-1
     priority: critical
     estimatedHours: 0.5
-    status: pending
+    status: completed
     dependencies: []
 
     description: |
@@ -73,7 +73,7 @@ tasks:
     phase: phase-1
     priority: critical
     estimatedHours: 1
-    status: pending
+    status: completed
     dependencies: [379-001]
 
     description: |
@@ -134,7 +134,7 @@ tasks:
     phase: phase-1
     priority: critical
     estimatedHours: 2
-    status: pending
+    status: completed
     dependencies: [379-001, 379-002]
 
     description: |
@@ -243,7 +243,7 @@ tasks:
     phase: phase-1
     priority: high
     estimatedHours: 1
-    status: pending
+    status: completed
     dependencies: [379-003]
 
     description: |
@@ -299,7 +299,7 @@ tasks:
     phase: phase-1
     priority: critical
     estimatedHours: 0.5
-    status: pending
+    status: completed
     dependencies: [379-001, 379-002, 379-003, 379-004]
 
     description: |
