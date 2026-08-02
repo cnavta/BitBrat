@@ -1,0 +1,9 @@
+id: sprint-353-postgres-default
+title: Sprint 353 (Auto-generated)
+goal: No goal specified - manifest was auto-generated during repair
+owner: Unknown
+createdAt: 2026-07-29T19:55:30.512Z
+status: complete
+links:
+  branch: feature/sprint-353-postgres-default
+completionMode: forced
