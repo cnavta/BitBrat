@@ -1,6 +1,6 @@
 import { Bit } from '../common/base-server';
 import { Express } from 'express';
-import type { InternalEventV2, RoutingStep, CandidateV1 } from '../types/events';
+import type { InternalEventV2, RoutingStep, CandidateV1, AnnotationV1 } from '../types/events';
 import { processEvent } from '../services/llm-bot/processor';
 import { ToolRegistry } from '../services/llm-bot/tools/registry';
 import { applyProfiles, EventingProfile, LlmProfile, McpClientProfile, McpClientCapability } from '../common/profiles';
@@ -8,6 +8,7 @@ import { createGetBotStatusTool, createListAvailableToolsTool } from '../service
 import { createGetCurrentTimeTool } from '../services/llm-bot/tools/basic-tools';
 import { createAdventureNarratorTool } from '../services/llm-bot/tools/adventure-tools';
 import { createPersonalityStore, type IPersonalityStore } from '../services/llm-bot/personality-store';
+import { randomUUID } from 'crypto';
 
 // ---- Minimal helper exports retained for backward compatibility with existing tests ----
 
@@ -185,6 +186,33 @@ class LlmBotServer extends Bit {
         const logger = this.getLogger();
         logger.info('llm_bot.received', { attributes });
         logger.debug('llm_bot.received.annotations', {annotations:data.annotations});
+
+        // Sprint 377: Add operation_context annotation for long-running task feedback
+        // This helps the feedback middleware generate contextual progress messages
+        if (!data.annotations) data.annotations = [];
+
+        // Check if this is a progress event (skip operation_context for those)
+        const isProgressEvent = data.type === 'chat.progress.v1';
+
+        if (!isProgressEvent) {
+          const operationContextAnnotation: AnnotationV1 = {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              originalMessage: data.message?.text || '',
+              eventType: data.type,
+              startedAt: Date.now(),
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          };
+          data.annotations.push(operationContextAnnotation);
+          logger.debug('llm_bot.operation_context.added', {
+            correlationId: data.correlationId,
+            operation: 'llm_request',
+          });
+        }
 
         // Create a child span for processing for better trace visibility
         const tracer = (this as any).getTracer?.();

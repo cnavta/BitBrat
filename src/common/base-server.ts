@@ -24,6 +24,7 @@ import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1,
 import { markSelectedCandidate } from './events/selection';
 import { features } from './feature-flags';
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
+import { FeedbackMiddleware } from './middleware/feedback-middleware';
 import type { PublisherResource } from './resources/publisher-manager';
 // Bit model (sprint-324): MCP control-plane machinery folded down into the base abstraction.
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -127,6 +128,9 @@ export class Bit {
   private readonly debugMessageCache: Map<string, number> = new Map();
   private debugCacheCleanupInterval?: NodeJS.Timeout;
 
+  // Sprint 377: Feedback middleware for long-running task progress
+  private feedbackMiddleware?: FeedbackMiddleware;
+
   /**
    * Creates an instance of BaseServer.
    * @param opts - Configuration options for the server.
@@ -183,6 +187,25 @@ export class Bit {
     // constructed (cheap, in-memory) but the HTTP transport + self-registration are only wired when
     // exposure is set, so a plain Bit behaves exactly like the legacy BaseServer until promoted.
     this.initializeMcp(opts);
+
+    // Sprint 377: Initialize feedback middleware for long-running task progress
+    const progressEnabled = this.config.progressEnabled !== false; // Default: true
+    const progressUseCustom = this.config.progressUseCustom === true; // Default: false (Phase 1)
+    if (progressEnabled) {
+      this.feedbackMiddleware = new FeedbackMiddleware(
+        {
+          getLogger: () => this.logger,
+          publish: this.publishEvent.bind(this),
+        },
+        {
+          enabled: progressEnabled,
+          useCustomMessages: progressUseCustom,
+          initialThresholdMs: this.config.progressInitialThresholdMs || 2000,
+          updateIntervalMs: this.config.progressUpdateIntervalMs || 5000,
+          timeoutThresholdMs: this.config.progressTimeoutThresholdMs || 30000,
+        }
+      );
+    }
 
     // Bit model (sprint-324, Phase 2): compose the declared capability profiles over this Bit and
     // enforce the architecture.yaml profile: -> mixin contract, so declared intent cannot diverge
@@ -886,6 +909,21 @@ export class Bit {
     }
     (event as any)[NEXT_MARK] = true;
 
+    // Sprint 377: Check for long-running operations and emit progress feedback
+    // IMPORTANT: Do this BEFORE checking routing slip, so it works for both
+    // next-step dispatch AND fallback-to-egress paths
+    if (this.feedbackMiddleware) {
+      try {
+        await this.feedbackMiddleware.beforeNext(event);
+      } catch (feedbackError: any) {
+        // Never break routing due to feedback failures
+        this.logger.warn('routing.next.feedback_failed', {
+          error: feedbackError.message,
+          correlationId: event.correlationId,
+        });
+      }
+    }
+
     const slip: RoutingStep[] = Array.isArray(event.routing?.slip) ? (event.routing.slip as RoutingStep[]) : [];
     // Only consider explicitly PENDING steps as dispatch targets. Steps marked ERROR should not be retried here.
     const idxPending = slip.findIndex((s) => s && s.status === 'PENDING');
@@ -1407,6 +1445,17 @@ export class Bit {
       attrs.source = this.serviceName;
     }
     return attrs;
+  }
+
+  /**
+   * Sprint 377: Helper for publishing events (used by feedback middleware).
+   * @private
+   */
+  private async publishEvent(topic: string, event: InternalEventV2): Promise<void> {
+    const prefix = this.config.busPrefix || '';
+    const subject = prefix ? `${prefix}${topic}` : topic;
+    const pub = createMessagePublisher(subject);
+    await pub.publishJson(event, this.buildRoutingAttributes(event));
   }
 
   // ==========================================================================

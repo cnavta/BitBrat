@@ -21,8 +21,10 @@ import type { SecureFile } from '../../config/types';
 import { DockerOrchestrator, DockerOrchestratorOptions } from '../docker/orchestrator';
 import { SecureFilesValidator } from '../../validation/secure-files-validator';
 import { ComposeMerger } from '../docker/compose-merger';
+import { execCmd } from '../exec';
 import * as fs from 'fs';
 import * as path from 'path';
+import yaml from 'js-yaml';
 
 /**
  * Docker Compose deployment strategy.
@@ -582,6 +584,9 @@ export class DockerComposeStrategy implements DeploymentStrategy {
    * This avoids port conflicts and container recreation issues that occur
    * when deploying services sequentially.
    *
+   * Sprint 378: Enhanced to process service-specific compose files and secureFiles
+   * identically to single-service deployments.
+   *
    * @param services - All services to deploy
    * @param context - Resolved execution context
    * @param options - Deployment options
@@ -597,12 +602,462 @@ export class DockerComposeStrategy implements DeploymentStrategy {
 
     console.log(`[docker-compose-strategy] Bulk deployment of ${services.length} services`);
 
+    // Temporary merged compose file path
+    const tempMergedPath = path.join(repoRoot, '.docker-compose.merged.yaml');
+
     try {
-      // Use DockerOrchestrator to deploy all services at once
+      // ============================================================================
+      // STAGE 1: Read base compose file
+      // ============================================================================
+      // For bulk deployments, use infrastructure-only base file (docker-compose.local.yaml)
+      // to avoid circular dependencies from generated context-specific files
+      // (e.g., docker-compose.staging.yaml which contains all services with dependencies).
+      //
+      // The infrastructure-only base contains:
+      // - Infrastructure services (nats, postgres, firebase-emulator)
+      // - Network definitions
+      // - Volume definitions
+      // - bitbrat-base build-only service
+      //
+      // All application services (auth, tool-gateway, llm-bot, etc.) are added
+      // from service-specific compose files to avoid dependency conflicts.
+      const baseComposePath = path.join(
+        repoRoot,
+        'infrastructure/docker-compose/docker-compose.local.yaml'
+      );
+      let baseYaml = await fs.promises.readFile(baseComposePath, 'utf-8');
+
+      console.log(`[docker-compose-strategy] Base compose file: ${baseComposePath}`);
+
+      // Filter out infrastructure services that aren't needed for this deployment
+      // This prevents errors from required variables in unused services (e.g., firebase-emulator)
+      const baseCompose = yaml.load(baseYaml) as any;
+
+      // Remove firebase-emulator if using PostgreSQL (not Firestore)
+      const persistenceDriver = context.runtime?.persistence?.driver || 'postgres';
+      if (persistenceDriver !== 'firestore' && baseCompose.services['firebase-emulator']) {
+        delete baseCompose.services['firebase-emulator'];
+        console.log(
+          `[docker-compose-strategy] Filtered out firebase-emulator (persistence driver: ${persistenceDriver})`
+        );
+      }
+
+      // Sprint 378: Fix build context paths for services in base file
+      // docker-compose.local.yaml uses context: ../.. (from infrastructure/docker-compose/ to repo root)
+      // but merged file is at repo root, so context should be . (repo root itself)
+      for (const [serviceName, serviceConfig] of Object.entries(baseCompose.services)) {
+        const service = serviceConfig as any;
+        if (service.build && typeof service.build === 'object') {
+          const buildConfig = service.build as any;
+          if (buildConfig.context === '../..') {
+            buildConfig.context = '.';
+            console.log(
+              `[docker-compose-strategy] Fixed build context for ${serviceName}: ../.. → .`
+            );
+          } else if (buildConfig.context === '../../..') {
+            buildConfig.context = '..';
+            console.log(
+              `[docker-compose-strategy] Fixed build context for ${serviceName}: ../../.. → ..`
+            );
+          }
+        }
+      }
+
+      // Sprint 378: Fix network declarations - change external: true to external: false
+      // so Docker Compose will create the network if it doesn't exist on the remote host
+      if (baseCompose.networks && typeof baseCompose.networks === 'object') {
+        for (const [networkName, networkConfig] of Object.entries(baseCompose.networks)) {
+          const network = networkConfig as any;
+          if (network && network.external === true) {
+            network.external = false;
+            console.log(
+              `[docker-compose-strategy] Changed network ${networkName} from external: true → external: false`
+            );
+          }
+        }
+      }
+
+      // Convert back to YAML
+      baseYaml = yaml.dump(baseCompose, {
+        indent: 2,
+        lineWidth: 120,
+        noRefs: true,
+      });
+
+      // ============================================================================
+      // STAGE 2: Collect service-specific compose files
+      // ============================================================================
+      interface ServiceComposeFile {
+        service: string;
+        path: string;
+        yaml: string;
+      }
+
+      const serviceFiles: ServiceComposeFile[] = [];
+      const collectionErrors: Array<{ service: string; error: string }> = [];
+
+      for (const service of services) {
+        const serviceComposePath = path.join(
+          repoRoot,
+          'infrastructure/docker-compose/services',
+          `${service.name}.compose.yaml`
+        );
+
+        if (fs.existsSync(serviceComposePath)) {
+          try {
+            const yaml = await fs.promises.readFile(serviceComposePath, 'utf-8');
+            serviceFiles.push({
+              service: service.name,
+              path: serviceComposePath,
+              yaml,
+            });
+
+            console.log(
+              `[docker-compose-strategy] Found service-specific compose file for ${service.name}`
+            );
+          } catch (error: any) {
+            collectionErrors.push({
+              service: service.name,
+              error: `Failed to read service-specific compose file: ${error.message}`,
+            });
+
+            console.error(
+              `[docker-compose-strategy] Failed to read ${serviceComposePath}: ${error.message}`
+            );
+          }
+        } else {
+          console.log(
+            `[docker-compose-strategy] No service-specific compose file for ${service.name}`
+          );
+        }
+      }
+
+      console.log(
+        `[docker-compose-strategy] Found ${serviceFiles.length} service-specific compose file(s) ` +
+          `out of ${services.length} service(s)`
+      );
+
+      // Fail if any file read errors occurred
+      if (collectionErrors.length > 0) {
+        const errorSummary = collectionErrors.map((e) => `  - ${e.service}: ${e.error}`).join('\n');
+        throw new Error(
+          `Failed to read ${collectionErrors.length} service-specific compose file(s):\n` +
+            `${errorSummary}\n\n` +
+            `Fix the file permissions or paths and try again.`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 3: Iteratively merge service-specific files
+      // ============================================================================
+      let mergedYaml = baseYaml;
+      const merger = new ComposeMerger();
+      const mergeErrors: Array<{ service: string; error: string }> = [];
+      const mergeStats: Array<{ service: string; stats: any }> = [];
+
+      for (const serviceFile of serviceFiles) {
+        try {
+          const mergeResult = merger.merge(mergedYaml, serviceFile.yaml, {
+            serviceName: serviceFile.service,
+            validationMode: 'lenient', // Don't fail if service missing in override
+          });
+
+          mergedYaml = mergeResult.yaml;
+          mergeStats.push({
+            service: serviceFile.service,
+            stats: mergeResult.stats,
+          });
+
+          console.log(
+            `[docker-compose-strategy] Merged ${serviceFile.service}: ` +
+              `+${mergeResult.stats.volumesAdded} volumes, ` +
+              `+${mergeResult.stats.environmentAdded} env vars, ` +
+              `+${mergeResult.stats.dependenciesAdded} dependencies`
+          );
+        } catch (error: any) {
+          mergeErrors.push({
+            service: serviceFile.service,
+            error: error.message || String(error),
+          });
+
+          console.error(
+            `[docker-compose-strategy] Failed to merge ${serviceFile.service}: ${error.message}`
+          );
+        }
+      }
+
+      // Fail if any merges failed
+      if (mergeErrors.length > 0) {
+        const errorSummary = mergeErrors.map((e) => `  - ${e.service}: ${e.error}`).join('\n');
+        throw new Error(
+          `Failed to merge ${mergeErrors.length}/${serviceFiles.length} service-specific compose file(s):\n` +
+            `${errorSummary}\n\n` +
+            `Fix the invalid compose files and try again.`
+        );
+      }
+
+      // Log total merge statistics
+      if (mergeStats.length > 0) {
+        const totalStats = mergeStats.reduce(
+          (acc, { stats }) => ({
+            volumesAdded: acc.volumesAdded + stats.volumesAdded,
+            environmentAdded: acc.environmentAdded + stats.environmentAdded,
+            dependenciesAdded: acc.dependenciesAdded + stats.dependenciesAdded,
+          }),
+          { volumesAdded: 0, environmentAdded: 0, dependenciesAdded: 0 }
+        );
+
+        console.log(
+          `[docker-compose-strategy] Total merge stats: ` +
+            `+${totalStats.volumesAdded} volumes, ` +
+            `+${totalStats.environmentAdded} env vars, ` +
+            `+${totalStats.dependenciesAdded} dependencies`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 4: Collect and validate secureFiles for all services
+      // ============================================================================
+      const isRemote = context.deployment?.docker?.host?.startsWith('ssh://');
+      const allSecureFiles = new Map<string, SecureFile[]>();
+      const secureFilesErrors: Array<{ service: string; error: string }> = [];
+      const validator = new SecureFilesValidator(repoRoot);
+
+      for (const service of services) {
+        if (service.secureFiles && service.secureFiles.length > 0) {
+          try {
+            // Filter secureFiles by current execution context
+            // Only include files where:
+            // 1. file.context is undefined (applies to all contexts), OR
+            // 2. file.context matches current context name
+            const contextFilteredFiles = service.secureFiles.filter((file: SecureFile) => {
+              return !file.context || file.context === context.name;
+            });
+
+            // Skip if no files match the current context
+            if (contextFilteredFiles.length === 0) {
+              console.log(
+                `[docker-compose-strategy] No secureFiles match context '${context.name}' for ${service.name}`
+              );
+              continue;
+            }
+
+            // Validate context-filtered secureFiles
+            await validator.validate(contextFilteredFiles, context.name);
+
+            allSecureFiles.set(service.name, contextFilteredFiles);
+
+            console.log(
+              `[docker-compose-strategy] Collected ${contextFilteredFiles.length} secureFile(s) ` +
+                `for ${service.name} (context: ${context.name})`
+            );
+          } catch (error: any) {
+            secureFilesErrors.push({
+              service: service.name,
+              error: error.message || String(error),
+            });
+
+            console.error(
+              `[docker-compose-strategy] SecureFiles validation failed for ${service.name}: ` +
+                `${error.message}`
+            );
+          }
+        }
+      }
+
+      // Fail if any secureFiles validation failed
+      if (secureFilesErrors.length > 0) {
+        const errorSummary = secureFilesErrors
+          .map((e) => `  - ${e.service}: ${e.error}`)
+          .join('\n');
+        throw new Error(
+          `SecureFiles validation failed for ${secureFilesErrors.length} service(s):\n` +
+            `${errorSummary}\n\n` +
+            `Fix the secureFiles declarations and try again.`
+        );
+      }
+
+      console.log(
+        `[docker-compose-strategy] Collected secureFiles for ${allSecureFiles.size} service(s)`
+      );
+
+      // ============================================================================
+      // STAGE 5: Process secureFiles for all services
+      // ============================================================================
+      for (const [serviceName, secureFiles] of allSecureFiles) {
+        let volumeMounts: string[];
+        const secureFileEnvVars = ComposeMerger.extractEnvVars(secureFiles);
+
+        if (!isRemote) {
+          // Local deployment: Generate volume mounts with local paths
+          volumeMounts = ComposeMerger.generateVolumeMounts(secureFiles, repoRoot);
+
+          console.log(
+            `[docker-compose-strategy] Generated ${volumeMounts.length} local volume mount(s) ` +
+              `for ${serviceName}`
+          );
+        } else {
+          // Remote deployment: Transfer files via SCP
+          const remoteHost = context.deployment!.docker!.host!;
+          const remoteDir = context.deployment!.docker!.remoteDir;
+
+          if (!remoteDir) {
+            throw new Error(
+              `Remote directory not configured in context '${context.name}'. ` +
+                `Set deployment.docker.remoteDir in architecture.yaml`
+            );
+          }
+
+          const remotePaths = await this.transferSecureFilesToRemote(
+            secureFiles,
+            remoteHost,
+            remoteDir,
+            repoRoot
+          );
+
+          // Generate volume mounts using remote paths
+          volumeMounts = secureFiles.map((file) => {
+            const remotePath = remotePaths.get(file.local)!;
+            return `${remotePath}:${file.target}:ro`;
+          });
+
+          console.log(
+            `[docker-compose-strategy] Transferred and mounted ${volumeMounts.length} remote file(s) ` +
+              `for ${serviceName}`
+          );
+        }
+
+        // Inject into merged YAML
+        mergedYaml = merger.injectSecureFiles(
+          mergedYaml,
+          serviceName,
+          volumeMounts,
+          secureFileEnvVars
+        );
+
+        console.log(
+          `[docker-compose-strategy] Injected ${volumeMounts.length} volume mount(s) and ` +
+            `${Object.keys(secureFileEnvVars).length} env var(s) for ${serviceName}`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 6: Inject image tags for buildable services
+      // ============================================================================
+
+      // Sprint 378: Services with build: sections need explicit image: tags
+      // to prevent Docker from trying to pull them from a registry.
+      // We inject image tags following Docker Compose naming convention:
+      // ${COMPOSE_PROJECT_NAME}-${service_name}:${BITBRAT_VERSION:-latest}
+      const finalCompose = yaml.load(mergedYaml) as any;
+      const composeProjectName = `bitbrat-${context.name}`;
+
+      let imageTagsInjected = 0;
+      if (finalCompose?.services && typeof finalCompose.services === 'object') {
+        for (const [serviceName, serviceConfig] of Object.entries(finalCompose.services)) {
+          const service = serviceConfig as any;
+          // If service has build section but no image tag, inject one
+          if (service && typeof service === 'object' && service.build && !service.image) {
+            service.image = `${composeProjectName}-${serviceName}:\${BITBRAT_VERSION:-latest}`;
+            imageTagsInjected++;
+            console.log(
+              `[docker-compose-strategy] Injected image tag for ${serviceName}: ${service.image}`
+            );
+          }
+        }
+      }
+
+      if (imageTagsInjected > 0) {
+        mergedYaml = yaml.dump(finalCompose, {
+          indent: 2,
+          lineWidth: 120,
+          noRefs: true,
+        });
+        console.log(
+          `[docker-compose-strategy] Injected ${imageTagsInjected} image tag(s) for buildable services`
+        );
+      }
+
+      // ============================================================================
+      // STAGE 7: Write temporary merged compose file
+      // ============================================================================
+      await fs.promises.writeFile(tempMergedPath, mergedYaml, 'utf-8');
+
+      const fileSizeKb = (mergedYaml.length / 1024).toFixed(2);
+      console.log(
+        `[docker-compose-strategy] Wrote temporary merged compose file: ${tempMergedPath} ` +
+          `(${fileSizeKb} KB)`
+      );
+
+      // For remote deployments, transfer the merged compose file to the remote machine
+      // The orchestrator's syncRemoteFiles() doesn't include .docker-compose.merged.yaml
+      // in its file list, so we must transfer it manually before calling orchestrator.up()
+      if (isRemote) {
+        const remoteDir = context.deployment!.docker!.remoteDir || '/opt/BitBratPlatform';
+        const sshHost = context.deployment!.docker!.host!.replace('ssh://', '');
+        const remotePath = `${remoteDir}/.docker-compose.merged.yaml`;
+
+        console.log(
+          `[docker-compose-strategy] Transferring merged compose file to ${sshHost}:${remotePath}...`
+        );
+
+        // Transfer file using SCP
+        const scpResult = await execCmd('scp', [tempMergedPath, `${sshHost}:${remotePath}`], {
+          cwd: repoRoot,
+        });
+
+        if (scpResult.code !== 0) {
+          throw new Error(
+            `Failed to transfer merged compose file to remote: ${scpResult.stderr || scpResult.stdout}`
+          );
+        }
+
+        console.log(`[docker-compose-strategy] ✓ Merged compose file transferred successfully`);
+      }
+
+      // ============================================================================
+      // STAGE 8: Extract buildable services from merged compose file
+      // ============================================================================
+
+      // Sprint 378: For bulk deployments, we need to tell the orchestrator which services
+      // to build and start. We extract this from the LOCAL merged file BEFORE passing
+      // the path to the orchestrator (which might be a remote path).
+      const mergedCompose = yaml.load(mergedYaml) as any;
+      const buildableServices: string[] = [];
+
+      if (mergedCompose?.services && typeof mergedCompose.services === 'object') {
+        for (const [serviceName, serviceConfig] of Object.entries(mergedCompose.services)) {
+          const service = serviceConfig as any;
+          // Include services that have a build section
+          if (service && typeof service === 'object' && service.build != null) {
+            buildableServices.push(serviceName);
+          }
+        }
+      }
+
+      console.log(
+        `[docker-compose-strategy] Extracted ${buildableServices.length} buildable service(s): ` +
+          buildableServices.join(', ')
+      );
+
+      // ============================================================================
+      // STAGE 9: Execute orchestrator with merged compose file
+      // ============================================================================
+
+      // For remote deployments, use the remote path (file has been transferred above)
+      // For local deployments, use the local path
+      let composeFilePath = tempMergedPath;
+      if (isRemote) {
+        const remoteDir = context.deployment!.docker!.remoteDir || '/opt/BitBratPlatform';
+        composeFilePath = `${remoteDir}/.docker-compose.merged.yaml`;
+      }
+
       const orchestratorOptions: DockerOrchestratorOptions = {
         repoRoot,
         context: context.name,
-        service: undefined, // No specific service - deploy all
+        service: undefined, // Deploy all services
+        composeFile: composeFilePath, // Use merged compose file (local or remote path)
+        servicesToStart: buildableServices, // Sprint 378: Explicit list of services to build/start
         dryRun: options.dryRun || false,
         forceRecreate: options.forceRecreate || false,
         noCache: options.forceBuild || false,
@@ -616,6 +1071,8 @@ export class DockerComposeStrategy implements DeploymentStrategy {
 
       const durationMs = Date.now() - startTime;
 
+      console.log(`[docker-compose-strategy] Bulk deployment completed successfully`);
+
       // Return success for all services
       return services.map((service) => ({
         status: 'success' as const,
@@ -628,6 +1085,8 @@ export class DockerComposeStrategy implements DeploymentStrategy {
     } catch (error: any) {
       const durationMs = Date.now() - startTime;
 
+      console.error(`[docker-compose-strategy] Bulk deployment failed: ${error.message}`);
+
       // Return failure for all services
       return services.map((service) => ({
         status: 'failed' as const,
@@ -635,6 +1094,20 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         durationMs,
         error: error.message || String(error),
       }));
+    } finally {
+      // ============================================================================
+      // STAGE 8: Cleanup temporary merged file
+      // ============================================================================
+      try {
+        if (fs.existsSync(tempMergedPath)) {
+          await fs.promises.unlink(tempMergedPath);
+          console.log(`[docker-compose-strategy] Cleaned up temporary merged compose file`);
+        }
+      } catch (cleanupError: any) {
+        console.warn(
+          `[docker-compose-strategy] Failed to cleanup temporary file: ${cleanupError.message}`
+        );
+      }
     }
   }
 

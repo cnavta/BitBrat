@@ -7,6 +7,7 @@ import { ContextResolver } from '../../context/context-resolver';
 import { shouldRebuildBase, computeBaseCacheKey, storeCacheKey } from './base-cache';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 
 // Location (relative to a remote target's `remoteDir`) where the GCP ADC service
 // account key is placed on the remote host. The per-service compose files bind-mount
@@ -28,6 +29,8 @@ export interface DockerOrchestratorOptions {
   forceRecreate?: boolean; // Force recreate containers (docker compose up --force-recreate)
   noCache?: boolean; // Build without cache (docker compose build --no-cache)
   rebuildBase?: boolean; // Sprint 375: Force rebuild base image regardless of cache key
+  composeFile?: string; // Sprint 378: Override compose file path (for bulk deployments)
+  servicesToStart?: string[]; // Sprint 378: Explicit list of services to start (for bulk deployments)
 }
 
 export class DockerOrchestrator {
@@ -65,7 +68,14 @@ export class DockerOrchestrator {
       .filter((s) => !s.active)
       .map((s) => s.name);
 
-    const composeFileSet = this.composeFactory.getComposeFiles(this.options.service, inactiveServices, this.options.loki);
+    // Sprint 378: Use custom compose file if provided (for bulk deployments)
+    const composeFileSet = this.options.composeFile
+      ? {
+          baseFile: this.options.composeFile,
+          serviceFiles: [],
+          targetService: undefined,
+        }
+      : this.composeFactory.getComposeFiles(this.options.service, inactiveServices, this.options.loki);
 
     // Sprint 349: Determine compose project name from context or env
     const composeProjectName = contextName ? `bitbrat-${contextName}` : await this.getComposeProjectName(envName);
@@ -87,9 +97,16 @@ export class DockerOrchestrator {
 
       // Sprint 372: For context-specific compose files, targetService is stored in metadata
       // instead of being extracted from serviceFiles (which would be empty).
-      const services = composeFileSet.targetService
-        ? [composeFileSet.targetService]
-        : composeFileSet.serviceFiles.map(f => path.basename(f, '.compose.yaml'));
+      // Sprint 378: For bulk deployments, servicesToStart is provided explicitly
+      let services: string[];
+      if (this.options.servicesToStart) {
+        // Sprint 378: Use explicit list of services (for bulk deployments)
+        services = this.options.servicesToStart;
+      } else if (composeFileSet.targetService) {
+        services = [composeFileSet.targetService];
+      } else {
+        services = composeFileSet.serviceFiles.map(f => path.basename(f, '.compose.yaml'));
+      }
 
       // Base-file services with their own `build:` (e.g. firebase-emulator) are NOT part of
       // the per-service compose set, so `docker compose build <service>` never builds them.
@@ -98,7 +115,20 @@ export class DockerOrchestrator {
       //
       // Sprint 372: When deploying a single service to a context-specific compose file,
       // only build that service, not all buildable services from the base file.
-      const baseBuildServices = this.composeFactory.getBuildableBaseServices();
+      //
+      // Sprint 378: For bulk deployments with servicesToStart, use that list directly
+      let baseBuildServices: string[];
+      if (this.options.servicesToStart) {
+        // Sprint 378: For bulk deployments, servicesToStart already contains all buildable services
+        baseBuildServices = [];
+      } else if (this.options.composeFile) {
+        // Extract buildable services from custom compose file (shouldn't happen for bulk deployments)
+        baseBuildServices = this.getBuildableServicesFromFile(this.options.composeFile);
+      } else {
+        // Extract buildable services from base compose file
+        baseBuildServices = this.composeFactory.getBuildableBaseServices();
+      }
+
       let buildServices: string[];
       if (this.options.service && services.length > 0) {
         // Single-service deployment: only build the target service
@@ -142,6 +172,7 @@ export class DockerOrchestrator {
         // Up all services in one go. Since this runs remotely via SSH (in executeDockerCompose),
         // it doesn't hit local SSH connection limits, and respects COMPOSE_PARALLEL_LIMIT on the remote host.
         // If --service was specified, pass the service names to docker compose up to start only those services.
+        // Sprint 378: If servicesToStart was provided, use that list (for bulk deployments)
         // If --no-deps was specified, add --no-deps to skip starting dependencies (nats, firebase-emulator, etc.)
         // If --force-recreate was specified, force recreation even if config unchanged (fixes port allocation issues)
         const upArgs = [...composeArgs, 'up', '-d', '--no-build'];
@@ -151,7 +182,10 @@ export class DockerOrchestrator {
         if (this.options.noDeps) {
           upArgs.push('--no-deps');
         }
-        if (this.options.service) {
+        if (this.options.servicesToStart && this.options.servicesToStart.length > 0) {
+          // Sprint 378: Use explicit service list for bulk deployments
+          upArgs.push(...this.options.servicesToStart);
+        } else if (this.options.service) {
           upArgs.push(...services);
         }
         await this.executeDockerCompose(targetConfig, upArgs);
@@ -192,6 +226,7 @@ export class DockerOrchestrator {
   /**
    * Build the shared base image (bitbrat-base) if needed.
    * Sprint 375: Checks cache key to skip rebuild when dependencies unchanged.
+   * Sprint 378: Always rebuild for remote deployments (cache is local-only).
    *
    * @param targetConfig - Deployment target configuration
    * @param composeArgs - Docker Compose arguments (for project name, env files, etc.)
@@ -199,14 +234,20 @@ export class DockerOrchestrator {
    */
   private async buildBaseImage(targetConfig: any, composeArgs: string[]): Promise<void> {
     const forceRebuild = this.options.rebuildBase || this.options.noCache;
+    const isRemote = targetConfig.host?.startsWith('ssh://');
 
-    // Check if base image needs rebuilding
-    if (!shouldRebuildBase(this.options.repoRoot, forceRebuild)) {
+    // Sprint 378: For remote deployments, always rebuild base image
+    // because the cache file is local but the image needs to exist on remote Docker daemon
+    if (!isRemote && !shouldRebuildBase(this.options.repoRoot, forceRebuild)) {
       console.log('[brat] Base image cache is up-to-date, skipping rebuild');
       return;
     }
 
-    console.log('[brat] Building shared base image (bitbrat-base)...');
+    if (isRemote) {
+      console.log('[brat] Building shared base image (bitbrat-base) for remote deployment...');
+    } else {
+      console.log('[brat] Building shared base image (bitbrat-base)...');
+    }
 
     // Build using docker compose with the build-only profile
     const buildArgs = [...composeArgs, 'build'];
@@ -217,9 +258,11 @@ export class DockerOrchestrator {
 
     await this.executeDockerCompose(targetConfig, buildArgs);
 
-    // Store new cache key after successful build
-    const newCacheKey = computeBaseCacheKey(this.options.repoRoot);
-    storeCacheKey(this.options.repoRoot, newCacheKey);
+    // Store new cache key after successful build (local deployments only)
+    if (!isRemote) {
+      const newCacheKey = computeBaseCacheKey(this.options.repoRoot);
+      storeCacheKey(this.options.repoRoot, newCacheKey);
+    }
 
     console.log('[brat] Base image built successfully');
   }
@@ -626,6 +669,34 @@ export class DockerOrchestrator {
 
     // No-op: Let docker-compose handle network creation
     return;
+  }
+
+  /**
+   * Sprint 378: Extract buildable services from a custom compose file
+   * This is used for bulk deployments where the merged compose file
+   * contains all services (not just the base file).
+   */
+  private getBuildableServicesFromFile(filePath: string): string[] {
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+
+    let doc: any;
+    try {
+      doc = yaml.load(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+      return [];
+    }
+
+    const services = doc?.services;
+    if (!services || typeof services !== 'object') {
+      return [];
+    }
+
+    return Object.keys(services).filter((name) => {
+      const svc = services[name];
+      return svc && typeof svc === 'object' && svc.build != null;
+    });
   }
 
   /**

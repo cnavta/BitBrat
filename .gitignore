@@ -133,6 +133,10 @@ infrastructure/docker-compose/docker-compose.agent-dev-*.yaml
 docker-compose.*.merged.yaml
 infrastructure/docker-compose/*.merged.yaml
 
+# Sprint 378: Bulk deployment merged compose file
+# Generated in repo root when deploying multiple services at once
+.docker-compose.merged.yaml
+
 # Sprint 375: Base image cache key
 # Generated during deployment to track base image changes
 # Auto-regenerated on each build, no need to commit

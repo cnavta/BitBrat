@@ -40,7 +40,7 @@ describe('Agent-Dev E2E Lifecycle Tests - Sprint 358', () => {
     } catch (error) {
       console.warn('Cleanup failed:', (error as Error).message);
     }
-  });
+  }, 60000); // 60 second timeout for cleanup (Docker container teardown can be slow)
 
   describe('Full Lifecycle: Provision → Start → Stop → Destroy', () => {
     let context: ProvisionResult;
