@@ -586,7 +586,7 @@ tasks:
     phase: phase-2
     priority: high
     estimatedHours: 0.5
-    status: pending
+    status: completed
     dependencies: [379-012]
 
     description: |
