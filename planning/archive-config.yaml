@@ -1,0 +1,21 @@
+archive:
+  enabled: true
+  autoArchive:
+    enabled: true
+    criteria: hybrid
+    ageDays: 30
+    keepCount: 10
+    schedule: on-complete
+  knowledge:
+    extractOnComplete: true
+    categories:
+      - lessons
+      - patterns
+      - anti-patterns
+      - metrics
+    aggregateOnExtraction: true
+  migration:
+    completed: true
+    backupPath: sprint-index-pre-migration-2026-08-03T19-41-42-142Z.yaml.backup
+    completedAt: 2026-08-03T19:41:42.271Z
+    version: 1.0.0
