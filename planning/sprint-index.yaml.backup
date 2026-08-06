@@ -7,11 +7,11 @@
 #
 # To regenerate from scratch: Use the regenerate-sprint-index tool
 #
-# Generated: 2026-08-06T01:42:09.445Z
+# Generated: 2026-08-06T02:41:15.787Z
 #
 
 version: "1.0"
-generatedAt: 2026-08-06T01:42:36.700Z
+generatedAt: 2026-08-06T02:41:33.493Z
 totalSprints: 1
 activeSprints: 0
 completedSprints: 1
