@@ -17,7 +17,16 @@ import type { ResourceManager, ResourceInstances, SetupContext } from './resourc
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
 import { DocumentStoreManager } from './resources/document-store-manager';
+import { RedisManager } from './resources/redis-manager';
 import { createMessageSubscriber, createMessagePublisher, type AttributeMap } from '../services/message-bus';
+import {
+  checkIdempotency,
+  extractIdempotencyHints,
+  mergeIdempotencyConfig,
+  type IdempotencyConfig,
+  type SubscriptionIdempotencyConfig,
+} from './idempotency-middleware';
+import type { RedisClientType } from 'redis';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
 import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1 } from '../types/events';
@@ -468,16 +477,17 @@ export class Bit {
   protected async onMessage<T = any>(
     destination: string,
     handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
-    options?: SubscribeOptions
+    options?: SubscribeOptions & { idempotency?: SubscriptionIdempotencyConfig }
   ): Promise<void>;
   protected async onMessage<T = any>(
     cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
-    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
+    options?: SubscribeOptions & { idempotency?: SubscriptionIdempotencyConfig }
   ): Promise<void>;
   protected async onMessage<T = any>(
     arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
     handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
-    options?: SubscribeOptions
+    options?: SubscribeOptions & { idempotency?: SubscriptionIdempotencyConfig }
   ): Promise<void> {
     const skipSubscribe = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
     if (skipSubscribe) {
@@ -571,6 +581,47 @@ export class Bit {
                   this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
                 }
 
+                // Sprint 1: Distributed Idempotency Check (opt-in via config or subscription options)
+                // Check for duplicate message using Redis before processing
+                const idempotencyEnabled = this.config.redisIdempotencyEnabled || (options as any)?.idempotency?.enabled;
+                if (idempotencyEnabled && this.resources.redis) {
+                  const correlationId = (parsed as any)?.correlationId;
+                  if (correlationId) {
+                    // Extract idempotency hints from message and merge with subscription config
+                    const messageHints = extractIdempotencyHints(parsed);
+                    const subscriptionConfig = (options as any)?.idempotency as SubscriptionIdempotencyConfig | undefined;
+                    const mergedConfig = mergeIdempotencyConfig(
+                      messageHints,
+                      subscriptionConfig,
+                      this.config.redisIdempotencyDefaultTtlSeconds
+                    );
+
+                    const idempotencyConfig: IdempotencyConfig = {
+                      topic: cfg.destination,
+                      correlationId,
+                      source: this.serviceName,
+                      ...mergedConfig,
+                    };
+
+                    const result = await checkIdempotency(
+                      this.resources.redis as RedisClientType,
+                      idempotencyConfig,
+                      this.logger
+                    );
+
+                    if (result.isDuplicate) {
+                      // Message is a duplicate - acknowledge and skip processing
+                      this.logger.info('base_server.message.idempotency.duplicate_skipped', {
+                        subject,
+                        correlationId,
+                        key: result.key,
+                      });
+                      await ctx.ack();
+                      return; // Skip handler execution
+                    }
+                  }
+                }
+
                 // Extract EventContext and wrap handler execution
                 const eventCtx = extractEventContext(parsed);
                 const handlerPromise = runWithEventContext(eventCtx, () =>
@@ -622,6 +673,47 @@ export class Bit {
               // Tracer logging: Log full event on reception if qos.tracer is true
               if ((parsed as any)?.qos?.tracer) {
                 this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
+              }
+
+              // Sprint 1: Distributed Idempotency Check (opt-in via config or subscription options)
+              // Check for duplicate message using Redis before processing
+              const idempotencyEnabled = this.config.redisIdempotencyEnabled || (options as any)?.idempotency?.enabled;
+              if (idempotencyEnabled && this.resources.redis) {
+                const correlationId = (parsed as any)?.correlationId;
+                if (correlationId) {
+                  // Extract idempotency hints from message and merge with subscription config
+                  const messageHints = extractIdempotencyHints(parsed);
+                  const subscriptionConfig = (options as any)?.idempotency as SubscriptionIdempotencyConfig | undefined;
+                  const mergedConfig = mergeIdempotencyConfig(
+                    messageHints,
+                    subscriptionConfig,
+                    this.config.redisIdempotencyDefaultTtlSeconds
+                  );
+
+                  const idempotencyConfig: IdempotencyConfig = {
+                    topic: cfg.destination,
+                    correlationId,
+                    source: this.serviceName,
+                    ...mergedConfig,
+                  };
+
+                  const result = await checkIdempotency(
+                    this.resources.redis as RedisClientType,
+                    idempotencyConfig,
+                    this.logger
+                  );
+
+                  if (result.isDuplicate) {
+                    // Message is a duplicate - acknowledge and skip processing
+                    this.logger.info('base_server.message.idempotency.duplicate_skipped', {
+                      subject,
+                      correlationId,
+                      key: result.key,
+                    });
+                    await ctx.ack();
+                    return; // Skip handler execution
+                  }
+                }
               }
 
               // Extract EventContext and wrap handler execution
@@ -703,6 +795,23 @@ export class Bit {
         throw new Error(
           `Unknown PERSISTENCE_DRIVER: ${persistenceDriver}. Expected: postgres, postgresql, or firestore`,
         );
+      }
+
+      // Sprint 1: Initialize Redis for distributed idempotency (opt-in)
+      // Redis is initialized if REDIS_URL is configured OR redisIdempotencyEnabled is true
+      const redisUrl = process.env.REDIS_URL || this.config.redisUrl;
+      const redisEnabled = this.config.redisIdempotencyEnabled || Boolean(redisUrl);
+
+      if (redisEnabled) {
+        logger.debug('base_server.resources.redis.init', {
+          hasUrl: Boolean(redisUrl),
+          idempotencyEnabled: this.config.redisIdempotencyEnabled,
+        });
+        defaults.redis = new RedisManager();
+      } else {
+        logger.debug('base_server.resources.redis.skip', {
+          message: 'Redis not configured - idempotency layer disabled',
+        });
       }
     }
     // Merge: overrides replace defaults by key and can add new keys

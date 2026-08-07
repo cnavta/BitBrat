@@ -246,6 +246,13 @@ class LlmBotServer extends Bit {
       } finally {
         await ctx.ack();
       }
+    }, {
+      // Sprint 1: Enable distributed idempotency for LLM processing
+      // TTL: 300s (5 minutes - covers deploy windows and LLM request processing)
+      idempotency: {
+        enabled: true,
+        ttlSeconds: 300,
+      },
     });
   }
 }

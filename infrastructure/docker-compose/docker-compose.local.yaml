@@ -73,6 +73,25 @@ services:
       - "-c"
       - "max_connections=200"
 
+  redis:
+    env_file:
+      - .env.brat
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      bitbrat-network:
+        aliases:
+          - redis.bitbrat.local
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - redis-data:/data
+
   firebase-emulator:
     profiles:
       - firestore
@@ -125,6 +144,8 @@ volumes:
   nats-data:
     driver: local
   postgres-data:
+    driver: local
+  redis-data:
     driver: local
   firebase-data-v2:
     driver: local

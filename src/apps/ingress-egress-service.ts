@@ -436,6 +436,14 @@ export class IngressEgressServer extends Bit {
                 await ctx.ack();
               }
             }
+          },
+          {
+            // Sprint 1: Enable distributed idempotency for egress messages
+            // TTL: 60s (covers deploy windows and prevents duplicate delivery)
+            idempotency: {
+              enabled: true,
+              ttlSeconds: 60,
+            },
           }
         );
         logger.info('ingress-egress.egress_subscribe.ok', { subject: egressSubject });
@@ -511,6 +519,14 @@ export class IngressEgressServer extends Bit {
               logger.error('ingress-egress.egress.generic.process_error', { subject: genericEgressSubject, error: msg });
               await ctx.ack();
             }
+          },
+          {
+            // Sprint 1: Enable distributed idempotency for generic egress messages
+            // TTL: 60s (covers deploy windows and prevents duplicate delivery)
+            idempotency: {
+              enabled: true,
+              ttlSeconds: 60,
+            },
           }
         );
         logger.info('ingress-egress.egress.generic_subscribe.ok', { subject: genericEgressSubject });
