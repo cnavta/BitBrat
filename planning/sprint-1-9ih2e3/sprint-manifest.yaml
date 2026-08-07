@@ -1,0 +1,11 @@
+id: sprint-1-9ih2e3
+title: Fix Debug Trace Message Re-delivery Issue
+goal: Investigate and fix the NATS message acknowledgment issue causing debug
+  trace responses to be re-sent after platform re-deploy and accumulate across
+  multiple !debug queries
+owner: Lead Implementor
+createdAt: 2026-08-06T16:19:53.731Z
+status: in-progress
+links:
+  branch: feature/sprint-1-9ih2e3-fix-debug-trace-message-re-del
+notes: Sprint initialized via MCP start-sprint tool

@@ -11,11 +11,19 @@
 #
 
 version: "1.0"
-generatedAt: 2026-08-06T15:42:49.382Z
-totalSprints: 253
-activeSprints: 0
+generatedAt: 2026-08-06T20:42:58.978Z
+totalSprints: 254
+activeSprints: 1
 completedSprints: 253
 sprints:
+  - id: sprint-1-9ih2e3
+    title: Fix Debug Trace Message Re-delivery Issue
+    status: in-progress
+    owner: Lead Implementor
+    createdAt: 2026-08-06T16:19:53.731Z
+    manifestPath: planning/sprint-1-9ih2e3/sprint-manifest.yaml
+    branch: feature/sprint-1-9ih2e3-fix-debug-trace-message-re-del
+    worktreePath: .worktrees/sprint-1-9ih2e3
   - id: sprint-120-7f2a9c
     title: LLM Bot – First Pass with LangGraph
     status: complete
@@ -1962,7 +1970,7 @@ sprints:
 statistics:
   byStatus:
     planning: 0
-    in-progress: 0
+    in-progress: 1
     validating: 0
     verifying: 0
     published: 0
