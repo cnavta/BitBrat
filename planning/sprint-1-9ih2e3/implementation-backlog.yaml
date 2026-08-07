@@ -1,0 +1,1438 @@
+# Implementation Backlog: Redis-Based Idempotency Layer
+# Sprint ID: sprint-1-9ih2e3 (Research) → Future Implementation Sprints
+# Lead Implementor: Lead Implementor
+# Created: 2026-08-06
+
+version: "1.0"
+project:
+  id: redis-idempotency-layer
+  title: "Redis-Based Idempotency Layer for Bit Messaging Framework"
+  goal: "Eliminate duplicate message processing platform-wide with transparent, configurable Redis-backed idempotency"
+  totalEstimatedEffort: "24-32 hours"
+  criticalPath: "PREP-001 → FOUND-001 → FOUND-002 → FOUND-003 → FOUND-004 → FOUND-005 → INTEG-001 → VALID-001 → ROLL-001"
+
+# Task Definitions
+# - Priority: P0 (must have), P1 (should have), P2 (nice to have)
+# - Effort: XS (<1h), S (1-2h), M (2-4h), L (4-8h)
+# - Status: todo, in_progress, blocked, done
+# - Phase: 0 (prep), 1 (foundation), 2 (integration), 3 (validation), 4 (rollout)
+
+tasks:
+  # ============================================================================
+  # PHASE 0: Preparation (Pre-Sprint, 2 hours)
+  # ============================================================================
+
+  - id: PREP-001
+    title: "Add Redis to local docker-compose.yml"
+    description: |
+      Add Redis service to local development docker-compose configuration.
+
+      Requirements:
+      - Use redis:7-alpine image
+      - Expose port 6379
+      - Configure persistence volume (optional for local)
+      - Set reasonable memory limit (256MB for dev)
+      - Add health check
+
+      Example config:
+      ```yaml
+      services:
+        redis:
+          image: redis:7-alpine
+          ports:
+            - "6379:6379"
+          volumes:
+            - redis-data:/data
+          command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+          healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 3s
+            retries: 3
+      ```
+    priority: P0
+    effort: S
+    status: todo
+    phase: 0
+    dependencies: []
+    acceptanceCriteria:
+      - "Redis service added to docker-compose.yml"
+      - "Redis starts successfully with docker-compose up"
+      - "Health check passes"
+      - "Accessible on localhost:6379"
+      - "Persists data to volume (optional)"
+    files:
+      - docker-compose.yml
+      - .env.example (add REDIS_URL)
+    tests:
+      - Manual: docker-compose up, redis-cli ping
+
+  - id: PREP-002
+    title: "Provision Redis on staging environment"
+    description: |
+      Provision managed Redis instance on staging infrastructure.
+
+      Options:
+      - **GCP:** Cloud Memorystore for Redis (recommended)
+      - **AWS:** ElastiCache for Redis
+      - **Azure:** Azure Cache for Redis
+      - **Self-hosted:** Docker + Redis Sentinel
+
+      Configuration:
+      - Version: Redis 7.x
+      - Tier: Basic/Standard (not HA for staging)
+      - Memory: 1GB
+      - Network: VPC/private IP
+      - Persistence: Disabled (staging can be ephemeral)
+
+      Capture:
+      - Connection URL (redis://host:6379)
+      - Private IP address
+      - Authentication token (if applicable)
+    priority: P0
+    effort: M
+    status: todo
+    phase: 0
+    dependencies: []
+    acceptanceCriteria:
+      - "Redis instance provisioned on staging"
+      - "Accessible from staging services (VPC connectivity)"
+      - "Connection URL documented"
+      - "Authentication configured (if required)"
+      - "Connection tested with redis-cli"
+    files:
+      - infrastructure/terraform/ (if using IaC)
+      - .secure.staging/.env (store REDIS_URL)
+    tests:
+      - Manual: Connection test from staging service
+
+  - id: PREP-003
+    title: "Create Redis connection validation script"
+    description: |
+      Create utility script to validate Redis connectivity and configuration.
+
+      Script should:
+      - Read REDIS_URL from environment
+      - Attempt connection
+      - Run basic commands (PING, SET, GET, TTL)
+      - Report latency
+      - Exit with code 0 (success) or 1 (failure)
+
+      Location: tools/validate-redis.ts
+
+      Usage:
+      ```bash
+      REDIS_URL=redis://localhost:6379 npm run validate:redis
+      ```
+    priority: P1
+    effort: S
+    status: todo
+    phase: 0
+    dependencies: []
+    acceptanceCriteria:
+      - "Script created at tools/validate-redis.ts"
+      - "Connects to Redis using env var"
+      - "Reports connection status and latency"
+      - "Exits with proper code (0 or 1)"
+      - "Documented in README"
+    files:
+      - tools/validate-redis.ts
+      - package.json (add validate:redis script)
+    tests:
+      - Manual: Run against local and staging Redis
+
+  - id: PREP-004
+    title: "Document Redis deployment topology"
+    description: |
+      Document Redis deployment architecture for all environments.
+
+      Create: documentation/infrastructure/redis-deployment.md
+
+      Sections:
+      1. Local (docker-compose)
+      2. Staging (managed service)
+      3. Production (HA cluster - future)
+      4. Connection strings and authentication
+      5. Monitoring and alerting
+      6. Backup and recovery (if applicable)
+    priority: P2
+    effort: S
+    status: todo
+    phase: 0
+    dependencies: [PREP-001, PREP-002]
+    acceptanceCriteria:
+      - "Documentation created"
+      - "All environments covered"
+      - "Connection examples provided"
+      - "Troubleshooting section included"
+    files:
+      - documentation/infrastructure/redis-deployment.md
+    tests:
+      - Documentation review
+
+  # ============================================================================
+  # PHASE 1: Foundation (Sprint 2, 10-14 hours)
+  # ============================================================================
+
+  - id: FOUND-001
+    title: "Implement RedisManager resource manager"
+    description: |
+      Create RedisManager implementing ResourceManager<RedisResource> interface.
+
+      File: src/common/resources/redis-manager.ts
+
+      Requirements:
+      - Implements ResourceManager<RedisResource>
+      - Uses 'redis' npm package (v4+)
+      - Handles connection lifecycle (connect, disconnect, reconnect)
+      - Error handling (connection errors, command errors)
+      - Graceful degradation (throw on setup failure, allow fallback)
+      - Health check integration
+      - Logging instrumentation
+
+      Interface:
+      ```typescript
+      export interface RedisResource {
+        client: RedisClientType;
+        set: (key: string, value: string, options?: SetOptions) => Promise<string | null>;
+        get: (key: string) => Promise<string | null>;
+        del: (key: string) => Promise<number>;
+      }
+      ```
+
+      Methods:
+      - setup(config): Connect to Redis, return RedisResource
+      - shutdown(resource): Gracefully disconnect
+    priority: P0
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [PREP-001]
+    acceptanceCriteria:
+      - "RedisManager class created"
+      - "Implements ResourceManager interface"
+      - "Connects to Redis using REDIS_URL"
+      - "Handles connection errors gracefully"
+      - "Logs connection status (info level)"
+      - "Disconnects cleanly on shutdown"
+      - "Exports RedisResource type"
+    files:
+      - src/common/resources/redis-manager.ts
+      - src/common/resources/types.ts (if RedisResource needs export)
+    tests:
+      - Unit tests (with redis-mock)
+
+  - id: FOUND-002
+    title: "Write unit tests for RedisManager"
+    description: |
+      Comprehensive unit tests for RedisManager using redis-mock.
+
+      File: src/common/resources/__tests__/redis-manager.spec.ts
+
+      Test cases:
+      1. setup() connects successfully
+      2. setup() throws on missing REDIS_URL
+      3. setup() throws on connection failure
+      4. shutdown() closes connection
+      5. set() stores key with TTL
+      6. get() retrieves key
+      7. del() removes key
+      8. Connection error handling
+      9. Reconnection logic
+
+      Use redis-mock for in-memory Redis simulation.
+    priority: P0
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [FOUND-001]
+    acceptanceCriteria:
+      - "Test file created"
+      - "All test cases passing"
+      - "Code coverage > 90%"
+      - "Uses redis-mock (no real Redis required)"
+      - "Tests run in CI"
+    files:
+      - src/common/resources/__tests__/redis-manager.spec.ts
+    tests:
+      - Self-testing (Jest)
+
+  - id: FOUND-003
+    title: "Extend IConfig interface with Redis configuration"
+    description: |
+      Add Redis-related fields to IConfig interface.
+
+      File: src/types/index.ts
+
+      New fields:
+      ```typescript
+      export interface IConfig {
+        // ... existing fields ...
+
+        // Redis configuration
+        redisUrl?: string;                    // REDIS_URL
+        idempotencyDriver?: 'redis' | 'memory' | 'none';  // IDEMPOTENCY_DRIVER
+        idempotencyDefaultTtl?: number;       // IDEMPOTENCY_DEFAULT_TTL (seconds)
+        idempotencyKeyPrefix?: string;        // IDEMPOTENCY_KEY_PREFIX
+        redisConnectTimeout?: number;         // REDIS_CONNECT_TIMEOUT (ms)
+        redisCommandTimeout?: number;         // REDIS_COMMAND_TIMEOUT (ms)
+      }
+      ```
+
+      Update buildConfig() in src/common/config.ts:
+      - Parse environment variables
+      - Set defaults (idempotencyDefaultTtl: 300, keyPrefix: 'bitbrat:idempotency')
+      - Validate driver enum
+    priority: P0
+    effort: S
+    status: todo
+    phase: 1
+    dependencies: []
+    acceptanceCriteria:
+      - "IConfig extended with Redis fields"
+      - "buildConfig() parses Redis env vars"
+      - "Defaults set correctly"
+      - "TypeScript compilation succeeds"
+    files:
+      - src/types/index.ts
+      - src/common/config.ts
+    tests:
+      - Unit tests for config parsing
+
+  - id: FOUND-004
+    title: "Implement idempotency middleware core logic"
+    description: |
+      Create idempotency middleware wrapper for message handlers.
+
+      File: src/common/idempotency-middleware.ts
+
+      Core function:
+      ```typescript
+      export async function wrapWithIdempotency<T>(
+        handler: MessageHandler<T>,
+        topic: string,
+        config: IdempotencyConfig,
+        redisClient: RedisResource,
+        logger: Logger
+      ): Promise<MessageHandler<T>>;
+      ```
+
+      Logic:
+      1. Derive idempotency key (default or custom keyFn)
+      2. Add prefix: `{config.keyPrefix}:{rawKey}`
+      3. Redis check: SET key "1" EX ttl NX
+      4. If returns null → duplicate, log + ack + return
+      5. If returns OK → new, proceed to handler
+      6. On Redis error → log warning, proceed to handler (fail-open)
+
+      Metrics:
+      - Log: 'idempotency.check.duplicate' (when deduplicated)
+      - Log: 'idempotency.check.new' (when new)
+      - Log: 'idempotency.error' (on Redis error)
+
+      Export types:
+      ```typescript
+      export interface IdempotencyConfig {
+        enabled: boolean;
+        ttl?: number;
+        keyFn?: (event: any, topic: string) => string;
+      }
+
+      export type IdempotencyKeyFn = (event: any, topic: string) => string;
+      ```
+    priority: P0
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [FOUND-001, FOUND-003]
+    acceptanceCriteria:
+      - "Middleware function created"
+      - "Key derivation logic (default + custom)"
+      - "Redis SET NX EX check"
+      - "Fail-open on Redis errors"
+      - "Proper logging (debug + info levels)"
+      - "Types exported"
+    files:
+      - src/common/idempotency-middleware.ts
+    tests:
+      - Unit tests (with mock Redis)
+
+  - id: FOUND-005
+    title: "Write unit tests for idempotency middleware"
+    description: |
+      Comprehensive unit tests for middleware logic.
+
+      File: src/common/__tests__/idempotency-middleware.spec.ts
+
+      Test cases:
+      1. New message → handler called, message processed
+      2. Duplicate message → handler NOT called, message ack'd
+      3. Custom keyFn used when provided
+      4. Default keyFn uses correlationId
+      5. TTL set correctly on Redis key
+      6. Redis error → handler called (fail-open)
+      7. Missing correlationId → error handling
+      8. Logging verifications (spies)
+
+      Mock dependencies:
+      - Redis client (mock SET NX EX)
+      - Logger (spy on log calls)
+      - Message context (spy on ack())
+    priority: P0
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [FOUND-004]
+    acceptanceCriteria:
+      - "Test file created"
+      - "All test cases passing"
+      - "Code coverage > 90%"
+      - "Mocks/spies used correctly"
+      - "Tests run in CI"
+    files:
+      - src/common/__tests__/idempotency-middleware.spec.ts
+    tests:
+      - Self-testing (Jest)
+
+  - id: FOUND-006
+    title: "Integrate idempotency middleware into base-server.ts"
+    description: |
+      Update base-server.ts to support idempotency option in onMessage().
+
+      Changes:
+
+      1. **Extend SubscribeOptions interface:**
+      ```typescript
+      interface SubscribeOptions {
+        queue?: string;
+        ack?: 'auto' | 'explicit';
+        maxInFlight?: number;
+        durable?: string;
+        idempotency?: IdempotencyConfig;  // NEW
+      }
+      ```
+
+      2. **Register RedisManager resource:**
+      ```typescript
+      this.resourceManagers = {
+        publisher: new PublisherManager(),
+        firestore: new FirestoreManager(),
+        documentStore: new DocumentStoreManager(),
+        redis: new RedisManager(),  // NEW
+        ...(options?.resources || {}),
+      };
+      ```
+
+      3. **Update onMessage() to wrap handler:**
+      ```typescript
+      protected async onMessage<T = any>(...) {
+        const idempotencyConfig = options?.idempotency
+          || this.getIdempotencyConfig(cfg.destination);
+
+        if (idempotencyConfig?.enabled) {
+          const redisClient = this.getResource<RedisResource>('redis');
+          if (redisClient) {
+            handler = await wrapWithIdempotency(
+              handler,
+              cfg.destination,
+              idempotencyConfig,
+              redisClient,
+              this.logger
+            );
+          } else {
+            this.logger.warn('idempotency.redis_unavailable', { topic: cfg.destination });
+          }
+        }
+
+        // ... existing subscribe logic ...
+      }
+      ```
+
+      4. **Add helper method:**
+      ```typescript
+      protected getIdempotencyConfig(topic: string): IdempotencyConfig | undefined {
+        // Check static IDEMPOTENCY_CONFIG on subclass
+        const Ctor = this.constructor as any;
+        return Ctor.IDEMPOTENCY_CONFIG?.[topic];
+      }
+      ```
+
+      Ensure backward compatibility (no breaking changes).
+    priority: P0
+    effort: L
+    status: todo
+    phase: 1
+    dependencies: [FOUND-004, FOUND-001]
+    acceptanceCriteria:
+      - "SubscribeOptions extended with idempotency field"
+      - "RedisManager registered in resourceManagers"
+      - "onMessage() wraps handler when idempotency enabled"
+      - "Graceful degradation if Redis unavailable"
+      - "getIdempotencyConfig() helper implemented"
+      - "No breaking changes (existing code works)"
+      - "TypeScript compilation succeeds"
+    files:
+      - src/common/base-server.ts
+    tests:
+      - Unit tests for integration
+
+  - id: FOUND-007
+    title: "Write unit tests for base-server idempotency integration"
+    description: |
+      Test base-server.ts idempotency integration logic.
+
+      File: src/common/__tests__/base-server-idempotency.spec.ts
+
+      Test cases:
+      1. Idempotency enabled via options → handler wrapped
+      2. Idempotency disabled → handler not wrapped
+      3. Redis unavailable → warning logged, handler not wrapped
+      4. Static IDEMPOTENCY_CONFIG used as fallback
+      5. Per-subscription config overrides static config
+      6. RedisManager registered correctly
+
+      Use test double/spy pattern for Redis resource.
+    priority: P0
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [FOUND-006]
+    acceptanceCriteria:
+      - "Test file created"
+      - "All test cases passing"
+      - "Code coverage for new logic > 90%"
+      - "No regression in existing tests"
+    files:
+      - src/common/__tests__/base-server-idempotency.spec.ts
+    tests:
+      - Self-testing (Jest)
+
+  - id: FOUND-008
+    title: "Create integration tests with Testcontainers"
+    description: |
+      End-to-end integration tests with real Redis instance via Testcontainers.
+
+      File: tests/integration/idempotency-flow.spec.ts
+
+      Setup:
+      - Use Testcontainers to start Redis container
+      - Create test Bit with idempotency enabled
+      - Publish test messages via NATS (or mock publisher)
+
+      Test scenarios:
+      1. **Happy path:**
+         - Publish message twice (same correlationId)
+         - Verify handler called once only
+         - Verify second message ack'd without processing
+
+      2. **TTL expiration:**
+         - Publish message
+         - Wait for TTL to expire
+         - Publish same message again
+         - Verify handler called both times
+
+      3. **Custom keyFn:**
+         - Configure custom keyFn
+         - Publish messages with same correlationId but different source
+         - Verify both processed (different keys)
+
+      4. **Fail-open:**
+         - Stop Redis mid-test
+         - Publish message
+         - Verify handler called (fail-open)
+
+      5. **Multi-instance:**
+         - Start two Bit instances
+         - Publish same message to both
+         - Verify only one processes (cross-instance dedupe)
+
+      Cleanup:
+      - Stop Redis container
+      - Clean up test resources
+    priority: P0
+    effort: L
+    status: todo
+    phase: 1
+    dependencies: [FOUND-006, FOUND-005]
+    acceptanceCriteria:
+      - "Integration test file created"
+      - "Uses Testcontainers for Redis"
+      - "All scenarios passing"
+      - "Tests run in CI (Docker required)"
+      - "Clean up resources properly"
+    files:
+      - tests/integration/idempotency-flow.spec.ts
+      - package.json (add testcontainers dependency)
+    tests:
+      - Self-testing (Jest + Testcontainers)
+
+  # ============================================================================
+  # PHASE 2: Service Integration (Sprint 2-3, 6-8 hours)
+  # ============================================================================
+
+  - id: INTEG-001
+    title: "Enable idempotency in ingress-egress for egress subscriptions"
+    description: |
+      Enable idempotency for internal.egress.v1 subscription in ingress-egress service.
+
+      File: src/apps/ingress-egress-service.ts
+
+      Change:
+      ```typescript
+      await this.onMessage<InternalEventV2>(
+        { destination: INTERNAL_EGRESS_V1, queue: `ingress-egress.${instanceId}`, ack: 'explicit' },
+        async (evt, attrs, ctx) => {
+          await this.processEgress(evt, INTERNAL_EGRESS_V1);
+          await ctx.ack();
+        },
+        {
+          idempotency: {
+            enabled: true,
+            ttl: 60, // 1 minute for egress
+            keyFn: (evt) => `${evt.correlationId}:${evt.ingress?.source || 'unknown'}`
+          }
+        }
+      );
+      ```
+
+      Also apply to instance-specific subscription if exists.
+
+      Manual testing:
+      1. Deploy updated service
+      2. Send `!debug !ping` in Slack
+      3. Restart service mid-processing
+      4. Verify no duplicate messages in Slack
+    priority: P0
+    effort: S
+    status: todo
+    phase: 2
+    dependencies: [FOUND-008]
+    acceptanceCriteria:
+      - "Idempotency enabled for internal.egress.v1 subscription"
+      - "TTL set to 60 seconds"
+      - "Custom keyFn includes source"
+      - "No duplicate debug messages after restart (manual test)"
+      - "Logs show 'idempotency.check.duplicate' on redelivery"
+    files:
+      - src/apps/ingress-egress-service.ts
+    tests:
+      - Manual testing in staging
+
+  - id: INTEG-002
+    title: "Enable idempotency in auth-service for routing subscriptions"
+    description: |
+      Enable idempotency for internal.auth.v1 subscription in auth service.
+
+      File: src/apps/auth-service.ts
+
+      Change:
+      ```typescript
+      await this.onMessage<InternalEventV2>(
+        { destination: INTERNAL_AUTH_V1, queue: 'auth', ack: 'explicit' },
+        async (asV2: InternalEventV2, attributes, ctx) => {
+          // ... existing handler ...
+        },
+        {
+          idempotency: {
+            enabled: true,
+            ttl: 300, // 5 minutes for routing
+          }
+        }
+      );
+      ```
+
+      Manual testing:
+      1. Send test event
+      2. Restart auth service mid-processing
+      3. Verify no duplicate enrichment
+      4. Check logs for dedupe events
+    priority: P1
+    effort: S
+    status: todo
+    phase: 2
+    dependencies: [FOUND-008]
+    acceptanceCriteria:
+      - "Idempotency enabled for internal.auth.v1 subscription"
+      - "TTL set to 300 seconds"
+      - "Default keyFn used (correlationId)"
+      - "No duplicate enrichment on redelivery"
+      - "Logs show idempotency checks"
+    files:
+      - src/apps/auth-service.ts
+    tests:
+      - Manual testing in staging
+
+  - id: INTEG-003
+    title: "Enable idempotency in llm-bot for relevant subscriptions"
+    description: |
+      Identify and enable idempotency for llm-bot subscriptions.
+
+      Likely candidates:
+      - internal.llm.v1
+      - internal.analysis.v1 (if subscribed)
+
+      Configuration:
+      - TTL: 300 seconds (cover deploy windows)
+      - Default keyFn (correlationId)
+
+      Manual testing:
+      - Send bot command
+      - Restart service mid-processing
+      - Verify no duplicate LLM API calls
+      - Check OpenAI logs for single request
+    priority: P1
+    effort: M
+    status: todo
+    phase: 2
+    dependencies: [FOUND-008]
+    acceptanceCriteria:
+      - "Idempotency enabled for relevant llm-bot subscriptions"
+      - "TTL set appropriately (300s)"
+      - "No duplicate LLM API calls on redelivery"
+      - "Cost savings verified (single API call)"
+    files:
+      - src/apps/llm-bot-service.ts (or wherever llm-bot subscribes)
+    tests:
+      - Manual testing + OpenAI API logs
+
+  - id: INTEG-004
+    title: "Update docker-compose.yml with Redis service"
+    description: |
+      Ensure Redis service is properly configured in docker-compose.
+
+      Requirements:
+      - redis:7-alpine image
+      - Port 6379 exposed
+      - Volume for persistence (optional)
+      - Memory limit (256MB)
+      - Health check
+      - Restart policy
+
+      Also update:
+      - .env.example with REDIS_URL=redis://redis:6379
+      - README.md with local setup instructions
+    priority: P0
+    effort: S
+    status: todo
+    phase: 2
+    dependencies: [PREP-001]
+    acceptanceCriteria:
+      - "Redis service in docker-compose.yml"
+      - ".env.example updated"
+      - "README.md updated with setup instructions"
+      - "Local stack starts successfully (docker-compose up)"
+      - "Services can connect to Redis"
+    files:
+      - docker-compose.yml
+      - .env.example
+      - README.md
+    tests:
+      - Manual: docker-compose up, verify connectivity
+
+  - id: INTEG-005
+    title: "Update architecture.yaml with Redis configuration"
+    description: |
+      Document Redis resource and idempotency config in architecture.yaml.
+
+      Add to resources section:
+      ```yaml
+      resources:
+        redis:
+          driver: redis
+          url: ${REDIS_URL}
+          config:
+            connectTimeout: 5000
+            commandTimeout: 100
+      ```
+
+      Add to services with idempotency:
+      ```yaml
+      services:
+        ingress-egress:
+          env:
+            IDEMPOTENCY_EGRESS_ENABLED: true
+            IDEMPOTENCY_EGRESS_TTL: 60
+        auth:
+          env:
+            IDEMPOTENCY_AUTH_ENABLED: true
+            IDEMPOTENCY_AUTH_TTL: 300
+      ```
+
+      Update service env templates in env/{context}/ directories.
+    priority: P1
+    effort: S
+    status: todo
+    phase: 2
+    dependencies: [INTEG-001, INTEG-002]
+    acceptanceCriteria:
+      - "Redis resource documented in architecture.yaml"
+      - "Service idempotency config documented"
+      - "Env templates updated (env/local/, env/staging/)"
+      - "Architecture validation passes"
+    files:
+      - architecture.yaml
+      - env/local/global.yaml
+      - env/staging/global.yaml
+    tests:
+      - Architecture validation (brat config validate)
+
+  # ============================================================================
+  # PHASE 3: Validation & Hardening (Sprint 3, 4-6 hours)
+  # ============================================================================
+
+  - id: VALID-001
+    title: "Performance testing: Redis latency benchmarks"
+    description: |
+      Benchmark Redis latency and end-to-end message latency.
+
+      Create: tests/performance/idempotency-latency.ts
+
+      Metrics to measure:
+      1. **Redis SET NX EX latency:**
+         - p50, p95, p99
+         - Target: < 5ms p95
+
+      2. **End-to-end message latency (with idempotency):**
+         - Baseline (without idempotency)
+         - With idempotency enabled
+         - Difference (overhead)
+         - Target: < 100ms p95, < 10ms overhead
+
+      3. **Throughput:**
+         - Messages/sec with idempotency
+         - Degradation vs baseline
+         - Target: > 1000 msg/sec
+
+      Tools:
+      - k6 for load generation
+      - Custom Node.js benchmark script
+      - Prometheus/Grafana for visualization
+
+      Run on staging environment for realistic results.
+    priority: P0
+    effort: M
+    status: todo
+    phase: 3
+    dependencies: [INTEG-001, INTEG-002]
+    acceptanceCriteria:
+      - "Benchmark script created"
+      - "Redis latency < 5ms p95"
+      - "Message latency < 100ms p95"
+      - "Idempotency overhead < 10ms"
+      - "Throughput > 1000 msg/sec"
+      - "Results documented"
+    files:
+      - tests/performance/idempotency-latency.ts
+      - planning/sprint-X/performance-results.md
+    tests:
+      - Performance benchmarks
+
+  - id: VALID-002
+    title: "Chaos testing: Redis failure scenarios"
+    description: |
+      Test system behavior under Redis failure conditions.
+
+      Scenarios:
+      1. **Redis connection loss:**
+         - Stop Redis mid-processing
+         - Verify messages still processed (fail-open)
+         - Verify no crashes
+         - Restart Redis, verify recovery
+
+      2. **Redis timeout:**
+         - Simulate slow Redis (add latency)
+         - Verify timeout triggers fail-open
+         - Verify messages processed
+
+      3. **Redis memory exhaustion:**
+         - Fill Redis memory
+         - Verify eviction policy works (LRU)
+         - Verify no message loss
+
+      4. **Network partition:**
+         - Block network between service and Redis
+         - Verify fail-open behavior
+         - Restore network, verify recovery
+
+      Tools:
+      - Chaos Mesh / Toxiproxy (network simulation)
+      - Manual Redis stop/start
+      - Redis CONFIG SET maxmemory (memory exhaustion)
+
+      Document findings and verify fail-open guarantees.
+    priority: P0
+    effort: M
+    status: todo
+    phase: 3
+    dependencies: [INTEG-001, INTEG-002]
+    acceptanceCriteria:
+      - "All chaos scenarios tested"
+      - "Fail-open verified (no message loss)"
+      - "No service crashes"
+      - "Recovery verified after failure resolution"
+      - "Findings documented"
+    files:
+      - tests/chaos/redis-failure-scenarios.ts
+      - planning/sprint-X/chaos-test-results.md
+    tests:
+      - Chaos testing
+
+  - id: VALID-003
+    title: "Update CLAUDE.md with idempotency documentation"
+    description: |
+      Add comprehensive section to CLAUDE.md documenting idempotency layer.
+
+      Section: "## Message Idempotency"
+
+      Subsections:
+      1. **Overview:**
+         - What is idempotency?
+         - Why is it needed? (at-least-once delivery)
+         - How does it work? (Redis-backed deduplication)
+
+      2. **Configuration:**
+         - Environment variables (REDIS_URL, IDEMPOTENCY_DRIVER, etc.)
+         - Per-Bit static config
+         - Per-subscription options
+         - Priority resolution
+
+      3. **Usage Examples:**
+         - Enable idempotency in a service
+         - Custom key derivation
+         - TTL tuning
+
+      4. **Key Design:**
+         - Default: `{prefix}:{topic}:{correlationId}`
+         - Custom keyFn examples
+
+      5. **Troubleshooting:**
+         - Common issues (Redis unavailable, key collisions, TTL too short)
+         - Debugging (logs, metrics, Redis CLI)
+         - Link to troubleshooting guide
+
+      6. **Performance:**
+         - Expected latency overhead
+         - Monitoring recommendations
+
+      Follow LLM-first documentation philosophy (tables, code examples, concise).
+    priority: P1
+    effort: S
+    status: todo
+    phase: 3
+    dependencies: [INTEG-005, VALID-001]
+    acceptanceCriteria:
+      - "Section added to CLAUDE.md"
+      - "All subsections complete"
+      - "Code examples provided"
+      - "Tables used for configuration options"
+      - "Links to troubleshooting guide"
+      - "Follows LLM-first philosophy"
+    files:
+      - CLAUDE.md
+    tests:
+      - Documentation review
+
+  - id: VALID-004
+    title: "Create idempotency troubleshooting guide"
+    description: |
+      Create operator guide for debugging idempotency issues.
+
+      File: documentation/guides/idempotency-troubleshooting.md
+
+      Sections:
+      1. **Common Issues:**
+         - Redis unavailable
+         - Key collisions (false positives)
+         - TTL too short (duplicates leak)
+         - TTL too long (memory growth)
+         - Performance degradation
+
+      2. **Debugging Tools:**
+         - Logs to check (`idempotency.*`)
+         - Redis CLI commands (GET, TTL, SCAN)
+         - Metrics to monitor
+
+      3. **Redis Operations:**
+         - Check active keys: `SCAN 0 MATCH bitbrat:idempotency:* COUNT 100`
+         - Inspect key: `GET key`, `TTL key`
+         - Delete key: `DEL key`
+         - Clear all keys: `FLUSHDB` (dangerous!)
+
+      4. **Recovery Procedures:**
+         - Disable idempotency (set IDEMPOTENCY_DRIVER=none)
+         - Clear stuck keys
+         - Tune TTL values
+
+      5. **Monitoring:**
+         - Key metrics to track
+         - Alert thresholds
+         - Dashboard examples
+
+      LLM-friendly format (tables, code blocks, clear headers).
+    priority: P1
+    effort: M
+    status: todo
+    phase: 3
+    dependencies: [VALID-003]
+    acceptanceCriteria:
+      - "Troubleshooting guide created"
+      - "All sections complete"
+      - "Redis CLI examples provided"
+      - "Recovery procedures clear"
+      - "Monitoring recommendations included"
+    files:
+      - documentation/guides/idempotency-troubleshooting.md
+    tests:
+      - Documentation review
+
+  - id: VALID-005
+    title: "Create runbook for Redis operations"
+    description: |
+      Create on-call engineer runbook for Redis operational tasks.
+
+      File: documentation/runbooks/redis-idempotency.md
+
+      Sections:
+      1. **Service Overview:**
+         - What is Redis idempotency?
+         - Architecture diagram
+         - Dependencies
+
+      2. **Health Checks:**
+         - How to verify Redis is healthy
+         - Connection tests
+         - Latency checks
+
+      3. **Common Alerts:**
+         - Redis unavailable
+         - High latency
+         - Memory exhaustion
+         - Response procedures
+
+      4. **Emergency Procedures:**
+         - Disable idempotency (rollback)
+         - Clear Redis data
+         - Restart Redis
+         - Escalation path
+
+      5. **Maintenance Tasks:**
+         - Monitor memory usage
+         - Tune TTL values
+         - Review dedupe hit rate
+
+      Follow runbook best practices (clear, actionable, tested).
+    priority: P2
+    effort: S
+    status: todo
+    phase: 3
+    dependencies: [VALID-004]
+    acceptanceCriteria:
+      - "Runbook created"
+      - "All sections complete"
+      - "Procedures tested"
+      - "Escalation path defined"
+      - "Reviewed by on-call team"
+    files:
+      - documentation/runbooks/redis-idempotency.md
+    tests:
+      - Runbook review and dry-run
+
+  # ============================================================================
+  # PHASE 4: Production Rollout (Sprint 4, 2-4 hours)
+  # ============================================================================
+
+  - id: ROLL-001
+    title: "Deploy idempotency layer to staging"
+    description: |
+      Deploy complete idempotency implementation to staging environment.
+
+      Checklist:
+      1. ✅ Redis provisioned (PREP-002)
+      2. ✅ Services deployed with idempotency enabled
+      3. ✅ Environment variables configured
+      4. ✅ Monitoring/alerting configured
+      5. ✅ Validation tests passing
+
+      Monitoring period: 24-48 hours
+
+      Metrics to watch:
+      - Redis latency (p95 < 5ms)
+      - Message latency (p95 < 100ms)
+      - Error rate (should be 0%)
+      - Dedupe hit rate (baseline established)
+      - Memory usage (stable or slow growth)
+
+      Manual testing:
+      - Send `!debug !ping` in Slack
+      - Run `brat bit deploy --all`
+      - Verify NO duplicate messages
+      - Check logs for dedupe events
+      - Verify Redis keys created/expired
+    priority: P0
+    effort: S
+    status: todo
+    phase: 4
+    dependencies: [VALID-001, VALID-002, INTEG-001, INTEG-002, INTEG-003]
+    acceptanceCriteria:
+      - "Staging deployment successful"
+      - "All services running without errors"
+      - "Metrics within targets"
+      - "Manual testing passed (no duplicates)"
+      - "24-hour monitoring period clean"
+    files:
+      - deployment-checklist.md
+    tests:
+      - Manual testing + monitoring
+
+  - id: ROLL-002
+    title: "Provision production Redis (HA cluster)"
+    description: |
+      Provision high-availability Redis cluster for production.
+
+      Requirements:
+      - **Tier:** HA / Enterprise (not Basic)
+      - **Nodes:** 3+ for cluster mode
+      - **Memory:** 4GB (adjust based on volume)
+      - **Persistence:** RDB + AOF (optional)
+      - **Backups:** Daily snapshots
+      - **Monitoring:** Enabled (Cloud Monitoring, CloudWatch, etc.)
+      - **Network:** Private VPC, no public IP
+      - **Security:** Authentication enabled, encryption in-transit
+
+      Options by platform:
+      - **GCP:** Cloud Memorystore HA tier
+      - **AWS:** ElastiCache with Multi-AZ
+      - **Azure:** Azure Cache Premium tier
+
+      Document:
+      - Connection URL (primary + replicas)
+      - Authentication token
+      - Monitoring dashboard URL
+    priority: P0
+    effort: M
+    status: todo
+    phase: 4
+    dependencies: [ROLL-001]
+    acceptanceCriteria:
+      - "Production Redis cluster provisioned"
+      - "HA configuration verified"
+      - "Connectivity tested from production services"
+      - "Monitoring configured"
+      - "Connection details documented securely"
+    files:
+      - infrastructure/terraform/ (if using IaC)
+      - .secure.prod/.env (store connection details)
+    tests:
+      - Connection tests, failover tests
+
+  - id: ROLL-003
+    title: "Deploy idempotency layer to production (gradual rollout)"
+    description: |
+      Gradual production rollout using canary deployment strategy.
+
+      Rollout phases:
+      1. **Canary (10%):**
+         - Enable idempotency on 10% of ingress-egress instances
+         - Monitor for 2 hours
+         - Verify metrics, no errors
+
+      2. **Partial (50%):**
+         - Expand to 50% of instances
+         - Monitor for 4 hours
+         - Verify performance stable
+
+      3. **Full (100%):**
+         - Enable on all instances
+         - Monitor for 24 hours
+         - Establish baseline metrics
+
+      Rollback plan:
+      - If errors > 0.1% → rollback to previous phase
+      - If latency > 150ms p95 → investigate, potentially rollback
+      - Rollback: Set IDEMPOTENCY_DRIVER=none, redeploy
+
+      Success criteria:
+      - Zero errors
+      - Latency within targets
+      - No user-reported issues
+      - Dedupe hit rate > 0% (proving it works)
+    priority: P0
+    effort: M
+    status: todo
+    phase: 4
+    dependencies: [ROLL-002]
+    acceptanceCriteria:
+      - "Canary deployment successful"
+      - "50% rollout successful"
+      - "100% rollout successful"
+      - "Metrics within targets at each phase"
+      - "No rollbacks required"
+      - "Baseline metrics established"
+    files:
+      - deployment-plan.md
+    tests:
+      - Gradual rollout + monitoring
+
+  - id: ROLL-004
+    title: "Configure monitoring dashboards and alerts"
+    description: |
+      Set up comprehensive monitoring and alerting for idempotency layer.
+
+      Dashboards (Grafana / Cloud Monitoring):
+      1. **Redis Health:**
+         - Connection status
+         - Latency (p50, p95, p99)
+         - Error rate
+         - Memory usage
+         - Key count
+
+      2. **Idempotency Metrics:**
+         - Total checks
+         - Duplicates detected (dedupe hit rate)
+         - New messages processed
+         - Error rate
+
+      3. **Message Latency:**
+         - End-to-end latency (with vs without idempotency)
+         - Throughput (messages/sec)
+
+      Alerts:
+      - **Critical:**
+        - Redis unavailable (all instances down) → page on-call
+        - Redis latency > 100ms for 5 min → page on-call
+
+      - **Warning:**
+        - Redis latency > 50ms for 5 min → notify Slack
+        - Redis memory > 80% → notify Slack
+        - Idempotency error rate > 0.1% → notify Slack
+
+      Alert routing:
+      - Critical → PagerDuty / on-call rotation
+      - Warning → Slack #alerts channel
+    priority: P1
+    effort: M
+    status: todo
+    phase: 4
+    dependencies: [ROLL-003]
+    acceptanceCriteria:
+      - "Dashboards created (Grafana or equivalent)"
+      - "All metrics visualized"
+      - "Alerts configured and tested"
+      - "Alert routing verified (PagerDuty, Slack)"
+      - "On-call team notified and trained"
+    files:
+      - infrastructure/monitoring/dashboards/
+      - infrastructure/monitoring/alerts/
+    tests:
+      - Manual alert testing
+
+  - id: ROLL-005
+    title: "Post-deployment validation and baseline metrics"
+    description: |
+      Validate production deployment and establish baseline metrics.
+
+      Validation tasks:
+      1. **Functional testing:**
+         - Send test events
+         - Verify dedupe working
+         - Test multiple deploy cycles
+         - Verify no duplicates
+
+      2. **Performance validation:**
+         - Measure actual latency (compare to benchmarks)
+         - Measure dedupe hit rate
+         - Verify no performance regression
+
+      3. **Chaos validation:**
+         - Simulate Redis failure (controlled)
+         - Verify fail-open behavior
+         - Verify recovery
+
+      4. **Baseline metrics:**
+         - Document p50/p95/p99 latency
+         - Document dedupe hit rate
+         - Document memory usage
+         - Document throughput
+
+      5. **User feedback:**
+         - Monitor support channels
+         - Check for duplicate message reports
+         - Collect feedback from power users
+
+      Deliverable: Post-deployment report with findings and baseline metrics.
+    priority: P0
+    effort: S
+    status: todo
+    phase: 4
+    dependencies: [ROLL-003, ROLL-004]
+    acceptanceCriteria:
+      - "All validation tasks complete"
+      - "Baseline metrics documented"
+      - "No duplicate message reports"
+      - "Post-deployment report created"
+      - "Team sign-off obtained"
+    files:
+      - planning/sprint-X/post-deployment-report.md
+    tests:
+      - Validation testing
+
+  - id: ROLL-006
+    title: "Remove legacy in-memory dedupe logic (cleanup)"
+    description: |
+      Clean up legacy in-memory dedupe cache in base-server.ts now that Redis-backed
+      idempotency is in production.
+
+      Files to modify:
+      - src/common/base-server.ts:
+        - Remove debugMessageCache Map
+        - Remove cleanupDebugMessageCache() method
+        - Remove cleanup interval logic
+        - Remove in-memory dedupe check in sendDebugUpdate()
+
+      Ensure this is done AFTER production rollout is stable (30+ days).
+
+      Keep:
+      - sendDebugUpdate() function (still needed for debug messages)
+      - Just remove the in-memory dedupe logic
+
+      Document the change in CHANGELOG.md as a cleanup/refactoring.
+    priority: P2
+    effort: S
+    status: todo
+    phase: 4
+    dependencies: [ROLL-005]
+    acceptanceCriteria:
+      - "Legacy debugMessageCache removed"
+      - "Cleanup logic removed"
+      - "sendDebugUpdate() still functional"
+      - "No breaking changes"
+      - "Tests updated"
+      - "CHANGELOG.md updated"
+    files:
+      - src/common/base-server.ts
+      - CHANGELOG.md
+    tests:
+      - Unit tests updated, integration tests passing
+
+# ============================================================================
+# Summary Statistics
+# ============================================================================
+
+summary:
+  totalTasks: 29
+  byPriority:
+    P0: 19  # Must-have (critical path)
+    P1: 8   # Should-have (important but not blocking)
+    P2: 2   # Nice-to-have (cleanup, enhancement)
+  byEffort:
+    XS: 0   # <1 hour
+    S: 15   # 1-2 hours
+    M: 12   # 2-4 hours
+    L: 2    # 4-8 hours
+  byPhase:
+    phase0: 4   # Preparation
+    phase1: 8   # Foundation
+    phase2: 5   # Integration
+    phase3: 6   # Validation
+    phase4: 6   # Rollout
+  estimatedTotalEffort: "24-32 hours"
+  criticalPathDuration: "18-24 hours"
+
+# ============================================================================
+# Dependency Graph (Critical Path Only)
+# ============================================================================
+
+criticalPath: |
+  PREP-001 (Add Redis to docker-compose)
+    └─→ PREP-002 (Provision staging Redis)
+        └─→ FOUND-001 (RedisManager)
+            ├─→ FOUND-002 (RedisManager tests)
+            └─→ FOUND-003 (IConfig extension)
+                └─→ FOUND-004 (Middleware)
+                    ├─→ FOUND-005 (Middleware tests)
+                    └─→ FOUND-006 (base-server integration)
+                        ├─→ FOUND-007 (Integration tests)
+                        └─→ FOUND-008 (E2E tests)
+                            └─→ INTEG-001 (Ingress-egress)
+                                ├─→ INTEG-002 (Auth service)
+                                ├─→ INTEG-003 (LLM-bot)
+                                └─→ VALID-001 (Performance tests)
+                                    └─→ VALID-002 (Chaos tests)
+                                        └─→ ROLL-001 (Staging deploy)
+                                            └─→ ROLL-002 (Prod Redis)
+                                                └─→ ROLL-003 (Prod deploy)
+                                                    └─→ ROLL-004 (Monitoring)
+                                                        └─→ ROLL-005 (Validation)
+                                                            └─→ ROLL-006 (Cleanup)
+
+# ============================================================================
+# Sprint Allocation Recommendation
+# ============================================================================
+
+sprintAllocation:
+  sprint2:
+    name: "Foundation + Prep"
+    effort: "12-16 hours"
+    tasks:
+      - PREP-001
+      - PREP-002
+      - PREP-003
+      - FOUND-001
+      - FOUND-002
+      - FOUND-003
+      - FOUND-004
+      - FOUND-005
+      - FOUND-006
+      - FOUND-007
+      - FOUND-008
+    deliverables:
+      - RedisManager implemented and tested
+      - Idempotency middleware functional
+      - Integration tests passing
+      - Local and staging Redis running
+
+  sprint3:
+    name: "Integration + Validation"
+    effort: "10-14 hours"
+    tasks:
+      - INTEG-001
+      - INTEG-002
+      - INTEG-003
+      - INTEG-004
+      - INTEG-005
+      - VALID-001
+      - VALID-002
+      - VALID-003
+      - VALID-004
+    deliverables:
+      - Idempotency enabled in critical services
+      - Performance benchmarks complete
+      - Chaos testing complete
+      - Documentation updated
+
+  sprint4:
+    name: "Production Rollout"
+    effort: "2-4 hours"
+    tasks:
+      - ROLL-001
+      - ROLL-002
+      - ROLL-003
+      - ROLL-004
+      - ROLL-005
+    deliverables:
+      - Production deployment complete
+      - Monitoring and alerting configured
+      - Baseline metrics established
+      - Team sign-off
+
+  sprint5:
+    name: "Cleanup (Optional)"
+    effort: "1-2 hours"
+    tasks:
+      - PREP-004
+      - VALID-005
+      - ROLL-006
+    deliverables:
+      - Documentation complete
+      - Legacy code removed
+      - Runbooks finalized
