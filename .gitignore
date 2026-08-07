@@ -142,3 +142,5 @@ infrastructure/docker-compose/*.merged.yaml
 # Auto-regenerated on each build, no need to commit
 .base-image-cache-key
 
+/.claude/mcp.json
+/.mcp.json

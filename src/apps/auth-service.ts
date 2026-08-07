@@ -188,6 +188,14 @@ export class AuthServer extends Bit {
               await ctx.nack(true);
             }
           }
+        },
+        {
+          // Sprint 1: Enable distributed idempotency for auth enrichment
+          // TTL: 300s (5 minutes - covers deploy windows and session establishment)
+          idempotency: {
+            enabled: true,
+            ttlSeconds: 300,
+          },
         }
       );
       logger.info('auth.subscribe.ok', { subject: inputSubject, queue: 'auth' });
