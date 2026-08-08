@@ -1,0 +1,11 @@
+id: sprint-2-8olsv2
+title: Redis BEC Generation Gaps - Auto-Configure Redis for New Contexts
+goal: Fix BEC generation tooling to automatically include Redis configuration
+  when creating new execution contexts via brat context create or
+  agent_dev.provision()
+owner: "@navta"
+createdAt: 2026-08-08T01:53:52.402Z
+status: in-progress
+links:
+  branch: feature/sprint-2-8olsv2-redis-bec-generation-gaps-auto
+notes: Sprint initialized via MCP start-sprint tool

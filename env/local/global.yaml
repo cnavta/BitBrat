@@ -56,11 +56,24 @@ PERSISTENCE_MAX_SNAPSHOT_BYTES: 1048576
 #   - Set to 30-90 for production (balance between history and storage costs)
 PERSISTENCE_TTL_DAYS: 7
 
-# Redis Configuration (Sprint 1: Distributed Idempotency Layer)
+# Redis Configuration (Sprint 1+: Distributed Idempotency Layer)
 # Sprint 1+: Redis is used for distributed idempotency and deduplication
 # Connection URL format: redis://host:port
 # Default: redis container (local), managed Redis for staging/prod
 REDIS_URL: "redis://redis:6379"
+
+# REDIS_IDEMPOTENCY_ENABLED: Enable idempotency middleware for duplicate detection
+# When true: Uses Redis SET NX EX pattern to prevent duplicate message processing
+# When false: Idempotency layer is disabled (fail-open)
+# Default: true (prevents debug trace message re-delivery after platform re-deployments)
+REDIS_IDEMPOTENCY_ENABLED: true
+
+# REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: Default time-to-live for idempotency keys
+# Duration (in seconds) that idempotency keys remain in Redis
+# After TTL expires, the same message can be reprocessed
+# Default: 300 seconds (5 minutes) - sufficient for typical message redelivery scenarios
+# Used when message/subscription doesn't specify custom TTL
+REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: 300
 
 # Storage Configuration (Platform-Agnostic: Filesystem or Cloud Storage)
 # Sprint 373+: Storage abstraction supports filesystem (default) and cloud storage (GCS, S3, Azure Blob)

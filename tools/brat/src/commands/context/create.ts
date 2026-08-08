@@ -520,6 +520,11 @@ export function generateGlobalYaml(contextName: string, contextConfig: any): str
     PERSISTENCE_INCLUDE_RAW_PAYLOADS: true,
     PERSISTENCE_MAX_SNAPSHOT_BYTES: 1048576, // 1MB
     PERSISTENCE_TTL_DAYS: 7,
+
+    // Redis Configuration (Sprint 1+: Distributed Idempotency Layer)
+    REDIS_URL: 'redis://redis:6379',
+    REDIS_IDEMPOTENCY_ENABLED: true,
+    REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: 300,
   };
 
   // Add postgres-specific config
