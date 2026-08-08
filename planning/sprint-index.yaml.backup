@@ -7,23 +7,37 @@
 #
 # To regenerate from scratch: Use the regenerate-sprint-index tool
 #
-# Generated: 2026-08-06T15:41:31.740Z
+# Generated: 2026-08-08T01:53:02.357Z
 #
 
 version: "1.0"
-generatedAt: 2026-08-06T16:19:53.767Z
-totalSprints: 254
-activeSprints: 1
-completedSprints: 253
+generatedAt: 2026-08-08T05:37:57.916Z
+totalSprints: 255
+activeSprints: 0
+completedSprints: 255
 sprints:
   - id: sprint-1-9ih2e3
     title: Fix Debug Trace Message Re-delivery Issue
-    status: planning
+    status: complete
     owner: Lead Implementor
     createdAt: 2026-08-06T16:19:53.731Z
     manifestPath: planning/sprint-1-9ih2e3/sprint-manifest.yaml
     branch: feature/sprint-1-9ih2e3-fix-debug-trace-message-re-del
     worktreePath: .worktrees/sprint-1-9ih2e3
+    completedAt: 2026-08-08T01:41:29.517Z
+    completionMode: forced
+    pr: https://github.com/cnavta/BitBrat/pull/305
+  - id: sprint-2-8olsv2
+    title: Redis BEC Generation Gaps - Auto-Configure Redis for New Contexts
+    status: complete
+    owner: "@navta"
+    createdAt: 2026-08-08T01:53:52.402Z
+    manifestPath: planning/sprint-2-8olsv2/sprint-manifest.yaml
+    branch: feature/sprint-2-8olsv2-redis-bec-generation-gaps-auto
+    worktreePath: .worktrees/sprint-2-8olsv2
+    completedAt: 2026-08-08T01:35:00.000Z
+    completionMode: normal
+    pr: https://github.com/cnavta/BitBrat/pull/308
   - id: sprint-120-7f2a9c
     title: LLM Bot – First Pass with LangGraph
     status: complete
@@ -1969,13 +1983,13 @@ sprints:
     completionMode: forced
 statistics:
   byStatus:
-    planning: 1
+    planning: 0
     in-progress: 0
     validating: 0
     verifying: 0
     published: 0
-    complete: 253
+    complete: 255
   byCompletionMode:
-    normal: 0
-    forced: 47
+    normal: 1
+    forced: 48
   averageSprintDuration: PT17H

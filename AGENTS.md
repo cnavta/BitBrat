@@ -106,26 +106,40 @@ LLM MUST:
 1. **Verify main branch baseline.** Ensure `main` branch exists (locally or as `origin/main`) with at least one commit. If fails, notify human main must be initialized first.
 2. **Check for active sprints.** Verify no `sprint-manifest.yaml` in `planning/` has status other than `complete`. If found, notify human active sprint must be completed or force-closed first (Rule S3).
 3. **Generate sprint ID:** `sprint-<number>-<short-hash>`
-4. **Create sprint directory:** `planning/sprint-<id>/`
-5. **Create git worktree:**
+4. **Create git worktree:**
    ```
    git worktree add .worktrees/sprint-<id> -b feature/<sprint-id>-<short-description>
    ```
    Benefits: Isolation, parallel work, clean separation, easy cleanup. Main worktree remains on `main`; sprint work in `.worktrees/sprint-<id>/`.
-6. **Change to sprint worktree:** `cd .worktrees/sprint-<id>/`
-7. **Create `sprint-manifest.yaml`** in sprint directory with required metadata.
-8. **Log action in `request-log.md`**
+5. **Change to sprint worktree:** `cd .worktrees/sprint-<id>/`
+6. **Create sprint directory INSIDE worktree:** `.worktrees/sprint-<id>/planning/sprint-<id>/`
+7. **Create `sprint-manifest.yaml`** in worktree sprint directory (`.worktrees/sprint-<id>/planning/sprint-<id>/sprint-manifest.yaml`). All planning artifacts live on feature branch.
+8. **Log action in `request-log.md`** (in worktree)
 9. **Verify worktree and branch.** Record `git branch --show-current`, `git status --short --branch`, `pwd`. Implementation MUST NOT begin on default branch or detached HEAD. Current directory should be `.worktrees/sprint-<id>/`.
 
 Worktree creation is initialization requirement, not deferred publication. If worktree cannot be created, keep sprint in `planning`, log blocker, pause implementation.
+
+## 2.2.1 Agent Working Directory Discipline
+
+**MUST stay in worktree** (`.worktrees/sprint-<id>/`) for ALL sprint work. Code and planning artifacts committed together on feature branch.
+
+**Correct**: `cd .worktrees/sprint-N/` → edit code (`src/`) and planning (`planning/sprint-N/`) → `git add . && git commit` → PR merges both
+
+**Incorrect**: Context-switch between main repo and worktree, edit planning outside worktree
+
+**After PR merge**: Planning artifacts in main repo `planning/active/sprint-<id>/`. Worktree removable.
+
+**Legacy**: Sprints 1-15 used split model (planning in main repo). Sprint 16+ uses unified model (everything in worktree).
 
 ---
 
 # 🧩 2.3 Sprint Directory Structure
 
+Sprint directory lives WITHIN worktree (unified model):
+
 ```
-planning/
-  sprint-7-a13b2f/
+.worktrees/sprint-7-a13b2f/
+  planning/sprint-7-a13b2f/    ← Sprint artifacts on feature branch
     sprint-manifest.yaml
     execution-plan.md
     backlog.yaml
@@ -135,7 +149,10 @@ planning/
     publication.yaml
     retro.md
     key-learnings.md
+  src/                          ← Code changes on feature branch
 ```
+
+After PR merge: `planning/active/sprint-7-a13b2f/` (in main repo)
 
 Single authoritative source of truth. `backlog.yaml` is accountability contract for commitments and current work state. `request-log.md` records Human–LLM interactions, interpretations, decisions, outcomes.
 
@@ -151,10 +168,10 @@ status: "planning | in-progress | validating | verifying | blocked | ready-for-h
 completionMode: null # null | normal | forced
 blockers: []
 links:
-  branch: "feature/<sprint-id>-<short-description>"
-  pr: null
+   branch: "feature/<sprint-id>-<short-description>"
+   pr: null
 notes: |
-  Key assumptions, constraints, context.
+   Key assumptions, constraints, context.
 ```
 
 ## 2.3.1 Backlog Accountability Contract
@@ -168,35 +185,35 @@ Before creating, read `documentation/reference/backlog-template.md`.
 Required fields:
 ```yaml
 meta:
-  backlog_id: <sprint-id>-backlog
-  updated_at: <ISO-8601>
-  status_values: [todo, in-progress, blocked, done, deferred, cancelled]
-  approval_values: [not-required, pending, approved]
+   backlog_id: <sprint-id>-backlog
+   updated_at: <ISO-8601>
+   status_values: [todo, in-progress, blocked, done, deferred, cancelled]
+   approval_values: [not-required, pending, approved]
 
 sprint:
-  id: <sprint-id>
-  goal: <approved goal>
-  status: <current manifest status>
-  wip_limit: 1 # optional
+   id: <sprint-id>
+   goal: <approved goal>
+   status: <current manifest status>
+   wip_limit: 1 # optional
 
 items:
-  - id: BL-001
-    title: <atomic outcome>
-    priority: P1 # P0 | P1 | P2 | P3
-    status: todo
-    approval: approved
-    owner: partnership # human | llm | partnership | external
-    dependencies: []
-    blocked_reason: null
-    acceptance: [<observable criterion>]
-    evidence: []
-    updated_at: <ISO-8601>
-    history:
-      - at: <ISO-8601>
-        from: null
-        to: todo
-        reason: <why>
-        turn_id: <request-log turn ID>
+   - id: BL-001
+     title: <atomic outcome>
+     priority: P1 # P0 | P1 | P2 | P3
+     status: todo
+     approval: approved
+     owner: partnership # human | llm | partnership | external
+     dependencies: []
+     blocked_reason: null
+     acceptance: [<observable criterion>]
+     evidence: []
+     updated_at: <ISO-8601>
+     history:
+        - at: <ISO-8601>
+          from: null
+          to: todo
+          reason: <why>
+          turn_id: <request-log turn ID>
 ```
 
 ### Status Transition Rules
@@ -251,23 +268,23 @@ activeSprints: 1
 completedSprints: 4
 
 sprints:
-  - id: sprint-1-abc123
-    title: "Sprint title"
-    status: complete | in-progress | planning | ...
-    owner: "Owner name"
-    createdAt: "2026-07-30T12:00:00Z"
-    startedAt: "2026-07-30T14:00:00Z"
-    completedAt: "2026-07-30T20:00:00Z"
-    completionMode: normal | forced
-    manifestPath: "planning/sprint-1-abc123/sprint-manifest.yaml"
-    branch: "feature/sprint-1-abc123-title"
-    pr: "https://github.com/owner/repo/pull/123"
-    worktreePath: ".worktrees/sprint-1-abc123"
+   - id: sprint-1-abc123
+     title: "Sprint title"
+     status: complete | in-progress | planning | ...
+     owner: "Owner name"
+     createdAt: "2026-07-30T12:00:00Z"
+     startedAt: "2026-07-30T14:00:00Z"
+     completedAt: "2026-07-30T20:00:00Z"
+     completionMode: normal | forced
+     manifestPath: "planning/sprint-1-abc123/sprint-manifest.yaml"
+     branch: "feature/sprint-1-abc123-title"
+     pr: "https://github.com/owner/repo/pull/123"
+     worktreePath: ".worktrees/sprint-1-abc123"
 
 statistics:
-  byStatus: {...}
-  byCompletionMode: {...}
-  averageSprintDuration: "PT6H45M"
+   byStatus: {...}
+   byCompletionMode: {...}
+   averageSprintDuration: "PT6H45M"
 ```
 
 File includes DO NOT EDIT header: derived cache, regenerable, automatically updated by MCP tools.
@@ -480,11 +497,11 @@ branch: feature/sprint-X-Y-...
 headCommit: <commit-sha>
 pushStatus: "pending | succeeded | failed | waived"
 pr:
-  desired: false
-  owner: null # human | llm | automation | other
-  timing: null
-  status: "not-planned | planned | created | failed | waived"
-  url: null
+   desired: false
+   owner: null # human | llm | automation | other
+   timing: null
+   status: "not-planned | planned | created | failed | waived"
+   url: null
 ```
 
 ### Human-Defined Release (optional, separate from sprint completion)

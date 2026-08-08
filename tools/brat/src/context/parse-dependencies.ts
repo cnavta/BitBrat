@@ -64,6 +64,14 @@ export function parseServiceDependencies(
     infrastructure.push('firebase-emulator');
   }
 
+  // Services using idempotency need redis (Sprint 1+)
+  const idempotencyServices = ['ingress-egress', 'auth', 'llm-bot'];
+  if (idempotencyServices.includes(serviceName)) {
+    if (!infrastructure.includes('redis')) {
+      infrastructure.push('redis');
+    }
+  }
+
   // Service-to-service dependencies
   const services: string[] = [];
 
@@ -148,6 +156,9 @@ export function getRequiredInfrastructure(
 
   // Always need nats for messaging
   infrastructure.add('nats');
+
+  // Always need redis for idempotency (Sprint 1+)
+  infrastructure.add('redis');
 
   // Check if any service needs postgres
   const needsPostgres = activeServices.some(metadata => {

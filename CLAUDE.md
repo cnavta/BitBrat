@@ -252,8 +252,19 @@ executionContexts:
 **Environment Scaffolding:**
 When you create a context, `brat context create` automatically scaffolds:
 - `env/<contextName>/` directory
-- `env/<contextName>/global.yaml` - Baseline environment variables (NODE_ENV, LOG_LEVEL, MESSAGE_BUS_DRIVER, PERSISTENCE_DRIVER)
-- `env/<contextName>/infra.yaml` - Infrastructure configuration (NATS, PostgreSQL, Firestore)
+- `env/<contextName>/global.yaml` - Baseline environment variables (NODE_ENV, LOG_LEVEL, MESSAGE_BUS_DRIVER, PERSISTENCE_DRIVER, **Redis configuration**)
+- `env/<contextName>/infra.yaml` - Infrastructure configuration (NATS, PostgreSQL, Firestore, Redis)
+
+**Redis Configuration (Sprint 1+, Auto-Generated Sprint 2+)**:
+All new docker-compose contexts created after Sprint 2 automatically include Redis configuration:
+- **Purpose**: Distributed idempotency layer for duplicate message detection
+- **Services**: `ingress-egress`, `auth`, `llm-bot` depend on Redis for deduplication
+- **Environment Variables** (auto-generated in `global.yaml`):
+  - `REDIS_URL`: Connection URL (default: `redis://redis:6379`)
+  - `REDIS_IDEMPOTENCY_ENABLED`: Enable/disable idempotency middleware (default: `true`)
+  - `REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS`: Key TTL for deduplication (default: `300` seconds)
+- **Infrastructure**: Redis service and `redis-data` volume auto-included in docker-compose
+- **Migration**: Existing contexts created before Sprint 2 need manual migration (see [Redis Migration Guide](./documentation/guides/redis-migration.md))
 
 **Priority Resolution:**
 1. `--context <name>` flag (highest priority)

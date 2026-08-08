@@ -864,26 +864,24 @@ services:
     env:
       - MCP_TRANSPORT
       - IMAGE_GEN_RATE_LIMIT_MS
-    # Sprint 374: Secure file deployment for GCP credentials
-    # Automatically mounts credentials based on execution context
     secureFiles:
       - local: .secure.local/gcp-credentials.json
         target: /var/secrets/gcp-credentials.json
         env: GOOGLE_APPLICATION_CREDENTIALS
-        permissions: "0400"
-        required: false  # Optional in local development (image-gen works with filesystem storage)
+        permissions: '0400'
+        required: false
         context: local
       - local: .secure.staging/gcp-credentials.json
         target: /var/secrets/gcp-credentials.json
         env: GOOGLE_APPLICATION_CREDENTIALS
-        permissions: "0400"
-        required: true  # Required in staging (uses GCS)
+        permissions: '0400'
+        required: true
         context: staging
       - local: .secure.prod/gcp-credentials.json
         target: /var/secrets/gcp-credentials.json
         env: GOOGLE_APPLICATION_CREDENTIALS
-        permissions: "0400"
-        required: true  # Required in production (uses GCS)
+        permissions: '0400'
+        required: true
         context: prod
   stream-analyst-service:
     category: domain
@@ -1107,6 +1105,28 @@ executionContexts:
     description: Remote staging
     tags:
       - remote
+  test-redis-validation-sprint2:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+  test-sprint2-final-validation:
+    deployment:
+      type: docker-compose
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
 networking:
   cloud_nat:
     enabled: false
