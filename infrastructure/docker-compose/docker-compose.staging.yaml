@@ -171,6 +171,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       auth:
         condition: service_started
       event-router:
@@ -207,6 +209,8 @@ services:
       - ${AUTH_HOST_PORT:-3007}:${SERVICE_PORT:-3000}
     depends_on:
       nats:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test:
@@ -321,6 +325,8 @@ services:
       - ${LLM_BOT_HOST_PORT:-3003}:${SERVICE_PORT:-3000}
     depends_on:
       nats:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       event-router:
         condition: service_started
