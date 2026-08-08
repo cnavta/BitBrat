@@ -66,6 +66,24 @@ services:
       - shared_preload_libraries=vector
       - '-c'
       - max_connections=200
+  redis:
+    env_file:
+      - .env.brat
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      bitbrat-network:
+        aliases:
+          - redis.bitbrat.staging
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - redis-data:/data
   nats-box:
     env_file:
       - .env.brat
@@ -715,4 +733,5 @@ networks:
 volumes:
   postgres-data: {}
   nats-data: {}
+  redis-data: {}
   bitbrat-storage: {}
