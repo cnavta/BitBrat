@@ -220,6 +220,9 @@ export function generateDockerCompose(options: GenerateComposeOptions): ComposeC
   if (infrastructure.has('nats')) {
     config.volumes!['nats-data'] = {};
   }
+  if (infrastructure.has('redis')) {
+    config.volumes!['redis-data'] = {};
+  }
   if (infrastructure.has('firebase-emulator')) {
     config.volumes!['firebase-data'] = {};
   }
