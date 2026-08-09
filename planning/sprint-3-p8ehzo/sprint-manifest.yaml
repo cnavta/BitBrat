@@ -1,0 +1,11 @@
+id: sprint-3-p8ehzo
+title: Fix BEC creation for remote Docker with PostgreSQL
+goal: 'Fix BitBrat Execution Context creation issues, specifically the "no such
+  service: bitbrat-base" error and PostgreSQL connection resolution failures
+  when creating remote Docker contexts'
+owner: christophernavta
+createdAt: 2026-08-08T17:31:00.835Z
+status: in-progress
+links:
+  branch: feature/sprint-3-p8ehzo-fix-bec-creation-for-remote-do
+notes: Sprint initialized via MCP start-sprint tool

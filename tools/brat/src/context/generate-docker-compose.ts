@@ -101,7 +101,10 @@ export function generateServiceCompose(
   const serviceDef: ComposeServiceDef = {
     env_file: ['.env.brat'],
     build: {
-      context: '.',  // Sprint 358: Orchestrator uses --project-directory, so context is relative to project root
+      // Sprint 3: Use ../.. as build context because generated compose files are in infrastructure/docker-compose/
+      // and need to reference Dockerfile.service at repo root. The orchestrator runs docker compose from remoteDir
+      // without --project-directory for remote deployments, so paths are relative to the compose file location.
+      context: '../..',
       dockerfile: 'Dockerfile.service',
       args: buildArgs,
     },
@@ -153,6 +156,7 @@ function getHostPort(serviceName: string): number {
 
 /**
  * Generate infrastructure Docker Compose services (postgres, nats, etc.)
+ * Sprint 3: Always include bitbrat-base service for base image builds
  *
  * @param repoRoot - Repository root directory
  * @param infrastructure - Set of required infrastructure services
@@ -171,6 +175,13 @@ export function generateInfrastructureCompose(
   );
   const baseComposeContent = fs.readFileSync(baseComposePath, 'utf-8');
   const baseCompose = yaml.parse(baseComposeContent) as ComposeConfig;
+
+  // Sprint 3: Always include bitbrat-base service (required for building application services)
+  // The bitbrat-base service has profiles: [build-only] and is used as the base image
+  // for all BitBrat application services (via BASE_IMAGE build arg in Dockerfile.service).
+  if (baseCompose.services['bitbrat-base']) {
+    services['bitbrat-base'] = baseCompose.services['bitbrat-base'];
+  }
 
   // Extract infrastructure services
   for (const infraName of infrastructure) {

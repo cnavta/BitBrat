@@ -1025,12 +1025,17 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       const mergedCompose = yaml.load(mergedYaml) as any;
       const buildableServices: string[] = [];
 
+      // Sprint 3 Fix #11: Infrastructure services to always include (use image, not build)
+      const infrastructureServices = ['nats', 'nats-box', 'postgres', 'redis', 'firebase-emulator'];
+
       if (mergedCompose?.services && typeof mergedCompose.services === 'object') {
         for (const [serviceName, serviceConfig] of Object.entries(mergedCompose.services)) {
           const service = serviceConfig as any;
-          // Include services that have a build section
-          if (service && typeof service === 'object' && service.build != null) {
-            buildableServices.push(serviceName);
+          // Include services that have a build section OR are infrastructure services
+          if (service && typeof service === 'object') {
+            if (service.build != null || infrastructureServices.includes(serviceName)) {
+              buildableServices.push(serviceName);
+            }
           }
         }
       }

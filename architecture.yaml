@@ -1080,8 +1080,7 @@ executionContexts:
       type: docker-compose
       docker:
         host: ssh://root@bitbrat.lan
-        remoteDir: /opt/BitBratPlatform
-        maxConcurrent: 5
+        remoteDir: /opt/bitbrat-staging
     runtime:
       gateway:
         autoDiscover: true
@@ -1089,12 +1088,7 @@ executionContexts:
         authToken: ${MCP_AUTH_TOKEN}
       persistence:
         driver: postgres
-        connection:
-          host: bitbrat.lan
-          port: 5432
-          database: bitbrat
-          username: bitbrat
-          password: bitbrat_dev_password
+        autoDiscover: true
       envOverlay:
         path: env/staging
         files:
@@ -1102,31 +1096,10 @@ executionContexts:
           - infra.yaml
           - '{service}.yaml'
         secure: .secure.staging
-    description: Remote staging
+    description: Remote Staging Env
     tags:
+      - staging
       - remote
-  test-redis-validation-sprint2:
-    deployment:
-      type: docker-compose
-      docker:
-        host: unix:///var/run/docker.sock
-    runtime:
-      persistence:
-        driver: postgres
-        autoDiscover: true
-      gateway:
-        autoDiscover: true
-        fallbackPort: 3004
-  test-sprint2-final-validation:
-    deployment:
-      type: docker-compose
-    runtime:
-      persistence:
-        driver: postgres
-        autoDiscover: true
-      gateway:
-        autoDiscover: true
-        fallbackPort: 3004
 networking:
   cloud_nat:
     enabled: false

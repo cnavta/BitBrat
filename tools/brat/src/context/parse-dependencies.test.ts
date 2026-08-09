@@ -249,7 +249,7 @@ describe('parseServiceDependencies', () => {
     expect(deps.infrastructure).toContain('redis');
   });
 
-  it('does not add redis dependency for non-idempotency services', () => {
+  it('adds redis dependency for all services (Sprint 3 Fix #10)', () => {
     const mockArch = {
       services: {
         persistence: {
@@ -274,9 +274,9 @@ describe('parseServiceDependencies', () => {
 
     const deps = parseServiceDependencies(mockRepoRoot, metadata);
 
-    // Should have nats but NOT redis (not an idempotency service)
+    // Sprint 3 Fix #10: All services get Redis (platform-wide infrastructure)
     expect(deps.infrastructure).toContain('nats');
-    expect(deps.infrastructure).not.toContain('redis');
+    expect(deps.infrastructure).toContain('redis');
   });
 
   it('always includes nats for messaging', () => {

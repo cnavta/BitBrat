@@ -58,7 +58,9 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+      # Sprint 3: Use ../postgres/init because compose files are in infrastructure/docker-compose/
+      # and need to reference infrastructure/postgres/init (one level up, then down into postgres/init)
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     healthcheck:

@@ -228,6 +228,7 @@ export class DockerOrchestrator {
    * Build the shared base image (bitbrat-base) if needed.
    * Sprint 375: Checks cache key to skip rebuild when dependencies unchanged.
    * Sprint 378: Always rebuild for remote deployments (cache is local-only).
+   * Sprint 3: Activate build-only profile to ensure bitbrat-base service is recognized.
    *
    * @param targetConfig - Deployment target configuration
    * @param composeArgs - Docker Compose arguments (for project name, env files, etc.)
@@ -250,8 +251,10 @@ export class DockerOrchestrator {
       console.log('[brat] Building shared base image (bitbrat-base)...');
     }
 
-    // Build using docker compose with the build-only profile
-    const buildArgs = [...composeArgs, 'build'];
+    // Sprint 3: Build using docker compose with the build-only profile activated.
+    // The bitbrat-base service has `profiles: [build-only]` in docker-compose files,
+    // which requires explicit --profile activation to be recognized by Docker Compose.
+    const buildArgs = [...composeArgs, '--profile', 'build-only', 'build'];
     if (this.options.noCache) {
       buildArgs.push('--no-cache');
     }
@@ -370,6 +373,30 @@ export class DockerOrchestrator {
           `[orchestrator] Single-service deployment: ${composeFileSet.targetService}`
         );
       }
+    }
+
+    // Sprint 3: For context-specific compose files (like docker-compose.gramblewort.yaml),
+    // serviceFiles is empty because ComposeFactory returns early for context-specific files.
+    // Extract active service names from architecture.yaml to enable PortManager port assignment.
+    if (serviceFiles.length === 0 && contextName) {
+      const arch = loadArchitecture(this.options.repoRoot);
+      const resolvedServices = resolveServices(arch);
+      const activeServiceNames = Object.values(resolvedServices)
+        .filter((s) => s.active)
+        .map((s) => s.name);
+
+      // Create service file paths for PortManager (format matches per-service compose file pattern)
+      serviceFiles = activeServiceNames.map((name) =>
+        path.join(
+          this.options.repoRoot,
+          'infrastructure/docker-compose/services',
+          `${name}.compose.yaml`
+        )
+      );
+
+      console.log(
+        `[orchestrator] Context-specific deployment detected: populated ${serviceFiles.length} active services from architecture.yaml`
+      );
     }
 
     // Sprint 379: PortManager now receives populated service files for bulk deployments
@@ -538,6 +565,8 @@ export class DockerOrchestrator {
 
     const filesToSync = [
       'infrastructure/docker-compose',
+      // Sprint 3: PostgreSQL init scripts and migrations (required for schema initialization)
+      'infrastructure/postgres',
       '.env.brat',
       'dummy-creds.json',
       'architecture.yaml',

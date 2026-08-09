@@ -119,7 +119,7 @@ describe('brat context create - Integration Tests', () => {
     expect(arch.executionContexts[testContextName].deployment.type).toBe('docker-compose');
   });
 
-  itIntegration.skip('starts docker-compose stack with Redis', async () => {
+  it.skip('starts docker-compose stack with Redis', async () => {
     // NOTE: This test requires Docker daemon running and is very slow
     // Skip by default, enable manually for full validation
 
