@@ -64,12 +64,11 @@ export function parseServiceDependencies(
     infrastructure.push('firebase-emulator');
   }
 
-  // Services using idempotency need redis (Sprint 1+)
-  const idempotencyServices = ['ingress-egress', 'auth', 'llm-bot'];
-  if (idempotencyServices.includes(serviceName)) {
-    if (!infrastructure.includes('redis')) {
-      infrastructure.push('redis');
-    }
+  // Sprint 3 Fix #10: Redis is platform-wide infrastructure for idempotency (all services)
+  // All services may use Redis for distributed idempotency, caching, or session storage.
+  // Redis is configured in global.yaml with REDIS_URL and REDIS_IDEMPOTENCY_ENABLED.
+  if (!infrastructure.includes('redis')) {
+    infrastructure.push('redis');
   }
 
   // Service-to-service dependencies

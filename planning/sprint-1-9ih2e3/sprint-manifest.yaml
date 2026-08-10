@@ -5,7 +5,10 @@ goal: Investigate and fix the NATS message acknowledgment issue causing debug
   multiple !debug queries
 owner: Lead Implementor
 createdAt: 2026-08-06T16:19:53.731Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-1-9ih2e3-fix-debug-trace-message-re-del
+  pr: https://github.com/cnavta/BitBrat/pull/305
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-08T01:41:29.517Z
+completionMode: forced

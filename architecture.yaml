@@ -864,26 +864,24 @@ services:
     env:
       - MCP_TRANSPORT
       - IMAGE_GEN_RATE_LIMIT_MS
-    # Sprint 374: Secure file deployment for GCP credentials
-    # Automatically mounts credentials based on execution context
     secureFiles:
       - local: .secure.local/gcp-credentials.json
         target: /var/secrets/gcp-credentials.json
         env: GOOGLE_APPLICATION_CREDENTIALS
-        permissions: "0400"
-        required: false  # Optional in local development (image-gen works with filesystem storage)
+        permissions: '0400'
+        required: false
         context: local
       - local: .secure.staging/gcp-credentials.json
         target: /var/secrets/gcp-credentials.json
         env: GOOGLE_APPLICATION_CREDENTIALS
-        permissions: "0400"
-        required: true  # Required in staging (uses GCS)
+        permissions: '0400'
+        required: true
         context: staging
       - local: .secure.prod/gcp-credentials.json
         target: /var/secrets/gcp-credentials.json
         env: GOOGLE_APPLICATION_CREDENTIALS
-        permissions: "0400"
-        required: true  # Required in production (uses GCS)
+        permissions: '0400'
+        required: true
         context: prod
   stream-analyst-service:
     category: domain
@@ -1082,8 +1080,7 @@ executionContexts:
       type: docker-compose
       docker:
         host: ssh://root@bitbrat.lan
-        remoteDir: /opt/BitBratPlatform
-        maxConcurrent: 5
+        remoteDir: /opt/bitbrat-staging
     runtime:
       gateway:
         autoDiscover: true
@@ -1091,12 +1088,7 @@ executionContexts:
         authToken: ${MCP_AUTH_TOKEN}
       persistence:
         driver: postgres
-        connection:
-          host: bitbrat.lan
-          port: 5432
-          database: bitbrat
-          username: bitbrat
-          password: bitbrat_dev_password
+        autoDiscover: true
       envOverlay:
         path: env/staging
         files:
@@ -1104,8 +1096,9 @@ executionContexts:
           - infra.yaml
           - '{service}.yaml'
         secure: .secure.staging
-    description: Remote staging
+    description: Remote Staging Env
     tags:
+      - staging
       - remote
 networking:
   cloud_nat:

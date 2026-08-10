@@ -94,7 +94,8 @@ export async function executeContextCreate(contextName: string, options: Context
         if (contextConfig.runtime.persistence?.driver === 'postgres') {
           console.log();
           console.log('Waiting for PostgreSQL to be ready...');
-          await waitForPostgres(30); // 30 second timeout
+          // Sprint 3: Pass contextConfig so waitForPostgres can connect to remote hosts
+          await waitForPostgres(30, contextConfig); // 30 second timeout
           console.log('✅ PostgreSQL is ready');
         }
       } catch (error: any) {
@@ -112,40 +113,62 @@ export async function executeContextCreate(contextName: string, options: Context
 
     if (shouldSeed) {
       console.log();
-      console.log('Seeding database with initial data...');
-      console.log();
+      console.log('Validating PostgreSQL connection...');
 
-      // Set DATABASE_URL for seeding on host machine
-      // (cmdSeed runs on host, not in Docker, so it needs host-accessible connection)
-      if (contextConfig.runtime.persistence?.driver === 'postgres') {
-        const conn = contextConfig.runtime.persistence.connection;
-        if (conn) {
-          // Explicit connection provided
-          process.env.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
-        } else {
-          // Auto-discover mode - use localhost since we're seeding from host
-          process.env.DATABASE_URL = 'postgresql://bitbrat:bitbrat_dev_password@localhost:5432/bitbrat';
+      // Sprint 3: Validate PostgreSQL connection before attempting to seed
+      const isConnected = await validatePostgresConnection(contextConfig);
+
+      if (!isConnected) {
+        console.error();
+        console.error('⚠️  Warning: PostgreSQL is not accessible');
+        console.error('   Skipping database seeding');
+        console.error();
+        console.error(`You can manually seed later with: brat seed --context ${contextName}`);
+        console.error();
+      } else {
+        console.log('✅ PostgreSQL connection validated');
+        console.log();
+        console.log('Seeding database with initial data...');
+        console.log();
+
+        // Set DATABASE_URL for seeding on host machine
+        // (cmdSeed runs on host, not in Docker, so it needs host-accessible connection)
+        if (contextConfig.runtime.persistence?.driver === 'postgres') {
+          const conn = contextConfig.runtime.persistence.connection;
+          if (conn) {
+            // Explicit connection provided
+            process.env.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
+          } else if (contextConfig.runtime.persistence.autoDiscover &&
+                     contextConfig.deployment?.docker?.host?.startsWith('ssh://')) {
+            // Sprint 3 Fix #8: Auto-discover mode for remote Docker - extract hostname from ssh://user@host
+            const sshHost = contextConfig.deployment.docker.host.replace('ssh://', '');
+            const hostname = sshHost.includes('@') ? sshHost.split('@')[1] : sshHost;
+            process.env.DATABASE_URL = `postgresql://bitbrat:bitbrat_dev_password@${hostname}:5432/bitbrat`;
+          } else {
+            // Auto-discover mode for local Docker - use localhost since we're seeding from host
+            process.env.DATABASE_URL = 'postgresql://bitbrat:bitbrat_dev_password@localhost:5432/bitbrat';
+          }
         }
-      }
 
-      try {
-        const seedFlags = {
-          context: contextName,
-          botName: 'BitBrat', // Default, user can customize later
-          dryRun: false,
-          wipe: false,
-          apiToken: undefined,
-          json: false,
-        };
+        try {
+          const seedFlags = {
+            context: contextName,
+            botName: 'BitBrat', // Default, user can customize later
+            dryRun: false,
+            wipe: false,
+            apiToken: undefined,
+            json: false,
+          };
 
-        await cmdSeed({}, seedFlags);
-      } catch (error: any) {
-        console.error();
-        console.error('⚠️  Warning: Database seeding failed');
-        console.error(`   ${error.message}`);
-        console.error();
-        console.error('You can manually seed later with: brat seed');
-        console.error();
+          await cmdSeed({}, seedFlags);
+        } catch (error: any) {
+          console.error();
+          console.error('⚠️  Warning: Database seeding failed');
+          console.error(`   ${error.message}`);
+          console.error();
+          console.error('You can manually seed later with: brat seed');
+          console.error();
+        }
       }
     }
 
@@ -629,23 +652,60 @@ async function promptForSeeding(contextConfig: any): Promise<boolean> {
 /**
  * Wait for PostgreSQL to be ready by attempting connections
  * Sprint 358: Exported for reuse by AgentDevContextManager
+ * Sprint 3: Updated to accept contextConfig for remote Docker deployments
  *
  * @param timeoutSeconds - Maximum time to wait in seconds
+ * @param contextConfig - Optional context configuration (for remote hosts)
  */
-export async function waitForPostgres(timeoutSeconds: number): Promise<void> {
+export async function waitForPostgres(timeoutSeconds: number, contextConfig?: any): Promise<void> {
   const { Pool } = await import('pg');
   const startTime = Date.now();
   const timeoutMs = timeoutSeconds * 1000;
 
-  while (Date.now() - startTime < timeoutMs) {
-    const pool = new Pool({
+  // Sprint 3: Use connection info from contextConfig if provided (for remote deployments)
+  // Otherwise fall back to localhost (for local deployments and backwards compatibility)
+  const conn = contextConfig?.runtime?.persistence?.connection;
+
+  // Sprint 3 Fix #8: Handle autoDiscover mode for remote Docker contexts
+  // When autoDiscover is enabled, extract hostname from deployment.docker.host
+  let poolConfig;
+  if (conn) {
+    // Explicit connection provided
+    poolConfig = {
+      host: conn.host,
+      port: conn.port,
+      database: conn.database,
+      user: conn.username,
+      password: conn.password,
+      connectionTimeoutMillis: 2000,
+    };
+  } else if (contextConfig?.runtime?.persistence?.autoDiscover &&
+             contextConfig?.deployment?.docker?.host?.startsWith('ssh://')) {
+    // Auto-discover mode for remote Docker: extract hostname from ssh://user@host
+    const sshHost = contextConfig.deployment.docker.host.replace('ssh://', '');
+    const hostname = sshHost.includes('@') ? sshHost.split('@')[1] : sshHost;
+    poolConfig = {
+      host: hostname,
+      port: 5432,
+      database: 'bitbrat',
+      user: 'bitbrat',
+      password: 'bitbrat_dev_password',
+      connectionTimeoutMillis: 2000,
+    };
+  } else {
+    // Local deployment or backwards compatibility
+    poolConfig = {
       host: 'localhost',
       port: 5432,
       database: 'bitbrat',
       user: 'bitbrat',
-      password: 'bitbrat_dev_password', // Default password for local dev
+      password: 'bitbrat_dev_password',
       connectionTimeoutMillis: 2000,
-    });
+    };
+  }
+
+  while (Date.now() - startTime < timeoutMs) {
+    const pool = new Pool(poolConfig);
 
     try {
       await pool.query('SELECT 1');
@@ -659,4 +719,69 @@ export async function waitForPostgres(timeoutSeconds: number): Promise<void> {
   }
 
   throw new Error(`PostgreSQL did not become ready within ${timeoutSeconds} seconds`);
+}
+
+/**
+ * Validate PostgreSQL connection before seeding
+ * Sprint 3: Check if PostgreSQL is accessible before attempting to seed
+ *
+ * @param contextConfig - Context configuration
+ * @returns True if PostgreSQL is accessible, false otherwise
+ */
+async function validatePostgresConnection(contextConfig: any): Promise<boolean> {
+  if (contextConfig.runtime.persistence?.driver !== 'postgres') {
+    return false;
+  }
+
+  const { Pool } = await import('pg');
+  const conn = contextConfig.runtime.persistence.connection;
+
+  // Sprint 3 Fix #8: Handle autoDiscover mode for remote Docker contexts
+  // Same logic as waitForPostgres() to determine correct connection host
+  let poolConfig;
+  if (conn) {
+    // Explicit connection provided
+    poolConfig = {
+      host: conn.host,
+      port: conn.port,
+      database: conn.database,
+      user: conn.username,
+      password: conn.password,
+      connectionTimeoutMillis: 2000,
+    };
+  } else if (contextConfig.runtime.persistence.autoDiscover &&
+             contextConfig.deployment?.docker?.host?.startsWith('ssh://')) {
+    // Auto-discover mode for remote Docker: extract hostname from ssh://user@host
+    const sshHost = contextConfig.deployment.docker.host.replace('ssh://', '');
+    const hostname = sshHost.includes('@') ? sshHost.split('@')[1] : sshHost;
+    poolConfig = {
+      host: hostname,
+      port: 5432,
+      database: 'bitbrat',
+      user: 'bitbrat',
+      password: 'bitbrat_dev_password',
+      connectionTimeoutMillis: 2000,
+    };
+  } else {
+    // Local deployment
+    poolConfig = {
+      host: 'localhost',
+      port: 5432,
+      database: 'bitbrat',
+      user: 'bitbrat',
+      password: 'bitbrat_dev_password',
+      connectionTimeoutMillis: 2000,
+    };
+  }
+
+  const pool = new Pool(poolConfig);
+
+  try {
+    await pool.query('SELECT 1');
+    await pool.end();
+    return true;
+  } catch (error) {
+    await pool.end();
+    return false;
+  }
 }

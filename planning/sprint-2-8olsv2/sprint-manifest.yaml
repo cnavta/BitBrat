@@ -5,7 +5,10 @@ goal: Fix BEC generation tooling to automatically include Redis configuration
   agent_dev.provision()
 owner: "@navta"
 createdAt: 2026-08-08T01:53:52.402Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-2-8olsv2-redis-bec-generation-gaps-auto
+  pr: https://github.com/cnavta/BitBrat/pull/308
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-08T01:35:00.000Z
+completionMode: normal
