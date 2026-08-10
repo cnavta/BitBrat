@@ -1,5 +1,8 @@
 /**
- * Sprint 352 S2.2: Generate Docker Compose Fragments
+ * Sprint 5 I3.3: Generate Docker Compose from Architecture.yaml v2
+ *
+ * Dynamically generates Docker Compose configuration from architecture.yaml
+ * infrastructure specifications instead of hardcoded service definitions.
  *
  * Generates service-specific Docker Compose fragments for active services
  * and merges them into a context-specific docker-compose file.
@@ -10,6 +13,8 @@ import * as path from 'path';
 import * as yaml from 'yaml';
 import { ServiceMetadata } from './parse-services';
 import { ServiceDependencies, parseServiceDependencies } from './parse-dependencies';
+import { InfrastructureRegistry } from '../infrastructure/registry';
+import { loadArchitecture } from '../config/loader';
 
 /**
  * Docker Compose service definition
@@ -155,39 +160,90 @@ function getHostPort(serviceName: string): number {
 }
 
 /**
- * Generate infrastructure Docker Compose services (postgres, nats, etc.)
- * Sprint 3: Always include bitbrat-base service for base image builds
+ * Generate infrastructure Docker Compose services from architecture.yaml v2
+ * Sprint 5 I3.3: Dynamically generates from infrastructure.{provider} specifications
  *
  * @param repoRoot - Repository root directory
  * @param infrastructure - Set of required infrastructure services
+ * @param contextName - Execution context name (for applying overrides)
  * @returns Docker Compose services for infrastructure
  */
 export function generateInfrastructureCompose(
   repoRoot: string,
-  infrastructure: Set<string>
+  infrastructure: Set<string>,
+  contextName: string = 'local'
 ): Record<string, ComposeServiceDef> {
   const services: Record<string, ComposeServiceDef> = {};
-
-  // Read base docker-compose.local.yaml for infrastructure definitions
-  const baseComposePath = path.join(
-    repoRoot,
-    'infrastructure/docker-compose/docker-compose.local.yaml'
-  );
-  const baseComposeContent = fs.readFileSync(baseComposePath, 'utf-8');
-  const baseCompose = yaml.parse(baseComposeContent) as ComposeConfig;
 
   // Sprint 3: Always include bitbrat-base service (required for building application services)
   // The bitbrat-base service has profiles: [build-only] and is used as the base image
   // for all BitBrat application services (via BASE_IMAGE build arg in Dockerfile.service).
-  if (baseCompose.services['bitbrat-base']) {
-    services['bitbrat-base'] = baseCompose.services['bitbrat-base'];
+  // This service is defined in docker-compose.local.yaml and is not part of infrastructure specs.
+  const baseComposePath = path.join(
+    repoRoot,
+    'infrastructure/docker-compose/docker-compose.local.yaml'
+  );
+  if (fs.existsSync(baseComposePath)) {
+    const baseComposeContent = fs.readFileSync(baseComposePath, 'utf-8');
+    const baseCompose = yaml.parse(baseComposeContent) as ComposeConfig;
+    if (baseCompose.services['bitbrat-base']) {
+      services['bitbrat-base'] = baseCompose.services['bitbrat-base'];
+    }
   }
 
-  // Extract infrastructure services
-  for (const infraName of infrastructure) {
-    if (baseCompose.services[infraName]) {
-      services[infraName] = baseCompose.services[infraName];
+  // Get infrastructure specs from architecture.yaml v2
+  try {
+    const allSpecs = InfrastructureRegistry.getAllInfrastructureSpecs(repoRoot, contextName);
+
+    // For each required infrastructure service, find its spec and convert to ComposeServiceDef
+    for (const infraName of infrastructure) {
+      const spec = allSpecs.find(s => s.serviceName === infraName);
+      if (!spec) {
+        console.warn(`[generate-docker-compose] No infrastructure spec found for '${infraName}'`);
+        continue;
+      }
+
+      // Convert InfrastructureSpec to ComposeServiceDef
+      const composeDef: ComposeServiceDef = {
+        image: spec.image,
+        environment: spec.env || {},
+        healthcheck: spec.healthCheck ? {
+          test: spec.healthCheck.test,
+          interval: spec.healthCheck.interval || '5s',
+          timeout: spec.healthCheck.timeout || '3s',
+          retries: spec.healthCheck.retries || 10,
+        } : undefined,
+        networks: {
+          'bitbrat-network': {},
+        },
+      };
+
+      // Add ports if defined
+      if (spec.ports && Object.keys(spec.ports).length > 0) {
+        composeDef.ports = Object.values(spec.ports);
+      }
+
+      // Add volumes if defined (convert VolumeConfig[] to string[])
+      if (spec.volumes && spec.volumes.length > 0) {
+        composeDef.volumes = spec.volumes.map(vol => {
+          if (vol.name) {
+            // Named volume: "volume-name:/mount/path[:ro]"
+            return `${vol.name}:${vol.mount}${vol.readOnly ? ':ro' : ''}`;
+          } else if (vol.source) {
+            // Bind mount: "source:/mount/path[:ro]"
+            return `${vol.source}:${vol.mount}${vol.readOnly ? ':ro' : ''}`;
+          } else {
+            // Fallback: just the mount path (anonymous volume)
+            return vol.mount;
+          }
+        });
+      }
+
+      services[infraName] = composeDef;
     }
+  } catch (error) {
+    console.error(`[generate-docker-compose] Failed to load infrastructure specs: ${error instanceof Error ? error.message : String(error)}`);
+    // Fall back to empty services - caller should handle this
   }
 
   return services;
@@ -220,22 +276,14 @@ export function generateDockerCompose(options: GenerateComposeOptions): ComposeC
     volumes: {},
   };
 
-  // Add infrastructure services
-  const infraServices = generateInfrastructureCompose(repoRoot, infrastructure);
+  // Add infrastructure services (Sprint 5: now uses architecture.yaml v2)
+  const infraServices = generateInfrastructureCompose(repoRoot, infrastructure, contextName);
   Object.assign(config.services, infraServices);
 
-  // Add volumes for infrastructure
-  if (infrastructure.has('postgres')) {
-    config.volumes!['postgres-data'] = {};
-  }
-  if (infrastructure.has('nats')) {
-    config.volumes!['nats-data'] = {};
-  }
-  if (infrastructure.has('redis')) {
-    config.volumes!['redis-data'] = {};
-  }
-  if (infrastructure.has('firebase-emulator')) {
-    config.volumes!['firebase-data'] = {};
+  // Add volumes for infrastructure (Sprint 5: dynamically extracted from infrastructure specs)
+  const volumeNames = extractVolumeNames(infraServices);
+  for (const volumeName of volumeNames) {
+    config.volumes![volumeName] = {};
   }
 
   // Add application services
@@ -246,6 +294,36 @@ export function generateDockerCompose(options: GenerateComposeOptions): ComposeC
   }
 
   return config;
+}
+
+/**
+ * Extract volume names from infrastructure service definitions
+ * Sprint 5 I3.3: Dynamically discovers volumes instead of hardcoded list
+ *
+ * @param infraServices - Infrastructure service definitions
+ * @returns Set of volume names
+ */
+function extractVolumeNames(infraServices: Record<string, ComposeServiceDef>): Set<string> {
+  const volumes = new Set<string>();
+
+  for (const [serviceName, serviceDef] of Object.entries(infraServices)) {
+    if (!serviceDef.volumes) continue;
+
+    for (const volumeMount of serviceDef.volumes) {
+      // Volume mounts are in format "volume-name:/container/path"
+      // Extract the volume name (part before the colon)
+      const parts = volumeMount.split(':');
+      if (parts.length >= 2) {
+        const volumeName = parts[0];
+        // Only add named volumes (not bind mounts which start with ./ or /)
+        if (!volumeName.startsWith('./') && !volumeName.startsWith('/')) {
+          volumes.add(volumeName);
+        }
+      }
+    }
+  }
+
+  return volumes;
 }
 
 /**

@@ -1,0 +1,1102 @@
+# Sprint 5 Backlog: Architecture.yaml Infrastructure Redesign
+# Trackable, prioritized task breakdown
+#
+# Status Values: todo | in-progress | done | blocked | deferred
+# Priority: P0 (critical) | P1 (high) | P2 (medium) | P3 (low)
+# Estimate: Story points (1-8) or hours
+
+metadata:
+  sprintId: sprint-5-anrn33
+  sprintTitle: Architecture.yaml Infrastructure Redesign
+  startDate: 2026-08-09
+  estimatedDuration: 14 days
+  owner: christophernavta
+  status: in-progress
+
+summary:
+  totalTasks: 42
+  completedTasks: 18
+  blockedTasks: 0
+  estimatedHours: 84-112
+
+progress:
+  phase1: 9/9    # 100% complete - Foundation complete ✅
+  phase2: 9/9    # 100% complete - Schema complete ✅
+  phase3: 0/10   # 0% complete
+  phase4: 0/5    # 0% complete
+  phase5: 0/5    # 0% complete
+  phase6: 0/5    # 0% complete
+  total: 18/43   # 42% complete
+
+# ============================================================================
+# PHASE 1: Foundation (Days 1-3)
+# ============================================================================
+
+phase1_foundation:
+  title: "Phase 1: Foundation - Core Abstractions"
+  duration: 3 days
+  estimatedHours: 18-24
+
+  tasks:
+    - id: F1.1
+      title: Create infrastructure types and interfaces
+      description: |
+        Create tools/brat/src/infrastructure/types.ts with:
+        - InfrastructureSpec interface
+        - HealthCheck interface
+        - ProviderConfig interface
+        - PlatformCapability interface
+      priority: P0
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: []
+      files:
+        - tools/brat/src/infrastructure/types.ts
+      acceptance:
+        - All TypeScript interfaces defined
+        - JSDoc comments complete
+        - Exported from index.ts
+      completedAt: 2026-08-09T22:15:00Z
+
+    - id: F1.2
+      title: Implement InfrastructureRegistry.loadArchitecture()
+      description: |
+        Load and parse architecture.yaml with v2 schema detection:
+        - Detect schema version (v1 vs v2)
+        - Cache loaded architecture
+        - Validate required sections exist
+      priority: P0
+      estimate: 3h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.1]
+      files:
+        - tools/brat/src/infrastructure/registry.ts
+      acceptance:
+        - Loads architecture.yaml successfully
+        - Detects v2 schema (platform.version = "2.0")
+        - Caches for performance
+        - Throws clear errors on missing sections
+      completedAt: 2026-08-09T22:30:00Z
+
+    - id: F1.3
+      title: Implement InfrastructureRegistry.getInfrastructureByCapability()
+      description: |
+        Resolve capability to provider implementation:
+        - Get platform capability config
+        - Get provider implementation
+        - Merge config (platform → provider → context)
+        - Validate constraints
+      priority: P0
+      estimate: 4h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.2]
+      files:
+        - tools/brat/src/infrastructure/registry.ts
+      acceptance:
+        - Resolves 'messaging' to NATS for Docker
+        - Merges config correctly (priority order)
+        - Validates provider satisfies constraints
+        - Returns InfrastructureSpec
+      completedAt: 2026-08-09T22:30:00Z
+
+    - id: F1.4
+      title: Implement InfrastructureRegistry.getRequiredInfrastructure()
+      description: |
+        Collect all infrastructure required by active services:
+        - Parse service dependencies.infrastructure
+        - Deduplicate capabilities
+        - Resolve each to InfrastructureSpec
+        - Return sorted list
+      priority: P0
+      estimate: 3h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.3]
+      files:
+        - tools/brat/src/infrastructure/registry.ts
+      acceptance:
+        - Returns all required infrastructure for services
+        - Deduplicates (redis only once even if multiple services need it)
+        - Throws on missing provider implementation
+      completedAt: 2026-08-09T22:30:00Z
+
+    - id: F1.5
+      title: Implement InfrastructureRegistry.validateDependencies()
+      description: |
+        Validate service dependencies can be satisfied:
+        - Check all capabilities have provider implementations
+        - Validate provider satisfies platform constraints
+        - Check service-to-service dependencies are active
+      priority: P1
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.4]
+      files:
+        - tools/brat/src/infrastructure/registry.ts
+      acceptance:
+        - Detects missing provider implementations
+        - Validates constraint violations
+        - Returns detailed ValidationResult
+      completedAt: 2026-08-09T22:30:00Z
+
+    - id: F1.6
+      title: Implement HealthGate.checkHealth()
+      description: |
+        Check if specific infrastructure service is healthy:
+        - Parse health check command (CMD, CMD-SHELL, docker exec)
+        - Execute health check with timeout
+        - Return boolean result
+      priority: P0
+      estimate: 3h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.1]
+      files:
+        - tools/brat/src/infrastructure/health-gate.ts
+      acceptance:
+        - Executes PostgreSQL health check (pg_isready)
+        - Executes Redis health check (redis-cli ping)
+        - Executes NATS health check (curl /healthz)
+        - Handles timeout gracefully
+      completedAt: 2026-08-09T22:45:00Z
+
+    - id: F1.7
+      title: Implement HealthGate.waitForInfrastructure()
+      description: |
+        Wait for all infrastructure to be ready with parallel checks:
+        - Poll until healthy with interval
+        - Support parallel and sequential modes
+        - Detailed error messages on timeout
+        - Progress logging
+      priority: P0
+      estimate: 4h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.6]
+      files:
+        - tools/brat/src/infrastructure/health-gate.ts
+      acceptance:
+        - Waits for multiple services in parallel
+        - Timeout after configurable duration
+        - Detailed troubleshooting in error messages
+        - Logs progress to logger
+      completedAt: 2026-08-09T22:45:00Z
+
+    - id: F1.8
+      title: Write unit tests for InfrastructureRegistry
+      description: |
+        Comprehensive unit tests (90%+ coverage):
+        - Capability resolution (happy path, missing, errors)
+        - Config merging (all priority levels)
+        - Constraint validation
+        - Dependency validation
+      priority: P1
+      estimate: 4h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.5]
+      files:
+        - tools/brat/src/infrastructure/registry.test.ts
+      acceptance:
+        - 25+ test cases
+        - 90%+ code coverage
+        - All edge cases covered
+        - Clear test descriptions
+      completedAt: 2026-08-10T02:15:00Z
+      notes: |
+        Created 38 test cases covering:
+        - loadArchitecture (8 tests: success, caching, errors)
+        - getInfrastructureByCapability (11 tests: resolution, merging, constraints)
+        - getRequiredInfrastructure (7 tests: collection, deduplication, errors)
+        - getInfrastructureServices (4 tests: service names, errors)
+        - validateDependencies (7 tests: validation, warnings, errors)
+        - clearCache (1 test)
+        Added requirePersistence constraint validation to match test expectations.
+
+    - id: F1.9
+      title: Write unit tests for HealthGate
+      description: |
+        Comprehensive unit tests (90%+ coverage):
+        - Parallel health checks (all succeed, some fail, all fail)
+        - Timeout handling
+        - Error messages
+        - Different health check types
+      priority: P1
+      estimate: 3h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.7]
+      files:
+        - tools/brat/src/infrastructure/health-gate.test.ts
+      acceptance:
+        - 15+ test cases
+        - 90%+ code coverage
+        - Mock infrastructure services
+        - Test timeout scenarios
+      completedAt: 2026-08-10T02:15:00Z
+      notes: |
+        Created 19 test cases covering:
+        - checkHealth (8 tests: CMD, CMD-SHELL, docker exec, no health check, errors, timeout, unknown type)
+        - checkServiceHealth (1 test: convenience method)
+        - waitForInfrastructure (6 tests: empty specs, parallel success/failure, sequential, mixed, defaults)
+        - pollUntilHealthy (3 tests: immediate success, retry/timeout, troubleshooting)
+        - Error message formatting (1 test: parallel failures)
+
+# ============================================================================
+# PHASE 2: Architecture.yaml v2 Schema (Days 4-6)
+# ============================================================================
+
+phase2_schema:
+  title: "Phase 2: Architecture.yaml v2 Schema"
+  duration: 3 days
+  estimatedHours: 18-24
+
+  tasks:
+    - id: S2.1
+      title: Add platform.infrastructure section to architecture.yaml
+      description: |
+        Define platform-level infrastructure requirements:
+        - messaging (NATS/Pub/Sub requirements)
+        - caching (Redis/Memorystore requirements)
+        - persistence (Postgres/Cloud SQL requirements)
+        - For each: capabilities, config, constraints, intent
+      priority: P0
+      estimate: 4h
+      status: done
+      assignee: christophernavta
+      dependencies: [F1.9]
+      files:
+        - architecture.yaml
+      acceptance:
+        - platform.version = "2.0"
+        - platform.infrastructure.messaging complete
+        - platform.infrastructure.caching complete
+        - platform.infrastructure.persistence complete
+        - All constraints documented
+      completedAt: 2026-08-10T02:30:00Z
+      notes: |
+        Added comprehensive platform.infrastructure section with:
+        - messaging: NATS/Pub/Sub requirements (at-least-once, durability, low-latency)
+        - caching: Redis requirements (key-value, persistence, atomic operations)
+        - persistence: PostgreSQL requirements (ACID, JSONB, full-text search)
+        Each with capabilities, config, constraints, and intent documentation.
+
+    - id: S2.2
+      title: Add infrastructure.docker.messaging to architecture.yaml
+      description: |
+        Define Docker provider for messaging (NATS):
+        - service: nats
+        - image: nats:2.10-alpine
+        - ports, volumes, healthCheck
+        - environment variables
+        - config (maxPayload, retention)
+        - intent (why NATS over Kafka)
+      priority: P0
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.1]
+      files:
+        - architecture.yaml
+      acceptance:
+        - Complete NATS configuration
+        - Health check defined
+        - Ports and volumes specified
+        - Intent documented
+      completedAt: 2026-08-10T02:40:00Z
+
+    - id: S2.3
+      title: Add infrastructure.docker.caching to architecture.yaml
+      description: |
+        Define Docker provider for caching (Redis):
+        - service: redis
+        - image: redis:7-alpine
+        - ports, volumes, healthCheck
+        - config (maxmemory, eviction, persistence)
+        - intent (why Redis, AOF vs RDB)
+      priority: P0
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.1]
+      files:
+        - architecture.yaml
+      acceptance:
+        - Complete Redis configuration
+        - Health check defined (redis-cli ping)
+        - AOF persistence configured
+        - Intent documented
+      completedAt: 2026-08-10T02:40:00Z
+
+    - id: S2.4
+      title: Add infrastructure.docker.persistence to architecture.yaml
+      description: |
+        Define Docker provider for persistence (PostgreSQL):
+        - service: postgres
+        - image: postgres:15-alpine
+        - ports, volumes, healthCheck
+        - environment variables (POSTGRES_DB, USER, PASSWORD)
+        - config (maxConnections, sharedBuffers)
+        - intent (why Postgres, version choice)
+      priority: P0
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.1]
+      files:
+        - architecture.yaml
+      acceptance:
+        - Complete PostgreSQL configuration
+        - Health check defined (pg_isready)
+        - Migrations volume mounted
+        - Intent documented
+      completedAt: 2026-08-10T02:40:00Z
+
+    - id: S2.5
+      title: Add infrastructure.docker metadata (config, constraints, intent)
+      description: |
+        Define Docker provider metadata:
+        - config: scope (local), scalability (vertical), costModel (zero-cost)
+        - constraints: maxInstances (1), offlineCapable (true)
+        - intent: development, self-hosted production, CI/CD
+      priority: P1
+      estimate: 1h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.2, S2.3, S2.4]
+      files:
+        - architecture.yaml
+      acceptance:
+        - Docker provider config complete
+        - Constraints documented
+        - Intent explains use cases
+      completedAt: 2026-08-10T02:40:00Z
+
+    - id: S2.6
+      title: Update executionContexts.local with infrastructure config
+      description: |
+        Add infrastructure section to local context:
+        - provider: docker
+        - Context-specific overrides (ports, memory)
+        - Preserve existing deployment and runtime config
+      priority: P0
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.5]
+      files:
+        - architecture.yaml
+      acceptance:
+        - local.infrastructure.provider = "docker"
+        - Context overrides applied (e.g., maxmemory: 128mb)
+        - Backward compatible with existing config
+      completedAt: 2026-08-10T02:50:00Z
+
+    - id: S2.7
+      title: Update executionContexts.staging with infrastructure config
+      description: |
+        Add infrastructure section to staging context:
+        - provider: docker (remote)
+        - Higher resource limits than local
+        - Remote Docker host configuration preserved
+      priority: P0
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.5]
+      files:
+        - architecture.yaml
+      acceptance:
+        - staging.infrastructure.provider = "docker"
+        - Higher resource limits (512mb for Redis)
+        - Remote host config intact
+      completedAt: 2026-08-10T02:50:00Z
+
+    - id: S2.8
+      title: Add services.*.dependencies.infrastructure declarations
+      description: |
+        Update all active services with explicit infrastructure dependencies:
+        - llm-bot: [messaging, caching, persistence]
+        - auth: [messaging, caching, persistence]
+        - tool-gateway: [messaging, persistence]
+        - ingress-egress: [messaging, caching, persistence]
+        - etc.
+      priority: P0
+      estimate: 2h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.1]
+      files:
+        - architecture.yaml
+      acceptance:
+        - All active services have dependencies.infrastructure
+        - Dependencies match actual usage
+        - No hardcoded assumptions in code
+      completedAt: 2026-08-10T03:00:00Z
+      notes: |
+        Added dependencies.infrastructure to 7 key services:
+        - ingress-egress: [messaging, caching, persistence]
+        - auth: [messaging, caching, persistence]
+        - query-analyzer: [messaging]
+        - event-router: [messaging, persistence]
+        - llm-bot: [messaging, caching, persistence]
+        - persistence: [messaging, persistence]
+        - tool-gateway: [messaging, persistence]
+        Each with inline comments explaining why each dependency is needed.
+
+    - id: S2.9
+      title: Create architecture.yaml v2 validation script
+      description: |
+        Script to validate v2 schema correctness:
+        - Verify platform.infrastructure complete
+        - Check all providers implement required capabilities
+        - Validate constraint satisfaction
+        - Verify all service dependencies resolvable
+      priority: P1
+      estimate: 3h
+      status: done
+      assignee: christophernavta
+      dependencies: [S2.8]
+      files:
+        - tools/brat/src/validation/validate-architecture-v2.ts
+      acceptance:
+        - Validates v2 schema structure
+        - Checks provider implementations
+        - Reports clear errors
+        - Exits 0 on success, 1 on failure
+      completedAt: 2026-08-10T03:10:00Z
+      notes: |
+        Created comprehensive validation script (400+ lines):
+        - Validates platform.infrastructure section (version, capabilities, config, constraints, intent)
+        - Checks infrastructure.docker provider implements all capabilities
+        - Validates constraint satisfaction (minMemory, requireDurability, requirePersistence)
+        - Verifies all service dependencies resolvable
+        - Reports detailed errors and warnings
+        - All validations passing (✅)
+
+# ============================================================================
+# PHASE 3: Integration (Days 7-10)
+# ============================================================================
+
+phase3_integration:
+  title: "Phase 3: Integration - Replace Hardcoded Infrastructure"
+  duration: 4 days
+  estimatedHours: 24-32
+
+  tasks:
+    - id: I3.1
+      title: Replace hardcoded infrastructure in parse-dependencies.ts
+      description: |
+        Remove hardcoded lists, use InfrastructureRegistry:
+        - Remove: infrastructure.push('nats'), infrastructure.push('redis')
+        - Add: getInfrastructureByCapability() calls
+        - Use service dependencies.infrastructure from architecture.yaml
+      priority: P0
+      estimate: 3h
+      status: todo
+      assignee: christophernavta
+      dependencies: [F1.5, S2.8]
+      files:
+        - tools/brat/src/context/parse-dependencies.ts
+      acceptance:
+        - No hardcoded infrastructure lists
+        - Uses InfrastructureRegistry.getInfrastructureByCapability()
+        - Reads from services.*.dependencies.infrastructure
+        - Existing tests still pass
+
+    - id: I3.2
+      title: Replace hardcoded infrastructure in docker-compose-strategy.ts
+      description: |
+        Remove hardcoded infrastructure services list:
+        - Remove: const infrastructureServices = ['nats', 'redis', 'postgres']
+        - Add: InfrastructureRegistry.getInfrastructureServices(repoRoot, context)
+      priority: P0
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [F1.5, S2.8]
+      files:
+        - tools/brat/src/orchestration/deployment/docker-compose-strategy.ts
+      acceptance:
+        - No hardcoded infrastructure lists
+        - Uses InfrastructureRegistry.getInfrastructureServices()
+        - Single-service and bulk deployments use same logic
+        - Existing tests still pass
+
+    - id: I3.3
+      title: Rewrite generate-docker-compose.ts to use architecture.yaml
+      description: |
+        Generate infrastructure services from architecture.yaml:
+        - Load infrastructure.{provider} section
+        - Generate Docker Compose services dynamically
+        - Generate volumes from infrastructure specs
+        - Apply context-specific overrides
+      priority: P0
+      estimate: 6h
+      status: todo
+      assignee: christophernavta
+      dependencies: [S2.9, I3.2]
+      files:
+        - tools/brat/src/context/generate-docker-compose.ts
+      acceptance:
+        - Generates NATS service from architecture.yaml
+        - Generates Redis service from architecture.yaml
+        - Generates PostgreSQL service from architecture.yaml
+        - Applies context overrides (local vs staging)
+        - No references to docker-compose.local.yaml
+
+    - id: I3.4
+      title: Replace waitForPostgres() with HealthGate in context/create.ts
+      description: |
+        Remove fragmented waitForPostgres() function:
+        - Get infrastructure specs from InfrastructureRegistry
+        - Call HealthGate.waitForInfrastructure()
+        - Remove old waitForPostgres() logic
+      priority: P0
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [F1.7, I3.1]
+      files:
+        - tools/brat/src/context/create.ts
+      acceptance:
+        - Uses HealthGate.waitForInfrastructure()
+        - No more waitForPostgres() calls
+        - Waits for all infrastructure (not just Postgres)
+        - Better error messages on timeout
+
+    - id: I3.5
+      title: Replace PostgreSQL validation in context-resolver.ts with HealthGate
+      description: |
+        Remove validatePostgresConnection() duplication:
+        - Use HealthGate for validation
+        - Remove old validatePostgresConnection() logic
+      priority: P1
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [I3.4]
+      files:
+        - tools/brat/src/context/context-resolver.ts
+      acceptance:
+        - Uses HealthGate for validation
+        - No more validatePostgresConnection() calls
+        - Consistent with other infrastructure validation
+
+    - id: I3.6
+      title: Update DockerComposeOrchestrator to use generated compose files
+      description: |
+        Ensure orchestrator uses dynamically generated compose:
+        - Load generated docker-compose.yaml
+        - Verify infrastructure services present
+        - Test health gate integration
+      priority: P0
+      estimate: 3h
+      status: todo
+      assignee: christophernavta
+      dependencies: [I3.3]
+      files:
+        - tools/brat/src/orchestration/deployment/docker-compose-orchestrator.ts
+      acceptance:
+        - Uses generated docker-compose.yaml
+        - Infrastructure services deployed
+        - Health gate validates before service deployment
+
+    - id: I3.7
+      title: Deprecate docker-compose.local.yaml
+      description: |
+        Mark docker-compose.local.yaml as deprecated:
+        - Add deprecation notice at top of file
+        - Update documentation to reference architecture.yaml
+        - Plan for removal in future sprint
+      priority: P2
+      estimate: 1h
+      status: todo
+      assignee: christophernavta
+      dependencies: [I3.6]
+      files:
+        - infrastructure/docker-compose/docker-compose.local.yaml
+      acceptance:
+        - Deprecation notice added
+        - File marked for future removal
+        - Documentation updated
+
+    - id: I3.8
+      title: Update backward compatibility layer
+      description: |
+        Support v1 schemas during transition:
+        - InfrastructureRegistry detects v1 vs v2
+        - Falls back to hardcoded logic for v1
+        - Emits deprecation warnings for v1
+      priority: P1
+      estimate: 3h
+      status: todo
+      assignee: christophernavta
+      dependencies: [I3.6]
+      files:
+        - tools/brat/src/infrastructure/registry.ts
+      acceptance:
+        - Detects v1 schema (no platform.version)
+        - Falls back to old logic for v1
+        - Warns user to migrate to v2
+        - Both v1 and v2 work simultaneously
+
+    - id: I3.9
+      title: Integration test - Single service deployment
+      description: |
+        End-to-end test for single service deployment:
+        - Deploy llm-bot to local context
+        - Verify infrastructure deployed (NATS, Redis, Postgres)
+        - Verify HealthGate validates infrastructure
+        - Verify service starts successfully
+      priority: P0
+      estimate: 3h
+      status: todo
+      assignee: christophernavta
+      dependencies: [I3.6]
+      files:
+        - tests/integration/single-service-deployment.test.ts
+      acceptance:
+        - Infrastructure deployed from architecture.yaml
+        - HealthGate validates all services
+        - Service deploys successfully
+        - Test is repeatable
+
+    - id: I3.10
+      title: Integration test - Bulk deployment
+      description: |
+        End-to-end test for bulk deployment:
+        - Deploy all active services to local context
+        - Verify infrastructure deployed once (not duplicated)
+        - Verify HealthGate validates infrastructure
+        - Verify all services start successfully
+      priority: P0
+      estimate: 3h
+      status: todo
+      assignee: christophernavta
+      dependencies: [I3.9]
+      files:
+        - tests/integration/bulk-deployment.test.ts
+      acceptance:
+        - All services deployed successfully
+        - Infrastructure not duplicated
+        - HealthGate validates before services
+        - Test is repeatable
+
+# ============================================================================
+# PHASE 4: Testing & Validation (Days 11-12)
+# ============================================================================
+
+phase4_testing:
+  title: "Phase 4: Testing & Validation"
+  duration: 2 days
+  estimatedHours: 12-16
+
+  tasks:
+    - id: T4.1
+      title: Run complete test suite and fix failures
+      description: |
+        Ensure all tests pass:
+        - npm test (all tests)
+        - Fix any regressions
+        - Ensure 90%+ coverage maintained
+      priority: P0
+      estimate: 4h
+      status: todo
+      assignee: christophernavta
+      dependencies: [I3.10]
+      files:
+        - All test files
+      acceptance:
+        - All unit tests passing
+        - All integration tests passing
+        - 90%+ code coverage
+        - No flaky tests
+
+    - id: T4.2
+      title: Create comprehensive validation script
+      description: |
+        Create planning/sprint-5-anrn33/validate_deliverable.sh:
+        - Phase 1: Build
+        - Phase 2: Unit tests
+        - Phase 3: Integration tests
+        - Phase 4: Schema validation
+        - Phase 5: Dry-run deployment
+      priority: P0
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [T4.1]
+      files:
+        - planning/sprint-5-anrn33/validate_deliverable.sh
+      acceptance:
+        - Script is executable
+        - All phases complete successfully
+        - Exits 0 on success, non-zero on failure
+        - Output is clear and actionable
+
+    - id: T4.3
+      title: Test local context creation end-to-end
+      description: |
+        Manual testing of local context:
+        - Create new local context from scratch
+        - Verify architecture.yaml v2 used
+        - Verify infrastructure deployed
+        - Verify services start
+        - Measure creation time (<2 min target)
+      priority: P0
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [T4.2]
+      files: []
+      acceptance:
+        - Context creation works
+        - Infrastructure deployed from architecture.yaml
+        - Services start successfully
+        - Creation time <2 minutes
+
+    - id: T4.4
+      title: Test staging context deployment
+      description: |
+        Manual testing of staging context (remote Docker):
+        - Deploy to staging context
+        - Verify remote infrastructure deployed
+        - Verify HealthGate validates
+        - Verify services start on remote host
+      priority: P1
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [T4.3]
+      files: []
+      acceptance:
+        - Staging deployment works
+        - Remote infrastructure deployed
+        - HealthGate validates remote services
+        - Services start successfully
+
+    - id: T4.5
+      title: Performance testing and optimization
+      description: |
+        Measure and optimize performance:
+        - InfrastructureRegistry caching
+        - HealthGate parallel checks
+        - Docker Compose generation time
+        - Ensure no regressions (<10% slowdown acceptable)
+      priority: P2
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [T4.4]
+      files:
+        - tools/brat/src/infrastructure/registry.ts
+        - tools/brat/src/infrastructure/health-gate.ts
+      acceptance:
+        - InfrastructureRegistry caches loaded architecture
+        - HealthGate runs checks in parallel
+        - No performance regressions
+        - Context creation time <2 minutes
+
+# ============================================================================
+# PHASE 5: Documentation & Migration (Days 13-14)
+# ============================================================================
+
+phase5_documentation:
+  title: "Phase 5: Documentation & Migration Guide"
+  duration: 2 days
+  estimatedHours: 12-16
+
+  tasks:
+    - id: D5.1
+      title: Update CLAUDE.md with v2 schema examples
+      description: |
+        Add architecture.yaml v2 section to CLAUDE.md:
+        - Platform infrastructure pattern
+        - Provider implementation pattern
+        - Context overrides pattern
+        - Service dependencies pattern
+      priority: P1
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [T4.5]
+      files:
+        - CLAUDE.md
+      acceptance:
+        - v2 schema examples added
+        - Common patterns documented
+        - Examples are copy-pasteable
+        - No contradictions with existing docs
+
+    - id: D5.2
+      title: Create infrastructure management guide
+      description: |
+        Create documentation/architecture/infrastructure-management.md:
+        - Overview of v2 architecture
+        - How to add new infrastructure capability
+        - How to add new provider
+        - How to override in execution context
+        - Troubleshooting common issues
+      priority: P1
+      estimate: 4h
+      status: todo
+      assignee: christophernavta
+      dependencies: [T4.5]
+      files:
+        - documentation/architecture/infrastructure-management.md
+      acceptance:
+        - Complete guide created
+        - Covers all common workflows
+        - Examples for each pattern
+        - Troubleshooting section
+
+    - id: D5.3
+      title: Create migration guide
+      description: |
+        Create detailed v1 → v2 migration guide:
+        - Step-by-step migration checklist
+        - Before/after examples
+        - Rollback procedure
+        - Common pitfalls
+        - Estimated migration time
+      priority: P1
+      estimate: 3h
+      status: todo
+      assignee: christophernavta
+      dependencies: [D5.2]
+      files:
+        - planning/sprint-5-anrn33/migration-guide.md (already exists, update)
+      acceptance:
+        - Step-by-step checklist
+        - Clear before/after examples
+        - Rollback procedure documented
+        - Common issues addressed
+
+    - id: D5.4
+      title: Update troubleshooting documentation
+      description: |
+        Add HealthGate errors to troubleshooting:
+        - Common health check failures
+        - Timeout troubleshooting
+        - Infrastructure not starting
+        - Provider configuration issues
+      priority: P2
+      estimate: 2h
+      status: todo
+      assignee: christophernavta
+      dependencies: [D5.2]
+      files:
+        - documentation/troubleshooting/infrastructure.md
+      acceptance:
+        - HealthGate errors documented
+        - Common failures covered
+        - Solutions provided
+        - Links to architecture guide
+
+    - id: D5.5
+      title: Create verification report template
+      description: |
+        Template for sprint completion verification:
+        - Completed items checklist
+        - Test results summary
+        - Performance metrics
+        - Known issues/limitations
+        - Deferred items (if any)
+      priority: P1
+      estimate: 1h
+      status: todo
+      assignee: christophernavta
+      dependencies: [D5.4]
+      files:
+        - planning/sprint-5-anrn33/verification-report.md
+      acceptance:
+        - Template created
+        - All sections outlined
+        - Ready to fill during completion
+
+# ============================================================================
+# PHASE 6: Completion & Retrospective (Day 15+)
+# ============================================================================
+
+phase6_completion:
+  title: "Phase 6: Sprint Completion"
+  duration: 1 day
+  estimatedHours: 4-6
+
+  tasks:
+    - id: C6.1
+      title: Fill verification report
+      description: |
+        Complete verification-report.md with actual results:
+        - Mark completed vs deferred items
+        - Summarize test results
+        - Document performance metrics
+        - List known issues
+      priority: P0
+      estimate: 1h
+      status: todo
+      assignee: christophernavta
+      dependencies: [D5.5, T4.5]
+      files:
+        - planning/sprint-5-anrn33/verification-report.md
+      acceptance:
+        - All sections complete
+        - Test results documented
+        - Metrics captured
+        - Issues listed
+
+    - id: C6.2
+      title: Write retrospective
+      description: |
+        Create retro.md analyzing sprint:
+        - What went well
+        - What could be improved
+        - Action items for next sprint
+        - Lessons learned
+      priority: P0
+      estimate: 1h
+      status: todo
+      assignee: christophernavta
+      dependencies: [C6.1]
+      files:
+        - planning/sprint-5-anrn33/retro.md
+      acceptance:
+        - Retro complete
+        - Honest assessment
+        - Action items identified
+        - Lessons documented
+
+    - id: C6.3
+      title: Write key learnings document
+      description: |
+        Create key-learnings.md:
+        - Technical learnings (architecture patterns)
+        - Process learnings (what worked)
+        - Tools/techniques discovered
+        - Reusable patterns for future sprints
+      priority: P0
+      estimate: 1h
+      status: todo
+      assignee: christophernavta
+      dependencies: [C6.2]
+      files:
+        - planning/sprint-5-anrn33/key-learnings.md
+      acceptance:
+        - Key learnings documented
+        - Patterns identified
+        - Reusable for future work
+
+    - id: C6.4
+      title: Create pull request
+      description: |
+        Create GitHub PR for sprint:
+        - Branch: feature/sprint-5-anrn33-architecture-yaml-infrastructu
+        - Target: main
+        - Include all commits
+        - Write comprehensive PR description
+      priority: P0
+      estimate: 1h
+      status: todo
+      assignee: christophernavta
+      dependencies: [C6.3]
+      files: []
+      acceptance:
+        - PR created
+        - Description complete
+        - All tests passing in CI
+        - Ready for review
+
+    - id: C6.5
+      title: Complete sprint via MCP
+      description: |
+        Mark sprint as complete:
+        - Run mcp__sprint-mcp-bitbrat-local__complete-sprint
+        - Update sprint status to 'complete'
+        - Archive sprint artifacts
+      priority: P0
+      estimate: 0.5h
+      status: todo
+      assignee: christophernavta
+      dependencies: [C6.4]
+      files:
+        - planning/sprint-5-anrn33/sprint-manifest.yaml
+      acceptance:
+        - Sprint marked complete
+        - All artifacts in place
+        - Sprint index updated
+
+# ============================================================================
+# Blocked/Deferred Tasks
+# ============================================================================
+
+blocked_tasks: []
+
+deferred_tasks:
+  - id: DEF1
+    title: GCP provider implementation
+    description: Add infrastructure.gcp section for cloud deployments
+    reason: Out of scope for Sprint 5 (Docker focus)
+    targetSprint: Sprint 6+
+
+  - id: DEF2
+    title: AWS provider implementation
+    description: Add infrastructure.aws section for AWS deployments
+    reason: Out of scope for Sprint 5 (Docker focus)
+    targetSprint: Sprint 6+
+
+  - id: DEF3
+    title: Schema migration tool (brat config migrate)
+    description: Automated v1 → v2 migration command
+    reason: Manual migration acceptable for now
+    targetSprint: Sprint 6
+
+  - id: DEF4
+    title: JSON Schema validator
+    description: JSON Schema for architecture.yaml v2
+    reason: YAML validation sufficient for now
+    targetSprint: Future
+
+# ============================================================================
+# Progress Tracking
+# ============================================================================
+
+progress:
+  phase1: 9/9    # 100% complete - Foundation complete ✅
+  phase2: 9/9    # 100% complete - Schema complete ✅
+  phase3: 0/10   # 0% complete
+  phase4: 0/5    # 0% complete
+  phase5: 0/5    # 0% complete
+  phase6: 0/5    # 0% complete
+  total: 18/43   # 42% complete
+
+velocity:
+  estimatedTasksPerDay: 3-4
+  actualTasksPerDay: null  # Track during sprint
+  burndownRate: null       # Tasks completed per day
+
+risks:
+  - id: RISK1
+    title: Breaking changes in production
+    impact: high
+    likelihood: low
+    mitigation: Backward compatibility layer, instant rollback
+    status: monitored
+
+  - id: RISK2
+    title: Performance regression
+    impact: medium
+    likelihood: low
+    mitigation: Registry caching, parallel health checks
+    status: monitored
+
+  - id: RISK3
+    title: Missing edge cases in constraints validation
+    impact: medium
+    likelihood: medium
+    mitigation: Comprehensive unit tests, manual testing
+    status: active

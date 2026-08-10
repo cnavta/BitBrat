@@ -57,6 +57,242 @@ llm_guidance:
   build_contract: >
     Standard services build from the single reusable Dockerfile.service; per-service behavior is
     supplied as --build-args derived from this file (see defaults.services.build).
+
+# ============================================================================
+# PLATFORM INFRASTRUCTURE (v2 Schema)
+# ============================================================================
+# This section defines platform-level infrastructure requirements.
+# Providers (docker, gcp, aws, azure) implement these capabilities.
+# Execution contexts select providers and override config.
+#
+# Three-tier design:
+# 1. platform.infrastructure - WHAT we need + WHY + constraints
+# 2. infrastructure.{provider} - HOW each provider implements it
+# 3. executionContexts.*.infrastructure - Context-specific overrides
+# ============================================================================
+
+platform:
+  version: "2.0"
+
+  infrastructure:
+    # --------------------------------------------------------------------------
+    # Messaging: Event-driven orchestration between services
+    # --------------------------------------------------------------------------
+    messaging:
+      required: true
+      capabilities:
+        - publish-subscribe
+        - stream-retention
+        - at-least-once-delivery
+      config:
+        defaultTTL: 3600  # Default message TTL in seconds
+        deliveryGuarantee: at-least-once
+        maxRetries: 5
+      constraints:
+        minRetention: 86400  # 24 hours minimum retention (seconds)
+        requireDurability: true  # Must persist messages to disk
+        maxLatencyMs: 100  # Sub-100ms delivery for real-time orchestration
+      intent:
+        - "Event-driven orchestration between services"
+        - "Routing slips carry processing steps with messages"
+        - "Decoupled publish-subscribe for scalability"
+        - "Durable streams for replay and debugging"
+
+    # --------------------------------------------------------------------------
+    # Caching: Distributed locks and idempotency tracking
+    # --------------------------------------------------------------------------
+    caching:
+      required: true
+      capabilities:
+        - key-value-store
+        - expiration-policies
+        - atomic-operations
+      config:
+        defaultTTL: 300  # Default key TTL in seconds (5 minutes)
+        evictionPolicy: allkeys-lru  # Evict least recently used keys
+      constraints:
+        minMemory: "128mb"  # Minimum memory allocation
+        requirePersistence: true  # Must persist to disk (AOF/RDB)
+        requireAtomicity: true  # Must support atomic SET NX EX
+      intent:
+        - "Idempotency tracking via distributed locks (Sprint 1)"
+        - "Duplicate message detection with Redis SET NX EX"
+        - "Session state and rate limiting"
+        - "Persistent cache survives restarts"
+
+    # --------------------------------------------------------------------------
+    # Persistence: Event storage with JSONB and full-text search
+    # --------------------------------------------------------------------------
+    persistence:
+      required: true
+      capabilities:
+        - relational-database
+        - ACID-transactions
+        - JSONB-support
+        - full-text-search
+      config:
+        connectionPool:
+          min: 10
+          max: 100
+        statementTimeout: 30000  # 30s max query time
+        idleTimeout: 10000  # 10s idle connection timeout
+      constraints:
+        requireACID: true  # Must support ACID transactions
+        requireSSL: true  # Must use encrypted connections
+        requireJSONB: true  # Must support JSONB for flexible schemas
+      intent:
+        - "Persistent event storage with flexible JSONB payload"
+        - "Full-text search for event query capabilities"
+        - "ACID transactions for state mutations"
+        - "Primary data store as of Sprint 344 (replaced Firestore)"
+
+# ============================================================================
+# INFRASTRUCTURE PROVIDERS (v2 Schema)
+# ============================================================================
+# Provider implementations for platform.infrastructure capabilities.
+# Each provider (docker, gcp, aws, azure) implements messaging, caching,
+# and persistence in provider-specific ways.
+# ============================================================================
+
+infrastructure:
+  # --------------------------------------------------------------------------
+  # Docker Provider: Local development and self-hosted deployments
+  # --------------------------------------------------------------------------
+  docker:
+    config:
+      scope: local  # Local development, self-hosted production
+      scalability: vertical  # Vertical scaling (upgrade machine)
+      costModel: zero-cost  # No cloud fees, just hardware
+    constraints:
+      maxInstances: 1  # Single-node deployment
+      offlineCapable: true  # Works without internet
+    intent:
+      - "Primary development environment for local iteration"
+      - "Self-hosted production alternative (bitbrat.lan)"
+      - "Zero cloud costs for small deployments"
+      - "Full feature parity with cloud deployments"
+
+    # ------------------------------------------------------------------------
+    # Messaging: NATS JetStream
+    # ------------------------------------------------------------------------
+    messaging:
+      service: nats  # Docker Compose service name
+      image: nats:2.10-alpine
+      ports:
+        client: "4222:4222"  # Client connections
+        http: "8222:8222"  # HTTP monitoring/health
+        routing: "6222:6222"  # Cluster routing (unused in single-node)
+      volumes:
+        - type: named
+          name: nats-data
+          target: /data
+      env:
+        NATS_JETSTREAM_MAX_MEM: "-1"  # Unlimited memory for JetStream
+        NATS_JETSTREAM_MAX_FILE: "10Gi"  # 10GB max file storage
+      config:
+        jetstream: true  # Enable JetStream for durability
+        persistence: true  # Persist streams to disk (/data)
+        maxPayload: 10485760  # 10MB max message size
+        retention: 604800  # 7 days retention (seconds)
+      healthCheck:
+        test:
+          - CMD
+          - wget
+          - "--quiet"
+          - "--tries=1"
+          - "--spider"
+          - "http://localhost:8222/healthz"
+        interval: "10s"
+        timeout: "5s"
+        retries: 10
+        startPeriod: "30s"
+      intent:
+        - "JetStream provides durable streams for message replay"
+        - "Replaces Kafka/RabbitMQ with simpler ops and lower overhead"
+        - "Sub-millisecond latency for event orchestration"
+        - "File-backed persistence survives restarts"
+
+    # ------------------------------------------------------------------------
+    # Caching: Redis with AOF persistence
+    # ------------------------------------------------------------------------
+    caching:
+      service: redis  # Docker Compose service name
+      image: redis:7-alpine
+      ports:
+        main: "6379:6379"
+      volumes:
+        - type: named
+          name: redis-data
+          target: /data
+      command:
+        - redis-server
+        - "--appendonly"
+        - "yes"  # Enable AOF persistence
+        - "--appendfsync"
+        - "everysec"  # Fsync every second (balance durability/performance)
+        - "--maxmemory"
+        - "512mb"  # Limit memory usage
+        - "--maxmemory-policy"
+        - "allkeys-lru"  # Evict least recently used keys
+      config:
+        appendonly: "yes"  # AOF persistence enabled
+        maxmemory: "512mb"  # Sufficient for idempotency keys
+        evictionPolicy: allkeys-lru
+      healthCheck:
+        test:
+          - CMD
+          - redis-cli
+          - ping
+        interval: "10s"
+        timeout: "5s"
+        retries: 10
+        startPeriod: "30s"
+      intent:
+        - "Idempotency tracking via SET NX EX (Sprint 1)"
+        - "Distributed locks for duplicate message detection"
+        - "AOF persistence ensures durability across restarts"
+        - "Session state and rate limiting"
+
+    # ------------------------------------------------------------------------
+    # Persistence: PostgreSQL 15 with JSONB
+    # ------------------------------------------------------------------------
+    persistence:
+      service: postgres  # Docker Compose service name
+      image: postgres:15-alpine
+      ports:
+        main: "5432:5432"
+      volumes:
+        - type: named
+          name: postgres-data
+          target: /var/lib/postgresql/data
+      env:
+        POSTGRES_DB: bitbrat
+        POSTGRES_USER: bitbrat
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # From .env or secrets
+        POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      config:
+        database: bitbrat
+        user: bitbrat
+        maxConnections: 100
+        sharedBuffers: "256MB"
+        effectiveCacheSize: "1GB"
+        maintenanceWorkMem: "64MB"
+        walLevel: "replica"  # Enable point-in-time recovery
+      healthCheck:
+        test:
+          - CMD-SHELL
+          - pg_isready -U bitbrat -d bitbrat
+        interval: "10s"
+        timeout: "5s"
+        retries: 10
+        startPeriod: "30s"
+      intent:
+        - "Primary data store as of Sprint 344 (replaced Firestore)"
+        - "JSONB support for flexible event payloads"
+        - "Full-text search capabilities (tsvector/tsquery)"
+        - "ACID transactions for state mutations"
+        - "Platform-agnostic (works with AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted)"
+
 messaging:
   description: >
     The internal event bus that connects all services. NATS JetStream locally (Docker/dev) and
@@ -575,6 +811,12 @@ services:
       (internal.egress.v1.{instanceId}) so replies route back to the instance holding the
       connection.
     entry: src/apps/ingress-egress-service.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Publishes to internal.ingress.v1, consumes from internal.egress.v1
+        - caching    # Idempotency tracking for egress deduplication (Sprint 1)
+        - persistence  # Persistence snapshot mode
     topics:
       publishes:
         - internal.ingress.v1
@@ -620,6 +862,12 @@ services:
     external:
       - twitch
     entry: src/apps/auth-service.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes from internal.auth.v1
+        - caching    # Idempotency tracking for auth enrichment (Sprint 1)
+        - persistence  # User auth state storage
     topics:
       consumes:
         - internal.auth.v1
@@ -639,6 +887,10 @@ services:
     external:
       - openai
     entry: src/apps/query-analyzer.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes from internal.query.analysis.v1
     topics:
       consumes:
         - internal.query.analysis.v1
@@ -658,6 +910,11 @@ services:
     stage: route
     stateful: false
     entry: src/apps/event-router-service.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes from internal.ingress.v1, internal.enriched.v1
+        - persistence  # Command lookup and routing rules
     topics:
       consumes:
         - internal.ingress.v1
@@ -679,6 +936,12 @@ services:
     entry: src/apps/llm-bot-service.ts
     paths:
       - /_debug/mcp
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes from internal.llmbot.v1
+        - caching    # Idempotency tracking for LLM processing (Sprint 1)
+        - persistence  # LLM conversation memory and state
     topics:
       consumes:
         - internal.llmbot.v1
@@ -712,6 +975,11 @@ services:
     stateful: true
     owned_state: Firestore events collection (and dead-letter capture).
     entry: src/apps/persistence-service.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes from internal.ingress.v1, persistence topics
+        - persistence  # Primary data store for event storage
     topics:
       consumes:
         - internal.ingress.v1
@@ -845,6 +1113,11 @@ services:
     description: MCP Proxy for centralized MCP tool management and security
     kind: gateway
     entry: src/apps/tool-gateway.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # MCP tool invocations via message bus
+        - persistence  # Tool registry and MCP server discovery
     secrets:
       - MCP_AUTH_TOKEN
   image-gen-mcp:
@@ -936,7 +1209,14 @@ services:
     stage: analysis
     entry: src/apps/context-pack-service.ts
     port: 3000
-infrastructure:
+
+# ============================================================================
+# CLOUD RESOURCES (Legacy - to be migrated to infrastructure.gcp in future sprint)
+# ============================================================================
+# This section contains GCP-specific cloud resources (Firestore, Cloud Storage, Load Balancer).
+# Will be migrated to infrastructure.gcp.* in the v2 schema.
+# ============================================================================
+cloudResources:
   target: gcp
   resources:
     firestore:
@@ -1072,10 +1352,21 @@ executionContexts:
           - infra.yaml
           - '{service}.yaml'
         secure: .secure.local
+    # Infrastructure configuration (v2 Schema)
+    infrastructure:
+      provider: docker  # Use Docker provider for local development
+      # Context-specific overrides (optional)
+      caching:
+        config:
+          maxmemory: "256mb"  # Reduce memory for local dev
+      persistence:
+        config:
+          maxConnections: 50  # Lower connection pool for local
     tags:
       - development
       - local
   staging:
+    description: Remote staging environment on bitbrat.lan
     deployment:
       type: docker-compose
       docker:
@@ -1096,7 +1387,17 @@ executionContexts:
           - infra.yaml
           - '{service}.yaml'
         secure: .secure.staging
-    description: Remote Staging Env
+    # Infrastructure configuration (v2 Schema)
+    infrastructure:
+      provider: docker  # Use Docker provider for staging
+      # Context-specific overrides for production-like config
+      caching:
+        config:
+          maxmemory: "1gb"  # More memory for staging workloads
+      persistence:
+        config:
+          maxConnections: 100  # Full connection pool for staging
+          sharedBuffers: "512MB"  # Increased shared buffers
     tags:
       - staging
       - remote

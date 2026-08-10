@@ -1,15 +1,16 @@
 /**
- * Sprint 352 S2.1: Parse Service Dependencies
+ * Sprint 5 I3.1: Parse Service Dependencies (Architecture.yaml v2)
  *
- * Extracts service dependencies from architecture.yaml and determines
- * infrastructure dependencies (postgres, nats, firestore) based on
- * service configuration.
+ * Extracts service dependencies from architecture.yaml using the v2 schema.
+ * Infrastructure dependencies are read from services.*.dependencies.infrastructure
+ * and resolved via InfrastructureRegistry instead of hardcoded lists.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
 import { ServiceMetadata } from './parse-services';
+import { InfrastructureRegistry } from '../infrastructure/registry';
 
 /**
  * Service dependency information
@@ -35,13 +36,18 @@ export interface ServiceDependencies {
 /**
  * Parse service dependencies from architecture.yaml and service metadata
  *
+ * Uses architecture.yaml v2 schema to read dependencies.infrastructure
+ * from service configuration instead of hardcoded lists.
+ *
  * @param repoRoot - Repository root directory
  * @param metadata - Service metadata from parse-services
+ * @param context - Execution context (default: 'local')
  * @returns Service dependency information
  */
 export function parseServiceDependencies(
   repoRoot: string,
-  metadata: ServiceMetadata
+  metadata: ServiceMetadata,
+  context: string = 'local'
 ): ServiceDependencies {
   const archPath = path.join(repoRoot, 'architecture.yaml');
   const archContent = fs.readFileSync(archPath, 'utf-8');
@@ -50,25 +56,31 @@ export function parseServiceDependencies(
   const serviceName = metadata.name;
   const serviceConfig = arch.services?.[serviceName] || {};
 
-  // Infrastructure dependencies
+  // Infrastructure dependencies from architecture.yaml v2
   const infrastructure: string[] = [];
 
-  // All services need NATS for messaging
-  infrastructure.push('nats');
+  // Read from services.<name>.dependencies.infrastructure (added in S2.8)
+  const infraCapabilities = serviceConfig.dependencies?.infrastructure || [];
 
-  // Check for persistence driver
-  const persistenceDriver = getPersistenceDriver(serviceConfig, metadata);
-  if (persistenceDriver === 'postgres') {
-    infrastructure.push('postgres');
-  } else if (persistenceDriver === 'firestore') {
-    infrastructure.push('firebase-emulator');
-  }
-
-  // Sprint 3 Fix #10: Redis is platform-wide infrastructure for idempotency (all services)
-  // All services may use Redis for distributed idempotency, caching, or session storage.
-  // Redis is configured in global.yaml with REDIS_URL and REDIS_IDEMPOTENCY_ENABLED.
-  if (!infrastructure.includes('redis')) {
-    infrastructure.push('redis');
+  // Resolve each capability to actual service name using InfrastructureRegistry
+  for (const capability of infraCapabilities) {
+    try {
+      const spec = InfrastructureRegistry.getInfrastructureByCapability(
+        repoRoot,
+        context,
+        capability
+      );
+      if (spec && spec.serviceName) {
+        infrastructure.push(spec.serviceName);
+      } else {
+        // Fall back to capability name if serviceName not available
+        infrastructure.push(capability);
+      }
+    } catch (error) {
+      // Fall back to capability name if resolution fails (backward compatibility)
+      console.warn(`[parse-dependencies] Failed to resolve capability '${capability}' for service '${serviceName}': ${error instanceof Error ? error.message : String(error)}`);
+      infrastructure.push(capability);
+    }
   }
 
   // Service-to-service dependencies
@@ -110,79 +122,46 @@ export function parseServiceDependencies(
 }
 
 /**
- * Determine persistence driver for a service
- *
- * @param serviceConfig - Service configuration from architecture.yaml
- * @param metadata - Service metadata
- * @returns Persistence driver ('postgres', 'firestore', or 'none')
- */
-function getPersistenceDriver(
-  serviceConfig: any,
-  metadata: ServiceMetadata
-): 'postgres' | 'firestore' | 'none' {
-  // Check if service explicitly declares persistence needs
-  if (metadata.envKeys.includes('PERSISTENCE_DRIVER')) {
-    return 'postgres'; // Default to postgres as per Sprint 344
-  }
-
-  // Services that publish to persistence topics need persistence
-  const publishesTopics = serviceConfig.topics?.publishes || [];
-  if (publishesTopics.some((t: string) => t.includes('persistence'))) {
-    return 'postgres';
-  }
-
-  // Services with stateful: true need persistence
-  if (serviceConfig.stateful === true) {
-    return 'postgres';
-  }
-
-  // Otherwise no persistence needed
-  return 'none';
-}
-
-/**
  * Get all infrastructure services needed for a context
+ *
+ * Uses InfrastructureRegistry.getRequiredInfrastructure() to collect
+ * all infrastructure needed by active services from architecture.yaml v2.
  *
  * @param repoRoot - Repository root directory
  * @param activeServices - Array of active service metadata
+ * @param context - Execution context (default: 'local')
  * @returns Set of required infrastructure service names
  */
 export function getRequiredInfrastructure(
   repoRoot: string,
-  activeServices: ServiceMetadata[]
+  activeServices: ServiceMetadata[],
+  context: string = 'local'
 ): Set<string> {
-  const infrastructure = new Set<string>();
+  // Use InfrastructureRegistry to get required infrastructure from architecture.yaml
+  const serviceMetadata = activeServices.map(svc => ({
+    name: svc.name,
+    active: true,
+    dependencies: undefined, // Will be read from architecture.yaml by registry
+  }));
 
-  // Always need nats for messaging
-  infrastructure.add('nats');
+  try {
+    const specs = InfrastructureRegistry.getRequiredInfrastructure(
+      repoRoot,
+      context,
+      serviceMetadata
+    );
 
-  // Always need redis for idempotency (Sprint 1+)
-  infrastructure.add('redis');
-
-  // Check if any service needs postgres
-  const needsPostgres = activeServices.some(metadata => {
-    const deps = parseServiceDependencies(repoRoot, metadata);
-    return deps.infrastructure.includes('postgres');
-  });
-
-  if (needsPostgres) {
-    infrastructure.add('postgres');
+    // Return set of service names (filter out specs without serviceName)
+    return new Set(
+      specs
+        .filter(spec => spec.serviceName)
+        .map(spec => spec.serviceName!)
+    );
+  } catch (error) {
+    console.warn(`[parse-dependencies] Failed to get required infrastructure from registry: ${error instanceof Error ? error.message : String(error)}`);
+    // Fall back to empty set - callers should handle this gracefully
+    return new Set<string>();
   }
-
-  // Check if any service needs firestore (legacy support)
-  const needsFirestore = activeServices.some(metadata => {
-    const deps = parseServiceDependencies(repoRoot, metadata);
-    return deps.infrastructure.includes('firebase-emulator');
-  });
-
-  if (needsFirestore) {
-    infrastructure.add('firebase-emulator');
-  }
-
-  // Add nats-box for debugging
-  infrastructure.add('nats-box');
-
-  return infrastructure;
 }
 
 /**
