@@ -218,7 +218,7 @@ tasks:
     estimate: 0.5d
     assignee: Documentation Team
     dependencies: [S6-P3.1]
-    status: pending
+    status: completed
     description: |
       Update all documentation to use architecture.yaml v2 schema with docker provider
       examples, schema validation troubleshooting, and migration best practices.
