@@ -1045,6 +1045,11 @@ services:
       Serves WebSocket clients; uses a per-instance egress topic
       (internal.api.egress.v1.{instanceId}) so responses reach the instance owning the socket.
     entry: src/apps/api-gateway.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Publishes to internal.ingress.v1, consumes from internal.api.egress.v1
+        - persistence  # Persistence snapshot mode
     topics:
       publishes:
         - internal.ingress.v1
@@ -1070,6 +1075,11 @@ services:
     stateful: true
     owned_state: Firestore state and mutation_log collections.
     entry: src/apps/state-engine.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes internal.state.mutation.v1
+        - persistence  # State and mutation_log collections
     topics:
       consumes:
         - internal.state.mutation.v1
@@ -1087,6 +1097,11 @@ services:
     stateful: true
     owned_state: Short-term, TTL-bounded user disposition snapshots (DISPOSITION_SNAPSHOT_TTL_MS).
     entry: src/apps/disposition-service.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes disposition observations, publishes state mutations
+        - persistence  # User disposition snapshots
     topics:
       consumes:
         - internal.user.disposition.observation.v1
@@ -1197,6 +1212,11 @@ services:
     entry: src/apps/reflex-service.ts
     port: 3000
     stage: analyze
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes events for reflex matching, publishes with next/complete pattern
+        - caching    # Reflex cache for deterministic behavior patterns
     env:
       - REFLEX_CACHE_POLL_INTERVAL_MS
   context-pack:

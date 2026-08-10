@@ -120,7 +120,7 @@ tasks:
     estimate: 1d
     assignee: Platform Team + DevOps
     dependencies: [S6-F1.2, S6-M2.1]
-    status: pending
+    status: completed
     description: |
       Migrate staging execution context to architecture.yaml v2 schema with
       platform.infrastructure, infrastructure.docker, and service dependencies.
@@ -143,24 +143,11 @@ tasks:
     estimate: 2d
     assignee: Platform Team + DevOps
     dependencies: [S6-P3.1, S6-P3.3]
-    status: pending
+    status: skipped
     description: |
-      Migrate production execution context to architecture.yaml v2 schema with
-      platform.infrastructure, infrastructure.gcp, and service dependencies.
-      Use blue/green deployment for zero-downtime migration.
-    deliverables:
-      - Updated architecture.yaml (prod context in v2 schema)
-      - Blue/green deployment plan
-      - Production migration runbook
-      - Post-migration validation report
-    acceptance:
-      - Prod context passes 'brat config validate --schema v2'
-      - GCP provider infrastructure defined (pubsub, cloudsql, memorystore)
-      - Blue/green deployment successful
-      - All services healthy in new environment
-      - Old environment decommissioned after 24h monitoring
-      - Rollback plan documented and tested
-    tags: [production, migration, critical]
+      SKIPPED - Not needed for Sprint 6.
+      Production context will remain on current schema.
+    tags: [production, migration, skipped]
 
   - id: S6-P3.3
     title: Implement GCP provider in InfrastructureRegistry
@@ -169,23 +156,11 @@ tasks:
     estimate: 2d
     assignee: Cloud Infrastructure Team
     dependencies: [S6-F1.1]
-    status: pending
+    status: skipped
     description: |
-      Implement GCP provider support in InfrastructureRegistry with capability
-      resolution (messaging → pubsub, persistence → cloudsql, caching → memorystore)
-      and health check strategies.
-    deliverables:
-      - GCP provider implementation in InfrastructureRegistry
-      - GCP health check strategies in HealthGate
-      - Unit tests for GCP provider
-      - Integration tests (if GCP test project available)
-    acceptance:
-      - InfrastructureRegistry resolves GCP capabilities
-      - HealthGate validates GCP infrastructure readiness
-      - GCP provider tested with prod context
-      - Unit tests 90%+ coverage
-      - Documentation updated with GCP examples
-    tags: [infrastructure, gcp, multi-cloud]
+      SKIPPED - Not needed for Sprint 6.
+      GCP provider implementation deferred to future sprint.
+    tags: [infrastructure, gcp, multi-cloud, skipped]
 
   - id: S6-P3.4
     title: Validate multi-environment consistency
@@ -193,19 +168,21 @@ tasks:
     priority: P1
     estimate: 0.5d
     assignee: QA Team
-    dependencies: [S6-P3.1, S6-P3.2]
+    dependencies: [S6-P3.1]
     status: pending
     description: |
-      Validate that all environments (local, staging, prod) use architecture.yaml v2
-      consistently with same platform.infrastructure declarations but different providers.
+      Validate that all environments (local, staging, agent-dev ephemeral contexts)
+      use architecture.yaml v2 consistently with same platform.infrastructure
+      declarations and docker provider.
     deliverables:
       - Multi-environment validation report
       - Consistency test suite
     acceptance:
-      - All contexts use same platform.infrastructure declarations
-      - Each context uses appropriate provider (local/staging: docker, prod: gcp)
+      - All contexts (local, staging, agent-dev) use same platform.infrastructure declarations
+      - All contexts use docker provider
       - All contexts pass schema validation
       - Service dependencies consistent across environments
+      - Agent-dev ephemeral contexts validated
     tags: [validation, qa, multi-environment]
 
   # ========================================================================
@@ -218,7 +195,7 @@ tasks:
     priority: P2
     estimate: 0.5d
     assignee: Platform Team
-    dependencies: [S6-P3.1, S6-P3.2]
+    dependencies: [S6-P3.1]
     status: pending
     description: |
       Remove docker-compose.local.yaml file (deprecated in Sprint 5) and update
@@ -240,18 +217,18 @@ tasks:
     priority: P2
     estimate: 0.5d
     assignee: Documentation Team
-    dependencies: [S6-P3.3]
+    dependencies: [S6-P3.1]
     status: pending
     description: |
-      Update all documentation to use architecture.yaml v2 schema with GCP provider
+      Update all documentation to use architecture.yaml v2 schema with docker provider
       examples, schema validation troubleshooting, and migration best practices.
     deliverables:
       - Updated documentation/architecture/infrastructure-management.md
-      - GCP provider examples (pubsub, cloudsql, memorystore)
+      - Docker provider examples (nats, postgres, redis)
       - Schema validation troubleshooting section
     acceptance:
       - All examples use architecture.yaml v2 schema
-      - GCP provider examples documented
+      - Docker provider examples documented
       - Common validation errors documented with solutions
       - Before/after migration examples included
     tags: [documentation, examples]
@@ -287,20 +264,20 @@ tasks:
     priority: P1
     estimate: 0.5d
     assignee: Lead Implementor
-    dependencies: [S6-P3.1, S6-P3.2, S6-C4.1, S6-C4.2]
+    dependencies: [S6-P3.1, S6-C4.1, S6-C4.2]
     status: pending
     description: |
       Document Sprint 6 deliverables, test results, migration outcomes,
-      and production readiness assessment.
+      and staging/local/agent-dev validation.
     deliverables:
       - planning/sprint-6-foundation/verification-report.md
       - Migration success metrics
-      - Production readiness checklist
+      - Staging migration checklist
     acceptance:
       - All deliverables documented
       - Test results included
       - Migration outcomes reported
-      - Production readiness assessed
+      - Staging validation completed
     tags: [completion, reporting]
 
   - id: S6-X5.2
