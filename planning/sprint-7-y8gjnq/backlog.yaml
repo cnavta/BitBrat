@@ -71,7 +71,7 @@ tasks:
     estimate: 2d
     assignee: Platform Team
     dependencies: [S6-F1.1, S6-F1.2]
-    status: pending
+    status: completed
     description: |
       Create 'brat config migrate' command that detects v1 vs v2 schema,
       generates migration report with breaking changes, and supports --dry-run mode.
