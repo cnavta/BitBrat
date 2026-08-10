@@ -169,7 +169,7 @@ tasks:
     estimate: 0.5d
     assignee: QA Team
     dependencies: [S6-P3.1]
-    status: pending
+    status: completed
     description: |
       Validate that all environments (local, staging, agent-dev ephemeral contexts)
       use architecture.yaml v2 consistently with same platform.infrastructure

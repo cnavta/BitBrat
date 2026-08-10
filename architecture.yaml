@@ -1023,6 +1023,11 @@ services:
     kind: pipeline-service
     stage: ingest
     entry: src/apps/scheduler-service.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Publishes scheduled events to internal.ingress.v1
+        - persistence  # Stores schedule configurations
     topics:
       publishes:
         - internal.ingress.v1
@@ -1194,6 +1199,11 @@ services:
     kind: mcp-server
     stage: analyze
     entry: src/apps/story-engine-mcp.ts
+    # Infrastructure dependencies (v2 Schema)
+    dependencies:
+      infrastructure:
+        - messaging  # Consumes story enrichment events
+        - persistence  # Stores story state and continuity
     topics:
       consumes:
         - internal.story.enrich.v1

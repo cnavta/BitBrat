@@ -1,0 +1,10 @@
+id: sprint-7-y8gjnq
+title: Foundation & Production Migration
+goal: Complete Phase 1 (Foundation) with JSON Schema validation and migration
+  tooling, then begin Phase 4 (Production Migration) for staging/prod contexts
+owner: christophernavta
+createdAt: 2026-08-10T20:20:41.185Z
+status: planning
+links:
+  branch: feature/sprint-7-y8gjnq-foundation-production-migratio
+notes: Sprint initialized via MCP start-sprint tool
