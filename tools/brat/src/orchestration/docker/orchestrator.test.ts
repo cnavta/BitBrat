@@ -114,6 +114,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: orchestrator with allServiceNames
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         allServiceNames: ['llm-bot', 'tool-gateway', 'auth'],
         composeFile: '/test/repo/.docker-compose.merged.yaml',
       };
@@ -160,6 +161,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: orchestrator without allServiceNames (single-service mode)
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         service: 'llm-bot',
       };
 
@@ -183,6 +185,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: orchestrator with allServiceNames, but some files missing
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         allServiceNames: ['llm-bot', 'missing-service', 'auth'],
         composeFile: '/test/repo/.docker-compose.merged.yaml',
       };
@@ -213,6 +216,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: orchestrator with services needing auto-assigned ports
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         allServiceNames: ['llm-bot', 'tool-gateway'],
         composeFile: '/test/repo/.docker-compose.merged.yaml',
       };
@@ -246,6 +250,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: orchestrator with service names
       const options: DockerOrchestratorOptions = {
         repoRoot: '/Users/test/BitBratPlatform',
+        context: 'local',
         allServiceNames: ['auth', 'llm-bot'],
         composeFile: '/test/.docker-compose.merged.yaml',
       };
@@ -265,6 +270,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: orchestrator with empty allServiceNames and composeFile
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         allServiceNames: [],
         composeFile: '/test/.docker-compose.merged.yaml',
       };
@@ -289,6 +295,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: orchestrator without allServiceNames
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         service: 'test-service',
       };
 
@@ -312,6 +319,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: Traditional single-service deployment options
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         service: 'llm-bot',
       };
 
@@ -338,6 +346,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: Single-service deployment
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         service: 'test-service',
       };
 
@@ -361,6 +370,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: Standard orchestrator setup
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         service: 'test-service',
       };
 
@@ -384,6 +394,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: Bulk deployment with service names
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         allServiceNames: ['auth', 'llm-bot', 'tool-gateway'],
         composeFile: '/test/.docker-compose.merged.yaml',
       };
@@ -410,6 +421,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: Orchestrator with port assignments
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         allServiceNames: ['llm-bot'],
         composeFile: '/test/.docker-compose.merged.yaml',
       };
@@ -439,6 +451,7 @@ describe('DockerOrchestrator - PortManager Integration (Sprint 379)', () => {
       // Given: Mix of explicit and auto-assigned ports
       const options: DockerOrchestratorOptions = {
         repoRoot: '/test/repo',
+        context: 'local',
         allServiceNames: ['llm-bot', 'tool-gateway'],
         composeFile: '/test/.docker-compose.merged.yaml',
       };

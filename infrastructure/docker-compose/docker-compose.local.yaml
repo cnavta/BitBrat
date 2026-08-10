@@ -726,8 +726,8 @@ services:
           - "context-pack.bitbrat.local"
 networks:
   bitbrat-network:
-    driver: "bridge"
-    name: "bitbrat-staging-network"
+    external: true
+    name: "bitbrat-network"
 volumes:
   postgres-data: {}
   nats-data: {}
