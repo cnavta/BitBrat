@@ -3,12 +3,16 @@ import * as os from 'os';
 import * as path from 'path';
 import { ComposeFactory } from './compose-factory';
 
-function makeRepo(baseYaml: string): string {
+function makeRepo(baseYaml: string): { repoRoot: string; composePath: string } {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'brat-compose-'));
   const baseDir = path.join(repoRoot, 'infrastructure', 'docker-compose');
   fs.mkdirSync(path.join(baseDir, 'services'), { recursive: true });
-  fs.writeFileSync(path.join(baseDir, 'docker-compose.local.yaml'), baseYaml, 'utf8');
-  return repoRoot;
+  // Use non-context-specific name for testing per-service compose file logic
+  // Context-specific names match pattern: docker-compose.{context}.yaml where context is [a-z-]+
+  // Use docker-compose.yaml (no context suffix) to test per-service file behavior
+  const composePath = 'infrastructure/docker-compose/docker-compose.yaml';
+  fs.writeFileSync(path.join(repoRoot, composePath), baseYaml, 'utf8');
+  return { repoRoot, composePath };
 }
 
 function writeServiceFile(repoRoot: string, name: string): void {
@@ -23,10 +27,10 @@ function baseName(serviceFile: string): string {
 
 describe('ComposeFactory.getComposeFiles – honors active:false', () => {
   it('omits inactive per-service compose files on a full (--all) deploy', () => {
-    const repoRoot = makeRepo('services: {}\n');
+    const { repoRoot, composePath } = makeRepo('services: {}\n');
     ['llm-bot', 'obs-mcp', 'ingress-egress'].forEach((s) => writeServiceFile(repoRoot, s));
 
-    const factory = new ComposeFactory(repoRoot);
+    const factory = new ComposeFactory(repoRoot, composePath);
     const { serviceFiles } = factory.getComposeFiles(undefined, ['obs-mcp']);
     const names = serviceFiles.map(baseName);
 
@@ -35,10 +39,10 @@ describe('ComposeFactory.getComposeFiles – honors active:false', () => {
   });
 
   it('includes all services when no inactive list is provided (down/logs/ps parity)', () => {
-    const repoRoot = makeRepo('services: {}\n');
+    const { repoRoot, composePath } = makeRepo('services: {}\n');
     ['llm-bot', 'obs-mcp'].forEach((s) => writeServiceFile(repoRoot, s));
 
-    const factory = new ComposeFactory(repoRoot);
+    const factory = new ComposeFactory(repoRoot, composePath);
     const names = factory.getComposeFiles().serviceFiles.map(baseName);
 
     expect(names).toContain('obs-mcp');
@@ -46,18 +50,18 @@ describe('ComposeFactory.getComposeFiles – honors active:false', () => {
   });
 
   it('fails fast when an explicitly named target is inactive', () => {
-    const repoRoot = makeRepo('services: {}\n');
+    const { repoRoot, composePath } = makeRepo('services: {}\n');
     writeServiceFile(repoRoot, 'obs-mcp');
 
-    const factory = new ComposeFactory(repoRoot);
+    const factory = new ComposeFactory(repoRoot, composePath);
     expect(() => factory.getComposeFiles('obs-mcp', ['obs-mcp'])).toThrow(/inactive/i);
   });
 
   it('still deploys an explicitly named active target', () => {
-    const repoRoot = makeRepo('services: {}\n');
+    const { repoRoot, composePath } = makeRepo('services: {}\n');
     ['llm-bot', 'obs-mcp'].forEach((s) => writeServiceFile(repoRoot, s));
 
-    const factory = new ComposeFactory(repoRoot);
+    const factory = new ComposeFactory(repoRoot, composePath);
     const names = factory.getComposeFiles('llm-bot', ['obs-mcp']).serviceFiles.map(baseName);
     expect(names).toEqual(['llm-bot']);
   });
@@ -65,7 +69,7 @@ describe('ComposeFactory.getComposeFiles – honors active:false', () => {
 
 describe('ComposeFactory.getBuildableBaseServices', () => {
   it('returns base-file services that declare a build section', () => {
-    const repoRoot = makeRepo(`services:
+    const { repoRoot, composePath } = makeRepo(`services:
   nats:
     image: nats:2-alpine
   firebase-emulator:
@@ -73,24 +77,25 @@ describe('ComposeFactory.getBuildableBaseServices', () => {
       context: .
       dockerfile: infrastructure/docker-compose/Dockerfile.emulator
 `);
-    const factory = new ComposeFactory(repoRoot);
+    const factory = new ComposeFactory(repoRoot, composePath);
     expect(factory.getBuildableBaseServices()).toEqual(['firebase-emulator']);
   });
 
   it('returns an empty array when no base service has a build section', () => {
-    const repoRoot = makeRepo(`services:
+    const { repoRoot, composePath } = makeRepo(`services:
   nats:
     image: nats:2-alpine
   ollama:
     image: ollama/ollama:latest
 `);
-    const factory = new ComposeFactory(repoRoot);
+    const factory = new ComposeFactory(repoRoot, composePath);
     expect(factory.getBuildableBaseServices()).toEqual([]);
   });
 
   it('returns an empty array when the base compose file is missing', () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'brat-compose-empty-'));
-    const factory = new ComposeFactory(repoRoot);
+    const composePath = 'infrastructure/docker-compose/docker-compose.missing.yaml';
+    const factory = new ComposeFactory(repoRoot, composePath);
     expect(factory.getBuildableBaseServices()).toEqual([]);
   });
 });
