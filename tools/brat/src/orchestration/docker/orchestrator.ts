@@ -42,14 +42,27 @@ export class DockerOrchestrator {
   constructor(private readonly options: DockerOrchestratorOptions) {
     this.envResolver = new EnvironmentResolver(options.repoRoot);
 
-    // Sprint 358: Use context-specific docker-compose file if it exists
+    // Sprint 358+: Use context-specific docker-compose file
+    // Sprint 6 (S6-C4.1): baseComposePath is now required (docker-compose.local.yaml removed)
     let baseComposePath: string | undefined;
     if (options.context) {
       const contextComposePath = `infrastructure/docker-compose/docker-compose.${options.context}.yaml`;
       const fullPath = path.join(options.repoRoot, contextComposePath);
       if (fs.existsSync(fullPath)) {
         baseComposePath = contextComposePath;
+      } else {
+        throw new Error(
+          `Context-specific compose file not found: ${contextComposePath}\n` +
+          `Generate it with: brat context create ${options.context}\n` +
+          `See: planning/sprint-6-foundation/migration-workflow.md`
+        );
       }
+    } else {
+      // Sprint 6: No context specified - this should not happen in normal operation
+      throw new Error(
+        'Execution context is required. Specify --context flag or set BITBRAT_CONTEXT.\n' +
+        'Example: brat deploy service <name> --context local'
+      );
     }
 
     this.composeFactory = new ComposeFactory(options.repoRoot, baseComposePath);

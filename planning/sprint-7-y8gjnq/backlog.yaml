@@ -196,7 +196,7 @@ tasks:
     estimate: 0.5d
     assignee: Platform Team
     dependencies: [S6-P3.1]
-    status: pending
+    status: completed
     description: |
       Remove docker-compose.local.yaml file (deprecated in Sprint 5) and update
       all references to use dynamically generated compose files from architecture.yaml v2.
