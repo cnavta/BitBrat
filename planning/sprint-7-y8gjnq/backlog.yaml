@@ -287,7 +287,7 @@ tasks:
     estimate: 0.5d
     assignee: Lead Implementor
     dependencies: [S6-X5.1]
-    status: pending
+    status: completed
     description: |
       Conduct Sprint 6 retrospective documenting what went well, what could
       be improved, and key learnings for future schema/migration work.
