@@ -12,6 +12,7 @@ import type { ResolvedContext } from '../../context/types';
 // Mock fs module with promises for Sprint 375 ComposeMerger integration
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
+  readFileSync: jest.fn(),
   promises: {
     readFile: jest.fn(),
     writeFile: jest.fn(),
@@ -22,6 +23,84 @@ import * as fs from 'fs';
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockReadFile = (mockFs.promises.readFile as jest.MockedFunction<any>);
 const mockWriteFile = (mockFs.promises.writeFile as jest.MockedFunction<any>);
+
+// Mock InfrastructureRegistry (Sprint 5)
+jest.mock('../../infrastructure/registry', () => {
+  type InfrastructureSpec = import('../../infrastructure/types').InfrastructureSpec;
+
+  const createMockSpecs = (): InfrastructureSpec[] => [
+    {
+      serviceName: 'nats',
+      capability: 'messaging',
+      provider: 'docker',
+      image: 'nats:2.10-alpine',
+      ports: { client: '4222', monitoring: '8222' },
+      config: {},
+      volumes: [{ name: 'nats-data', mount: '/data' }],
+      healthCheck: {
+        test: ['CMD', 'nats', 'server', 'check'],
+        interval: '5s',
+        timeout: '3s',
+        retries: 10,
+      },
+    },
+    {
+      serviceName: 'redis',
+      capability: 'caching',
+      provider: 'docker',
+      image: 'redis:7-alpine',
+      ports: { main: '6379' },
+      config: {},
+      volumes: [{ name: 'redis-data', mount: '/data' }],
+      healthCheck: {
+        test: ['CMD', 'redis-cli', 'ping'],
+        interval: '5s',
+        timeout: '3s',
+        retries: 10,
+      },
+    },
+    {
+      serviceName: 'postgres',
+      capability: 'persistence',
+      provider: 'docker',
+      image: 'postgres:15-alpine',
+      ports: { main: '5432' },
+      config: {},
+      volumes: [{ name: 'postgres-data', mount: '/var/lib/postgresql/data' }],
+      healthCheck: {
+        test: ['CMD', 'pg_isready'],
+        interval: '5s',
+        timeout: '3s',
+        retries: 10,
+      },
+    },
+  ];
+
+  return {
+    InfrastructureRegistry: {
+      getAllInfrastructureSpecs: jest.fn(() => createMockSpecs()),
+      getInfrastructureSpec: jest.fn((repoRoot: string, context: string, serviceName: string) => {
+        const specs = createMockSpecs();
+        return specs.find(s => s.serviceName === serviceName);
+      }),
+      getInfrastructureByCapability: jest.fn((repoRoot: string, context: string, capability: string) => {
+        const specs = createMockSpecs();
+        const capabilityMap: Record<string, string> = {
+          messaging: 'nats',
+          caching: 'redis',
+          persistence: 'postgres',
+        };
+        const serviceName = capabilityMap[capability];
+        return specs.find(s => s.serviceName === serviceName);
+      }),
+      getRequiredInfrastructure: jest.fn(),
+      getInfrastructureServices: jest.fn((repoRoot: string, context: string) => {
+        const specs = createMockSpecs();
+        return specs.map(s => s.serviceName).sort();
+      }),
+    },
+  };
+});
 
 // Mock DockerOrchestrator
 jest.mock('../docker/orchestrator', () => ({
@@ -38,6 +117,71 @@ describe('DockerComposeStrategy', () => {
   beforeEach(() => {
     strategy = new DockerComposeStrategy();
     jest.clearAllMocks();
+
+    // Sprint 5: Mock architecture.yaml reading for InfrastructureRegistry
+    const mockArchYaml = `
+platform:
+  infrastructure:
+    docker:
+      nats:
+        capability: messaging
+        serviceName: nats
+        image: nats:2.10-alpine
+        ports:
+          client: "4222"
+          monitoring: "8222"
+      postgres:
+        capability: persistence
+        serviceName: postgres
+        image: postgres:15-alpine
+        ports:
+          main: "5432"
+      redis:
+        capability: caching
+        serviceName: redis
+        image: redis:7-alpine
+        ports:
+          main: "6379"
+services:
+  test-service:
+    active: true
+    dependencies:
+      infrastructure:
+        - messaging
+        - persistence
+  service-a:
+    active: true
+    dependencies:
+      infrastructure:
+        - messaging
+  service-b:
+    active: true
+    dependencies:
+      infrastructure:
+        - messaging
+  service-c:
+    active: true
+    dependencies:
+      infrastructure:
+        - messaging
+`;
+
+    // Mock fs.readFileSync for architecture.yaml and docker-compose files
+    (mockFs.readFileSync as jest.MockedFunction<any>).mockImplementation((filepath: string) => {
+      if (filepath.includes('architecture.yaml')) {
+        return mockArchYaml;
+      }
+      if (filepath.includes('docker-compose.local.yaml')) {
+        return `
+services:
+  bitbrat-base:
+    image: bitbrat-base:latest
+    profiles:
+      - build-only
+`;
+      }
+      return '';
+    });
 
     // Sprint 375: Mock fs.promises for ComposeMerger integration
     // Simulate reading base compose file and writing merged file
@@ -298,6 +442,11 @@ services:
 `);
 
       const results = await strategy.deployAll(mockServices, mockContext, {});
+
+      // Debug: Log results to see what's failing
+      if (!results.every(r => r.status === 'success')) {
+        console.log('Failed deployments:', results.filter(r => r.status !== 'success'));
+      }
 
       expect(results).toHaveLength(3);
       expect(results.every(r => r.status === 'success')).toBe(true);

@@ -20,8 +20,8 @@ export interface RenderOptions {
 export function loadRendererInputFromArchitecture(opts: { rootDir: string; env: 'dev'|'staging'|'prod'; projectId: string }): RendererInput {
   const arch: any = loadArchitecture(opts.rootDir);
   // Support both current and legacy locations of LB routing in architecture.yaml
-  const lbNode = arch?.infrastructure?.resources?.['main-load-balancer']
-    || arch?.infrastructure?.['main-load-balancer']
+  const lbNode = arch?.cloudResources?.resources?.['main-load-balancer']
+    || arch?.cloudResources?.['main-load-balancer']
     || {};
   const routing = lbNode?.routing || {};
   const name: string = lbNode?.name || 'bitbrat-global-url-map';

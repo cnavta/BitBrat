@@ -1,3 +1,24 @@
+# =============================================================================
+# DEPRECATION NOTICE (Sprint 5 I3.7)
+# =============================================================================
+#
+# This file is DEPRECATED as of Sprint 5 and will be removed in a future sprint.
+#
+# Infrastructure services are now generated dynamically from architecture.yaml v2:
+#   - Platform requirements: architecture.yaml > platform.infrastructure
+#   - Provider implementation: architecture.yaml > infrastructure.docker
+#   - Context-specific config: architecture.yaml > executionContexts.*.infrastructure
+#
+# Generated compose files: infrastructure/docker-compose/docker-compose.{context}.yaml
+#
+# This file is kept ONLY for:
+#   1. Reading bitbrat-base service definition (build-only service)
+#   2. Backward compatibility during migration period
+#
+# See: planning/sprint-5-anrn33/README.md for migration guide
+# See: documentation/guides/architecture-yaml-v2.md for infrastructure schema
+#
+# =============================================================================
 
 services:
   # Sprint 375 Phase 2: Shared base image for all BitBrat services

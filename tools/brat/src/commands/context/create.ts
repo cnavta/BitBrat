@@ -16,6 +16,8 @@ import { cmdDocker } from '../../cli/docker';
 import { getActiveServicesArray } from '../../context/parse-services';
 import { getRequiredInfrastructure } from '../../context/parse-dependencies';
 import { generateAndWriteDockerCompose } from '../../context/generate-docker-compose';
+import { HealthGate } from '../../infrastructure/health-gate';
+import { InfrastructureRegistry } from '../../infrastructure/registry';
 
 export interface ContextCreateOptions {
   /** Non-interactive mode with all values from flags */
@@ -90,13 +92,30 @@ export async function executeContextCreate(contextName: string, options: Context
       try {
         await cmdDocker('up', { context: contextName, loki: false });
 
-        // Wait for PostgreSQL to be ready (if using PostgreSQL)
+        // Wait for infrastructure to be ready (Sprint 5 I3.4: Use HealthGate)
         if (contextConfig.runtime.persistence?.driver === 'postgres') {
           console.log();
-          console.log('Waiting for PostgreSQL to be ready...');
-          // Sprint 3: Pass contextConfig so waitForPostgres can connect to remote hosts
-          await waitForPostgres(30, contextConfig); // 30 second timeout
-          console.log('✅ PostgreSQL is ready');
+          console.log('Waiting for infrastructure to be ready...');
+
+          // Get PostgreSQL infrastructure spec from architecture.yaml
+          const repoRoot = process.cwd();
+          const postgresSpec = InfrastructureRegistry.getInfrastructureByCapability(
+            repoRoot,
+            contextName,
+            'persistence'
+          );
+
+          if (postgresSpec) {
+            await HealthGate.waitForInfrastructure([postgresSpec], {
+              timeout: 30000, // 30 second timeout
+              parallel: false,
+              logger: console,
+            });
+          } else {
+            // Fall back to legacy behavior if spec not found
+            console.warn('⚠️  Warning: PostgreSQL infrastructure spec not found in architecture.yaml');
+            console.log('Skipping health check - please verify PostgreSQL is running');
+          }
         }
       } catch (error: any) {
         console.error();
@@ -653,77 +672,46 @@ async function promptForSeeding(contextConfig: any): Promise<boolean> {
  * Wait for PostgreSQL to be ready by attempting connections
  * Sprint 358: Exported for reuse by AgentDevContextManager
  * Sprint 3: Updated to accept contextConfig for remote Docker deployments
+ * Sprint 5 I3.4: DEPRECATED - Replaced by HealthGate.waitForInfrastructure()
  *
+ * DEPRECATED: This function now wraps HealthGate.waitForInfrastructure() for backward
+ * compatibility. New code should use HealthGate directly with InfrastructureRegistry.
+ *
+ * @deprecated Use HealthGate.waitForInfrastructure() with InfrastructureRegistry instead
  * @param timeoutSeconds - Maximum time to wait in seconds
  * @param contextConfig - Optional context configuration (for remote hosts)
  */
 export async function waitForPostgres(timeoutSeconds: number, contextConfig?: any): Promise<void> {
-  const { Pool } = await import('pg');
-  const startTime = Date.now();
-  const timeoutMs = timeoutSeconds * 1000;
+  // Get PostgreSQL infrastructure spec from architecture.yaml and use HealthGate
+  const repoRoot = process.cwd();
+  const contextName = contextConfig?.name || 'local';
 
-  // Sprint 3: Use connection info from contextConfig if provided (for remote deployments)
-  // Otherwise fall back to localhost (for local deployments and backwards compatibility)
-  const conn = contextConfig?.runtime?.persistence?.connection;
+  try {
+    const postgresSpec = InfrastructureRegistry.getInfrastructureByCapability(
+      repoRoot,
+      contextName,
+      'persistence'
+    );
 
-  // Sprint 3 Fix #8: Handle autoDiscover mode for remote Docker contexts
-  // When autoDiscover is enabled, extract hostname from deployment.docker.host
-  let poolConfig;
-  if (conn) {
-    // Explicit connection provided
-    poolConfig = {
-      host: conn.host,
-      port: conn.port,
-      database: conn.database,
-      user: conn.username,
-      password: conn.password,
-      connectionTimeoutMillis: 2000,
-    };
-  } else if (contextConfig?.runtime?.persistence?.autoDiscover &&
-             contextConfig?.deployment?.docker?.host?.startsWith('ssh://')) {
-    // Auto-discover mode for remote Docker: extract hostname from ssh://user@host
-    const sshHost = contextConfig.deployment.docker.host.replace('ssh://', '');
-    const hostname = sshHost.includes('@') ? sshHost.split('@')[1] : sshHost;
-    poolConfig = {
-      host: hostname,
-      port: 5432,
-      database: 'bitbrat',
-      user: 'bitbrat',
-      password: 'bitbrat_dev_password',
-      connectionTimeoutMillis: 2000,
-    };
-  } else {
-    // Local deployment or backwards compatibility
-    poolConfig = {
-      host: 'localhost',
-      port: 5432,
-      database: 'bitbrat',
-      user: 'bitbrat',
-      password: 'bitbrat_dev_password',
-      connectionTimeoutMillis: 2000,
-    };
-  }
-
-  while (Date.now() - startTime < timeoutMs) {
-    const pool = new Pool(poolConfig);
-
-    try {
-      await pool.query('SELECT 1');
-      await pool.end();
-      return; // Success!
-    } catch (error) {
-      await pool.end();
-      // Wait 1 second before retry
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    if (postgresSpec) {
+      await HealthGate.waitForInfrastructure([postgresSpec], {
+        timeout: timeoutSeconds * 1000,
+        parallel: false,
+      });
+    } else {
+      throw new Error('PostgreSQL infrastructure spec not found in architecture.yaml');
     }
+  } catch (error) {
+    throw new Error(
+      `PostgreSQL did not become ready within ${timeoutSeconds} seconds: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
-
-  throw new Error(`PostgreSQL did not become ready within ${timeoutSeconds} seconds`);
 }
 
 /**
  * Validate PostgreSQL connection before seeding
  * Sprint 3: Check if PostgreSQL is accessible before attempting to seed
+ * Sprint 5 I3.4: Updated to use HealthGate.checkHealth() for consistency
  *
  * @param contextConfig - Context configuration
  * @returns True if PostgreSQL is accessible, false otherwise
@@ -733,55 +721,24 @@ async function validatePostgresConnection(contextConfig: any): Promise<boolean> 
     return false;
   }
 
-  const { Pool } = await import('pg');
-  const conn = contextConfig.runtime.persistence.connection;
-
-  // Sprint 3 Fix #8: Handle autoDiscover mode for remote Docker contexts
-  // Same logic as waitForPostgres() to determine correct connection host
-  let poolConfig;
-  if (conn) {
-    // Explicit connection provided
-    poolConfig = {
-      host: conn.host,
-      port: conn.port,
-      database: conn.database,
-      user: conn.username,
-      password: conn.password,
-      connectionTimeoutMillis: 2000,
-    };
-  } else if (contextConfig.runtime.persistence.autoDiscover &&
-             contextConfig.deployment?.docker?.host?.startsWith('ssh://')) {
-    // Auto-discover mode for remote Docker: extract hostname from ssh://user@host
-    const sshHost = contextConfig.deployment.docker.host.replace('ssh://', '');
-    const hostname = sshHost.includes('@') ? sshHost.split('@')[1] : sshHost;
-    poolConfig = {
-      host: hostname,
-      port: 5432,
-      database: 'bitbrat',
-      user: 'bitbrat',
-      password: 'bitbrat_dev_password',
-      connectionTimeoutMillis: 2000,
-    };
-  } else {
-    // Local deployment
-    poolConfig = {
-      host: 'localhost',
-      port: 5432,
-      database: 'bitbrat',
-      user: 'bitbrat',
-      password: 'bitbrat_dev_password',
-      connectionTimeoutMillis: 2000,
-    };
-  }
-
-  const pool = new Pool(poolConfig);
+  // Sprint 5: Use HealthGate to check PostgreSQL health
+  const repoRoot = process.cwd();
+  const contextName = contextConfig.name || 'local';
 
   try {
-    await pool.query('SELECT 1');
-    await pool.end();
-    return true;
+    const postgresSpec = InfrastructureRegistry.getInfrastructureByCapability(
+      repoRoot,
+      contextName,
+      'persistence'
+    );
+
+    if (!postgresSpec) {
+      return false;
+    }
+
+    // Use HealthGate to check if PostgreSQL is healthy
+    return await HealthGate.checkHealth(postgresSpec);
   } catch (error) {
-    await pool.end();
     return false;
   }
 }

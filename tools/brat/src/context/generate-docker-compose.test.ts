@@ -10,10 +10,87 @@ import {
 import { ServiceMetadata } from './parse-services';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
+import { InfrastructureRegistry } from '../infrastructure/registry';
+import type { InfrastructureSpec } from '../infrastructure/types';
 
 // Mock fs
 jest.mock('fs');
 const mockFs = fs as jest.Mocked<typeof fs>;
+
+// Mock InfrastructureRegistry
+jest.mock('../infrastructure/registry', () => {
+  // Import type here for use in mock
+  type InfrastructureSpec = import('../infrastructure/types').InfrastructureSpec;
+
+  const createMockSpecs = (): InfrastructureSpec[] => [
+    {
+      serviceName: 'nats',
+      capability: 'messaging',
+      provider: 'docker',
+      image: 'nats:2.9-alpine',
+      ports: { client: '4222', monitoring: '8222' },
+      config: {},
+      volumes: [{ name: 'nats-data', mount: '/data' }],
+      healthCheck: {
+        test: ['CMD', 'nats', 'server', 'check'],
+        interval: '5s',
+        timeout: '3s',
+        retries: 10,
+      },
+    },
+    {
+      serviceName: 'redis',
+      capability: 'caching',
+      provider: 'docker',
+      image: 'redis:7-alpine',
+      ports: { main: '6379' },
+      config: {},
+      volumes: [{ name: 'redis-data', mount: '/data' }],
+      healthCheck: {
+        test: ['CMD', 'redis-cli', 'ping'],
+        interval: '5s',
+        timeout: '3s',
+        retries: 10,
+      },
+    },
+    {
+      serviceName: 'postgres',
+      capability: 'persistence',
+      provider: 'docker',
+      image: 'postgres:15-alpine',
+      ports: { main: '5432' },
+      config: {},
+      volumes: [{ name: 'postgres-data', mount: '/var/lib/postgresql/data' }],
+      healthCheck: {
+        test: ['CMD', 'pg_isready'],
+        interval: '5s',
+        timeout: '3s',
+        retries: 10,
+      },
+    },
+    {
+      serviceName: 'nats-box',
+      capability: 'messaging-debug',
+      provider: 'docker',
+      image: 'natsio/nats-box:latest',
+      ports: {},
+      config: {},
+      volumes: [],
+    },
+  ];
+
+  return {
+    InfrastructureRegistry: {
+      getAllInfrastructureSpecs: jest.fn(() => createMockSpecs()),
+      getInfrastructureSpec: jest.fn((repoRoot: string, context: string, serviceName: string) => {
+        const specs = createMockSpecs();
+        return specs.find(s => s.serviceName === serviceName);
+      }),
+      getInfrastructureByCapability: jest.fn(),
+      getRequiredInfrastructure: jest.fn(),
+    },
+  };
+});
 
 describe('generateDockerCompose', () => {
   const mockRepoRoot = '/mock/repo';

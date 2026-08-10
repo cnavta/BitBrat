@@ -2,7 +2,7 @@
 
 **Platform-agnostic infrastructure declarations for BitBrat services**
 
-**Status**: Sprint 4+ (architecture.yaml v2 schema)
+**Status**: Sprint 5+ (InfrastructureRegistry with architecture.yaml v2 schema)
 **Audience**: Service developers, platform engineers
 
 ## Overview
@@ -384,31 +384,123 @@ npm run brat -- infrastructure health --context staging
 
 **Internal API for platform tooling (not for service code)**
 
+Sprint 5 introduces `InfrastructureRegistry` as the central source of truth for infrastructure configuration. All deployment tooling uses this API instead of hardcoded infrastructure lists.
+
+### Core Methods
+
 ```typescript
 import { InfrastructureRegistry } from '@/infrastructure/registry';
 
-// Get all required infrastructure for a context
-const infrastructure = InfrastructureRegistry.getRequiredInfrastructure(
+// 1. Get all required infrastructure for active services
+const specs = InfrastructureRegistry.getRequiredInfrastructure(
   repoRoot,
   context,
   activeServices
 );
-// Returns: [{service: 'nats', ...}, {service: 'redis', ...}, {service: 'postgres', ...}]
+// Returns: InfrastructureSpec[] - deduplicated specs for all required infrastructure
+// Example: [{serviceName: 'nats', capability: 'messaging', ...}, {serviceName: 'redis', ...}]
 
-// Get provider for specific capability
-const messagingProvider = InfrastructureRegistry.getProvider(
+// 2. Get infrastructure implementation for specific capability
+const spec = InfrastructureRegistry.getInfrastructureByCapability(
   repoRoot,
   context,
   'messaging'
 );
-// Returns: {service: 'nats', image: 'nats:2.10-alpine', ...}
+// Returns: InfrastructureSpec | null
+// Example: {serviceName: 'nats', capability: 'messaging', provider: 'docker', image: 'nats:2.10-alpine', ports: {...}, ...}
 
-// Validate dependencies
-const errors = InfrastructureRegistry.validateDependencies(
+// 3. Get all infrastructure service names (for docker-compose)
+const serviceNames = InfrastructureRegistry.getInfrastructureServices(
   repoRoot,
+  context
+);
+// Returns: string[] - sorted array of service names
+// Example: ['nats', 'postgres', 'redis']
+
+// 4. Get all infrastructure specs for a context
+const allSpecs = InfrastructureRegistry.getAllInfrastructureSpecs(
+  repoRoot,
+  context
+);
+// Returns: InfrastructureSpec[] - all infrastructure specs (not filtered by dependencies)
+// Example: [{serviceName: 'nats', ...}, {serviceName: 'redis', ...}, {serviceName: 'postgres', ...}]
+
+// 5. Validate service dependencies
+const result = InfrastructureRegistry.validateDependencies(
+  repoRoot,
+  context,
   services
 );
-// Returns: ['Service "llm-bot" requires "caching" but no provider found']
+// Returns: ValidationResult { valid: boolean, errors: string[], warnings: string[] }
+// Example: {valid: false, errors: ['Service "llm-bot" requires "caching" but no provider found'], warnings: []}
+```
+
+### InfrastructureSpec Interface
+
+```typescript
+interface InfrastructureSpec {
+  capability: string;          // 'messaging', 'caching', 'persistence'
+  provider: string;            // 'docker', 'gcp', 'aws', 'azure'
+  serviceName: string;         // 'nats', 'redis', 'postgres'
+  type?: string;               // Provider-specific type (e.g., 'pubsub', 'memorystore')
+  image?: string;              // Docker image (docker provider only)
+  ports?: Record<string, string>;  // Port mappings {client: '4222', http: '8222'}
+  volumes?: VolumeSpec[];      // Volume mounts
+  env?: Record<string, string>;    // Environment variables
+  config?: Record<string, any>;    // Merged configuration (platform → provider → context)
+  healthCheck?: HealthCheck;   // Health check configuration
+  intent?: string;             // Why this infrastructure is needed
+}
+```
+
+### Usage in Deployment Tools
+
+**parse-dependencies.ts** - Sprint 5 migration:
+
+```typescript
+// OLD (hardcoded):
+const infrastructure = new Set<string>(['nats', 'redis']);
+
+// NEW (declarative):
+const specs = InfrastructureRegistry.getRequiredInfrastructure(
+  repoRoot,
+  context,
+  activeServices
+);
+const infrastructure = new Set(specs.map(s => s.serviceName));
+```
+
+**generate-docker-compose.ts** - Sprint 5 migration:
+
+```typescript
+// OLD (read from docker-compose.local.yaml):
+const infraCompose = yaml.parse(fs.readFileSync('docker-compose.local.yaml'));
+
+// NEW (generate from InfrastructureRegistry):
+const allSpecs = InfrastructureRegistry.getAllInfrastructureSpecs(repoRoot, context);
+for (const spec of allSpecs) {
+  const composeDef = {
+    image: spec.image,
+    environment: spec.env || {},
+    healthcheck: spec.healthCheck ? {
+      test: spec.healthCheck.test,
+      interval: spec.healthCheck.interval || '5s',
+      timeout: spec.healthCheck.timeout || '3s',
+      retries: spec.healthCheck.retries || 10,
+    } : undefined,
+  };
+  services[spec.serviceName] = composeDef;
+}
+```
+
+**docker-compose-strategy.ts** - Sprint 5 migration:
+
+```typescript
+// OLD (hardcoded):
+const INFRA_SERVICES = ['nats', 'redis', 'postgres', 'nats-box'];
+
+// NEW (dynamic):
+const infraServices = InfrastructureRegistry.getInfrastructureServices(repoRoot, context);
 ```
 
 ## Health Checks
@@ -684,9 +776,9 @@ services:
 // tools/brat/src/context/parse-dependencies.ts (v2)
 const requiredInfra = metadata.dependencies?.infrastructure || [];
 for (const capability of requiredInfra) {
-  const provider = InfrastructureRegistry.getProvider(repoRoot, context, capability);
-  if (provider) {
-    infrastructure.push(provider.service);
+  const spec = InfrastructureRegistry.getInfrastructureByCapability(repoRoot, context, capability);
+  if (spec) {
+    infrastructure.push(spec.serviceName);
   }
 }
 ```
@@ -699,7 +791,7 @@ for (const capability of requiredInfra) {
 4. Validate: `npm run brat -- config validate --schema v2`
 5. Test: `npm run brat -- deploy services --all --context local`
 
-See [migration-guide.md](../../planning/sprint-4-architecture-yaml-redesign/migration-guide.md) for complete migration instructions.
+See [migration-guide.md](../../planning/sprint-5-anrn33/migration-guide.md) for complete migration instructions.
 
 ## Best Practices
 
@@ -779,9 +871,10 @@ executionContexts:
 
 ## Reference
 
-- [Schema Proposal](../../planning/sprint-4-architecture-yaml-redesign/schema-proposal.md) - Complete v2 schema
-- [Migration Guide](../../planning/sprint-4-architecture-yaml-redesign/migration-guide.md) - v1 → v2 migration
-- [Implementation Roadmap](../../planning/sprint-4-architecture-yaml-redesign/implementation-roadmap.md) - Phased rollout
+- [Schema Proposal](../../planning/sprint-5-anrn33/schema-proposal.md) - Complete v2 schema with InfrastructureRegistry
+- [Migration Guide](../../planning/sprint-5-anrn33/migration-guide.md) - v1 → v2 migration (hardcoded → declarative)
+- [Implementation Roadmap](../../planning/sprint-5-anrn33/implementation-roadmap.md) - Phased rollout with InfrastructureRegistry
+- [Sprint 5 README](../../planning/sprint-5-anrn33/README.md) - Complete Sprint 5 documentation
 - [Execution Contexts](../guides/execution-contexts.md) - Context configuration
 - [Docker Deployment](../guides/docker-deployment.md) - Docker provider details
 - [GCP Deployment](../guides/gcp-deployment.md) - GCP provider details

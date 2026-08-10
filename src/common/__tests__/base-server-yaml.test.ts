@@ -28,7 +28,7 @@ describe('BaseServer.loadArchitectureYaml', () => {
 
   it('should find the load balancer default domain', () => {
     const arch = Bit.loadArchitectureYaml();
-    const domain = arch?.infrastructure?.resources?.['main-load-balancer']?.routing?.default_domain;
+    const domain = arch?.cloudResources?.resources?.['main-load-balancer']?.routing?.default_domain;
     expect(domain).toBeDefined();
     expect(domain).toContain('bitbrat.ai');
   });

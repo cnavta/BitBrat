@@ -21,6 +21,7 @@ import type { SecureFile } from '../../config/types';
 import { DockerOrchestrator, DockerOrchestratorOptions } from '../docker/orchestrator';
 import { SecureFilesValidator } from '../../validation/secure-files-validator';
 import { ComposeMerger } from '../docker/compose-merger';
+import { InfrastructureRegistry } from '../../infrastructure/registry';
 import { execCmd } from '../exec';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -1025,8 +1026,12 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       const mergedCompose = yaml.load(mergedYaml) as any;
       const buildableServices: string[] = [];
 
-      // Sprint 3 Fix #11: Infrastructure services to always include (use image, not build)
-      const infrastructureServices = ['nats', 'nats-box', 'postgres', 'redis', 'firebase-emulator'];
+      // Sprint 5 I3.2: Get infrastructure services from InfrastructureRegistry
+      // (replaces hardcoded list from Sprint 3 Fix #11)
+      const infrastructureServices = InfrastructureRegistry.getInfrastructureServices(
+        repoRoot,
+        context.name
+      );
 
       if (mergedCompose?.services && typeof mergedCompose.services === 'object') {
         for (const [serviceName, serviceConfig] of Object.entries(mergedCompose.services)) {

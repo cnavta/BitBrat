@@ -1,0 +1,586 @@
+sprint: 6
+goal: Complete Foundation (Schema/Validation) + Begin Production Migration (Staging/Prod Contexts)
+duration: 2 weeks
+startDate: 2026-08-11
+endDate: 2026-08-22
+
+priorities:
+  P0: Blocker - Required for validation/migration
+  P1: Critical - Production readiness
+  P2: Important - Technical debt/documentation
+  P3: Nice-to-have - Future improvements
+
+tasks:
+  # ========================================================================
+  # PHASE 1: Schema & Validation (Week 1, Days 1-3)
+  # ========================================================================
+
+  - id: S6-F1.1
+    title: Create JSON Schema for architecture.yaml v2
+    phase: Foundation
+    priority: P0
+    estimate: 2d
+    assignee: Platform Team
+    dependencies: []
+    status: pending
+    description: |
+      Create formal JSON Schema definition for architecture.yaml v2 with complete
+      validation rules for platform.infrastructure, infrastructure.{provider},
+      executionContexts.*.infrastructure, and services.*.dependencies.infrastructure.
+    deliverables:
+      - documentation/schemas/architecture.v2.json
+      - tools/brat/src/validation/architecture-schema-v2.ts
+      - Unit tests (90%+ coverage)
+    acceptance:
+      - Schema validates all Sprint 5 examples
+      - Schema catches invalid configurations (missing providers, circular deps)
+      - Schema supports all providers (docker, gcp, aws, azure, k8s)
+      - Unit tests cover edge cases
+    tags: [foundation, schema, validation]
+
+  - id: S6-F1.2
+    title: Implement validation CLI (brat config validate --schema v2)
+    phase: Foundation
+    priority: P0
+    estimate: 1d
+    assignee: Platform Team
+    dependencies: [S6-F1.1]
+    status: pending
+    description: |
+      Enhance existing 'brat config validate' command to support --schema v2 flag
+      with detailed error reporting (file paths, line numbers, field context).
+    deliverables:
+      - tools/brat/src/oclif-commands/config/validate.ts (enhanced)
+      - CLI tests with valid/invalid configurations
+      - Error message templates
+    acceptance:
+      - Validates architecture.yaml against JSON Schema
+      - Reports errors with context (file:line:field)
+      - Supports --json flag for CI/CD
+      - Exit code 0 (valid) or 1 (invalid)
+    tags: [foundation, cli, validation]
+
+  # ========================================================================
+  # PHASE 2: Migration Tooling (Week 1, Days 4-5)
+  # ========================================================================
+
+  - id: S6-M2.1
+    title: Implement migration validator CLI (brat config migrate)
+    phase: Migration Tooling
+    priority: P1
+    estimate: 2d
+    assignee: Platform Team
+    dependencies: [S6-F1.1, S6-F1.2]
+    status: pending
+    description: |
+      Create 'brat config migrate' command that detects v1 vs v2 schema,
+      generates migration report with breaking changes, and supports --dry-run mode.
+    deliverables:
+      - tools/brat/src/oclif-commands/config/migrate.ts
+      - Migration report template (YAML/JSON)
+      - Before/after diff output
+    acceptance:
+      - Detects v1 schema patterns (hardcoded infrastructure)
+      - Suggests v2 equivalents (declarative infrastructure)
+      - Reports breaking changes (removed fields, renames)
+      - Supports --dry-run flag (preview only)
+      - Generates machine-readable report
+    tags: [migration, cli, tooling]
+
+  - id: S6-M2.2
+    title: Create migration documentation and examples
+    phase: Migration Tooling
+    priority: P1
+    estimate: 0.5d
+    assignee: Documentation Team
+    dependencies: [S6-M2.1]
+    status: pending
+    description: |
+      Document migration process with step-by-step guide and before/after examples
+      for common migration scenarios (local → staging → prod).
+    deliverables:
+      - planning/sprint-6-foundation/migration-workflow.md
+      - Before/after migration examples
+      - Rollback procedure documentation
+    acceptance:
+      - Step-by-step migration guide complete
+      - Examples for local, staging, prod contexts
+      - Rollback procedure documented
+      - Common issues and solutions documented
+    tags: [migration, documentation]
+
+  # ========================================================================
+  # PHASE 3: Production Migration (Week 2, Days 1-4)
+  # ========================================================================
+
+  - id: S6-P3.1
+    title: Migrate staging context to architecture.yaml v2
+    phase: Production Migration
+    priority: P1
+    estimate: 1d
+    assignee: Platform Team + DevOps
+    dependencies: [S6-F1.2, S6-M2.1]
+    status: pending
+    description: |
+      Migrate staging execution context to architecture.yaml v2 schema with
+      platform.infrastructure, infrastructure.docker, and service dependencies.
+    deliverables:
+      - Updated architecture.yaml (staging context in v2 schema)
+      - Migration validation report
+      - Staging deployment test results
+    acceptance:
+      - Staging context passes 'brat config validate --schema v2'
+      - All services declare infrastructure dependencies explicitly
+      - Staging deployment successful with v2 config
+      - All services healthy after deployment
+      - Rollback tested
+    tags: [production, migration, staging]
+
+  - id: S6-P3.2
+    title: Migrate prod context to architecture.yaml v2
+    phase: Production Migration
+    priority: P1
+    estimate: 2d
+    assignee: Platform Team + DevOps
+    dependencies: [S6-P3.1, S6-P3.3]
+    status: pending
+    description: |
+      Migrate production execution context to architecture.yaml v2 schema with
+      platform.infrastructure, infrastructure.gcp, and service dependencies.
+      Use blue/green deployment for zero-downtime migration.
+    deliverables:
+      - Updated architecture.yaml (prod context in v2 schema)
+      - Blue/green deployment plan
+      - Production migration runbook
+      - Post-migration validation report
+    acceptance:
+      - Prod context passes 'brat config validate --schema v2'
+      - GCP provider infrastructure defined (pubsub, cloudsql, memorystore)
+      - Blue/green deployment successful
+      - All services healthy in new environment
+      - Old environment decommissioned after 24h monitoring
+      - Rollback plan documented and tested
+    tags: [production, migration, critical]
+
+  - id: S6-P3.3
+    title: Implement GCP provider in InfrastructureRegistry
+    phase: Production Migration
+    priority: P2
+    estimate: 2d
+    assignee: Cloud Infrastructure Team
+    dependencies: [S6-F1.1]
+    status: pending
+    description: |
+      Implement GCP provider support in InfrastructureRegistry with capability
+      resolution (messaging → pubsub, persistence → cloudsql, caching → memorystore)
+      and health check strategies.
+    deliverables:
+      - GCP provider implementation in InfrastructureRegistry
+      - GCP health check strategies in HealthGate
+      - Unit tests for GCP provider
+      - Integration tests (if GCP test project available)
+    acceptance:
+      - InfrastructureRegistry resolves GCP capabilities
+      - HealthGate validates GCP infrastructure readiness
+      - GCP provider tested with prod context
+      - Unit tests 90%+ coverage
+      - Documentation updated with GCP examples
+    tags: [infrastructure, gcp, multi-cloud]
+
+  - id: S6-P3.4
+    title: Validate multi-environment consistency
+    phase: Production Migration
+    priority: P1
+    estimate: 0.5d
+    assignee: QA Team
+    dependencies: [S6-P3.1, S6-P3.2]
+    status: pending
+    description: |
+      Validate that all environments (local, staging, prod) use architecture.yaml v2
+      consistently with same platform.infrastructure declarations but different providers.
+    deliverables:
+      - Multi-environment validation report
+      - Consistency test suite
+    acceptance:
+      - All contexts use same platform.infrastructure declarations
+      - Each context uses appropriate provider (local/staging: docker, prod: gcp)
+      - All contexts pass schema validation
+      - Service dependencies consistent across environments
+    tags: [validation, qa, multi-environment]
+
+  # ========================================================================
+  # PHASE 4: Cleanup & Documentation (Week 2, Day 5)
+  # ========================================================================
+
+  - id: S6-C4.1
+    title: Remove docker-compose.local.yaml (fully deprecated)
+    phase: Cleanup
+    priority: P2
+    estimate: 0.5d
+    assignee: Platform Team
+    dependencies: [S6-P3.1, S6-P3.2]
+    status: pending
+    description: |
+      Remove docker-compose.local.yaml file (deprecated in Sprint 5) and update
+      all references to use dynamically generated compose files from architecture.yaml v2.
+    deliverables:
+      - Deleted infrastructure/docker-compose/docker-compose.local.yaml
+      - Updated tests (no references to static compose file)
+      - Updated documentation
+    acceptance:
+      - docker-compose.local.yaml removed
+      - All tests pass without static compose file
+      - No references to docker-compose.local.yaml in code/docs
+      - Dynamic compose generation works for all contexts
+    tags: [cleanup, technical-debt]
+
+  - id: S6-C4.2
+    title: Update documentation with v2 schema examples
+    phase: Cleanup
+    priority: P2
+    estimate: 0.5d
+    assignee: Documentation Team
+    dependencies: [S6-P3.3]
+    status: pending
+    description: |
+      Update all documentation to use architecture.yaml v2 schema with GCP provider
+      examples, schema validation troubleshooting, and migration best practices.
+    deliverables:
+      - Updated documentation/architecture/infrastructure-management.md
+      - GCP provider examples (pubsub, cloudsql, memorystore)
+      - Schema validation troubleshooting section
+    acceptance:
+      - All examples use architecture.yaml v2 schema
+      - GCP provider examples documented
+      - Common validation errors documented with solutions
+      - Before/after migration examples included
+    tags: [documentation, examples]
+
+  - id: S6-C4.3
+    title: Archive v1 schema references
+    phase: Cleanup
+    priority: P3
+    estimate: 0.25d
+    assignee: Documentation Team
+    dependencies: [S6-C4.1, S6-C4.2]
+    status: pending
+    description: |
+      Archive all v1 schema documentation and examples to deprecated/ directory
+      with clear deprecation notices and links to v2 equivalents.
+    deliverables:
+      - Moved v1 docs to deprecated/architecture-v1/
+      - Added deprecation notices with v2 links
+      - Updated all active docs to reference v2 only
+    acceptance:
+      - No v1 references in active documentation
+      - v1 docs archived with deprecation notices
+      - Clear migration path from v1 → v2 documented
+    tags: [cleanup, deprecation]
+
+  # ========================================================================
+  # SPRINT COMPLETION TASKS
+  # ========================================================================
+
+  - id: S6-X5.1
+    title: Create Sprint 6 verification report
+    phase: Completion
+    priority: P1
+    estimate: 0.5d
+    assignee: Lead Implementor
+    dependencies: [S6-P3.1, S6-P3.2, S6-C4.1, S6-C4.2]
+    status: pending
+    description: |
+      Document Sprint 6 deliverables, test results, migration outcomes,
+      and production readiness assessment.
+    deliverables:
+      - planning/sprint-6-foundation/verification-report.md
+      - Migration success metrics
+      - Production readiness checklist
+    acceptance:
+      - All deliverables documented
+      - Test results included
+      - Migration outcomes reported
+      - Production readiness assessed
+    tags: [completion, reporting]
+
+  - id: S6-X5.2
+    title: Generate Sprint 6 retrospective and learnings
+    phase: Completion
+    priority: P1
+    estimate: 0.5d
+    assignee: Lead Implementor
+    dependencies: [S6-X5.1]
+    status: pending
+    description: |
+      Conduct Sprint 6 retrospective documenting what went well, what could
+      be improved, and key learnings for future schema/migration work.
+    deliverables:
+      - planning/sprint-6-foundation/retro.md
+      - planning/sprint-6-foundation/key-learnings.md
+    acceptance:
+      - Retrospective complete
+      - Key learnings documented
+      - Recommendations for Sprint 7
+    tags: [completion, retrospective]
+
+# ========================================================================
+# SUMMARY METRICS
+# ========================================================================
+
+metrics:
+  totalTasks: 15
+  estimatedDays: 10.75
+  phases:
+    - name: Foundation
+      tasks: 2
+      estimate: 3d
+      priority: P0
+    - name: Migration Tooling
+      tasks: 2
+      estimate: 2.5d
+      priority: P1
+    - name: Production Migration
+      tasks: 4
+      estimate: 4d
+      priority: P1-P2
+    - name: Cleanup
+      tasks: 3
+      estimate: 1.25d
+      priority: P2-P3
+    - name: Completion
+      tasks: 2
+      estimate: 1d
+      priority: P1
+
+  criticalPath:
+    - S6-F1.1 (JSON Schema) → S6-F1.2 (Validation CLI)
+    - S6-F1.2 → S6-M2.1 (Migration CLI)
+    - S6-M2.1 → S6-P3.1 (Staging Migration)
+    - S6-P3.1 + S6-P3.3 (GCP Provider) → S6-P3.2 (Prod Migration)
+    - S6-P3.2 → S6-C4.1 (Cleanup)
+    - S6-C4.1 → S6-X5.1 (Verification)
+
+  riskAreas:
+    - Production migration (blue/green deployment complexity)
+    - GCP provider implementation (requires GCP test environment)
+    - Schema validation edge cases (unknown unknowns)
+
+# ========================================================================
+# RISK ASSESSMENT & MITIGATION
+# ========================================================================
+
+risks:
+  - id: R1
+    description: Schema validation too strict (blocks valid configurations)
+    probability: Medium
+    impact: High
+    mitigation: |
+      - Validate schema against all Sprint 5 examples first
+      - Add schema override flag (--skip-validation) for edge cases
+      - Collect feedback from staging migration before production
+    owner: Platform Team
+
+  - id: R2
+    description: Production migration causes downtime
+    probability: Low
+    impact: Critical
+    mitigation: |
+      - Use blue/green deployment (zero-downtime)
+      - Test staging migration first
+      - Prepare rollback plan with tested procedure
+      - Monitor production for 24h before decommissioning old environment
+    owner: DevOps Team
+
+  - id: R3
+    description: GCP provider implementation incomplete (missing capabilities)
+    probability: Medium
+    impact: Medium
+    mitigation: |
+      - Start with minimal GCP capabilities (pubsub, cloudsql, memorystore)
+      - Add additional capabilities incrementally
+      - Use GCP test project for integration testing
+      - Document GCP provider limitations in known-issues.md
+    owner: Cloud Infrastructure Team
+
+  - id: R4
+    description: Migration tooling misses v1 patterns (incomplete detection)
+    probability: Medium
+    impact: Medium
+    mitigation: |
+      - Test migration validator with all known v1 examples
+      - Manual review of migration report before executing
+      - Dry-run mode mandatory for first migration
+      - Document manual verification checklist
+    owner: Platform Team
+
+  - id: R5
+    description: Schema changes break existing integrations
+    probability: Low
+    impact: Medium
+    mitigation: |
+      - Maintain backward compatibility with v1 (parallel support)
+      - Add deprecation warnings before breaking changes
+      - Provide migration period (1 sprint minimum)
+      - Test all integrations in staging before production
+    owner: Integration Team
+
+# ========================================================================
+# SUCCESS CRITERIA
+# ========================================================================
+
+successCriteria:
+  foundation:
+    - JSON Schema validates all architecture.yaml v2 configurations
+    - Validation CLI catches invalid configurations before deployment
+    - Migration CLI generates accurate migration reports
+    - 90%+ test coverage for schema validation
+
+  production:
+    - Staging context migrated to v2 with zero issues
+    - Production context migrated to v2 with zero downtime
+    - GCP provider fully functional in production
+    - All environments pass schema validation
+
+  quality:
+    - No regressions in existing functionality
+    - All tests pass (unit, integration, e2e)
+    - Documentation complete and accurate
+    - Rollback plan tested and documented
+
+  adoption:
+    - Team trained on v2 schema and validation
+    - Migration guide used successfully for staging/prod
+    - Schema validation integrated into CI/CD pipeline
+    - Zero schema-related production incidents
+
+# ========================================================================
+# DEPENDENCIES & PREREQUISITES
+# ========================================================================
+
+dependencies:
+  external:
+    - Sprint 5 completion (InfrastructureRegistry)
+    - GCP test project access (for S6-P3.3)
+    - Production deployment window (for S6-P3.2)
+    - DevOps team availability (for migrations)
+
+  internal:
+    - Platform team capacity (5 days minimum)
+    - Documentation team capacity (2 days minimum)
+    - QA team capacity (1 day minimum)
+
+  infrastructure:
+    - Staging environment accessible
+    - Production blue/green deployment capability
+    - CI/CD pipeline configured for schema validation
+
+# ========================================================================
+# SPRINT GOALS & EXIT CRITERIA
+# ========================================================================
+
+sprintGoals:
+  primary:
+    - Complete Phase 1 (Foundation) - Schema & Validation
+    - Complete Phase 4 (Production Migration) - Staging & Prod
+
+  secondary:
+    - Implement GCP provider in InfrastructureRegistry
+    - Remove docker-compose.local.yaml (cleanup)
+
+  stretch:
+    - AWS provider scaffolding
+    - Kubernetes provider research
+
+exitCriteria:
+  mustHave:
+    - [ ] JSON Schema complete and tested
+    - [ ] Validation CLI functional
+    - [ ] Migration CLI functional
+    - [ ] Staging migrated to v2
+    - [ ] Production migrated to v2
+    - [ ] All tests passing
+    - [ ] Documentation updated
+
+  shouldHave:
+    - [ ] GCP provider implemented
+    - [ ] docker-compose.local.yaml removed
+    - [ ] Multi-environment validation complete
+
+  niceToHave:
+    - [ ] CI/CD schema validation integrated
+    - [ ] AWS provider scaffolded
+    - [ ] Schema validation dashboard
+
+# ========================================================================
+# COMMUNICATION PLAN
+# ========================================================================
+
+communication:
+  dailyStandup:
+    - Progress on critical path tasks
+    - Blockers and dependencies
+    - Risk updates
+
+  weeklyReview:
+    - Phase completion status
+    - Test results and quality metrics
+    - Migration readiness assessment
+
+  stakeholderUpdates:
+    - Week 1: Foundation phase complete
+    - Week 2: Production migration status
+    - Sprint end: Verification report and retrospective
+
+  documentation:
+    - Update planning/sprint-6-foundation/request-log.md daily
+    - Tag commits with sprint-6 prefix
+    - Create PR for review before production migration
+
+# ========================================================================
+# TEAM ALLOCATION
+# ========================================================================
+
+teamAllocation:
+  platformTeam:
+    capacity: 5d
+    tasks:
+      - S6-F1.1: JSON Schema Definition (2d)
+      - S6-F1.2: Validation CLI (1d)
+      - S6-M2.1: Migration Validator (2d)
+      - S6-P3.1: Staging Migration (1d, with DevOps)
+      - S6-C4.1: Cleanup (0.5d)
+
+  cloudInfrastructureTeam:
+    capacity: 2d
+    tasks:
+      - S6-P3.3: GCP Provider Implementation (2d)
+
+  devOpsTeam:
+    capacity: 3d
+    tasks:
+      - S6-P3.1: Staging Migration (1d, with Platform)
+      - S6-P3.2: Production Migration (2d, with Platform)
+
+  documentationTeam:
+    capacity: 1.25d
+    tasks:
+      - S6-M2.2: Migration Documentation (0.5d)
+      - S6-C4.2: Documentation Updates (0.5d)
+      - S6-C4.3: Archive v1 References (0.25d)
+
+  qaTeam:
+    capacity: 0.5d
+    tasks:
+      - S6-P3.4: Multi-Environment Validation (0.5d)
+
+# ========================================================================
+# DOCUMENT METADATA
+# ========================================================================
+
+metadata:
+  version: 1.0
+  created: 2026-08-10
+  author: Lead Implementor (Claude Code)
+  status: Proposed
+  reviewers: []
+  approvers: []
