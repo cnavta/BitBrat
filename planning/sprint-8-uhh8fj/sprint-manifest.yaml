@@ -1,0 +1,11 @@
+id: sprint-8-uhh8fj
+title: Architecture YAML Consolidation and Intent-Centric Refactor
+goal: Reduce architecture.yaml verbosity by removing/consolidating sections that
+  are repetitious or better served elsewhere, while extending the {config,
+  constraints, intent} pattern established in Sprint 4 to remaining sections
+owner: "@christophernavta"
+createdAt: 2026-08-11T03:17:07.896Z
+status: planning
+links:
+  branch: feature/sprint-8-uhh8fj-architecture-yaml-consolidatio
+notes: Sprint initialized via MCP start-sprint tool

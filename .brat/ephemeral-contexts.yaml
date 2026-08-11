@@ -1,1 +1,28 @@
-executionContexts: {}
+executionContexts:
+  agent-dev-1786458342233-8a2b1725:
+    deployment:
+      type: docker-compose
+      docker:
+        host: unix:///var/run/docker.sock
+    runtime:
+      persistence:
+        driver: postgres
+        autoDiscover: true
+      gateway:
+        autoDiscover: true
+        fallbackPort: 3004
+      envOverlay:
+        path: env/agent-dev-1786458342233-8a2b1725
+        files:
+          - global.yaml
+          - infra.yaml
+          - '{service}.yaml'
+    description: Ephemeral agent development context (created 2026-08-11T14:25:42.233Z)
+    tags:
+      - development
+      - agent-dev
+      - ephemeral
+    metadata:
+      createdBy: agent
+      createdAt: '2026-08-11T14:25:42.233Z'
+      autoDestroy: true

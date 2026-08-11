@@ -1,0 +1,840 @@
+# Sprint 8 Backlog: Architecture.yaml Consolidation and Intent-Centric Refactor
+# Sprint ID: sprint-8-uhh8fj
+# Owner: @christophernavta
+# Created: 2026-08-10
+# Status: planning
+
+metadata:
+  sprint_id: sprint-8-uhh8fj
+  sprint_title: Architecture YAML Consolidation and Intent-Centric Refactor
+  sprint_goal: >
+    Reduce architecture.yaml verbosity by removing/consolidating sections that are
+    repetitious or better served elsewhere, while extending the {config, constraints, intent}
+    pattern established in Sprint 4 to remaining sections
+  owner: "@christophernavta"
+  duration_days: 7
+  effort_hours: 32
+
+priorities:
+  P0: Critical - Blocks sprint completion
+  P1: High - Important for sprint success
+  P2: Nice to have - Can defer if needed
+
+# ============================================================================
+# PHASE 1: DOCUMENTATION (Days 1-2)
+# ============================================================================
+# Create reference documentation for content being relocated
+
+phase_1_documentation:
+  phase_name: Documentation
+  duration_days: 2
+  effort_hours: 8
+  dependencies: []
+
+  tasks:
+    - id: P1-T1.1
+      title: Create Secrets Catalog
+      description: >
+        Document all secrets from conventions.secrets.catalog in a dedicated
+        reference file with organization by category
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: []
+
+      acceptance_criteria:
+        - File created: documentation/reference/secrets-catalog.md
+        - All 15 secrets documented with descriptions, sources, and usage
+        - Organized by category (Platform, LLM, Chat Platforms, Streaming)
+        - Includes secret management section (local, staging, production)
+        - Cross-referenced from architecture.yaml
+
+      deliverables:
+        - documentation/reference/secrets-catalog.md
+
+      validation:
+        - "test -f documentation/reference/secrets-catalog.md"
+        - "grep -E '(MCP_AUTH_TOKEN|OPENAI_API_KEY|TWITCH_CLIENT_ID)' documentation/reference/secrets-catalog.md"
+        - "markdownlint documentation/reference/secrets-catalog.md"
+
+      notes: >
+        Extract all secrets from conventions.secrets.catalog (lines 560-645).
+        Organize by: Platform, LLM, Chat Platforms, Integration.
+        Include workflow: local .env → staging Secret Manager → prod Secret Manager.
+
+    - id: P1-T1.2
+      title: Create Environment Variables Reference
+      description: >
+        Document environment variable conventions, sources, and common variables
+        used across all services
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: []
+
+      acceptance_criteria:
+        - File created: documentation/reference/environment-variables.md
+        - Documents all common environment variables
+        - Explains environment variable sources (Secret Manager, dotenv, Cloud Run)
+        - Includes auto-injected variables section (K_REVISION)
+        - Provides examples for each variable type
+
+      deliverables:
+        - documentation/reference/environment-variables.md
+
+      validation:
+        - "test -f documentation/reference/environment-variables.md"
+        - "grep -E '(LOG_LEVEL|MESSAGE_BUS_DRIVER|NATS_URL|PERSISTENCE_DRIVER)' documentation/reference/environment-variables.md"
+        - "markdownlint documentation/reference/environment-variables.md"
+
+      notes: >
+        Document sources: GCP Secret Manager, dotenv, Cloud Run injection.
+        Include common vars: LOG_LEVEL, MESSAGE_BUS_DRIVER, NATS_URL, BUS_PREFIX, etc.
+        Document precedence: env var > .env > defaults.
+
+    - id: P1-T1.3
+      title: Create Extending BitBrat Guide
+      description: >
+        Migrate extension_points section content to comprehensive guide with
+        brat CLI examples and MCP tool creation workflow
+      priority: P1
+      status: pending
+      owner: Architect
+      estimate_hours: 4
+      dependencies: []
+
+      acceptance_criteria:
+        - File created: documentation/guides/extending-bitbrat.md
+        - Covers all extension points from removed section
+        - Includes brat bit create examples for all profiles
+        - Documents MCP tool creation workflow
+        - Documents event router rule creation
+        - Includes troubleshooting section
+
+      deliverables:
+        - documentation/guides/extending-bitbrat.md
+
+      validation:
+        - "test -f documentation/guides/extending-bitbrat.md"
+        - "grep -E '(brat bit create|MCP|router rules)' documentation/guides/extending-bitbrat.md"
+        - "markdownlint documentation/guides/extending-bitbrat.md"
+
+      notes: >
+        Extract from extension_points (lines 657-709).
+        Expand with: brat bit create examples, profile options (core/gateway/llm/mcp-server),
+        category options (platform/domain), MCP tool patterns, router rules format.
+        Add sections: execution contexts, infrastructure providers, schema extensions.
+
+# ============================================================================
+# PHASE 2: SCHEMA UPDATES (Days 3-5)
+# ============================================================================
+# Refactor architecture.yaml sections
+
+phase_2_schema_updates:
+  phase_name: Schema Updates
+  duration_days: 3
+  effort_hours: 14
+  dependencies: [phase_1_documentation]
+
+  tasks:
+    - id: P2-T2.1
+      title: Refactor messaging Section
+      description: >
+        Reduce messaging section from 202 lines to ~100 lines by removing
+        redundant config and adding intent subsection
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 4
+      dependencies: [P1-T1.1, P1-T1.2]
+
+      acceptance_criteria:
+        - Removed redundant config (transport, tuning)
+        - Added reference to platform.infrastructure.messaging
+        - Condensed topic registry (remove verbose descriptions)
+        - Added intent subsection
+        - Maintained all essential information
+        - Line count: 202 → ~100 (50% reduction)
+
+      deliverables:
+        - Refactored messaging section in architecture.yaml
+
+      validation:
+        - "yq eval '.messaging' architecture.yaml"
+        - "yq eval '.messaging.topics | keys' architecture.yaml"
+        - "yq eval '.messaging.intent' architecture.yaml"
+        - "test $(yq eval '.messaging | length' architecture.yaml) -lt 150"
+
+      notes: >
+        Backup: sed -n '296,498p' architecture.yaml > /tmp/messaging-backup.yaml
+        Remove: transport.*, tuning.*
+        Condense: topic descriptions (keep producers, consumers, schema only)
+        Add: infrastructure reference, intent subsection
+
+    - id: P2-T2.2
+      title: Refactor conventions Section
+      description: >
+        Reduce conventions section from 105 lines to ~35 lines by moving
+        secrets catalog to documentation
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: [P1-T1.1, P1-T1.2]
+
+      acceptance_criteria:
+        - Removed verbose secrets catalog (106 lines)
+        - Added naming and versioning subsections
+        - Simplified environment subsection
+        - Referenced full catalogs in documentation
+        - Maintained all essential conventions
+        - Line count: 105 → ~35 (67% reduction)
+
+      deliverables:
+        - Refactored conventions section in architecture.yaml
+
+      validation:
+        - "yq eval '.conventions' architecture.yaml"
+        - "yq eval '.conventions.naming' architecture.yaml"
+        - "yq eval '.conventions.versioning' architecture.yaml"
+        - "yq eval '.conventions.environment.catalogs' architecture.yaml"
+        - "test $(yq eval '.conventions | length' architecture.yaml) -lt 50"
+
+      notes: >
+        Backup: sed -n '540,645p' architecture.yaml > /tmp/conventions-backup.yaml
+        Remove: conventions.secrets.catalog (106 lines)
+        Add: naming, versioning, catalogs reference
+        Keep: environment sources, auto_injected vars
+
+    - id: P2-T2.3
+      title: Create platform.orchestration Section
+      description: >
+        Consolidate dataflow section into platform schema with
+        {config, constraints, intent} pattern
+      priority: P1
+      status: pending
+      owner: Architect
+      estimate_hours: 4
+      dependencies: []
+
+      acceptance_criteria:
+        - Created platform.orchestration section
+        - Migrated all stages from dataflow (ingest, route, analyze, react, egress, persist)
+        - Applied {config, constraints, intent} pattern
+        - Enhanced with orchestration metadata (model, flow, coordination)
+        - All dataflow information preserved
+
+      deliverables:
+        - platform.orchestration section in architecture.yaml
+
+      validation:
+        - "yq eval '.platform.orchestration' architecture.yaml"
+        - "yq eval '.platform.orchestration.stages[].id' architecture.yaml"
+        - "yq eval '.platform.orchestration.config' architecture.yaml"
+        - "yq eval '.platform.orchestration.constraints' architecture.yaml"
+        - "yq eval '.platform.orchestration.intent' architecture.yaml"
+
+      notes: >
+        Extract from dataflow (lines 499-538).
+        Add config: {model, flow, coordination}
+        Add constraints: {requiresMessaging, requiresRoutingSlip, maxStageLatency}
+        Add intent: Why this orchestration model
+        Each stage: {id, description, services, topics}
+
+    - id: P2-T2.4
+      title: Enhance llm_guidance Section
+      description: >
+        Consolidate references section into llm_guidance and add intent subsection
+      priority: P1
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: [P1-T1.3]
+
+      acceptance_criteria:
+        - Consolidated references section into llm_guidance.references
+        - Added intent subsection
+        - Updated schema references (v1 → v2)
+        - Added references to new documentation (secrets-catalog, extending-bitbrat)
+        - Removed duplicate doc_pointers
+
+      deliverables:
+        - Enhanced llm_guidance section in architecture.yaml
+
+      validation:
+        - "yq eval '.llm_guidance.references' architecture.yaml"
+        - "yq eval '.llm_guidance.references.secrets_catalog' architecture.yaml"
+        - "yq eval '.llm_guidance.references.extending_platform' architecture.yaml"
+        - "yq eval '.llm_guidance.intent' architecture.yaml"
+
+      notes: >
+        Merge references section into llm_guidance.references
+        Update architecture_schema: v1 → v2
+        Add new refs: secrets_catalog, environment_variables, extending_platform
+        Add intent: Why architecture.yaml exists, how to use it
+
+    - id: P2-T2.5
+      title: Remove Deprecated Sections
+      description: >
+        Remove 6 deprecated sections with proper comments and migration notes
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: [P2-T2.1, P2-T2.2, P2-T2.3, P2-T2.4]
+
+      acceptance_criteria:
+        - Removed 6 deprecated sections (references, extension_points, cloudResources, deploymentDefaults, networking, dataflow)
+        - Added migration comments pointing to new locations
+        - Created backup file (architecture.v1.backup.yaml)
+        - Validated YAML syntax after removal
+        - Top-level sections reduced from 16 to 10
+
+      deliverables:
+        - Updated architecture.yaml (10 sections)
+        - architecture.v1.backup.yaml (backup)
+
+      validation:
+        - "yq eval '.' architecture.yaml > /dev/null"
+        - "test $(yq eval 'keys | length' architecture.yaml) -eq 10"
+        - "! yq eval '.references' architecture.yaml 2>/dev/null"
+        - "! yq eval '.extension_points' architecture.yaml 2>/dev/null"
+        - "! yq eval '.cloudResources' architecture.yaml 2>/dev/null"
+        - "! yq eval '.deploymentDefaults' architecture.yaml 2>/dev/null"
+        - "! yq eval '.networking' architecture.yaml 2>/dev/null"
+        - "! yq eval '.dataflow' architecture.yaml 2>/dev/null"
+        - "test -f architecture.v1.backup.yaml"
+
+      notes: >
+        Create backup: cp architecture.yaml architecture.v1.backup.yaml
+        Add migration comment block
+        Remove sections: references, extension_points, cloudResources, deploymentDefaults, networking, dataflow
+        Validate: yq eval '.' architecture.yaml
+        Expected sections: name, description, project, llm_guidance, platform, infrastructure, messaging, conventions, defaults, services, executionContexts
+
+# ============================================================================
+# PHASE 3: VALIDATION (Day 6)
+# ============================================================================
+# Comprehensive validation of refactored architecture.yaml
+
+phase_3_validation:
+  phase_name: Validation
+  duration_days: 1
+  effort_hours: 6
+  dependencies: [phase_2_schema_updates]
+
+  tasks:
+    - id: P3-T3.1
+      title: Schema Validation
+      description: >
+        Validate architecture.yaml against schema and test all brat CLI commands
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 4
+      dependencies: [P2-T2.5]
+
+      acceptance_criteria:
+        - YAML syntax valid
+        - Schema validation passes
+        - All brat CLI commands work without errors
+        - All referenced documentation files exist
+        - No regressions in service parsing
+        - Created validation-report.md
+
+      deliverables:
+        - planning/sprint-8-uhh8fj/validation-report.md
+
+      validation:
+        - "yq eval '.' architecture.yaml > /dev/null"
+        - "npm run brat -- config validate"
+        - "npm run brat -- config show"
+        - "npm run brat -- context list"
+        - "npm run brat -- fleet list --dry-run"
+        - "npm run brat -- bit create test-service --dry-run"
+
+      tests:
+        - name: YAML Syntax
+          command: "yq eval '.' architecture.yaml > /dev/null"
+          expected: exit_code 0
+
+        - name: Schema Validation
+          command: "npm run brat -- config validate"
+          expected: exit_code 0
+
+        - name: Config Show
+          command: "npm run brat -- config show"
+          expected: exit_code 0
+
+        - name: Context List
+          command: "npm run brat -- context list"
+          expected: exit_code 0
+
+        - name: Fleet List
+          command: "npm run brat -- fleet list --dry-run"
+          expected: exit_code 0
+
+        - name: Bit Create
+          command: "npm run brat -- bit create test-service --dry-run"
+          expected: exit_code 0
+
+        - name: Reference Integrity
+          command: >
+            for ref in $(yq eval '.llm_guidance.references[]' architecture.yaml); do
+              test -f "$ref" || echo "Missing: $ref"
+            done
+          expected: "no output (all files exist)"
+
+      notes: >
+        Create validation-report.md with:
+        - YAML syntax: ✅/❌
+        - Schema validation: ✅/❌
+        - Tooling compatibility: ✅/❌
+        - Reference integrity: ✅/❌
+        - Service parsing: ✅/❌
+        - Infrastructure resolution: ✅/❌
+
+    - id: P3-T3.2
+      title: Regression Testing
+      description: >
+        Test actual deployment workflows to ensure no regressions
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: [P3-T3.1]
+
+      acceptance_criteria:
+        - Docker Compose generation works
+        - Service deployment dry-run succeeds
+        - Context switching works
+        - Fleet commands work
+        - Build/test suite passes
+        - Created regression-test-results.md
+
+      deliverables:
+        - planning/sprint-8-uhh8fj/regression-test-results.md
+
+      validation:
+        - "npm run brat -- deploy services --all --dry-run --context local"
+        - "npm run brat -- deploy service llm-bot --dry-run --context local"
+        - "npm run brat -- use staging && npm run brat -- use local"
+        - "npm run build"
+        - "npm test"
+
+      tests:
+        - name: Docker Compose Generation
+          command: "npm run brat -- deploy services --all --dry-run --context local"
+          expected: "exit_code 0, output contains: nats, redis, postgres"
+
+        - name: Single Service Deployment
+          command: "npm run brat -- deploy service llm-bot --dry-run --context local"
+          expected: exit_code 0
+
+        - name: Bulk Service Deployment
+          command: "npm run brat -- deploy services --all --dry-run --context local"
+          expected: exit_code 0
+
+        - name: Context Switching
+          command: "npm run brat -- use staging && npm run brat -- use local"
+          expected: exit_code 0
+
+        - name: Build
+          command: "npm run build"
+          expected: exit_code 0
+
+        - name: Tests
+          command: "npm test"
+          expected: "exit_code 0, all tests passing"
+
+      notes: >
+        Create regression-test-results.md with:
+        - Docker Compose generation: ✅/❌
+        - Service deployment: ✅/❌
+        - Context switching: ✅/❌
+        - Fleet commands: ✅/❌
+        - Build: ✅/❌
+        - Tests: ✅/❌ (X passing, Y failing)
+
+# ============================================================================
+# PHASE 4: DOCUMENTATION UPDATES (Day 7)
+# ============================================================================
+# Update developer documentation
+
+phase_4_documentation_updates:
+  phase_name: Documentation Updates
+  duration_days: 1
+  effort_hours: 6
+  dependencies: [phase_3_validation]
+
+  tasks:
+    - id: P4-T4.1
+      title: Update CLAUDE.md
+      description: >
+        Update CLAUDE.md to remove references to deleted sections and
+        add references to new documentation
+      priority: P1
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: [P3-T3.2]
+
+      acceptance_criteria:
+        - Removed references to deleted sections
+        - Added references to new documentation
+        - Updated architecture overview
+        - Verified all references valid
+
+      deliverables:
+        - Updated CLAUDE.md
+
+      validation:
+        - "! grep -q 'extension_points\\|cloudResources\\|deploymentDefaults\\|networking' CLAUDE.md"
+        - "grep -q 'secrets-catalog.md' CLAUDE.md"
+        - "grep -q 'extending-bitbrat.md' CLAUDE.md"
+
+      changes:
+        - "Remove references to: extension_points, cloudResources, deploymentDefaults, networking"
+        - "Update references.* → llm_guidance.references.*"
+        - "Add references to: secrets-catalog.md, environment-variables.md, extending-bitbrat.md"
+        - "Update architecture overview (16 → 10 sections)"
+
+      notes: >
+        Search and replace:
+        - extension_points → documentation/guides/extending-bitbrat.md
+        - references.* → llm_guidance.references.*
+        - Remove cloudResources, deploymentDefaults, networking mentions
+        Add new docs: secrets-catalog, environment-variables, extending-bitbrat
+
+    - id: P4-T4.2
+      title: Update README.md
+      description: >
+        Update README.md architecture section and references
+      priority: P1
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: [P4-T4.1]
+
+      acceptance_criteria:
+        - Architecture overview updated
+        - Removed references to deleted sections
+        - Added references to new documentation
+        - Quickstart guide still accurate
+
+      deliverables:
+        - Updated README.md
+
+      validation:
+        - "grep -q 'platform.orchestration' README.md"
+        - "grep -q 'secrets-catalog.md' README.md"
+        - "grep -q 'extending-bitbrat.md' README.md"
+        - "npm install && npm run build && npm run brat -- setup --dry-run"
+
+      changes:
+        - "Update architecture overview (10 sections)"
+        - "Update key concepts (add orchestration, provider abstraction)"
+        - "Add documentation references section"
+        - "Verify quickstart commands work"
+
+      notes: >
+        Update architecture overview to reflect 10 sections.
+        Add key concepts: Orchestration, Provider Abstraction, Execution Context.
+        Add documentation references: extending-bitbrat, secrets-catalog, environment-variables.
+        Test quickstart: npm install, npm run build, npm run brat -- setup
+
+    - id: P4-T4.3
+      title: Create Migration Guide
+      description: >
+        Document all changes for developers and tooling maintainers
+      priority: P0
+      status: pending
+      owner: Architect
+      estimate_hours: 2
+      dependencies: [P4-T4.1, P4-T4.2]
+
+      acceptance_criteria:
+        - Complete list of removed/refactored sections
+        - Migration path for each removed section
+        - Developer impact documented
+        - Tooling impact documented
+        - Before/after examples provided
+        - FAQ section included
+
+      deliverables:
+        - planning/sprint-8-uhh8fj/migration-guide.md
+
+      validation:
+        - "test -f planning/sprint-8-uhh8fj/migration-guide.md"
+        - "grep -q 'Migration Paths' planning/sprint-8-uhh8fj/migration-guide.md"
+        - "grep -q 'Before/After Examples' planning/sprint-8-uhh8fj/migration-guide.md"
+
+      sections:
+        - Overview
+        - Summary of Changes
+        - Migration Paths (For Developers, For Tooling)
+        - Before/After Examples
+        - Breaking Changes
+        - FAQ
+        - Rollback
+
+      notes: >
+        Document all removed sections with migration paths.
+        Provide examples: messaging config, secrets catalog, dataflow stages.
+        Add FAQ: Where did X go? How do I Y now?
+        Rollback: cp architecture.v1.backup.yaml architecture.yaml
+
+# ============================================================================
+# METRICS AND SUCCESS CRITERIA
+# ============================================================================
+
+metrics:
+  quantitative:
+    - metric: Total Lines
+      baseline: 1444
+      target: 1106
+      measurement: "wc -l architecture.yaml"
+      reduction_percent: 23
+
+    - metric: Top-Level Sections
+      baseline: 16
+      target: 10
+      measurement: "yq eval 'keys | length' architecture.yaml"
+      reduction_percent: 38
+
+    - metric: Redundant Config Lines
+      baseline: 150
+      target: 0
+      measurement: manual verification
+      reduction_percent: 100
+
+    - metric: Documentation Files
+      baseline: 0
+      target: 3
+      measurement: "ls documentation/reference/secrets-catalog.md documentation/reference/environment-variables.md documentation/guides/extending-bitbrat.md"
+      new_files: 3
+
+  qualitative:
+    - metric: Developer Understanding
+      baseline: "6/10"
+      target: "8/10"
+      measurement: Developer survey
+
+    - metric: LLM Parsing Efficiency
+      baseline: "7/10"
+      target: "9/10"
+      measurement: Claude Code feedback
+
+    - metric: Maintenance Burden
+      baseline: "7/10"
+      target: "9/10"
+      measurement: Time to make changes
+
+    - metric: Documentation Quality
+      baseline: "6/10"
+      target: "9/10"
+      measurement: Completeness, clarity
+
+success_criteria:
+  completion:
+    - All 13 tasks completed
+    - All documentation created (3 files)
+    - architecture.yaml refactored (1106 lines, 10 sections)
+    - All tests passing
+    - Migration guide complete
+
+  quality:
+    - Zero regressions in brat CLI
+    - 100% test pass rate
+    - All referenced files exist
+    - YAML syntax valid
+    - Schema validation passes
+
+  documentation:
+    - CLAUDE.md updated
+    - README.md updated
+    - Migration guide complete
+    - All removed sections documented
+
+# ============================================================================
+# RISK REGISTER
+# ============================================================================
+
+risks:
+  - id: RISK-1
+    title: Breaking Changes in Tooling
+    impact: HIGH
+    probability: MEDIUM
+    mitigation: >
+      Comprehensive regression testing in Phase 3.
+      Backward-compatible references in migration guide.
+      Quick rollback plan (architecture.v1.backup.yaml).
+    status: identified
+
+  - id: RISK-2
+    title: Lost Configuration
+    impact: HIGH
+    probability: LOW
+    mitigation: >
+      Create backup before changes (architecture.v1.backup.yaml).
+      Careful migration with validation at each step.
+      Documentation created before removal.
+    status: identified
+
+  - id: RISK-3
+    title: Documentation Drift
+    impact: MEDIUM
+    probability: MEDIUM
+    mitigation: >
+      Automated reference checking in validation phase.
+      Cross-reference validation script.
+      All files created before references added.
+    status: identified
+
+  - id: RISK-4
+    title: Developer Confusion
+    impact: MEDIUM
+    probability: MEDIUM
+    mitigation: >
+      Clear migration guide with before/after examples.
+      FAQ section addressing common questions.
+      Announce changes in team channels.
+    status: identified
+
+# ============================================================================
+# DEPENDENCIES AND BLOCKERS
+# ============================================================================
+
+dependencies:
+  external: []
+
+  internal:
+    - phase: phase_2_schema_updates
+      depends_on: [phase_1_documentation]
+      reason: Documentation must exist before removing from architecture.yaml
+
+    - phase: phase_3_validation
+      depends_on: [phase_2_schema_updates]
+      reason: Validation after refactoring complete
+
+    - phase: phase_4_documentation_updates
+      depends_on: [phase_3_validation]
+      reason: Documentation updates after validation confirms no regressions
+
+blockers: []
+
+# ============================================================================
+# DELIVERABLES SUMMARY
+# ============================================================================
+
+deliverables:
+  documentation:
+    - documentation/reference/secrets-catalog.md
+    - documentation/reference/environment-variables.md
+    - documentation/guides/extending-bitbrat.md
+
+  refactored_architecture:
+    - architecture.yaml (1106 lines, 10 sections)
+    - architecture.v1.backup.yaml (backup)
+
+  validation:
+    - planning/sprint-8-uhh8fj/validation-report.md
+    - planning/sprint-8-uhh8fj/regression-test-results.md
+
+  updated_guides:
+    - CLAUDE.md
+    - README.md
+    - planning/sprint-8-uhh8fj/migration-guide.md
+
+# ============================================================================
+# TIMELINE
+# ============================================================================
+
+timeline:
+  total_duration_days: 7
+  total_effort_hours: 32
+
+  schedule:
+    day_1:
+      phase: Documentation
+      tasks:
+        - P1-T1.1 (2h)
+        - P1-T1.2 (2h)
+      effort_hours: 4
+
+    day_2:
+      phase: Documentation
+      tasks:
+        - P1-T1.3 (4h)
+      effort_hours: 4
+
+    day_3:
+      phase: Schema Updates
+      tasks:
+        - P2-T2.1 (4h)
+        - P2-T2.2 (2h)
+      effort_hours: 6
+
+    day_4:
+      phase: Schema Updates
+      tasks:
+        - P2-T2.3 (4h)
+        - P2-T2.4 (2h)
+      effort_hours: 6
+
+    day_5:
+      phase: Schema Updates
+      tasks:
+        - P2-T2.5 (2h)
+      effort_hours: 2
+
+    day_6:
+      phase: Validation
+      tasks:
+        - P3-T3.1 (4h)
+        - P3-T3.2 (2h)
+      effort_hours: 6
+
+    day_7:
+      phase: Documentation Updates
+      tasks:
+        - P4-T4.1 (2h)
+        - P4-T4.2 (2h)
+        - P4-T4.3 (2h)
+      effort_hours: 6
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+notes:
+  - Sprint follows architectural analysis recommendations
+  - All tasks traceable to implementation plan
+  - Validation automated where possible
+  - Rollback plan in place (architecture.v1.backup.yaml)
+  - Documentation created before removal (prevents information loss)
+  - Migration guide provides clear path for developers and tooling
+
+# ============================================================================
+# STATUS TRACKING
+# ============================================================================
+
+status:
+  overall: planning
+  phase_1: pending
+  phase_2: pending
+  phase_3: pending
+  phase_4: pending
+
+  tasks_total: 13
+  tasks_completed: 0
+  tasks_in_progress: 0
+  tasks_pending: 13
+
+  completion_percentage: 0%
+
+# ============================================================================
+# END OF BACKLOG
+# ============================================================================
