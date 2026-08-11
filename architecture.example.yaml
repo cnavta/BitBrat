@@ -1,335 +1,475 @@
 # ============================================================================
-# Example architecture.yaml - Simplified for LLM Understanding
+# Example architecture.yaml v2 - Format Demonstration
 # ============================================================================
-# This is a streamlined example demonstrating the core patterns and structure
-# of architecture.yaml. It is NOT exhaustive but illustrates enough for an
-# LLM agent to understand the intent, constraints, and configuration model.
+# This example demonstrates the architecture.yaml v2 FORMAT, not a specific
+# implementation. The format is useful for ANY software system: REST APIs,
+# event-driven platforms, batch processors, ML pipelines, monoliths, etc.
 #
-# Key Patterns Demonstrated:
-# 1. {config, constraints, intent} - Applied to all major sections
-# 2. llm_guidance - Critical orientation section for coding agents
-# 3. platform.orchestration - Event-driven agent loop stages
-# 4. services - Different profiles (core, gateway, llm, mcp-server)
-# 5. messaging - Event bus topic catalog with routing slips
+# Key Capabilities:
+# 1. {config, constraints, intent} - Universal pattern for documenting WHY
+# 2. llm_guidance - Orient LLM coding agents to your system
+# 3. services - Define ANY service type (API, worker, cron, function, etc.)
+# 4. Multi-environment - Local, staging, production with overrides
+# 5. Schema validation - Runtime (Zod) + external tools (JSON Schema)
+# 6. Hierarchical config - Environment variables, secrets, defaults
 # ============================================================================
 
-name: My Event-Driven Platform
-description: An event-driven microservices platform using routing slips for orchestration
+name: E-Commerce Platform
+description: Modern e-commerce system with REST APIs, background workers, and batch jobs
 
 project:
-  name: My Platform
-  version: 0.1.0
-  status: experimental
-  description: Event-driven platform with LLM orchestration capabilities
+  name: ShopCore
+  version: 1.2.3
+  status: production
+  description: Scalable e-commerce platform serving 10k+ merchants
   owners:
-    - developer@example.com
+    - platform-team@example.com
+  repository: https://github.com/example/shopcore
 
 # ============================================================================
-# LLM GUIDANCE - Primary Orientation for Coding Agents
+# LLM GUIDANCE - Orient Coding Agents
 # ============================================================================
-# INTENT: Provide LLM evaluators (Claude Code, Aider, Continue, etc.) with
-# architectural context, glossary, critical invariants, and documentation.
-# This section is the FIRST place an LLM should look to understand the system.
+# INTENT: Help LLM evaluators (Claude Code, Cursor, Aider, etc.) understand
+# your system quickly. This section is system-agnostic and works for any
+# project type.
 llm_guidance:
   intent: >
-    Provide LLM evaluators with architectural context, glossary definitions,
-    critical invariants, and documentation pointers. This section serves as
-    the primary orientation for coding agents.
+    Provide LLM coding agents with architectural context, domain glossary,
+    critical invariants, and documentation links. This accelerates onboarding
+    and reduces errors from misunderstanding system constraints.
 
   default_system_prompt: >
-    You are an experienced engineer working on this event-driven platform.
-    Follow the architecture.yaml specifications strictly. Justify any
-    architectural deviation clearly.
+    You are working on ShopCore, an e-commerce platform. Follow REST API
+    conventions (HTTP status codes, pagination, versioning). All database
+    mutations must be transactional. Security: never log PII or credit cards.
 
   glossary:
-    routing_slip: >-
-      An ordered list of processing steps that travels with each message;
-      services enrich the event and advance the slip by calling next().
+    merchant: >-
+      A seller account with one or more storefronts. Has billing, inventory,
+      and order management capabilities.
 
-    bit: >-
-      A platform service unit. Every Bit exposes a mandatory bit.* control
-      plane via MCP that can be administered fleet-wide. Services are Bits.
+    order_state_machine: >-
+      Orders transition through states: pending → paid → fulfilled → complete.
+      See docs/order-lifecycle.md for state diagram and transition rules.
 
-    envelope: >-
-      Standard message wrapper (Envelope v1) that carries correlationId,
-      routingSlip, payload, annotations, and metadata.
+    idempotency_key: >-
+      Client-provided UUID in X-Idempotency-Key header. Prevents duplicate
+      charges from retries. TTL: 24 hours.
 
-    enrichment: >-
-      Optional analysis that augments an event before reaction. Services
-      add annotations with provenance tracking (source, id, timestamp).
+    webhook_delivery: >-
+      Webhooks are delivered at-least-once with exponential backoff (1s, 5s,
+      25s, 2m, 10m). Consumers must be idempotent.
 
   invariants:
-    - Every message must carry a correlationId for distributed tracing
-    - Bump the topic version (v<N>) on breaking changes; never mutate existing versions
-    - Consumers must be idempotent (delivery is at-least-once)
-    - architecture.yaml is the canonical source of truth for all service configuration
+    - All API endpoints must validate authentication before authorization
+    - Database migrations are append-only; never modify existing migrations
+    - Money amounts stored as integers (cents) to avoid floating-point errors
+    - Rate limits enforced per merchant: 100 req/min (burst 200)
+    - PII must be encrypted at rest (AES-256) and in transit (TLS 1.3+)
 
   references:
-    schemas:
-      envelope: documentation/schemas/envelope.v1.json
-      routing_slip: documentation/schemas/routing-slip.v1.json
-    concepts:
-      platform_flow: documentation/concepts/platform-flow.md
-    guides:
-      extending: documentation/guides/extending-platform.md
+    architecture: docs/architecture/system-overview.md
+    api_conventions: docs/api/conventions.md
+    security: docs/security/threat-model.md
+    testing: docs/testing/integration-tests.md
 
 # ============================================================================
-# PLATFORM ORCHESTRATION - Event-Driven Agent Loop
+# SYSTEM ARCHITECTURE - High-Level Structure
 # ============================================================================
-# INTENT: Decompose the classic agent loop (perceive → plan → act → observe)
-# into independent stages. Each stage is a message bus topic; services
-# subscribe, enrich events, and advance the routing slip.
-platform:
-  orchestration:
+# INTENT: Document your system's architectural approach. This is flexible and
+# works for monoliths, microservices, serverless, batch systems, etc.
+system:
+  architecture:
     config:
-      model: event-driven              # Event-driven orchestration
-      flow: perceive-plan-act-observe  # Agent loop pattern
-      coordination: routing-slip       # Routing slip coordinates steps
+      style: microservices           # monolith | microservices | serverless | hybrid
+      api_paradigm: rest             # rest | graphql | grpc | event-driven
+      data_consistency: eventual     # strong | eventual | hybrid
+      deployment_model: containers   # vms | containers | serverless | bare-metal
 
-    stages:
-      - id: ingest
-        description: Normalize external events into Envelope v1 and publish to internal.ingress.v1
-        services: [ingress-service, api-gateway]
+    components:
+      - id: api-tier
+        description: Public REST APIs for merchants and customers
+        services: [merchant-api, customer-api, webhook-api]
+        scaling: horizontal
 
-      - id: route
-        description: Attach routing slip based on JsonLogic rules; dispatch to first step
-        services: [event-router]
+      - id: background-processing
+        description: Async workers for emails, webhooks, analytics
+        services: [email-worker, webhook-worker, analytics-worker]
+        scaling: queue-depth
 
-      - id: analyze
-        description: Optional enrichment (LLM analysis, query parsing, sentiment)
-        services: [llm-service, query-analyzer]
+      - id: scheduled-jobs
+        description: Cron jobs for daily reports, cleanups, reconciliation
+        services: [daily-reports, data-cleanup, payment-reconciliation]
+        scaling: singleton
 
-      - id: react
-        description: Execute actions, mutate state, prepare responses
-        services: [tool-executor, state-service]
-
-      - id: egress
-        description: Deliver responses back to originating platform
-        services: [ingress-service]
-
-      - id: persist
-        description: Durable event storage for audit and replay
-        services: [persistence-service]
+      - id: data-tier
+        description: PostgreSQL primary, read replicas, Redis cache
+        services: [postgres-primary, postgres-replica, redis-cache]
+        scaling: vertical
 
     constraints:
-      requiresMessaging: true         # Cannot orchestrate without message bus
-      requiresRoutingSlip: true       # Services must understand routing slip schema
-      maxStageLatency: 1000           # Each stage completes in <1s for real-time feel
-      requiresIdempotency: true       # All consumers idempotent (at-least-once delivery)
+      stateless_apis: true            # APIs must be stateless for horizontal scaling
+      database_migrations: flyway     # Use Flyway for versioned schema migrations
+      max_api_latency_p95: 500        # 95th percentile API response < 500ms
+      job_max_runtime: 3600           # Cron jobs timeout after 1 hour
 
     intent:
-      - "Decouples agent loop into independent, scalable services"
-      - "Routing slip enables dynamic orchestration without hardcoded workflows"
-      - "Each stage can have multiple services (e.g., llm-service + query-analyzer)"
-      - "Services participate via subscribe → enrich → next() → acknowledge pattern"
+      - "APIs are stateless and scale horizontally behind load balancer"
+      - "Workers scale based on queue depth (autoscale 1-20 instances)"
+      - "Cron jobs run as singletons with leader election (no duplicate runs)"
+      - "PostgreSQL primary handles writes; read replicas serve analytics queries"
 
 # ============================================================================
-# MESSAGING - Event Bus Configuration
+# SERVICES - Define Your System's Components
 # ============================================================================
-# INTENT: Decentralized orchestration via routing slips. Each service enriches
-# events and advances the slip, enabling dynamic flow without service coupling.
-messaging:
-  intent: >
-    Decentralized event orchestration via routing slips that travel with
-    Envelope v1 messages. Services enrich events and call next() to advance
-    the slip, enabling dynamic flows without hardcoded service dependencies.
-
-  reference: documentation/reference/topic-catalog.md
-
-  config:
-    driver: MESSAGE_BUS_DRIVER          # Environment variable selects driver
-    prefix: BUS_PREFIX                   # Optional topic prefix
-    delivery: at-least-once              # Delivery guarantee
-    envelope_schema: documentation/schemas/envelope.v1.json
-    routing_slip_schema: documentation/schemas/routing-slip.v1.json
-
-  constraints:
-    topic_naming: internal.<domain>.<verb>.v<version>
-    versioning: Bump v<N> on breaking payload changes
-    idempotency: Required for all consumers
-
-  topics:
-    internal.ingress.v1:
-      producers: [ingress-service, api-gateway]
-      consumers: [event-router, persistence-service]
-      schema: documentation/schemas/envelope.v1.json
-      description: External events normalized into Envelope v1
-
-    internal.enriched.v1:
-      producers: [llm-service, query-analyzer]
-      consumers: [tool-executor, persistence-service]
-      schema: documentation/schemas/envelope.v1.json
-      description: Events enriched with LLM analysis or query parsing
-
-    internal.egress.v1:
-      producers: [tool-executor, state-service]
-      consumers: [ingress-service]
-      schema: documentation/schemas/envelope.v1.json
-      description: Responses ready for delivery to external platforms
-
-# ============================================================================
-# SERVICES - Bit Definitions
-# ============================================================================
-# Each service is a "Bit" - a unit that extends a common base class and
-# exposes a mandatory bit.* control plane via MCP.
-#
-# Key Properties:
-# - category: platform (core orchestration) | domain (optional extensions)
-# - profile: core | gateway | llm | mcp-server
-# - mcp.exposure: platform-only (just control plane) | platform+domain (control + domain tools)
+# INTENT: Catalog all services with their configuration. Works for ANY service
+# type: REST APIs, GraphQL, workers, cron jobs, Lambda functions, etc.
 services:
   # --------------------------------------------------------------------------
-  # PLATFORM BIT: Gateway Pattern
+  # REST API Service (Public-facing)
   # --------------------------------------------------------------------------
-  ingress-service:
-    category: platform
-    profile: gateway
-    mcp:
-      exposure: platform-only        # Only exposes bit.* control plane
+  merchant-api:
+    type: api                         # api | worker | cron | function | static
+    language: typescript
+    runtime: node-20
     active: true
     description: >-
-      Gateway that normalizes external platform events (Twitch, Discord)
-      into Envelope v1 and handles egress delivery.
-    kind: gateway
-    entry: src/apps/ingress-service.ts
-    port: 3001
-    paths:
-      - /webhooks/*
-    secrets:
-      - TWITCH_CLIENT_SECRET
-      - DISCORD_BOT_TOKEN
+      Public REST API for merchants to manage products, inventory, orders,
+      and analytics. Handles ~10k RPM peak load.
+    entry: src/services/merchant-api/index.ts
+    port: 8080
+    healthcheck: /health
+    routes:
+      - path: /v1/products
+        methods: [GET, POST, PUT, DELETE]
+      - path: /v1/inventory
+        methods: [GET, PUT]
+      - path: /v1/orders
+        methods: [GET, POST]
     env:
-      - TWITCH_CLIENT_ID
-      - DISCORD_ENABLED
-
-  # --------------------------------------------------------------------------
-  # PLATFORM BIT: Core Pattern (Event Router)
-  # --------------------------------------------------------------------------
-  event-router:
-    category: platform
-    profile: core
-    mcp:
-      exposure: platform-only
-    active: true
-    description: >-
-      Matches events against JsonLogic rules and attaches routing slips
-      that define processing steps. Core orchestration component.
-    kind: pipeline-service
-    entry: src/apps/event-router-service.ts
-    port: 3002
-
-  # --------------------------------------------------------------------------
-  # PLATFORM BIT: LLM Pattern
-  # --------------------------------------------------------------------------
-  llm-service:
-    category: platform
-    profile: llm
-    mcp:
-      exposure: platform-only
-    active: true
-    description: >-
-      LLM-based analysis service. Enriches events with reasoning,
-      tool selection, and response candidates.
-    kind: pipeline-service
-    entry: src/apps/llm-service.ts
-    port: 3003
+      NODE_ENV: production
+      API_VERSION: v1
+      CORS_ORIGINS: https://merchant.example.com,https://admin.example.com
     secrets:
-      - OPENAI_API_KEY
-    env:
-      - LLM_PROVIDER
-      - LLM_MODEL
-
-  # --------------------------------------------------------------------------
-  # DOMAIN BIT: MCP Server Pattern
-  # --------------------------------------------------------------------------
-  image-generator:
-    category: domain
-    profile: mcp-server
-    mcp:
-      exposure: platform+domain      # Exposes control plane + domain tools
-    active: true
-    description: >-
-      MCP server that provides image generation tools (DALL-E).
-      Exposes domain-specific tools to the LLM via tool-executor.
-    kind: mcp-server
-    entry: src/services/image-gen/index.ts
-    port: 3010
-    secrets:
-      - OPENAI_API_KEY
-      - MCP_AUTH_TOKEN
-
-  # --------------------------------------------------------------------------
-  # PLATFORM BIT: Persistence
-  # --------------------------------------------------------------------------
-  persistence-service:
-    category: platform
-    profile: core
-    mcp:
-      exposure: platform-only
-    active: true
-    description: >-
-      Durable event storage service. Persists all events, snapshots,
-      and audit logs to PostgreSQL.
-    kind: pipeline-service
-    entry: src/apps/persistence-service.ts
-    port: 3020
-    env:
+      - JWT_SECRET
       - DATABASE_URL
-      - PERSISTENCE_DRIVER
+      - REDIS_URL
+    scaling:
+      min: 3
+      max: 20
+      target_cpu: 70
+
+  # --------------------------------------------------------------------------
+  # Background Worker (Queue-based)
+  # --------------------------------------------------------------------------
+  email-worker:
+    type: worker
+    language: python
+    runtime: python-3.11
+    active: true
+    description: >-
+      Consumes email jobs from queue and sends transactional emails (order
+      confirmations, shipping notifications, password resets).
+    entry: src/workers/email/main.py
+    queue: email-jobs                  # Queue name to consume from
+    concurrency: 10                    # Process 10 jobs concurrently
+    env:
+      QUEUE_DRIVER: sqs                # sqs | rabbitmq | redis | kafka
+      BATCH_SIZE: "100"
+      MAX_RETRIES: "3"
+    secrets:
+      - SENDGRID_API_KEY
+      - QUEUE_URL
+    scaling:
+      min: 2
+      max: 10
+      target_queue_depth: 1000         # Scale up when queue > 1000 messages
+
+  # --------------------------------------------------------------------------
+  # Scheduled Job (Cron pattern)
+  # --------------------------------------------------------------------------
+  daily-reports:
+    type: cron
+    language: go
+    runtime: go-1.21
+    active: true
+    description: >-
+      Generates daily sales reports, inventory reports, and merchant analytics.
+      Runs at 2 AM UTC daily.
+    entry: cmd/daily-reports/main.go
+    schedule: "0 2 * * *"              # Cron expression
+    timeout: 3600                      # Max runtime: 1 hour
+    env:
+      REPORT_FORMAT: pdf
+      OUTPUT_BUCKET: s3://reports-bucket
+      TIMEZONE: UTC
+    secrets:
+      - DATABASE_URL
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    scaling:
+      mode: singleton                  # Only one instance runs (leader election)
+
+  # --------------------------------------------------------------------------
+  # Serverless Function (Event-driven)
+  # --------------------------------------------------------------------------
+  payment-webhook:
+    type: function
+    language: typescript
+    runtime: node-20
+    active: true
+    description: >-
+      AWS Lambda function triggered by Stripe webhooks. Updates order status
+      and triggers fulfillment workflow.
+    entry: src/functions/payment-webhook/index.ts
+    trigger: http                      # http | queue | s3 | schedule
+    timeout: 30                        # Lambda timeout: 30 seconds
+    memory: 512                        # Memory allocation (MB)
+    env:
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+    secrets:
+      - STRIPE_WEBHOOK_SECRET
+      - DATABASE_URL
+    scaling:
+      reserved_concurrency: 100        # Max concurrent executions
+
+  # --------------------------------------------------------------------------
+  # Static Site (Frontend)
+  # --------------------------------------------------------------------------
+  merchant-dashboard:
+    type: static
+    language: typescript
+    framework: react
+    active: true
+    description: >-
+      React SPA for merchant dashboard. Built with Vite, served from CDN.
+    entry: src/frontend/merchant-dashboard/index.html
+    build_command: npm run build
+    output_dir: dist
+    env:
+      VITE_API_BASE_URL: https://api.example.com
+      VITE_ANALYTICS_ID: UA-123456
+    cdn:
+      provider: cloudflare             # cloudflare | cloudfront | fastly
+      cache_ttl: 3600
+
+# ============================================================================
+# DATA STORES - Database, Cache, Storage
+# ============================================================================
+# INTENT: Catalog data storage systems and their relationships.
+datastores:
+  postgres-primary:
+    type: postgres
+    version: "15"
+    mode: primary
+    description: Primary database for transactional data
+    config:
+      max_connections: 100
+      shared_buffers: 4GB
+      effective_cache_size: 12GB
+    backups:
+      schedule: "0 3 * * *"            # Daily at 3 AM
+      retention_days: 30
+
+  postgres-replica:
+    type: postgres
+    version: "15"
+    mode: replica
+    replicates_from: postgres-primary
+    description: Read replica for analytics and reporting queries
+    config:
+      max_connections: 200
+      hot_standby: "on"
+
+  redis-cache:
+    type: redis
+    version: "7"
+    mode: cluster
+    description: Session store and application cache
+    config:
+      maxmemory: 8GB
+      maxmemory_policy: allkeys-lru
+      cluster_enabled: true
+      nodes: 6
+
+  s3-assets:
+    type: object-storage
+    provider: aws-s3                   # aws-s3 | gcs | azure-blob
+    bucket: shopcore-assets
+    description: Product images, merchant uploads, generated reports
+    lifecycle:
+      - name: archive-old-reports
+        prefix: reports/
+        transition_days: 90
+        storage_class: glacier
+
+# ============================================================================
+# COMMUNICATION PATTERNS - How Services Interact
+# ============================================================================
+# INTENT: Document communication mechanisms. Works for HTTP, queues, events,
+# file-based, database polling, etc.
+communication:
+  intent: >
+    Services communicate via REST APIs (synchronous) and message queues
+    (asynchronous). Webhooks deliver events to external systems.
+
+  patterns:
+    - type: rest-api
+      description: Synchronous HTTP/JSON APIs for merchant and customer operations
+      services: [merchant-api, customer-api]
+      constraints:
+        - Versioned URLs (/v1/, /v2/)
+        - Pagination for list endpoints (cursor-based)
+        - Rate limiting (100 req/min per merchant)
+
+    - type: message-queue
+      description: Async job processing via SQS queues
+      driver: sqs
+      services: [email-worker, webhook-worker, analytics-worker]
+      queues:
+        - name: email-jobs
+          visibility_timeout: 300
+          max_retries: 3
+        - name: webhook-deliveries
+          visibility_timeout: 60
+          max_retries: 5
+      constraints:
+        - Messages must be idempotent (at-least-once delivery)
+        - Dead-letter queue after max retries
+
+    - type: webhooks
+      description: HTTP callbacks to merchant endpoints for order events
+      services: [webhook-api]
+      events:
+        - order.created
+        - order.paid
+        - order.fulfilled
+        - order.cancelled
+      constraints:
+        - Exponential backoff (1s, 5s, 25s, 2m, 10m)
+        - HMAC signature verification required
+        - Idempotency enforced via event IDs
+
+# ============================================================================
+# DEPLOYMENT ENVIRONMENTS - Multi-environment Configuration
+# ============================================================================
+# INTENT: Define environments with different configurations. Supports any
+# deployment model: local dev, staging, production, DR, etc.
+executionContexts:
+  local:
+    description: Local development on developer laptops
+    deployment:
+      type: docker-compose
+      compose_file: docker-compose.local.yml
+    runtime:
+      database:
+        host: localhost
+        port: 5432
+        database: shopcore_dev
+      cache:
+        host: localhost
+        port: 6379
+      queue:
+        driver: redis                  # Use Redis instead of SQS locally
+    env_overrides:
+      LOG_LEVEL: debug
+      DISABLE_RATE_LIMITING: "true"
+
+  staging:
+    description: Staging environment on AWS (pre-production validation)
+    deployment:
+      type: ecs                        # ecs | kubernetes | cloud-run
+      cluster: shopcore-staging
+      region: us-east-1
+    runtime:
+      database:
+        host: staging-db.abc123.us-east-1.rds.amazonaws.com
+        port: 5432
+        database: shopcore_staging
+      cache:
+        host: staging-redis.abc123.cache.amazonaws.com
+        port: 6379
+      queue:
+        driver: sqs
+        region: us-east-1
+    env_overrides:
+      LOG_LEVEL: info
+      RATE_LIMIT_MULTIPLIER: "10"      # 10x rate limits for load testing
+
+  production:
+    description: Production environment on AWS (multi-region active-active)
+    deployment:
+      type: ecs
+      cluster: shopcore-prod
+      region: us-east-1
+    runtime:
+      database:
+        host: prod-db.xyz789.us-east-1.rds.amazonaws.com
+        port: 5432
+        database: shopcore_production
+      cache:
+        host: prod-redis.xyz789.cache.amazonaws.com
+        port: 6379
+      queue:
+        driver: sqs
+        region: us-east-1
+    env_overrides:
+      LOG_LEVEL: warn
+      ENABLE_PROFILING: "true"
+    tags: [production, critical]
 
 # ============================================================================
 # CONVENTIONS - Configuration Management
 # ============================================================================
-# INTENT: Hierarchical environment variable resolution with strict separation
-# between config (env vars) and secrets (sensitive values).
+# INTENT: Define how configuration is loaded, validated, and overridden.
 conventions:
   intent: >
-    Configuration follows hierarchical resolution (env var > .secure/.env >
-    yaml > defaults) with strict separation between environment variables
-    and secrets.
+    Configuration follows hierarchical resolution with separation between
+    environment variables (non-sensitive) and secrets (sensitive).
 
-  references:
-    environment_variables: documentation/reference/environment-variables.md
-    secrets_catalog: documentation/reference/secrets-catalog.md
+  config_resolution_order:
+    - runtime_environment_variable     # Highest priority (e.g., $DATABASE_URL)
+    - execution_context_override       # executionContexts[ctx].env_overrides
+    - service_definition               # services[name].env
+    - defaults                         # defaults.services.env
 
-  constraints:
-    env_resolution_order:
-      - environment_variable                    # Highest priority
-      - .secure/{context}/.env                  # Context-specific secrets
-      - env/{context}/{service}.yaml            # Service overrides
-      - env/{context}/global.yaml               # Context baseline
-      - services.{service}.env                  # Service defaults
-      - defaults.services.env                   # Global defaults
+  secret_management:
+    local: .env.local                  # Git-ignored .env file
+    staging: aws-parameter-store       # AWS Systems Manager Parameter Store
+    production: aws-secrets-manager    # AWS Secrets Manager
 
-    secret_management:
-      local: .secure/{context}/.env             # Local development
-      cloud_run: gcp-secret-manager             # GCP Cloud Run
-      ecs: aws-secrets-manager                  # AWS ECS
-      k8s: kubernetes-secrets                   # Kubernetes
-
-    secret_naming:
-      pattern: UPPER_SNAKE_CASE
-      no_values: Secret VALUES never stored in architecture.yaml
+  validation:
+    - Zod schema validation at runtime (fail-fast on invalid config)
+    - JSON Schema validation in CI/CD (pre-deployment checks)
+    - Required secrets must be present or service fails to start
 
 # ============================================================================
-# DEFAULTS - Common Service Patterns
+# DEFAULTS - Common Service Configuration
 # ============================================================================
-# Default configurations inherited by all services unless overridden.
+# INTENT: DRY principle - define once, inherit everywhere, override as needed.
 defaults:
   services:
     port: 3000
+    healthcheck: /health
     scaling:
       min: 1
-      max: 1
+      max: 5
+      target_cpu: 80
     env:
       NODE_ENV: production
       LOG_LEVEL: info
-      MESSAGE_BUS_DRIVER: nats
-      PERSISTENCE_DRIVER: postgres
+      LOG_FORMAT: json
     build:
-      dockerfile: Dockerfile.service
+      dockerfile: Dockerfile
       context: .
-      args:
-        - SERVICE_NAME
-        - SERVICE_ENTRY
-        - SERVICE_PORT
+      cache: true
+
+  datastores:
+    backup_retention_days: 30
+    encryption_at_rest: true
+    encryption_in_transit: true
+
+  security:
+    tls_version: "1.3"
+    require_authentication: true
+    audit_logging: true
