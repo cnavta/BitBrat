@@ -1,0 +1,335 @@
+# ============================================================================
+# Example architecture.yaml - Simplified for LLM Understanding
+# ============================================================================
+# This is a streamlined example demonstrating the core patterns and structure
+# of architecture.yaml. It is NOT exhaustive but illustrates enough for an
+# LLM agent to understand the intent, constraints, and configuration model.
+#
+# Key Patterns Demonstrated:
+# 1. {config, constraints, intent} - Applied to all major sections
+# 2. llm_guidance - Critical orientation section for coding agents
+# 3. platform.orchestration - Event-driven agent loop stages
+# 4. services - Different profiles (core, gateway, llm, mcp-server)
+# 5. messaging - Event bus topic catalog with routing slips
+# ============================================================================
+
+name: My Event-Driven Platform
+description: An event-driven microservices platform using routing slips for orchestration
+
+project:
+  name: My Platform
+  version: 0.1.0
+  status: experimental
+  description: Event-driven platform with LLM orchestration capabilities
+  owners:
+    - developer@example.com
+
+# ============================================================================
+# LLM GUIDANCE - Primary Orientation for Coding Agents
+# ============================================================================
+# INTENT: Provide LLM evaluators (Claude Code, Aider, Continue, etc.) with
+# architectural context, glossary, critical invariants, and documentation.
+# This section is the FIRST place an LLM should look to understand the system.
+llm_guidance:
+  intent: >
+    Provide LLM evaluators with architectural context, glossary definitions,
+    critical invariants, and documentation pointers. This section serves as
+    the primary orientation for coding agents.
+
+  default_system_prompt: >
+    You are an experienced engineer working on this event-driven platform.
+    Follow the architecture.yaml specifications strictly. Justify any
+    architectural deviation clearly.
+
+  glossary:
+    routing_slip: >-
+      An ordered list of processing steps that travels with each message;
+      services enrich the event and advance the slip by calling next().
+
+    bit: >-
+      A platform service unit. Every Bit exposes a mandatory bit.* control
+      plane via MCP that can be administered fleet-wide. Services are Bits.
+
+    envelope: >-
+      Standard message wrapper (Envelope v1) that carries correlationId,
+      routingSlip, payload, annotations, and metadata.
+
+    enrichment: >-
+      Optional analysis that augments an event before reaction. Services
+      add annotations with provenance tracking (source, id, timestamp).
+
+  invariants:
+    - Every message must carry a correlationId for distributed tracing
+    - Bump the topic version (v<N>) on breaking changes; never mutate existing versions
+    - Consumers must be idempotent (delivery is at-least-once)
+    - architecture.yaml is the canonical source of truth for all service configuration
+
+  references:
+    schemas:
+      envelope: documentation/schemas/envelope.v1.json
+      routing_slip: documentation/schemas/routing-slip.v1.json
+    concepts:
+      platform_flow: documentation/concepts/platform-flow.md
+    guides:
+      extending: documentation/guides/extending-platform.md
+
+# ============================================================================
+# PLATFORM ORCHESTRATION - Event-Driven Agent Loop
+# ============================================================================
+# INTENT: Decompose the classic agent loop (perceive → plan → act → observe)
+# into independent stages. Each stage is a message bus topic; services
+# subscribe, enrich events, and advance the routing slip.
+platform:
+  orchestration:
+    config:
+      model: event-driven              # Event-driven orchestration
+      flow: perceive-plan-act-observe  # Agent loop pattern
+      coordination: routing-slip       # Routing slip coordinates steps
+
+    stages:
+      - id: ingest
+        description: Normalize external events into Envelope v1 and publish to internal.ingress.v1
+        services: [ingress-service, api-gateway]
+
+      - id: route
+        description: Attach routing slip based on JsonLogic rules; dispatch to first step
+        services: [event-router]
+
+      - id: analyze
+        description: Optional enrichment (LLM analysis, query parsing, sentiment)
+        services: [llm-service, query-analyzer]
+
+      - id: react
+        description: Execute actions, mutate state, prepare responses
+        services: [tool-executor, state-service]
+
+      - id: egress
+        description: Deliver responses back to originating platform
+        services: [ingress-service]
+
+      - id: persist
+        description: Durable event storage for audit and replay
+        services: [persistence-service]
+
+    constraints:
+      requiresMessaging: true         # Cannot orchestrate without message bus
+      requiresRoutingSlip: true       # Services must understand routing slip schema
+      maxStageLatency: 1000           # Each stage completes in <1s for real-time feel
+      requiresIdempotency: true       # All consumers idempotent (at-least-once delivery)
+
+    intent:
+      - "Decouples agent loop into independent, scalable services"
+      - "Routing slip enables dynamic orchestration without hardcoded workflows"
+      - "Each stage can have multiple services (e.g., llm-service + query-analyzer)"
+      - "Services participate via subscribe → enrich → next() → acknowledge pattern"
+
+# ============================================================================
+# MESSAGING - Event Bus Configuration
+# ============================================================================
+# INTENT: Decentralized orchestration via routing slips. Each service enriches
+# events and advances the slip, enabling dynamic flow without service coupling.
+messaging:
+  intent: >
+    Decentralized event orchestration via routing slips that travel with
+    Envelope v1 messages. Services enrich events and call next() to advance
+    the slip, enabling dynamic flows without hardcoded service dependencies.
+
+  reference: documentation/reference/topic-catalog.md
+
+  config:
+    driver: MESSAGE_BUS_DRIVER          # Environment variable selects driver
+    prefix: BUS_PREFIX                   # Optional topic prefix
+    delivery: at-least-once              # Delivery guarantee
+    envelope_schema: documentation/schemas/envelope.v1.json
+    routing_slip_schema: documentation/schemas/routing-slip.v1.json
+
+  constraints:
+    topic_naming: internal.<domain>.<verb>.v<version>
+    versioning: Bump v<N> on breaking payload changes
+    idempotency: Required for all consumers
+
+  topics:
+    internal.ingress.v1:
+      producers: [ingress-service, api-gateway]
+      consumers: [event-router, persistence-service]
+      schema: documentation/schemas/envelope.v1.json
+      description: External events normalized into Envelope v1
+
+    internal.enriched.v1:
+      producers: [llm-service, query-analyzer]
+      consumers: [tool-executor, persistence-service]
+      schema: documentation/schemas/envelope.v1.json
+      description: Events enriched with LLM analysis or query parsing
+
+    internal.egress.v1:
+      producers: [tool-executor, state-service]
+      consumers: [ingress-service]
+      schema: documentation/schemas/envelope.v1.json
+      description: Responses ready for delivery to external platforms
+
+# ============================================================================
+# SERVICES - Bit Definitions
+# ============================================================================
+# Each service is a "Bit" - a unit that extends a common base class and
+# exposes a mandatory bit.* control plane via MCP.
+#
+# Key Properties:
+# - category: platform (core orchestration) | domain (optional extensions)
+# - profile: core | gateway | llm | mcp-server
+# - mcp.exposure: platform-only (just control plane) | platform+domain (control + domain tools)
+services:
+  # --------------------------------------------------------------------------
+  # PLATFORM BIT: Gateway Pattern
+  # --------------------------------------------------------------------------
+  ingress-service:
+    category: platform
+    profile: gateway
+    mcp:
+      exposure: platform-only        # Only exposes bit.* control plane
+    active: true
+    description: >-
+      Gateway that normalizes external platform events (Twitch, Discord)
+      into Envelope v1 and handles egress delivery.
+    kind: gateway
+    entry: src/apps/ingress-service.ts
+    port: 3001
+    paths:
+      - /webhooks/*
+    secrets:
+      - TWITCH_CLIENT_SECRET
+      - DISCORD_BOT_TOKEN
+    env:
+      - TWITCH_CLIENT_ID
+      - DISCORD_ENABLED
+
+  # --------------------------------------------------------------------------
+  # PLATFORM BIT: Core Pattern (Event Router)
+  # --------------------------------------------------------------------------
+  event-router:
+    category: platform
+    profile: core
+    mcp:
+      exposure: platform-only
+    active: true
+    description: >-
+      Matches events against JsonLogic rules and attaches routing slips
+      that define processing steps. Core orchestration component.
+    kind: pipeline-service
+    entry: src/apps/event-router-service.ts
+    port: 3002
+
+  # --------------------------------------------------------------------------
+  # PLATFORM BIT: LLM Pattern
+  # --------------------------------------------------------------------------
+  llm-service:
+    category: platform
+    profile: llm
+    mcp:
+      exposure: platform-only
+    active: true
+    description: >-
+      LLM-based analysis service. Enriches events with reasoning,
+      tool selection, and response candidates.
+    kind: pipeline-service
+    entry: src/apps/llm-service.ts
+    port: 3003
+    secrets:
+      - OPENAI_API_KEY
+    env:
+      - LLM_PROVIDER
+      - LLM_MODEL
+
+  # --------------------------------------------------------------------------
+  # DOMAIN BIT: MCP Server Pattern
+  # --------------------------------------------------------------------------
+  image-generator:
+    category: domain
+    profile: mcp-server
+    mcp:
+      exposure: platform+domain      # Exposes control plane + domain tools
+    active: true
+    description: >-
+      MCP server that provides image generation tools (DALL-E).
+      Exposes domain-specific tools to the LLM via tool-executor.
+    kind: mcp-server
+    entry: src/services/image-gen/index.ts
+    port: 3010
+    secrets:
+      - OPENAI_API_KEY
+      - MCP_AUTH_TOKEN
+
+  # --------------------------------------------------------------------------
+  # PLATFORM BIT: Persistence
+  # --------------------------------------------------------------------------
+  persistence-service:
+    category: platform
+    profile: core
+    mcp:
+      exposure: platform-only
+    active: true
+    description: >-
+      Durable event storage service. Persists all events, snapshots,
+      and audit logs to PostgreSQL.
+    kind: pipeline-service
+    entry: src/apps/persistence-service.ts
+    port: 3020
+    env:
+      - DATABASE_URL
+      - PERSISTENCE_DRIVER
+
+# ============================================================================
+# CONVENTIONS - Configuration Management
+# ============================================================================
+# INTENT: Hierarchical environment variable resolution with strict separation
+# between config (env vars) and secrets (sensitive values).
+conventions:
+  intent: >
+    Configuration follows hierarchical resolution (env var > .secure/.env >
+    yaml > defaults) with strict separation between environment variables
+    and secrets.
+
+  references:
+    environment_variables: documentation/reference/environment-variables.md
+    secrets_catalog: documentation/reference/secrets-catalog.md
+
+  constraints:
+    env_resolution_order:
+      - environment_variable                    # Highest priority
+      - .secure/{context}/.env                  # Context-specific secrets
+      - env/{context}/{service}.yaml            # Service overrides
+      - env/{context}/global.yaml               # Context baseline
+      - services.{service}.env                  # Service defaults
+      - defaults.services.env                   # Global defaults
+
+    secret_management:
+      local: .secure/{context}/.env             # Local development
+      cloud_run: gcp-secret-manager             # GCP Cloud Run
+      ecs: aws-secrets-manager                  # AWS ECS
+      k8s: kubernetes-secrets                   # Kubernetes
+
+    secret_naming:
+      pattern: UPPER_SNAKE_CASE
+      no_values: Secret VALUES never stored in architecture.yaml
+
+# ============================================================================
+# DEFAULTS - Common Service Patterns
+# ============================================================================
+# Default configurations inherited by all services unless overridden.
+defaults:
+  services:
+    port: 3000
+    scaling:
+      min: 1
+      max: 1
+    env:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      MESSAGE_BUS_DRIVER: nats
+      PERSISTENCE_DRIVER: postgres
+    build:
+      dockerfile: Dockerfile.service
+      context: .
+      args:
+        - SERVICE_NAME
+        - SERVICE_ENTRY
+        - SERVICE_PORT
