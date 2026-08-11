@@ -22,6 +22,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.25.0] - 2026-08-11
+### Added
+- Created comprehensive reference documentation (3,675 lines total):
+  - `documentation/reference/topic-catalog.md` - Complete message bus topic reference (745 lines)
+  - `documentation/reference/secrets-catalog.md` - Platform secrets reference (713 lines)
+  - `documentation/reference/environment-variables.md` - Environment variable resolution guide (924 lines)
+  - `documentation/guides/extending-bitbrat.md` - Comprehensive platform extension guide (1,293 lines)
+  - `documentation/guides/sprint-8-architecture-migration.md` - Migration guide with rollback procedures
+- New `platform.orchestration` section in architecture.yaml (38 lines) applying {config, stages, constraints, intent} pattern
+
+### Changed
+- **BREAKING**: Refactored `architecture.yaml` structure (1,444 → 1,093 lines, 24% reduction)
+  - Refactored `messaging` section (202 → 101 lines, 50% reduction) with {config, constraints, intent} pattern
+  - Refactored `conventions` section (106 → 30 lines, 72% reduction) with references to new documentation
+  - Enhanced `llm_guidance` section with comprehensive references to new documentation files
+- Updated `CLAUDE.md` with references to 4 new documentation files
+- Updated `README.md` to reference `extending-bitbrat.md` instead of removed `extension_points` section
+- Updated test `base-server-yaml.test.ts` to check `platform.orchestration` instead of removed `cloudResources`
+
+### Deprecated
+- Marked 6 sections as deprecated/removed (see Removed section for details)
+
+### Removed
+- Removed 6 deprecated sections from `architecture.yaml` (232 lines total):
+  - `dataflow` (41 lines) - content migrated to `platform.orchestration`
+  - `references` (11 lines) - content migrated to `llm_guidance.references`
+  - `extension_points` (53 lines) - content extracted to `documentation/guides/extending-bitbrat.md`
+  - `cloudResources` (104 lines) - deprecated GCP-specific configuration
+  - `deploymentDefaults` (12 lines) - deprecated unused configuration
+  - `networking` (11 lines) - deprecated GCP-specific configuration
+
+### Fixed
+- Skipped obsolete test in `from-repo-arch.test.ts` that relied on removed `cloudResources` section
+
+### Security
+
 ## [0.24.0] - 2026-08-10
 ### Added
 
