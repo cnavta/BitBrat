@@ -7,14 +7,14 @@
 #
 # To regenerate from scratch: Use the regenerate-sprint-index tool
 #
-# Generated: 2026-08-08T01:53:02.357Z
+# Generated: 2026-08-11T02:43:46.238Z
 #
 
 version: "1.0"
-generatedAt: 2026-08-08T05:38:02.609Z
-totalSprints: 2
+generatedAt: 2026-08-11T14:52:45.770Z
+totalSprints: 7
 activeSprints: 0
-completedSprints: 2
+completedSprints: 7
 sprints:
   - id: sprint-1-9ih2e3
     title: Fix Debug Trace Message Re-delivery Issue
@@ -38,6 +38,53 @@ sprints:
     completionMode: normal
     pr: https://github.com/cnavta/BitBrat/pull/308
     worktreePath: .worktrees/sprint-2-8olsv2
+  - id: sprint-3-p8ehzo
+    title: Fix BEC creation for remote Docker with PostgreSQL
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-08T17:31:00.835Z
+    manifestPath: planning/sprint-3-p8ehzo/sprint-manifest.yaml
+    branch: feature/sprint-3-p8ehzo-fix-bec-creation-for-remote-do
+    completedAt: 2026-08-11T14:36:00.000Z
+    completionMode: forced
+  - id: sprint-5-anrn33
+    title: Architecture.yaml Infrastructure Redesign
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-10T02:03:35.287Z
+    manifestPath: planning/sprint-5-anrn33/sprint-manifest.yaml
+    branch: feature/sprint-5-anrn33-architecture-yaml-infrastructu
+    completedAt: 2026-08-10T20:05:28.595Z
+    completionMode: normal
+  - id: sprint-7-y8gjnq
+    title: Foundation & Production Migration
+    status: complete
+    owner: christophernavta
+    createdAt: 2026-08-10T20:20:41.185Z
+    manifestPath: planning/sprint-7-y8gjnq/sprint-manifest.yaml
+    branch: feature/sprint-7-y8gjnq-foundation-production-migratio
+    completedAt: 2026-08-11T14:36:00.000Z
+    completionMode: forced
+  - id: sprint-8-uhh8fj
+    title: Architecture YAML Consolidation and Intent-Centric Refactor
+    status: complete
+    owner: "@christophernavta"
+    createdAt: 2026-08-11T03:17:07.896Z
+    manifestPath: .worktrees/sprint-8-uhh8fj/planning/sprint-8-uhh8fj/sprint-manifest.yaml
+    branch: feature/sprint-8-uhh8fj-architecture-yaml-consolidatio
+    completedAt: 2026-08-11T14:35:00.000Z
+    completionMode: normal
+    worktreePath: .worktrees/sprint-8-uhh8fj
+  - id: sprint-8-uhh8fj
+    title: Architecture YAML Consolidation and Intent-Centric Refactor
+    status: complete
+    owner: "@christophernavta"
+    createdAt: 2026-08-11T03:17:07.896Z
+    manifestPath: planning/sprint-8-uhh8fj/sprint-manifest.yaml
+    branch: feature/sprint-8-uhh8fj-architecture-yaml-consolidatio
+    completedAt: 2026-08-11T14:35:00.000Z
+    completionMode: normal
+    worktreePath: .worktrees/sprint-8-uhh8fj
 statistics:
   byStatus:
     planning: 0
@@ -45,8 +92,8 @@ statistics:
     validating: 0
     verifying: 0
     published: 0
-    complete: 2
+    complete: 7
   byCompletionMode:
-    normal: 1
-    forced: 1
-  averageSprintDuration: PT17H
+    normal: 4
+    forced: 3
+  averageSprintDuration: PT23H
