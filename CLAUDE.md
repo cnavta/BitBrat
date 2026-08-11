@@ -1292,6 +1292,10 @@ await this.onMessage('internal.llmbot.v1', async (data, attrs, ctx) => {
 - **documentation/concepts/platform-flow.md**: Event lifecycle walkthrough
 - **documentation/concepts/bit-model.md**: The Bit abstraction and three rings
 - **documentation/reference/bit-control-plane.md**: Universal `bit.*` toolset reference
+- **documentation/reference/topic-catalog.md**: Complete message bus topic reference (Sprint 8+)
+- **documentation/reference/secrets-catalog.md**: Platform secrets reference (Sprint 8+)
+- **documentation/reference/environment-variables.md**: Environment variable resolution and configuration (Sprint 8+)
+- **documentation/guides/extending-bitbrat.md**: Comprehensive platform extension guide (Sprint 8+)
 - **documentation/guides/brat-fleet.md**: Fleet administration guide
 - **tsconfig.json**: TypeScript compiler configuration with `@/*` path aliases
 - **jest.config.js**: Jest test runner configuration

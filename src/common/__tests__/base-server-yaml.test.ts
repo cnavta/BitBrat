@@ -26,10 +26,12 @@ describe('BaseServer.loadArchitectureYaml', () => {
     expect(arch.name).toBe('BitBrat Platform');
   });
 
-  it('should find the load balancer default domain', () => {
+  it('should find platform orchestration configuration', () => {
     const arch = Bit.loadArchitectureYaml();
-    const domain = arch?.cloudResources?.resources?.['main-load-balancer']?.routing?.default_domain;
-    expect(domain).toBeDefined();
-    expect(domain).toContain('bitbrat.ai');
+    const orchestration = arch?.platform?.orchestration;
+    expect(orchestration).toBeDefined();
+    expect(orchestration?.config?.model).toBe('event-driven');
+    expect(orchestration?.stages).toBeDefined();
+    expect(orchestration?.stages?.length).toBeGreaterThan(0);
   });
 });
