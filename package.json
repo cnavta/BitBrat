@@ -23,6 +23,7 @@
     "lint": "eslint .",
     "build": "tsc -p tsconfig.json",
     "test": "jest",
+    "regen": "npm ci && npm run build && npm test",
     "local": "npm run brat -- bit deploy --all --context local --loki",
     "local:down": "npm run brat -- docker down --context local",
     "local:logs": "npm run brat -- docker logs --context local",

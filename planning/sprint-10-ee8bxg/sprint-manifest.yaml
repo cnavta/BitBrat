@@ -1,0 +1,13 @@
+id: sprint-10-ee8bxg
+title: Refactor Twitch Integration to Standard Slack Pattern
+goal: Refactor the Twitch integration in ingress-egress to align with the
+  standard connector architecture established in the Slack integration,
+  preparing for future per-platform Bit separation
+owner: christophernavta
+createdAt: 2026-08-12T02:30:16.884Z
+status: complete
+links:
+  branch: feature/sprint-10-ee8bxg-refactor-twitch-integration-to
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-12T13:55:36.874Z
+completionMode: normal
