@@ -434,8 +434,17 @@ export class AgentDevContextManager {
     try {
       const content = fs.readFileSync(ephemeralPath, 'utf8');
       const ephemeral = yaml.load(content) as any;
-      return !!(ephemeral?.executionContexts && ephemeral.executionContexts[name]);
+      // Sprint 9: Added explicit null/undefined check for robust validation
+      if (!ephemeral || typeof ephemeral !== 'object') {
+        return false;
+      }
+      if (!ephemeral.executionContexts || typeof ephemeral.executionContexts !== 'object') {
+        return false;
+      }
+      return !!ephemeral.executionContexts[name];
     } catch (error) {
+      // Sprint 9: Log errors instead of silently returning false to aid debugging
+      console.error(`contextExists check failed for '${name}':`, error);
       return false;
     }
   }
