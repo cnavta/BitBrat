@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://bitbrat.dev/schemas/architecture.v2.json",
-  "title": "BitBrat architecture.yaml (v2)",
-  "description": "Schema for the BitBrat platform definition file with v2 infrastructure model. Validates three-tier infrastructure design: platform.infrastructure (WHAT + WHY), infrastructure.{provider} (HOW), and executionContexts.*.infrastructure (context overrides). Strict validation for infrastructure blocks while permissive for documentation/metadata.",
+  "title": "architecture.yaml v2 Format",
+  "description": "JSON Schema for architecture.yaml v2 format with enhanced infrastructure model. Validates three-tier infrastructure design: platform.infrastructure (requirements/capabilities), infrastructure.{provider} (provider implementations), and executionContexts.*.infrastructure (environment-specific overrides). Strict validation for infrastructure while permissive for documentation/metadata. Works with runtime validation (Zod) and external tooling (ajv-cli).",
   "type": "object",
   "required": ["name", "project", "platform", "infrastructure", "services"],
   "additionalProperties": true,
@@ -136,7 +136,7 @@
     },
     "services": {
       "type": "object",
-      "description": "Map of service key -> service definition (Bits).",
+      "description": "Service catalog: map of service keys to service definitions with their configuration, dependencies, and deployment specifications.",
       "additionalProperties": {
         "$ref": "#/definitions/service"
       }
@@ -420,7 +420,7 @@
     },
     "service": {
       "type": "object",
-      "description": "Service (Bit) definition with v2 infrastructure dependencies.",
+      "description": "Service definition with infrastructure dependencies, deployment configuration, and runtime specifications.",
       "additionalProperties": true,
       "properties": {
         "active": {
@@ -429,22 +429,22 @@
         },
         "category": {
           "type": "string",
-          "description": "Bit architectural category: platform (core orchestration) vs domain (optional extensions).",
+          "description": "Service category: platform (core system services) vs domain (optional application-specific extensions).",
           "enum": ["platform", "domain"]
         },
         "profile": {
           "type": "string",
-          "description": "Bit model: declarative capability profile.",
+          "description": "Service capability profile: declarative role descriptor (core = standard service, gateway = API endpoint, llm = LLM integration, mcp-server = tool provider).",
           "enum": ["core", "llm", "mcp-server", "gateway"]
         },
         "mcp": {
           "type": "object",
-          "description": "Bit model: MCP control-plane exposure for this Bit.",
+          "description": "MCP (Model Context Protocol) tool exposure configuration for LLM integration.",
           "additionalProperties": true,
           "properties": {
             "exposure": {
               "type": "string",
-              "description": "platform-only exposes just the bit.* control plane; platform+domain also exposes the Bit's domain tools.",
+              "description": "Tool exposure level: platform-only (system/control tools only), platform+domain (system + application-specific tools), or none (no MCP exposure).",
               "enum": ["platform-only", "platform+domain", "none"]
             }
           }

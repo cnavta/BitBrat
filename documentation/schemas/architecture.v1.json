@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://bitbrat.dev/schemas/architecture.v1.json",
-  "title": "BitBrat architecture.yaml (v1)",
-  "description": "Schema for the canonical BitBrat platform definition file (architecture.yaml). It is intentionally permissive (additionalProperties: true at the top level and within most blocks) so descriptive/documentation blocks can be added without breaking validation, while still asserting the core structure that the `brat` tooling relies on. This mirrors the runtime Zod ArchitectureSchema in tools/brat/src/config/schema.ts.",
+  "title": "architecture.yaml v1 Format",
+  "description": "JSON Schema for architecture.yaml v1 format. Validates system configuration with intentionally permissive top-level structure (additionalProperties: true) to allow documentation and metadata blocks while enforcing core service definitions, environment configuration, and deployment specifications. Works with runtime validation (Zod) and external tooling (ajv-cli).",
   "type": "object",
   "required": ["name", "project", "services"],
   "additionalProperties": true,
@@ -101,7 +101,7 @@
           "active": { "type": "boolean" },
           "category": {
             "type": "string",
-            "description": "Bit architectural category: platform (core orchestration) vs domain (optional extensions).",
+            "description": "Service category: platform (core system services) vs domain (optional application-specific extensions).",
             "enum": ["platform", "domain"]
           },
           "description": { "type": "string" },
@@ -112,17 +112,17 @@
           "kind": { "type": "string" },
           "profile": {
             "type": "string",
-            "description": "Bit model: declarative capability profile. Absent => core.",
+            "description": "Service capability profile: declarative role descriptor (core = standard service, gateway = API endpoint, llm = LLM integration, mcp-server = tool provider).",
             "enum": ["core", "llm", "mcp-server", "gateway"]
           },
           "mcp": {
             "type": "object",
-            "description": "Bit model: MCP control-plane exposure for this Bit.",
+            "description": "MCP (Model Context Protocol) tool exposure configuration for LLM integration.",
             "additionalProperties": true,
             "properties": {
               "exposure": {
                 "type": "string",
-                "description": "platform-only exposes just the bit.* control plane; platform+domain also exposes the Bit's domain tools. Default platform-only.",
+                "description": "Tool exposure level: platform-only (system/control tools only) or platform+domain (system + application-specific tools).",
                 "enum": ["platform-only", "platform+domain"]
               }
             }
