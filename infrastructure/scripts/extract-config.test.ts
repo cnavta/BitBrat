@@ -11,7 +11,8 @@ describe('extract-config CLI', () => {
     expect(res.status).toBe(0);
     const json = JSON.parse(res.stdout.trim());
     expect(json.SERVICE_NAME).toBe('oauth-flow');
-    expect(json.REGION).toBe('us-central1');
+    // Sprint 8: Platform-agnostic refactoring removed region as required field
+    expect(json.REGION).toBeUndefined();
     expect(json.PORT).toBe(3000);
     expect(json.MIN_INSTANCES).toBe(0);
     expect(json.MAX_INSTANCES).toBe(1);
