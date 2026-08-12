@@ -1,5 +1,5 @@
 import { DiscordIngressClient } from './discord-ingress-client';
-import { DiscordEnvelopeBuilder } from './envelope-builder';
+import { buildDiscordEnvelope } from './envelope-builder';
 
 describe('Discord – integration behavior (disabled mode and publish path)', () => {
   const realEnv = process.env.NODE_ENV;
@@ -23,12 +23,12 @@ describe('Discord – integration behavior (disabled mode and publish path)', ()
       throw new Error('discord.js should not load in disabled mode');
     }, { virtual: true });
 
-    const builder = new DiscordEnvelopeBuilder();
+    const builder = buildDiscordEnvelope;
     const published: any[] = [];
     const publisher = { publish: async (evt: any) => { published.push(evt); } };
 
     const cfg: any = { discordEnabled: false };
-    const client = new DiscordIngressClient(builder as any, publisher as any, cfg as any, {});
+    const client = new DiscordIngressClient(buildDiscordEnvelope, publisher as any, cfg as any, {});
 
     await client.start();
     const snap = client.getSnapshot() as any;
@@ -59,7 +59,7 @@ describe('Discord – integration behavior (disabled mode and publish path)', ()
       return { Client, GatewayIntentBits, Partials, __getLastClient };
     }, { virtual: true });
 
-    const builder = new DiscordEnvelopeBuilder();
+    const builder = buildDiscordEnvelope;
     const published: any[] = [];
     const publisher = { publish: async (evt: any) => { published.push(evt); } };
 
@@ -71,7 +71,7 @@ describe('Discord – integration behavior (disabled mode and publish path)', ()
       busPrefix: 'test.',
     };
     const egressDest = 'internal.egress.v1.proc-xyz';
-    const client = new DiscordIngressClient(builder as any, publisher as any, cfg as any, { egressDestinationTopic: egressDest });
+    const client = new DiscordIngressClient(buildDiscordEnvelope, publisher as any, cfg as any, { egressDestinationTopic: egressDest });
 
     await client.start();
 

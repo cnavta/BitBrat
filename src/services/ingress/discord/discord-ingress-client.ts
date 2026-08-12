@@ -1,8 +1,10 @@
 import { logger } from '../../../common/logging';
-import type { ConnectorSnapshot, EnvelopeBuilder, IngressConnector, IngressPublisher, EgressConnector } from '../core';
+import type { ConnectorSnapshot, IngressPublisher } from '../core';
 import type { IConfig } from '../../../types';
 import { startActiveSpan } from '../../../common/tracing';
 import type { IAuthTokenStoreV2 } from '../../oauth/auth-token-store';
+import type { DiscordMessageMeta } from './envelope-builder';
+import type { InternalEventV2, DebugMetadata } from '../../../types/events';
 
 export type DiscordConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 
@@ -11,21 +13,20 @@ export type DiscordIngressSnapshot = ConnectorSnapshot & {
   channelIds?: string[];
 };
 
-export interface DiscordMessageMeta {
-  guildId: string;
-  channelId: string;
-  messageId: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  createdAt?: string;
-  mentions?: string[];
-  roles?: string[];
-  isOwner?: boolean;
-  raw?: Record<string, unknown>;
-}
-
-export class DiscordIngressClient implements IngressConnector, EgressConnector {
+/**
+ * Discord Ingress Client (Pure Client)
+ *
+ * Low-level Discord.js client wrapper without framework interfaces.
+ * Handles Discord Gateway connection, message reception, and token rotation.
+ *
+ * This client is wrapped by DiscordConnectorAdapter which implements
+ * IngressConnector and WebhookConnector interfaces.
+ *
+ * Sprint 11: Discord Integration Modernization (DISC-004)
+ *
+ * @since Sprint 11
+ */
+export class DiscordIngressClient {
   private client: any | null = null;
   private disconnecting = false;
   private snapshot: ConnectorSnapshot = { state: 'DISCONNECTED', counters: { received: 0, published: 0, failed: 0 } };
@@ -33,9 +34,30 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
   private currentToken: string | null = null;
 
   private readonly identity: string;
+  private readonly debugAuthorizedUsers: Set<string>;
+  private readonly processedMessageIds: Set<string> = new Set();
+  private deduplicationCleanupInterval?: NodeJS.Timeout;
 
+  /**
+   * Create Discord Ingress Client
+   *
+   * @param buildEnvelope - Functional envelope builder (buildDiscordEnvelope)
+   * @param publisher - Event publisher
+   * @param cfg - Configuration
+   * @param options - Optional settings (egressDestinationTopic, identity, disableIngress)
+   * @param tokenStore - Optional token store for OAuth token rotation
+   */
   constructor(
-    private readonly builder: EnvelopeBuilder<DiscordMessageMeta>,
+    private readonly buildEnvelope: (
+      event: DiscordMessageMeta,
+      opts?: {
+        uuid?: () => string;
+        nowIso?: () => string;
+        egressDestination?: string;
+        correlationId?: string;
+        debugMetadata?: DebugMetadata;
+      }
+    ) => InternalEventV2,
     private readonly publisher: IngressPublisher,
     private readonly cfg: IConfig,
     private readonly options: { egressDestinationTopic?: string; identity?: string; disableIngress?: boolean } = {},
@@ -44,6 +66,18 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
     this.identity = options.identity || 'bot';
     this.snapshot.guildId = cfg.discordGuildId;
     this.snapshot.channelIds = (cfg.discordChannels || []).slice();
+
+    // Parse debug authorized users from comma-separated string
+    const debugUsersStr = cfg.debugUsersDiscord || '';
+    this.debugAuthorizedUsers = new Set(
+      debugUsersStr.split(',').map((u) => u.trim()).filter(Boolean)
+    );
+
+    if (this.debugAuthorizedUsers.size > 0) {
+      logger.info('discord.client.debug.initialized', {
+        authorizedUserCount: this.debugAuthorizedUsers.size,
+      });
+    }
   }
 
   async sendText(text: string, channelId?: string): Promise<void> {
@@ -158,6 +192,13 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
       this.snapshot.state = 'CONNECTED';
       this.snapshot.lastError = null;
       logger.info('ingress-egress.discord.ready', { guildId, channelsCount: channels.length });
+
+      // Start deduplication cache cleanup (clear entries every 60 seconds)
+      this.deduplicationCleanupInterval = setInterval(() => {
+        const size = this.processedMessageIds.size;
+        this.processedMessageIds.clear();
+        logger.debug('discord.client.dedup_cache_cleared', { previousSize: size });
+      }, 60000); // Clear every 60 seconds
     });
 
     this.client.on('error', (err: any) => {
@@ -200,13 +241,98 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
           return;
         }
 
+        // Deduplicate by Discord message ID (Discord may send duplicate events on reconnect/resume)
+        const messageId = String(msg.id || '');
+        if (messageId && this.processedMessageIds.has(messageId)) {
+          logger.warn('discord.client.message_deduplicated', {
+            messageId,
+            user: msg.author?.id,
+            channel: chId,
+            textPreview: msg.content?.substring(0, 50),
+          });
+          this.snapshot.counters = this.snapshot.counters || {};
+          (this.snapshot.counters as any).deduplicated = ((this.snapshot.counters as any).deduplicated || 0) + 1;
+          return;
+        }
+        if (messageId) {
+          this.processedMessageIds.add(messageId);
+        }
+
+        // Sprint 11: Detect debug mode command (!debug <message>)
+        // Strip prefix and perform RBAC check BEFORE envelope creation
+        let messageText = String(msg.content || '');
+        let debugCorrelationId: string | undefined;
+        let debugMetadata: DebugMetadata | undefined;
+        const debugMatch = messageText.match(/^!debug\s+/i);
+
+        if (debugMatch) {
+          // Strip debug prefix from message text
+          messageText = messageText.slice(debugMatch[0].length);
+
+          // RBAC: Check if user is authorized for debug mode
+          const userId = String(msg.author?.id || 'unknown');
+          const debugAuthorized = this.debugAuthorizedUsers.has(userId);
+
+          if (debugAuthorized) {
+            // Generate correlation ID early for confirmation message and envelope
+            const { randomUUID } = await import('crypto');
+            debugCorrelationId = randomUUID();
+
+            logger.info('discord.debug.authorized', {
+              user: userId,
+              channel: chId,
+              originalText: msg.content,
+              strippedText: messageText,
+              prefixLength: debugMatch[0].length,
+              correlationId: debugCorrelationId,
+            });
+
+            // Send activation confirmation BEFORE publishing envelope
+            // This proves egress path works before event enters routing flow
+            try {
+              await this.sendText(
+                `🔍 **Debug mode ON**\n\`Correlation ID:\` \`${debugCorrelationId}\`\n_Watching event flow..._`,
+                chId
+              );
+
+              logger.info('discord.debug.activation_sent', {
+                user: userId,
+                channel: chId,
+                correlationId: debugCorrelationId,
+              });
+            } catch (err: any) {
+              logger.error('discord.debug.activation_failed', {
+                error: err.message,
+                correlationId: debugCorrelationId,
+              });
+              // Continue processing even if confirmation fails
+            }
+
+            // Create debug metadata for envelope
+            debugMetadata = {
+              enabled: true,
+              initiatedBy: userId,
+              feedbackChannel: chId,
+              startedAt: new Date().toISOString(),
+            };
+          } else {
+            logger.warn('discord.debug.unauthorized', {
+              user: userId,
+              channel: chId,
+              authorizedUsers: Array.from(this.debugAuthorizedUsers),
+            });
+            // Reject unauthorized debug requests - don't publish envelope
+            return;
+          }
+        }
+
         const meta: DiscordMessageMeta = {
           guildId,
           channelId: String(msg.channel?.id || ''),
           messageId: String(msg.id || ''),
           authorId: String(msg.author?.id || ''),
           authorName: String(msg.author?.username || msg.author?.displayName || msg.author?.tag || ''),
-          content: String(msg.content || ''),
+          content: messageText, // Use stripped text if debug mode detected
           createdAt: msg.createdAt ? new Date(msg.createdAt).toISOString() : new Date().toISOString(),
           mentions: Array.isArray(msg.mentions?.users ? [...msg.mentions.users.keys()] : []) ? [...msg.mentions.users.keys()] : undefined,
           roles: Array.isArray(msg.member?.roles ? [...msg.member.roles.cache.keys()] : []) ? [...msg.member.roles.cache.keys()] : undefined,
@@ -218,7 +344,11 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
         this.snapshot.counters.received = (this.snapshot.counters.received || 0) + 1;
 
         await startActiveSpan('discord-ingress-receive', async () => {
-          const evt = this.builder.build(meta, { egressDestination: this.options.egressDestinationTopic });
+          const evt = this.buildEnvelope(meta, {
+            egressDestination: this.options.egressDestinationTopic,
+            correlationId: debugCorrelationId,
+            debugMetadata,
+          });
           await this.publisher.publish(evt);
           this.snapshot.counters!.published = (this.snapshot.counters!.published || 0) + 1;
           try {
@@ -250,6 +380,12 @@ export class DiscordIngressClient implements IngressConnector, EgressConnector {
   async stop(): Promise<void> {
     this.disconnecting = true;
     try {
+      // Clear deduplication cleanup interval
+      if (this.deduplicationCleanupInterval) {
+        clearInterval(this.deduplicationCleanupInterval);
+        this.deduplicationCleanupInterval = undefined;
+      }
+
       if (this.tokenPollTimer) {
         clearInterval(this.tokenPollTimer);
         this.tokenPollTimer = null;

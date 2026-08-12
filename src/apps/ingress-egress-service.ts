@@ -11,7 +11,7 @@ import {
 import { createTwitchIngressPublisherFromConfig } from '../services/ingress/twitch';
 import { TwitchConnectorAdapter } from '../services/ingress/twitch/connector-adapter';
 import { ConnectorManager, WebhookHandler, WebhookConnector } from '../services/ingress/core';
-import { DiscordEnvelopeBuilder, DiscordIngressClient, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
+import { buildDiscordEnvelope, DiscordIngressClient, DiscordConnectorAdapter, createDiscordIngressPublisherFromConfig } from '../services/ingress/discord';
 import {
   TwilioEnvelopeBuilder,
   TwilioIngressClient,
@@ -176,18 +176,19 @@ export class IngressEgressServer extends Bit {
       manager.register('twitch-eventsub', new TwitchConnectorAdapter(this.twitchEventSubClient as any));
     }
     try {
-      const dBuilder = new DiscordEnvelopeBuilder();
       const dPublisher = createDiscordIngressPublisherFromConfig(cfg, pubRes ? pubRes.create.bind(pubRes) : undefined);
       const dTokenStore = createAuthTokenStore();
-      const dClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic }, dTokenStore);
+      const dClient = new DiscordIngressClient(buildDiscordEnvelope, dPublisher, cfg, { egressDestinationTopic: egressTopic }, dTokenStore);
+      const dAdapter = new DiscordConnectorAdapter(dClient, cfg);
       this.discordClient = dClient;
-      manager.register('discord', dClient);
+      manager.register('discord', dAdapter);
 
       // Discord Broadcaster
       if (cfg.discordEnabled && cfg.discordUseTokenStore && cfg.discordBroadcasterTokenDocPath) {
-        const dBroadcasterClient = new DiscordIngressClient(dBuilder, dPublisher, cfg, { egressDestinationTopic: egressTopic, identity: 'broadcaster', disableIngress: true } as any, dTokenStore);
+        const dBroadcasterClient = new DiscordIngressClient(buildDiscordEnvelope, dPublisher, cfg, { egressDestinationTopic: egressTopic, identity: 'broadcaster', disableIngress: true } as any, dTokenStore);
+        const dBroadcasterAdapter = new DiscordConnectorAdapter(dBroadcasterClient, cfg);
         this.discordBroadcasterClient = dBroadcasterClient;
-        manager.register('discord-broadcaster', dBroadcasterClient);
+        manager.register('discord-broadcaster', dBroadcasterAdapter);
       }
     } catch (e: any) {
       // Defensive: if Discord modules fail to construct, keep Twitch operational

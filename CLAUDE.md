@@ -781,6 +781,156 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
 
 - **Twilio** (`src/services/ingress/twilio/connector-adapter.ts`): Hybrid mode (WebSocket + webhook)
 - **Slack** (Coming in Sprint 343): Socket Mode + Events API
+- **Discord** (`src/services/ingress/discord/connector-adapter.ts`): Gateway (primary) + Interactions API (optional)
+
+**Discord-Specific Implementation (Sprint 11):**
+
+Discord uses a **hybrid ingress model** with the Gateway API as primary and Interactions API (webhooks) as optional:
+
+```typescript
+// File: src/services/ingress/discord/connector-adapter.ts
+import { DiscordConnectorAdapter } from './connector-adapter';
+import { DiscordIngressClient } from './discord-ingress-client';
+import { buildDiscordEnvelope } from './envelope-builder';
+import { validateDiscordSignature } from './webhook-utils';
+
+// Create pure client (Discord Gateway WebSocket connection)
+const client = new DiscordIngressClient(
+  buildDiscordEnvelope,  // Functional envelope builder
+  publisher,
+  config,
+  { egressDestinationTopic: 'internal.egress.v1' }
+);
+
+// Wrap with connector adapter (implements IngressConnector + WebhookConnector)
+const adapter = new DiscordConnectorAdapter(client, config);
+
+// Register with ConnectorManager
+manager.register('discord', adapter);
+```
+
+**Discord Webhook Signature Verification (Ed25519):**
+
+Discord uses Ed25519 cryptographic signatures (not HMAC). The `validateDiscordSignature` utility handles this:
+
+```typescript
+// File: src/services/ingress/discord/webhook-utils.ts
+import nacl from 'tweetnacl';
+
+export function validateDiscordSignature(
+  publicKey: string,
+  signature: string,
+  timestamp: string,
+  body: Buffer | any
+): boolean {
+  const bodyStr = Buffer.isBuffer(body) ? body.toString('utf8') : JSON.stringify(body);
+  const message = timestamp + bodyStr;
+
+  return nacl.sign.detached.verify(
+    Buffer.from(message),
+    Buffer.from(signature, 'hex'),
+    Buffer.from(publicKey, 'hex')
+  );
+}
+```
+
+**Discord Interactions API (Webhook Handler):**
+
+Discord's Interactions API sends POST requests for slash commands and other interactions. The webhook handler must respond within 3 seconds:
+
+```typescript
+// In DiscordConnectorAdapter.handleWebhook()
+async handleWebhook(req: WebhookRequest): Promise<WebhookResponse> {
+  const { type, data, id } = req.body;
+
+  // Ping verification (Discord webhook setup)
+  if (type === 1) {
+    return { status: 200, body: { type: 1 } };
+  }
+
+  // Application command (slash command)
+  if (type === 2) {
+    // IMPORTANT: Return ephemeral response immediately (< 3 seconds)
+    setImmediate(async () => {
+      // Process command asynchronously after response sent
+      await processInteraction(id, data);
+    });
+
+    return {
+      status: 200,
+      body: {
+        type: 4,  // CHANNEL_MESSAGE_WITH_SOURCE
+        data: {
+          content: `Command \`${data?.name}\` received. Processing...`,
+          flags: 64,  // EPHEMERAL (only visible to user)
+        },
+      },
+    };
+  }
+
+  // Unsupported interaction type
+  return { status: 400, body: { error: 'unsupported_interaction_type' } };
+}
+```
+
+**Discord Debug Mode (!debug prefix):**
+
+Discord connector implements debug mode with RBAC enforcement (Sprint 11):
+
+```typescript
+// In DiscordIngressClient message handler
+const debugMatch = messageText.match(/^!debug\s+/i);
+
+if (debugMatch) {
+  const userId = String(msg.author?.id || 'unknown');
+  const debugAuthorized = this.debugAuthorizedUsers.has(userId);
+
+  if (debugAuthorized) {
+    // Strip !debug prefix
+    messageText = messageText.slice(debugMatch[0].length);
+
+    // Generate correlation ID
+    debugCorrelationId = randomUUID();
+
+    // Send activation confirmation
+    await this.sendText(
+      `🔍 **Debug mode ON**\n\`Correlation ID:\` \`${debugCorrelationId}\`\n_Watching event flow..._`,
+      channelId
+    );
+
+    // Attach debug metadata to envelope
+    debugMetadata = {
+      enabled: true,
+      initiatedBy: userId,
+      feedbackChannel: channelId,
+      startedAt: new Date().toISOString(),
+    };
+  } else {
+    // Reject unauthorized debug requests
+    logger.warn('discord.debug.unauthorized', { user: userId });
+    return;
+  }
+}
+```
+
+**Discord Connector Capabilities:**
+
+The Discord connector provides comprehensive chat platform capabilities:
+
+- **Ingress**: Hybrid mode (Gateway primary, Interactions API optional)
+  - Real-time WebSocket connection via Discord Gateway
+  - Webhook support for slash commands and interactions
+  - Message deduplication (prevents duplicate processing on reconnect)
+- **Egress**: Full support
+  - Channel messages
+  - Direct messages (DMs)
+  - Message reactions
+  - Thread replies
+- **Moderation**: Full support
+  - User bans
+  - User timeouts
+  - Message deletion
+- **Debug Mode**: `!debug` prefix with RBAC (Sprint 11)
 
 **Anti-Patterns (NEVER):**
 
@@ -795,6 +945,8 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
 - [Adding a New Ingress Platform](./documentation/guides/adding-ingress-platform.md) — Step-by-step integration guide
 - [Webhook Handler Implementation](./src/services/ingress/core/webhook-handler.ts) — Generic webhook processor
 - [Twilio Integration Example](./src/services/ingress/twilio/) — Production reference implementation
+- [Discord Integration Example](./src/services/ingress/discord/) — Discord Gateway + Interactions API (Sprint 11)
+- [Discord Integration Testing Guide](./planning/sprint-11-j1d49d/integration-testing-guide.md) — Manual testing checklist
 - [Architecture Validation Tool](./tools/validate-ingress-architecture.ts) — Validate connector compliance
 
 ---

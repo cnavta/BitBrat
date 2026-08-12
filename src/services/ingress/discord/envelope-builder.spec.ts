@@ -1,5 +1,4 @@
-import { DiscordEnvelopeBuilder } from './envelope-builder';
-import type { DiscordMessageMeta } from './discord-ingress-client';
+import { DiscordEnvelopeBuilder, DiscordMessageMeta } from './envelope-builder';
 
 describe('DiscordEnvelopeBuilder', () => {
   const builder = new DiscordEnvelopeBuilder();
