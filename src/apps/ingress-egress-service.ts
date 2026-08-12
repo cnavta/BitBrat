@@ -835,9 +835,12 @@ export class IngressEgressServer extends Bit {
             const source = (evt?.ingress?.source || '').toLowerCase();
             const isTwitch = connector === 'twitch' || (connector === '' && (source.includes('twitch')));
             
-            if (isTwitch && this.twitchClient) {
-              const targetChannel = (evt.egress?.channel) ? evt.egress.channel : (evt.ingress?.channel || evt.channel);
-              await this.twitchClient.sendText(errorFeedback, targetChannel);
+            if (isTwitch && this.connectorManager) {
+              const connector = this.connectorManager.getConnector('twitch');
+              if (connector && typeof (connector as any).sendText === 'function') {
+                const targetChannel = (evt.egress?.channel) ? evt.egress.channel : (evt.ingress?.channel || evt.channel);
+                await (connector as any).sendText(errorFeedback, targetChannel);
+              }
             }
           } catch (err: any) {
             logger.warn('ingress-egress.egress.tracer.error_feedback_failed', { correlationId, error: err.message });

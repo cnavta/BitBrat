@@ -1,4 +1,4 @@
-import type { IngressConnector, ConnectorSnapshot } from '../core';
+import type { IngressConnector, ConnectorSnapshot, ConnectorMetadata } from '../core';
 import type { ITwitchIrcClient, TwitchIrcDebugSnapshot, TwitchConnectionState } from './twitch-irc-client';
 
 function mapState(state: TwitchConnectionState): ConnectorSnapshot['state'] {
@@ -31,6 +31,45 @@ export class TwitchConnectorAdapter implements IngressConnector {
     if (typeof (this.client as any).banUser === 'function') {
       await (this.client as any).banUser(platformUserId, reason);
     }
+  }
+
+  async sendText(text: string, target?: string): Promise<void> {
+    if (typeof (this.client as any).sendText === 'function') {
+      await (this.client as any).sendText(text, target);
+    }
+  }
+
+  async sendWhisper(text: string, userId: string): Promise<void> {
+    if (typeof (this.client as any).sendWhisper === 'function') {
+      await (this.client as any).sendWhisper(text, userId);
+    }
+  }
+
+  getMetadata(): ConnectorMetadata {
+    return {
+      platform: 'twitch',
+      version: '1.0.0',
+      authMethod: 'oauth2',
+      capabilities: {
+        ingress: {
+          method: 'websocket',
+          realtime: true,
+          requiresWebhook: false,
+          requiresPublicUrl: false,
+        },
+        egress: {
+          chat: true,
+          dm: true,
+          reactions: false,
+          threads: false,
+        },
+        moderation: {
+          ban: true,
+          timeout: true,
+          delete: true,
+        },
+      },
+    };
   }
 
   getSnapshot(): ConnectorSnapshot {
