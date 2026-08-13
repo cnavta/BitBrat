@@ -82,6 +82,8 @@ export interface IConfig {
   discordOauthScopes?: string[];
   /** Optional Discord OAuth permissions (bitmask, used for bot authorization) */
   discordOauthPermissions?: number;
+  /** Discord application public key for Interactions API webhook signature verification (Ed25519) */
+  discordPublicKey?: string;
 
   /** Twilio integration master switch */
   twilioEnabled?: boolean;
