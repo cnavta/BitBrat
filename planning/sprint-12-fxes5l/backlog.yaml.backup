@@ -1,0 +1,828 @@
+# IntegrationBit Refactoring - Prioritized Task Backlog
+# Sprint: sprint-12-fxes5l
+# Status: DRAFT
+# Last Updated: 2026-08-12
+
+metadata:
+  sprint: sprint-12-fxes5l
+  title: "Ingress-Egress Bit Refactoring"
+  owner: christophernavta
+  estimatedEffort: "4-5 days"
+  totalTasks: 35
+  phases: 5
+
+# Status values: pending | in_progress | completed | blocked | skipped
+# Priority values: critical | high | medium | low
+
+tasks:
+  # =============================================================================
+  # PHASE 1: Create IntegrationBit Base Class
+  # =============================================================================
+
+  - id: 1.1
+    title: "Create Type Definitions"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 0.5
+    dependencies: []
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Define ConnectorFactory type and IntegrationBitConfig interface with JSDoc.
+    acceptanceCriteria:
+      - TypeScript compiles without errors
+      - Types are exported correctly
+      - JSDoc comments include usage examples
+    rollback: "Delete file (no dependencies)"
+
+  - id: 1.2
+    title: "Implement Constructor and Instance ID Resolution"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 1
+    dependencies: [1.1]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Create IntegrationBit class extending Bit with constructor, resolveInstanceId(), and initialization.
+    acceptanceCriteria:
+      - Constructor initializes connectorManager
+      - Instance ID resolves from env vars or generates fallback
+      - Logger is accessible via this.getLogger()
+      - egressTopic is correctly formatted
+    rollback: "Revert constructor implementation"
+
+  - id: 1.3
+    title: "Implement registerConnectors() Method"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [1.2]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Implement connector registration loop with error handling and fail-open strategy.
+    acceptanceCriteria:
+      - Connectors registered successfully with valid factories
+      - Disabled connectors are skipped
+      - Failed connectors don't block other registrations
+      - Errors logged with stack traces
+      - Tests: single connector, multiple connectors, disabled, factory errors
+    rollback: "Remove method call from constructor"
+    testCases:
+      - "Register single connector"
+      - "Register multiple connectors"
+      - "Skip disabled connectors"
+      - "Handle factory errors gracefully"
+      - "Logger receives correct events"
+
+  - id: 1.4
+    title: "Implement setupWebhookRouting() Method"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [1.3]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Implement generic webhook route (POST /webhooks/:platform) with signature verification.
+    acceptanceCriteria:
+      - Route is registered correctly
+      - Platform lookup works
+      - Signature verification is called
+      - Errors are handled gracefully
+      - Correct HTTP status codes returned
+    rollback: "Remove method call from constructor"
+    testCases:
+      - "Valid webhook with correct signature returns 200"
+      - "Invalid signature returns 403"
+      - "Unknown platform returns 404"
+      - "Missing platform parameter returns 400"
+      - "Connector without webhook support returns 501"
+      - "Handler error returns 500"
+
+  - id: 1.5
+    title: "Implement setupEgressRouting() Method"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [1.4]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Implement egress subscriptions (instance-specific + generic) with idempotency.
+    acceptanceCriteria:
+      - Instance-specific subscription created
+      - Generic egress subscription created
+      - Test environment detection works
+      - Idempotency enabled (60s TTL)
+      - Errors are caught and logged
+    rollback: "Remove method call from constructor"
+    testCases:
+      - "Subscriptions created in non-test env"
+      - "Subscriptions skipped in test env"
+      - "Instance-specific topic has correct format"
+      - "Generic topic subscription created"
+
+  - id: 1.6
+    title: "Implement processEgress() Method"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [1.5]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Implement egress message processing with connector lookup and text extraction.
+    acceptanceCriteria:
+      - Platform extracted from evt.egress.connector
+      - Connector lookup works
+      - Text extraction using extractEgressTextFromEvent()
+      - sendText called with correct parameters
+      - Errors logged with stack traces
+    rollback: "Remove method (not called externally)"
+    testCases:
+      - "Valid egress event with text"
+      - "Missing connector field logs warning"
+      - "Unknown platform returns gracefully"
+      - "Missing text returns gracefully"
+      - "sendText error is caught and logged"
+
+  - id: 1.7
+    title: "Implement setupStatusMonitoring() Method"
+    phase: 1
+    priority: high
+    status: pending
+    estimatedHours: 2
+    dependencies: [1.6]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Implement status change detection and publishing (every 15s).
+    acceptanceCriteria:
+      - Status changes detected
+      - Events published to internal.ingress.v1
+      - Initial check runs immediately
+      - Periodic checks run every 15s
+      - Errors in check/publish don't crash process
+    rollback: "Remove method call from constructor"
+    testCases:
+      - "Initial status check runs"
+      - "Status change detected and logged"
+      - "Status event published correctly"
+      - "Errors in check don't crash process"
+      - "Errors in publish don't crash process"
+
+  - id: 1.8
+    title: "Implement setupDebugEndpoints() Method"
+    phase: 1
+    priority: medium
+    status: pending
+    estimatedHours: 1
+    dependencies: [1.7]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Implement debug HTTP endpoints (/_debug/instance, /_debug/connectors, /_debug/:platform).
+    acceptanceCriteria:
+      - All 3 endpoints registered
+      - Instance info returns correct data
+      - Connectors endpoint returns snapshot
+      - Platform-specific endpoint works
+      - 404 returned for unknown platform
+      - Errors handled gracefully
+    rollback: "Remove method call from constructor"
+    testCases:
+      - "GET /_debug/instance returns instance info"
+      - "GET /_debug/connectors returns all snapshots"
+      - "GET /_debug/twitch returns twitch snapshot"
+      - "GET /_debug/unknown returns 404"
+      - "Errors in getSnapshot() return 500"
+
+  - id: 1.9
+    title: "Implement start() and stop() Lifecycle Methods"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 1
+    dependencies: [1.8]
+    files:
+      - src/common/integration-bit.ts
+    description: |
+      Override start() and stop() to manage connector lifecycle.
+    acceptanceCriteria:
+      - Connectors start before HTTP server
+      - Connectors stop before HTTP server closes
+      - Lifecycle logs are emitted
+    rollback: "Remove overrides (use base class methods)"
+    testCases:
+      - "start() calls connectorManager.start()"
+      - "start() calls super.start()"
+      - "stop() calls connectorManager.stop()"
+      - "stop() calls super.close()"
+      - "Lifecycle logs are emitted"
+
+  - id: 1.10
+    title: "Write Unit Tests for IntegrationBit"
+    phase: 1
+    priority: critical
+    status: pending
+    estimatedHours: 4
+    dependencies: [1.9]
+    files:
+      - src/common/integration-bit.test.ts
+    description: |
+      Comprehensive unit tests for all IntegrationBit methods with mock connectors.
+    acceptanceCriteria:
+      - 100% code coverage of IntegrationBit core methods
+      - All edge cases tested
+      - Mock dependencies properly isolated
+      - Tests run successfully
+    rollback: "Delete test file"
+    coverageTarget: "100%"
+
+  - id: 1.11
+    title: "Integration Testing with Mock Connectors"
+    phase: 1
+    priority: high
+    status: pending
+    estimatedHours: 3
+    dependencies: [1.10]
+    files:
+      - src/common/integration-bit.integration.test.ts
+    description: |
+      Full lifecycle integration tests with multiple mock connectors.
+    acceptanceCriteria:
+      - Multi-connector registration works
+      - Webhook routing to correct connector
+      - Egress routing to correct connector
+      - Status change detection and publishing
+      - Connector failure doesn't affect others
+      - Graceful shutdown
+      - No memory leaks
+    rollback: "Delete test file"
+
+  # =============================================================================
+  # PHASE 2: Create Connector Factories
+  # =============================================================================
+
+  - id: 2.1
+    title: "Create Twitch Connector Factory"
+    phase: 2
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [1.11]
+    files:
+      - src/services/ingress/twitch/factory.ts
+      - src/services/ingress/twitch/index.ts
+    description: |
+      Extract Twitch instantiation logic into factory function.
+    acceptanceCriteria:
+      - Factory compiles without errors
+      - Returns valid TwitchConnectorAdapter
+      - Credentials provider selection works
+      - Publisher is used correctly
+    rollback: "Delete factory file"
+    testCases:
+      - "Create connector with persistent credentials"
+      - "Create connector with config credentials"
+      - "Create connector with custom egressDestinationTopic"
+      - "Factory throws if publisherFactory missing"
+
+  - id: 2.2
+    title: "Create Discord Connector Factory"
+    phase: 2
+    priority: critical
+    status: pending
+    estimatedHours: 1.5
+    dependencies: [1.11]
+    files:
+      - src/services/ingress/discord/factory.ts
+      - src/services/ingress/discord/index.ts
+    description: |
+      Extract Discord instantiation logic into factory function.
+    acceptanceCriteria:
+      - Factory compiles without errors
+      - Returns valid DiscordConnectorAdapter
+      - Token store is created correctly
+    rollback: "Delete factory file"
+    testCases:
+      - "Create connector successfully"
+      - "Factory throws if publisherFactory missing"
+      - "egressDestinationTopic is passed correctly"
+
+  - id: 2.3
+    title: "Create Slack Connector Factory"
+    phase: 2
+    priority: critical
+    status: pending
+    estimatedHours: 1.5
+    dependencies: [1.11]
+    files:
+      - src/services/ingress/slack/factory.ts
+      - src/services/ingress/slack/index.ts
+    description: |
+      Extract Slack instantiation logic into factory function.
+    acceptanceCriteria:
+      - Factory compiles without errors
+      - Returns valid SlackConnectorAdapter
+      - Validates required config (appToken, botToken)
+    rollback: "Delete factory file"
+    testCases:
+      - "Create connector with valid config"
+      - "Factory throws if appToken missing"
+      - "Factory throws if botToken missing"
+      - "Factory throws if publisherFactory missing"
+
+  - id: 2.4
+    title: "Create Twilio Connector Factory"
+    phase: 2
+    priority: critical
+    status: pending
+    estimatedHours: 1.5
+    dependencies: [1.11]
+    files:
+      - src/services/ingress/twilio/factory.ts
+      - src/services/ingress/twilio/index.ts
+    description: |
+      Extract Twilio instantiation logic into factory function.
+    acceptanceCriteria:
+      - Factory compiles without errors
+      - Returns valid TwilioConnectorAdapter
+      - Validates required config (accountSid, authToken)
+    rollback: "Delete factory file"
+    testCases:
+      - "Create connector with valid config"
+      - "Factory throws if accountSid missing"
+      - "Factory throws if authToken missing"
+      - "Factory throws if publisherFactory missing"
+
+  - id: 2.5
+    title: "Write Unit Tests for All Factories"
+    phase: 2
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [2.1, 2.2, 2.3, 2.4]
+    files:
+      - src/services/ingress/twitch/factory.test.ts
+      - src/services/ingress/discord/factory.test.ts
+      - src/services/ingress/slack/factory.test.ts
+      - src/services/ingress/twilio/factory.test.ts
+    description: |
+      Comprehensive unit tests for all connector factories.
+    acceptanceCriteria:
+      - All tests pass
+      - Factories tested independently
+      - Edge cases covered (missing config, missing publisherFactory)
+    rollback: "Delete test files"
+
+  # =============================================================================
+  # PHASE 3: Refactor ingress-egress Service
+  # =============================================================================
+
+  - id: 3.1
+    title: "Backup Current Implementation"
+    phase: 3
+    priority: critical
+    status: pending
+    estimatedHours: 0.25
+    dependencies: [2.5]
+    files:
+      - deprecated/sprint-12-backup/ingress-egress-service.ts
+      - deprecated/sprint-12-backup/ingress-egress-service.test.ts
+    description: |
+      Create backup of current ingress-egress implementation.
+    acceptanceCriteria:
+      - Backup files exist in deprecated/sprint-12-backup/
+      - Committed to feature branch
+      - Rollback procedure documented
+    rollback: "N/A (this IS the rollback)"
+
+  - id: 3.2
+    title: "Create New ingress-egress-service.ts"
+    phase: 3
+    priority: critical
+    status: pending
+    estimatedHours: 1
+    dependencies: [3.1]
+    files:
+      - src/apps/ingress-egress-service.ts
+    description: |
+      Replace monolithic implementation with IntegrationBit-based version.
+    acceptanceCriteria:
+      - File compiles without errors
+      - Imports resolve correctly
+      - Constructor is minimal (~10 LOC)
+      - All 4 connectors registered
+    rollback: "cp deprecated/sprint-12-backup/ingress-egress-service.ts src/apps/"
+
+  - id: 3.3
+    title: "Update Tests for New Implementation"
+    phase: 3
+    priority: high
+    status: pending
+    estimatedHours: 2
+    dependencies: [3.2]
+    files:
+      - src/apps/ingress-egress-service.test.ts
+    description: |
+      Simplify tests to focus on IntegrationBit usage.
+    acceptanceCriteria:
+      - All tests pass
+      - Tests run faster (less mocking)
+      - Coverage maintained
+    rollback: "cp deprecated/sprint-12-backup/ingress-egress-service.test.ts src/apps/"
+
+  - id: 3.4
+    title: "Build and Local Testing"
+    phase: 3
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [3.3]
+    description: |
+      Full build, test, and local instance testing.
+    acceptanceCriteria:
+      - Build succeeds
+      - All tests pass
+      - Local instance starts without errors
+      - Debug endpoints return expected data
+      - Connectors are registered and visible
+    rollback: "Stop local instance, revert files"
+    testSteps:
+      - "npm run build"
+      - "npm test"
+      - "npm run local"
+      - "curl http://localhost:3000/_debug/instance"
+      - "curl http://localhost:3000/_debug/connectors"
+
+  - id: 3.5
+    title: "Deploy to Staging"
+    phase: 3
+    priority: critical
+    status: pending
+    estimatedHours: 1
+    dependencies: [3.4]
+    description: |
+      Deploy new implementation to staging environment.
+    acceptanceCriteria:
+      - Deployment succeeds
+      - Service starts without errors
+      - All connectors register successfully
+      - No error logs in first 5 minutes
+    rollback: "git revert HEAD && deploy to staging"
+
+  - id: 3.6
+    title: "Run Staging Smoke Tests"
+    phase: 3
+    priority: critical
+    status: pending
+    estimatedHours: 1
+    dependencies: [3.5]
+    description: |
+      Comprehensive smoke tests on staging deployment.
+    acceptanceCriteria:
+      - All endpoints return 200 OK
+      - All connectors show CONNECTED state
+      - Ingress → Egress flow works for all platforms
+      - Status events are published
+      - No errors in logs
+    rollback: "Rollback immediately if ANY test fails"
+    testCases:
+      - "GET /_debug/instance returns 200"
+      - "GET /_debug/connectors shows all 4 connectors"
+      - "Twitch ingress → egress flow works"
+      - "Discord ingress → egress flow works"
+      - "Status events published to internal.ingress.v1"
+
+  - id: 3.7
+    title: "Production Canary Deployment"
+    phase: 3
+    priority: critical
+    status: pending
+    estimatedHours: 2
+    dependencies: [3.6]
+    description: |
+      Deploy canary instance to production and monitor for 30 minutes.
+    acceptanceCriteria:
+      - Error rate < 0.1%
+      - Latency within 10% of stable instances
+      - Throughput matches stable instances
+      - No memory leaks
+      - No connector disconnections
+    rollback: "Rollback canary if metrics degrade"
+    monitoring:
+      - "Error rate"
+      - "Latency (p50, p95, p99)"
+      - "Throughput (messages/min)"
+      - "Memory usage"
+      - "CPU usage"
+
+  - id: 3.8
+    title: "Production Full Rollout"
+    phase: 3
+    priority: critical
+    status: pending
+    estimatedHours: 4
+    dependencies: [3.7]
+    description: |
+      Gradual rollout to production (50% → 100%) with 24h monitoring.
+    acceptanceCriteria:
+      - All instances healthy
+      - Error rate normal
+      - User reports normal
+      - Connector stability maintained
+    rollback: "Emergency rollback to backup if critical issues"
+    steps:
+      - "Deploy 50%, wait 30 minutes"
+      - "Monitor metrics"
+      - "Deploy 100%"
+      - "Monitor for 24 hours"
+
+  - id: 3.9
+    title: "Post-Deployment Validation"
+    phase: 3
+    priority: high
+    status: pending
+    estimatedHours: 1
+    dependencies: [3.8]
+    description: |
+      Verify all platforms operational and metrics normal.
+    acceptanceCriteria:
+      - All platforms responding normally
+      - Metrics within expected ranges
+      - No unexpected warnings or errors
+    testCases:
+      - "Twitch: Send message, verify response"
+      - "Discord: Send message, verify response"
+      - "Slack: Send message, verify response"
+      - "Twilio: Send SMS, verify response"
+      - "Check metrics dashboards"
+      - "Review logs for warnings/errors"
+
+  - id: 3.10
+    title: "Update Monitoring and Alerts"
+    phase: 3
+    priority: medium
+    status: pending
+    estimatedHours: 2
+    dependencies: [3.9]
+    files:
+      - grafana dashboards
+      - alert rules
+    description: |
+      Update Grafana dashboards and alert rules for IntegrationBit metrics.
+    acceptanceCriteria:
+      - Dashboards show expected data
+      - Alerts fire correctly (test with simulated failures)
+      - Runbook updated
+    tasks:
+      - "Add IntegrationBit metrics to dashboards"
+      - "Add connector-specific panels"
+      - "Update alert thresholds"
+      - "Test alerts with simulated failures"
+
+  # =============================================================================
+  # PHASE 4: Create Standalone Services (Optional)
+  # =============================================================================
+
+  - id: 4.1
+    title: "Create Standalone Service Files"
+    phase: 4
+    priority: low
+    status: pending
+    estimatedHours: 1
+    dependencies: [3.10]
+    files:
+      - src/apps/twitch-ingress-service.ts
+      - src/apps/discord-ingress-service.ts
+      - src/apps/slack-ingress-service.ts
+      - src/apps/twilio-ingress-service.ts
+    description: |
+      Create standalone service files for each platform.
+    acceptanceCriteria:
+      - All 4 files compile without errors
+      - Each service has unique name
+      - Each service registers single connector
+    rollback: "Delete files"
+
+  - id: 4.2
+    title: "Update architecture.yaml"
+    phase: 4
+    priority: low
+    status: pending
+    estimatedHours: 1
+    dependencies: [4.1]
+    files:
+      - architecture.yaml
+    description: |
+      Add standalone service definitions (disabled by default).
+    acceptanceCriteria:
+      - Config validates correctly
+      - Standalone services show as disabled
+      - All required env vars and secrets defined
+    rollback: "Revert architecture.yaml"
+
+  - id: 4.3
+    title: "Test Standalone Twitch Deployment"
+    phase: 4
+    priority: low
+    status: pending
+    estimatedHours: 2
+    dependencies: [4.2]
+    description: |
+      Deploy standalone Twitch service to staging and test.
+    acceptanceCriteria:
+      - Standalone service starts successfully
+      - Twitch integration works
+      - Other platforms are NOT active
+      - Ingress → Egress flow works
+    rollback: "Set ingress-egress active=true, twitch-ingress active=false"
+
+  - id: 4.4
+    title: "Document Deployment Mode Switching"
+    phase: 4
+    priority: low
+    status: pending
+    estimatedHours: 2
+    dependencies: [4.3]
+    files:
+      - documentation/guides/ingress-egress-deployment-modes.md
+    description: |
+      Create guide for switching between deployment modes.
+    acceptanceCriteria:
+      - Guide is clear and complete
+      - Examples are tested and work
+      - Use cases documented
+    rollback: "Delete guide"
+
+  - id: 4.5
+    title: "Create Standalone Service Tests"
+    phase: 4
+    priority: low
+    status: pending
+    estimatedHours: 2
+    dependencies: [4.1]
+    files:
+      - src/apps/twitch-ingress-service.test.ts
+      - src/apps/discord-ingress-service.test.ts
+      - src/apps/slack-ingress-service.test.ts
+      - src/apps/twilio-ingress-service.test.ts
+    description: |
+      Unit tests for standalone service files.
+    acceptanceCriteria:
+      - All tests pass
+      - Each service tests single-connector registration
+    rollback: "Delete test files"
+
+  - id: 4.6
+    title: "Update Production Configuration"
+    phase: 4
+    priority: low
+    status: pending
+    estimatedHours: 0.5
+    dependencies: [4.4, 4.5]
+    description: |
+      Commit standalone services, keep integrated mode active in production.
+    acceptanceCriteria:
+      - All files committed
+      - Production uses integrated mode
+      - Standalone option documented
+    rollback: "N/A (production unchanged)"
+
+  # =============================================================================
+  # PHASE 5: Cleanup and Documentation
+  # =============================================================================
+
+  - id: 5.1
+    title: "Update CLAUDE.md"
+    phase: 5
+    priority: high
+    status: pending
+    estimatedHours: 2
+    dependencies: [3.10]
+    files:
+      - CLAUDE.md
+    description: |
+      Add IntegrationBit pattern documentation to CLAUDE.md.
+    acceptanceCriteria:
+      - New "IntegrationBit Pattern" section added
+      - Examples are tested
+      - Cross-references added
+    rollback: "Revert CLAUDE.md"
+
+  - id: 5.2
+    title: "Create Integration Guide"
+    phase: 5
+    priority: high
+    status: pending
+    estimatedHours: 3
+    dependencies: [3.10]
+    files:
+      - documentation/guides/adding-platform-integration.md
+    description: |
+      Step-by-step guide for adding new platform integrations.
+    acceptanceCriteria:
+      - Guide is clear and actionable
+      - Complete working example included
+      - Testing strategy documented
+    rollback: "Delete guide"
+
+  - id: 5.3
+    title: "Update README.md"
+    phase: 5
+    priority: medium
+    status: pending
+    estimatedHours: 1
+    dependencies: [5.1]
+    files:
+      - README.md
+    description: |
+      Update README with IntegrationBit pattern information.
+    acceptanceCriteria:
+      - README accurately reflects current architecture
+      - Links work
+      - Architecture diagram updated (if needed)
+    rollback: "Revert README.md"
+
+  - id: 5.4
+    title: "Delete Deprecated Code"
+    phase: 5
+    priority: low
+    status: pending
+    estimatedHours: 0.25
+    dependencies: []
+    prerequisite: "2 weeks of production stability"
+    description: |
+      Delete backup code after 2 weeks of production stability.
+    acceptanceCriteria:
+      - Deprecated code removed
+      - No references to old implementation
+      - Sprint completion notes updated
+    rollback: "N/A (keep backup if unsure)"
+
+  - id: 5.5
+    title: "Bump Version and Release"
+    phase: 5
+    priority: high
+    status: pending
+    estimatedHours: 1
+    dependencies: [5.1, 5.2, 5.3]
+    description: |
+      Bump version (minor), update CHANGELOG, create tag.
+    acceptanceCriteria:
+      - Version bumped correctly
+      - CHANGELOG accurately reflects changes
+      - Tag created
+      - Changes pushed
+    rollback: "Revert version bump and tag"
+    commands:
+      - "npm run release -- minor"
+      - "git tag v0.28.0"
+      - "git push origin feature/sprint-12-fxes5l-ingress-egress-bit-refactoring"
+      - "git push origin v0.28.0"
+
+# =============================================================================
+# Summary Statistics
+# =============================================================================
+
+summary:
+  totalTasks: 35
+  byPhase:
+    phase1: 11  # IntegrationBit Base Class
+    phase2: 5   # Connector Factories
+    phase3: 10  # Refactor ingress-egress
+    phase4: 6   # Standalone Services (Optional)
+    phase5: 5   # Cleanup & Documentation
+  byPriority:
+    critical: 18
+    high: 7
+    medium: 4
+    low: 6
+  estimatedEffort:
+    totalHours: 56
+    totalDays: "4-5 days (with 1 developer)"
+  risks:
+    high: [3.7, 3.8]  # Production deployments
+    medium: [3.3, 3.5, 3.6]  # Testing and staging
+    low: ["all Phase 4 and 5 tasks"]
+
+# =============================================================================
+# Progress Tracking
+# =============================================================================
+
+progress:
+  pending: 35
+  in_progress: 0
+  completed: 0
+  blocked: 0
+  skipped: 0
+  percentComplete: 0

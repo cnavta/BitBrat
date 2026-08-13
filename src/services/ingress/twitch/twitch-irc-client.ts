@@ -505,23 +505,61 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
         const userLoginKey = `twitch:${userLogin.toLowerCase()}`;
         const userIdKey = meta?.userId ? `twitch:${meta.userId}` : null;
         const isDebugUser = debugUsers.includes(userLoginKey) || (userIdKey !== null && debugUsers.includes(userIdKey));
-        
-        // Handle !debug prefix for authorized users
+
+        // Sprint 12: Handle !debug prefix for authorized users
         let processedText = text;
-        let forceTracer = false;
+        let debugCorrelationId: string | undefined;
+        let debugMetadata: { enabled: true; initiatedBy: string; feedbackChannel: string; startedAt: string } | undefined;
+
         if (isDebugUser && text?.toLowerCase().startsWith('!debug')) {
           processedText = text.substring(6).trim();
-          forceTracer = true;
-          logger.info('twitch.irc.debug_command.detected', { correlationId: '(pending)', userLogin, originalText: text });
+
+          // Generate correlation ID early for confirmation message and envelope
+          const { randomUUID } = await import('crypto');
+          debugCorrelationId = randomUUID();
+
+          // Build debug metadata
+          debugMetadata = {
+            enabled: true,
+            initiatedBy: userLogin,
+            feedbackChannel: channel,
+            startedAt: new Date().toISOString(),
+          };
+
+          logger.info('twitch.irc.debug_command.detected', {
+            correlationId: debugCorrelationId,
+            userLogin,
+            channel,
+            originalText: text,
+            strippedText: processedText,
+          });
+
+          // Send activation confirmation BEFORE publishing envelope
+          try {
+            const feedback = `[DEBUG] Debug mode ON. Correlation ID: ${debugCorrelationId} - Watching event flow...`;
+            await this.sendText(feedback, channel);
+            logger.info('twitch.irc.debug.activation_sent', {
+              correlationId: debugCorrelationId,
+              userLogin,
+              channel,
+            });
+          } catch (error: any) {
+            logger.warn('twitch.irc.debug.activation_failed', {
+              error: error.message,
+              correlationId: debugCorrelationId,
+              userLogin,
+              channel,
+            });
+            // Continue processing even if confirmation fails
+          }
         }
 
         const msgForBuilder = processedText !== text ? { ...msg, text: processedText } : msg;
-        const evtV2: InternalEventV2 = this.builder.build(msgForBuilder);
-        
-        if (forceTracer) {
-          evtV2.qos = { ...evtV2.qos, tracer: true };
-          logger.info('twitch.irc.debug_command.applied', { correlationId: evtV2.correlationId, userLogin });
-        }
+        const evtV2: InternalEventV2 = this.builder.build(msgForBuilder, {
+          egressDestination: this.egressDestinationTopic,
+          correlationId: debugCorrelationId,
+          debugMetadata,
+        });
 
         // Tracer logic: Check for !trace command (legacy/other tracer trigger)
         if (processedText?.toLowerCase().startsWith('!trace')) {
@@ -529,8 +567,9 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
           logger.info('twitch.irc.tracer.detected', { correlationId: evtV2.correlationId, userLogin });
         }
 
-        // Immediate feedback to chat if tracer is enabled (either via !debug or !trace)
-        if (evtV2.qos?.tracer) {
+        // Immediate feedback to chat if tracer is enabled via !trace (legacy)
+        // Note: !debug mode sends activation confirmation earlier (line 539-540)
+        if (evtV2.qos?.tracer && !debugMetadata) {
           try {
             const feedback = `[DEBUG] Tracer event started. ID: ${evtV2.correlationId}${evtV2.traceId ? ` Trace: ${evtV2.traceId}` : ''}`;
             await this.sendText(feedback, channel);
@@ -539,14 +578,7 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
           }
         }
 
-        // Ensure egress metadata is set for downstream responses to route back to this instance
-        if ((!evtV2.egress || !evtV2.egress.destination) && this.egressDestinationTopic) {
-          evtV2.egress = {
-            destination: this.egressDestinationTopic,
-            type: 'chat',
-            connector: 'twitch'
-          };
-        }
+        // Note: Egress destination now set by envelope builder (line 559)
         await this.publisher.publish(evtV2);
         counters.published = (counters.published || 0) + 1;
       });

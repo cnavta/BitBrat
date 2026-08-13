@@ -1,0 +1,10 @@
+id: sprint-12-fxes5l
+title: Ingress-Egress Bit Refactoring
+goal: Refactor the monolithic ingress-egress bit into a composable architecture
+  that supports both integrated and standalone platform integrations
+owner: christophernavta
+createdAt: 2026-08-13T00:48:24.073Z
+status: planning
+links:
+  branch: feature/sprint-12-fxes5l-ingress-egress-bit-refactoring
+notes: Sprint initialized via MCP start-sprint tool

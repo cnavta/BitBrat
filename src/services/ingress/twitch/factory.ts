@@ -50,9 +50,9 @@ export const createTwitchConnector: ConnectorFactory = async (config: IConfig, o
   const { egressDestinationTopic, publisherFactory, documentStore } = opts;
 
   // Create publisher for ingress events
-  const publisher = publisherFactory
-    ? publisherFactory('internal.ingress.v1')
-    : createTwitchIngressPublisherFromConfig(config);
+  // IMPORTANT: Always use createTwitchIngressPublisherFromConfig wrapper
+  // It wraps MessagePublisher (publishJson) with IngressPublisher interface (publish)
+  const publisher = createTwitchIngressPublisherFromConfig(config, publisherFactory);
 
   // Use persistent credentials from PostgreSQL or Firestore if documentStore is available
   // Falls back to config-based credentials (environment variables) if no persistence available
@@ -65,14 +65,23 @@ export const createTwitchConnector: ConnectorFactory = async (config: IConfig, o
       )
     : new ConfigTwitchCredentialsProvider(config);
 
+  // Parse debug authorized users from config (comma-separated, auto-prefix with 'twitch:')
+  const debugUsers = (config.debugUsersTwitch || '')
+    .split(',')
+    .map(u => u.trim())
+    .filter(Boolean)
+    .map(u => u.startsWith('twitch:') ? u : `twitch:${u}`);
+
   // Create Twitch IRC client
   const client = new TwitchIrcClient(
     new TwitchEnvelopeBuilder(),
     publisher,
     config.twitchChannels || [],
     {
+      cfg: config,
       credentialsProvider,
       egressDestinationTopic,
+      debugUsers,
     }
   );
 

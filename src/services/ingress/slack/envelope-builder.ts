@@ -73,6 +73,7 @@ export function buildSlackEnvelope(
   opts?: {
     uuid?: () => string;
     nowIso?: () => string;
+    egressDestination?: string; // Egress topic for routing responses back
     correlationId?: string; // Sprint 371: Pre-generated correlation ID for debug mode
     debugMetadata?: DebugMetadata; // Sprint 371: Debug metadata
   }
@@ -112,7 +113,7 @@ export function buildSlackEnvelope(
       }
     },
     egress: {
-      destination: '',
+      destination: opts?.egressDestination || '',
       connector: 'slack',
       channel: channelId,
     },

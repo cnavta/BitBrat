@@ -50,9 +50,9 @@ export const createDiscordConnector: ConnectorFactory = async (config: IConfig, 
   const { egressDestinationTopic, publisherFactory, documentStore } = opts;
 
   // Create publisher for ingress events
-  const publisher = publisherFactory
-    ? publisherFactory('internal.ingress.v1')
-    : createDiscordIngressPublisherFromConfig(config, undefined);
+  // IMPORTANT: Always use createDiscordIngressPublisherFromConfig wrapper
+  // It wraps MessagePublisher (publishJson) with IngressPublisher interface (publish)
+  const publisher = createDiscordIngressPublisherFromConfig(config, publisherFactory);
 
   // Create auth token store for OAuth2 token management
   // Pass documentStore to ensure same persistence backend as service

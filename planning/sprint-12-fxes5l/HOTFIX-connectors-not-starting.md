@@ -248,15 +248,22 @@ This hotfix must be:
 
 ## Next Steps
 
-1. ✅ Code fix applied
+1. ✅ Code fix applied (initial hotfix: added startup hook)
 2. ✅ Build verified
-3. 🔄 Deploy to staging
-4. 🔄 Verify in staging logs
-5. 🔄 Test message flow from all platforms
-6. ⏳ Monitor staging for 30+ minutes
-7. ⏳ Deploy to production (if staging verification passes)
-8. ⏳ Add integration test to prevent regression
-9. ⏳ Update health check to verify connectors started
+3. ✅ **Comprehensive lifecycle audit completed**
+   - Fixed async initialization race conditions
+   - Added promise tracking for constructor async calls
+   - Enhanced startup hook to await ALL initialization
+   - Enhanced shutdown hook to handle in-flight initialization
+   - See: `planning/sprint-12-fxes5l/lifecycle-verification.md`
+4. ✅ Unit tests verified (28/28 + 6/6 passing)
+5. 🔄 Deploy to staging
+6. 🔄 Verify in staging logs (see lifecycle-verification.md checklist)
+7. 🔄 Test message flow from all platforms
+8. ⏳ Monitor staging for 30+ minutes
+9. ⏳ Deploy to production (if staging verification passes)
+10. ⏳ Add integration test to prevent regression
+11. ⏳ Update health check to verify connectors started
 
 ---
 
