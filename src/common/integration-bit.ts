@@ -46,6 +46,7 @@ import type { Request, Response } from 'express';
  * @param opts - Factory options
  * @param opts.egressDestinationTopic - Topic for egress messages (e.g., "internal.egress.v1.instance-123")
  * @param opts.publisherFactory - Optional function to create publishers for specific topics
+ * @param opts.documentStore - Optional document store for persistent credentials (PostgreSQL/Firestore)
  * @returns Promise resolving to configured IngressConnector
  */
 export type ConnectorFactory = (
@@ -53,6 +54,7 @@ export type ConnectorFactory = (
   opts: {
     egressDestinationTopic: string;
     publisherFactory?: (topic: string) => any;
+    documentStore?: any;
   }
 ) => Promise<IngressConnector>;
 
@@ -288,6 +290,9 @@ export class IntegrationBit extends Bit {
       try {
         logger.debug('integration-bit.connector-registering', { connector: name });
 
+        // Get documentStore for persistent credentials (PostgreSQL/Firestore)
+        const documentStore = this.getResource('documentStore') || this.getResource('firestore');
+
         // Call factory function to instantiate connector
         const connector = await factory(this.getConfig(), {
           egressDestinationTopic: this.egressTopic,
@@ -295,6 +300,7 @@ export class IntegrationBit extends Bit {
             const pubRes = this.getResource<PublisherResource>('publisher');
             return pubRes ? pubRes.create(topic) : undefined;
           },
+          documentStore, // Pass documentStore for persistent credentials
         });
 
         // Register with ConnectorManager
