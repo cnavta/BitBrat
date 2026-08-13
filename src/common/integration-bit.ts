@@ -162,6 +162,8 @@ export class IntegrationBit extends Bit {
   private statusMonitorInterval?: NodeJS.Timeout;
   private lastConnectorSnapshots: Map<string, any> = new Map();
   private integrationConfig: IntegrationBitConfig;
+  private registrationPromise?: Promise<void>;
+  private egressRoutingPromise?: Promise<void>;
 
   constructor(config: IntegrationBitConfig) {
     super({ serviceName: config.serviceName });
@@ -183,31 +185,47 @@ export class IntegrationBit extends Bit {
       connectorCount: this.integrationConfig.connectors.length,
     });
 
-    // Register connectors (async, deferred to setup phase)
-    this.registerConnectors();
+    // Register connectors (async, track promise for startup hook)
+    this.registrationPromise = this.registerConnectors();
 
-    // Setup webhook routing
+    // Setup webhook routing (synchronous)
     this.setupWebhookRouting();
 
-    // Setup egress routing (async, deferred to setup phase)
-    this.setupEgressRouting();
+    // Setup egress routing (async, track promise for startup hook)
+    this.egressRoutingPromise = this.setupEgressRouting();
 
-    // Setup status monitoring
+    // Setup status monitoring (synchronous)
     this.setupStatusMonitoring();
 
-    // Setup debug endpoints
+    // Setup debug endpoints (synchronous)
     this.setupDebugEndpoints();
 
-    // Register startup hook to start all connectors
+    // Register startup hook to complete async initialization and start connectors
     this.onStartup(async () => {
       const logger = this.getLogger();
-      logger.info('integration-bit.starting-connectors');
+
+      // CRITICAL: Wait for async initialization to complete before starting connectors
+      logger.debug('integration-bit.awaiting-initialization');
 
       try {
+        // Wait for connector registration to complete
+        if (this.registrationPromise) {
+          await this.registrationPromise;
+          logger.debug('integration-bit.registration-complete');
+        }
+
+        // Wait for egress routing setup to complete
+        if (this.egressRoutingPromise) {
+          await this.egressRoutingPromise;
+          logger.debug('integration-bit.egress-routing-complete');
+        }
+
+        // Now safe to start connectors
+        logger.info('integration-bit.starting-connectors');
         await this.connectorManager.start();
         logger.info('integration-bit.connectors-started');
       } catch (error) {
-        logger.error('integration-bit.connectors-start-failed', {
+        logger.error('integration-bit.startup-failed', {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
         });
@@ -697,7 +715,13 @@ export class IntegrationBit extends Bit {
   }
 
   /**
-   * Override the close() lifecycle method to stop connectors.
+   * Override the close() lifecycle method to gracefully shutdown.
+   *
+   * Shutdown sequence:
+   * 1. Wait for any in-flight initialization to complete
+   * 2. Clear status monitoring interval
+   * 3. Stop all connectors
+   * 4. Call parent close() to run shutdown hooks and unsubscribe
    *
    * @override
    */
@@ -706,19 +730,47 @@ export class IntegrationBit extends Bit {
 
     logger.info('integration-bit.closing');
 
-    // Clear status monitoring interval
-    if (this.statusMonitorInterval) {
-      clearInterval(this.statusMonitorInterval);
-      this.statusMonitorInterval = undefined;
-      logger.debug('integration-bit.status-monitor-cleared');
+    try {
+      // Wait for any in-flight async initialization to complete
+      // This prevents shutting down while still initializing
+      if (this.registrationPromise) {
+        logger.debug('integration-bit.awaiting-registration-completion');
+        await this.registrationPromise.catch((err) => {
+          logger.warn('integration-bit.registration-failed-during-shutdown', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+
+      if (this.egressRoutingPromise) {
+        logger.debug('integration-bit.awaiting-egress-routing-completion');
+        await this.egressRoutingPromise.catch((err) => {
+          logger.warn('integration-bit.egress-routing-failed-during-shutdown', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+
+      // Clear status monitoring interval
+      if (this.statusMonitorInterval) {
+        clearInterval(this.statusMonitorInterval);
+        this.statusMonitorInterval = undefined;
+        logger.debug('integration-bit.status-monitor-cleared');
+      }
+
+      // Stop all connectors gracefully
+      logger.info('integration-bit.stopping-connectors');
+      await this.connectorManager.stop();
+      logger.info('integration-bit.connectors-stopped');
+    } catch (error) {
+      logger.error('integration-bit.close-error', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      // Continue with shutdown even if errors occur
     }
 
-    // Stop all connectors
-    await this.connectorManager.stop();
-
-    logger.info('integration-bit.connectors-stopped');
-
-    // Close HTTP server
+    // Call parent close() to run shutdown hooks, unsubscribe, and close resources
     await super.close();
 
     logger.info('integration-bit.closed');
