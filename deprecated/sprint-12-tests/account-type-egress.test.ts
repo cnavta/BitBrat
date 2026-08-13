@@ -31,12 +31,29 @@ const mockDiscordBroadcasterClient = {
 
 // Mock the Bit base abstraction (Bit model, sprint-324)
 jest.mock('../../common/base-server', () => {
+  const mockLogger = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  };
+
+  const mockApp = {
+    use: jest.fn(),
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    patch: jest.fn(),
+  };
+
   return {
     Bit: class {
       constructor() {}
-      getApp() { return { use: jest.fn() }; }
+      getApp() { return mockApp; }
       getConfig() { return { firestoreEnabled: true }; }
       getResource() { return { create: jest.fn().mockReturnValue({ publishJson: jest.fn() }) }; }
+      getLogger() { return mockLogger; }
       onMessage() {}
       onHTTPRequest() {}
     }

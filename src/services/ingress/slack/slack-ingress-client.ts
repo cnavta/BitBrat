@@ -33,14 +33,17 @@ export class SlackIngressClient {
   private debugAuthorizedUsers: Set<string>; // Sprint 371: RBAC for debug mode
   private processedMessageTimestamps: Set<string> = new Set(); // Deduplication cache
   private deduplicationCleanupInterval?: NodeJS.Timeout;
+  private readonly egressDestinationTopic?: string; // Egress topic for routing responses
 
   constructor(
     private readonly appToken: string,
     private readonly botToken: string,
     private readonly publisher: IngressPublisher,
-    debugUsersSlack?: string // Sprint 371: Comma-separated list of authorized Slack User IDs
+    debugUsersSlack?: string, // Sprint 371: Comma-separated list of authorized Slack User IDs
+    egressDestinationTopic?: string // Egress topic for routing responses back
   ) {
     this.webClient = new WebClient(botToken);
+    this.egressDestinationTopic = egressDestinationTopic;
 
     // Sprint 371: Parse debug authorized users (comma-separated Slack User IDs)
     this.debugAuthorizedUsers = new Set(
@@ -363,6 +366,8 @@ export class SlackIngressClient {
             reason: 'user_not_in_debug_authorized_list',
             authorizedCount: this.debugAuthorizedUsers.size,
           });
+          // Note: Unlike Discord, Slack continues processing unauthorized debug requests
+          // The prefix is stripped but no debug metadata is attached
         }
       }
 
@@ -397,6 +402,7 @@ export class SlackIngressClient {
           event_ts: actualEvent.event_ts,
         },
         {
+          egressDestination: this.egressDestinationTopic,
           // Sprint 371: Pass pre-generated correlation ID and debug metadata if RBAC passed
           correlationId: debugCorrelationId,
           debugMetadata,

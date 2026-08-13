@@ -33,6 +33,17 @@ export interface EnvelopeBuilderOptions {
   uuid?: () => string;
   /** Optional timestamp supplier for testability; defaults to new Date().toISOString() */
   nowIso?: () => string;
+  /** Optional egress destination topic for routing responses */
+  egressDestination?: string;
+  /** Optional pre-generated correlation ID (used for debug mode) */
+  correlationId?: string;
+  /** Optional debug metadata (Sprint 12: Debug mode support) */
+  debugMetadata?: {
+    enabled: true;
+    initiatedBy: string;
+    feedbackChannel: string;
+    startedAt: string;
+  };
 }
 
 /**
@@ -62,7 +73,7 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
     const nowIso = opts?.nowIso || (() => new Date().toISOString());
 
     const channel = msg.channel.startsWith('#') ? msg.channel : `#${msg.channel}`;
-    const correlationId = uuid();
+    const correlationId = opts?.correlationId || uuid();
     const traceId = uuid();
 
     const evt: InternalEventV2 = {
@@ -90,7 +101,11 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
           }
         }
       },
-      egress: { destination: '', connector: 'twitch', channel }, // populated by client
+      egress: {
+        destination: opts?.egressDestination || '',
+        connector: 'twitch',
+        channel
+      },
       message: {
         id: msg.messageId || `msg-${correlationId}`,
         role: 'user',
@@ -118,6 +133,16 @@ export class TwitchEnvelopeBuilder implements IEnvelopeBuilder {
         history: [],
       }
     };
+
+    // Sprint 12: Attach debug metadata if provided
+    if (opts?.debugMetadata) {
+      evt.metadata = {
+        ...(evt.metadata || {}),
+        debug: opts.debugMetadata,
+      };
+      evt.qos = { tracer: true };
+    }
+
     return evt;
   }
 }
