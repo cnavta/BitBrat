@@ -67,5 +67,9 @@ COPY --from=builder /workspace/dist ./dist
 # Copy architecture.yaml for runtime config lookups
 COPY architecture.yaml ./architecture.yaml
 
+# Sprint 13: Copy YAML event configs for TranslationEngine (DX-016)
+# Required for YAML-driven event gateway framework
+COPY config ./config
+
 # Sprint 375: Base image stops here
 # Service-specific layers (SERVICE_NAME, SERVICE_ENTRY, CMD) added by Dockerfile.service

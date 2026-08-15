@@ -616,6 +616,8 @@ export class DockerOrchestrator {
       'Dockerfile.service',
       'Dockerfile.brat',
       'Dockerfile.obs-mcp',
+      // Sprint 13 (DX-016): YAML event configs for TranslationEngine
+      'config',
       // Tools directory (contains brat CLI source)
       'tools',
       // Sprint 374: Secure files directory (if exists as directory)

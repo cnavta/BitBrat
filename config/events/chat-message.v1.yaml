@@ -1,0 +1,48 @@
+# Chat Message Event Definition
+# Sprint 13: DM Capability Implementation (EP-02)
+#
+# Represents a message sent to a public or private channel/room.
+# This is a bidirectional event - platforms can both send and receive chat messages.
+
+type: chat.message.v1
+description: Message sent to a public or private channel/room
+version: 1
+category: bidirectional
+
+metadata:
+  createdBy: Platform Team
+  createdAt: "2026-01-15"
+  lastModified: "2026-08-14"
+  owningTeam: integrations
+  relatedEvents:
+    - dm.message.v1
+    - chat.sent.v1
+    - chat.delivered.v1
+    - chat.deleted.v1
+
+# Event schema (for validation)
+schema:
+  properties:
+    identity:
+      type: object
+      required: [external]
+      properties:
+        external:
+          type: object
+          required: [id, platform]
+    message:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+    ingress:
+      type: object
+      required: [connector, channel]
+      properties:
+        connector:
+          type: string
+          enum: [discord, slack, twilio, twitch, telegram]
+  required:
+    - identity
+    - ingress

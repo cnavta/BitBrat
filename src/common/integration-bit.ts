@@ -16,6 +16,9 @@ import type { InternalEventV2 } from '../types/events';
 import { extractEgressTextFromEvent } from './events/selection';
 import type { PublisherResource } from './resources/publisher-manager';
 import type { Request, Response } from 'express';
+import type { ConfigRegistry } from '../services/ingress/core/config-registry';
+import { EgressTranslator } from '../services/ingress/core/egress-translator';
+import { getFeatureFlags } from '../services/ingress/core/feature-flags';
 
 /**
  * Factory function for creating platform connectors.
@@ -121,6 +124,16 @@ export interface IntegrationBitConfig {
      */
     enabled?: boolean;
   }>;
+
+  /**
+   * Optional config registry for YAML-based event translation
+   *
+   * When provided, enables TranslationEngine-based egress translation
+   * for bidirectional message routing.
+   *
+   * @since Sprint 13 (TE-002)
+   */
+  configRegistry?: ConfigRegistry;
 }
 
 /**
@@ -166,6 +179,7 @@ export class IntegrationBit extends Bit {
   private integrationConfig: IntegrationBitConfig;
   private registrationPromise?: Promise<void>;
   private egressRoutingPromise?: Promise<void>;
+  private egressTranslator?: EgressTranslator;
 
   constructor(config: IntegrationBitConfig) {
     super({ serviceName: config.serviceName });
@@ -180,11 +194,17 @@ export class IntegrationBit extends Bit {
     // Initialize connector manager with logger
     this.connectorManager = new ConnectorManager({ logger: this.getLogger() });
 
+    // Initialize egress translator if config registry provided (Sprint 13: TE-002)
+    if (config.configRegistry) {
+      this.egressTranslator = new EgressTranslator(config.configRegistry);
+    }
+
     this.getLogger().info('integration-bit.initialized', {
       serviceName: this.integrationConfig.serviceName,
       instanceId: this.instanceId,
       egressTopic: this.egressTopic,
       connectorCount: this.integrationConfig.connectors.length,
+      egressTranslatorEnabled: !!this.egressTranslator,
     });
 
     // Register connectors (async, track promise for startup hook)
@@ -479,13 +499,18 @@ export class IntegrationBit extends Bit {
   /**
    * Processes egress messages by routing them to the appropriate connector.
    *
-   * Flow:
+   * Flow (Sprint 13: TE-002):
    * 1. Extract platform from evt.egress.connector (explicit routing)
    * 2. Look up connector by platform name
-   * 3. Extract text from event using extractEgressTextFromEvent()
-   * 4. Call connector's sendText() method
+   * 3. Try TranslationEngine-based translation (if enabled):
+   *    a. Call EgressTranslator.translateOutbound() to get {method, payload}
+   *    b. Dynamically invoke connector[method](payload)
+   * 4. Fall back to legacy behavior if translation unavailable/fails:
+   *    - Extract text using extractEgressTextFromEvent()
+   *    - Route based on egress type (dm → sendDM, otherwise → sendText)
    *
    * @param event - Egress event to process
+   * @since Sprint 13 (DM support, TE-002)
    * @private
    */
   private async processEgress(event: InternalEventV2): Promise<void> {
@@ -515,6 +540,63 @@ export class IntegrationBit extends Bit {
         return;
       }
 
+      // Try TranslationEngine-based egress (Sprint 13: TE-002)
+      const featureFlags = getFeatureFlags();
+      if (featureFlags.ENABLE_GENERIC_BUILDER && this.egressTranslator) {
+        try {
+          const translation = this.egressTranslator.translateOutbound(
+            platform,
+            event.type,
+            event
+          );
+
+          const method = translation.method;
+          const payload = translation.payload;
+
+          // Validate method exists on connector
+          if (typeof (connector as any)[method] !== 'function') {
+            logger.warn('integration-bit.egress-method-not-found', {
+              correlationId,
+              platform,
+              method,
+              fallbackToLegacy: true,
+            });
+            // Fall through to legacy behavior
+          } else {
+            // Dynamically invoke connector method with payload as argument
+            logger.debug('integration-bit.egress-calling-method', {
+              correlationId,
+              platform,
+              method,
+              payloadKeys: Object.keys(payload),
+            });
+
+            await (connector as any)[method](payload);
+
+            logger.info('integration-bit.egress-sent-via-translator', {
+              correlationId,
+              platform,
+              method,
+              payloadKeys: Object.keys(payload),
+            });
+
+            return; // Success - exit early
+          }
+        } catch (translationError) {
+          // Translation failed - fall back to legacy behavior
+          logger.debug('integration-bit.egress-translation-failed', {
+            correlationId,
+            platform,
+            error:
+              translationError instanceof Error
+                ? translationError.message
+                : String(translationError),
+            fallbackToLegacy: true,
+          });
+          // Fall through to legacy behavior
+        }
+      }
+
       // Extract text from event
       const text = extractEgressTextFromEvent(event);
 
@@ -526,27 +608,90 @@ export class IntegrationBit extends Bit {
         return;
       }
 
-      // Extract target channel (optional)
-      const targetChannel = event.egress?.channel || event.ingress?.channel;
-
-      // Send text via connector
+      // Determine egress type (DM vs chat)
+      const egressType = event.egress?.type;
       const egressConnector = connector as unknown as EgressConnector;
-      if (!egressConnector.sendText) {
-        logger.error('integration-bit.egress-not-supported', {
+
+      // Route based on egress type
+      if (egressType === 'dm') {
+        // DM routing path (Sprint 13)
+        const userId = event.identity?.external?.id;
+
+        if (!userId) {
+          logger.warn('integration-bit.egress-dm-missing-user-id', {
+            correlationId,
+            platform,
+            identity: event.identity,
+          });
+          return;
+        }
+
+        // Check if connector supports sendDM
+        if (typeof egressConnector.sendDM === 'function') {
+          logger.debug('integration-bit.egress-sending-dm', {
+            correlationId,
+            platform,
+            userId,
+            textLength: text.length,
+          });
+
+          await egressConnector.sendDM(text, userId);
+
+          logger.info('integration-bit.egress-dm-sent', {
+            correlationId,
+            platform,
+            userId,
+            textLength: text.length,
+          });
+        } else {
+          // Fallback: Use sendText with channel as target
+          logger.debug('integration-bit.egress-dm-fallback-to-channel', {
+            correlationId,
+            platform,
+            reason: 'sendDM_not_implemented',
+          });
+
+          const targetChannel = event.egress?.channel || event.ingress?.channel;
+
+          if (!egressConnector.sendText) {
+            logger.error('integration-bit.egress-not-supported', {
+              correlationId,
+              platform,
+            });
+            return;
+          }
+
+          await egressConnector.sendText(text, targetChannel);
+
+          logger.info('integration-bit.egress-sent', {
+            correlationId,
+            platform,
+            targetChannel,
+            textLength: text.length,
+            fallbackFrom: 'dm',
+          });
+        }
+      } else {
+        // Standard chat routing path
+        const targetChannel = event.egress?.channel || event.ingress?.channel;
+
+        if (!egressConnector.sendText) {
+          logger.error('integration-bit.egress-not-supported', {
+            correlationId,
+            platform,
+          });
+          return;
+        }
+
+        await egressConnector.sendText(text, targetChannel);
+
+        logger.info('integration-bit.egress-sent', {
           correlationId,
           platform,
+          targetChannel,
+          textLength: text.length,
         });
-        return;
       }
-
-      await egressConnector.sendText(text, targetChannel);
-
-      logger.info('integration-bit.egress-sent', {
-        correlationId,
-        platform,
-        targetChannel,
-        textLength: text.length,
-      });
     } catch (error) {
       logger.error('integration-bit.egress-error', {
         correlationId,

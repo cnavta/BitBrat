@@ -45,6 +45,20 @@ export class TwitchConnectorAdapter implements IngressConnector {
     }
   }
 
+  /**
+   * Send direct message (whisper) to a Twitch user
+   *
+   * Alias for sendWhisper() to maintain consistency with other platforms.
+   *
+   * @param text - Message content
+   * @param userId - Twitch user ID or login
+   * @throws Error if whispers not supported or user not found
+   * @since Sprint 13 (DM-007)
+   */
+  async sendDM(text: string, userId: string): Promise<void> {
+    await this.sendWhisper(text, userId);
+  }
+
   getMetadata(): ConnectorMetadata {
     return {
       platform: 'twitch',

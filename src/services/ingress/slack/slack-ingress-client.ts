@@ -5,16 +5,20 @@
  * Handles message events, errors, disconnections, and reconnections.
  *
  * Sprint 348: Slack Integration
+ * Sprint 13: YAML-driven event gateway integration
+ * - Accepts envelope builder function for flexibility
+ * - Supports both custom builder and TranslationEngine-based builder
  *
  * @since Sprint 348
  */
 
 import type { IngressPublisher, ConnectorSnapshot } from '../core';
 import { logger } from '../../../common/logging';
+import type { InternalEventV2, DebugMetadata } from '../../../types/events';
 
 import { SocketModeClient } from '@slack/socket-mode';
 import { WebClient } from '@slack/web-api';
-import { buildSlackEnvelope } from './envelope-builder';
+import { buildSlackEnvelope, type SlackEventMeta } from './envelope-builder';
 
 export class SlackIngressClient {
   private socketClient?: SocketModeClient;
@@ -36,6 +40,16 @@ export class SlackIngressClient {
   private readonly egressDestinationTopic?: string; // Egress topic for routing responses
 
   constructor(
+    private readonly buildEnvelope: (
+      event: SlackEventMeta,
+      opts?: {
+        uuid?: () => string;
+        nowIso?: () => string;
+        egressDestination?: string;
+        correlationId?: string;
+        debugMetadata?: DebugMetadata;
+      }
+    ) => InternalEventV2,
     private readonly appToken: string,
     private readonly botToken: string,
     private readonly publisher: IngressPublisher,
@@ -390,7 +404,9 @@ export class SlackIngressClient {
         startedAt: new Date().toISOString(),
       } : undefined;
 
-      const envelope = buildSlackEnvelope(
+      // Sprint 13: Support both sync and async envelope builders
+      // TranslationEngine.translateInbound is async, but custom builders are sync
+      const envelopeOrPromise = this.buildEnvelope(
         {
           type: actualEvent.type,
           user: actualEvent.user,
@@ -408,6 +424,11 @@ export class SlackIngressClient {
           debugMetadata,
         }
       );
+
+      // Check if result is a Promise and await if necessary
+      const envelope = envelopeOrPromise instanceof Promise
+        ? await envelopeOrPromise
+        : envelopeOrPromise;
 
       logger.debug('slack.client.envelope_built', {
         correlationId: envelope.correlationId,

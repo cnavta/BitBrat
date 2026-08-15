@@ -7,6 +7,7 @@
  */
 
 import { SlackIngressClient } from '../slack-ingress-client';
+import { buildSlackEnvelope } from '../envelope-builder';
 import { createMockSlackMessage } from '../debug-test-utils';
 import type { InternalEventV2 } from '../../../../types/events';
 import type { IngressPublisher } from '../../core';
@@ -34,6 +35,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
     it('should authorize user in debugUsersSlack list', async () => {
       const authorizedUserId = 'U_AUTHORIZED_USER';
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -60,6 +62,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
       const unauthorizedUserId = 'U_UNAUTHORIZED_USER';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -91,6 +94,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
       const user3 = 'U_USER_THREE';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -119,6 +123,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
       const user2 = 'U_USER_TWO';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -144,6 +149,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
 
     it('should handle empty debugUsersSlack (no users authorized)', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -167,6 +173,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
 
     it('should handle undefined debugUsersSlack (no users authorized)', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -192,6 +199,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
   describe('RBAC does not affect normal messages', () => {
     it('should process normal messages regardless of RBAC config', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -217,6 +225,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
     it('should process normal messages from authorized debug users', async () => {
       const authorizedUser = 'U_AUTHORIZED_USER';
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -243,6 +252,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
   describe('RBAC edge cases', () => {
     it('should handle missing user field gracefully', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -265,6 +275,7 @@ describe('SlackIngressClient - Debug Mode RBAC (DBG-006)', () => {
 
     it('should treat empty user as unauthorized', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,

@@ -88,10 +88,15 @@ export function buildSlackEnvelope(
   const userId = event.user || 'unknown';
   const channelId = event.channel || 'unknown';
 
+  // Sprint 13: Detect DM channel (channel ID starts with 'D')
+  const isDM = channelId.startsWith('D');
+  const eventType = isDM ? 'dm.message.v1' : 'chat.message.v1';
+  const egressType = isDM ? 'dm' : 'chat';
+
   // Sprint 371: Build base envelope
   const envelope: InternalEventV2 = {
     v: '2',
-    type: 'chat.message.v1',
+    type: eventType,
     correlationId,
     traceId,
     ingress: {
@@ -114,6 +119,7 @@ export function buildSlackEnvelope(
     },
     egress: {
       destination: opts?.egressDestination || '',
+      type: egressType,
       connector: 'slack',
       channel: channelId,
     },

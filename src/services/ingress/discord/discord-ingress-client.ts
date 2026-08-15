@@ -105,6 +105,94 @@ export class DiscordIngressClient {
   }
 
   /**
+   * Send direct message to a Discord user
+   *
+   * Creates a DM channel with the user and sends the message.
+   * Discord automatically creates/reuses DM channels.
+   *
+   * @param text - Message content
+   * @param userId - Discord user ID (e.g., '123456789012345678')
+   * @throws Error if client not connected
+   * @throws Error if user not found
+   * @throws Error if user has DMs disabled
+   * @throws Error if Discord API call fails
+   *
+   * @example
+   * ```typescript
+   * await client.sendDM('Hello!', '123456789012345678');
+   * ```
+   *
+   * @since Sprint 13
+   */
+  async sendDM(text: string, userId: string): Promise<void> {
+    if (!this.client || this.snapshot.state !== 'CONNECTED') {
+      logger.warn('discord.dm.failed_client_not_connected', { state: this.snapshot.state });
+      throw new Error('discord_client_not_connected');
+    }
+
+    if (!userId || typeof userId !== 'string') {
+      logger.warn('discord.dm.invalid_user_id', { userId });
+      throw new Error('discord_invalid_user_id');
+    }
+
+    try {
+      // Fetch the user object
+      logger.debug('discord.dm.fetching_user', { userId });
+      const user = await this.client.users.fetch(userId);
+
+      if (!user) {
+        logger.warn('discord.dm.user_not_found', { userId });
+        throw new Error('discord_user_not_found');
+      }
+
+      // Create/get DM channel with the user
+      logger.debug('discord.dm.creating_channel', { userId, username: user.username });
+      const dmChannel = await user.createDM();
+
+      if (!dmChannel || !('send' in dmChannel)) {
+        logger.error('discord.dm.channel_creation_failed', { userId });
+        throw new Error('discord_dm_channel_creation_failed');
+      }
+
+      // Send the message
+      await dmChannel.send(text);
+
+      logger.info('discord.dm.sent', {
+        userId,
+        username: user.username,
+        textLength: text.length,
+        channelId: dmChannel.id,
+      });
+    } catch (err: any) {
+      const errorCode = err.code || 'unknown';
+      const errorMessage = err.message || String(err);
+
+      // Discord error codes:
+      // 50007 = Cannot send messages to this user (DMs disabled)
+      // 10013 = Unknown User
+      // 50001 = Missing Access
+      if (errorCode === 50007) {
+        logger.warn('discord.dm.user_dms_disabled', { userId, error: errorMessage });
+        throw new Error('discord_user_dms_disabled');
+      } else if (errorCode === 10013) {
+        logger.warn('discord.dm.user_not_found', { userId, error: errorMessage });
+        throw new Error('discord_user_not_found');
+      } else if (errorCode === 50001) {
+        logger.warn('discord.dm.missing_access', { userId, error: errorMessage });
+        throw new Error('discord_missing_access');
+      }
+
+      logger.error('discord.dm.send_failed', {
+        userId,
+        error: errorMessage,
+        errorCode,
+        stack: err.stack,
+      });
+      throw err;
+    }
+  }
+
+  /**
    * Ban a user from the Discord server.
    * Note: This requires the bot to have BAN_MEMBERS permission.
    * Since Discord bans are guild-scoped, we attempt to ban from all guilds the bot is currently in.
@@ -184,6 +272,7 @@ export class DiscordIngressClient {
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages, // Sprint 13: Required for receiving DM events
       ],
       partials: [Partials.Channel, Partials.Message],
     });
@@ -215,18 +304,33 @@ export class DiscordIngressClient {
         // Filters: guild, channels, bot ignore, require text content
         const chId = String(msg?.channel?.id || '');
         const auId = String(msg?.author?.id || '');
-        logger.debug('ingress-egress.discord.message.received', { guildId, channelId: chId, authorId: auId, length: (msg?.content?.length || 0) });
-        if (!msg?.guild || msg.guild.id !== guildId) {
-          this.snapshot.counters = this.snapshot.counters || {};
-          (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
-          logger.debug('ingress-egress.discord.message.filtered', { reason: 'guild_mismatch', guildId: msg?.guild?.id, expectedGuildId: guildId });
-          return;
-        }
-        if (!channels.includes(msg.channel?.id)) {
-          this.snapshot.counters = this.snapshot.counters || {};
-          (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
-          logger.debug('ingress-egress.discord.message.filtered', { reason: 'channel_not_allowed', channelId: chId });
-          return;
+        const channelType = msg?.channel?.type;
+        const isDM = channelType === 1; // ChannelType.DM = 1
+
+        logger.debug('ingress-egress.discord.message.received', {
+          guildId,
+          channelId: chId,
+          authorId: auId,
+          channelType,
+          isDM,
+          length: (msg?.content?.length || 0)
+        });
+
+        // Sprint 13: Allow DM messages (skip guild/channel filters for DMs)
+        if (!isDM) {
+          // Guild channel filters (only apply to non-DM messages)
+          if (!msg?.guild || msg.guild.id !== guildId) {
+            this.snapshot.counters = this.snapshot.counters || {};
+            (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
+            logger.debug('ingress-egress.discord.message.filtered', { reason: 'guild_mismatch', guildId: msg?.guild?.id, expectedGuildId: guildId });
+            return;
+          }
+          if (!channels.includes(msg.channel?.id)) {
+            this.snapshot.counters = this.snapshot.counters || {};
+            (this.snapshot.counters as any).filtered = ((this.snapshot.counters as any).filtered || 0) + 1;
+            logger.debug('ingress-egress.discord.message.filtered', { reason: 'channel_not_allowed', channelId: chId });
+            return;
+          }
         }
         if (!msg.content || typeof msg.content !== 'string') {
           this.snapshot.counters = this.snapshot.counters || {};
@@ -327,7 +431,7 @@ export class DiscordIngressClient {
         }
 
         const meta: DiscordMessageMeta = {
-          guildId,
+          guildId: isDM ? '' : guildId, // Sprint 13: DMs don't have guilds
           channelId: String(msg.channel?.id || ''),
           messageId: String(msg.id || ''),
           authorId: String(msg.author?.id || ''),
@@ -335,8 +439,10 @@ export class DiscordIngressClient {
           content: messageText, // Use stripped text if debug mode detected
           createdAt: msg.createdAt ? new Date(msg.createdAt).toISOString() : new Date().toISOString(),
           mentions: Array.isArray(msg.mentions?.users ? [...msg.mentions.users.keys()] : []) ? [...msg.mentions.users.keys()] : undefined,
-          roles: Array.isArray(msg.member?.roles ? [...msg.member.roles.cache.keys()] : []) ? [...msg.member.roles.cache.keys()] : undefined,
+          // Sprint 13: DM fix - msg.member is null for DMs, so use safe navigation throughout
+          roles: msg.member?.roles?.cache ? [...msg.member.roles.cache.keys()] : undefined,
           isOwner: msg.guild?.ownerId === msg.author?.id,
+          channelType: msg.channel?.type, // Sprint 13: DM detection
           raw: undefined,
         };
 
@@ -344,11 +450,19 @@ export class DiscordIngressClient {
         this.snapshot.counters.received = (this.snapshot.counters.received || 0) + 1;
 
         await startActiveSpan('discord-ingress-receive', async () => {
-          const evt = this.buildEnvelope(meta, {
+          // Sprint 13: Support both sync and async envelope builders
+          // TranslationEngine.translateInbound is async, but custom builders are sync
+          const envelopeOrPromise = this.buildEnvelope(meta, {
             egressDestination: this.options.egressDestinationTopic,
             correlationId: debugCorrelationId,
             debugMetadata,
           });
+
+          // Check if result is a Promise and await if necessary
+          const evt = envelopeOrPromise instanceof Promise
+            ? await envelopeOrPromise
+            : envelopeOrPromise;
+
           await this.publisher.publish(evt);
           this.snapshot.counters!.published = (this.snapshot.counters!.published || 0) + 1;
           try {

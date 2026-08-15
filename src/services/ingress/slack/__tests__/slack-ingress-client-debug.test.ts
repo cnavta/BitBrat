@@ -7,6 +7,7 @@
  */
 
 import { SlackIngressClient } from '../slack-ingress-client';
+import { buildSlackEnvelope } from '../envelope-builder';
 import { createMockSlackMessage } from '../debug-test-utils';
 import type { InternalEventV2 } from '../../../../types/events';
 import type { IngressPublisher } from '../../core';
@@ -31,6 +32,7 @@ describe('SlackIngressClient - Debug Mode Detection (DBG-005)', () => {
     };
 
     client = new SlackIngressClient(
+      buildSlackEnvelope,
       'xapp-test-token',
       'xoxb-test-token',
       mockPublisher,

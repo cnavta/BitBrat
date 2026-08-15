@@ -7,6 +7,7 @@
  */
 
 import { SlackIngressClient } from '../slack-ingress-client';
+import { buildSlackEnvelope } from '../envelope-builder';
 import { createMockSlackMessage, createMockWebClient } from '../debug-test-utils';
 import type { InternalEventV2 } from '../../../../types/events';
 import type { IngressPublisher } from '../../core';
@@ -39,6 +40,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const channel = 'C_TEST_CHANNEL';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -76,6 +78,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const callOrder: string[] = [];
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -111,6 +114,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const authorizedUser = 'U_AUTHORIZED_USER';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -144,6 +148,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const authorizedUser = 'U_AUTHORIZED_USER';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -178,6 +183,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const unauthorizedUser = 'U_UNAUTHORIZED_USER';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -205,6 +211,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const authorizedUser = 'U_AUTHORIZED_USER';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -234,6 +241,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const authorizedUser = 'U_AUTHORIZED_USER';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,
@@ -258,6 +266,7 @@ describe('SlackIngressClient - Activation Confirmation (DBG-008)', () => {
       const authorizedUser = 'U_AUTHORIZED_USER';
 
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher,

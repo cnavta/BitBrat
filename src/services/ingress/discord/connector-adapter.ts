@@ -75,6 +75,26 @@ export class DiscordConnectorAdapter implements IngressConnector, WebhookConnect
     }
   }
 
+  /**
+   * Send direct message to a Discord user
+   *
+   * @param text - Message content
+   * @param userId - Discord user ID
+   * @throws Error if user not found or DMs disabled
+   * @since Sprint 13
+   */
+  async sendDM(text: string, userId: string): Promise<void> {
+    logger.debug('discord.adapter.sendDM', { userId, textLength: text?.length });
+
+    try {
+      await this.client.sendDM(text, userId);
+      logger.info('discord.adapter.dm_sent', { userId });
+    } catch (error: any) {
+      logger.error('discord.adapter.dm_failed', { error: error.message, userId });
+      throw error;
+    }
+  }
+
   async banUser(platformUserId: string, reason?: string): Promise<void> {
     logger.debug('discord.adapter.banUser', { platformUserId, reason });
     try {

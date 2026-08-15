@@ -3,6 +3,11 @@
  *
  * Factory function for creating Slack connectors with IntegrationBit.
  *
+ * Sprint 13: YAML-driven event gateway integration
+ * - Supports feature flag ENABLE_CONFIG_REGISTRY for gradual rollout
+ * - Falls back to custom builder (buildSlackEnvelope) when flag disabled
+ * - Loads YAML configs from config/platforms/slack/ when enabled
+ *
  * @module slack/factory
  * @since Sprint 12
  */
@@ -11,7 +16,13 @@ import type { ConnectorFactory } from '../../../common/integration-bit';
 import { SlackIngressClient } from './slack-ingress-client';
 import { SlackConnectorAdapter } from './connector-adapter';
 import { createSlackIngressPublisherFromConfig } from './publisher';
+import { buildSlackEnvelope } from './envelope-builder';
+import { ConfigRegistry } from '../core/config-registry';
+import { TranslationEngine } from '../core/translation-engine';
+import { getFeatureFlags } from '../core/feature-flags';
+import { logger } from '../../../common/logging';
 import type { IConfig } from '../../../types';
+import path from 'path';
 
 /**
  * Creates a Slack connector configured for the IntegrationBit framework.
@@ -60,8 +71,64 @@ export const createSlackConnector: ConnectorFactory = async (config: IConfig, op
   // It wraps MessagePublisher (publishJson) with IngressPublisher interface (publish)
   const publisher = createSlackIngressPublisherFromConfig(config, publisherFactory);
 
+  // Sprint 13: Check feature flag for YAML-driven event gateway
+  const flags = getFeatureFlags();
+  let envelopeBuilder: typeof buildSlackEnvelope;
+
+  if (flags.ENABLE_CONFIG_REGISTRY) {
+    logger.info('slack.factory.translation_engine.enabled', {
+      configPath: 'config',
+      featureFlags: flags,
+    });
+
+    try {
+      // Load YAML configs from config/ (registry will find config/events/ and config/platforms/slack/)
+      const configPath = path.join(process.cwd(), 'config');
+      const registry = new ConfigRegistry({ configPath });
+      await registry.load();
+
+      logger.info('slack.factory.config_registry.loaded', {
+        platform: 'slack',
+      });
+
+      // Create TranslationEngine for Slack
+      const engine = new TranslationEngine(registry);
+
+      // Wrap translateInbound as envelope builder function
+      // NOTE: TranslationEngine.translateInbound is async, but custom builder is sync
+      // Slack client will handle both sync and async results via Promise check
+      envelopeBuilder = ((meta, builderOpts) => {
+        // Slack Socket Mode events use 'message' as platform event
+        const platformEvent = 'message';
+
+        // Call async translateInbound - caller will await if needed
+        return engine.translateInbound('slack', platformEvent, meta, builderOpts) as any;
+      }) as typeof buildSlackEnvelope;
+
+      logger.info('slack.factory.translation_engine.initialized', {
+        platform: 'slack',
+        useGenericBuilder: flags.ENABLE_GENERIC_BUILDER,
+      });
+    } catch (error: any) {
+      // Fail-safe: Fall back to custom builder if YAML loading fails
+      logger.error('slack.factory.translation_engine.failed', {
+        error: error.message,
+        fallback: 'buildSlackEnvelope',
+      });
+      envelopeBuilder = buildSlackEnvelope;
+    }
+  } else {
+    // Feature flag disabled: Use custom builder (legacy behavior)
+    logger.info('slack.factory.custom_builder.enabled', {
+      builder: 'buildSlackEnvelope',
+      featureFlags: flags,
+    });
+    envelopeBuilder = buildSlackEnvelope;
+  }
+
   // Create Slack client with Socket Mode
   const client = new SlackIngressClient(
+    envelopeBuilder,
     slackAppToken,
     slackBotToken,
     publisher,

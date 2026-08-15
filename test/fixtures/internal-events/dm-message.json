@@ -1,0 +1,38 @@
+{
+  "v": "2",
+  "correlationId": "test-correlation-123",
+  "traceId": "test-trace-456",
+  "type": "dm.message.v1",
+  "ingress": {
+    "ingressAt": "2026-08-14T12:00:00.000Z",
+    "source": "ingress.discord",
+    "connector": "discord",
+    "channel": "9876543210987654321"
+  },
+  "identity": {
+    "external": {
+      "id": "111222333444555666",
+      "platform": "discord",
+      "displayName": "testuser",
+      "metadata": {
+        "discriminator": "1234"
+      }
+    }
+  },
+  "egress": {
+    "destination": "internal.egress.v1.test",
+    "type": "dm",
+    "connector": "discord",
+    "channel": "9876543210987654321"
+  },
+  "message": {
+    "id": "msg-123",
+    "role": "assistant",
+    "text": "This is a response from the bot!"
+  },
+  "routing": {
+    "stage": "response",
+    "slip": [],
+    "history": []
+  }
+}

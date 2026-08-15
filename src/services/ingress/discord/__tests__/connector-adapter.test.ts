@@ -43,6 +43,7 @@ describe('DiscordConnectorAdapter', () => {
         counters: { received: 10, published: 8, errors: 0 },
       } as ConnectorSnapshot),
       sendText: jest.fn().mockResolvedValue(undefined),
+      sendDM: jest.fn().mockResolvedValue(undefined),
       banUser: jest.fn().mockResolvedValue(undefined),
     } as any;
 
@@ -197,6 +198,59 @@ describe('DiscordConnectorAdapter', () => {
           error: 'Send failed',
           target: 'channel123',
         });
+      });
+    });
+
+    describe('sendDM()', () => {
+      it('should send direct message to Discord user', async () => {
+        await adapter.sendDM('Hello DM', 'user123');
+        expect(mockClient.sendDM).toHaveBeenCalledWith('Hello DM', 'user123');
+      });
+
+      it('should delegate to client.sendDM()', async () => {
+        await adapter.sendDM('Test message', 'user456');
+        expect(mockClient.sendDM).toHaveBeenCalledTimes(1);
+        expect(mockClient.sendDM).toHaveBeenCalledWith('Test message', 'user456');
+      });
+
+      it('should handle user not found errors', async () => {
+        const error = new Error('User not found');
+        mockClient.sendDM.mockRejectedValueOnce(error);
+
+        await expect(adapter.sendDM('Hello', 'user999')).rejects.toThrow('User not found');
+      });
+
+      it('should handle DMs disabled errors', async () => {
+        const error = new Error('User has DMs disabled');
+        mockClient.sendDM.mockRejectedValueOnce(error);
+
+        await expect(adapter.sendDM('Hello', 'user123')).rejects.toThrow('User has DMs disabled');
+      });
+
+      it('should log successful DM send', async () => {
+        const { logger } = require('../../../../common/logging');
+        await adapter.sendDM('Hello', 'user123');
+
+        expect(logger.info).toHaveBeenCalledWith('discord.adapter.dm_sent', { userId: 'user123' });
+      });
+
+      it('should log failed DM send', async () => {
+        const { logger } = require('../../../../common/logging');
+        const error = new Error('DM failed');
+        mockClient.sendDM.mockRejectedValueOnce(error);
+
+        await expect(adapter.sendDM('Hello', 'user123')).rejects.toThrow('DM failed');
+        expect(logger.error).toHaveBeenCalledWith('discord.adapter.dm_failed', {
+          error: 'DM failed',
+          userId: 'user123',
+        });
+      });
+
+      it('should throw error when client is not connected', async () => {
+        const error = new Error('Client not connected');
+        mockClient.sendDM.mockRejectedValueOnce(error);
+
+        await expect(adapter.sendDM('Hello', 'user123')).rejects.toThrow('Client not connected');
       });
     });
   });
