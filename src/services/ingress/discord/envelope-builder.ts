@@ -31,6 +31,12 @@ export interface DiscordMessageMeta {
   mentions?: string[];
   roles?: string[];
   isOwner?: boolean;
+  /**
+   * Discord channel type (0 = GUILD_TEXT, 1 = DM, etc.)
+   * @see https://discord.com/developers/docs/resources/channel#channel-object-channel-types
+   * @since Sprint 13
+   */
+  channelType?: number;
   raw?: Record<string, unknown>;
 }
 
@@ -97,10 +103,15 @@ export function buildDiscordEnvelope(
   const correlationId = opts?.correlationId || uuid();
   const traceId = uuid();
 
+  // Sprint 13: Detect DM channel type (ChannelType.DM = 1)
+  const isDM = event.channelType === 1;
+  const eventType = isDM ? 'dm.message.v1' : 'chat.message.v1';
+  const egressType = isDM ? 'dm' : 'chat';
+
   // Build base envelope
   const envelope: InternalEventV2 = {
     v: '2',
-    type: 'chat.message.v1',
+    type: eventType,
     correlationId,
     traceId,
     ingress: {
@@ -123,7 +134,7 @@ export function buildDiscordEnvelope(
     },
     egress: {
       destination: opts?.egressDestination || '',
-      type: 'chat',
+      type: egressType,
       connector: 'discord',
       channel: event.channelId
     },

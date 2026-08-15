@@ -1,0 +1,34 @@
+{
+  "v": "2",
+  "correlationId": "test-correlation-789",
+  "type": "chat.message.v1",
+  "ingress": {
+    "ingressAt": "2026-08-14T12:00:00.000Z",
+    "source": "ingress.slack",
+    "connector": "slack",
+    "channel": "C123456789"
+  },
+  "identity": {
+    "external": {
+      "id": "U987654321",
+      "platform": "slack",
+      "displayName": "slackuser"
+    }
+  },
+  "egress": {
+    "destination": "internal.egress.v1.test",
+    "type": "chat",
+    "connector": "slack",
+    "channel": "C123456789"
+  },
+  "message": {
+    "id": "msg-456",
+    "role": "assistant",
+    "text": "Hello from the chatbot in a channel!"
+  },
+  "routing": {
+    "stage": "response",
+    "slip": [],
+    "history": []
+  }
+}

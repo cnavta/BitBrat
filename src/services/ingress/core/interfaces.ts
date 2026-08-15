@@ -125,7 +125,65 @@ export interface EnvelopeBuilder<TMeta> {
   ): InternalEventV2;
 }
 
+/**
+ * Egress connector interface for sending messages to external platforms
+ *
+ * Enhanced in Sprint 13 with optional sendDM() method for direct messaging.
+ *
+ * @since Sprint 342 (base interface)
+ * @since Sprint 13 (sendDM support)
+ */
 export interface EgressConnector {
+  /**
+   * Send text message to a channel or room
+   *
+   * @param text - Message content
+   * @param target - Optional channel/room ID. If omitted, uses default channel.
+   * @throws Error if platform API call fails
+   */
   sendText(text: string, target?: string): Promise<void>;
+
+  /**
+   * Send direct message (DM) to a specific user
+   *
+   * Optional method for platforms that support DMs (Discord, Slack, Twilio, Telegram).
+   * If not implemented, IntegrationBit falls back to sendText().
+   *
+   * @param text - Message content
+   * @param userId - Platform-specific user ID (e.g., Discord user ID, Slack user ID)
+   * @throws Error if user not found or DMs disabled
+   * @throws Error if platform API call fails
+   *
+   * @example Discord
+   * ```typescript
+   * await connector.sendDM('Hello!', '123456789012345678');
+   * // Creates DM channel with user and sends message
+   * ```
+   *
+   * @example Slack
+   * ```typescript
+   * await connector.sendDM('Hello!', 'U123456');
+   * // Opens conversations.open and posts message
+   * ```
+   *
+   * @example Twilio
+   * ```typescript
+   * await connector.sendDM('Hello!', '+15551234567');
+   * // Sends SMS to phone number
+   * ```
+   *
+   * @since Sprint 13
+   */
+  sendDM?(text: string, userId: string): Promise<void>;
+
+  /**
+   * Ban user from the platform/server
+   *
+   * Optional moderation capability.
+   *
+   * @param platformUserId - Platform-specific user ID
+   * @param reason - Optional ban reason
+   * @since Sprint 342
+   */
   banUser?(platformUserId: string, reason?: string): Promise<void>;
 }

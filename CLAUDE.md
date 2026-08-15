@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with the BitBrat codebase.
 
 ## Overview
 
@@ -9,727 +9,233 @@ BitBrat is an event-driven LLM orchestration engine built as microservices. The 
 ## Key Architectural Concepts
 
 ### Single Source of Truth
-- **architecture.yaml** is the canonical source of truth for all system configuration, service definitions, and deployment specifications
-- All build/deploy tooling derives service metadata from architecture.yaml (ports, entry points, profiles, etc.)
-- Never manually edit multiple files for versioning — use `npm run release -- <bump>` to keep architecture.yaml, package.json, and package-lock.json in lockstep
+- **architecture.yaml** is the canonical source for all system configuration, service definitions, and deployment specifications
+- All build/deploy tooling derives service metadata from architecture.yaml
+- Use `npm run release -- <bump>` to keep architecture.yaml, package.json, and package-lock.json synchronized
 
 ### The Bit Model
 Every service is a **Bit** that:
-- Extends the `Bit` base class (src/common/base-server.ts)
-- Always serves a mandatory `bit.*` control-plane (Platform Ring) via MCP
-- Has a `category`: `platform` (core orchestration) or `domain` (optional extensions)
-- Composes optional capability profiles (core, gateway, llm, mcp-server)
-- Has an `mcp.exposure` level: `platform-only` (just control plane) or `platform+domain` (control plane + domain tools)
-- Can be administered uniformly via `brat fleet` commands
+- Extends `Bit` base class (src/common/base-server.ts)
+- Serves mandatory `bit.*` control-plane via MCP
+- Has `category`: `platform` (core) or `domain` (extensions)
+- Composes capability profiles: core, gateway, llm, mcp-server
+- Has `mcp.exposure`: `platform-only` or `platform+domain`
+- Administerable via `brat fleet` commands
 
 ### Event-Driven Flow
-1. **Ingest**: External events (Twitch/Discord/Twilio) normalized to `internal.ingress.v1` by `ingress-egress`
-2. **Route**: `event-router` attaches JsonLogic-driven routing slips that define processing steps
-3. **Analyze**: Services like `llm-bot`, `query-analyzer` enrich events via `internal.enriched.v1`
-4. **React**: `state-engine`, `disposition-service` apply mutations
-5. **Egress**: Responses delivered back via `internal.egress.v1` to the originating platform
-6. **Persist**: Events durably captured in PostgreSQL (or Firestore for legacy deployments)
+1. **Ingest**: External events normalized to `internal.ingress.v1` by `ingress-egress`
+2. **Route**: `event-router` attaches JsonLogic-driven routing slips
+3. **Analyze**: Services enrich events via `internal.enriched.v1`
+4. **React**: Services apply mutations
+5. **Egress**: Responses delivered via `internal.egress.v1`
+6. **Persist**: Events captured in PostgreSQL (Firestore legacy/deprecated)
 
-All messages are `Envelope v1` (see documentation/schemas/envelope.v1.json) with a `routingSlip` that travels with the message.
+All messages are `Envelope v1` with `routingSlip`. Message bus is NATS (local/dev) or Cloud Pub/Sub (production). Delivery is at-least-once; consumers MUST be idempotent.
 
-### Message Bus
-- **Local/dev**: NATS JetStream
-- **Production**: Google Cloud Pub/Sub
-- Selected via `MESSAGE_BUS_DRIVER` environment variable
-- Delivery is at-least-once; all consumers MUST be idempotent
+### Platform Features
 
-### Scheduler Service (Sprint 369)
-**Platform-agnostic scheduled task execution with internal ticker.**
+**Scheduler Service**: Platform-agnostic scheduled task execution using `setInterval()` (no external cron). Supports `once` and `cron` schedules. MCP tools: `create_schedule`, `list_schedules`, etc. See `documentation/guides/scheduler.md`.
 
-The scheduler service executes timed and recurring events without external dependencies:
-- **Internal Timer**: Uses `setInterval()` instead of external cron services (no GCP Cloud Scheduler dependency)
-- **Platform-Agnostic**: Works on Docker (local, cloud, self-hosted), GCP, AWS, Azure
-- **Configurable Interval**: `SCHEDULER_TICK_INTERVAL_MS` (default: 60s, range: 1s-1h)
-- **Schedule Types**:
-  - `once` - Execute at specific ISO timestamp
-  - `cron` - Recurring execution with cron expressions
-- **Event Publishing**: Publishes `InternalEventV2` to configurable topics (`internal.ingress.v1` default)
-- **MCP Tools**: `create_schedule`, `list_schedules`, `get_schedule`, `update_schedule`, `delete_schedule`
-- **Manual Trigger**: `POST /tick` endpoint for on-demand execution
+**Agent-Dev Contexts**: Ephemeral execution contexts for coding agents. Provision via MCP tools (`agent_dev.provision()`, `agent_dev.start()`, `agent_dev.stop()`, `agent_dev.destroy()`). Isolated Docker containers + PostgreSQL. RBAC-enforced `agent-dev-*` prefix. Only one context runs at a time. See `documentation/guides/agent-dev-contexts.md`.
 
-Configuration:
-```yaml
-# env/local/scheduler.yaml
-SCHEDULER_TICK_INTERVAL_MS: "10000"  # 10s for local dev
-
-# env/staging/scheduler.yaml
-SCHEDULER_TICK_INTERVAL_MS: "60000"  # 60s for production
-```
-
-See `documentation/guides/scheduler.md` for usage guide.
-
-### Agent-Dev Contexts (Sprint 358)
-**Ephemeral, self-service execution contexts for coding agents.**
-
-Coding agents (Claude Code, Aider, etc.) can provision, manage, and destroy their own isolated BitBrat development environments via MCP tools:
-
-```javascript
-// Provision new context (auto-generates unique name)
-agent_dev.provision()
-// ✅ agent-dev-1784822482755-6a23028f
-
-// Start services (30-60s startup)
-agent_dev.start({ name: "agent-dev-xxx" })
-
-// Stop services (preserves data)
-agent_dev.stop({ name: "agent-dev-xxx" })
-
-// Destroy context (IRREVERSIBLE)
-agent_dev.destroy({ name: "agent-dev-xxx", confirm: true })
-```
-
-**Key Features**:
-- **Isolated**: Each context has dedicated Docker containers, PostgreSQL database, environment directory
-- **Ephemeral**: Stored in `.brat/ephemeral-contexts.yaml` (gitignored), not architecture.yaml
-- **RBAC**: Agent-dev tools can ONLY manage contexts prefixed with `agent-dev-*` (safety guardrail)
-- **Idempotent**: All operations safe to retry (destroy safe to call multiple times)
-- **Self-service**: No human intervention required for provisioning or cleanup
-
-**Common Use Cases**:
-- Testing new features in isolated environment
-- Debugging issues without affecting shared development environment
-- Experimenting with configuration changes
-- Sprint-based development (one context per sprint)
-
-**Limitations**:
-- Only one context can run at a time (port conflicts)
-- Local Docker only (not cloud-deployable)
-- Shared PostgreSQL database (no true data isolation)
-
-See [Agent-Dev Contexts Guide](./documentation/guides/agent-dev-contexts.md) for full documentation.
+**Execution Contexts**: Unify environment configuration across deployment types. Define in `architecture.yaml` under `executionContexts`. Manage via `brat context list|show|create`. Priority: `--context` flag > `BITBRAT_CONTEXT` env > `~/.bratrc` > `local` default.
 
 ## Common Development Commands
 
 ### Build & Test
 ```bash
 npm install              # Install dependencies
-npm run build            # Compile TypeScript to dist/
-npm test                 # Run Jest test suite
+npm run build            # Compile TypeScript
+npm test                 # Run Jest tests
 npm run lint             # Run ESLint
 ```
 
 ### Local Development
 ```bash
-npm run brat -- setup                # Interactive platform setup (creates .bitbrat.json, seeds Firestore)
-npm run brat -- doctor               # Verify environment prerequisites
-npm run local                        # Start local Docker Compose stack
-npm run local:logs                   # Tail service logs
-npm run local:down                   # Stop local stack
-npm run brat -- chat                 # Interactive chat with the platform
+npm run brat -- setup    # Interactive setup
+npm run brat -- doctor   # Verify prerequisites
+npm run local            # Start Docker Compose stack
+npm run local:logs       # Tail logs
+npm run brat -- chat     # Interactive chat
 ```
-
-### Coding Agent Integration
-```bash
-npm run brat -- code                 # Launch coding agent with BitBrat context
-npm run brat -- code --list          # List detected agents
-npm run brat -- code --agent aider   # Launch specific agent
-```
-
-The `brat code` command auto-configures coding agents (Claude Code, Aider, Continue, OpenHands) with:
-- **Project context files**: CLAUDE.md, architecture.yaml, AGENTS.md, README.md automatically loaded
-- **MCP server discovery** (Claude Code only): Auto-configures tool-gateway connection and authentication
-- **First-run welcome**: Interactive introduction to BitBrat on first use
-- **Preference persistence**: Saves your preferred agent to `~/.bratrc`
-
-Supported agents:
-- **Claude Code** (recommended): Full MCP integration, automatic tool discovery
-- **Aider**: Multi-provider support, git integration
-- **Continue**: IDE integration (VSCode/JetBrains) + CLI mode
-- **OpenHands**: Open-source autonomous coding assistant
-
-See [Coding with brat code](./documentation/guides/coding-with-brat-code.md) for installation, configuration, and troubleshooting.
 
 ### Service Management
 ```bash
-npm run brat -- bit create <name>                                      # Create a basic core Bit
-npm run brat -- bit create <name> --profile gateway --exposure platform+domain  # Create API gateway
-npm run brat -- bit create <name> --profile mcp-server                 # Create MCP tool server
-npm run brat -- bit create <name> --register --active                  # Create and register in architecture.yaml
+npm run brat -- bit create <name> [--profile gateway] [--exposure platform+domain] [--register --active]
+npm run brat -- deploy service <name>
+npm run brat -- deploy services --all
 ```
 
-### Deployment
+### Fleet Control Plane
 ```bash
-npm run brat -- deploy services --all         # Deploy all active services (target platform configured in architecture.yaml)
-npm run brat -- deploy service <name>         # Deploy specific service
-npm run brat -- infra plan <module>           # Terraform plan for cloud infrastructure (GCP: network/lb/connectors/buckets)
-npm run brat -- infra apply <module>          # Apply infrastructure changes (cloud platforms)
-npm run brat -- lb urlmap render              # Generate Load Balancer URL map (GCP Cloud Run)
-```
-
-### Fleet Control Plane (MCP-based administration)
-```bash
-npm run brat -- fleet list                              # List all live Bits
-npm run brat -- fleet info --all                        # Get bit.info from entire fleet
-npm run brat -- fleet health <bit>                      # Get bit.health from specific Bit
-npm run brat -- fleet config <bit> --describe           # View effective config (redacted)
-npm run brat -- fleet flags <bit> get --key <k>         # Inspect feature flag
-npm run brat -- fleet flags <bit> set --key <k> --value <v>   # Toggle feature flag (requires bit:operate)
-npm run brat -- fleet log <bit> --level debug           # Change runtime log level (requires bit:operate)
-npm run brat -- fleet drain <bit> --confirm             # Graceful drain (requires bit:operate)
-npm run brat -- fleet shutdown <bit> --confirm          # Shutdown Bit (requires bit:operate)
+npm run brat -- fleet list                              # List all Bits
+npm run brat -- fleet info --all                        # Get bit.info
+npm run brat -- fleet health <bit>                      # Health check
+npm run brat -- fleet config <bit> --describe           # View config
+npm run brat -- fleet flags <bit> get --key <k>         # Feature flags
+npm run brat -- fleet log <bit> --level debug           # Runtime log level
 ```
 
 ### Version Management
 ```bash
-npm run release:dry -- patch           # Preview version bump (no mutation)
-npm run release -- patch               # Bump patch version, update CHANGELOG
-npm run release -- minor               # Bump minor version
-npm run release -- major               # Bump major version
-npm run brat -- release 1.0.0 --tag    # Explicit version with git tag (local only, does not push)
+npm run release -- patch|minor|major    # Bump version
 ```
 
-**Automated GitHub Releases:**
-When a PR with a version bump is merged to `main`, a GitHub Actions workflow automatically:
-- Detects the version change in `architecture.yaml`
-- Generates LLM-enhanced release notes using GPT-4o-mini
-- Creates categorized release notes (Highlights, Features, Fixes, Breaking Changes)
-- Creates a git tag (`v<version>`)
-- Publishes a GitHub Release
-
-**Prerequisites:**
-- `OPENAI_API_KEY` configured as a GitHub repository secret (for LLM enhancement)
-- If API key is not configured, releases are created using CHANGELOG.md content only
-
-See `documentation/guides/automated-releases.md` for full details.
-
-### Configuration & Diagnostics
-```bash
-npm run brat -- config show            # Display resolved platform config
-npm run brat -- config validate        # Validate architecture.yaml against schema
-```
-
-### Execution Contexts
-**Sprint 349+**: Execution contexts unify environment configuration across deployment types (docker-compose, cloud-run) and runtime concerns (gateway, persistence, env overlays).
-
-```bash
-npm run brat -- context list                    # List all execution contexts
-npm run brat -- context show <name>             # Show full configuration (sensitive values redacted)
-npm run brat -- context show <name> --raw       # Show actual values (unredacted)
-npm run brat -- context create <name>           # Create new context (interactive wizard)
-npm run brat -- use <name>                      # Switch to a different context
-```
-
-**Context Management:**
-- **List contexts**: View all available execution contexts with deployment type, description, and tags
-- **Show context**: Display complete YAML configuration with auto-redaction of passwords/tokens
-- **Create context**: Interactive wizard or non-interactive mode with flags
-- **Switch context**: Update `~/.bratrc` to use a different context
-
-**Context Structure** (defined in `architecture.yaml`):
-```yaml
-executionContexts:
-  staging:
-    description: "Remote staging environment on bitbrat.lan"
-    deployment:
-      type: docker-compose              # docker-compose | cloud-run | k8s
-      docker:
-        host: ssh://root@bitbrat.lan    # unix:///var/run/docker.sock or ssh://user@host
-        remoteDir: /opt/BitBratPlatform
-    runtime:
-      gateway:
-        autoDiscover: true              # Auto-discover from docker ps
-        authToken: ${MCP_AUTH_TOKEN}    # Can use ${ENV_VAR} interpolation
-      persistence:
-        driver: postgres                # postgres (default) | firestore (legacy)
-        connection:
-          host: bitbrat.lan
-          port: 5432
-          database: bitbrat
-          username: bitbrat
-          password: ${POSTGRES_PASSWORD}
-      envOverlay:
-        path: env/staging
-        files: [global.yaml, infra.yaml, "{service}.yaml"]
-        secure: .secure.staging
-    tags: [staging, remote]
-```
-
-**Environment Scaffolding:**
-When you create a context, `brat context create` automatically scaffolds:
-- `env/<contextName>/` directory
-- `env/<contextName>/global.yaml` - Baseline environment variables (NODE_ENV, LOG_LEVEL, MESSAGE_BUS_DRIVER, PERSISTENCE_DRIVER, **Redis configuration**)
-- `env/<contextName>/infra.yaml` - Infrastructure configuration (NATS, PostgreSQL, Firestore, Redis)
-
-**Redis Configuration (Sprint 1+, Auto-Generated Sprint 2+)**:
-All new docker-compose contexts created after Sprint 2 automatically include Redis configuration:
-- **Purpose**: Distributed idempotency layer for duplicate message detection
-- **Services**: `ingress-egress`, `auth`, `llm-bot` depend on Redis for deduplication
-- **Environment Variables** (auto-generated in `global.yaml`):
-  - `REDIS_URL`: Connection URL (default: `redis://redis:6379`)
-  - `REDIS_IDEMPOTENCY_ENABLED`: Enable/disable idempotency middleware (default: `true`)
-  - `REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS`: Key TTL for deduplication (default: `300` seconds)
-- **Infrastructure**: Redis service and `redis-data` volume auto-included in docker-compose
-- **Migration**: Existing contexts created before Sprint 2 need manual migration (see [Redis Migration Guide](./documentation/guides/redis-migration.md))
-
-**Priority Resolution:**
-1. `--context <name>` flag (highest priority)
-2. `BITBRAT_CONTEXT` environment variable
-3. `~/.bratrc` current context
-4. Default: `local`
-
-**Legacy Compatibility:**
-- Old `--env` and `--target` flags are deprecated (Sprint 349+)
-- Transparent mapping: `--env local` → `--context local`
-- 3-sprint deprecation period before removal
-
-**Examples:**
-```bash
-# Create a new production context
-brat context create prod --non-interactive \
-  --type cloud-run \
-  --gcp-project my-project \
-  --gcp-region us-central1 \
-  --persistence-driver postgres \
-  --pg-host cloudsql-instance
-
-# List all contexts
-brat context list
-# Output:
-# NAME      TYPE             DESCRIPTION                                 TAGS
-# ===================================================================================
-# * local   docker-compose   Local Docker development environment        development, local
-#   prod    cloud-run        Production environment on GCP               production, gcp
-#   staging docker-compose   Remote staging environment on bitbrat.lan   staging, remote
-
-# View context configuration (redacted)
-brat context show staging
-# Output shows YAML with passwords/tokens redacted: "bi********", "${********"
-
-# Switch context
-brat use staging
-
-# Run fleet command with staging context
-brat fleet list --context staging
-```
+**Automated Releases**: On PR merge to `main`, GitHub Actions detects version change, generates LLM-enhanced release notes (GPT-4o-mini), creates git tag and GitHub Release. Requires `OPENAI_API_KEY` repository secret.
 
 ## Project Structure
 
 ```
 src/
-  apps/              # Service entry points (e.g., llm-bot-service.ts, event-router-service.ts)
-  common/            # Shared abstractions (Bit base class, logging, config, events)
-  services/          # Service-specific logic organized by domain
-  types/             # Shared TypeScript types and event schemas
-tools/
-  brat/              # Platform CLI (config, deploy, fleet management, backup)
-env/
-  local/             # Local environment configs (global.yaml, per-service overrides)
-  staging/           # Staging configs
-  prod/              # Production configs
-infrastructure/      # Terraform IaC, Cloud Build configs, deployment scripts
-documentation/       # Concepts, reference docs, schemas, tutorials
-planning/            # Sprint artifacts (implementation plans, retros, validation scripts)
-deprecated/          # Historical code (DO NOT import or depend on in deliverables)
+  apps/              # Service entry points
+  common/            # Shared abstractions (Bit, logging, config)
+  services/          # Service-specific logic
+  types/             # TypeScript types and schemas
+tools/brat/          # Platform CLI
+env/                 # Environment configs (local, staging, prod)
+infrastructure/      # Terraform, Cloud Build, Docker Compose
+documentation/       # Concepts, reference, guides, tutorials
+planning/            # Sprint artifacts
+deprecated/          # DO NOT import or depend on deprecated code
 ```
 
 ## Coding Standards
 
 ### Language & Style
-- **TypeScript** for all application code (services, shared libraries)
-- **kebab-case** for filenames
-- **PascalCase** for classes and interfaces
-- **camelCase** for functions and variables
-- **UPPER_SNAKE_CASE** for constants
+- **TypeScript** (strict mode)
+- **kebab-case**: filenames
+- **PascalCase**: classes/interfaces
+- **camelCase**: functions/variables
+- **UPPER_SNAKE_CASE**: constants
 
 ### Logging
-- Always use the Logger facade (`this.getLogger()` in Bit subclasses)
-- Levels: `error` (errors), `warn` (warnings), `info` (useful info), `debug` (deep insight)
-- Log all network and filesystem operations with context
-- Include `correlationId` in event-related logs
+- Use `this.getLogger()` in Bit subclasses
+- Levels: `error`, `warn`, `info`, `debug`
+- Include `correlationId` in event logs
 
 ### Error Handling
-- Use try/catch discipline throughout
-- Validate environment variables on startup
-- Gracefully shut down services on SIGTERM/SIGINT
-- Message handlers should be idempotent (dedupe on correlationId + step + attempt)
+- Use try/catch throughout
+- Validate env vars on startup
+- Graceful shutdown on SIGTERM/SIGINT
+- Idempotent message handlers (dedupe on correlationId + step + attempt)
 
 ## Testing
 
-### Framework & Location
-- **Jest** for all tests (configured in jest.config.js)
-- Place tests beside the code or in `__tests__/` directories
-- Test files: `*.test.ts` or `*.spec.ts`
-
-### Test Execution
-```bash
-npm test                           # Run all tests
-npm test -- <pattern>              # Run tests matching pattern
-npm test -- --watch                # Watch mode
-```
-
-### CI Behavior
-- In CI environments, Jest runs with `maxWorkers: 1` and `workerThreads: false` for stability
-- Firestore is NOT initialized in test runs to prevent lingering async handles
+- **Framework**: Jest (jest.config.js)
+- **Location**: Beside code or `__tests__/` directories
+- **Files**: `*.test.ts` or `*.spec.ts`
+- **CI**: `maxWorkers: 1`, `workerThreads: false`
+- Persistence backends NOT initialized in tests
 
 ## Critical Constraints
 
 ### Never Import from /deprecated
-- `./deprecated` contains historical code for reference only
-- DO NOT import, execute, copy forward, or make deliverables depend on anything in `./deprecated`
+`./deprecated` contains historical code for reference only. DO NOT import, execute, or depend on anything in `./deprecated`.
 
 ### Environment Configuration
-- Service configs are defined in architecture.yaml under `services.<name>.env` and `services.<name>.secrets`
-- Secrets management:
-  - **Local/self-hosted**: `.env` files
-  - **GCP Cloud Run**: Google Secret Manager
-  - **AWS ECS**: AWS Secrets Manager or Parameter Store
-  - **Azure**: Azure Key Vault
-- Some integrations (Twilio, Discord) are optional in local development
+- Defined in architecture.yaml under `services.<name>.env` and `services.<name>.secrets`
+- Secrets: `.env` files (local), Secret Manager (cloud)
+- Integrations (Twilio, Discord) optional in local dev
 
 ### Message Versioning
 - Topic naming: `internal.<domain>.<verb>.v<version>`
-- Bump version on breaking payload changes; never mutate an existing version
-- All messages carry `correlationId`, `routingSlip`, and follow Envelope v1 schema
+- Bump version on breaking changes; never mutate existing versions
+- All messages carry `correlationId`, `routingSlip`, follow Envelope v1 schema
 
 ### Building Services
-- Standard services build from a single reusable `Dockerfile.service`
-- Per-service behavior supplied as `--build-args` derived from architecture.yaml:
-  - `SERVICE_NAME`: service key
-  - `SERVICE_PORT`: `services.<name>.port` (default 3000)
-  - `SERVICE_ENTRY`: entry point mapped from `src/` to `dist/` (e.g., `src/apps/llm-bot-service.ts` → `dist/apps/llm-bot-service.js`)
-- Escape hatch: a service may ship its own `Dockerfile.<service>` when the standard image cannot express its needs
-
-## Documentation Standards
-
-### LLM-First Documentation Philosophy
-
-**BitBrat documentation prioritizes information density and discoverability for LLM evaluators while remaining human-readable.**
-
-This approach recognizes that LLMs (including coding agents like Claude Code, Aider, Continue) are primary consumers of technical documentation. When creating or updating documentation:
-
-#### Core Principles
-
-1. **Critical Information First**
-   - First 100 words must contain: What is this? What does it do? How does it work?
-   - No preamble, background, or history before substance
-   - Definition → Status → Core Concepts → Details
-
-2. **Dense, Scannable Structure**
-   - **Tables over prose**: Use tables for structured data (capabilities, stages, configurations)
-   - **Lists over paragraphs**: Break down complex information into bulleted lists
-   - **Headers are descriptive**: "PostgreSQL Backup (Default)" not "Backup Options"
-   - **Code examples near definitions**: Don't bury examples at the end
-
-3. **Technical Precision**
-   - Use exact technical terms: "PostgreSQL" not "the database"
-   - No ambiguous pronouns without clear antecedents
-   - No marketing language where technical precision is needed
-   - Specify versions, file paths, command syntax exactly
-
-4. **Cross-References**
-   - Use exact section/file names: `[Backup Guide](../guides/backup-and-migration.md)` not "see above"
-   - Provide file paths for code references: `src/common/base-server.ts:67`
-   - Link to related concepts explicitly
-
-5. **Platform-Agnostic Language**
-   - Default to generic terms: "database" not "Firestore", "message bus" not "Pub/Sub"
-   - Show platform-agnostic baseline first: Docker + PostgreSQL + NATS
-   - Cloud platforms as examples: "AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted"
-   - Mark legacy/deprecated clearly: "Firestore (legacy, deprecated)"
-
-#### Documentation File Structure
-
-Every documentation file should follow this structure:
-
-```markdown
-# [Precise Title]
-
-[1-3 sentence definition: What is this? What does it do?]
-
-[Optional status indicator: Experimental, Deprecated, Legacy]
-
-## Core Concepts (if applicable)
-
-| Concept | Description | Example |
-|---------|-------------|---------|
-| ...     | ...         | ...     |
-
-## Quick Reference
-
-```bash
-# Most common commands/patterns
-command --flag value
-```
-
-## [Main Content Sections]
-
-### [Descriptive Headers]
-- Bullet points for processes
-- Tables for structured data
-- Code blocks with syntax highlighting
-
-## Troubleshooting (if applicable)
-
-### Error: [Exact Error Message]
-**Cause**: ...
-**Solution**: ...
-
-## See Also
-- [Exact File Name](./path/to/file.md) - Brief description
-```
-
-#### README.md Special Considerations
-
-The README is the entry point for LLM evaluators. It must:
-
-1. **Line 1-3**: Concise definition (1-2 sentences, exact technical terms)
-2. **Line 4-6**: Brief status indicator (experimental, production, etc.)
-3. **Line 7-50**: Core Concepts table or structured overview
-4. **Line 51+**: Architecture diagram before long-form narrative
-5. **No WARNING boxes**: Use concise inline status indicators instead
-6. **Prerequisites early**: Section 2 or 3, not buried
-
-#### Updating Documentation
-
-When updating existing documentation:
-
-1. **Audit existing content** for LLM-friendliness:
-   - Is critical info in first 100 words?
-   - Are tables used instead of prose lists?
-   - Are headers precise and descriptive?
-   - Are code examples current and properly formatted?
-
-2. **Maintain consistency**:
-   - PostgreSQL = "default" or "default, platform-agnostic"
-   - Firestore = "legacy, deprecated" or "legacy, GCP-specific"
-   - GCP = "one validated option" not "the deployment platform"
-   - Docker = "baseline" or "platform-agnostic default"
-
-3. **Add deprecation notices** to legacy docs:
-   ```markdown
-   > **DEPRECATED - LEGACY BACKEND**
-   >
-   > This document describes [X] which is **legacy** and supported for existing deployments only.
-   >
-   > **Default:** BitBrat now uses [Y]. See [Guide](../path/to/guide.md).
-   ```
-
-4. **Verify cross-references**:
-   - No broken links
-   - Use exact section titles
-   - Provide file paths for code references
-
-#### Code Comments vs Documentation
-
-- **Code comments**: Implementation details, why not what, edge cases
-- **Documentation**: User-facing behavior, APIs, configuration, workflows
-- **NEVER** rely on code comments alone for user-facing features
-
-#### Documentation Testing
-
-Before committing documentation changes:
-
-1. **LLM-friendliness check**:
-   - Can an LLM extract core concepts without reading the entire document?
-   - Are prerequisites and examples clear?
-   - Are cross-references valid?
-
-2. **Consistency check**:
-   - Tone matches other docs (PostgreSQL=default, Firestore=legacy)
-   - No contradictory statements between files
-   - User journey makes sense (local → production)
-
-3. **Technical accuracy**:
-   - Commands are syntactically correct
-   - File paths are accurate
-   - Code examples use current APIs
-
-## LLM-Specific Workflows (AGENTS.md Protocol)
-
-This repository follows a **rigorous sprint protocol** for LLM-assisted development. If working on sprint-related tasks:
-
-1. **Sprint starts** only when user says "Start sprint"
-2. **Only one sprint** active at a time
-3. **Planning Phase**: Create `implementation-plan.md` and get user approval BEFORE coding
-4. **Execution Phase**: Log every prompt and action in `request-log.md`
-5. **Validation Phase**: Create executable `validate_deliverable.sh` (build, test, local run, dry-run deploy)
-6. **Verification Phase**: Document completed/partial/deferred items in `verification-report.md`
-7. **Publication Phase**: Commit, push feature branch, create GitHub PR
-8. **Completion**: Generate `retro.md` and `key-learnings.md`
-
-All sprint artifacts live in `planning/sprint-<id>/`.
+- Standard `Dockerfile.service` with `--build-args` from architecture.yaml
+- Args: `SERVICE_NAME`, `SERVICE_PORT`, `SERVICE_ENTRY`
+- Escape hatch: Custom `Dockerfile.<service>` when needed
 
 ## Common Development Patterns
 
-### Building Agent-Flow Bits: The Enrich-and-Next Pattern
+### 1. Building Agent-Flow Bits: ENRICH → NEXT Pattern
 
-**RULE: This is THE canonical pattern for bits that participate in agent orchestration.**
-
-**The Pattern:** ENRICH → NEXT
-
-Most bits participate in the agent loop by enriching events with annotations or candidates and advancing the routing slip. This is the fundamental pattern for building services that contribute to the agent's understanding and capabilities.
-
-**Complete Example:**
+**THE canonical pattern for bits participating in agent orchestration.**
 
 ```typescript
-// File: src/apps/sentiment-analyzer.ts
+// src/apps/sentiment-analyzer.ts
 import { Bit } from '../common/base-server';
 import { InternalEventV2 } from '../types/events';
 import { randomUUID } from 'crypto';
 
 export class SentimentAnalyzer extends Bit {
   async setup(): Promise<void> {
-    // Subscribe to events during contextualization or analysis stage
     await this.onMessage<InternalEventV2>(
-      'internal.contextualization.v1',  // Topic for Stage 2: Contextualization
+      'internal.contextualization.v1',
       async (event, attrs, ctx) => {
-
-        // 1. ENRICH: Add your contribution to the event
+        // 1. ENRICH: Add annotation
         event.annotations.push({
-          kind: 'sentiment',  // Descriptive kind
+          kind: 'sentiment',
           value: this.analyzeSentiment(event.message?.text || ''),
-          source: this.name,  // REQUIRED: provenance tracking
-          id: randomUUID(),   // REQUIRED: unique ID
-          createdAt: new Date().toISOString()  // REQUIRED: timestamp
+          source: this.name,     // REQUIRED: provenance
+          id: randomUUID(),      // REQUIRED: unique ID
+          createdAt: new Date().toISOString()  // REQUIRED
         });
 
-        // 2. NEXT: Advance the routing slip
+        // 2. NEXT: Advance routing slip
         await this.next(event);
 
-        // 3. ACKNOWLEDGE: Required (event will stall without this)
+        // 3. ACK: Required
         await ctx.ack();
       }
     );
   }
 
   private analyzeSentiment(text: string): 'positive' | 'negative' | 'neutral' {
-    if (/love|great|awesome|excellent/i.test(text)) return 'positive';
-    if (/hate|terrible|awful|bad/i.test(text)) return 'negative';
+    if (/love|great|awesome/i.test(text)) return 'positive';
+    if (/hate|terrible|bad/i.test(text)) return 'negative';
     return 'neutral';
   }
 }
 ```
 
-**RULES: next() vs complete()**
-
-- **RULE: Use `next(event)` by default** — advances to next routing step (or egress if slip empty)
-- **RULE: Use `complete(event)` ONLY when intentionally short-circuiting** — skips remaining routing slip steps
-- **RULE: If unsure, use `next()`**
-
-**Decision Tree:**
-
-```mermaid
-flowchart TD
-    Start([Enriched the event?]) --> Question1{Is this the final<br/>processing step?}
-    Question1 -->|No| UseNext1[Use next event]
-    Question1 -->|Yes| Question2{Should downstream<br/>services still<br/>process it?}
-    Question2 -->|Yes| UseNext2[Use next event]
-    Question2 -->|No| UseComplete[Use complete event]
-
-    UseNext1 --> Result1[Event advances to<br/>next routing step]
-    UseNext2 --> Result2[Event advances to<br/>next routing step]
-    UseComplete --> Result3[Event skips to egress<br/>bypassing remaining steps]
-
-    style UseNext1 fill:#d4edda
-    style UseNext2 fill:#d4edda
-    style UseComplete fill:#fff3cd
-    style Start fill:#e1f5ff
-```
-
-**RULES: Enrichment**
-
-- **ALWAYS add annotations** for context, analysis results, or metadata
-- **ALWAYS set `source: this.name`** for provenance tracking
-- **ALWAYS include `id` (randomUUID()) and `createdAt` (ISO timestamp)**
-- **NEVER modify payload** unless you own the event type (use annotations instead)
-- **NEVER forget `ctx.ack()`** — events will stall
+**Rules:**
+- Use `next(event)` by default (advances to next step or egress)
+- Use `complete(event)` ONLY to short-circuit remaining routing slip
+- ALWAYS add annotations (never modify payload unless you own the event type)
+- ALWAYS set `source: this.name`, `id`, `createdAt`
+- NEVER forget `ctx.ack()` (events will stall)
 
 **Stage-to-Topic Mapping:**
 
-| Stage | Topic | When to Subscribe |
-|-------|-------|-------------------|
-| Contextualization | `internal.contextualization.v1` | Your bit adds auth, env context |
-| Analysis | `internal.analysis.v1` | Your bit performs reasoning, analysis |
-| Reaction | `internal.reaction.v1` | Your bit executes actions, mutates state |
+| Stage | Topic | Use Case |
+|-------|-------|----------|
+| Contextualization | `internal.contextualization.v1` | Auth, env context |
+| Analysis | `internal.analysis.v1` | Reasoning, analysis |
+| Reaction | `internal.reaction.v1` | Actions, state mutations |
 
-**Examples in Production:**
+**Examples**: `auth` (src/apps/auth-service.ts:67), `llm-bot` (src/apps/llm-bot-service.ts:123), `query-analyzer` (src/apps/query-analyzer-service.ts:45)
 
-- **`auth`** (`src/apps/auth-service.ts:67`): Enriches user identity → `next()`
-- **`llm-bot`** (`src/apps/llm-bot-service.ts:123`): Enriches response candidates → `next()`
-- **`query-analyzer`** (`src/apps/query-analyzer-service.ts:45`): Enriches routing hints → `next()`
-- **`reflex`** (`src/apps/reflex-service.ts:78`): Executes action → `complete()` (special case)
-
-**Anti-Patterns (NEVER):**
-
-- ❌ Enrich without calling `next()` (event stalls)
-- ❌ Use `complete()` when `next()` is appropriate (skips downstream services)
-- ❌ Modify payload instead of adding annotations (loses provenance)
-- ❌ Forget `ctx.ack()` (causes duplicate processing)
-- ❌ Manually publish instead of using `next()` (bypasses routing slip)
-
-**Full Documentation:**
-
-- [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) — Complete pattern reference
-- [5-Stage Agent Flow Model](./documentation/concepts/agent-flow-stages.md) — Understand the stages
-- [Building an Enrichment Bit](./documentation/tutorials/building-an-enrichment-bit.md) — Step-by-step tutorial
+**Documentation**: [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md), [5-Stage Model](./documentation/concepts/agent-flow-stages.md), [Tutorial](./documentation/tutorials/building-an-enrichment-bit.md)
 
 ---
 
-### Integrating Chat Platforms: The Webhook Pattern
+### 2. Integrating Chat Platforms: IngressConnector + WebhookConnector
 
-**RULE: Use this pattern when integrating external chat platforms (Twilio, Slack, Discord, etc.).**
-
-**The Pattern:** IngressConnector + WebhookConnector
-
-Most chat platforms provide both real-time messaging (WebSocket/polling) and webhook notifications for events. The Ingress-Egress Framework standardizes integration through dual-mode connectors.
-
-**Complete Example:**
+**Pattern for external chat platforms (Twilio, Slack, Discord).**
 
 ```typescript
-// File: src/services/ingress/<platform>/connector-adapter.ts
-import type {
-  IngressConnector,
-  WebhookConnector,
-  WebhookRequest,
-  WebhookResponse,
-  ConnectorMetadata
-} from '../core';
-import { validatePlatformSignature } from './webhook-utils';
-
+// src/services/ingress/<platform>/connector-adapter.ts
 export class PlatformConnectorAdapter implements IngressConnector, WebhookConnector {
-  constructor(
-    private readonly client: PlatformIngressClient,
-    private readonly config?: IConfig
-  ) {}
-
   // IngressConnector: Real-time messaging
   async start(): Promise<void> { await this.client.start(); }
   async stop(): Promise<void> { await this.client.stop(); }
-  getSnapshot(): ConnectorSnapshot { return this.client.getSnapshot(); }
-  async sendText(text: string, target?: string): Promise<void> {
-    await this.client.sendText(text, target);
-  }
 
   // WebhookConnector: Event notifications
   verifySignature(req: WebhookRequest): boolean {
-    const signature = req.headers['x-platform-signature'];
-    if (!signature) return false;
-
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const url = `${protocol}://${req.headers['host']}${req.url}`;
-
-    return validatePlatformSignature(
-      this.config.platformWebhookSecret,
-      signature,
-      url,
-      req.body
-    );
+    return validatePlatformSignature(secret, signature, url, req.body);
   }
 
   async handleWebhook(req: WebhookRequest): Promise<WebhookResponse> {
-    const { event_type, event_id } = req.body;
+    // CRITICAL: Return 200 OK within 3 seconds
+    logger.info('platform.webhook.received', req.body);
 
-    // IMPORTANT: Return 200 OK within 3 seconds to avoid retries
-    logger.info('platform.webhook.received', { event_type, event_id });
-
-    // Defer heavy processing after response
+    // Defer heavy processing
     setImmediate(async () => {
-      await processEvent(event_type, event_id);
+      await processEvent(req.body);
     });
 
     return { status: 200, body: { ok: true } };
@@ -739,771 +245,231 @@ export class PlatformConnectorAdapter implements IngressConnector, WebhookConnec
     return {
       platform: 'platform-name',
       version: '1.0.0',
-      authMethod: 'oauth2',
       capabilities: {
-        ingress: {
-          method: 'hybrid',  // WebSocket + webhook
-          realtime: true,
-          requiresWebhook: true,
-          requiresPublicUrl: true
-        },
-        egress: {
-          chat: true,
-          dm: true,
-          reactions: true,
-          threads: false
-        },
-        moderation: {
-          ban: false,
-          timeout: false,
-          delete: false
-        }
+        ingress: { method: 'hybrid', realtime: true },
+        egress: { chat: true, dm: true, reactions: true },
+        moderation: { ban: false, timeout: false }
       }
     };
   }
 }
 ```
 
-**RULES: Webhook Response SLA**
+**Critical Rules:**
+- ALWAYS return 200 OK within 3 seconds (platforms retry slow webhooks)
+- Use `setImmediate()` for async processing after response
+- Verify signature synchronously
+- Use `x-forwarded-proto` for URL reconstruction (cloud proxies terminate SSL)
+- Register with ConnectorManager in `ingress-egress-service.ts`
+- Provide accurate ConnectorMetadata
 
-- **RULE: ALWAYS return 200 OK within 3 seconds** — platforms retry slow webhooks
-- **RULE: Use `setImmediate()` for async processing** — defer work after response
-- **RULE: Verify signature synchronously** — reject invalid requests before processing
-- **RULE: Use `x-forwarded-proto` for URL reconstruction** — cloud platforms and reverse proxies terminate SSL
+**Examples**: Twilio (src/services/ingress/twilio/), Discord (src/services/ingress/discord/)
 
-**RULES: Connector Registration**
+**Discord specifics**: Uses Ed25519 signatures (not HMAC). Gateway API (primary) + Interactions API (webhooks, optional). Debug mode: `!debug` prefix with RBAC.
 
-- **ALWAYS register connector with ConnectorManager** in `ingress-egress-service.ts`
-- **ALWAYS implement both IngressConnector AND WebhookConnector** for hybrid platforms
-- **ALWAYS provide accurate ConnectorMetadata** — capabilities must match implementation
-
-**Examples in Production:**
-
-- **Twilio** (`src/services/ingress/twilio/connector-adapter.ts`): Hybrid mode (WebSocket + webhook)
-- **Slack** (Coming in Sprint 343): Socket Mode + Events API
-- **Discord** (`src/services/ingress/discord/connector-adapter.ts`): Gateway (primary) + Interactions API (optional)
-
-**Discord-Specific Implementation (Sprint 11):**
-
-Discord uses a **hybrid ingress model** with the Gateway API as primary and Interactions API (webhooks) as optional:
-
-```typescript
-// File: src/services/ingress/discord/connector-adapter.ts
-import { DiscordConnectorAdapter } from './connector-adapter';
-import { DiscordIngressClient } from './discord-ingress-client';
-import { buildDiscordEnvelope } from './envelope-builder';
-import { validateDiscordSignature } from './webhook-utils';
-
-// Create pure client (Discord Gateway WebSocket connection)
-const client = new DiscordIngressClient(
-  buildDiscordEnvelope,  // Functional envelope builder
-  publisher,
-  config,
-  { egressDestinationTopic: 'internal.egress.v1' }
-);
-
-// Wrap with connector adapter (implements IngressConnector + WebhookConnector)
-const adapter = new DiscordConnectorAdapter(client, config);
-
-// Register with ConnectorManager
-manager.register('discord', adapter);
-```
-
-**Discord Webhook Signature Verification (Ed25519):**
-
-Discord uses Ed25519 cryptographic signatures (not HMAC). The `validateDiscordSignature` utility handles this:
-
-```typescript
-// File: src/services/ingress/discord/webhook-utils.ts
-import nacl from 'tweetnacl';
-
-export function validateDiscordSignature(
-  publicKey: string,
-  signature: string,
-  timestamp: string,
-  body: Buffer | any
-): boolean {
-  const bodyStr = Buffer.isBuffer(body) ? body.toString('utf8') : JSON.stringify(body);
-  const message = timestamp + bodyStr;
-
-  return nacl.sign.detached.verify(
-    Buffer.from(message),
-    Buffer.from(signature, 'hex'),
-    Buffer.from(publicKey, 'hex')
-  );
-}
-```
-
-**Discord Interactions API (Webhook Handler):**
-
-Discord's Interactions API sends POST requests for slash commands and other interactions. The webhook handler must respond within 3 seconds:
-
-```typescript
-// In DiscordConnectorAdapter.handleWebhook()
-async handleWebhook(req: WebhookRequest): Promise<WebhookResponse> {
-  const { type, data, id } = req.body;
-
-  // Ping verification (Discord webhook setup)
-  if (type === 1) {
-    return { status: 200, body: { type: 1 } };
-  }
-
-  // Application command (slash command)
-  if (type === 2) {
-    // IMPORTANT: Return ephemeral response immediately (< 3 seconds)
-    setImmediate(async () => {
-      // Process command asynchronously after response sent
-      await processInteraction(id, data);
-    });
-
-    return {
-      status: 200,
-      body: {
-        type: 4,  // CHANNEL_MESSAGE_WITH_SOURCE
-        data: {
-          content: `Command \`${data?.name}\` received. Processing...`,
-          flags: 64,  // EPHEMERAL (only visible to user)
-        },
-      },
-    };
-  }
-
-  // Unsupported interaction type
-  return { status: 400, body: { error: 'unsupported_interaction_type' } };
-}
-```
-
-**Discord Debug Mode (!debug prefix):**
-
-Discord connector implements debug mode with RBAC enforcement (Sprint 11):
-
-```typescript
-// In DiscordIngressClient message handler
-const debugMatch = messageText.match(/^!debug\s+/i);
-
-if (debugMatch) {
-  const userId = String(msg.author?.id || 'unknown');
-  const debugAuthorized = this.debugAuthorizedUsers.has(userId);
-
-  if (debugAuthorized) {
-    // Strip !debug prefix
-    messageText = messageText.slice(debugMatch[0].length);
-
-    // Generate correlation ID
-    debugCorrelationId = randomUUID();
-
-    // Send activation confirmation
-    await this.sendText(
-      `🔍 **Debug mode ON**\n\`Correlation ID:\` \`${debugCorrelationId}\`\n_Watching event flow..._`,
-      channelId
-    );
-
-    // Attach debug metadata to envelope
-    debugMetadata = {
-      enabled: true,
-      initiatedBy: userId,
-      feedbackChannel: channelId,
-      startedAt: new Date().toISOString(),
-    };
-  } else {
-    // Reject unauthorized debug requests
-    logger.warn('discord.debug.unauthorized', { user: userId });
-    return;
-  }
-}
-```
-
-**Discord Connector Capabilities:**
-
-The Discord connector provides comprehensive chat platform capabilities:
-
-- **Ingress**: Hybrid mode (Gateway primary, Interactions API optional)
-  - Real-time WebSocket connection via Discord Gateway
-  - Webhook support for slash commands and interactions
-  - Message deduplication (prevents duplicate processing on reconnect)
-- **Egress**: Full support
-  - Channel messages
-  - Direct messages (DMs)
-  - Message reactions
-  - Thread replies
-- **Moderation**: Full support
-  - User bans
-  - User timeouts
-  - Message deletion
-- **Debug Mode**: `!debug` prefix with RBAC (Sprint 11)
-
-**Anti-Patterns (NEVER):**
-
-- ❌ Block webhook response with external API calls (violates 3-second SLA)
-- ❌ Process heavy logic before returning 200 OK (causes platform retries)
-- ❌ Use `req.protocol` without checking `x-forwarded-proto` (signature verification fails)
-- ❌ Skip signature verification (security vulnerability)
-- ❌ Provide incorrect metadata capabilities (breaks runtime discovery)
-
-**Full Documentation:**
-
-- [Adding a New Ingress Platform](./documentation/guides/adding-ingress-platform.md) — Step-by-step integration guide
-- [Webhook Handler Implementation](./src/services/ingress/core/webhook-handler.ts) — Generic webhook processor
-- [Twilio Integration Example](./src/services/ingress/twilio/) — Production reference implementation
-- [Discord Integration Example](./src/services/ingress/discord/) — Discord Gateway + Interactions API (Sprint 11)
-- [Discord Integration Testing Guide](./planning/sprint-11-j1d49d/integration-testing-guide.md) — Manual testing checklist
-- [Architecture Validation Tool](./tools/validate-ingress-architecture.ts) — Validate connector compliance
+**Documentation**: [Adding Ingress Platform](./documentation/guides/adding-ingress-platform.md), [Webhook Handler](./src/services/ingress/core/webhook-handler.ts)
 
 ---
 
-### Building oclif Commands for the brat CLI
+### 3. Building oclif Commands for brat CLI
 
-**Sprint 359+**: The `brat` CLI is built with [oclif](https://oclif.io/), an enterprise CLI framework from Salesforce.
-
-**RULE: All new brat commands MUST extend `BratCommand` and follow oclif patterns.**
-
-**The Pattern:** Extend BratCommand → Define Flags → Implement run()
-
-All brat CLI commands extend `BratCommand` which provides:
-- **Pino logger**: `this.logger` with structured logging
-- **Execution context**: `this.context` (local, staging, prod)
-- **Repository root**: `this.repoRoot`
-- **Global flags**: `--context`, `--verbose` inherited automatically
-- **Dependency injection**: `getDeps()` pattern for testability
-
-**Complete Example:**
+**All new brat commands extend BratCommand (Sprint 359+).**
 
 ```typescript
-// File: tools/brat/src/oclif-commands/doctor.ts
+// tools/brat/src/oclif-commands/doctor.ts
 import { Flags } from '@oclif/core';
 import { BratCommand } from './base';
-import { execCmd } from '../orchestration/exec';
 
 export default class Doctor extends BratCommand {
-  // Description appears in help text (auto-generated)
-  static description = 'Run system diagnostics and verify prerequisites';
+  static description = 'Run system diagnostics';
+  static examples = ['<%= config.bin %> <%= command.id %>'];
 
-  // Examples appear in help text
-  static examples = [
-    '<%= config.bin %> <%= command.id %>',
-    '<%= config.bin %> <%= command.id %> --json',
-  ];
-
-  // Define command-specific flags (global flags inherited from BratCommand)
   static flags = {
     ...BratCommand.baseFlags,  // Inherits --context, --verbose
-    json: Flags.boolean({
-      description: 'Output results as JSON',
-      default: false,
-    }),
-    ci: Flags.boolean({
-      description: 'CI mode - skip tool probes',
-      default: false,
-    }),
+    json: Flags.boolean({ description: 'JSON output', default: false }),
   };
 
-  // Main command logic
   async run(): Promise<void> {
     const { flags } = await this.parse(Doctor);
+    this.logger.debug('Running diagnostics');
 
-    // Logger is available from BratCommand
-    this.logger.debug('Running system diagnostics');
+    // Command logic
+    const checks = { node: { ok: true, version: process.version } };
 
-    // Implement command logic
-    const checks: Record<string, { ok: boolean; version: string }> = {};
-    checks.node = { ok: true, version: process.version };
-
-    // Use helper functions
-    if (!flags.ci) {
-      const res = await execCmd('docker', ['--version']);
-      checks.docker = { ok: res.code === 0, version: res.stdout.trim() };
-    }
-
-    // Output results
+    // Output
     if (flags.json) {
       this.log(JSON.stringify(checks, null, 2));
     } else {
-      this.log('Doctor results:');
       for (const [name, check] of Object.entries(checks)) {
-        this.log(`- ${name}: ${check.ok ? 'OK' : 'MISSING'} (${check.version})`);
+        this.log(`- ${name}: ${check.ok ? 'OK' : 'MISSING'}`);
       }
     }
-
-    // Exit with appropriate code
-    const ok = Object.values(checks).every(c => c.ok);
-    if (!ok) this.exit(3);
   }
 }
 ```
 
-**Namespace Commands:**
-
-Commands in subdirectories automatically become namespaced:
-
-```
-tools/brat/src/oclif-commands/
-├── doctor.ts           → brat doctor
-├── setup.ts            → brat setup
-├── release.ts          → brat release
-├── fleet/
-│   ├── list.ts         → brat fleet list
-│   ├── info.ts         → brat fleet info
-│   └── health.ts       → brat fleet health
-└── config/
-    └── show.ts         → brat config show
-```
-
-**Dependency Injection Pattern:**
-
-For testability, use dependency injection:
-
-```typescript
-// Define deps interface
-export interface FleetListDeps {
-  resolveIdentityFn?: (opts: any, logger?: Logger) => FleetIdentity;
-  gatewayTransportFactory?: (url: string, identity: FleetIdentity) => FleetTransport;
-}
-
-export default class FleetList extends BratCommand {
-  private fleetDeps?: FleetListDeps;
-
-  // Provide getter for deps
-  protected getFleetDeps(overrides?: Partial<FleetListDeps>): FleetListDeps {
-    if (overrides) {
-      this.fleetDeps = { ...this.fleetDeps, ...overrides };
-    }
-    if (!this.fleetDeps) {
-      this.fleetDeps = {
-        resolveIdentityFn: (opts, logger) => resolveIdentity(opts, logger),
-        gatewayTransportFactory: (url, id) => new GatewayTransport({ baseUrl: url }),
-      };
-    }
-    return this.fleetDeps;
-  }
-
-  async run(): Promise<void> {
-    // Use injected dependencies
-    const deps = this.getFleetDeps();
-    const identity = deps.resolveIdentityFn!({ roles: ['bit:read'] }, this.logger);
-    const transport = deps.gatewayTransportFactory!(gatewayUrl, identity);
-    // ... rest of implementation
-  }
-}
-```
-
-**Testing oclif Commands:**
-
-```typescript
-// Use @oclif/test utilities
-import { expect, test } from '@oclif/test';
-import FleetList from '../fleet/list';
-
-describe('fleet list', () => {
-  test
-    .stdout()
-    .command(['fleet', 'list'])
-    .it('lists all bits', ctx => {
-      expect(ctx.stdout).to.contain('BIT');
-    });
-
-  // Test with mock dependencies
-  it('uses injected dependencies', async () => {
-    const mockDeps = {
-      resolveIdentityFn: () => ({ userId: 'test', token: 'mock' }),
-      gatewayTransportFactory: () => mockTransport,
-    };
-
-    const cmd = new FleetList([], {} as any);
-    cmd['fleetDeps'] = mockDeps;
-    await cmd.run();
-    // Assert expectations
-  });
-});
-```
-
-**Auto-Generated Help:**
-
-oclif automatically generates rich help text:
-
-```bash
-$ brat fleet list --help
-List all live Bits in the fleet
-
-USAGE
-  $ brat fleet list [-c <value>] [-v] [-f table|json|yaml]
-
-FLAGS
-  -c, --context=<value>  Execution context (local, staging, prod)
-  -f, --format=<option>  [default: table] Output format
-  -v, --verbose          Enable verbose debug logging
-
-EXAMPLES
-  $ brat fleet list
-  $ brat fleet list --format json
-```
-
-**Migration Patterns:**
-
-When migrating existing brat commands to oclif:
-
-1. **Pattern 1: Simple Command** (doctor, config show)
-   - Direct migration, minimal dependencies
-   - Focus on flag definitions and output formatting
-
-2. **Pattern 2: Configuration Display** (config show)
-   - Redaction of sensitive values
-   - Multiple output formats (yaml, json)
-   - `--raw` flag for unredacted output
-
-3. **Pattern 3: Fleet Commands** (fleet list)
-   - Dependency injection for MCP client
-   - Registry creation based on persistence driver
-   - Gateway URL resolution
-
-4. **Pattern 4: Complex Orchestration** (release)
-   - Multi-step workflows
-   - Validation between steps
-   - `--dry-run` support
-   - Progress reporting
-
-5. **Pattern 5: Interactive Commands** (setup)
-   - Inquirer prompts for user input
-   - `--non-interactive` mode for CI/CD
-   - Validation and confirmation
+**BratCommand provides:**
+- Pino logger (`this.logger`)
+- Execution context (`this.context`)
+- Repository root (`this.repoRoot`)
+- Global flags (inherited)
+- Dependency injection pattern
 
 **Critical Rules:**
+- ALWAYS extend `BratCommand` (never oclif `Command` directly)
+- ALWAYS include `...BratCommand.baseFlags`
+- ALWAYS use `this.logger` (never `console.log`)
+- ALWAYS use `this.log()` for user output
+- NEVER access `this.context`/`this.logger` in constructor
 
-- ✅ ALWAYS extend `BratCommand` (never oclif `Command` directly)
-- ✅ ALWAYS include `...BratCommand.baseFlags` in flags definition
-- ✅ ALWAYS use `this.logger` (never `console.log`)
-- ✅ ALWAYS use `this.log()` for user-facing output
-- ✅ ALWAYS use `this.error()` for errors (auto-exits with code)
-- ✅ ALWAYS provide `description` and `examples` static properties
-- ❌ NEVER access `this.context` or `this.logger` in constructor (use in `run()`)
-- ❌ NEVER use `process.cwd()` (use `this.repoRoot`)
-
-**Full Documentation:**
-
-- [oclif Documentation](https://oclif.io/)
-- [Migration Guide](../planning/sprint-359-brat-cli-reorganization/oclif-migration-guide.md)
-- [Technical Architecture](../planning/sprint-359-brat-cli-reorganization/technical-architecture.md)
-- [Command Directory README](./tools/brat/src/oclif-commands/README.md)
+**Documentation**: [oclif docs](https://oclif.io/), [Migration Guide](../planning/sprint-359-brat-cli-reorganization/oclif-migration-guide.md)
 
 ---
 
-### Creating a New Bit (Service)
-1. Run `npm run brat -- bit create <name> [options]`
-   - `--profile <p>`: Capability profile (core, gateway, llm, mcp-server) [default: core]
-   - `--category <c>`: Architectural category (platform, domain) [default: platform]
-   - `--exposure <e>`: MCP exposure (platform-only, platform+domain, none) [default: platform-only]
-   - `--kind <k>`: Service kind (pipeline-service, gateway, mcp-server) [default: pipeline-service]
-   - `--port <p>`: HTTP port [default: 3000]
-   - `--register`: Also register in architecture.yaml
-   - `--active`: Mark Bit as active (deployable)
-   - `--force`: Overwrite existing files
+### 4. Creating a New Bit (Service)
 
-2. **Profile/Exposure Contract** (enforced by validation):
-   - `core` → platform-only | none
-   - `gateway` → platform-only | platform+domain | none
-   - `llm` → platform-only | none
-   - `mcp-server` → platform+domain (required)
+```bash
+npm run brat -- bit create <name> \
+  --profile <core|gateway|llm|mcp-server> \
+  --category <platform|domain> \
+  --exposure <platform-only|platform+domain|none> \
+  --register --active
+```
 
-3. Generated files:
-   - `src/apps/<name>-service.ts`: Service implementation extending `Bit`
-   - `src/apps/<name>-service.test.ts`: Test file with supertest setup
-   - `Dockerfile.<name>`: Multi-stage build
-   - `infrastructure/docker-compose/services/<name>.compose.yaml`: Docker Compose service
+**Profile/Exposure Contract** (enforced):
+- `core` → platform-only | none
+- `gateway` → platform-only | platform+domain | none
+- `llm` → platform-only | none
+- `mcp-server` → platform+domain (required)
 
-4. If not using `--register`, manually add to architecture.yaml under `services:` with:
-   - `active: true` (required to enable)
-   - `category:` platform or domain
-   - `profile:`, `mcp.exposure:`, `kind:`, `entry:`, `port:`
-   - Optional: `stage:`, `env:`, `secrets:`
+**Generated files**: `src/apps/<name>-service.ts`, test file, Dockerfile, docker-compose service
 
-5. Implement service logic in `src/apps/<name>-service.ts`
-6. Deploy via `npm run brat -- deploy service <name>`
+---
 
-### Deploying Secure Files (Sprint 374)
+### 5. Deploying Secure Files (Sprint 374)
 
-**RULE: Use this pattern for deploying credentials, certificates, and other sensitive files that must NEVER be committed to git.**
-
-**The Pattern:** Declare secureFiles in architecture.yaml → Deploy automatically
-
-Services often need access to credentials (GCP service accounts, SSL certificates, API keys in JSON format). The secure file deployment feature automatically handles:
-- **Validation**: Ensures files are git-ignored (prevents accidental commits)
-- **Local deployment**: Direct volume mounts
-- **Remote deployment**: SCP transfer with secure permissions
-- **Cloud Run**: Upload to GCP Secret Manager and mount as files
-
-**Complete Example:**
+**Pattern for credentials/certificates that must NEVER be committed to git.**
 
 ```yaml
 # architecture.yaml
 services:
   image-gen-mcp:
     secureFiles:
-      # Local development (optional - filesystem storage works without GCP)
       - local: .secure.local/gcp-credentials.json
         target: /var/secrets/gcp-credentials.json
         env: GOOGLE_APPLICATION_CREDENTIALS
         permissions: "0400"
         required: false
         context: local
-
-      # Staging deployment (required - uses GCS)
-      - local: .secure.staging/gcp-credentials.json
-        target: /var/secrets/gcp-credentials.json
-        env: GOOGLE_APPLICATION_CREDENTIALS
-        permissions: "0400"
-        required: true
-        context: staging
 ```
 
-**Important:** All secrets are stored in `.secure.{ENV}/` directories:
-- **`.secure.{ENV}/.env`** → Environment variables (API keys, tokens) - loaded by EnvironmentResolver
-- **`.secure.{ENV}/*.json`** → Credential files (GCP service accounts, etc.) - mounted via secureFiles
-- **`.secure.{ENV}/*.pem`** → Certificates and keys - mounted via secureFiles
+**Properties:**
+- `local` (required): Path relative to repo (must be git-ignored)
+- `target` (required): Container path under `/var/secrets/` or `/run/secrets/`
+- `env` (optional): Environment variable to set
+- `permissions` (optional): Default `"0400"`
+- `required` (optional): Default `true`
+- `context` (optional): Deploy only in specific context
 
-This keeps all secrets in one directory per environment, with the directory structure tracked in git but all actual secret content git-ignored.
+**Platform behavior:**
+- Local: Direct volume mount
+- Remote: SCP + volume mount
+- Cloud Run: Upload to Secret Manager
 
-**Workflow:**
-
-1. **Secure file directories already exist**:
-   ```bash
-   ls .secure.local/      # For local development credential files
-   ls .secure.staging/    # For staging credential files
-   ls .secure.prod/       # For production credential files
-   ```
-
-2. **Add credential file**:
-   ```bash
-   # Download GCP service account key
-   cp ~/Downloads/my-project-credentials.json .secure.local/gcp-credentials.json
-
-   # Verify it's git-ignored
-   git status .secure.local/gcp-credentials.json
-   # Should show: "Untracked files" or nothing (ignored)
-   ```
-
-3. **Configure in architecture.yaml** (see example above)
-
-4. **Deploy normally**:
-   ```bash
-   # Local Docker: file is mounted directly
-   npm run brat -- deploy service image-gen-mcp --context local
-
-   # Remote Docker: file is transferred via SCP
-   npm run brat -- deploy service image-gen-mcp --context staging
-
-   # Cloud Run: file is uploaded to Secret Manager
-   npm run brat -- deploy service image-gen-mcp --context prod
-   ```
-
-**RULES: Secure File Properties**
-
-- **local** (required): Path relative to repo root (must be git-ignored)
-- **target** (required): Destination path inside container (must be under `/var/secrets/` or `/run/secrets/`)
-- **env** (optional): Environment variable to set (e.g., `GOOGLE_APPLICATION_CREDENTIALS`)
-- **permissions** (optional): File permissions (default: `"0400"` - owner read-only)
-- **required** (optional): Fail deployment if missing (default: `true`)
-- **context** (optional): Only deploy in specific execution context (e.g., `local`, `staging`, `prod`)
-
-**Validation Rules:**
-
-- ✅ **Git-ignore check**: Files MUST be git-ignored (validator checks `.gitignore`)
-- ✅ **Target path check**: Must be under `/var/secrets/` or `/run/secrets/`
-- ✅ **Permissions format**: Must match `/^0[0-7]{3}$/` (octal string)
-- ✅ **Existence check**: Required files must exist (optional files warn but don't fail)
-
-**Platform-Specific Behavior:**
-
-| Platform | Mechanism | Notes |
-|----------|-----------|-------|
-| Docker Compose (local) | Volume mount | Direct mount: `${local}:${target}:ro` |
-| Docker Compose (remote) | SCP + volume mount | Transfers via SSH, sets chmod 400, mounts remotely |
-| Cloud Run | GCP Secret Manager | Uploads to Secret Manager, mounts via `--set-secrets` flag |
-
-**Anti-Patterns (NEVER):**
-
-- ❌ Commit credentials to git (validator blocks this)
-- ❌ Use target paths outside `/var/secrets/` or `/run/secrets/` (security violation)
-- ❌ Set world-readable permissions (validator warns)
-- ❌ Manually transfer files (use declarative secureFiles instead)
-
-**Full Documentation:**
-- [Secure File Deployment Guide](./documentation/guides/secure-file-deployment.md) — Complete feature reference
-- [Architecture YAML Schema](./architecture.yaml) — See `image-gen-mcp` for working example
+**Secrets organization:**
+- `.secure.{ENV}/.env` → Environment variables (loaded by EnvironmentResolver)
+- `.secure.{ENV}/*.json` → Credential files (mounted via secureFiles)
+- `.secure.{ENV}/*.pem` → Certificates/keys (mounted via secureFiles)
 
 ---
 
-### Automatic Port Assignment (Sprint 379)
+### 6. Automatic Port Assignment (Sprint 379)
 
-**RULE: PortManager automatically assigns unique ports for all deployments (single-service and bulk).**
-
-Both single-service and bulk deployments use PortManager for automatic port conflict resolution. PortManager discovers ports already in use and auto-assigns unique ports starting from 3001.
-
-**How It Works:**
-1. **Discovery**: PortManager queries running containers via `docker ps` (local) or `ssh ... docker ps` (remote)
-2. **Conflict Avoidance**: Identifies ports already allocated (3001, 3002, etc.)
-3. **Auto-Assignment**: Assigns next available port starting from 3001
-4. **Environment Variables**: Generates `{SERVICE}_HOST_PORT` overrides for implicit assignments
-5. **Logging**: Logs all port assignments for visibility
-
-**Examples:**
+PortManager auto-assigns unique ports for all deployments. Discovers ports via `docker ps`, assigns next available from 3001.
 
 ```bash
-# Single service deployment - auto-assigns port
-npm run brat -- deploy service llm-bot
-
-# Bulk deployment - auto-assigns ports for all services (Sprint 379+)
 npm run brat -- deploy services --all
+# Output: Port assignments: llm-bot:3001(auto), tool-gateway:3002(auto)
 
-# Output shows port assignments:
-# [orchestrator] Port assignments: llm-bot:3001(auto), tool-gateway:3002(auto), auth:3003(auto)
-```
-
-**Explicit Port Override:**
-
-You can override automatic assignment with explicit ports:
-
-```bash
-# Override port for single service
+# Override:
 LLM_BOT_HOST_PORT=5000 npm run brat -- deploy service llm-bot
-
-# Override port in bulk deployment
-LLM_BOT_HOST_PORT=5000 npm run brat -- deploy services --all
 ```
 
-**Remote Deployments:**
-
-PortManager works seamlessly with remote Docker hosts via SSH:
-
-```bash
-# Deploy to staging - discovers remote ports via SSH
-npm run brat -- deploy services --all --context staging
-
-# PortManager runs: ssh root@bitbrat.lan "docker ps --format '{{.Ports}}'"
-```
-
-**Port Assignment Rules:**
-- **Explicit ports** (via environment variables): Always honored, even if they conflict
-- **Implicit ports** (auto-assigned): Start from 3001, skip any ports in use
-- **Environment generation**: Only implicit assignments generate `{SERVICE}_HOST_PORT` variables
-- **Visibility**: All assignments logged as `service:port(auto)` or `service:port(explicit)`
-
-**Graceful Degradation:**
-
-If port discovery fails (Docker daemon not running, SSH error), PortManager falls back to default behavior without blocking deployment.
-
-**Full Documentation:**
-- [Port Management Implementation](./tools/brat/src/orchestration/docker/port-manager.ts) — Source code
-- [Integration Tests](./tests/integration/port-conflict-resolution.spec.ts) — Port conflict resolution tests
+Works with remote Docker via SSH. Gracefully degrades on discovery failures.
 
 ---
 
-### Adding a New MCP Tool
-- For domain tools, use `--profile mcp-server` when creating the Bit (automatically sets exposure to platform+domain)
-- Implement tools using `this.registerTool(name, description, zodSchema, handler)`
-- Tool-context binding: `this.registerToolWithContext(name, description, schema, handler, packIds)`
-- All Bits automatically get `bit.*` control-plane tools (bit.info, bit.health, bit.config.get, bit.flags.get, bit.log.level, etc.)
+### Quick Reference Patterns
 
-### Adding Event Router Rules
-- Rules are JsonLogic-based and stored in Firestore (`commands` collection)
-- Seeded during `brat setup` (see documentation/guides/seed-data.md)
-- Rules attach routing slips that orchestrate event flow
-- See documentation/concepts/event-router-rules.md for rule format
-
-### Testing Message Flows
-```bash
-npm run brat -- chat                # Interactive local chat to test rules/flows
+**Adding MCP Tool:**
+```typescript
+this.registerTool(name, description, zodSchema, handler);
+this.registerToolWithContext(name, description, schema, handler, packIds);
 ```
 
-### Reading Configuration in Services
+**Reading Configuration:**
 ```typescript
-const config = this.getConfig();          // Full IConfig object
-const port = this.getConfig('PORT');      // Single env var (throws if missing)
+const config = this.getConfig();          // Full IConfig
+const port = this.getConfig('PORT');      // Single var (throws if missing)
 const secret = this.getSecret('API_KEY'); // Secret (throws if missing)
 ```
 
-### Publishing to Message Bus
+**Publishing to Message Bus:**
 ```typescript
-// In a Bit subclass:
-await this.next(event);                // Advance to next routing step
-await this.complete(event);            // Skip routing slip, go directly to egress
+await this.next(event);      // Advance routing slip
+await this.complete(event);  // Skip to egress
 ```
 
-### Subscribing to Topics
+**Subscribing to Topics:**
 ```typescript
-// In Bit setup() or constructor
 await this.onMessage('internal.llmbot.v1', async (data, attrs, ctx) => {
   // Handle message
-  await ctx.ack(); // Manual acknowledgment
+  await ctx.ack();
 });
 ```
 
 ## Important Files & References
 
-- **architecture.yaml**: Canonical system definition (services, messaging, infrastructure)
-- **AGENTS.md**: LLM collaboration protocol and sprint workflow
-- **README.md**: Comprehensive platform overview and quickstart
-- **documentation/concepts/platform-flow.md**: Event lifecycle walkthrough
-- **documentation/concepts/bit-model.md**: The Bit abstraction and three rings
-- **documentation/reference/bit-control-plane.md**: Universal `bit.*` toolset reference
-- **documentation/reference/topic-catalog.md**: Complete message bus topic reference (Sprint 8+)
-- **documentation/reference/secrets-catalog.md**: Platform secrets reference (Sprint 8+)
-- **documentation/reference/environment-variables.md**: Environment variable resolution and configuration (Sprint 8+)
-- **documentation/guides/extending-bitbrat.md**: Comprehensive platform extension guide (Sprint 8+)
-- **documentation/guides/brat-fleet.md**: Fleet administration guide
-- **tsconfig.json**: TypeScript compiler configuration with `@/*` path aliases
-- **jest.config.js**: Jest test runner configuration
+- **architecture.yaml**: Canonical system definition
+- **AGENTS.md**: Sprint protocol (only relevant when user says "Start sprint")
+- **README.md**: Platform overview
+- **documentation/concepts/platform-flow.md**: Event lifecycle
+- **documentation/concepts/bit-model.md**: Bit abstraction
+- **documentation/reference/bit-control-plane.md**: `bit.*` toolset
+- **documentation/reference/topic-catalog.md**: Message bus topics
+- **documentation/reference/secrets-catalog.md**: Platform secrets
+- **documentation/reference/environment-variables.md**: Config resolution
+- **documentation/guides/extending-bitbrat.md**: Extension guide
+- **documentation/guides/brat-fleet.md**: Fleet administration
 
 ## Deployment Notes
 
-- **Target platforms**: Docker (platform-agnostic: local, cloud, self-hosted)
-  - **Docker Compose**: Local development and self-hosted production
-  - **Cloud Platforms** (validated): GCP Cloud Run, AWS ECS, Azure Container Instances
-  - Platform-agnostic by design—runs anywhere Docker and PostgreSQL are available
-- **Persistence**: PostgreSQL (default, platform-agnostic), Firestore (legacy, GCP-specific, deprecated)
-  - PostgreSQL is the primary backend as of Sprint 344
-  - Works with any PostgreSQL service: AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted
-  - Firestore remains supported for backwards compatibility but will be removed in future sprints
-  - Set `PERSISTENCE_DRIVER=postgres` (default) or `PERSISTENCE_DRIVER=firestore` (deprecated)
-- **Message bus**: NATS (platform-agnostic default), Google Cloud Pub/Sub (GCP-specific), AWS SQS/SNS, Azure Service Bus
-  - NATS for local/dev and self-hosted production
-  - Cloud-specific buses for managed deployments
-  - Selected via `MESSAGE_BUS_DRIVER`
-- **LLM providers**: OpenAI (default), Ollama (local/offline), vLLM (OpenAI-compatible)
-- **Scaling**: Most services use min:1, max:1 for cost control; gateways may scale to zero when idle (cloud platforms only)
-- **Networking**:
-  - Cloud deployments: VPC connectors for private ranges, cloud-specific egress
-  - Self-hosted: Standard Docker networking
+- **Platforms**: Docker (platform-agnostic: local, cloud, self-hosted). Validated: GCP Cloud Run, AWS ECS, Azure Container Instances
+- **Persistence**: PostgreSQL (default, platform-agnostic), Firestore (legacy, deprecated)
+- **Message bus**: NATS (default), Cloud Pub/Sub, AWS SQS/SNS, Azure Service Bus
+- **LLM providers**: OpenAI (default), Ollama (local), vLLM
+- **Scaling**: Most services min:1 max:1; gateways may scale to zero (cloud only)
 
 ## Troubleshooting
 
-### Build Failures
-- Ensure `npm run build` succeeds before deploying
-- Check TypeScript errors; the project uses `strict: true`
-- Verify no deprecated imports from `./deprecated`
+**Build failures**: Ensure `npm run build` succeeds. Check TypeScript errors (strict mode). No imports from `./deprecated`.
 
-### Test Failures
-- Run `npm test` to identify failing specs
-- In CI, tests run serially (`maxWorkers: 1`) to avoid segfaults
-- Persistence backends (PostgreSQL/Firestore) are not initialized in test environments to prevent async handle leaks
+**Test failures**: `npm test` to identify issues. CI runs `maxWorkers: 1`. Persistence NOT initialized in tests.
 
-### Missing Environment Variables
-- Check architecture.yaml for required `env:` and `secrets:` per service
-- Run `npm run brat -- config show` to see resolved config
-- Use `npm run brat -- doctor` to verify prerequisites
+**Missing env vars**: Check architecture.yaml `env:`/`secrets:`. Use `brat config show` or `brat doctor`.
 
-### Local Stack Issues
-- Ensure Docker is running
-- Check `npm run local:logs` for service errors
-- Verify PostgreSQL is accessible (default: localhost:5432, database: bitbrat)
-- Some integrations (Twilio, Discord) are optional in local mode
+**Local stack issues**: Ensure Docker running. Check `npm run local:logs`. Verify PostgreSQL accessible (localhost:5432).
 
-### Persistence Issues
-- **PostgreSQL connection failures**: Check `DATABASE_URL` environment variable
-- **Empty tables**: Ensure migrations have run (`infrastructure/postgres/migrations/`)
-- **Firestore deprecation warnings**: Switch to PostgreSQL by setting `PERSISTENCE_DRIVER=postgres`
-- **Migration guide**: See `documentation/guides/postgres-migration.md`
+**Persistence issues**: Check `DATABASE_URL`. Ensure migrations ran. Switch to PostgreSQL if using deprecated Firestore.
 
-### MCP Tool Not Found
-- Verify tool is registered in service constructor or setup
-- Check `mcp.exposure` in architecture.yaml (`platform+domain` exposes domain tools)
-- Use `npm run brat -- fleet list` to confirm Bit is registered
-- Inspect tools via `npm run brat -- fleet info <bit>`
+**MCP tool not found**: Verify tool registered in service. Check `mcp.exposure` in architecture.yaml. Use `brat fleet list` and `brat fleet info <bit>`.
+
+## Documentation Philosophy
+
+When creating/updating documentation:
+- **Critical info first**: First 100 words = What/How/Why
+- **Dense structure**: Tables > prose, lists > paragraphs, descriptive headers
+- **Technical precision**: Exact terms, no ambiguous pronouns, file paths for code refs
+- **Platform-agnostic**: PostgreSQL (default), Firestore (legacy); Docker (baseline), GCP/AWS/Azure (validated options)
+
+Full structure guidelines in deprecated section (not critical for coding tasks).

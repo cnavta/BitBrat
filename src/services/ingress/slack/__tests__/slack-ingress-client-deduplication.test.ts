@@ -8,6 +8,7 @@
  */
 
 import { SlackIngressClient } from '../slack-ingress-client';
+import { buildSlackEnvelope } from '../envelope-builder';
 import { createMockSlackMessage, createMockWebClient } from '../debug-test-utils';
 import type { InternalEventV2 } from '../../../../types/events';
 import type { IngressPublisher } from '../../core';
@@ -37,6 +38,7 @@ describe('SlackIngressClient - Deduplication', () => {
   describe('Message timestamp deduplication', () => {
     it('should process first message normally', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -61,6 +63,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should deduplicate second message with same timestamp', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -97,6 +100,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should increment deduplicated counter', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -131,6 +135,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should process messages with different timestamps', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -161,6 +166,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should handle messages without timestamp', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -185,6 +191,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should use event_ts as fallback if ts not present', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -221,6 +228,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should log warning when deduplicating', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -270,6 +278,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should clear deduplication cache periodically', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher
@@ -323,6 +332,7 @@ describe('SlackIngressClient - Deduplication', () => {
 
     it('should clear cleanup interval on stop', async () => {
       const client = new SlackIngressClient(
+        buildSlackEnvelope,
         'xapp-test-token',
         'xoxb-test-token',
         mockPublisher

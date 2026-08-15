@@ -555,11 +555,19 @@ export class TwitchIrcClient extends NoopTwitchIrcClient implements ITwitchIrcCl
         }
 
         const msgForBuilder = processedText !== text ? { ...msg, text: processedText } : msg;
-        const evtV2: InternalEventV2 = this.builder.build(msgForBuilder, {
+
+        // Sprint 13: Support both sync and async envelope builders
+        // TranslationEngine.translateInbound is async, but custom builders are sync
+        const evtOrPromise = this.builder.build(msgForBuilder, {
           egressDestination: this.egressDestinationTopic,
           correlationId: debugCorrelationId,
           debugMetadata,
         });
+
+        // Check if result is a Promise and await if necessary
+        const evtV2: InternalEventV2 = evtOrPromise instanceof Promise
+          ? await evtOrPromise
+          : evtOrPromise;
 
         // Tracer logic: Check for !trace command (legacy/other tracer trigger)
         if (processedText?.toLowerCase().startsWith('!trace')) {

@@ -1,0 +1,89 @@
+#
+# Slack Platform Mapping: chat.message.v1
+#
+# Maps Slack 'message' events to BitBrat's chat.message.v1 internal event type.
+#
+# Event Flow:
+# 1. Slack sends 'message' event via Events API (Socket Mode or HTTP)
+# 2. Event is wrapped in body.event by Slack SDK
+# 3. This mapping extracts fields and normalizes to InternalEventV2
+#
+# Sprint 13: DX Foundation (DX-006)
+#
+# @since Sprint 13
+#
+
+# Platform-specific event name (Slack Events API event type)
+platformEvent: message
+
+# Internal event type this maps to
+internalEventType: chat.message.v1
+
+# Priority for disambiguation (higher = checked first)
+# Standard chat messages have priority 0
+priority: 0
+
+# Filter to exclude bot messages and ensure correct event type
+# JSONLogic filter evaluated against the event payload
+filter:
+  and:
+    # Event type must be 'message'
+    - "==":
+        - var: type
+        - message
+    # Exclude bot messages (bot_id field should not be present)
+    - "!":
+        var: bot_id
+
+# Field mapping configuration
+# Maps Slack event fields to BitBrat's InternalEventV2 format
+fieldMapping:
+  # User ID (required)
+  userId:
+    path: user
+    required: true
+
+  # Channel ID (required)
+  channelId:
+    path: channel
+    required: true
+
+  # Message text (required)
+  messageText:
+    path: text
+    required: true
+
+  # Message ID (Slack uses timestamp as unique ID)
+  messageId:
+    path: ts
+    required: true
+
+  # User display name (fallback to user ID if not available)
+  # Note: Slack doesn't include user display name in message events
+  # This will need to be resolved via Slack API in a future sprint
+  userName:
+    path: user
+    fallbacks:
+      - user
+
+  # Team/workspace ID (optional metadata)
+  teamId:
+    path: team
+    required: false
+
+  # Thread parent timestamp (optional, for threaded messages)
+  threadTs:
+    path: thread_ts
+    required: false
+
+  # Event timestamp (optional)
+  eventTs:
+    path: event_ts
+    required: false
+
+# Egress configuration (for reverse translation: InternalEventV2 → Slack API)
+egress:
+  method: sendText
+  fieldMapping:
+    channel: egress.channel
+    text: message.text

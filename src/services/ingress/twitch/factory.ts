@@ -3,18 +3,55 @@
  *
  * Factory function for creating Twitch connectors with IntegrationBit.
  *
+ * Sprint 13: YAML-driven event gateway integration
+ * - Supports feature flag ENABLE_CONFIG_REGISTRY for gradual rollout
+ * - Falls back to custom builder (TwitchEnvelopeBuilder) when flag disabled
+ * - Loads YAML configs from config/platforms/twitch/ when enabled
+ *
  * @module twitch/factory
  * @since Sprint 12
  */
 
 import type { ConnectorFactory } from '../../../common/integration-bit';
 import { TwitchIrcClient } from './twitch-irc-client';
-import { TwitchEnvelopeBuilder } from './envelope-builder';
+import { TwitchEnvelopeBuilder, type IEnvelopeBuilder, type IrcMessageMeta, type EnvelopeBuilderOptions } from './envelope-builder';
 import { TwitchConnectorAdapter } from './connector-adapter';
 import { ConfigTwitchCredentialsProvider, FirestoreTwitchCredentialsProvider } from './credentials-provider';
 import { createTwitchIngressPublisherFromConfig } from './publisher';
 import { createTokenStore } from '../../firestore-token-store';
+import { ConfigRegistry } from '../core/config-registry';
+import { TranslationEngine } from '../core/translation-engine';
+import { getFeatureFlags } from '../core/feature-flags';
+import { logger } from '../../../common/logging';
 import type { IConfig } from '../../../types';
+import type { InternalEventV2 } from '../../../types/events';
+import path from 'path';
+
+/**
+ * TranslationEngine-based envelope builder wrapper for Twitch
+ * Implements IEnvelopeBuilder interface using TranslationEngine
+ *
+ * NOTE: build() returns Promise<InternalEventV2> because TranslationEngine.translateInbound is async.
+ * Twitch client must await the result.
+ */
+class TranslationEngineEnvelopeBuilder implements IEnvelopeBuilder {
+  constructor(private readonly engine: TranslationEngine) {}
+
+  build(msg: IrcMessageMeta, opts?: EnvelopeBuilderOptions): InternalEventV2 {
+    // Twitch IRC uses 'PRIVMSG' as platform event
+    const platformEvent = 'PRIVMSG';
+
+    // Convert IrcMessageMeta to format expected by TranslationEngine
+    const meta = {
+      ...msg,
+      // Ensure message field compatibility
+      message: msg.text,
+    };
+
+    // Return async result - caller must await
+    return this.engine.translateInbound('twitch', platformEvent, meta, opts) as any;
+  }
+}
 
 /**
  * Creates a Twitch connector configured for the IntegrationBit framework.
@@ -72,9 +109,56 @@ export const createTwitchConnector: ConnectorFactory = async (config: IConfig, o
     .filter(Boolean)
     .map(u => u.startsWith('twitch:') ? u : `twitch:${u}`);
 
+  // Sprint 13: Check feature flag for YAML-driven event gateway
+  const flags = getFeatureFlags();
+  let envelopeBuilder: IEnvelopeBuilder;
+
+  if (flags.ENABLE_CONFIG_REGISTRY) {
+    logger.info('twitch.factory.translation_engine.enabled', {
+      configPath: 'config',
+      featureFlags: flags,
+    });
+
+    try {
+      // Load YAML configs from config/ (registry will find config/events/ and config/platforms/twitch/)
+      const configPath = path.join(process.cwd(), 'config');
+      const registry = new ConfigRegistry({ configPath });
+      await registry.load();
+
+      logger.info('twitch.factory.config_registry.loaded', {
+        platform: 'twitch',
+      });
+
+      // Create TranslationEngine for Twitch
+      const engine = new TranslationEngine(registry);
+
+      // Wrap TranslationEngine in IEnvelopeBuilder adapter
+      envelopeBuilder = new TranslationEngineEnvelopeBuilder(engine);
+
+      logger.info('twitch.factory.translation_engine.initialized', {
+        platform: 'twitch',
+        useGenericBuilder: flags.ENABLE_GENERIC_BUILDER,
+      });
+    } catch (error: any) {
+      // Fail-safe: Fall back to custom builder if YAML loading fails
+      logger.error('twitch.factory.translation_engine.failed', {
+        error: error.message,
+        fallback: 'TwitchEnvelopeBuilder',
+      });
+      envelopeBuilder = new TwitchEnvelopeBuilder();
+    }
+  } else {
+    // Feature flag disabled: Use custom builder (legacy behavior)
+    logger.info('twitch.factory.custom_builder.enabled', {
+      builder: 'TwitchEnvelopeBuilder',
+      featureFlags: flags,
+    });
+    envelopeBuilder = new TwitchEnvelopeBuilder();
+  }
+
   // Create Twitch IRC client
   const client = new TwitchIrcClient(
-    new TwitchEnvelopeBuilder(),
+    envelopeBuilder,
     publisher,
     config.twitchChannels || [],
     {

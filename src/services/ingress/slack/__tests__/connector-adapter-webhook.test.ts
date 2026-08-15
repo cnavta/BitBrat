@@ -11,6 +11,7 @@
 
 import { SlackConnectorAdapter } from '../connector-adapter';
 import { SlackIngressClient } from '../slack-ingress-client';
+import { buildSlackEnvelope } from '../envelope-builder';
 import type { WebhookRequest, IngressPublisher } from '../../core';
 import type { IConfig } from '../../../../types';
 import crypto from 'crypto';
@@ -37,6 +38,7 @@ describe('SlackConnectorAdapter - WebhookConnector', () => {
     };
 
     mockClient = new SlackIngressClient(
+      buildSlackEnvelope,
       'xapp-test-app-token',
       'xoxb-test-bot-token',
       mockPublisher,
