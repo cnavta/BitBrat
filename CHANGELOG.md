@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.29.0] - 2026-08-16
+### Added
 - **Deployment Lifecycle Hooks System** (Sprint 15): Shell script hooks at 4 deployment stages
   - `pre-deploy`: Local-only hook before deployment starts (use case: registry authentication)
   - `pre-build`: Hook before Docker build (local or remote)
