@@ -22,6 +22,7 @@ import { DockerOrchestrator, DockerOrchestratorOptions } from '../docker/orchest
 import { SecureFilesValidator } from '../../validation/secure-files-validator';
 import { ComposeMerger } from '../docker/compose-merger';
 import { InfrastructureRegistry } from '../../infrastructure/registry';
+import { HookExecutor } from '../hooks/hook-executor'; // Sprint 15: Deployment lifecycle hooks
 import { execCmd } from '../exec';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -30,10 +31,14 @@ import yaml from 'js-yaml';
 /**
  * Docker Compose deployment strategy.
  * Delegates to existing DockerOrchestrator for execution.
+ * Sprint 15: Added deployment lifecycle hooks support.
  */
 export class DockerComposeStrategy implements DeploymentStrategy {
   readonly name = 'docker-compose';
   readonly supportsBulkDeployment = true;
+
+  // Sprint 15: Hook executor for deployment lifecycle hooks
+  private readonly hookExecutor = new HookExecutor();
 
   /**
    * Prepare deployment plan for Docker Compose.
@@ -196,6 +201,25 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       const repoRoot = process.cwd();
       const baseComposeFilePath = plan.metadata.composeFilePath as string;
 
+      // ============================================================================
+      // HOOK 1: PRE-DEPLOY (Sprint 15)
+      // Executes BEFORE any deployment operations (local)
+      // Use case: Registry authentication, environment validation
+      // ============================================================================
+      await this.hookExecutor.execute(
+        'pre-deploy',
+        plan.context.deployment.hooks?.['pre-deploy'],
+        {
+          contextName: plan.context.name,
+          deploymentType: plan.context.deployment.type,
+          targetHost: plan.metadata.remoteHost as string | undefined,
+          remoteDir: plan.metadata.remoteDir as string | undefined,
+          services: [plan.service.name],
+          repoRoot,
+          verbose: deployOptions.verbose,
+        }
+      );
+
       // Sprint 375: Read original compose file FIRST (before any processing)
       // This ensures we can restore even if merge/secureFiles processing fails
       originalComposeContent = await fs.promises.readFile(baseComposeFilePath, 'utf-8');
@@ -325,9 +349,123 @@ export class DockerComposeStrategy implements DeploymentStrategy {
 
       // Create orchestrator and execute deployment
       const orchestrator = new DockerOrchestrator(orchestratorOptions);
+
+      // ============================================================================
+      // HOOK 2: PRE-BUILD (Sprint 15)
+      // Executes AFTER file sync (remote) or BEFORE build (local)
+      // Use case: Build-time authentication, dependency checks
+      // ============================================================================
+      if (isRemote) {
+        // Remote execution: Hook runs on remote host after sync
+        await this.hookExecutor.executeRemote(
+          'pre-build',
+          plan.context.deployment.hooks?.['pre-build'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            targetHost: plan.metadata.remoteHost as string,
+            remoteDir: plan.metadata.remoteDir as string,
+            services: [plan.service.name],
+            repoRoot: plan.metadata.remoteDir as string, // Remote repo root
+            verbose: deployOptions.verbose,
+          }
+        );
+      } else {
+        // Local execution
+        await this.hookExecutor.execute(
+          'pre-build',
+          plan.context.deployment.hooks?.['pre-build'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            services: [plan.service.name],
+            repoRoot,
+            verbose: deployOptions.verbose,
+          }
+        );
+      }
+
+      // Execute deployment (build + up)
       await orchestrator.up();
 
+      // ============================================================================
+      // HOOK 3: POST-BUILD (Sprint 15)
+      // Executes AFTER build completes, BEFORE containers start
+      // NOTE: Current orchestrator.up() combines build + up, so this runs after up
+      // Use case: Image scanning, tagging, validation
+      // ============================================================================
+      if (isRemote) {
+        await this.hookExecutor.executeRemote(
+          'post-build',
+          plan.context.deployment.hooks?.['post-build'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            targetHost: plan.metadata.remoteHost as string,
+            remoteDir: plan.metadata.remoteDir as string,
+            services: [plan.service.name],
+            repoRoot: plan.metadata.remoteDir as string,
+            verbose: deployOptions.verbose,
+          }
+        );
+      } else {
+        await this.hookExecutor.execute(
+          'post-build',
+          plan.context.deployment.hooks?.['post-build'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            services: [plan.service.name],
+            repoRoot,
+            verbose: deployOptions.verbose,
+          }
+        );
+      }
+
       const durationMs = Date.now() - startTime;
+
+      // ============================================================================
+      // HOOK 4: POST-DEPLOY (Sprint 15)
+      // Executes AFTER containers start
+      // Use case: Health checks, smoke tests, notifications
+      // NOTE: Hook failures do NOT abort deployment (containers already running)
+      // ============================================================================
+      try {
+        if (isRemote) {
+          await this.hookExecutor.executeRemote(
+            'post-deploy',
+            plan.context.deployment.hooks?.['post-deploy'],
+            {
+              contextName: plan.context.name,
+              deploymentType: plan.context.deployment.type,
+              targetHost: plan.metadata.remoteHost as string,
+              remoteDir: plan.metadata.remoteDir as string,
+              services: [plan.service.name],
+              repoRoot: plan.metadata.remoteDir as string,
+              verbose: deployOptions.verbose,
+            }
+          );
+        } else {
+          await this.hookExecutor.execute(
+            'post-deploy',
+            plan.context.deployment.hooks?.['post-deploy'],
+            {
+              contextName: plan.context.name,
+              deploymentType: plan.context.deployment.type,
+              services: [plan.service.name],
+              repoRoot,
+              verbose: deployOptions.verbose,
+            }
+          );
+        }
+      } catch (hookError: any) {
+        // Post-deploy hook failures do NOT abort deployment
+        // (containers already started, rollback would be more disruptive)
+        console.error(
+          `[docker-compose-strategy] Post-deploy hook failed: ${hookError.message}\n` +
+            `Deployment succeeded but post-deploy validation failed.`
+        );
+      }
 
       return {
         status: 'success',

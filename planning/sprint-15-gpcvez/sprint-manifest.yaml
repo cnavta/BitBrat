@@ -1,0 +1,10 @@
+id: sprint-15-gpcvez
+title: obs-mcp Deployment Investigation
+goal: Investigate why obs-mcp service is not being deployed to staging env when
+  using `brat bit deploy --all --loki` command
+owner: navta3
+createdAt: 2026-08-16T00:40:00.128Z
+status: in-progress
+links:
+  branch: feature/sprint-15-gpcvez-obs-mcp-deployment-investigati
+notes: Sprint initialized via MCP start-sprint tool

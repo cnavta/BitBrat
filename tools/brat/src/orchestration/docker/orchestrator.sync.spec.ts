@@ -291,6 +291,159 @@ describe('DockerOrchestrator.syncRemoteFiles', () => {
 
     logSpy.mockRestore();
   });
+
+  // Sprint 15: Additional sync paths for hook scripts and custom files
+  it('syncs additionalSyncPaths when configured in execution context', async () => {
+    const repoRoot = makeRepo([
+      'infrastructure/docker-compose/docker-compose.staging.yaml',
+      '.env.brat',
+      'architecture.yaml',
+    ]);
+
+    // Update architecture.yaml to include additionalSyncPaths
+    fs.writeFileSync(path.join(repoRoot, 'architecture.yaml'), `
+executionContexts:
+  staging:
+    description: "Test staging context with hooks"
+    deployment:
+      type: docker-compose
+      docker:
+        host: ssh://user@example
+        remoteDir: /remote/dir
+        additionalSyncPaths:
+          - .brat/hooks
+          - custom-scripts
+    runtime:
+      envOverlay:
+        path: env/staging
+        files: [global.yaml]
+      persistence:
+        driver: postgres
+        autoDiscover: true
+`);
+
+    // Create the additional directories
+    fs.mkdirSync(path.join(repoRoot, '.brat', 'hooks'), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, '.brat', 'hooks', 'pre-deploy.sh'), '#!/bin/bash\necho "hook"');
+    fs.mkdirSync(path.join(repoRoot, 'custom-scripts'), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, 'custom-scripts', 'setup.sh'), '#!/bin/bash\necho "setup"');
+
+    const orch = new DockerOrchestrator({ repoRoot, context: 'staging' });
+    const target = {
+      host: 'ssh://user@example',
+      remoteDir: '/remote/dir',
+      additionalSyncPaths: ['.brat/hooks', 'custom-scripts'],
+    };
+
+    await (orch as any).syncRemoteFiles(target);
+
+    const rsyncCall = execCmdMock.mock.calls.find(([cmd]) => cmd === 'rsync');
+    expect(rsyncCall).toBeDefined();
+    const rsyncArgs = rsyncCall![1] as string[];
+    expect(rsyncArgs).toContain('.brat/hooks');
+    expect(rsyncArgs).toContain('custom-scripts');
+  });
+
+  it('warns but does not fail when additionalSyncPath does not exist', async () => {
+    const repoRoot = makeRepo([
+      'infrastructure/docker-compose/docker-compose.staging.yaml',
+      '.env.brat',
+      'architecture.yaml',
+    ]);
+
+    // Update architecture.yaml with non-existent path
+    fs.writeFileSync(path.join(repoRoot, 'architecture.yaml'), `
+executionContexts:
+  staging:
+    description: "Test staging context"
+    deployment:
+      type: docker-compose
+      docker:
+        host: ssh://user@example
+        remoteDir: /remote/dir
+        additionalSyncPaths:
+          - .brat/hooks
+          - non-existent-dir
+    runtime:
+      envOverlay:
+        path: env/staging
+        files: [global.yaml]
+      persistence:
+        driver: postgres
+        autoDiscover: true
+`);
+
+    // Only create .brat/hooks, NOT non-existent-dir
+    fs.mkdirSync(path.join(repoRoot, '.brat', 'hooks'), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, '.brat', 'hooks', 'pre-deploy.sh'), '#!/bin/bash\necho "hook"');
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    const orch = new DockerOrchestrator({ repoRoot, context: 'staging' });
+    const target = {
+      host: 'ssh://user@example',
+      remoteDir: '/remote/dir',
+      additionalSyncPaths: ['.brat/hooks', 'non-existent-dir'],
+    };
+
+    // Should not throw
+    await expect((orch as any).syncRemoteFiles(target)).resolves.toBeUndefined();
+
+    // Should log warning
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("additionalSyncPath 'non-existent-dir' does not exist")
+    );
+
+    // Should still sync the existing path
+    const rsyncCall = execCmdMock.mock.calls.find(([cmd]) => cmd === 'rsync');
+    expect(rsyncCall).toBeDefined();
+    const rsyncArgs = rsyncCall![1] as string[];
+    expect(rsyncArgs).toContain('.brat/hooks');
+    expect(rsyncArgs).not.toContain('non-existent-dir');
+
+    warnSpy.mockRestore();
+  });
+
+  it('works without additionalSyncPaths (backward compatible)', async () => {
+    const repoRoot = makeRepo([
+      'infrastructure/docker-compose/docker-compose.staging.yaml',
+      '.env.brat',
+      'architecture.yaml',
+    ]);
+
+    // Update architecture.yaml WITHOUT additionalSyncPaths
+    fs.writeFileSync(path.join(repoRoot, 'architecture.yaml'), `
+executionContexts:
+  staging:
+    description: "Test staging context"
+    deployment:
+      type: docker-compose
+      docker:
+        host: ssh://user@example
+        remoteDir: /remote/dir
+    runtime:
+      envOverlay:
+        path: env/staging
+        files: [global.yaml]
+      persistence:
+        driver: postgres
+        autoDiscover: true
+`);
+
+    const orch = new DockerOrchestrator({ repoRoot, context: 'staging' });
+    const target = {
+      host: 'ssh://user@example',
+      remoteDir: '/remote/dir',
+      // NO additionalSyncPaths
+    };
+
+    // Should not throw
+    await expect((orch as any).syncRemoteFiles(target)).resolves.toBeUndefined();
+
+    // Should still call rsync with default files
+    const rsyncCall = execCmdMock.mock.calls.find(([cmd]) => cmd === 'rsync');
+    expect(rsyncCall).toBeDefined();
+  });
 });
 
 describe('DockerOrchestrator.writeEnvFile ADC path', () => {

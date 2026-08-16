@@ -9,6 +9,7 @@ import type {
   DockerDeployment,
   GcpDeployment,
   K8sDeployment,
+  DeploymentHooksSchema,
 } from '../config/execution-context-schema';
 
 /**
@@ -57,6 +58,7 @@ export interface ResolvedRuntime {
 /**
  * Resolved execution context
  * All optional fields from ExecutionContext are resolved to concrete values
+ * Sprint 15: Added hooks field for deployment lifecycle hooks
  */
 export interface ResolvedContext {
   /** Context name (e.g., 'local', 'staging', 'prod') */
@@ -69,6 +71,12 @@ export interface ResolvedContext {
     docker?: DockerDeployment;
     gcp?: GcpDeployment;
     k8s?: K8sDeployment;
+    hooks?: {
+      'pre-deploy'?: string;
+      'pre-build'?: string;
+      'post-build'?: string;
+      'post-deploy'?: string;
+    };
   };
   /** Runtime configuration (fully resolved) */
   runtime: ResolvedRuntime;

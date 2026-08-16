@@ -776,7 +776,7 @@ services:
       requiredRoles:
         - reflex
         - admin
-    active: false
+    active: true
     description: MCP server for controlling OBS
     kind: mcp-server
     external:
@@ -1062,6 +1062,12 @@ executionContexts:
       docker:
         host: ssh://root@bitbrat.lan
         remoteDir: /opt/bitbrat-staging
+        # Sprint 15: Additional file sync paths for hooks
+        additionalSyncPaths:
+          - .brat/hooks
+      # Sprint 15: Deployment lifecycle hooks
+      hooks:
+        pre-deploy: .brat/hooks/staging/pre-deploy-gcp-auth.sh
     runtime:
       gateway:
         autoDiscover: true
