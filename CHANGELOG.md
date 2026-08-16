@@ -22,6 +22,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.29.0] - 2026-08-16
+### Added
+- **Deployment Lifecycle Hooks System** (Sprint 15): Shell script hooks at 4 deployment stages
+  - `pre-deploy`: Local-only hook before deployment starts (use case: registry authentication)
+  - `pre-build`: Hook before Docker build (local or remote)
+  - `post-build`: Hook after build completes (local or remote)
+  - `post-deploy`: Hook after containers start, non-fatal failures (use case: health checks, notifications)
+  - `HookExecutor` class with `execute()` (local) and `executeRemote()` (SSH) methods
+  - Environment variables: `BRAT_CONTEXT_NAME`, `BRAT_DEPLOYMENT_TYPE`, `BRAT_SERVICES`, `BRAT_REPO_ROOT`, `BRAT_TARGET_HOST`, `BRAT_REMOTE_DIR`
+  - Configuration in `architecture.yaml` under `executionContexts.{context}.deployment.hooks`
+  - `additionalSyncPaths` field for extending remote file sync whitelist (required for syncing hook scripts to remote hosts)
+  - Comprehensive validation: file existence, executable permissions, relative paths, valid extensions (.sh, .bash, .ts, .js)
+  - Example hooks for Docker Hub, AWS ECR, GCP Artifact Registry, health checks, Slack notifications
+  - Production GCP Artifact Registry auth hook for staging context (`.brat/hooks/staging/pre-deploy-gcp-auth.sh`)
+  - 27 unit tests for HookExecutor, 3 integration tests for additionalSyncPaths
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.28.0] - 2026-08-15
 ### Added
 

@@ -623,7 +623,19 @@ export class DockerOrchestrator {
       // Sprint 374: Secure files directory (if exists as directory)
       ...(fs.existsSync(path.join(this.options.repoRoot, secureDir)) &&
           fs.statSync(path.join(this.options.repoRoot, secureDir)).isDirectory() ? [secureDir] : []),
-    ].filter(file => fs.existsSync(path.join(this.options.repoRoot, file)));
+      // Sprint 15: Additional sync paths from execution context (for hook scripts, custom files)
+      ...(target.additionalSyncPaths || []),
+    ].filter(file => {
+      const fullPath = path.join(this.options.repoRoot, file);
+      const exists = fs.existsSync(fullPath);
+
+      // Sprint 15: Log warning for non-existent additionalSyncPaths (don't fail deployment)
+      if (!exists && target.additionalSyncPaths?.includes(file)) {
+        console.warn(`[brat] Warning: additionalSyncPath '${file}' does not exist, skipping sync`);
+      }
+
+      return exists;
+    });
 
     if (filesToSync.length === 0) return;
 
@@ -852,11 +864,13 @@ export class DockerOrchestrator {
       }
 
       // Create a synthetic target config from the execution context
+      // Sprint 15: Include additionalSyncPaths for hook script sync
       const targetConfig = {
         name: `context:${this.options.context}`,
         host: rawContext.deployment.docker?.host || 'unix:///var/run/docker.sock',
         remoteDir: rawContext.deployment.docker?.remoteDir,
         maxConcurrent: rawContext.deployment.docker?.maxConcurrent,
+        additionalSyncPaths: rawContext.deployment.docker?.additionalSyncPaths,
       };
 
       const envName = rawContext.runtime.envOverlay?.path?.replace('env/', '') || this.options.context;

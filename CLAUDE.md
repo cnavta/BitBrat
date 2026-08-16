@@ -38,6 +38,39 @@ All messages are `Envelope v1` with `routingSlip`. Message bus is NATS (local/de
 
 **Agent-Dev Contexts**: Ephemeral execution contexts for coding agents. Provision via MCP tools (`agent_dev.provision()`, `agent_dev.start()`, `agent_dev.stop()`, `agent_dev.destroy()`). Isolated Docker containers + PostgreSQL. RBAC-enforced `agent-dev-*` prefix. Only one context runs at a time. See `documentation/guides/agent-dev-contexts.md`.
 
+**IMPORTANT - Proactive Agent-Dev Usage**: Use agent-dev environments WITHOUT waiting for user request when validating runtime behavior. This includes:
+- **New services**: Verify service starts, connects to dependencies (NATS, PostgreSQL)
+- **New features**: Test message handlers, database queries, API endpoints work
+- **Configuration changes**: Validate env vars, secrets, port assignments
+- **Deployment changes**: Test hooks, orchestrator, Docker Compose modifications
+- **Before marking complete**: Always deploy to agent-dev as final validation
+
+**Agent-Dev Workflow**:
+```bash
+# 1. Provision (auto-names if omitted)
+agent_dev.provision({ name: "agent-dev-feature-test" })
+
+# 2. Deploy service(s) to isolated environment
+bit deploy <service> --context agent-dev-feature-test
+# OR for full stack testing:
+bit deploy --all --context agent-dev-feature-test
+
+# 3. Validate (check logs, test endpoints, verify behavior)
+fleet.logs({ bit: "<service>", context: "agent-dev-feature-test" })
+fleet.info({ bit: "<service>", context: "agent-dev-feature-test" })
+
+# 4. Clean up when done
+agent_dev.destroy({ name: "agent-dev-feature-test", confirm: true })
+```
+
+**When to Use Agent-Dev** (use proactively, don't wait for user to ask):
+- Created/modified a service → Deploy to agent-dev, verify it starts
+- Added message handler → Deploy and test message routing works
+- Changed architecture.yaml → Deploy and verify config resolves correctly
+- Modified deployment code → Deploy and validate deployment succeeds
+- Before sprint completion → Full deployment validation in agent-dev
+- User asks "does this work?" → Should have already tested in agent-dev!
+
 **Execution Contexts**: Unify environment configuration across deployment types. Define in `architecture.yaml` under `executionContexts`. Manage via `brat context list|show|create`. Priority: `--context` flag > `BITBRAT_CONTEXT` env > `~/.bratrc` > `local` default.
 
 ## Common Development Commands
@@ -62,8 +95,9 @@ npm run brat -- chat     # Interactive chat
 ### Service Management
 ```bash
 npm run brat -- bit create <name> [--profile gateway] [--exposure platform+domain] [--register --active]
-npm run brat -- deploy service <name>
-npm run brat -- deploy services --all
+npm run brat -- bit deploy <service>              # Deploy single service
+npm run brat -- bit deploy --all                   # Deploy all services (bulk)
+npm run brat -- bit deploy --all --context <ctx>   # Deploy to specific context
 ```
 
 ### Fleet Control Plane
@@ -344,6 +378,27 @@ npm run brat -- bit create <name> \
 
 **Generated files**: `src/apps/<name>-service.ts`, test file, Dockerfile, docker-compose service
 
+**IMPORTANT - Always validate new services in agent-dev**:
+```bash
+# After creating a new service, immediately validate it:
+agent_dev.provision({ name: "agent-dev-new-service-test" })
+bit deploy <service-name> --context agent-dev-new-service-test
+
+# Check logs to verify service starts correctly
+fleet.logs({ bit: "<service-name>", context: "agent-dev-new-service-test" })
+fleet.info({ bit: "<service-name>", context: "agent-dev-new-service-test" })
+
+# Clean up
+agent_dev.destroy({ name: "agent-dev-new-service-test", confirm: true })
+```
+
+Common issues caught by agent-dev validation:
+- Missing environment variables
+- Incorrect dependency configuration (NATS, PostgreSQL)
+- Port conflicts
+- Docker build failures
+- Service registration issues
+
 ---
 
 ### 5. Deploying Secure Files (Sprint 374)
@@ -388,11 +443,11 @@ services:
 PortManager auto-assigns unique ports for all deployments. Discovers ports via `docker ps`, assigns next available from 3001.
 
 ```bash
-npm run brat -- deploy services --all
+npm run brat -- bit deploy --all
 # Output: Port assignments: llm-bot:3001(auto), tool-gateway:3002(auto)
 
 # Override:
-LLM_BOT_HOST_PORT=5000 npm run brat -- deploy service llm-bot
+LLM_BOT_HOST_PORT=5000 npm run brat -- bit deploy llm-bot
 ```
 
 Works with remote Docker via SSH. Gracefully degrades on discovery failures.

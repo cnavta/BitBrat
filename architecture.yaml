@@ -4,7 +4,7 @@ description: >-
   Streamers. Uses Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.28.0
+  version: 0.29.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides
@@ -776,7 +776,7 @@ services:
       requiredRoles:
         - reflex
         - admin
-    active: false
+    active: true
     description: MCP server for controlling OBS
     kind: mcp-server
     external:
@@ -1023,6 +1023,15 @@ executionContexts:
       type: docker-compose
       docker:
         host: unix:///var/run/docker.sock
+        # Sprint 15 Hook Testing: Sync test hooks
+        additionalSyncPaths:
+          - .brat/hooks
+      # Sprint 15 Hook Testing: All 4 hooks configured
+      hooks:
+        pre-deploy: .brat/hooks/agent-dev-sprint-15-hooks-test/pre-deploy-test.sh
+        pre-build: .brat/hooks/agent-dev-sprint-15-hooks-test/pre-build-test.sh
+        post-build: .brat/hooks/agent-dev-sprint-15-hooks-test/post-build-test.sh
+        post-deploy: .brat/hooks/agent-dev-sprint-15-hooks-test/post-deploy-test.sh
     runtime:
       gateway:
         autoDiscover: true
@@ -1062,6 +1071,12 @@ executionContexts:
       docker:
         host: ssh://root@bitbrat.lan
         remoteDir: /opt/bitbrat-staging
+        # Sprint 15: Additional file sync paths for hooks
+        additionalSyncPaths:
+          - .brat/hooks
+      # Sprint 15: Deployment lifecycle hooks
+      hooks:
+        pre-deploy: .brat/hooks/staging/pre-deploy-gcp-auth.sh
     runtime:
       gateway:
         autoDiscover: true

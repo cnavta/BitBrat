@@ -4,6 +4,7 @@
  * Type definitions for brat CLI configuration and service definitions.
  *
  * Sprint 374: Secure File Deployment
+ * Sprint 15: Deployment Lifecycle Hooks
  */
 
 /**
@@ -111,6 +112,233 @@ export interface SecureFile {
    * ```
    */
   context?: string;
+}
+
+/**
+ * Deployment lifecycle hooks.
+ *
+ * Hooks are shell scripts that execute at specific deployment stages to enable:
+ * - Private container registry authentication
+ * - Pre-flight validation and checks
+ * - Post-deployment verification
+ * - Custom deployment logic
+ *
+ * Sprint 15: Deployment Lifecycle Hooks System
+ *
+ * @example
+ * ```yaml
+ * executionContexts:
+ *   staging:
+ *     deployment:
+ *       hooks:
+ *         pre-deploy: .brat/hooks/staging/pre-deploy-gcp-auth.sh
+ *         post-deploy: .brat/hooks/staging/post-deploy-health-check.sh
+ * ```
+ */
+export interface DeploymentHooks {
+  /**
+   * Hook executed BEFORE deployment operations begin.
+   *
+   * Execution context:
+   * - Local deployments: Runs on local machine before build
+   * - Remote deployments: Runs on local machine before file sync
+   *
+   * Use cases:
+   * - Authenticate to container registries (local Docker daemon)
+   * - Validate environment variables
+   * - Pre-flight checks
+   *
+   * @example ".brat/hooks/staging/pre-deploy-gcp-auth.sh"
+   */
+  'pre-deploy'?: string;
+
+  /**
+   * Hook executed AFTER file sync (remote) or BEFORE build (local).
+   *
+   * Execution context:
+   * - Local deployments: Runs on local machine before build
+   * - Remote deployments: Runs on remote host after file sync
+   *
+   * Use cases:
+   * - Authenticate to container registries (remote Docker daemon)
+   * - Build-time dependency checks
+   * - Generate build artifacts
+   *
+   * @example ".brat/hooks/staging/pre-build-docker-login.sh"
+   */
+  'pre-build'?: string;
+
+  /**
+   * Hook executed AFTER build completes, BEFORE containers start.
+   *
+   * Execution context:
+   * - Local deployments: Runs on local machine after build
+   * - Remote deployments: Runs on remote host after build
+   *
+   * Use cases:
+   * - Image scanning for vulnerabilities
+   * - Image tagging
+   * - Build artifact validation
+   *
+   * NOTE: Current implementation runs after `docker compose up` completes
+   * (containers already started). See hook-injection-points.md for details.
+   *
+   * @example ".brat/hooks/staging/post-build-scan.sh"
+   */
+  'post-build'?: string;
+
+  /**
+   * Hook executed AFTER containers start.
+   *
+   * Execution context:
+   * - Local deployments: Runs on local machine after containers start
+   * - Remote deployments: Runs on remote host after containers start
+   *
+   * Use cases:
+   * - Health checks and smoke tests
+   * - Deployment notifications (Slack, email, etc.)
+   * - Service registration (Consul, etcd, etc.)
+   *
+   * NOTE: Hook failures do NOT abort deployment (containers already running).
+   * Failed post-deploy hooks log errors but return success.
+   *
+   * @example ".brat/hooks/staging/post-deploy-health-check.sh"
+   */
+  'post-deploy'?: string;
+}
+
+/**
+ * Docker deployment configuration.
+ *
+ * Used for local development, remote staging, and self-hosted production
+ * environments using Docker Compose.
+ *
+ * Sprint 15: Added additionalSyncPaths for custom file sync control.
+ */
+export interface DockerDeploymentConfig {
+  /**
+   * Docker host (unix:///var/run/docker.sock or ssh://user@host[:port])
+   */
+  host: string;
+
+  /**
+   * Remote directory for docker-compose files (SSH deployments only).
+   *
+   * @example "/opt/bitbrat-staging"
+   */
+  remoteDir?: string;
+
+  /**
+   * Maximum concurrent Docker operations (default: 3).
+   *
+   * For SSH deployments, defaults to 1 to avoid "only one connection allowed" errors.
+   */
+  maxConcurrent?: number;
+
+  /**
+   * Additional files/directories to sync to remote host.
+   *
+   * Paths are relative to repository root and appended to the default sync whitelist.
+   * Useful for syncing hook scripts, custom configurations, or BEC-specific files.
+   *
+   * Automatic additions:
+   * - `.brat/hooks/` is auto-added when deployment.hooks is configured
+   *
+   * Validation:
+   * - Paths must be relative (not absolute)
+   * - Paths outside repo root are rejected
+   * - Non-existent paths logged as warnings (don't fail deployment)
+   *
+   * Sprint 15: Deployment Lifecycle Hooks System
+   *
+   * @example
+   * ```yaml
+   * additionalSyncPaths:
+   *   - .brat/hooks
+   *   - custom-scripts
+   *   - vendor/special-lib
+   * ```
+   */
+  additionalSyncPaths?: string[];
+}
+
+/**
+ * Google Cloud Platform deployment configuration.
+ *
+ * Used for Cloud Run deployments.
+ */
+export interface GcpDeploymentConfig {
+  /**
+   * GCP project ID.
+   *
+   * @example "bitbrat-prod"
+   */
+  project: string;
+
+  /**
+   * GCP region (e.g., us-central1).
+   *
+   * @example "us-central1"
+   */
+  region: string;
+}
+
+/**
+ * Kubernetes deployment configuration.
+ *
+ * Used for K8s deployments (future).
+ */
+export interface K8sDeploymentConfig {
+  /**
+   * Kubernetes cluster name or context.
+   */
+  cluster: string;
+
+  /**
+   * Kubernetes namespace.
+   */
+  namespace: string;
+}
+
+/**
+ * Deployment configuration.
+ *
+ * Defines how services are deployed (platform, target, hooks).
+ *
+ * Sprint 15: Added hooks field for deployment lifecycle hooks.
+ */
+export interface DeploymentConfig {
+  /**
+   * Deployment platform type.
+   */
+  type: 'docker-compose' | 'cloud-run' | 'k8s';
+
+  /**
+   * Docker Compose configuration (if type = 'docker-compose').
+   */
+  docker?: DockerDeploymentConfig;
+
+  /**
+   * GCP configuration (if type = 'cloud-run').
+   */
+  gcp?: GcpDeploymentConfig;
+
+  /**
+   * Kubernetes configuration (if type = 'k8s').
+   */
+  k8s?: K8sDeploymentConfig;
+
+  /**
+   * Deployment lifecycle hooks.
+   *
+   * Hooks are shell scripts that execute at specific deployment stages.
+   * All hooks are optional.
+   *
+   * Sprint 15: Deployment Lifecycle Hooks System
+   *
+   * @see DeploymentHooks
+   */
+  hooks?: DeploymentHooks;
 }
 
 /**
