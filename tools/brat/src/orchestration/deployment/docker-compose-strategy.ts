@@ -744,7 +744,30 @@ export class DockerComposeStrategy implements DeploymentStrategy {
     // Temporary merged compose file path
     const tempMergedPath = path.join(repoRoot, '.docker-compose.merged.yaml');
 
+    // Sprint 15: Determine if this is a remote deployment
+    const isRemote = context.deployment?.docker?.host?.startsWith('ssh://') || false;
+    const serviceNames = services.map((s) => s.name);
+
     try {
+      // ============================================================================
+      // HOOK 1: PRE-DEPLOY (Sprint 15)
+      // Executes BEFORE any deployment operations (local only, bulk deployment)
+      // Use case: Registry authentication, environment validation
+      // ============================================================================
+      await this.hookExecutor.execute(
+        'pre-deploy',
+        context.deployment.hooks?.['pre-deploy'],
+        {
+          contextName: context.name,
+          deploymentType: context.deployment.type,
+          targetHost: context.deployment?.docker?.host,
+          remoteDir: context.deployment?.docker?.remoteDir,
+          services: serviceNames,
+          repoRoot,
+          verbose: options.verbose,
+        }
+      );
+
       // ============================================================================
       // STAGE 1: Read base compose file
       // ============================================================================
@@ -1201,7 +1224,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // Sprint 379: Extract service names for PortManager integration
-      const serviceNames = services.map((s) => s.name);
+      // (Already extracted at top of method for hook execution - Sprint 15)
 
       console.log(
         `[docker-compose-strategy] Services for port resolution: ${serviceNames.join(', ')}`
@@ -1227,9 +1250,124 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       );
 
       const orchestrator = new DockerOrchestrator(orchestratorOptions);
+
+      // ============================================================================
+      // HOOK 2: PRE-BUILD (Sprint 15)
+      // Executes BEFORE docker compose up (local or remote, bulk deployment)
+      // Use case: Pre-build preparation, image registry authentication
+      // ============================================================================
+      if (isRemote) {
+        await this.hookExecutor.executeRemote(
+          'pre-build',
+          context.deployment.hooks?.['pre-build'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      } else {
+        await this.hookExecutor.execute(
+          'pre-build',
+          context.deployment.hooks?.['pre-build'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      }
+
       await orchestrator.up();
 
+      // ============================================================================
+      // HOOK 3: POST-BUILD (Sprint 15)
+      // Executes AFTER docker compose up (local or remote, bulk deployment)
+      // Use case: Image scanning, tagging, registry push
+      // ============================================================================
+      if (isRemote) {
+        await this.hookExecutor.executeRemote(
+          'post-build',
+          context.deployment.hooks?.['post-build'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      } else {
+        await this.hookExecutor.execute(
+          'post-build',
+          context.deployment.hooks?.['post-build'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      }
+
       const durationMs = Date.now() - startTime;
+
+      // ============================================================================
+      // HOOK 4: POST-DEPLOY (Sprint 15)
+      // Executes AFTER containers start (local or remote, bulk deployment)
+      // Non-fatal: failures are logged but don't abort deployment
+      // Use case: Health checks, notifications, verification
+      // ============================================================================
+      try {
+        if (isRemote) {
+          await this.hookExecutor.executeRemote(
+            'post-deploy',
+            context.deployment.hooks?.['post-deploy'],
+            {
+              contextName: context.name,
+              deploymentType: context.deployment.type,
+              targetHost: context.deployment?.docker?.host,
+              remoteDir: context.deployment?.docker?.remoteDir,
+              services: serviceNames,
+              repoRoot,
+              verbose: options.verbose,
+            }
+          );
+        } else {
+          await this.hookExecutor.execute(
+            'post-deploy',
+            context.deployment.hooks?.['post-deploy'],
+            {
+              contextName: context.name,
+              deploymentType: context.deployment.type,
+              targetHost: context.deployment?.docker?.host,
+              remoteDir: context.deployment?.docker?.remoteDir,
+              services: serviceNames,
+              repoRoot,
+              verbose: options.verbose,
+            }
+          );
+        }
+      } catch (hookError: any) {
+        console.error(
+          `[docker-compose-strategy] Post-deploy hook failed: ${hookError.message}\n` +
+            `Bulk deployment succeeded but post-deploy validation failed.`
+        );
+        // Don't re-throw - containers already running
+      }
 
       console.log(`[docker-compose-strategy] Bulk deployment completed successfully`);
 

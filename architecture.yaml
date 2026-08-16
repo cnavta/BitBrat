@@ -1023,6 +1023,15 @@ executionContexts:
       type: docker-compose
       docker:
         host: unix:///var/run/docker.sock
+        # Sprint 15 Hook Testing: Sync test hooks
+        additionalSyncPaths:
+          - .brat/hooks
+      # Sprint 15 Hook Testing: All 4 hooks configured
+      hooks:
+        pre-deploy: .brat/hooks/agent-dev-sprint-15-hooks-test/pre-deploy-test.sh
+        pre-build: .brat/hooks/agent-dev-sprint-15-hooks-test/pre-build-test.sh
+        post-build: .brat/hooks/agent-dev-sprint-15-hooks-test/post-build-test.sh
+        post-deploy: .brat/hooks/agent-dev-sprint-15-hooks-test/post-deploy-test.sh
     runtime:
       gateway:
         autoDiscover: true

@@ -4,7 +4,10 @@ goal: Investigate why obs-mcp service is not being deployed to staging env when
   using `brat bit deploy --all --loki` command
 owner: navta3
 createdAt: 2026-08-16T00:40:00.128Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-15-gpcvez-obs-mcp-deployment-investigati
+  pr: https://github.com/cyanheads/bitbrat/pull/323
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-16T17:52:26.810Z
+completionMode: normal
