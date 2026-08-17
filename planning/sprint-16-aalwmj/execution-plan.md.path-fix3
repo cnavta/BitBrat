@@ -1,0 +1,1411 @@
+# Execution Plan: Twitch EventSub Full Integration
+## Sprint 16 (sprint-16-aalwmj)
+
+**Lead Implementor**: Claude Code
+**Created**: 2026-08-16
+**Status**: Ready for Execution
+**Related**: `technical-architecture.md`
+
+---
+
+## Executive Summary
+
+This execution plan breaks down the Twitch EventSub Full Integration project into actionable tasks organized by milestones. The plan follows an incremental delivery approach, ensuring each milestone delivers testable, deployable value while minimizing risk.
+
+**Total Estimated Duration**: 5-6 weeks (25-30 working days)
+**Critical Path**: Foundation → Subscription Manager → Event Builders → Testing
+**Risk Level**: Medium (mitigated by incremental delivery and feature flags)
+
+---
+
+## Milestones Overview
+
+| Milestone | Duration | Dependencies | Deliverables | Risk |
+|-----------|----------|--------------|--------------|------|
+| **M1: Foundation** | 3-4 days | None | YAML config, schema, config loader, registry | Low |
+| **M2: Core Infrastructure** | 4-5 days | M1 | Subscription manager, refactored client | Medium |
+| **M3: Tier 1 Events** | 5-6 days | M2 | 13 high-value event builders | Low |
+| **M4: Tier 2 Events** | 3-4 days | M3 | 5 moderation event builders | Low |
+| **M5: Observability** | 2-3 days | M2 | MCP tools, metrics, health checks | Low |
+| **M6: Testing & Validation** | 4-5 days | M3, M4 | Unit tests, integration tests, load tests | Medium |
+| **M7: Documentation** | 2-3 days | M6 | User guides, migration guide, references | Low |
+| **M8: Deployment** | 3-4 days | M6, M7 | Staged rollout, monitoring, completion | Medium |
+
+**Total**: 26-34 days
+
+---
+
+## Milestone 1: Foundation (Days 1-4)
+
+**Goal**: Establish YAML configuration system and registry infrastructure
+
+### Success Criteria
+- [x] YAML config file created with 20+ events defined
+- [x] JSON schema validates config structure
+- [x] Config loader successfully loads and caches configuration
+- [x] Builder registry initialized with 4 existing builders
+- [x] All unit tests passing (>80% coverage)
+
+### Tasks (12 tasks)
+
+#### 1.1 Configuration Structure
+- **Task**: Create YAML subscription config file
+- **File**: `config/platforms/twitch/eventsub-subscriptions.yaml`
+- **Effort**: 2 hours
+- **Description**: Define initial subscription config with all 4 existing events plus Tier 1 events (20+ total)
+- **Acceptance Criteria**:
+  - File contains version, subscriptions, and channelOverrides sections
+  - All 4 existing events defined (channel.follow, channel.update, stream.online, stream.offline)
+  - Tier 1 events defined but disabled by default (13 events)
+  - Includes builder names, internal types, scopes, priorities
+
+#### 1.2 JSON Schema
+- **Task**: Create JSON schema for validation
+- **File**: `config/schemas/eventsub-subscriptions.v1.yaml`
+- **Effort**: 1 hour
+- **Description**: Define JSON Schema for subscription config validation
+- **Acceptance Criteria**:
+  - Schema validates version (must be 1)
+  - Schema validates required fields (enabled, builder, internalType)
+  - Schema validates optional fields (scope, priority, version, mutation)
+  - Schema validates channelOverrides structure
+
+#### 1.3 Config Loader Implementation
+- **Task**: Implement SubscriptionConfigLoader class
+- **File**: `src/services/ingress/twitch/subscription-config-loader.ts`
+- **Effort**: 4 hours
+- **Description**: Load and validate YAML config with caching
+- **Acceptance Criteria**:
+  - Loads YAML from configurable path
+  - Validates against schema
+  - Caches loaded config
+  - Falls back to default config if file not found
+  - Provides reload() method to clear cache
+  - Handles YAML parse errors gracefully
+
+#### 1.4 Config Loader Tests
+- **Task**: Unit tests for SubscriptionConfigLoader
+- **File**: `src/services/ingress/twitch/__tests__/subscription-config-loader.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Comprehensive tests for config loading
+- **Acceptance Criteria**:
+  - Test valid YAML loading
+  - Test invalid YAML error handling
+  - Test missing file fallback to defaults
+  - Test config caching
+  - Test reload functionality
+  - Test schema validation (invalid version, missing fields)
+  - >85% code coverage
+
+#### 1.5 Builder Registry Implementation
+- **Task**: Implement EventBuilderRegistry class
+- **File**: `src/services/ingress/twitch/event-builder-registry.ts`
+- **Effort**: 3 hours
+- **Description**: Registry for EventSub event builders
+- **Acceptance Criteria**:
+  - Registers all 4 existing builders in constructor
+  - Provides get(name) method (returns null if not found)
+  - Provides has(name) method
+  - Provides list() method
+  - Handles duplicate registration (logs warning)
+  - Fail-open strategy (returns null instead of throwing)
+
+#### 1.6 Builder Registry Tests
+- **Task**: Unit tests for EventBuilderRegistry
+- **File**: `src/services/ingress/twitch/__tests__/event-builder-registry.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Tests for builder registration and lookup
+- **Acceptance Criteria**:
+  - Test builder registration
+  - Test builder lookup (found and not found)
+  - Test has() method
+  - Test list() method
+  - Test duplicate registration warning
+  - >85% code coverage
+
+#### 1.7 Directory Structure
+- **Task**: Create config directory structure
+- **Files**:
+  - `config/platforms/twitch/` (exists)
+  - `config/schemas/` (create if needed)
+- **Effort**: 15 minutes
+- **Description**: Ensure directory structure exists
+- **Acceptance Criteria**:
+  - Directories created
+  - .gitkeep files if empty
+
+#### 1.8 Package Dependencies
+- **Task**: Verify NPM dependencies
+- **File**: `package.json`
+- **Effort**: 30 minutes
+- **Description**: Ensure all required dependencies installed
+- **Acceptance Criteria**:
+  - `js-yaml` installed (for YAML parsing)
+  - `@types/js-yaml` installed (TypeScript types)
+  - All Twurple packages at correct versions (^7.4.0)
+
+#### 1.9 Type Definitions
+- **Task**: Create TypeScript interfaces
+- **File**: `src/services/ingress/twitch/subscription-config-loader.ts`
+- **Effort**: 1 hour
+- **Description**: Define SubscriptionConfig and EventSubscriptionConfig interfaces
+- **Acceptance Criteria**:
+  - SubscriptionConfig interface exported
+  - EventSubscriptionConfig interface exported
+  - Mutation config interface defined
+  - All fields properly typed
+
+#### 1.10 Integration Smoke Test
+- **Task**: Basic integration test
+- **File**: `src/services/ingress/twitch/__tests__/config-integration.spec.ts`
+- **Effort**: 1 hour
+- **Description**: End-to-end test loading config and initializing registry
+- **Acceptance Criteria**:
+  - Loads config from fixture file
+  - Initializes registry
+  - Verifies all 4 existing builders present
+  - Validates config structure
+
+#### 1.11 Documentation - Config Format
+- **Task**: Document YAML config format
+- **File**: `planning/sprint-16-aalwmj/config-format-reference.md`
+- **Effort**: 1 hour
+- **Description**: Reference guide for subscription config format
+- **Acceptance Criteria**:
+  - Explains all top-level fields
+  - Explains subscription config fields
+  - Provides examples for common scenarios
+  - Documents channelOverrides feature
+
+#### 1.12 Milestone Review
+- **Task**: Code review and validation
+- **Effort**: 1 hour
+- **Description**: Review all M1 deliverables
+- **Acceptance Criteria**:
+  - All tests passing
+  - Code review completed
+  - Coverage >80%
+  - Documentation complete
+
+**Milestone 1 Total Effort**: ~19 hours (~2.5 days)
+
+---
+
+## Milestone 2: Core Infrastructure (Days 5-9)
+
+**Goal**: Implement subscription manager and refactor EventSub client
+
+### Success Criteria
+- [x] SubscriptionManager class implemented
+- [x] TwitchEventSubClient refactored to use SubscriptionManager
+- [x] All 4 existing events still working (backward compatibility)
+- [x] Scope validation working
+- [x] Subscription status tracking working
+- [x] Feature flag implementation complete
+- [x] All unit tests passing
+
+### Tasks (15 tasks)
+
+#### 2.1 Subscription Manager - Core Implementation
+- **Task**: Implement SubscriptionManager class skeleton
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 3 hours
+- **Description**: Core class structure with constructor
+- **Acceptance Criteria**:
+  - Constructor accepts listener, apiClient, publisher, mutationPublisher
+  - Initializes EventBuilderRegistry
+  - Initializes SubscriptionConfigLoader
+  - Initializes subscription status map
+  - Provides subscribeChannel() method signature
+  - Provides getStatus() method
+  - Provides unsubscribeAll() method
+
+#### 2.2 Subscription Manager - Event Type Mapping
+- **Task**: Implement getListenerMethod()
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 2 hours
+- **Description**: Map EventSub types to Twurple listener methods
+- **Acceptance Criteria**:
+  - Mapping for all 4 existing events
+  - Mapping for Tier 1 events (13 events)
+  - Returns null if method not found
+  - Validates method exists on listener
+  - Logs warning if method not found
+
+#### 2.3 Subscription Manager - Scope Validation
+- **Task**: Implement validateScope()
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 2 hours
+- **Description**: OAuth scope validation before subscription
+- **Acceptance Criteria**:
+  - Uses apiClient.tokenInfo to get scopes
+  - Checks if required scope present
+  - Returns boolean (true/false)
+  - Handles API errors gracefully (returns false)
+  - Logs validation results
+
+#### 2.4 Subscription Manager - Subscription Logic
+- **Task**: Implement subscribe() method
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 4 hours
+- **Description**: Core subscription creation logic
+- **Acceptance Criteria**:
+  - Gets builder from registry
+  - Gets listener method from mapping
+  - Calls listener method with event handler
+  - Event handler builds InternalEventV2
+  - Event handler publishes to message bus
+  - Event handler publishes mutation (if configured)
+  - Tracks subscription in status map
+  - Updates metrics (event count, error count)
+  - Handles errors gracefully (logs, continues)
+
+#### 2.5 Subscription Manager - Channel Subscription
+- **Task**: Implement subscribeChannel() method
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 3 hours
+- **Description**: Subscribe to all enabled events for a channel
+- **Acceptance Criteria**:
+  - Loads subscription config
+  - Applies channel overrides
+  - Iterates over enabled subscriptions
+  - Validates builder exists
+  - Validates scope (if required)
+  - Calls subscribe() for each enabled event
+  - Logs summary (total subscriptions, skipped)
+
+#### 2.6 Subscription Manager - Metrics
+- **Task**: Implement updateMetrics() method
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 1 hour
+- **Description**: Track subscription health metrics
+- **Acceptance Criteria**:
+  - Increments event count
+  - Increments error count
+  - Updates lastEventAt timestamp
+  - Updates lastErrorAt timestamp
+  - Updates subscription status (active/error)
+
+#### 2.7 Subscription Manager - Status API
+- **Task**: Implement getStatus() method
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 1 hour
+- **Description**: Return subscription status for monitoring
+- **Acceptance Criteria**:
+  - Returns array of SubscriptionStatus
+  - Includes channel, eventType, status, counts, timestamps
+  - Used by getSnapshot() in TwitchEventSubClient
+
+#### 2.8 Subscription Manager Tests
+- **Task**: Unit tests for SubscriptionManager
+- **File**: `src/services/ingress/twitch/__tests__/subscription-manager.spec.ts`
+- **Effort**: 4 hours
+- **Description**: Comprehensive tests for subscription manager
+- **Acceptance Criteria**:
+  - Test subscribeChannel() flow
+  - Test scope validation (valid/invalid)
+  - Test builder lookup (found/not found)
+  - Test listener method mapping
+  - Test metrics updates
+  - Test getStatus() API
+  - Test unsubscribeAll()
+  - >85% code coverage
+
+#### 2.9 Refactor TwitchEventSubClient - Feature Flag
+- **Task**: Add feature flag support
+- **File**: `src/services/ingress/twitch/eventsub-client.ts`
+- **Effort**: 1 hour
+- **Description**: Add ENABLE_EVENTSUB_YAML_CONFIG feature flag
+- **Acceptance Criteria**:
+  - Check env var in start() method
+  - Branch: useYamlConfig = true → new path
+  - Branch: useYamlConfig = false → legacy path
+  - Default: false (backward compatibility)
+
+#### 2.10 Refactor TwitchEventSubClient - New Path
+- **Task**: Implement YAML-driven subscription path
+- **File**: `src/services/ingress/twitch/eventsub-client.ts`
+- **Effort**: 3 hours
+- **Description**: Integrate SubscriptionManager into client
+- **Acceptance Criteria**:
+  - Initialize SubscriptionManager in start()
+  - Pass listener, apiClient, publisher, mutationPublisher
+  - Call subscribeChannel() for each channel
+  - Remove hardcoded subscription logic (when flag enabled)
+  - Update getSnapshot() to include subscription details
+
+#### 2.11 Refactor TwitchEventSubClient - Legacy Path
+- **Task**: Extract hardcoded subscriptions to method
+- **File**: `src/services/ingress/twitch/eventsub-client.ts`
+- **Effort**: 2 hours
+- **Description**: Isolate legacy subscription logic
+- **Acceptance Criteria**:
+  - Extract lines 111-259 to subscribeHardcoded() method
+  - Called when feature flag = false
+  - No behavior changes
+  - Maintains backward compatibility
+
+#### 2.12 Refactor Tests - Update Existing
+- **Task**: Update TwitchEventSubClient tests
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-client.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Update tests for refactored client
+- **Acceptance Criteria**:
+  - Tests pass with feature flag = false (legacy)
+  - Tests pass with feature flag = true (new path)
+  - Add tests for feature flag branching
+  - Maintain existing test coverage
+
+#### 2.13 Integration Test - End-to-End
+- **Task**: Integration test for new subscription flow
+- **File**: `src/services/ingress/twitch/__tests__/subscription-integration.spec.ts`
+- **Effort**: 3 hours
+- **Description**: Test full flow from config to subscription
+- **Acceptance Criteria**:
+  - Loads config from fixture
+  - Initializes SubscriptionManager
+  - Subscribes to test channel
+  - Verifies subscriptions created
+  - Simulates event, verifies InternalEventV2 published
+  - Verifies mutation published
+
+#### 2.14 Environment Variable Documentation
+- **Task**: Document ENABLE_EVENTSUB_YAML_CONFIG
+- **File**: `documentation/reference/environment-variables.md`
+- **Effort**: 30 minutes
+- **Description**: Add feature flag to environment variables reference
+- **Acceptance Criteria**:
+  - Documents flag name, type, default, purpose
+  - Explains migration path
+
+#### 2.15 Milestone Review
+- **Task**: Code review and validation
+- **Effort**: 2 hours
+- **Description**: Review all M2 deliverables
+- **Acceptance Criteria**:
+  - All tests passing (unit + integration)
+  - Feature flag works correctly
+  - Legacy path unchanged
+  - New path functional
+  - Coverage >80%
+
+**Milestone 2 Total Effort**: ~33 hours (~4 days)
+
+---
+
+## Milestone 3: Tier 1 Event Builders (Days 10-15)
+
+**Goal**: Implement 13 high-value event builders
+
+### Success Criteria
+- [x] 13 new event builders implemented
+- [x] All builders registered in EventBuilderRegistry
+- [x] YAML config updated with new events
+- [x] Unit tests for all builders (>85% coverage)
+- [x] Integration tests validating end-to-end flow
+- [x] All builders produce valid InternalEventV2 envelopes
+
+### Event Priority
+1. **channel.raid** - Community engagement
+2. **channel.subscribe** - Monetization
+3. **channel.subscription.message** - Resubscriptions
+4. **channel.subscription.gift** - Gift subs
+5. **channel.cheer** - Bits/cheers
+6. **channel.channel_points_custom_reward_redemption.add** - Channel points
+7. **channel.hype_train.begin** - Hype train start
+8. **channel.hype_train.progress** - Hype train progress
+9. **channel.hype_train.end** - Hype train end
+10. **channel.poll.begin** - Poll start
+11. **channel.poll.end** - Poll end
+12. **channel.prediction.begin** - Prediction start
+13. **channel.prediction.end** - Prediction end
+
+### Tasks (26 tasks - 2 per builder)
+
+#### 3.1 Builder: channel.raid
+- **Task**: Implement buildRaid()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map channel.raid event to InternalEventV2
+- **Acceptance Criteria**:
+  - Accepts Twurple EventSubChannelRaidEvent
+  - Returns InternalEventV2 with type: system.twitch.raid
+  - Includes raiding broadcaster, target broadcaster, viewer count
+  - Follows existing builder pattern
+  - Includes comprehensive metadata
+
+#### 3.2 Tests: channel.raid
+- **Task**: Unit tests for buildRaid()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+- **Acceptance Criteria**:
+  - Test valid event mapping
+  - Test all required fields
+  - Test optional fields
+  - Test envelope structure
+  - Verify externalEvent.kind = 'channel.raid'
+
+#### 3.3 Builder: channel.subscribe
+- **Task**: Implement buildSubscribe()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map channel.subscribe event to InternalEventV2
+- **Acceptance Criteria**:
+  - Accepts Twurple EventSubChannelSubscriptionEvent
+  - Returns InternalEventV2 with type: system.twitch.subscribe
+  - Includes user, broadcaster, tier, isGift
+  - Handles all tier types (1000, 2000, 3000, Prime)
+
+#### 3.4 Tests: channel.subscribe
+- **Task**: Unit tests for buildSubscribe()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.5 Builder: channel.subscription.message
+- **Task**: Implement buildSubscriptionMessage()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map channel.subscription.message event to InternalEventV2
+- **Acceptance Criteria**:
+  - Accepts Twurple EventSubChannelSubscriptionMessageEvent
+  - Includes cumulative months, streak months, message
+  - Includes tier and duration information
+
+#### 3.6 Tests: channel.subscription.message
+- **Task**: Unit tests for buildSubscriptionMessage()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.7 Builder: channel.subscription.gift
+- **Task**: Implement buildSubscriptionGift()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map channel.subscription.gift event to InternalEventV2
+- **Acceptance Criteria**:
+  - Includes gifter, recipient (if not anonymous)
+  - Includes tier, total count, cumulative total
+
+#### 3.8 Tests: channel.subscription.gift
+- **Task**: Unit tests for buildSubscriptionGift()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.9 Builder: channel.cheer
+- **Task**: Implement buildCheer()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map channel.cheer event to InternalEventV2
+- **Acceptance Criteria**:
+  - Includes user (may be anonymous), bits amount, message
+  - Handles anonymous cheers
+
+#### 3.10 Tests: channel.cheer
+- **Task**: Unit tests for buildCheer()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.11 Builder: channel.channel_points_custom_reward_redemption.add
+- **Task**: Implement buildChannelPointsRedemption()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map channel points redemption event
+- **Acceptance Criteria**:
+  - Includes reward ID, title, cost, prompt
+  - Includes user input (if applicable)
+  - Includes redemption status
+
+#### 3.12 Tests: channel.channel_points_custom_reward_redemption.add
+- **Task**: Unit tests for buildChannelPointsRedemption()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.13 Builder: channel.hype_train.begin
+- **Task**: Implement buildHypeTrainBegin()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map hype train begin event
+- **Acceptance Criteria**:
+  - Includes level, progress, goal, started_at
+  - Includes top contributors
+
+#### 3.14 Tests: channel.hype_train.begin
+- **Task**: Unit tests for buildHypeTrainBegin()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.15 Builder: channel.hype_train.progress
+- **Task**: Implement buildHypeTrainProgress()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map hype train progress event
+- **Acceptance Criteria**:
+  - Includes level, progress, goal
+  - Includes top contributors
+  - Similar structure to begin
+
+#### 3.16 Tests: channel.hype_train.progress
+- **Task**: Unit tests for buildHypeTrainProgress()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.17 Builder: channel.hype_train.end
+- **Task**: Implement buildHypeTrainEnd()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map hype train end event
+- **Acceptance Criteria**:
+  - Includes final level, cooldown_ends_at
+  - Includes top contributors
+
+#### 3.18 Tests: channel.hype_train.end
+- **Task**: Unit tests for buildHypeTrainEnd()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.19 Builder: channel.poll.begin
+- **Task**: Implement buildPollBegin()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map poll begin event
+- **Acceptance Criteria**:
+  - Includes poll ID, title, choices, duration
+  - Includes voting settings (channel points, bits)
+
+#### 3.20 Tests: channel.poll.begin
+- **Task**: Unit tests for buildPollBegin()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.21 Builder: channel.poll.end
+- **Task**: Implement buildPollEnd()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map poll end event
+- **Acceptance Criteria**:
+  - Includes poll ID, title, choices with vote counts
+  - Includes status (completed, archived, terminated)
+  - Includes winning choice (if applicable)
+
+#### 3.22 Tests: channel.poll.end
+- **Task**: Unit tests for buildPollEnd()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.23 Builder: channel.prediction.begin
+- **Task**: Implement buildPredictionBegin()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map prediction begin event
+- **Acceptance Criteria**:
+  - Includes prediction ID, title, outcomes, locks_at
+
+#### 3.24 Tests: channel.prediction.begin
+- **Task**: Unit tests for buildPredictionBegin()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.25 Builder: channel.prediction.end
+- **Task**: Implement buildPredictionEnd()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Map prediction end event
+- **Acceptance Criteria**:
+  - Includes prediction ID, winning outcome
+  - Includes status (resolved, canceled)
+  - Includes outcome channel points totals
+
+#### 3.26 Tests: channel.prediction.end
+- **Task**: Unit tests for buildPredictionEnd()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 3.27 Register All Builders
+- **Task**: Add all 13 builders to EventBuilderRegistry
+- **File**: `src/services/ingress/twitch/event-builder-registry.ts`
+- **Effort**: 30 minutes
+- **Description**: Register all new builders in registerBuilders() method
+- **Acceptance Criteria**:
+  - All 13 builders registered
+  - Registry.list() returns 17 builders (4 existing + 13 new)
+
+#### 3.28 Update YAML Config
+- **Task**: Enable Tier 1 events in config
+- **File**: `config/platforms/twitch/eventsub-subscriptions.yaml`
+- **Effort**: 1 hour
+- **Description**: Update YAML config with Tier 1 events
+- **Acceptance Criteria**:
+  - All 13 events defined
+  - Builder names match implementation
+  - Internal types defined
+  - Scopes documented
+  - Default: enabled = false (opt-in)
+
+#### 3.29 Update Listener Method Mapping
+- **Task**: Add Tier 1 event mappings
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 1 hour
+- **Description**: Map Tier 1 events to Twurple listener methods
+- **Acceptance Criteria**:
+  - All 13 events mapped
+  - Method names verified against Twurple docs
+  - Special cases handled (e.g., onChannelRaidTo vs onChannelRaidFrom)
+
+#### 3.30 Integration Test - Tier 1 Events
+- **Task**: End-to-end test for new events
+- **File**: `src/services/ingress/twitch/__tests__/tier1-events-integration.spec.ts`
+- **Effort**: 3 hours
+- **Description**: Test subscription and event flow for Tier 1 events
+- **Acceptance Criteria**:
+  - Test at least 3 representative events (raid, subscribe, cheer)
+  - Verify subscriptions created
+  - Simulate events, verify InternalEventV2 published
+  - Verify correct internal types
+
+#### 3.31 Milestone Review
+- **Task**: Code review and validation
+- **Effort**: 2 hours
+- **Description**: Review all M3 deliverables
+- **Acceptance Criteria**:
+  - All 13 builders implemented
+  - All tests passing
+  - Coverage >85%
+  - Integration tests passing
+
+**Milestone 3 Total Effort**: ~41 hours (~5 days)
+
+---
+
+## Milestone 4: Tier 2 Moderation Events (Days 16-19)
+
+**Goal**: Implement 5 moderation event builders (opt-in)
+
+### Success Criteria
+- [x] 5 moderation event builders implemented
+- [x] All builders registered
+- [x] YAML config updated (disabled by default)
+- [x] Per-channel override example provided
+- [x] Unit tests passing
+
+### Tasks (11 tasks)
+
+#### 4.1 Builder: channel.ban
+- **Task**: Implement buildBan()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Acceptance Criteria**:
+  - Includes user, moderator, reason, duration (timeout vs permanent)
+  - Type: system.twitch.moderation.ban
+
+#### 4.2 Tests: channel.ban
+- **Task**: Unit tests for buildBan()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 4.3 Builder: channel.unban
+- **Task**: Implement buildUnban()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+
+#### 4.4 Tests: channel.unban
+- **Task**: Unit tests for buildUnban()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 4.5 Builder: channel.moderate
+- **Task**: Implement buildModerate()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: v2 includes warning notifications
+- **Acceptance Criteria**:
+  - Includes action type, moderator, target user
+  - Handles all action types (ban, timeout, delete, etc.)
+
+#### 4.6 Tests: channel.moderate
+- **Task**: Unit tests for buildModerate()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 4.7 Builder: channel.chat.message (EventSub version)
+- **Task**: Implement buildChatMessage()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Description**: Note: Overlaps with IRC, document difference
+- **Acceptance Criteria**:
+  - Same internal type as IRC (chat.message.v1)
+  - Include badges, emotes, fragments
+  - Document when to use EventSub vs IRC
+
+#### 4.8 Tests: channel.chat.message
+- **Task**: Unit tests for buildChatMessage()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 4.9 Builder: channel.chat.message_delete
+- **Task**: Implement buildChatMessageDelete()
+- **File**: `src/services/ingress/twitch/eventsub-envelope-builder.ts`
+- **Effort**: 2 hours
+- **Acceptance Criteria**:
+  - Includes message ID, user, moderator
+  - Type: system.twitch.chat.message_delete
+
+#### 4.10 Tests: channel.chat.message_delete
+- **Task**: Unit tests for buildChatMessageDelete()
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 1 hour
+
+#### 4.11 Register Moderation Builders
+- **Task**: Add to EventBuilderRegistry
+- **File**: `src/services/ingress/twitch/event-builder-registry.ts`
+- **Effort**: 15 minutes
+
+#### 4.12 Update YAML Config - Moderation Events
+- **Task**: Add Tier 2 events to config (disabled by default)
+- **File**: `config/platforms/twitch/eventsub-subscriptions.yaml`
+- **Effort**: 1 hour
+- **Acceptance Criteria**:
+  - All 5 events defined
+  - Default: enabled = false
+  - Include note: "High volume, opt-in only"
+
+#### 4.13 Per-Channel Override Example
+- **Task**: Add channelOverrides example
+- **File**: `config/platforms/twitch/eventsub-subscriptions.yaml`
+- **Effort**: 30 minutes
+- **Description**: Show how to enable moderation events for specific channel
+- **Acceptance Criteria**:
+  - Example channelOverrides section
+  - Shows enabling channel.ban, channel.moderate for specific channel
+
+#### 4.14 Documentation - EventSub vs IRC
+- **Task**: Document chat event overlap
+- **File**: `planning/sprint-16-aalwmj/eventsub-vs-irc.md`
+- **Effort**: 1 hour
+- **Description**: Explain when to use EventSub chat events vs IRC
+- **Acceptance Criteria**:
+  - Comparison table (EventSub vs IRC)
+  - Recommendation: Use IRC for chat, EventSub for system events
+  - Explain use case for channel.chat.message (no IRC connection)
+
+#### 4.15 Milestone Review
+- **Task**: Code review and validation
+- **Effort**: 1 hour
+
+**Milestone 4 Total Effort**: ~19 hours (~2.5 days)
+
+---
+
+## Milestone 5: Observability & MCP Tools (Days 20-22)
+
+**Goal**: Add observability, metrics, and runtime control
+
+### Success Criteria
+- [x] 3 MCP tools implemented
+- [x] Subscription health metrics tracked
+- [x] Health check endpoint added
+- [x] Enhanced getSnapshot() with subscription details
+- [x] Structured logging for all events
+
+### Tasks (10 tasks)
+
+#### 5.1 MCP Tool: twitch.eventsub.subscriptions.list
+- **Task**: Implement list subscriptions tool
+- **File**: `src/services/ingress/twitch/connector-adapter.ts` (register tool)
+- **Effort**: 2 hours
+- **Description**: MCP tool to list all subscriptions
+- **Acceptance Criteria**:
+  - Returns array of subscription configs
+  - Shows enabled/disabled status
+  - Shows channel overrides
+  - Registered in ConnectorAdapter
+
+#### 5.2 MCP Tool: twitch.eventsub.subscriptions.status
+- **Task**: Implement subscription status tool
+- **File**: `src/services/ingress/twitch/connector-adapter.ts`
+- **Effort**: 2 hours
+- **Description**: Runtime subscription health status
+- **Acceptance Criteria**:
+  - Calls SubscriptionManager.getStatus()
+  - Returns channel, eventType, status, counts, timestamps
+  - Filters by channel (optional parameter)
+
+#### 5.3 MCP Tool: twitch.eventsub.config.reload
+- **Task**: Implement config reload tool
+- **File**: `src/services/ingress/twitch/connector-adapter.ts`
+- **Effort**: 2 hours
+- **Description**: Reload YAML config without restart
+- **Acceptance Criteria**:
+  - Calls SubscriptionConfigLoader.reload()
+  - Returns success/error
+  - Note: Does NOT recreate subscriptions (requires restart for now)
+  - Future: Support hot reload (Phase 2)
+
+#### 5.4 Health Check Endpoint
+- **Task**: Add /_debug/twitch/eventsub endpoint
+- **File**: `src/services/ingress/twitch/connector-adapter.ts`
+- **Effort**: 1 hour
+- **Description**: Health check for EventSub subscriptions
+- **Acceptance Criteria**:
+  - Returns subscription count, active count, error count
+  - Returns sample of recent errors
+  - Returns listener connection status
+
+#### 5.5 Enhanced getSnapshot()
+- **Task**: Update TwitchEventSubClient.getSnapshot()
+- **File**: `src/services/ingress/twitch/eventsub-client.ts`
+- **Effort**: 1 hour
+- **Description**: Include detailed subscription status
+- **Acceptance Criteria**:
+  - Includes subscriptionDetails array
+  - Each entry: channel, eventType, status, eventCount, errorCount
+  - Backward compatible with existing snapshot format
+
+#### 5.6 Structured Logging - Subscriptions
+- **Task**: Add structured logs for subscription lifecycle
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 1 hour
+- **Description**: Log subscription creation, errors, metrics
+- **Acceptance Criteria**:
+  - Log: eventsub.subscription.registered (info)
+  - Log: eventsub.subscription.failed (error)
+  - Log: eventsub.subscription.skipped (warn)
+  - Log: eventsub.event.received (debug)
+  - Log: eventsub.event.handler_error (error)
+  - All logs include channel, eventType
+
+#### 5.7 Structured Logging - Events
+- **Task**: Add structured logs for event processing
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 1 hour
+- **Description**: Log event receipt and processing
+- **Acceptance Criteria**:
+  - Log event receipt with correlationId
+  - Log processing errors with stack trace
+  - Log mutation publishing
+
+#### 5.8 Metrics Infrastructure
+- **Task**: Add metrics tracking to SubscriptionManager
+- **File**: `src/services/ingress/twitch/subscription-manager.ts`
+- **Effort**: 2 hours
+- **Description**: Track key metrics
+- **Acceptance Criteria**:
+  - Event count per subscription (total)
+  - Error count per subscription (total)
+  - Last event timestamp
+  - Last error timestamp
+  - Subscription status (active/error/disabled)
+
+#### 5.9 MCP Tool Tests
+- **Task**: Unit tests for MCP tools
+- **File**: `src/services/ingress/twitch/__tests__/mcp-tools.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Test all 3 MCP tools
+- **Acceptance Criteria**:
+  - Test list tool returns correct format
+  - Test status tool filters by channel
+  - Test reload tool updates config
+  - Mock dependencies
+
+#### 5.10 Milestone Review
+- **Task**: Code review and validation
+- **Effort**: 1 hour
+
+**Milestone 5 Total Effort**: ~15 hours (~2 days)
+
+---
+
+## Milestone 6: Testing & Validation (Days 23-27)
+
+**Goal**: Comprehensive testing and validation
+
+### Success Criteria
+- [x] >85% unit test coverage
+- [x] Integration tests passing
+- [x] Load tests passing (<100ms P95 latency)
+- [x] Agent-dev validation successful
+- [x] All edge cases covered
+
+### Tasks (12 tasks)
+
+#### 6.1 Test Fixtures - Event Samples
+- **Task**: Create test fixtures for all event types
+- **File**: `src/services/ingress/twitch/__tests__/fixtures/eventsub-events.ts`
+- **Effort**: 3 hours
+- **Description**: Sample events for all 22 event types (4 existing + 18 new)
+- **Acceptance Criteria**:
+  - Valid event structure matching Twurple types
+  - All required fields populated
+  - Optional fields included
+  - Edge cases (anonymous, missing fields)
+
+#### 6.2 Unit Tests - Config Loader Edge Cases
+- **Task**: Additional config loader tests
+- **File**: `src/services/ingress/twitch/__tests__/subscription-config-loader.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Test error conditions
+- **Acceptance Criteria**:
+  - Test malformed YAML
+  - Test invalid schema (wrong version, missing fields)
+  - Test empty config
+  - Test config with only defaults
+
+#### 6.3 Unit Tests - Subscription Manager Edge Cases
+- **Task**: Additional subscription manager tests
+- **File**: `src/services/ingress/twitch/__tests__/subscription-manager.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Test error conditions
+- **Acceptance Criteria**:
+  - Test missing builder (graceful skip)
+  - Test invalid scope (graceful skip)
+  - Test Twitch API errors (graceful degradation)
+  - Test listener method not found
+  - Test per-channel overrides
+
+#### 6.4 Unit Tests - Event Builder Edge Cases
+- **Task**: Edge case tests for all builders
+- **File**: `src/services/ingress/twitch/__tests__/eventsub-envelope-builder.spec.ts`
+- **Effort**: 3 hours
+- **Description**: Test edge cases for all 22 builders
+- **Acceptance Criteria**:
+  - Test missing optional fields
+  - Test null/undefined values
+  - Test anonymous users (cheers, gifts)
+  - Test all tier types (subscriptions)
+  - Test all outcome types (polls, predictions)
+
+#### 6.5 Integration Test - Full Config Flow
+- **Task**: End-to-end test with real config file
+- **File**: `src/services/ingress/twitch/__tests__/config-integration.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Load real config, initialize full stack
+- **Acceptance Criteria**:
+  - Loads config/platforms/twitch/eventsub-subscriptions.yaml
+  - Initializes registry, loader, manager
+  - Verifies all enabled subscriptions created
+  - Verifies disabled subscriptions skipped
+
+#### 6.6 Integration Test - Per-Channel Overrides
+- **Task**: Test channel-specific overrides
+- **File**: `src/services/ingress/twitch/__tests__/channel-overrides-integration.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Verify override logic
+- **Acceptance Criteria**:
+  - Global config: event disabled
+  - Channel override: event enabled
+  - Verify subscription created for override channel only
+  - Verify not created for other channels
+
+#### 6.7 Integration Test - Scope Validation
+- **Task**: Test OAuth scope validation
+- **File**: `src/services/ingress/twitch/__tests__/scope-validation-integration.spec.ts`
+- **Effort**: 2 hours
+- **Description**: Test scope validation prevents subscriptions
+- **Acceptance Criteria**:
+  - Mock tokenInfo with limited scopes
+  - Attempt subscription requiring missing scope
+  - Verify subscription skipped
+  - Verify warning logged
+
+#### 6.8 Load Test - Setup
+- **Task**: Create load test harness
+- **File**: `src/services/ingress/twitch/__tests__/load-test.spec.ts`
+- **Effort**: 3 hours
+- **Description**: Load test framework
+- **Acceptance Criteria**:
+  - Simulates 10 channels, 20 subscriptions each (200 total)
+  - Simulates 1000 events/minute (16.7 events/second)
+  - Runs for 5 minutes
+  - Measures latency (P50, P95, P99)
+  - Measures memory, CPU (if possible)
+
+#### 6.9 Load Test - Execution
+- **Task**: Run load test and validate results
+- **Effort**: 2 hours
+- **Description**: Execute load test, analyze results
+- **Acceptance Criteria**:
+  - P95 latency < 100ms
+  - P99 latency < 200ms
+  - Zero errors
+  - Memory stable (no leaks)
+
+#### 6.10 Agent-Dev Validation
+- **Task**: Deploy to agent-dev environment
+- **Effort**: 3 hours
+- **Description**: Full stack validation in isolated environment
+- **Acceptance Criteria**:
+  - Provision agent-dev context
+  - Deploy ingress-egress service
+  - Set ENABLE_EVENTSUB_YAML_CONFIG=true
+  - Verify service starts
+  - Verify subscriptions created (check logs)
+  - Use MCP tools to inspect status
+  - Destroy agent-dev context
+
+#### 6.11 Coverage Report
+- **Task**: Generate coverage report
+- **Effort**: 1 hour
+- **Description**: Validate test coverage
+- **Acceptance Criteria**:
+  - Run: npm test -- --coverage
+  - Overall coverage >85%
+  - All new files >80% coverage
+  - Generate HTML report
+
+#### 6.12 Milestone Review
+- **Task**: Testing review and validation
+- **Effort**: 2 hours
+- **Description**: Review all test results
+- **Acceptance Criteria**:
+  - All tests passing
+  - Coverage >85%
+  - Load test passed
+  - Agent-dev validation successful
+  - Document any issues found
+
+**Milestone 6 Total Effort**: ~27 hours (~3.5 days)
+
+---
+
+## Milestone 7: Documentation (Days 28-30)
+
+**Goal**: Complete user and developer documentation
+
+### Success Criteria
+- [x] User guide complete
+- [x] Developer guide complete
+- [x] Migration guide complete
+- [x] MCP tool reference complete
+- [x] Event catalog complete
+
+### Tasks (8 tasks)
+
+#### 7.1 User Guide - Configuration
+- **Task**: Write user guide for EventSub config
+- **File**: `documentation/guides/twitch-eventsub-config.md`
+- **Effort**: 3 hours
+- **Description**: How to configure EventSub subscriptions
+- **Acceptance Criteria**:
+  - Explains YAML config structure
+  - Shows how to enable/disable events
+  - Shows how to use per-channel overrides
+  - Explains scope requirements
+  - Provides examples for common scenarios
+  - Explains priority levels
+
+#### 7.2 Developer Guide - Adding Events
+- **Task**: Write developer guide for adding new events
+- **File**: `documentation/guides/adding-eventsub-events.md`
+- **Effort**: 2 hours
+- **Description**: How to add support for new EventSub events
+- **Acceptance Criteria**:
+  - Step-by-step process
+  - Example: Add channel.ad_break.begin
+  - Covers: builder, registry, config, tests
+  - Covers Twurple method mapping
+
+#### 7.3 Migration Guide
+- **Task**: Write migration guide from hardcoded to YAML
+- **File**: `planning/sprint-16-aalwmj/migration-guide.md`
+- **Effort**: 2 hours
+- **Description**: Migration path for existing deployments
+- **Acceptance Criteria**:
+  - Explains feature flag
+  - Shows how to enable new system
+  - Rollback procedure
+  - Testing checklist
+  - Backward compatibility guarantees
+
+#### 7.4 MCP Tool Reference
+- **Task**: Document EventSub MCP tools
+- **File**: `documentation/reference/mcp-tools-twitch.md`
+- **Effort**: 2 hours
+- **Description**: Reference for all Twitch MCP tools
+- **Acceptance Criteria**:
+  - Documents 3 EventSub tools
+  - Parameters, return types, examples
+  - Use cases for each tool
+
+#### 7.5 Event Catalog
+- **Task**: Create EventSub event catalog
+- **File**: `documentation/reference/twitch-eventsub-catalog.md`
+- **Effort**: 2 hours
+- **Description**: Complete list of supported EventSub events
+- **Acceptance Criteria**:
+  - Table of all 22 implemented events
+  - Columns: Event Type, Version, Scope, Priority, Internal Type, Status
+  - Grouped by category (channel, stream, user)
+  - Links to Twitch documentation
+
+#### 7.6 Update CLAUDE.md
+- **Task**: Add EventSub patterns to CLAUDE.md
+- **File**: `CLAUDE.md`
+- **Effort**: 1 hour
+- **Description**: Document EventSub integration pattern
+- **Acceptance Criteria**:
+  - Add section: "Integrating EventSub Events"
+  - Explain YAML config pattern
+  - Explain builder registry pattern
+  - Add code example
+
+#### 7.7 Architecture Diagram
+- **Task**: Update architecture diagrams
+- **File**: `planning/sprint-16-aalwmj/architecture-diagrams.md`
+- **Effort**: 2 hours
+- **Description**: Visual architecture overview
+- **Acceptance Criteria**:
+  - Component diagram (YAML → Manager → Listener)
+  - Sequence diagram (Event flow)
+  - ASCII art compatible
+
+#### 7.8 Milestone Review
+- **Task**: Documentation review
+- **Effort**: 1 hour
+
+**Milestone 7 Total Effort**: ~15 hours (~2 days)
+
+---
+
+## Milestone 8: Deployment & Rollout (Days 31-34)
+
+**Goal**: Deploy to production with gradual rollout
+
+### Success Criteria
+- [x] Staging deployment successful
+- [x] Canary rollout complete (10% → 50% → 100%)
+- [x] Zero production errors
+- [x] Monitoring dashboard operational
+- [x] Sprint closed
+
+### Tasks (12 tasks)
+
+#### 8.1 Pre-Deployment Checklist
+- **Task**: Validate all pre-deployment requirements
+- **Effort**: 1 hour
+- **Description**: Final checks before deployment
+- **Acceptance Criteria**:
+  - All tests passing
+  - Code review approved
+  - YAML config validated
+  - Documentation complete
+  - Rollback plan documented
+
+#### 8.2 Deploy to Staging - Config
+- **Task**: Deploy YAML config to staging
+- **Effort**: 30 minutes
+- **Description**: Deploy config files
+- **Acceptance Criteria**:
+  - Config deployed to staging environment
+  - Schema file deployed
+  - Validated with schema validator
+
+#### 8.3 Deploy to Staging - Code
+- **Task**: Deploy code changes to staging
+- **Effort**: 1 hour
+- **Description**: Deploy refactored EventSub client
+- **Acceptance Criteria**:
+  - Feature flag: ENABLE_EVENTSUB_YAML_CONFIG=false (default)
+  - Service deployed via standard deployment process
+  - Service starts successfully
+
+#### 8.4 Staging Validation - Legacy Path
+- **Task**: Validate legacy path in staging
+- **Effort**: 1 hour
+- **Description**: Ensure backward compatibility
+- **Acceptance Criteria**:
+  - Feature flag = false
+  - All 4 existing events still working
+  - No errors in logs
+  - Monitor for 1 hour
+
+#### 8.5 Staging Validation - New Path
+- **Task**: Enable feature flag and validate
+- **Effort**: 2 hours
+- **Description**: Test YAML-driven subscriptions
+- **Acceptance Criteria**:
+  - Set ENABLE_EVENTSUB_YAML_CONFIG=true
+  - Restart service
+  - Verify subscriptions created from YAML
+  - Verify all 4 existing events still working
+  - Use MCP tools to inspect status
+  - Monitor for 24 hours
+
+#### 8.6 Staging - Enable Tier 1 Events
+- **Task**: Enable Tier 1 events in staging config
+- **Effort**: 1 hour
+- **Description**: Gradually enable new events
+- **Acceptance Criteria**:
+  - Update staging YAML: set enabled=true for 3 Tier 1 events
+  - Reload config (or restart service)
+  - Verify new subscriptions created
+  - Monitor for 24 hours
+  - Check for errors, verify events received
+
+#### 8.7 Monitoring Dashboard
+- **Task**: Create monitoring dashboard
+- **Effort**: 2 hours
+- **Description**: Dashboard for EventSub health
+- **Acceptance Criteria**:
+  - Subscription count (total, active, error)
+  - Event rate per event type
+  - Error rate per event type
+  - Latency metrics (P50, P95, P99)
+  - Service health
+
+#### 8.8 Production Deployment - Config
+- **Task**: Deploy YAML config to production
+- **Effort**: 30 minutes
+- **Description**: Deploy config (feature flag OFF)
+- **Acceptance Criteria**:
+  - Config deployed
+  - Feature flag = false
+  - No behavior change
+
+#### 8.9 Production Deployment - Code
+- **Task**: Deploy code to production
+- **Effort**: 1 hour
+- **Description**: Deploy with feature flag OFF
+- **Acceptance Criteria**:
+  - Code deployed
+  - Service restarts successfully
+  - Legacy path active
+  - Monitor for 24 hours
+
+#### 8.10 Production Canary - 10%
+- **Task**: Enable for 1-2 channels
+- **Effort**: 2 hours
+- **Description**: Initial canary rollout
+- **Acceptance Criteria**:
+  - Identify 1-2 low-traffic channels
+  - Set ENABLE_EVENTSUB_YAML_CONFIG=true for those instances
+  - Monitor for 72 hours
+  - Check error rate, latency, event volume
+  - Verify zero errors
+
+#### 8.11 Production Rollout - 50%
+- **Task**: Enable for 50% of channels
+- **Effort**: 2 hours
+- **Description**: Expand rollout
+- **Acceptance Criteria**:
+  - Enable feature flag for 50% of channels
+  - Monitor for 72 hours
+  - Verify metrics stable
+
+#### 8.12 Production Rollout - 100%
+- **Task**: Enable for all channels
+- **Effort**: 2 hours
+- **Description**: Complete rollout
+- **Acceptance Criteria**:
+  - Enable feature flag globally
+  - Monitor for 1 week
+  - Verify zero errors
+  - Verify performance metrics met
+
+#### 8.13 Post-Deployment - Remove Legacy Code
+- **Task**: Clean up legacy subscription code
+- **Effort**: 2 hours
+- **Description**: Remove hardcoded subscriptions (future sprint)
+- **Acceptance Criteria**:
+  - Remove subscribeHardcoded() method
+  - Remove feature flag
+  - Update tests
+  - Deploy (separate PR)
+
+#### 8.14 Sprint Completion
+- **Task**: Complete sprint artifacts
+- **Effort**: 2 hours
+- **Description**: Finalize sprint documentation
+- **Acceptance Criteria**:
+  - Update sprint manifest (status: complete)
+  - Write retrospective
+  - Document lessons learned
+  - Verify all deliverables complete
+  - Close sprint via MCP tool
+
+**Milestone 8 Total Effort**: ~19 hours (~2.5 days)
+
+---
+
+## Critical Path Analysis
+
+```
+M1 (Foundation) → M2 (Core Infrastructure) → M3 (Tier 1 Events) → M6 (Testing) → M8 (Deployment)
+                                              ↓
+                                          M4 (Tier 2 Events)
+                                              ↓
+                        M5 (Observability) → M6 (Testing)
+                                              ↓
+                                          M7 (Documentation) → M8 (Deployment)
+```
+
+**Critical Path**: M1 → M2 → M3 → M6 → M7 → M8
+**Parallel Tracks**:
+- M4 can run parallel to M3 (if resources available)
+- M5 can start after M2 completes
+- M7 can start once M3 complete (doesn't block deployment)
+
+---
+
+## Risk Mitigation
+
+### High-Risk Tasks
+1. **M2.10 - Refactor TwitchEventSubClient** (Medium Risk)
+   - Mitigation: Feature flag ensures backward compatibility
+   - Extensive testing before enabling flag
+   - Rollback plan ready
+
+2. **M6.9 - Load Test Execution** (Medium Risk)
+   - Mitigation: Run multiple iterations
+   - Identify bottlenecks early
+   - Plan optimizations if needed
+
+3. **M8.10-8.12 - Production Rollout** (Medium Risk)
+   - Mitigation: Gradual rollout (10% → 50% → 100%)
+   - 72-hour monitoring between phases
+   - Instant rollback available
+
+### Dependencies
+- **Twurple Library**: Pin to v7.4.0+, monitor for breaking changes
+- **Twitch API**: Monitor for EventSub API changes
+- **OAuth Scopes**: Validate all scopes before deployment
+
+---
+
+## Effort Summary
+
+| Milestone | Effort (hours) | Effort (days) |
+|-----------|----------------|---------------|
+| M1: Foundation | 19 | 2.5 |
+| M2: Core Infrastructure | 33 | 4.0 |
+| M3: Tier 1 Events | 41 | 5.0 |
+| M4: Tier 2 Events | 19 | 2.5 |
+| M5: Observability | 15 | 2.0 |
+| M6: Testing | 27 | 3.5 |
+| M7: Documentation | 15 | 2.0 |
+| M8: Deployment | 19 | 2.5 |
+| **Total** | **188 hours** | **24 days** |
+
+**Assumptions**:
+- 8 hours per working day
+- Single developer (serialized tasks)
+- No major blockers or rework
+
+**Realistic Estimate with Buffer**: 26-34 days (5-7 weeks)
+
+---
+
+## Next Steps
+
+1. **Review this execution plan** with stakeholders
+2. **Approve YAML backlog** (see backlog.yaml)
+3. **Start Milestone 1** (Foundation)
+4. **Daily standups** to track progress
+5. **Weekly reviews** at end of each milestone
+
+---
+
+**Document Control**
+
+**Version**: 1.0
+**Last Updated**: 2026-08-16
+**Author**: Claude Code (Lead Implementor)
+**Related**: `technical-architecture.md`, `backlog.yaml`
+**Status**: Ready for Execution

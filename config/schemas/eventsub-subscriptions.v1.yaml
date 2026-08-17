@@ -1,0 +1,209 @@
+# JSON Schema for Twitch EventSub Subscription Configuration
+# Version: 1.0
+# Sprint: sprint-16-aalwmj
+#
+# This schema validates the structure of eventsub-subscriptions.yaml
+# to ensure configuration correctness before runtime.
+
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://bitbrat.dev/schemas/eventsub-subscriptions.v1.yaml
+title: Twitch EventSub Subscription Configuration
+description: |
+  Defines which Twitch EventSub events the platform subscribes to,
+  including per-event configuration (scope, priority, builder) and
+  per-channel overrides.
+
+type: object
+required:
+  - version
+  - subscriptions
+
+properties:
+  version:
+    type: integer
+    const: 1
+    description: Configuration schema version (must be 1)
+
+  subscriptions:
+    type: object
+    description: |
+      Map of EventSub event types to their configuration.
+      Key: EventSub event type (e.g., "channel.follow", "stream.online")
+      Value: Event subscription configuration
+    additionalProperties:
+      $ref: '#/definitions/EventSubscriptionConfig'
+    minProperties: 1
+
+  channelOverrides:
+    type: object
+    description: |
+      Per-channel subscription overrides. Allows enabling/disabling
+      specific events for individual channels.
+      Key: Channel name (lowercase, without # prefix)
+      Value: Map of event types to override configuration
+    additionalProperties:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          enabled:
+            type: boolean
+            description: Override enabled/disabled status for this channel
+    default: {}
+
+definitions:
+  EventSubscriptionConfig:
+    type: object
+    required:
+      - enabled
+      - builder
+      - internalType
+    properties:
+      enabled:
+        type: boolean
+        description: |
+          Whether this subscription is active globally.
+          Can be overridden per-channel via channelOverrides.
+
+      version:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 1
+        description: |
+          EventSub API version (e.g., 1, 2).
+          Twitch may have multiple versions of the same event type.
+
+      scope:
+        type: string
+        pattern: '^[a-z:_]+$'
+        description: |
+          Required OAuth scope for this subscription (if any).
+          Examples: "moderator:read:followers", "channel:read:subscriptions"
+          If omitted, no special scope is required.
+
+      priority:
+        type: string
+        enum:
+          - critical
+          - high
+          - medium
+          - low
+        description: |
+          Event priority classification:
+          - critical: Core platform functionality (e.g., stream state)
+          - high: Important engagement/monetization events
+          - medium: Useful but not critical
+          - low: High volume or optional events
+
+      builder:
+        type: string
+        pattern: '^build[A-Z][a-zA-Z0-9]*$'
+        description: |
+          Builder method name in EventSubEnvelopeBuilder class.
+          Must match pattern: buildCamelCase (e.g., buildFollow, buildRaid).
+          The builder is responsible for converting the Twitch EventSub
+          event to an InternalEventV2 envelope.
+
+      internalType:
+        type: string
+        pattern: '^(system|chat)\.[a-z0-9.]+$'
+        description: |
+          Internal event type for InternalEventV2 envelope.
+          Must start with "system." or "chat." followed by dot-separated
+          lowercase identifiers.
+          Examples: "system.twitch.follow", "chat.message.v1"
+
+      description:
+        type: string
+        minLength: 10
+        maxLength: 500
+        description: |
+          Human-readable description of what this event represents.
+          Used for documentation and debugging.
+
+      mutation:
+        type: object
+        description: |
+          Optional state mutation to publish when this event is received.
+          Used for events that affect platform state (e.g., stream.online
+          sets stream.state = "on").
+        required:
+          - key
+          - value
+        properties:
+          key:
+            type: string
+            pattern: '^[a-z][a-z0-9._]*$'
+            description: |
+              State key to mutate (dot-separated path).
+              Examples: "stream.state", "channel.live"
+
+          value:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+            description: |
+              Value to set for the state key.
+              Type depends on the state key's expected type.
+
+          ttl:
+            type: integer
+            minimum: 1
+            maximum: 86400
+            default: 21600
+            description: |
+              Time-to-live in seconds for the state mutation.
+              Default: 21600 (6 hours)
+
+examples:
+  - version: 1
+    subscriptions:
+      channel.follow:
+        enabled: true
+        version: 2
+        scope: moderator:read:followers
+        priority: high
+        builder: buildFollow
+        internalType: system.twitch.follow
+        description: New follower event
+
+      stream.online:
+        enabled: true
+        version: 1
+        priority: critical
+        builder: buildStreamOnline
+        internalType: system.stream.online
+        description: Stream goes live
+        mutation:
+          key: stream.state
+          value: on
+          ttl: 21600
+
+      channel.raid:
+        enabled: false
+        version: 1
+        priority: high
+        builder: buildRaid
+        internalType: system.twitch.raid
+        description: Broadcaster raids another channel
+
+    channelOverrides:
+      bitbrat:
+        channel.raid:
+          enabled: true
+        channel.moderate:
+          enabled: true
+
+# Validation Rules Summary:
+# 1. version must be exactly 1
+# 2. subscriptions must have at least 1 event defined
+# 3. Each subscription must have: enabled, builder, internalType
+# 4. builder must start with "build" followed by CamelCase
+# 5. internalType must start with "system." or "chat."
+# 6. scope (if present) must be lowercase with colons/underscores
+# 7. priority must be one of: critical, high, medium, low
+# 8. mutation key must be dot-separated lowercase
+# 9. mutation ttl must be 1-86400 seconds (max 24 hours)
+# 10. channelOverrides keys are channel names (lowercase)

@@ -171,7 +171,7 @@ export interface IntegrationBitConfig {
  * ```
  */
 export class IntegrationBit extends Bit {
-  private connectorManager: ConnectorManager;
+  protected connectorManager: ConnectorManager;
   private instanceId: string;
   private egressTopic: string;
   private statusMonitorInterval?: NodeJS.Timeout;
