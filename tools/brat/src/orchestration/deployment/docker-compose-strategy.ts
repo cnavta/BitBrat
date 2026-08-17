@@ -1178,37 +1178,39 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       }
 
       // ============================================================================
-      // STAGE 8: Extract buildable services from merged compose file
+      // STAGE 8: Extract services to start from merged compose file
       // ============================================================================
 
-      // Sprint 378: For bulk deployments, we need to tell the orchestrator which services
-      // to build and start. We extract this from the LOCAL merged file BEFORE passing
-      // the path to the orchestrator (which might be a remote path).
+      // Sprint 17 Fix: Include ALL services in the merged compose file, not just those
+      // with build sections. Services with pre-built images (e.g., obs-mcp) also need
+      // to be started by docker compose up.
+      //
+      // Previous behavior (Sprint 378): Only included services with build: sections
+      // or infrastructure services, which excluded image-only services like obs-mcp.
+      //
+      // Docker Compose handles the distinction between:
+      // - Services with build: sections (needs docker build + docker compose up)
+      // - Services with image: only (needs docker pull + docker compose up)
       const mergedCompose = yaml.load(mergedYaml) as any;
-      const buildableServices: string[] = [];
-
-      // Sprint 5 I3.2: Get infrastructure services from InfrastructureRegistry
-      // (replaces hardcoded list from Sprint 3 Fix #11)
-      const infrastructureServices = InfrastructureRegistry.getInfrastructureServices(
-        repoRoot,
-        context.name
-      );
+      const servicesToStart: string[] = [];
 
       if (mergedCompose?.services && typeof mergedCompose.services === 'object') {
         for (const [serviceName, serviceConfig] of Object.entries(mergedCompose.services)) {
           const service = serviceConfig as any;
-          // Include services that have a build section OR are infrastructure services
+          // Include ALL services present in merged compose file
+          // This includes:
+          // - Services with build: sections (locally built)
+          // - Services with image: only (pre-built, pulled from registry)
+          // - Infrastructure services (postgres, nats, redis, etc.)
           if (service && typeof service === 'object') {
-            if (service.build != null || infrastructureServices.includes(serviceName)) {
-              buildableServices.push(serviceName);
-            }
+            servicesToStart.push(serviceName);
           }
         }
       }
 
       console.log(
-        `[docker-compose-strategy] Extracted ${buildableServices.length} buildable service(s): ` +
-          buildableServices.join(', ')
+        `[docker-compose-strategy] Extracted ${servicesToStart.length} service(s) to start: ` +
+          servicesToStart.join(', ')
       );
 
       // ============================================================================
@@ -1235,7 +1237,7 @@ export class DockerComposeStrategy implements DeploymentStrategy {
         context: context.name,
         service: undefined, // Deploy all services
         composeFile: composeFilePath, // Use merged compose file (local or remote path)
-        servicesToStart: buildableServices, // Sprint 378: Explicit list of services to build/start
+        servicesToStart: servicesToStart, // Sprint 17 Fix: All services (build + image-only)
         allServiceNames: serviceNames, // Sprint 379: Enable PortManager for bulk deployments
         dryRun: options.dryRun || false,
         forceRecreate: options.forceRecreate || false,
