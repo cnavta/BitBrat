@@ -4,7 +4,9 @@ goal: Investigate and fix why obs-mcp service is recognized but not deployed
   when running 'brat bit deploy --all'
 owner: christophernavta
 createdAt: 2026-08-17T18:00:26.131Z
-status: in-progress
+status: complete
 links:
   branch: feature/sprint-17-btnxhl-obs-mcp-deployment-fix
 notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-17T18:07:47.150Z
+completionMode: normal
