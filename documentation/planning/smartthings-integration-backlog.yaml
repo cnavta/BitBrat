@@ -1,0 +1,1093 @@
+# SmartThings Integration - Trackable Backlog
+# Version: 1.0
+# Date: 2026-08-16
+# Status: Ready for Implementation
+#
+# This YAML file provides a prioritized, trackable backlog for the SmartThings integration.
+# Each task includes: ID, title, description, story points, priority, dependencies, and acceptance criteria.
+#
+# Usage:
+# - Update 'status' field as work progresses: todo → in_progress → done → verified
+# - Track blockers in 'blockers' field
+# - Update 'assignee' when task is assigned
+# - Update 'completed_date' when task is completed
+
+metadata:
+  project: smartthings-integration
+  version: 1.0
+  created: "2026-08-16"
+  total_story_points: 60
+  estimated_duration: "4-6 weeks"
+  sprints: 4
+
+# ============================================================================
+# SPRINT 1: Foundation & Webhook Ingress (21 SP, 2 weeks)
+# ============================================================================
+
+sprint_1:
+  name: "Foundation & Webhook Ingress"
+  duration: "2 weeks"
+  story_points: 21
+  priority: P0
+  goal: "Implement basic webhook ingress, OAuth2 foundation, and DEVICE_EVENT handling"
+
+  tasks:
+    - id: ST-101
+      title: "Project Setup - Directory Structure"
+      description: |
+        Create SmartThings connector directory structure matching existing patterns (Discord, Twilio).
+        Set up Jest test configuration and add dependencies to package.json.
+      type: setup
+      story_points: 3
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: []
+      files_to_create:
+        - src/services/ingress/smartthings/index.ts
+        - src/services/ingress/smartthings/types.ts
+        - src/services/ingress/smartthings/factory.ts
+        - src/services/ingress/smartthings/connector-adapter.ts
+        - src/services/ingress/smartthings/webhook-handler.ts
+        - src/services/ingress/smartthings/oauth-client.ts
+        - src/services/ingress/smartthings/__tests__/webhook-handler.test.ts
+        - src/services/ingress/smartthings/__tests__/connector-adapter.test.ts
+      acceptance_criteria:
+        - Directory structure matches existing connectors
+        - TypeScript compiles without errors
+        - Jest test suite runs (empty tests OK)
+        - Dependencies added to package.json
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+    - id: ST-102
+      title: "SmartThings Types Definition"
+      description: |
+        Define TypeScript types for SmartThings payloads, events, and configuration.
+        Include: SmartThingsEventNotification, SmartThingsSinkConfirmation, SmartThingsDeviceEvent, etc.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-101]
+      files_to_create:
+        - src/services/ingress/smartthings/types.ts
+      acceptance_criteria:
+        - All SmartThings payload types defined
+        - Types match SmartThings API documentation
+        - No TypeScript compilation errors
+        - Types include JSDoc comments
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-103
+      title: "Webhook Handler - Sink Confirmation"
+      description: |
+        Implement sink confirmation challenge-response handler.
+        SmartThings sends SINK_CONFIRMATION during webhook registration; must echo confirmation URL.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-102]
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+      acceptance_criteria:
+        - handleSinkConfirmation() returns correct response format
+        - Logs confirmation event
+        - Returns 200 status with targetUrl and confirmationUrl
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-104
+      title: "Webhook Handler - Event Batch Processing"
+      description: |
+        Implement event batch processing logic.
+        Parse SmartThings EVENT notifications, iterate through batched events, translate each event.
+      type: implementation
+      story_points: 3
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-103]
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+      acceptance_criteria:
+        - handleEventBatch() parses event array
+        - Each event processed individually
+        - Partial failures don't block entire batch
+        - Returns 200 status with event count
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+    - id: ST-105
+      title: "Webhook Handler - Deduplication Logic"
+      description: |
+        Implement event deduplication using eventId tracking.
+        Prevent duplicate event processing with TTL-based cleanup.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-104]
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+      acceptance_criteria:
+        - processedEventIds Set tracks event IDs
+        - Duplicate events skipped
+        - TTL cleanup after 5 minutes
+        - Deduplication logged
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-106
+      title: "Webhook Handler - Translation Integration"
+      description: |
+        Integrate webhook handler with TranslationEngine.
+        Translate SmartThings events to InternalEventV2 and publish to internal.ingress.v1.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-105]
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+      acceptance_criteria:
+        - TranslationEngine.translateInbound() called for each event
+        - InternalEventV2 published to correct topic
+        - Translation errors logged
+        - Correlation IDs preserved
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-107
+      title: "Connector Adapter - IngressConnector Interface"
+      description: |
+        Implement IngressConnector interface (start, stop, getSnapshot, getMetadata).
+        For webhook-based connectors, start() is mostly a no-op.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-102]
+      files_to_modify:
+        - src/services/ingress/smartthings/connector-adapter.ts
+      acceptance_criteria:
+        - start() sets state to CONNECTED
+        - stop() sets state to DISCONNECTED
+        - getSnapshot() returns accurate state
+        - getMetadata() returns correct platform info
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-108
+      title: "Connector Adapter - WebhookConnector Interface"
+      description: |
+        Implement WebhookConnector interface (verifySignature, handleWebhook).
+        SmartThings doesn't provide signatures, so verifySignature returns true.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-107, ST-106]
+      files_to_modify:
+        - src/services/ingress/smartthings/connector-adapter.ts
+      acceptance_criteria:
+        - verifySignature() returns true (no-op)
+        - handleWebhook() delegates to webhook handler
+        - Snapshot updated after webhook
+        - Errors caught and logged
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-109
+      title: "Factory Function Implementation"
+      description: |
+        Create factory function for SmartThings connector.
+        Follow pattern: createSmartThingsConnector(config, opts) => ConnectorAdapter
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-108]
+      files_to_modify:
+        - src/services/ingress/smartthings/factory.ts
+      acceptance_criteria:
+        - Factory function matches ConnectorFactory type
+        - Creates all required components (handler, adapter)
+        - Integrates with ConfigRegistry/TranslationEngine
+        - Returns configured adapter
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-110
+      title: "YAML Event Mapping - iot.device.event.v1"
+      description: |
+        Create internal event definition for iot.device.event.v1.
+        Define schema, supported platforms, metadata.
+      type: configuration
+      story_points: 1
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: []
+      files_to_create:
+        - config/events/iot-device-event.v1.yaml
+      acceptance_criteria:
+        - YAML syntax valid
+        - Schema includes required fields
+        - supportedPlatforms includes 'smartthings'
+        - ConfigRegistry loads successfully
+      estimated_hours: 1
+      started_date: null
+      completed_date: null
+
+    - id: ST-111
+      title: "YAML Platform Mapping - device-event.v1"
+      description: |
+        Create platform mapping for SmartThings DEVICE_EVENT → iot.device.event.v1.
+        Define field mapping, priority, metadata.
+      type: configuration
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-110]
+      files_to_create:
+        - config/platforms/smartthings/device-event.v1.yaml
+      acceptance_criteria:
+        - Field mapping matches SmartThings payload structure
+        - Priority set to 0 (default)
+        - Custom fields preserved
+        - ConfigRegistry loads mapping
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-112
+      title: "Unit Tests - Webhook Handler"
+      description: |
+        Write comprehensive unit tests for SmartThingsWebhookHandler.
+        Cover sink confirmation, event batching, deduplication, translation.
+      type: testing
+      story_points: 4
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-106, ST-111]
+      files_to_create:
+        - src/services/ingress/smartthings/__tests__/webhook-handler.test.ts
+      acceptance_criteria:
+        - Sink confirmation test passes
+        - Event batch processing test passes
+        - Deduplication test passes
+        - Partial failure test passes
+        - Code coverage > 90%
+      estimated_hours: 6
+      started_date: null
+      completed_date: null
+
+    - id: ST-113
+      title: "Unit Tests - Connector Adapter"
+      description: |
+        Write unit tests for SmartThingsConnectorAdapter.
+        Test IngressConnector and WebhookConnector interfaces.
+      type: testing
+      story_points: 3
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-108]
+      files_to_create:
+        - src/services/ingress/smartthings/__tests__/connector-adapter.test.ts
+      acceptance_criteria:
+        - start/stop tests pass
+        - getSnapshot test passes
+        - getMetadata test passes
+        - handleWebhook test passes
+        - Code coverage > 90%
+      estimated_hours: 5
+      started_date: null
+      completed_date: null
+
+# ============================================================================
+# SPRINT 2: Egress & Device Control (13 SP, 1 week)
+# ============================================================================
+
+sprint_2:
+  name: "Egress & Device Control"
+  duration: "1 week"
+  story_points: 13
+  priority: P0
+  goal: "Implement device command execution and bidirectional communication"
+
+  tasks:
+    - id: ST-201
+      title: "OAuth Client - Authorization URL Generation"
+      description: |
+        Implement OAuth2 authorization URL generation.
+        Include client_id, scopes, redirect_uri, state.
+      type: implementation
+      story_points: 1
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-109]
+      files_to_create:
+        - src/services/ingress/smartthings/oauth-client.ts
+      acceptance_criteria:
+        - getAuthorizationUrl() returns valid URL
+        - URL includes all required parameters
+        - State parameter preserved
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-202
+      title: "OAuth Client - Code Exchange"
+      description: |
+        Implement authorization code exchange for access token.
+        Save token to IAuthTokenStoreV2.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-201]
+      files_to_modify:
+        - src/services/ingress/smartthings/oauth-client.ts
+      acceptance_criteria:
+        - exchangeCodeForToken() successfully exchanges code
+        - Token saved to IAuthTokenStoreV2
+        - Includes access_token, refresh_token, expiresAt
+        - Error handling for failed exchange
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-203
+      title: "OAuth Client - Token Refresh"
+      description: |
+        Implement token refresh logic with auto-refresh before expiration.
+        Use refresh token to get new access token.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-202]
+      files_to_modify:
+        - src/services/ingress/smartthings/oauth-client.ts
+      acceptance_criteria:
+        - refreshToken() gets new access token
+        - getAccessToken() auto-refreshes if expiring soon (<5min)
+        - Updated token saved to store
+        - Refresh logged
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-204
+      title: "Egress Client - Device Command Execution"
+      description: |
+        Implement device command execution via SmartThings API.
+        Support switch, lock, dimmer, etc.
+      type: implementation
+      story_points: 3
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-203]
+      files_to_create:
+        - src/services/ingress/smartthings/egress-client.ts
+      acceptance_criteria:
+        - sendDeviceCommand() sends API request
+        - Uses OAuth token from client
+        - Supports capability/command pattern
+        - Error handling for API failures
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+    - id: ST-205
+      title: "Egress Client - Device Status Queries"
+      description: |
+        Implement device status queries via SmartThings API.
+        Return device state for all capabilities.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-204]
+      files_to_modify:
+        - src/services/ingress/smartthings/egress-client.ts
+      acceptance_criteria:
+        - queryDeviceStatus() returns device state
+        - Includes all capability values
+        - Error handling for not found
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-206
+      title: "Egress Client - List Devices"
+      description: |
+        Implement device listing via SmartThings API.
+        Support filtering by location.
+      type: implementation
+      story_points: 1
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-205]
+      files_to_modify:
+        - src/services/ingress/smartthings/egress-client.ts
+      acceptance_criteria:
+        - listDevices() returns device array
+        - Supports locationId filter
+        - Pagination handled
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-207
+      title: "Connector Adapter - EgressConnector Interface"
+      description: |
+        Update SmartThingsConnectorAdapter to implement EgressConnector.
+        Add sendDeviceCommand() and queryDeviceStatus() methods.
+      type: implementation
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-205]
+      files_to_modify:
+        - src/services/ingress/smartthings/connector-adapter.ts
+      acceptance_criteria:
+        - Implements EgressConnector interface
+        - sendDeviceCommand() delegates to egress client
+        - queryDeviceStatus() works
+        - sendText() throws error (not applicable)
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-208
+      title: "Integration Tests - OAuth Flow"
+      description: |
+        Create integration tests for OAuth flow.
+        Test authorization URL, code exchange, token refresh.
+      type: testing
+      story_points: 2
+      priority: P0
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-203]
+      files_to_create:
+        - src/services/ingress/smartthings/__tests__/integration.test.ts
+      acceptance_criteria:
+        - Authorization URL test passes
+        - Code exchange test (manual/skip)
+        - Token refresh test passes
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-209
+      title: "Integration Tests - Device Commands"
+      description: |
+        Create integration tests for device commands.
+        Requires SmartThings test account with real devices.
+      type: testing
+      story_points: 3
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: ["Requires SmartThings test account"]
+      dependencies: [ST-207]
+      files_to_modify:
+        - src/services/ingress/smartthings/__tests__/integration.test.ts
+      acceptance_criteria:
+        - Device command test passes (with real device)
+        - Device status query test passes
+        - List devices test passes
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+# ============================================================================
+# SPRINT 3: Advanced Events & Features (13 SP, 1 week)
+# ============================================================================
+
+sprint_3:
+  name: "Advanced Events & Features"
+  duration: "1 week"
+  story_points: 13
+  priority: P1
+  goal: "Support additional event types and advanced capabilities"
+
+  tasks:
+    - id: ST-301
+      title: "YAML Event Mapping - iot.device.health-event.v1"
+      description: |
+        Create event definition and platform mapping for DEVICE_HEALTH_EVENT.
+        Track device online/offline status, battery levels.
+      type: configuration
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-111]
+      files_to_create:
+        - config/events/iot-device-health-event.v1.yaml
+        - config/platforms/smartthings/device-health-event.v1.yaml
+      acceptance_criteria:
+        - Event definition created
+        - Platform mapping created
+        - ConfigRegistry loads successfully
+        - TranslationEngine translates sample event
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-302
+      title: "YAML Event Mapping - iot.appliance.event.v1"
+      description: |
+        Create event definition and platform mapping for APPLIANCE_DIAGNOSTIC_EVENT.
+        Track Samsung appliance status (washer, dryer, refrigerator).
+      type: configuration
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-111]
+      files_to_create:
+        - config/events/iot-appliance-event.v1.yaml
+        - config/platforms/smartthings/appliance-diagnostic-event.v1.yaml
+      acceptance_criteria:
+        - Event definition created
+        - Platform mapping created
+        - Supports diagnostic codes
+        - TranslationEngine works
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-303
+      title: "YAML Event Mapping - iot.mode.event.v1"
+      description: |
+        Create event definition and platform mapping for MODE_EVENT.
+        Track location mode changes (Home, Away, Night).
+      type: configuration
+      story_points: 1
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-111]
+      files_to_create:
+        - config/events/iot-mode-event.v1.yaml
+        - config/platforms/smartthings/mode-event.v1.yaml
+      acceptance_criteria:
+        - Event definition created
+        - Platform mapping created
+        - Mode changes tracked
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-304
+      title: "Event Filtering - Device Type Filter"
+      description: |
+        Implement event filtering by device type.
+        Allow configuration to filter out unwanted device events.
+      type: implementation
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-106]
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+      acceptance_criteria:
+        - Filter by device type works
+        - Filtered events logged
+        - Configuration-driven filtering
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-305
+      title: "Event Filtering - Location & Capability Filters"
+      description: |
+        Implement event filtering by location and capability.
+        Support allowlists and blocklists.
+      type: implementation
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-304]
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+      acceptance_criteria:
+        - Filter by location works
+        - Filter by capability works
+        - Allowlist/blocklist supported
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-306
+      title: "Rate Limiter Implementation"
+      description: |
+        Implement rate limiter for SmartThings API requests.
+        Prevent exceeding API rate limits (10 req/sec, burst 20).
+      type: implementation
+      story_points: 3
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-204]
+      files_to_create:
+        - src/services/ingress/smartthings/rate-limiter.ts
+      acceptance_criteria:
+        - Rate limiter queues requests
+        - Burst requests handled
+        - Integrates with egress client
+        - Configurable limits
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+    - id: ST-307
+      title: "Exponential Backoff on Errors"
+      description: |
+        Implement exponential backoff retry logic for transient API errors.
+        Don't retry on 4xx errors.
+      type: implementation
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-306]
+      files_to_modify:
+        - src/services/ingress/smartthings/egress-client.ts
+      acceptance_criteria:
+        - Retries on 5xx errors
+        - Exponential backoff applied
+        - No retry on 4xx errors
+        - Max retries configurable
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-308
+      title: "Tests - Additional Event Types"
+      description: |
+        Write tests for health, appliance, and mode event mappings.
+      type: testing
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-301, ST-302, ST-303]
+      files_to_modify:
+        - src/services/ingress/smartthings/__tests__/webhook-handler.test.ts
+      acceptance_criteria:
+        - Health event test passes
+        - Appliance event test passes
+        - Mode event test passes
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+# ============================================================================
+# SPRINT 4: Production Hardening (13 SP, 1 week)
+# ============================================================================
+
+sprint_4:
+  name: "Production Hardening"
+  duration: "1 week"
+  story_points: 13
+  priority: P1
+  goal: "Error handling, monitoring, documentation, load testing"
+
+  tasks:
+    - id: ST-401
+      title: "Circuit Breaker Implementation"
+      description: |
+        Implement circuit breaker pattern for SmartThings API.
+        Prevent cascading failures when API is down.
+      type: implementation
+      story_points: 3
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-307]
+      files_to_create:
+        - src/services/ingress/smartthings/circuit-breaker.ts
+      acceptance_criteria:
+        - Circuit breaker opens after 5 failures
+        - Half-open state after cooldown
+        - Integrates with egress client
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+    - id: ST-402
+      title: "Prometheus Metrics Implementation"
+      description: |
+        Implement Prometheus-style metrics for SmartThings connector.
+        Track requests, events, errors, latency.
+      type: implementation
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-207]
+      files_to_create:
+        - src/services/ingress/smartthings/metrics.ts
+      acceptance_criteria:
+        - Metrics exposed via /metrics
+        - Tracks webhook requests, events, API calls
+        - Latency histogram implemented
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-403
+      title: "Structured Logging Enhancement"
+      description: |
+        Enhance logging with correlation IDs, structured fields.
+        Support distributed tracing.
+      type: implementation
+      story_points: 1
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: []
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+        - src/services/ingress/smartthings/connector-adapter.ts
+        - src/services/ingress/smartthings/egress-client.ts
+      acceptance_criteria:
+        - All logs include correlationId
+        - Structured logging used throughout
+        - Error logs include stack traces
+      estimated_hours: 2
+      started_date: null
+      completed_date: null
+
+    - id: ST-404
+      title: "Load Testing - Event Throughput"
+      description: |
+        Create load tests to validate 100 events/second throughput.
+        Test with simulated webhook batches.
+      type: testing
+      story_points: 3
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-113]
+      files_to_create:
+        - test/load/smartthings-load.test.ts
+      acceptance_criteria:
+        - System handles 100 events/second
+        - Large batches (100 events) processed
+        - No memory leaks detected
+        - p99 latency < 500ms
+      estimated_hours: 5
+      started_date: null
+      completed_date: null
+
+    - id: ST-405
+      title: "Documentation - Setup Guide"
+      description: |
+        Create comprehensive setup guide for SmartThings integration.
+        Include OAuth setup, device configuration, troubleshooting.
+      type: documentation
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-209]
+      files_to_create:
+        - documentation/guides/smartthings-setup-guide.md
+      acceptance_criteria:
+        - Step-by-step OAuth setup
+        - Device pairing instructions
+        - Troubleshooting section
+        - Screenshots included
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+    - id: ST-406
+      title: "Documentation - API Reference"
+      description: |
+        Create API reference documentation for SmartThings connector.
+        Document all public methods, types, configuration.
+      type: documentation
+      story_points: 1
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-207]
+      files_to_create:
+        - documentation/reference/smartthings-connector-api.md
+      acceptance_criteria:
+        - All public APIs documented
+        - Type signatures included
+        - Examples provided
+        - Configuration reference complete
+      estimated_hours: 3
+      started_date: null
+      completed_date: null
+
+    - id: ST-407
+      title: "Performance Optimization"
+      description: |
+        Profile and optimize performance bottlenecks.
+        Target: <500ms p99 latency for event processing.
+      type: optimization
+      story_points: 2
+      priority: P1
+      status: todo
+      assignee: null
+      blockers: []
+      dependencies: [ST-404]
+      files_to_modify:
+        - src/services/ingress/smartthings/webhook-handler.ts
+      acceptance_criteria:
+        - p99 latency < 500ms
+        - Memory usage optimized
+        - No performance regressions
+      estimated_hours: 4
+      started_date: null
+      completed_date: null
+
+# ============================================================================
+# BACKLOG: Future Enhancements (Not included in initial 4 sprints)
+# ============================================================================
+
+backlog:
+  name: "Future Enhancements"
+  priority: P2
+  tasks:
+    - id: ST-501
+      title: "Scene Execution Support"
+      description: "Support triggering SmartThings scenes via API"
+      story_points: 3
+      priority: P2
+      status: todo
+
+    - id: ST-502
+      title: "Multi-Location Support"
+      description: "Support managing multiple SmartThings locations/homes"
+      story_points: 5
+      priority: P2
+      status: todo
+
+    - id: ST-503
+      title: "Device Grouping"
+      description: "Support controlling multiple devices as a group"
+      story_points: 3
+      priority: P2
+      status: todo
+
+    - id: ST-504
+      title: "Webhook Sink Auto-Registration"
+      description: "Auto-register webhook sink during OAuth flow"
+      story_points: 3
+      priority: P2
+      status: todo
+
+    - id: ST-505
+      title: "SmartThings Rules Integration"
+      description: "Create/modify SmartThings automation rules via BitBrat"
+      story_points: 8
+      priority: P2
+      status: todo
+
+# ============================================================================
+# MILESTONES
+# ============================================================================
+
+milestones:
+  - name: "M1: Webhook Ingress Working"
+    target_date: "End of Sprint 1"
+    criteria:
+      - SmartThings webhooks received successfully
+      - DEVICE_EVENT translated to iot.device.event.v1
+      - Unit tests passing (>90% coverage)
+
+  - name: "M2: Bidirectional Communication"
+    target_date: "End of Sprint 2"
+    criteria:
+      - Device commands execute successfully
+      - OAuth2 authentication working
+      - Integration tests passing
+
+  - name: "M3: Feature Complete"
+    target_date: "End of Sprint 3"
+    criteria:
+      - All event types supported
+      - Filtering working
+      - Rate limiting implemented
+
+  - name: "M4: Production Ready"
+    target_date: "End of Sprint 4"
+    criteria:
+      - Load tests passing
+      - Documentation complete
+      - Monitoring in place
+      - <500ms p99 latency
+
+# ============================================================================
+# DEPENDENCIES EXTERNAL
+# ============================================================================
+
+external_dependencies:
+  - name: "SmartThings Developer Account"
+    description: "Register for SmartThings developer account"
+    required_by: "Week 1"
+    owner: "Product/Engineering"
+    status: pending
+
+  - name: "SmartThings OAuth Credentials"
+    description: "Create API app and obtain OAuth credentials"
+    required_by: "Week 1"
+    owner: "Engineering"
+    status: pending
+    depends_on: ["SmartThings Developer Account"]
+
+  - name: "SmartThings Test Devices"
+    description: "Set up test devices or simulator for integration tests"
+    required_by: "Week 3"
+    owner: "QA"
+    status: pending
+
+# ============================================================================
+# SUCCESS METRICS
+# ============================================================================
+
+success_metrics:
+  functional:
+    - metric: "Webhook success rate"
+      target: ">99.9%"
+      measurement: "Successful webhook processing / total webhooks"
+
+    - metric: "Event translation accuracy"
+      target: "100%"
+      measurement: "Correctly translated events / total events"
+
+    - metric: "Device command success rate"
+      target: ">99%"
+      measurement: "Successful commands / total commands"
+
+  non_functional:
+    - metric: "Event processing latency (p99)"
+      target: "<500ms"
+      measurement: "Time from webhook receipt to internal event publication"
+
+    - metric: "Throughput"
+      target: ">100 events/second"
+      measurement: "Events processed per second under load"
+
+    - metric: "Test coverage"
+      target: ">90%"
+      measurement: "Lines covered / total lines"
+
+  user_experience:
+    - metric: "OAuth setup time"
+      target: "<2 minutes"
+      measurement: "Time to complete OAuth flow"
+
+    - metric: "Device command latency"
+      target: "<2 seconds"
+      measurement: "Time from command request to execution"
+
+# ============================================================================
+# RISK REGISTER
+# ============================================================================
+
+risks:
+  - id: RISK-001
+    description: "SmartThings API changes unexpectedly"
+    severity: medium
+    probability: low
+    mitigation: "Version API calls, monitor SmartThings changelog"
+    owner: "Engineering"
+
+  - id: RISK-002
+    description: "OAuth token expiration causes service disruption"
+    severity: high
+    probability: medium
+    mitigation: "Auto-refresh with 5min buffer, alerting on refresh failures"
+    owner: "Engineering"
+
+  - id: RISK-003
+    description: "Event flooding from chatty devices"
+    severity: medium
+    probability: medium
+    mitigation: "Implement filtering and rate limiting"
+    owner: "Engineering"
+
+  - id: RISK-004
+    description: "SmartThings test account not available in time"
+    severity: medium
+    probability: low
+    mitigation: "Set up account early, use mock server for initial tests"
+    owner: "QA"

@@ -38,39 +38,6 @@ All messages are `Envelope v1` with `routingSlip`. Message bus is NATS (local/de
 
 **Agent-Dev Contexts**: Ephemeral execution contexts for coding agents. Provision via MCP tools (`agent_dev.provision()`, `agent_dev.start()`, `agent_dev.stop()`, `agent_dev.destroy()`). Isolated Docker containers + PostgreSQL. RBAC-enforced `agent-dev-*` prefix. Only one context runs at a time. See `documentation/guides/agent-dev-contexts.md`.
 
-**IMPORTANT - Proactive Agent-Dev Usage**: Use agent-dev environments WITHOUT waiting for user request when validating runtime behavior. This includes:
-- **New services**: Verify service starts, connects to dependencies (NATS, PostgreSQL)
-- **New features**: Test message handlers, database queries, API endpoints work
-- **Configuration changes**: Validate env vars, secrets, port assignments
-- **Deployment changes**: Test hooks, orchestrator, Docker Compose modifications
-- **Before marking complete**: Always deploy to agent-dev as final validation
-
-**Agent-Dev Workflow**:
-```bash
-# 1. Provision (auto-names if omitted)
-agent_dev.provision({ name: "agent-dev-feature-test" })
-
-# 2. Deploy service(s) to isolated environment
-bit deploy <service> --context agent-dev-feature-test
-# OR for full stack testing:
-bit deploy --all --context agent-dev-feature-test
-
-# 3. Validate (check logs, test endpoints, verify behavior)
-fleet.logs({ bit: "<service>", context: "agent-dev-feature-test" })
-fleet.info({ bit: "<service>", context: "agent-dev-feature-test" })
-
-# 4. Clean up when done
-agent_dev.destroy({ name: "agent-dev-feature-test", confirm: true })
-```
-
-**When to Use Agent-Dev** (use proactively, don't wait for user to ask):
-- Created/modified a service → Deploy to agent-dev, verify it starts
-- Added message handler → Deploy and test message routing works
-- Changed architecture.yaml → Deploy and verify config resolves correctly
-- Modified deployment code → Deploy and validate deployment succeeds
-- Before sprint completion → Full deployment validation in agent-dev
-- User asks "does this work?" → Should have already tested in agent-dev!
-
 **Execution Contexts**: Unify environment configuration across deployment types. Define in `architecture.yaml` under `executionContexts`. Manage via `brat context list|show|create`. Priority: `--context` flag > `BITBRAT_CONTEXT` env > `~/.bratrc` > `local` default.
 
 ## Common Development Commands
@@ -95,9 +62,8 @@ npm run brat -- chat     # Interactive chat
 ### Service Management
 ```bash
 npm run brat -- bit create <name> [--profile gateway] [--exposure platform+domain] [--register --active]
-npm run brat -- bit deploy <service>              # Deploy single service
-npm run brat -- bit deploy --all                   # Deploy all services (bulk)
-npm run brat -- bit deploy --all --context <ctx>   # Deploy to specific context
+npm run brat -- deploy service <name>
+npm run brat -- deploy services --all
 ```
 
 ### Fleet Control Plane
@@ -378,88 +344,9 @@ npm run brat -- bit create <name> \
 
 **Generated files**: `src/apps/<name>-service.ts`, test file, Dockerfile, docker-compose service
 
-**IMPORTANT - Always validate new services in agent-dev**:
-```bash
-# After creating a new service, immediately validate it:
-agent_dev.provision({ name: "agent-dev-new-service-test" })
-bit deploy <service-name> --context agent-dev-new-service-test
-
-# Check logs to verify service starts correctly
-fleet.logs({ bit: "<service-name>", context: "agent-dev-new-service-test" })
-fleet.info({ bit: "<service-name>", context: "agent-dev-new-service-test" })
-
-# Clean up
-agent_dev.destroy({ name: "agent-dev-new-service-test", confirm: true })
-```
-
-Common issues caught by agent-dev validation:
-- Missing environment variables
-- Incorrect dependency configuration (NATS, PostgreSQL)
-- Port conflicts
-- Docker build failures
-- Service registration issues
-
 ---
 
-### 5. Configuring Twitch EventSub (Sprint 16)
-
-**Pattern for adding/configuring Twitch platform events beyond IRC chat.**
-
-EventSub provides real-time notifications for 22 Twitch platform events (follows, subscriptions, raids, moderation). Configuration is YAML-driven with per-channel overrides.
-
-```yaml
-# config/twitch-eventsub/subscriptions.yaml
-subscriptions:
-  # Core events (enabled by default)
-  channel.follow:
-    enabled: true
-    scope: moderator:read:followers
-    builder: buildFollow
-    internalType: system.twitch.follow
-
-  # Tier 1 events (opt-in)
-  channel.raid:
-    enabled: false  # Enable manually or per-channel
-    builder: buildRaid
-    internalType: system.twitch.raid
-
-# Per-channel overrides
-channelOverrides:
-  bitbrat:
-    channel.raid:
-      enabled: true  # Enable for this channel only
-```
-
-**Enabling EventSub:**
-```bash
-# 1. Set feature flag
-ENABLE_EVENTSUB_YAML_CONFIG=true
-
-# 2. Edit subscriptions.yaml
-vim config/twitch-eventsub/subscriptions.yaml
-
-# 3. Restart service
-brat bit deploy ingress-egress
-
-# 4. Verify
-twitch.eventsub.subscriptions.status()
-```
-
-**MCP Tools:**
-- `twitch.eventsub.subscriptions.list()` - Show config
-- `twitch.eventsub.subscriptions.status()` - Runtime health
-- `twitch.eventsub.config.reload()` - Reload without restart
-
-**Event Selection Guidelines:**
-- ✅ Always enable: Core 4 (follow, update, stream.online, stream.offline)
-- ✅ High value: raid, subscribe, cheer, predictions, polls
-- ⚠️ High volume (per-channel only): hype_train.progress, moderate, chat.message
-
-**Documentation:** [EventSub Config Guide](./documentation/guides/twitch-eventsub-config.md), [Event Catalog](./documentation/reference/twitch-eventsub-catalog.md)
-
----
-
-### 6. Deploying Secure Files (Sprint 374)
+### 5. Deploying Secure Files (Sprint 374)
 
 **Pattern for credentials/certificates that must NEVER be committed to git.**
 
@@ -496,16 +383,16 @@ services:
 
 ---
 
-### 7. Automatic Port Assignment (Sprint 379)
+### 6. Automatic Port Assignment (Sprint 379)
 
 PortManager auto-assigns unique ports for all deployments. Discovers ports via `docker ps`, assigns next available from 3001.
 
 ```bash
-npm run brat -- bit deploy --all
+npm run brat -- deploy services --all
 # Output: Port assignments: llm-bot:3001(auto), tool-gateway:3002(auto)
 
 # Override:
-LLM_BOT_HOST_PORT=5000 npm run brat -- bit deploy llm-bot
+LLM_BOT_HOST_PORT=5000 npm run brat -- deploy service llm-bot
 ```
 
 Works with remote Docker via SSH. Gracefully degrades on discovery failures.
