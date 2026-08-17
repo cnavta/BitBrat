@@ -401,7 +401,65 @@ Common issues caught by agent-dev validation:
 
 ---
 
-### 5. Deploying Secure Files (Sprint 374)
+### 5. Configuring Twitch EventSub (Sprint 16)
+
+**Pattern for adding/configuring Twitch platform events beyond IRC chat.**
+
+EventSub provides real-time notifications for 22 Twitch platform events (follows, subscriptions, raids, moderation). Configuration is YAML-driven with per-channel overrides.
+
+```yaml
+# config/twitch-eventsub/subscriptions.yaml
+subscriptions:
+  # Core events (enabled by default)
+  channel.follow:
+    enabled: true
+    scope: moderator:read:followers
+    builder: buildFollow
+    internalType: system.twitch.follow
+
+  # Tier 1 events (opt-in)
+  channel.raid:
+    enabled: false  # Enable manually or per-channel
+    builder: buildRaid
+    internalType: system.twitch.raid
+
+# Per-channel overrides
+channelOverrides:
+  bitbrat:
+    channel.raid:
+      enabled: true  # Enable for this channel only
+```
+
+**Enabling EventSub:**
+```bash
+# 1. Set feature flag
+ENABLE_EVENTSUB_YAML_CONFIG=true
+
+# 2. Edit subscriptions.yaml
+vim config/twitch-eventsub/subscriptions.yaml
+
+# 3. Restart service
+brat bit deploy ingress-egress
+
+# 4. Verify
+twitch.eventsub.subscriptions.status()
+```
+
+**MCP Tools:**
+- `twitch.eventsub.subscriptions.list()` - Show config
+- `twitch.eventsub.subscriptions.status()` - Runtime health
+- `twitch.eventsub.config.reload()` - Reload without restart
+
+**Event Selection Guidelines:**
+- ✅ Always enable: Core 4 (follow, update, stream.online, stream.offline)
+- ✅ High value: raid, subscribe, cheer, predictions, polls
+- ⚠️ High volume (per-channel only): hype_train.progress, moderate, chat.message
+
+**Documentation:** [EventSub Config Guide](./documentation/guides/twitch-eventsub-config.md), [Event Catalog](./documentation/reference/twitch-eventsub-catalog.md)
+
+---
+
+### 6. Deploying Secure Files (Sprint 374)
 
 **Pattern for credentials/certificates that must NEVER be committed to git.**
 
@@ -438,7 +496,7 @@ services:
 
 ---
 
-### 6. Automatic Port Assignment (Sprint 379)
+### 7. Automatic Port Assignment (Sprint 379)
 
 PortManager auto-assigns unique ports for all deployments. Discovers ports via `docker ps`, assigns next available from 3001.
 

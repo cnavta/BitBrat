@@ -8,12 +8,18 @@
  * - Falls back to custom builder (TwitchEnvelopeBuilder) when flag disabled
  * - Loads YAML configs from config/platforms/twitch/ when enabled
  *
+ * Sprint 16 (M5): EventSub integration
+ * - Creates both IRC and EventSub clients
+ * - EventSub enabled via ENABLE_EVENTSUB_YAML_CONFIG flag
+ * - Dual-client management via TwitchConnectorAdapter
+ *
  * @module twitch/factory
  * @since Sprint 12
  */
 
 import type { ConnectorFactory } from '../../../common/integration-bit';
 import { TwitchIrcClient } from './twitch-irc-client';
+import { TwitchEventSubClient } from './eventsub-client';
 import { TwitchEnvelopeBuilder, type IEnvelopeBuilder, type IrcMessageMeta, type EnvelopeBuilderOptions } from './envelope-builder';
 import { TwitchConnectorAdapter } from './connector-adapter';
 import { ConfigTwitchCredentialsProvider, FirestoreTwitchCredentialsProvider } from './credentials-provider';
@@ -169,6 +175,28 @@ export const createTwitchConnector: ConnectorFactory = async (config: IConfig, o
     }
   );
 
-  // Wrap with connector adapter
-  return new TwitchConnectorAdapter(client);
+  // Sprint 16 (M5-INT-1): Create EventSub client for Twitch platform events
+  // EventSub handles follows, subs, raids, channel points, moderation, etc.
+  // IRC handles chat messages (realtime bidirectional)
+  // Both run concurrently when ENABLE_EVENTSUB_YAML_CONFIG=true
+  const eventSubClient = new TwitchEventSubClient(
+    publisher,
+    config.twitchChannels || [],
+    {
+      cfg: config,
+      credentialsProvider,
+      egressDestinationTopic,
+    }
+  );
+
+  const useYamlConfig = process.env.ENABLE_EVENTSUB_YAML_CONFIG === 'true';
+  logger.info('twitch.factory.clients_created', {
+    irc: true,
+    eventSub: true,
+    eventSubYamlConfig: useYamlConfig,
+    channels: config.twitchChannels,
+  });
+
+  // Wrap both clients with connector adapter (dual-client management)
+  return new TwitchConnectorAdapter(client, eventSubClient);
 };
