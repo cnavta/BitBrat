@@ -76,7 +76,7 @@ describe('URL Map renderer — routing-driven with buckets', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brat-urlmap-out-'));
     // Create minimal architecture.yaml driving routing
     const arch = {
-      infrastructure: {
+      cloudResources: {
         resources: {
           'main-load-balancer': {
             type: 'load-balancer',

@@ -82,6 +82,8 @@ export interface IConfig {
   discordOauthScopes?: string[];
   /** Optional Discord OAuth permissions (bitmask, used for bot authorization) */
   discordOauthPermissions?: number;
+  /** Discord application public key for Interactions API webhook signature verification (Ed25519) */
+  discordPublicKey?: string;
 
   /** Twilio integration master switch */
   twilioEnabled?: boolean;
@@ -122,6 +124,39 @@ export interface IConfig {
   debugUsersSlack?: string;
   debugUsersTwitch?: string;
   debugUsersDiscord?: string;
+
+  /**
+   * Long-Running Task Feedback Configuration (Sprint 377)
+   *
+   * Controls automatic progress feedback for operations that exceed configured thresholds.
+   *
+   * @since Sprint 377
+   */
+  /** Enable progress feedback feature (default: true) */
+  progressEnabled?: boolean;
+  /** Use custom LLM-generated messages instead of templates (default: false, Phase 1) */
+  progressUseCustom?: boolean;
+  /** Time threshold (ms) before sending initial progress message (default: 2000) */
+  progressInitialThresholdMs?: number;
+  /** Interval (ms) between subsequent progress updates (default: 5000) */
+  progressUpdateIntervalMs?: number;
+  /** Time threshold (ms) before sending timeout warning (default: 30000) */
+  progressTimeoutThresholdMs?: number;
+
+  /**
+   * Redis Configuration (Sprint 1: Distributed Idempotency Layer)
+   *
+   * Redis is used for distributed idempotency and deduplication across service instances.
+   * This prevents duplicate message processing during platform restarts, deploys, or crashes.
+   *
+   * @since Sprint 1
+   */
+  /** Redis connection URL (format: redis://host:port or redis://user:pass@host:port) */
+  redisUrl?: string;
+  /** Enable Redis-backed idempotency middleware (default: false, opt-in per service) */
+  redisIdempotencyEnabled?: boolean;
+  /** Default TTL (seconds) for idempotency keys (default: 300 = 5 minutes) */
+  redisIdempotencyDefaultTtlSeconds?: number;
 }
 
 export interface TwitchTokenData {

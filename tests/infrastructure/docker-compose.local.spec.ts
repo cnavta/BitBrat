@@ -16,6 +16,7 @@ describe('docker-compose.local shared network configuration', () => {
   it('attaches the local support services to bitbrat-network', () => {
     expect(compose.services?.nats?.networks?.['bitbrat-network']).toBeDefined();
     expect(compose.services?.['nats-box']?.networks?.['bitbrat-network']).toBeDefined();
-    expect(compose.services?.['firebase-emulator']?.networks?.['bitbrat-network']).toBeDefined();
+    // Sprint 6 (S6-C4.1): firebase-emulator removed (Firestore deprecated, PostgreSQL is default)
+    expect(compose.services?.postgres?.networks?.['bitbrat-network']).toBeDefined();
   });
 });

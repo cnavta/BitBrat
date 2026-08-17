@@ -1,0 +1,37 @@
+{
+  "id": "1234567890123456789",
+  "type": 0,
+  "content": "Hello! This is a DM.",
+  "channel_id": "9876543210987654321",
+  "author": {
+    "id": "111222333444555666",
+    "username": "testuser",
+    "global_name": "Test User",
+    "discriminator": "1234",
+    "avatar": "abc123",
+    "bot": false
+  },
+  "attachments": [],
+  "embeds": [],
+  "mentions": [],
+  "mention_roles": [],
+  "pinned": false,
+  "mention_everyone": false,
+  "tts": false,
+  "timestamp": "2026-08-14T12:00:00.000Z",
+  "edited_timestamp": null,
+  "flags": 0,
+  "components": [],
+  "channel": {
+    "id": "9876543210987654321",
+    "type": 1,
+    "recipients": [
+      {
+        "id": "111222333444555666",
+        "username": "testuser",
+        "discriminator": "1234",
+        "avatar": "abc123"
+      }
+    ]
+  }
+}

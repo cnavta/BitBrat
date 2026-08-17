@@ -1,0 +1,1588 @@
+# Sprint 377: Long-Running Task Feedback - Trackable Backlog (REVISED)
+#
+# This YAML backlog provides granular, trackable tasks for Sprint 377.
+# Each task includes priority, estimate, dependencies, and acceptance criteria.
+#
+# REVISIONS (2026-07-31):
+# - Removed Phase 4 (User Preferences) - deferred to future sprint
+# - Simplified Phase 3 to llm-bot only (no image-gen-mcp, no tool-gateway)
+# - Updated prompts to leverage original message context
+# - Documented future nested progress detection strategy
+#
+# Status Values: not_started | in_progress | blocked | complete
+# Priority Values: P0 (critical) | P1 (high) | P2 (medium) | P3 (low)
+# Estimates: In hours (h)
+
+sprint:
+  id: 377
+  title: Long-Running Task Feedback System
+  start_date: 2026-07-31
+  duration_days: 7-8
+  total_tasks: 43
+  total_estimate_hours: 71
+  revised: 2026-07-31
+
+phases:
+  - id: phase_1
+    name: Foundation
+    days: 1-3
+    tasks: 17
+
+  - id: phase_2
+    name: LLM-Generated Progress
+    days: 4-5
+    tasks: 16
+
+  - id: phase_3
+    name: LLM-Bot Integration
+    days: 6-7
+    tasks: 5
+
+  - id: phase_4
+    name: Monitoring & Production Readiness
+    days: 7-8
+    tasks: 5
+
+deferred_features:
+  - id: user_preferences_system
+    sprint: 378+
+    description: Holistic user settings system (progress, notifications, personality, platform-specific)
+    estimated_effort: 2-3 days
+    original_tasks: TASK-377-038 to TASK-377-044 (removed)
+
+  - id: nested_progress_detection
+    sprint: 379+
+    description: Smart middleware detection of nested operations to prevent duplicate progress
+    estimated_effort: 1-2 days
+    documented_in: execution-plan.md § Nested Progress Handling Strategy
+
+# ============================================================================
+# PHASE 1: FOUNDATION (DAYS 1-3)
+# ============================================================================
+
+tasks:
+  # --------------------------------------------------------------------------
+  # Derived Event Utility (Day 1)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-001
+    title: Create derived-event.ts module
+    description: |
+      Create new utility module for derived event creation pattern.
+      This establishes the foundational pattern for all derived events
+      (progress, error, status, timeout, cancellation).
+    phase: phase_1
+    priority: P0
+    estimate: 1h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - File exists at src/common/events/derived-event.ts
+      - Exports DerivedEventTypes enum
+      - Includes TypeScript type definitions
+      - JSDoc documentation complete
+    files_changed:
+      - src/common/events/derived-event.ts (NEW)
+    tests_required:
+      - Unit tests in derived-event.test.ts
+
+  - id: TASK-377-002
+    title: Implement createDerivedEvent() function
+    description: |
+      Core function that creates a new event from an existing event,
+      preserving routing context and establishing correlation links.
+
+      Responsibilities:
+      - Generate new correlationId, eventId, timestamp
+      - Copy routing context (platform, channel, user)
+      - Copy message from original (IMPORTANT: for LLM context)
+      - Copy qos from original (unless overridden)
+      - Add derived_from annotation with correlation link
+      - Set type at root level
+      - Set routing.stage to 'initial'
+      - Include custom annotations
+    phase: phase_1
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-001
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Function signature matches spec
+      - All fields correctly copied from original
+      - Original message copied (allows LLM to see user intent)
+      - derived_from annotation added automatically
+      - New identifiers generated (correlationId, eventId)
+      - TypeScript types enforced
+    files_changed:
+      - src/common/events/derived-event.ts
+    tests_required:
+      - Test field copying behavior
+      - Test message copying (critical for LLM context)
+      - Test annotation injection
+      - Test identifier generation
+
+  - id: TASK-377-003
+    title: Implement createProgressEvent() wrapper
+    description: |
+      Convenience wrapper around createDerivedEvent() specifically
+      for progress events (chat.progress.v1).
+
+      Parameters:
+      - originalEvent: InternalEventV2
+      - stage: 'initial' | 'update' | 'timeout'
+      - context: { operation, parameters, startedAt, elapsedMs }
+      - prompt: string (instructions for llm-bot)
+      - source: string (service name)
+
+      Returns: InternalEventV2 with type='chat.progress.v1'
+
+      IMPORTANT: Original message is automatically included by createDerivedEvent()
+    phase: phase_1
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-002
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Function signature matches spec
+      - Calls createDerivedEvent() internally
+      - Sets type to DerivedEventTypes.PROGRESS
+      - Adds progress_context annotation
+      - Adds prompt annotation
+      - All parameters validated
+      - Original message copied for LLM context
+    files_changed:
+      - src/common/events/derived-event.ts
+    tests_required:
+      - Test progress event structure
+      - Test annotation injection
+      - Test parameter validation
+      - Test original message preservation
+
+  - id: TASK-377-004
+    title: Implement traceability helpers
+    description: |
+      Utility functions for working with derived events:
+      - getOriginalCorrelationId(event): Extract original ID
+      - isDerivedEvent(event): Check if event is derived
+      - getDerivationChain(event): Get full chain of IDs
+      - isNestedOperation(event): Check if derived_from exists (for future nested detection)
+    phase: phase_1
+    priority: P1
+    estimate: 2h
+    dependencies:
+      - TASK-377-002
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All four functions implemented
+      - Handle missing annotations gracefully
+      - Return correct values for derived and non-derived events
+      - TypeScript type guards for isDerivedEvent()
+      - isNestedOperation() ready for future sprint usage
+    files_changed:
+      - src/common/events/derived-event.ts
+    tests_required:
+      - Test with derived events
+      - Test with non-derived events
+      - Test chain extraction
+      - Test nested operation detection
+    notes: |
+      isNestedOperation() will be used in Sprint 379+ for smart nested detection.
+      Implement now for future use.
+
+  - id: TASK-377-015
+    title: Unit tests for derived event utility
+    description: |
+      Comprehensive unit tests for derived-event.ts module.
+      Coverage target: >90%
+    phase: phase_1
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-002
+      - TASK-377-003
+      - TASK-377-004
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Test coverage >90%
+      - All edge cases covered
+      - Mock event fixtures created
+      - Tests pass in CI
+      - Test original message copying
+    files_changed:
+      - src/common/events/derived-event.test.ts (NEW)
+    tests_required:
+      - createDerivedEvent() tests
+      - createProgressEvent() tests
+      - Traceability helper tests
+      - Message preservation tests
+
+  # --------------------------------------------------------------------------
+  # QoS Type Extensions (Day 1)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-005
+    title: Define QOSV1 progress extensions
+    description: |
+      Extend QOSV1 interface with progress preferences.
+
+      New fields:
+      - progress.enabled: boolean (default true)
+      - progress.useCustomMessage: boolean (default true)
+
+      IMPORTANT: Only user preferences belong in QoS, not implementation details.
+
+      NOTE: User preference enforcement deferred to Sprint 378+.
+      These fields exist but are not enforced in Sprint 377 (always enabled).
+    phase: phase_1
+    priority: P0
+    estimate: 1h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - QOSV1 interface updated
+      - JSDoc comments explain each field
+      - Default values documented
+      - TypeScript types correct
+      - Note that enforcement is deferred
+    files_changed:
+      - src/types/events.ts
+    tests_required:
+      - Type checking in tests
+
+  - id: TASK-377-006
+    title: Update InternalEventV2 schema documentation
+    description: |
+      Update event schema documentation to reflect QoS extensions.
+    phase: phase_1
+    priority: P2
+    estimate: 1h
+    dependencies:
+      - TASK-377-005
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - documentation/schemas/envelope.v1.json updated
+      - Examples include qos.progress field
+      - README updated if needed
+      - Note that enforcement is deferred to Sprint 378+
+    files_changed:
+      - documentation/schemas/envelope.v1.json
+    tests_required:
+      - Schema validation tests
+
+  # --------------------------------------------------------------------------
+  # Feedback Middleware (Days 2-3)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-007
+    title: Create FeedbackMiddleware class
+    description: |
+      Core middleware class that intercepts Bit.next() calls to detect
+      long-running operations and publish progress events.
+
+      Constructor dependencies:
+      - messageBus: MessageBus
+      - logger: Logger
+      - serviceName: string
+    phase: phase_1
+    priority: P0
+    estimate: 2h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Class created with correct constructor
+      - TypeScript interfaces defined
+      - JSDoc comments complete
+      - Exports from module
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts (NEW)
+    tests_required:
+      - Constructor tests
+
+  - id: TASK-377-008
+    title: Implement threshold detection logic
+    description: |
+      Detect when an event has exceeded the progress threshold.
+
+      Default threshold: 2000ms (configurable via PROGRESS_THRESHOLD_MS)
+      Check: Date.now() - new Date(event.timestamp).getTime() >= threshold
+
+      NOTE: qos.progress.enabled flag exists but is NOT enforced in Sprint 377.
+      All requests get progress (deferred preference enforcement to Sprint 378+).
+    phase: phase_1
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-007
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - getThreshold() method implemented
+      - Reads from config or uses default
+      - beforeNext() checks elapsed time correctly
+      - Does NOT enforce qos.progress.enabled (deferred)
+      - Logs when threshold crossed
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+    tests_required:
+      - Test threshold calculation
+      - Test config override
+      - Test elapsed time detection
+
+  - id: TASK-377-009
+    title: Implement stage determination logic
+    description: |
+      Determine which progress stage to send based on elapsed time and tracking state.
+
+      Stages:
+      - initial: First time crossing threshold (2s default)
+      - update: Every 5s after initial (7s, 12s, 17s, ...)
+      - timeout: At 60s (approaching 75s limit)
+
+      Return null if no stage applies.
+    phase: phase_1
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-008
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - determineStage() method implemented
+      - Correctly identifies all three stages
+      - Returns null when no action needed
+      - Uses tracking state to prevent duplicates
+      - 5s interval between updates configurable
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+    tests_required:
+      - Test initial stage detection (2s)
+      - Test update stage detection (7s, 12s)
+      - Test timeout stage detection (60s)
+      - Test null return cases
+
+  - id: TASK-377-010
+    title: Implement progress tracking state
+    description: |
+      In-memory tracking of progress message state per correlationId.
+
+      Tracking fields:
+      - initialSent: boolean
+      - lastUpdate: number (timestamp)
+      - timeoutSent: boolean
+
+      Use Map<string, TrackingState> for storage.
+      Implement cleanup for completed events (TTL: 5 minutes).
+    phase: phase_1
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-007
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - TrackingState interface defined
+      - Map-based storage implemented
+      - getTracking() and setTracking() methods
+      - Cleanup on event completion
+      - Memory leak prevention (TTL or max size)
+      - Cleanup interval runs every 1 minute
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+    tests_required:
+      - Test state persistence
+      - Test cleanup logic
+      - Test memory management
+      - Test TTL expiration
+
+  - id: TASK-377-011
+    title: Implement template message generation
+    description: |
+      Fallback template messages when qos.progress.useCustomMessage=false
+      or when LLM generation fails.
+
+      Templates:
+      - initial: "⏳ Processing your request..."
+      - update: "⏳ Still working on it..."
+      - timeout: "⏳ This is taking longer than expected..."
+
+      Publish directly to internal.egress.v1 (bypass routing).
+
+      NOTE: In Sprint 377, templates are used as fallback only.
+      Default is LLM-generated messages (qos.progress.useCustomMessage=true).
+    phase: phase_1
+    priority: P1
+    estimate: 2h
+    dependencies:
+      - TASK-377-007
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - sendTemplateMessage() method implemented
+      - All three templates defined
+      - Publishes to internal.egress.v1
+      - Copies platform/channel/user from original
+      - Generates new correlationId/eventId
+      - Logs when using template fallback
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+    tests_required:
+      - Test template selection
+      - Test egress event structure
+      - Test field copying
+
+  - id: TASK-377-016
+    title: Unit tests for FeedbackMiddleware
+    description: |
+      Comprehensive unit tests for feedback-middleware.ts.
+      Coverage target: >85%
+    phase: phase_1
+    priority: P0
+    estimate: 4h
+    dependencies:
+      - TASK-377-008
+      - TASK-377-009
+      - TASK-377-010
+      - TASK-377-011
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Test coverage >85%
+      - All public methods tested
+      - Edge cases covered
+      - Mock dependencies (messageBus, logger)
+      - Tests pass in CI
+    files_changed:
+      - src/common/middleware/feedback-middleware.test.ts (NEW)
+    tests_required:
+      - Threshold detection tests
+      - Stage determination tests
+      - Tracking state tests
+      - Template message tests
+      - Cleanup tests
+
+  # --------------------------------------------------------------------------
+  # Bit Integration (Day 3)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-012
+    title: Add FeedbackMiddleware to Bit constructor
+    description: |
+      Instantiate FeedbackMiddleware in Bit base class constructor.
+
+      Pass dependencies:
+      - this.messageBus
+      - this.logger
+      - this.name (service name)
+    phase: phase_1
+    priority: P0
+    estimate: 1h
+    dependencies:
+      - TASK-377-007
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Middleware instantiated in constructor
+      - Dependencies passed correctly
+      - Private field: this.feedbackMiddleware
+      - No breaking changes to existing services
+    files_changed:
+      - src/common/base-server.ts
+    tests_required:
+      - Test middleware instantiation
+      - Test existing services still work
+
+  - id: TASK-377-013
+    title: Inject middleware into Bit.next()
+    description: |
+      Call feedbackMiddleware.beforeNext(event) before publishing to next step.
+
+      Wrap in try-catch to prevent feedback failures from blocking operations.
+      Log errors but continue execution.
+
+      CRITICAL: Feedback failures must NEVER block the operation.
+    phase: phase_1
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-012
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - beforeNext() called in Bit.next()
+      - Try-catch wrapper around middleware call
+      - Errors logged but don't throw
+      - Existing next() behavior preserved
+      - No performance degradation
+      - Log structured error with correlationId
+    files_changed:
+      - src/common/base-server.ts
+    tests_required:
+      - Test middleware invocation
+      - Test error handling (middleware throws)
+      - Test existing flows unchanged
+      - Test performance impact
+
+  - id: TASK-377-014
+    title: Integration test - Template messages
+    description: |
+      End-to-end test: Long-running operation triggers template message.
+
+      Scenario:
+      1. Create mock event with old timestamp (5s ago)
+      2. Call Bit.next(event)
+      3. Verify feedbackMiddleware.beforeNext() called
+      4. Verify template message published to internal.egress.v1
+      5. Verify original event continues to next step
+    phase: phase_1
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-013
+      - TASK-377-011
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Integration test passes
+      - Template message published correctly
+      - Original event unaffected
+      - No errors in logs
+      - Test with different elapsed times (2s, 7s, 60s)
+    files_changed:
+      - src/common/middleware/feedback-middleware.integration.test.ts (NEW)
+    tests_required:
+      - Full end-to-end flow test
+      - Test all three stages (initial, update, timeout)
+
+  - id: TASK-377-017
+    title: Phase 1 validation and documentation
+    description: |
+      Validate Phase 1 complete and document progress.
+
+      Checklist:
+      - All unit tests passing
+      - Integration test passing
+      - Code coverage >80%
+      - No regressions in existing tests
+      - CHANGELOG.md updated
+    phase: phase_1
+    priority: P1
+    estimate: 2h
+    dependencies:
+      - TASK-377-014
+      - TASK-377-015
+      - TASK-377-016
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All Phase 1 tests pass
+      - Coverage report shows >80%
+      - No failing tests in CI
+      - CHANGELOG.md entry added
+      - Phase 1 deliverables documented
+    files_changed:
+      - CHANGELOG.md
+    tests_required:
+      - npm test (all tests)
+
+# ============================================================================
+# PHASE 2: LLM-GENERATED PROGRESS (DAYS 4-5)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Prompt Template Library (Day 4)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-018
+    title: Create prompt template library module
+    description: |
+      Create module for prompt template generation.
+
+      Responsibilities:
+      - Generate prompts for llm-bot based on operation type and stage
+      - Leverage original user message for context
+      - Instruct LLM to keep responses concise (<100 chars)
+      - Instruct LLM to use emoji appropriately
+      - Instruct LLM to reference user's original intent
+
+      IMPORTANT: The derived progress event includes the original message,
+      so prompts should instruct the LLM to customize based on user intent.
+
+      Example:
+      Original message: "!image a sunset over mountains"
+      Prompt: "Generate a brief progress message (max 100 chars) that you're
+              creating an image based on the user's request. Reference their
+              specific subject. Use an emoji."
+      LLM output: "🎨 Creating your sunset over mountains image..."
+    phase: phase_2
+    priority: P0
+    estimate: 2h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - File exists at src/common/middleware/progress-prompts.ts
+      - Exports buildPrompt() function
+      - Prompts instruct LLM to reference original message
+      - TypeScript types defined
+      - JSDoc documentation complete
+    files_changed:
+      - src/common/middleware/progress-prompts.ts (NEW)
+    tests_required:
+      - Unit tests for prompt generation
+
+  - id: TASK-377-019
+    title: Implement generic prompts leveraging original message
+    description: |
+      Generic prompts that work for any operation type.
+
+      Prompt instructions should:
+      - Tell LLM to read the user's original message
+      - Customize progress based on what user asked for
+      - Keep response <100 chars
+      - Use emoji appropriately
+      - Be encouraging and friendly
+
+      Initial stage:
+      "Generate a brief, encouraging progress message (max 100 chars) that
+      you're working on the user's request. Read their original message and
+      reference their specific intent if possible. Use an emoji. Be friendly."
+
+      Update stage:
+      "Generate a brief progress update (max 100 chars) that you're still
+      working on it. Be patient and positive. Don't repeat previous messages."
+
+      Timeout stage:
+      "Generate a brief message (max 100 chars) that this is taking longer
+      than expected but still processing. Be apologetic but reassuring."
+    phase: phase_2
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-018
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All three prompts defined
+      - Prompts instruct LLM to use original message
+      - Character limit instructions included
+      - Emoji instructions included
+      - Tone guidance included
+    files_changed:
+      - src/common/middleware/progress-prompts.ts
+    tests_required:
+      - Test prompt generation for each stage
+      - Test with sample original messages
+
+  - id: TASK-377-020
+    title: Implement stage-specific prompt variations
+    description: |
+      Optional: Add operation-specific prompt refinements for future use.
+
+      This task prepares prompts for specific operation types that can
+      be used when services provide operation_context:
+      - llm_call: "thinking", "processing question"
+      - tool_execution: "executing tool", "running {toolName}"
+      - image_generation: "creating image", "generating artwork"
+
+      These are OPTIONAL in Sprint 377 (llm-bot uses generic operation type).
+      But implementing now allows future services to opt-in.
+    phase: phase_2
+    priority: P2
+    estimate: 1h
+    dependencies:
+      - TASK-377-018
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Operation-specific prompt variations defined
+      - Fallback to generic prompts if operation unknown
+      - Prompts still leverage original message
+      - Documented for future use
+    files_changed:
+      - src/common/middleware/progress-prompts.ts
+    tests_required:
+      - Test operation-specific prompts
+      - Test fallback behavior
+
+  # --------------------------------------------------------------------------
+  # llm-bot Annotation Handling (Day 4)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-020a
+    title: Review llm-bot annotation handling logic
+    description: |
+      Document how llm-bot currently handles annotations and assembles prompts.
+
+      CONFIRMED: llm-bot already handles "prompt" annotations correctly.
+
+      This task verifies current annotation handling and identifies what
+      (if anything) needs to be added for the new annotation types:
+      - "progress_context": Operation details (stage, elapsedMs, etc.)
+      - "derived_from": Traceability link to original event
+
+      This task:
+      1. Read llm-bot-service.ts and document current annotation handling
+      2. Confirm "prompt" annotation handling works as expected
+      3. Determine if "progress_context" needs special handling
+      4. Determine if "derived_from" needs special handling
+      5. Document decision: Do we need TASK-377-020b or not?
+
+      Output: Documentation in task notes.
+    phase: phase_2
+    priority: P0
+    estimate: 0.5h
+    dependencies:
+      - TASK-377-018
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Current annotation handling documented
+      - Confirmed "prompt" annotation already works
+      - Assessed need for progress_context handling
+      - Assessed need for derived_from handling
+      - Decision documented (proceed with 020b or skip)
+    files_changed:
+      - planning/sprint-377-long-running-task-feedback/llm-bot-annotation-handling.md (NEW)
+    tests_required:
+      - None (documentation task)
+    notes: |
+      llm-bot already handles "prompt" annotations, so we only need to
+      assess the NEW custom annotations:
+      - "progress_context": Likely doesn't need special handling (just context)
+      - "derived_from": Likely doesn't need LLM exposure (just traceability)
+
+  - id: TASK-377-020b
+    title: Add support for custom progress annotations (if needed)
+    description: |
+      Based on findings from TASK-377-020a, add support for NEW custom
+      annotation types (if needed):
+
+      1. "progress_context" annotation - Operation context
+         - Stage (initial, update, timeout)
+         - Operation type, parameters
+         - Elapsed time
+         - MAY be included in LLM context for additional detail
+         - Likely doesn't need special handling (just ignore or include in context)
+
+      2. "derived_from" annotation - Traceability
+         - Links progress event to original event
+         - Used for logging/debugging
+         - Should NOT be exposed to LLM
+         - Likely doesn't need special handling (just ignore)
+
+      NOTE: "prompt" annotation already handled correctly by llm-bot.
+
+      IMPORTANT: This task may be SKIPPED if TASK-377-020a determines
+      no changes are needed (both annotations can be safely ignored).
+
+      Implementation (if needed):
+      - Optionally include progress_context in LLM user message
+      - Ignore derived_from (don't expose to LLM)
+      - Backward compatible with existing annotations
+
+    phase: phase_2
+    priority: P1
+    estimate: 1.5h
+    dependencies:
+      - TASK-377-020a
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Decision from TASK-377-020a implemented
+      - If no changes needed, task marked complete with note
+      - If changes needed, annotations handled correctly
+      - Backward compatible with existing annotations
+      - Unit tests for any new handling
+    files_changed:
+      - src/apps/llm-bot-service.ts (MAYBE - only if changes needed)
+    tests_required:
+      - Test backward compatibility (always)
+      - Test new annotation handling (only if changes made)
+    notes: |
+      This task may be skipped entirely if the review (020a) determines
+      that llm-bot can safely ignore these annotations. The "prompt"
+      annotation is already handled, so we just need to ensure the
+      custom annotations don't break anything.
+
+  - id: TASK-377-020c
+    title: Validate llm-bot works with progress events
+    description: |
+      Validate that llm-bot's EXISTING prompt assembly logic works correctly
+      for progress events (type='chat.progress.v1').
+
+      Since llm-bot already handles "prompt" annotations and includes the
+      original message in context, this is primarily a VALIDATION task.
+
+      Verify that:
+      1. "prompt" annotation is used as system instruction (already works)
+      2. Original message text is included in context (already works)
+      3. Unknown annotations (progress_context, derived_from) don't break anything
+      4. LLM generates concise responses (<100 chars as instructed in prompt)
+
+      This is mostly a TEST task - write integration tests to validate
+      existing behavior works for progress events.
+
+      If issues are found, fix them. But likely no code changes needed.
+    phase: phase_2
+    priority: P0
+    estimate: 1h
+    dependencies:
+      - TASK-377-020b
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Integration test validates prompt annotation handling
+      - Integration test validates original message inclusion
+      - Integration test validates response length (<100 chars)
+      - Any issues found are fixed
+      - Likely NO code changes needed (just tests)
+    files_changed:
+      - src/apps/llm-bot-service.integration.test.ts (NEW TEST)
+      - src/apps/llm-bot-service.ts (MAYBE - only if issues found)
+    tests_required:
+      - Test prompt assembly for progress events
+      - Test original message context inclusion
+      - Test response length
+      - Test with various prompt types
+    notes: |
+      This task is primarily validation. Since llm-bot already handles
+      "prompt" annotations correctly, we just need to confirm it works
+      for progress events specifically. Most of the work is writing tests.
+
+  # --------------------------------------------------------------------------
+  # Event-Router Rule (Day 4)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-021
+    title: Create event-router rule for progress messages
+    description: |
+      Create complete JSON structure for progress message routing rule.
+
+      Rule definition:
+      - id: progress-message-generation
+      - command: generate_progress_message
+      - priority: 100 (high)
+      - active: true
+
+      Conditions (JsonLogic):
+      - payload.type === 'chat.progress.v1'
+      - routing.stage === 'initial'
+
+      Routing slip:
+      - Step 1: llm-bot (operation: chat, timeout: 3000)
+      - Step 2: ingress-egress (operation: deliver)
+
+      Annotations to attach:
+      - kind: personality, value: helpful, source: event-router
+    phase: phase_2
+    priority: P0
+    estimate: 2h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Complete JSON rule structure
+      - JsonLogic conditions correct
+      - Routing slip has 2 steps (llm-bot, ingress-egress)
+      - llm-bot timeout = 3000ms
+      - Personality annotation included
+      - Validated against event-router schema
+    files_changed:
+      - planning/sprint-377-long-running-task-feedback/progress-rule.json (NEW)
+    tests_required:
+      - JSON validation
+      - JsonLogic evaluation tests
+
+  - id: TASK-377-022
+    title: Test event-router rule matching
+    description: |
+      Validate rule matches progress events correctly.
+
+      Test cases:
+      - Matches: type='chat.progress.v1', stage='initial'
+      - No match: type='chat.message.v1', stage='initial'
+      - No match: type='chat.progress.v1', stage='contextualization'
+    phase: phase_2
+    priority: P0
+    estimate: 1h
+    dependencies:
+      - TASK-377-021
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All test cases pass
+      - JsonLogic evaluates correctly
+      - Edge cases covered
+    files_changed:
+      - src/services/event-router/event-router.test.ts
+    tests_required:
+      - Rule matching tests
+      - JsonLogic condition tests
+
+  - id: TASK-377-023
+    title: Validate routing slip configuration
+    description: |
+      Validate routing slip is correctly structured.
+
+      Validation:
+      - Has exactly 2 steps
+      - Step 1: service='llm-bot', operation='chat', timeout=3000
+      - Step 2: service='ingress-egress', operation='deliver'
+      - No extra steps
+    phase: phase_2
+    priority: P1
+    estimate: 0.5h
+    dependencies:
+      - TASK-377-021
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Routing slip structure validated
+      - Service names match actual services
+      - Operation names correct
+      - Timeout appropriate for LLM call
+    files_changed:
+      - planning/sprint-377-long-running-task-feedback/progress-rule.json
+    tests_required:
+      - Routing slip validation
+
+  - id: TASK-377-024
+    title: Document annotation attachments
+    description: |
+      Document personality annotation attachment behavior.
+
+      Annotation:
+      - kind: personality
+      - value: helpful
+      - source: event-router
+
+      This improves LLM tone but is optional.
+    phase: phase_2
+    priority: P2
+    estimate: 0.5h
+    dependencies:
+      - TASK-377-021
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Annotation structure documented
+      - Purpose explained
+      - Optional nature noted
+    files_changed:
+      - planning/sprint-377-long-running-task-feedback/progress-rule.json
+    tests_required:
+      - Annotation attachment tests
+
+  # --------------------------------------------------------------------------
+  # Seed Data Updates (Day 5)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-025
+    title: Add progress rule to seed data
+    description: |
+      Add progress-message-generation rule to seed-commands.json.
+
+      Ensure rule is seeded during brat setup.
+      Works for both Firestore and PostgreSQL.
+    phase: phase_2
+    priority: P0
+    estimate: 1h
+    dependencies:
+      - TASK-377-021
+      - TASK-377-022
+      - TASK-377-023
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Rule added to documentation/seed-data/seed-commands.json
+      - Rule ID unique (no conflicts)
+      - brat setup seeds rule correctly
+      - Firestore and PostgreSQL seeding both work
+      - Tested on clean environment
+    files_changed:
+      - documentation/seed-data/seed-commands.json
+    tests_required:
+      - Seed data validation script
+      - Test brat setup on clean environment
+      - Test both persistence drivers
+
+  - id: TASK-377-026
+    title: Verify no PostgreSQL migration needed
+    description: |
+      Confirm that no schema changes are needed for Sprint 377.
+
+      User preferences deferred to Sprint 378+, so no new tables.
+      Progress events use existing InternalEventV2 structure.
+    phase: phase_2
+    priority: P1
+    estimate: 0.5h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Confirmed no schema changes needed
+      - Documented in task notes
+      - If changes needed, create migration (but shouldn't be)
+    files_changed: []
+    tests_required:
+      - Schema validation
+
+  - id: TASK-377-027
+    title: Update FeedbackMiddleware to publish chat.progress.v1
+    description: |
+      Implement publishLLMProgressEvent() that creates chat.progress.v1 events.
+
+      Flow:
+      1. Use createProgressEvent() utility
+      2. Extract operation_context annotation (if exists)
+      3. Build prompt using progress-prompts module
+      4. Publish to internal.ingress.v1
+      5. Track message sent in state
+
+      Fallback:
+      - If LLM generation fails, use template messages
+      - Log fallback usage
+    phase: phase_2
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-003
+      - TASK-377-019
+      - TASK-377-020
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - publishLLMProgressEvent() method implemented
+      - Uses createProgressEvent() correctly
+      - Extracts operation_context annotation (optional)
+      - Builds appropriate prompt leveraging original message
+      - Publishes to internal.ingress.v1
+      - Respects qos.progress.useCustomMessage flag (but not enforced)
+      - Fallback to templates on error
+      - Structured logging
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+    tests_required:
+      - Test event structure
+      - Test annotation extraction
+      - Test prompt building
+      - Test publication
+      - Test fallback behavior
+
+  # --------------------------------------------------------------------------
+  # Integration Tests (Day 5)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-028
+    title: Integration test - chat.progress.v1 routing
+    description: |
+      Test that event-router correctly routes progress events.
+
+      Scenario:
+      1. Publish chat.progress.v1 event to internal.ingress.v1
+      2. Verify event-router matches rule
+      3. Verify routing slip attached
+      4. Verify annotations added
+      5. Verify routes to llm-bot
+    phase: phase_2
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-025
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Integration test passes
+      - Event-router matches correctly
+      - Routing slip has llm-bot + ingress-egress
+      - Personality annotation added
+      - Progresses to llm-bot
+    files_changed:
+      - src/services/event-router/event-router.integration.test.ts
+    tests_required:
+      - Full routing test
+
+  - id: TASK-377-029
+    title: Integration test - llm-bot processes progress
+    description: |
+      Test that llm-bot generates contextual progress messages.
+
+      Scenario:
+      1. Create progress event with prompt annotation
+      2. Include original message: "!image a sunset"
+      3. Send to llm-bot
+      4. Verify LLM called with correct prompt
+      5. Verify event.message.text set
+      6. Verify message is concise (<100 chars)
+      7. Verify message references "sunset" from original
+
+      CRITICAL: This test validates that llm-bot correctly handles
+      the new annotation types (prompt, progress_context, derived_from).
+    phase: phase_2
+    priority: P0
+    estimate: 4h
+    dependencies:
+      - TASK-377-020c
+      - TASK-377-027
+      - TASK-377-028
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Integration test passes
+      - LLM generates contextual message
+      - Message length <100 chars
+      - Message references original user intent
+      - Message relevant to context
+      - Mock LLM or use real API
+    files_changed:
+      - src/apps/llm-bot-service.integration.test.ts
+    tests_required:
+      - End-to-end message generation test
+      - Test with various original messages
+
+  - id: TASK-377-030
+    title: Integration test - full progress flow
+    description: |
+      End-to-end test of complete progress message flow.
+
+      Scenario:
+      1. Create original event (e.g., chat message)
+      2. Simulate 5s elapsed (set old timestamp)
+      3. Call feedbackMiddleware.beforeNext()
+      4. Verify chat.progress.v1 published to ingress
+      5. Verify event-router routes to llm-bot
+      6. Verify llm-bot generates message
+      7. Verify ingress-egress delivers message
+      8. Verify original message referenced in progress
+    phase: phase_2
+    priority: P0
+    estimate: 4h
+    dependencies:
+      - TASK-377-029
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Full end-to-end test passes
+      - All components working together
+      - Message delivered to user
+      - Original event continues processing
+      - Progress message contextual
+      - Original user intent referenced
+    files_changed:
+      - src/common/middleware/progress-flow.integration.test.ts (NEW)
+    tests_required:
+      - Complete flow test with all services
+      - Test with multiple original message types
+
+# ============================================================================
+# PHASE 3: LLM-BOT INTEGRATION (DAYS 6-7)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # llm-bot Integration (Day 6)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-031
+    title: Add operation_context to llm-bot
+    description: |
+      Annotate ALL user requests with operation_context in llm-bot.
+
+      This is the ONLY service that adds operation_context in Sprint 377.
+      No tracking in tool-gateway or image-gen-mcp (avoids nested complexity).
+
+      Implementation:
+      1. When llm-bot receives user request, add operation_context annotation
+      2. Set operation: 'llm_request' (generic type)
+      3. Include parameters: { hasTools: boolean }
+      4. Set expectedDurationMs based on heuristics
+      5. Do NOT set qos.progress.enabled (deferred to Sprint 378+)
+
+      Position: BEFORE calling LLM API
+    phase: phase_3
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-030
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - Annotation added for ALL user requests
+      - operation type: 'llm_request'
+      - Parameters include hasTools flag
+      - Timestamp and source correct
+      - Added BEFORE LLM call
+      - No breaking changes
+      - Tested locally
+    files_changed:
+      - src/apps/llm-bot-service.ts
+    tests_required:
+      - Test annotation structure
+      - Test timing (before LLM call)
+      - Test with tool-using requests
+      - Test with non-tool requests
+
+  - id: TASK-377-032
+    title: Manual test - llm-bot progress feedback
+    description: |
+      Manual testing of llm-bot with progress feedback.
+
+      Test cases:
+      1. Fast request (<2s) - no progress expected
+      2. Normal request (2-5s) - initial progress expected
+      3. Slow request (>5s) - initial + update progress expected
+      4. Tool-using request - progress during tool execution
+      5. Multiple tool request - progress throughout
+
+      Expected progress messages reference original user intent.
+    phase: phase_3
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-031
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All test cases executed
+      - Progress appears at correct times
+      - Messages are contextual
+      - Messages reference user intent
+      - Final response delivered correctly
+      - No errors in logs
+    files_changed: []
+    tests_required:
+      - Manual test plan execution
+
+  # --------------------------------------------------------------------------
+  # Staging Deployment (Day 7)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-033
+    title: Deploy to staging environment
+    description: |
+      Deploy Sprint 377 changes to staging.
+
+      Steps:
+      1. Build all services
+      2. Run seed data migration
+      3. Deploy services to staging
+      4. Verify all services healthy
+      5. Check logs for errors
+      6. Verify event-router rule active
+    phase: phase_3
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-031
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All services deployed successfully
+      - Health checks passing
+      - No errors in startup logs
+      - Seed data migration complete
+      - Event-router rule active
+      - Progress rule visible in DB
+    files_changed: []
+    tests_required:
+      - Deployment smoke tests
+
+  - id: TASK-377-034
+    title: Staging smoke tests
+    description: |
+      Execute smoke tests on staging environment.
+
+      Tests:
+      1. Simple chat (fast) - no progress
+      2. Complex chat (slow) - progress appears
+      3. Tool-using chat - progress during execution
+      4. Image generation via chat - progress throughout
+      5. Template message fallback (LLM timeout simulation)
+
+      Validate:
+      - Progress messages appear at correct times
+      - Messages are contextual and reference user intent
+      - No duplicate progress messages
+      - Final responses delivered correctly
+    phase: phase_3
+    priority: P0
+    estimate: 2h
+    dependencies:
+      - TASK-377-033
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All smoke tests pass
+      - Progress messages appear correctly
+      - Messages contextual
+      - No errors in logs
+      - User experience smooth
+      - Performance acceptable (<500ms p95 latency)
+    files_changed: []
+    tests_required:
+      - Smoke test suite execution
+      - Performance validation
+
+# ============================================================================
+# PHASE 4: MONITORING & PRODUCTION READINESS (DAYS 7-8)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Observability (Days 7-8)
+  # --------------------------------------------------------------------------
+
+  - id: TASK-377-035
+    title: Add structured logging for progress lifecycle
+    description: |
+      Log all progress message lifecycle events.
+
+      Log points:
+      - feedback.progress.threshold_crossed
+      - feedback.progress.published
+      - feedback.progress.llm_generated
+      - feedback.progress.template_fallback
+      - feedback.progress.delivered
+      - feedback.progress.failed
+
+      Include fields:
+      - correlationId
+      - originalCorrelationId
+      - stage
+      - operation
+      - elapsedMs
+      - latency (for LLM calls)
+    phase: phase_4
+    priority: P0
+    estimate: 2h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All lifecycle events logged
+      - Structured logging format
+      - Correlation IDs included
+      - Debug level for non-errors
+      - Error level for failures
+      - Tested in staging
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+    tests_required:
+      - Log output validation
+
+  - id: TASK-377-036
+    title: Add metrics for progress system
+    description: |
+      Instrument key metrics for observability.
+
+      Metrics:
+      - progress_messages_sent_total (counter, by stage)
+      - progress_message_latency_ms (histogram)
+      - progress_llm_call_duration_ms (histogram)
+      - progress_failures_total (counter, by reason)
+      - progress_template_fallbacks_total (counter)
+
+      If using Prometheus, export metrics endpoint.
+      Otherwise, log metrics in structured format.
+    phase: phase_4
+    priority: P1
+    estimate: 3h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All metrics defined
+      - Metrics collected correctly
+      - Logged in structured format
+      - Tested in staging
+      - Dashboard created (optional)
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+      - src/common/metrics.ts (if exists)
+    tests_required:
+      - Metrics collection tests
+      - Log format validation
+
+  - id: TASK-377-037
+    title: Implement error handling and fallbacks
+    description: |
+      Robust error handling for all failure modes.
+
+      Scenarios:
+      1. LLM timeout (>3s) → fallback to template
+      2. LLM API error → fallback to template
+      3. Event-router rule not found → log warning, skip
+      4. Message bus publish failure → log error, continue
+      5. Middleware exception → log error, continue operation
+
+      All errors should be logged but NEVER block operations.
+    phase: phase_4
+    priority: P0
+    estimate: 2h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All failure modes handled
+      - Appropriate fallbacks implemented
+      - No operations blocked by feedback failures
+      - Error rate measured and acceptable (<1%)
+      - Structured error logging
+    files_changed:
+      - src/common/middleware/feedback-middleware.ts
+    tests_required:
+      - Error scenario tests
+      - Fallback behavior tests
+      - Operation continuation tests
+
+  - id: TASK-377-038
+    title: Documentation updates
+    description: |
+      Comprehensive documentation for Sprint 377.
+
+      Documents to create/update:
+      1. documentation/guides/progress-feedback.md (NEW)
+         - User-facing feature overview
+         - How progress works
+         - Configuration options
+         - Troubleshooting
+
+      2. documentation/concepts/derived-events.md (NEW)
+         - Derived event pattern
+         - createDerivedEvent() usage
+         - Traceability helpers
+         - Future nested detection
+
+      3. CHANGELOG.md - Sprint 377 entry
+         - New features
+         - Architecture changes
+         - Configuration options
+         - Breaking changes (none)
+
+      4. README.md - Brief progress feature mention
+
+      Include:
+      - Architecture diagrams
+      - Code examples
+      - Configuration reference
+      - Future sprint notes
+    phase: phase_4
+    priority: P0
+    estimate: 4h
+    dependencies: []
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All documents created/updated
+      - Examples included
+      - Diagrams clear
+      - User guide complete
+      - CHANGELOG entry added
+      - Nested detection strategy documented
+    files_changed:
+      - documentation/guides/progress-feedback.md (NEW)
+      - documentation/concepts/derived-events.md (NEW)
+      - CHANGELOG.md
+      - README.md
+    tests_required:
+      - Documentation review
+
+  - id: TASK-377-039
+    title: Production validation and deployment
+    description: |
+      Final validation before production deployment.
+
+      Checklist:
+      - All tests passing (unit, integration, manual)
+      - Code coverage >80%
+      - Staging smoke tests pass
+      - Performance acceptable (<500ms p95 latency)
+      - Error rate <1%
+      - Documentation complete
+      - User feedback positive
+      - No nested timeout issues
+
+      Production deployment:
+      - Deploy to production
+      - Monitor for 1 hour
+      - Verify metrics
+      - Collect user feedback
+
+      Sign-off: Product Owner + Tech Lead
+    phase: phase_4
+    priority: P0
+    estimate: 3h
+    dependencies:
+      - TASK-377-034
+      - TASK-377-035
+      - TASK-377-036
+      - TASK-377-037
+      - TASK-377-038
+    assignee: TBD
+    status: not_started
+    acceptance_criteria:
+      - All checklist items verified
+      - Production deployment successful
+      - No errors in production logs
+      - Metrics within targets
+      - User satisfaction >80%
+      - Sign-off obtained
+    files_changed: []
+    tests_required:
+      - Full validation suite
+      - Production monitoring
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+summary:
+  total_tasks: 43
+  total_estimate_hours: 71
+  revised_from_original: 49 tasks, 88 hours
+  removed_tasks: 9
+  removed_estimate: 20 hours
+  added_tasks: 3
+  added_estimate: 3 hours
+
+  critical_path_tasks:
+    - TASK-377-001  # Derived event utility
+    - TASK-377-002  # createDerivedEvent()
+    - TASK-377-007  # FeedbackMiddleware class
+    - TASK-377-008  # Threshold detection
+    - TASK-377-013  # Inject into Bit.next()
+    - TASK-377-020a # Review llm-bot annotation handling (NEW)
+    - TASK-377-020b # Update llm-bot annotation handling (NEW)
+    - TASK-377-020c # Update prompt assembly logic (NEW)
+    - TASK-377-027  # Publish chat.progress.v1
+    - TASK-377-025  # Seed data updates
+    - TASK-377-031  # llm-bot integration (ONLY service)
+    - TASK-377-039  # Production validation
+
+  key_simplifications:
+    - User preferences deferred to Sprint 378+
+    - Only llm-bot adds operation_context (no image-gen-mcp, no tool-gateway)
+    - Prompts leverage original message for contextual generation
+    - Nested progress detection documented for Sprint 379+
+
+  risk_areas:
+    - LLM latency (mitigated: fast model, 3s timeout, template fallback)
+    - Event-router misconfiguration (mitigated: comprehensive tests, seed validation)
+    - Feedback failures blocking operations (mitigated: try-catch isolation, error logging)
+    - Nested progress complexity (mitigated: single-level tracking in Sprint 377)
+
+  success_metrics:
+    - Unit test coverage: >80%
+    - Integration tests: 100% passing
+    - Progress message latency: <500ms p95
+    - Error rate: <1%
+    - User satisfaction: >80%
+    - Messages reference user intent: >90%

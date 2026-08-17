@@ -1,0 +1,11 @@
+id: sprint-11-j1d49d
+title: Discord Integration Modernization
+goal: Migrate Discord connector to modern adapter pattern (Slack/Twitch alignment)
+owner: Lead Implementor
+createdAt: 2026-08-12T14:28:26.756Z
+status: complete
+links:
+  branch: feature/sprint-11-j1d49d-discord-integration-modernizat
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-12T22:45:42.073Z
+completionMode: normal

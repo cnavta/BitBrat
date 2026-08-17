@@ -68,7 +68,7 @@ See [Agent Flow Patterns](./documentation/concepts/agent-flow-patterns.md) for t
 - **New service / MCP tool:** scaffold it with `npm run brat -- bit create <name> [--profile <p>] [--category <c>] [--exposure <e>] [--register]`.
   - **Profiles**: `core`, `gateway`, `llm`, `mcp-server`
   - **Categories**: `platform` (core orchestration) or `domain` (optional extensions)
-  - Use `--register` to auto-add to [`architecture.yaml`](./architecture.yaml). See the [`brat bit create` reference](./documentation/tools/brat.md#bit-lifecycle-management) and the [`extension_points`](./architecture.yaml) block in the canonical file for exactly which files change.
+  - Use `--register` to auto-add to [`architecture.yaml`](./architecture.yaml). See the [`brat bit create` reference](./documentation/tools/brat.md#bit-lifecycle-management) and [Extending BitBrat](./documentation/guides/extending-bitbrat.md) for details on which files are generated and how to customize services.
 
 #### Adding Rules & Behaviors
 

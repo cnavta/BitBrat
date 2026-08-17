@@ -1,0 +1,517 @@
+# Sprint Backlog: Fix Debug Trace Message Re-delivery Issue
+# Sprint ID: sprint-1-9ih2e3
+# Owner: Lead Implementor
+# Created: 2026-08-06
+
+version: "1.0"
+sprint:
+  id: sprint-1-9ih2e3
+  title: "Fix Debug Trace Message Re-delivery Issue"
+  goal: "Eliminate duplicate debug trace responses after platform re-deploy by implementing persistent message deduplication"
+  estimatedEffort: "10-15 hours"
+  criticalPath: "DD-001 → DD-002 → DD-003 → DD-004 → DD-005 → DD-009"
+
+# Task Definitions
+# - Priority: P0 (must have), P1 (should have), P2 (nice to have)
+# - Effort: XS (<1h), S (1-2h), M (2-4h), L (4-8h), XL (>8h)
+# - Status: todo, in_progress, blocked, done
+
+tasks:
+  # ============================================================================
+  # Phase 1: Persistent Dedupe Cache (Core Fix)
+  # ============================================================================
+
+  - id: DD-001
+    title: "Design and implement DebugDedupeStore interface"
+    description: |
+      Create a platform-agnostic interface for debug message deduplication
+      that supports PostgreSQL, Firestore, and in-memory implementations.
+
+      Interface methods:
+      - checkAndSet(key: string, ttlSeconds: number): Promise<boolean>
+      - cleanup(beforeTimestamp: Date): Promise<number>
+      - clear(): Promise<void>
+
+      Return true if key already exists (duplicate), false if newly set.
+    priority: P0
+    effort: S
+    status: todo
+    phase: 1
+    dependencies: []
+    acceptanceCriteria:
+      - "Interface defined in src/common/persistence/debug-dedupe-store.ts"
+      - "Includes comprehensive JSDoc with examples"
+      - "TypeScript compilation succeeds"
+    files:
+      - src/common/persistence/debug-dedupe-store.ts
+    tests:
+      - Unit tests for interface contract
+
+  - id: DD-002
+    title: "Create PostgreSQL debug_message_dedupe table migration"
+    description: |
+      Create database migration for the dedupe table:
+      - Table: debug_message_dedupe
+      - Columns: dedupe_key (PK), service_name, correlation_id, message_type, created_at, expires_at
+      - Index: idx_debug_dedupe_expires on expires_at
+
+      Supports efficient TTL-based cleanup and duplicate detection.
+    priority: P0
+    effort: S
+    status: todo
+    phase: 1
+    dependencies: []
+    acceptanceCriteria:
+      - "Migration file created in infrastructure/postgres/migrations/"
+      - "Table schema matches specification in execution plan"
+      - "Index created on expires_at column"
+      - "Migration runs successfully on local PostgreSQL"
+    files:
+      - infrastructure/postgres/migrations/XXX-debug-dedupe-cache.sql
+    tests:
+      - Manual migration execution
+      - Schema validation
+
+  - id: DD-003
+    title: "Implement PostgresDebugDedupeStore"
+    description: |
+      Create PostgreSQL-backed implementation of DebugDedupeStore:
+      - checkAndSet(): Use INSERT ON CONFLICT or SELECT + INSERT pattern
+      - cleanup(): DELETE WHERE expires_at < NOW()
+      - clear(): DELETE all records (for testing)
+
+      Include connection pooling, error handling, and logging.
+    priority: P0
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [DD-001, DD-002]
+    acceptanceCriteria:
+      - "Implementation in src/common/persistence/postgres-debug-dedupe.ts"
+      - "checkAndSet() is atomic (no race conditions)"
+      - "Cleanup removes expired records"
+      - "Handles connection errors gracefully"
+      - "All methods logged with correlation IDs"
+    files:
+      - src/common/persistence/postgres-debug-dedupe.ts
+    tests:
+      - Unit tests with pg-mem (in-memory PostgreSQL)
+      - Concurrent access tests
+      - Error handling tests
+
+  - id: DD-004
+    title: "Implement FirestoreDebugDedupeStore (legacy fallback)"
+    description: |
+      Create Firestore-backed implementation for backwards compatibility:
+      - Collection: debug_dedupe
+      - Document ID: dedupe_key
+      - Fields: serviceName, correlationId, messageType, createdAt, expiresAt
+
+      Use Firestore transactions for atomicity.
+    priority: P1
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [DD-001]
+    acceptanceCriteria:
+      - "Implementation in src/common/persistence/firestore-debug-dedupe.ts"
+      - "checkAndSet() uses Firestore transaction"
+      - "Cleanup uses batch deletes"
+      - "Works with Firestore emulator"
+    files:
+      - src/common/persistence/firestore-debug-dedupe.ts
+    tests:
+      - Unit tests with Firestore emulator
+      - Transaction concurrency tests
+
+  - id: DD-005
+    title: "Integrate persistent dedupe store into base-server.ts"
+    description: |
+      Replace in-memory debugMessageCache with persistent store:
+      1. Add dedupeStore to resource managers
+      2. Initialize based on DEBUG_DEDUPE_DRIVER (postgres/firestore/memory)
+      3. Update sendDebugUpdate() to use dedupeStore.checkAndSet()
+      4. Remove in-memory Map and cleanup interval
+      5. Add fallback to in-memory if database unavailable
+
+      Ensure backwards compatibility with existing config.
+    priority: P0
+    effort: M
+    status: todo
+    phase: 1
+    dependencies: [DD-003, DD-004]
+    acceptanceCriteria:
+      - "base-server.ts updated with dedupeStore integration"
+      - "sendDebugUpdate() uses dedupeStore.checkAndSet()"
+      - "Graceful fallback to in-memory on DB errors"
+      - "Existing DEBUG_MESSAGE_DEDUPE_ENABLED config respected"
+      - "No breaking changes to public API"
+    files:
+      - src/common/base-server.ts
+    tests:
+      - Unit tests for dedupe store initialization
+      - Integration tests for PostgreSQL/Firestore paths
+      - Fallback behavior tests
+
+  - id: DD-006
+    title: "Add periodic cleanup job for expired dedupe records"
+    description: |
+      Implement TTL-based cleanup to prevent unbounded table growth:
+      - Run cleanup every DEBUG_DEDUPE_CLEANUP_INTERVAL_MS (default: 60s)
+      - Call dedupeStore.cleanup(beforeTimestamp)
+      - Log cleanup results (records deleted, errors)
+      - Stop cleanup on service shutdown
+
+      Use setInterval with graceful shutdown.
+    priority: P0
+    effort: S
+    status: todo
+    phase: 1
+    dependencies: [DD-005]
+    acceptanceCriteria:
+      - "Cleanup job runs on schedule"
+      - "Expired records deleted successfully"
+      - "Cleanup stops on service shutdown"
+      - "Errors logged without crashing service"
+    files:
+      - src/common/base-server.ts
+    tests:
+      - Unit tests for cleanup scheduling
+      - Integration tests with expired records
+
+  # ============================================================================
+  # Phase 2: Error Handling & Resilience
+  # ============================================================================
+
+  - id: DD-007
+    title: "Add retry logic for debug update publish failures"
+    description: |
+      Enhance sendDebugUpdate() with exponential backoff retry:
+      - Max retries: 3
+      - Backoff: 100ms, 300ms, 900ms
+      - Log each retry attempt
+      - Give up after max retries (log error, don't throw)
+
+      Prevents transient network failures from losing debug feedback.
+    priority: P1
+    effort: S
+    status: todo
+    phase: 2
+    dependencies: [DD-005]
+    acceptanceCriteria:
+      - "sendDebugUpdate() retries up to 3 times on publish failure"
+      - "Exponential backoff implemented correctly"
+      - "All retries logged with attempt number"
+      - "Final failure logged as error (not thrown)"
+    files:
+      - src/common/base-server.ts
+    tests:
+      - Unit tests with mock publisher failures
+      - Retry count verification
+      - Backoff timing tests
+
+  - id: DD-008
+    title: "Add metrics for debug send failures and dedupe hit rate"
+    description: |
+      Instrument debug update flow with observability metrics:
+      - debug.dedupe.hit (dedupe prevented duplicate)
+      - debug.dedupe.miss (new message sent)
+      - debug.send.success (publish succeeded)
+      - debug.send.failure (publish failed after retries)
+      - debug.send.latency (time from checkAndSet to publish)
+
+      Use existing metrics/logging infrastructure.
+    priority: P1
+    effort: S
+    status: todo
+    phase: 2
+    dependencies: [DD-005, DD-007]
+    acceptanceCriteria:
+      - "All metrics logged with structured data"
+      - "Latency measured accurately (Date.now() diff)"
+      - "Metrics include correlationId, service, messageType"
+    files:
+      - src/common/base-server.ts
+    tests:
+      - Unit tests verify metrics emitted
+      - Integration tests check metric accuracy
+
+  # ============================================================================
+  # Phase 3: Validation & Testing
+  # ============================================================================
+
+  - id: DD-009
+    title: "Write unit tests for DebugDedupeStore implementations"
+    description: |
+      Comprehensive unit tests for all store implementations:
+      - PostgreSQL: Uses pg-mem for in-memory testing
+      - Firestore: Uses Firestore emulator
+      - In-memory: Direct Map testing
+
+      Test cases:
+      - checkAndSet returns false for new keys
+      - checkAndSet returns true for existing keys
+      - cleanup removes expired records
+      - cleanup preserves non-expired records
+      - concurrent checkAndSet calls (no race conditions)
+    priority: P0
+    effort: M
+    status: todo
+    phase: 3
+    dependencies: [DD-003, DD-004]
+    acceptanceCriteria:
+      - "Test file: src/common/persistence/__tests__/debug-dedupe-store.spec.ts"
+      - "All implementations tested"
+      - "Concurrency tests pass"
+      - "Code coverage >90%"
+    files:
+      - src/common/persistence/__tests__/debug-dedupe-store.spec.ts
+    tests:
+      - Self-testing
+
+  - id: DD-010
+    title: "Write integration tests for service restart scenarios"
+    description: |
+      End-to-end tests simulating service restart:
+      1. Send !debug command
+      2. Verify debug update sent
+      3. Simulate service restart (clear in-memory state, keep DB)
+      4. Trigger message redelivery (simulate NATS redelivery)
+      5. Verify NO duplicate debug update sent
+
+      Use real PostgreSQL (testcontainers) or Firestore emulator.
+    priority: P0
+    effort: M
+    status: todo
+    phase: 3
+    dependencies: [DD-005, DD-006]
+    acceptanceCriteria:
+      - "Test file: tests/integration/debug-restart-resilience.spec.ts"
+      - "Restart scenario passes"
+      - "No duplicates detected"
+      - "Test runs in CI/CD pipeline"
+    files:
+      - tests/integration/debug-restart-resilience.spec.ts
+    tests:
+      - Self-testing
+
+  - id: DD-011
+    title: "Manual testing: Deploy and verify no duplicates after restart"
+    description: |
+      Manual validation in local environment:
+      1. Deploy platform with fix
+      2. Send !debug @bot test command
+      3. Observe initial debug responses
+      4. Restart all services (docker-compose restart)
+      5. Verify NO duplicate debug responses
+      6. Check logs for debug.dedupe.hit entries
+      7. Verify database contains dedupe records
+
+      Document results in verification-report.md.
+    priority: P0
+    effort: S
+    status: todo
+    phase: 3
+    dependencies: [DD-005, DD-006, DD-009, DD-010]
+    acceptanceCriteria:
+      - "No duplicate debug messages observed"
+      - "Dedupe cache persists across restarts"
+      - "Database records visible in debug_message_dedupe table"
+      - "Results documented in verification-report.md"
+    files:
+      - planning/sprint-1-9ih2e3/verification-report.md
+    tests:
+      - Manual testing checklist
+
+  - id: DD-012
+    title: "Performance testing: Measure latency impact of persistent cache"
+    description: |
+      Benchmark debug update latency before and after fix:
+      - Baseline: In-memory cache (current)
+      - With fix: PostgreSQL dedupe store
+      - Target: p95 latency < 100ms
+
+      Measure:
+      - checkAndSet duration
+      - Total sendDebugUpdate duration
+      - Database query time
+
+      Use k6 or similar load testing tool.
+    priority: P1
+    effort: S
+    status: todo
+    phase: 3
+    dependencies: [DD-005]
+    acceptanceCriteria:
+      - "Benchmark results documented"
+      - "p95 latency < 100ms"
+      - "No performance regression on non-debug messages"
+    files:
+      - tests/performance/debug-dedupe-latency.ts
+    tests:
+      - Performance benchmarks
+
+  # ============================================================================
+  # Phase 4: Documentation & Cleanup
+  # ============================================================================
+
+  - id: DD-013
+    title: "Update CLAUDE.md with new dedupe behavior"
+    description: |
+      Document the fix in CLAUDE.md:
+      - Add section under "Debug Mode" explaining persistent dedupe
+      - Document new environment variables (DEBUG_DEDUPE_DRIVER, etc.)
+      - Explain fallback behavior
+      - Link to troubleshooting guide
+
+      Keep concise and LLM-friendly (tables, code examples).
+    priority: P1
+    effort: S
+    status: todo
+    phase: 4
+    dependencies: [DD-005, DD-006]
+    acceptanceCriteria:
+      - "CLAUDE.md updated with dedupe behavior"
+      - "Environment variables documented"
+      - "Examples provided"
+      - "Cross-references to troubleshooting guide"
+    files:
+      - CLAUDE.md
+    tests:
+      - Documentation review
+
+  - id: DD-014
+    title: "Create debug dedupe troubleshooting guide"
+    description: |
+      Create operator guide for debugging dedupe issues:
+      - How to check dedupe cache (SQL queries)
+      - How to clear cache manually
+      - Common issues (database connection, TTL misconfiguration)
+      - Logs to check (debug.dedupe.*)
+      - Fallback behavior explanation
+
+      File: documentation/guides/debug-dedupe-troubleshooting.md
+    priority: P1
+    effort: S
+    status: todo
+    phase: 4
+    dependencies: [DD-005, DD-006]
+    acceptanceCriteria:
+      - "Troubleshooting guide created"
+      - "SQL queries provided"
+      - "Common issues documented"
+      - "Log examples included"
+    files:
+      - documentation/guides/debug-dedupe-troubleshooting.md
+    tests:
+      - Documentation review
+
+  - id: DD-015
+    title: "Add migration notes to CHANGELOG.md"
+    description: |
+      Document breaking changes and migration steps:
+      - New database table required
+      - Environment variables added
+      - Backwards compatibility notes
+      - Rollback procedure
+
+      Follow standard CHANGELOG.md format (## [Unreleased] section).
+    priority: P1
+    effort: XS
+    status: todo
+    phase: 4
+    dependencies: [DD-005, DD-006, DD-013]
+    acceptanceCriteria:
+      - "CHANGELOG.md updated"
+      - "Migration steps clear"
+      - "Rollback procedure documented"
+    files:
+      - CHANGELOG.md
+    tests:
+      - Documentation review
+
+  - id: DD-016
+    title: "Add environment variable scaffolding to context creation"
+    description: |
+      Update `brat context create` to scaffold new DEBUG_DEDUPE_* variables:
+      - Add to env/{context}/global.yaml template
+      - Set sensible defaults (DEBUG_DEDUPE_DRIVER=postgres, TTL=300)
+      - Document in context creation guide
+
+      Ensures new contexts get correct config.
+    priority: P2
+    effort: XS
+    status: todo
+    phase: 4
+    dependencies: [DD-005]
+    acceptanceCriteria:
+      - "New contexts include DEBUG_DEDUPE_* variables"
+      - "Defaults match production settings"
+      - "Context creation guide updated"
+    files:
+      - tools/brat/src/commands/context/create.ts
+      - env/local/global.yaml
+    tests:
+      - Manual context creation test
+
+# ============================================================================
+# Summary Statistics
+# ============================================================================
+
+summary:
+  totalTasks: 16
+  byPriority:
+    P0: 8  # Must-have (core fix + critical tests)
+    P1: 7  # Should-have (resilience + docs)
+    P2: 1  # Nice-to-have (scaffolding)
+  byEffort:
+    XS: 2  # <1 hour
+    S: 8   # 1-2 hours
+    M: 6   # 2-4 hours
+    L: 0   # 4-8 hours
+    XL: 0  # >8 hours
+  byPhase:
+    phase1: 6  # Persistent cache
+    phase2: 3  # Error handling
+    phase3: 4  # Testing
+    phase4: 4  # Documentation
+  estimatedTotalEffort: "10-15 hours"
+  criticalPathDuration: "8-12 hours"
+
+# ============================================================================
+# Task Dependency Graph
+# ============================================================================
+
+dependencyGraph: |
+  Phase 1: Persistent Cache
+  DD-001 (Interface)
+    ├─→ DD-003 (PostgreSQL)
+    └─→ DD-004 (Firestore)
+
+  DD-002 (Migration)
+    └─→ DD-003 (PostgreSQL)
+
+  DD-003 + DD-004
+    └─→ DD-005 (Integration)
+
+  DD-005 (Integration)
+    ├─→ DD-006 (Cleanup)
+    ├─→ DD-007 (Retry)
+    ├─→ DD-009 (Unit tests)
+    ├─→ DD-010 (Integration tests)
+    ├─→ DD-012 (Performance)
+    ├─→ DD-013 (CLAUDE.md)
+    ├─→ DD-014 (Troubleshooting)
+    └─→ DD-016 (Context scaffolding)
+
+  DD-005 + DD-007
+    └─→ DD-008 (Metrics)
+
+  DD-005 + DD-006 + DD-009 + DD-010
+    └─→ DD-011 (Manual testing)
+
+  DD-005 + DD-006 + DD-013
+    └─→ DD-015 (CHANGELOG)
+
+  CRITICAL PATH (must complete for sprint success):
+  DD-001 → DD-002 → DD-003 → DD-005 → DD-006 → DD-009 → DD-010 → DD-011

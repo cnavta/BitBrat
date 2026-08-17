@@ -1,0 +1,50 @@
+# Discord DM Message Mapping
+# Sprint 13: DM Capability Implementation (EP-02)
+#
+# Maps Discord MESSAGE_CREATE events to dm.message.v1 when the channel type is 1 (DM).
+# This mapping has higher priority than the regular chat.message.v1 mapping.
+
+platformEvent: MESSAGE_CREATE
+internalEventType: dm.message.v1
+
+# Priority 10 ensures DM detection happens before regular chat messages
+priority: 10
+
+# Filter: Only match DM channels (type 1)
+# Discord channel types: 0=text, 1=DM, 2=voice, 3=group DM, 4=category, etc.
+# Note: DiscordIngressClient normalizes to DiscordMessageMeta before passing to builder
+filter:
+  "==": [{ "var": "channelType" }, 1]
+
+fieldMapping:
+  # Required fields (from DiscordMessageMeta)
+  userId: authorId
+  channelId: channelId
+
+  # Optional fields
+  userName: authorName
+  messageText: content
+  messageId: messageId
+  timestamp: createdAt
+
+  # Custom fields for Discord-specific data
+  custom:
+    # Message metadata
+    channelType: channelType
+    isDM: channelType  # Will be 1 for DMs
+    mentions: mentions
+    roles: roles
+    isOwner: isOwner
+
+# Egress configuration (for reverse translation: InternalEventV2 → Discord API)
+egress:
+  method: sendDM
+  fieldMapping:
+    text: message.text
+    userId: identity.external.id
+
+metadata:
+  description: Discord DM message (channel type 1)
+  platformDocUrl: https://discord.com/developers/docs/resources/channel#message-object
+  createdBy: Platform Team
+  createdAt: "2026-08-14"

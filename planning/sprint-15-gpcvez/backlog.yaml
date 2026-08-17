@@ -1,0 +1,769 @@
+meta:
+  backlog_id: sprint-15-gpcvez-backlog
+  updated_at: 2026-08-16T14:00:00Z
+  status_values: [todo, in-progress, blocked, done, deferred, cancelled]
+  approval_values: [not-required, pending, approved]
+
+sprint:
+  id: sprint-15-gpcvez
+  goal: Implement deployment lifecycle hooks system to enable private container registry authentication
+  status: done
+  wip_limit: 1
+
+items:
+  # ============================================================================
+  # Phase 0: Discovery and Baseline Validation
+  # ============================================================================
+
+  - id: BL-001
+    title: Verify deployment flow for Docker Compose strategy
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: []
+    blocked_reason: null
+    acceptance:
+      - Deployment flow documented with file and line number references
+      - Current sync → build → up sequence verified
+      - No authentication step present in current flow
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-002
+    title: Identify exact hook injection points in docker-compose-strategy.ts
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-001]
+    blocked_reason: null
+    acceptance:
+      - 4 injection points identified (pre-deploy, pre-build, post-build, post-deploy)
+      - Each injection point documented with line number and execution context
+      - Sequencing validated (order of hook execution)
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-003
+    title: Run existing test suite to establish baseline
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: []
+    blocked_reason: null
+    acceptance:
+      - All existing tests pass
+      - Test results recorded (pass/fail counts)
+      - No test failures introduced by environment setup
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-004
+    title: Validate architecture.yaml execution context schema approach
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: []
+    blocked_reason: null
+    acceptance:
+      - Current execution context schema reviewed
+      - Hook configuration approach confirmed (additive, backward compatible)
+      - Schema validation strategy documented
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  # ============================================================================
+  # Phase 1: Core Hook System Implementation
+  # ============================================================================
+
+  - id: BL-100
+    title: Create HookExecutor class with execute() method
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-001, BL-002, BL-003, BL-004]
+    blocked_reason: null
+    acceptance:
+      - tools/brat/src/orchestration/hooks/hook-executor.ts created
+      - HookExecutor.execute() validates hook file existence
+      - HookExecutor.execute() validates execute permissions (Unix)
+      - HookExecutor.execute() passes environment variables to hook
+      - HookExecutor.execute() executes hook and captures exit code
+      - HookExecutor.execute() logs execution start, end, duration, exit code
+      - HookExecutor.execute() throws on failure with clear error message
+      - TypeScript compiles without errors
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-101
+    title: Add DeploymentHooks interface to config/types.ts
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: []
+    blocked_reason: null
+    acceptance:
+      - DeploymentHooks interface defined with optional pre-deploy, post-deploy, pre-build, post-build fields
+      - DeploymentConfig interface includes optional hooks field
+      - TypeScript compiles without errors
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-102
+    title: Add hooks schema validation to execution-context-schema.ts
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-101]
+    blocked_reason: null
+    acceptance:
+      - Schema validation accepts valid hook paths (relative, .sh/.bash/.ts/.js extension)
+      - Schema validation rejects invalid hook paths (absolute paths)
+      - Schema validation allows undefined/null hooks (optional)
+      - Schema validation integrated into context resolution
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-103
+    title: Write HookExecutor unit tests
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-100]
+    blocked_reason: null
+    acceptance:
+      - tools/brat/src/orchestration/hooks/hook-executor.test.ts created
+      - Test case - hook file not found throws error
+      - Test case - hook not executable throws error (Unix only)
+      - Test case - hook exits 0 returns true and logs success
+      - Test case - hook exits non-zero throws error with exit code and stderr
+      - Test case - environment variables passed correctly (verified via test hook)
+      - Test case - hook execution logged with status and duration
+      - All tests pass
+      - Code coverage >80% for HookExecutor class
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-104
+    title: Add additionalSyncPaths support to DockerConfig interface
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-101]
+    blocked_reason: null
+    acceptance:
+      - DockerDeploymentConfig interface includes optional additionalSyncPaths string array
+      - TypeScript compiles without errors
+      - Interface documented with JSDoc comments
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Additional sync paths requirement added
+        turn_id: REQ-002
+
+  - id: BL-105
+    title: Update syncRemoteFiles() to support additionalSyncPaths
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-104]
+    blocked_reason: null
+    acceptance:
+      - orchestrator.ts syncRemoteFiles() reads additionalSyncPaths from context
+      - additionalSyncPaths appended to filesToSync array
+      - .brat/hooks/ auto-added when deployment.hooks is configured
+      - Invalid paths (absolute, outside repo, non-existent) logged as warnings
+      - Duplicate paths deduplicated
+      - TypeScript compiles without errors
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Additional sync paths requirement added
+        turn_id: REQ-002
+
+  - id: BL-106
+    title: Add additionalSyncPaths schema validation
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-104]
+    blocked_reason: null
+    acceptance:
+      - Schema validation accepts array of relative path strings
+      - Schema validation rejects absolute paths
+      - Schema validation allows undefined/null (optional)
+      - Schema validation integrated into context resolution
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Additional sync paths requirement added
+        turn_id: REQ-002
+
+  - id: BL-107
+    title: Write tests for additionalSyncPaths
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-105]
+    blocked_reason: null
+    acceptance:
+      - Test case - additionalSyncPaths files are synced to remote
+      - Test case - .brat/hooks/ auto-synced when hooks configured
+      - Test case - absolute paths rejected/warned
+      - Test case - non-existent paths warned but don't fail deployment
+      - Test case - duplicate paths deduplicated
+      - All tests pass
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Additional sync paths requirement added
+        turn_id: REQ-002
+
+  # ============================================================================
+  # Phase 2: Deployment Strategy Integration
+  # ============================================================================
+
+  - id: BL-200
+    title: Integrate pre-deploy hook into DockerComposeStrategy.execute()
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-100, BL-101, BL-102, BL-103]
+    blocked_reason: null
+    acceptance:
+      - DockerComposeStrategy.execute() calls HookExecutor for pre-deploy hook
+      - Pre-deploy hook executes BEFORE file sync (remote deployments)
+      - Pre-deploy hook executes BEFORE build (local deployments)
+      - Hook context (contextName, deploymentType, services, etc.) passed correctly
+      - Hook failure aborts deployment
+      - Hook success allows deployment to continue
+      - Deployment without pre-deploy hook works (backward compatible)
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-201
+    title: Integrate pre-build hook into DockerComposeStrategy.execute()
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-200]
+    blocked_reason: null
+    acceptance:
+      - DockerComposeStrategy.execute() calls HookExecutor for pre-build hook
+      - Pre-build hook executes AFTER file sync (remote deployments)
+      - Pre-build hook executes BEFORE docker compose build
+      - Hook failure aborts deployment
+      - Hook success allows deployment to continue
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-202
+    title: Integrate post-build hook into DockerComposeStrategy.execute()
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-201]
+    blocked_reason: null
+    acceptance:
+      - DockerComposeStrategy.execute() calls HookExecutor for post-build hook
+      - Post-build hook executes AFTER docker compose build
+      - Post-build hook executes BEFORE docker compose up
+      - Hook failure aborts deployment
+      - Hook success allows deployment to continue
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-203
+    title: Integrate post-deploy hook into DockerComposeStrategy.execute()
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-202]
+    blocked_reason: null
+    acceptance:
+      - DockerComposeStrategy.execute() calls HookExecutor for post-deploy hook
+      - Post-deploy hook executes AFTER docker compose up
+      - Hook failure logs error but does not abort (containers already started)
+      - Hook success logged
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-204
+    title: Write integration tests for hook execution flow
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-200, BL-201, BL-202, BL-203]
+    blocked_reason: null
+    acceptance:
+      - tools/brat/src/orchestration/deployment/docker-compose-strategy-hooks.test.ts created
+      - Test case - all four hooks execute in correct order
+      - Test case - hook failure aborts deployment (pre-deploy, pre-build, post-build)
+      - Test case - post-deploy hook failure does not abort
+      - Test case - deployment without hooks works (backward compatibility)
+      - Test case - dry-run mode respects hooks
+      - All tests pass
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  # ============================================================================
+  # Phase 3: obs-mcp Deployment Fix
+  # ============================================================================
+
+  - id: BL-300
+    title: Create .brat/hooks/staging/pre-deploy-gcp-auth.sh
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-200, BL-201, BL-202, BL-203]
+    blocked_reason: null
+    acceptance:
+      - .brat/hooks/staging/pre-deploy-gcp-auth.sh created
+      - Hook uses .secure.staging/gcp-sa.json for authentication
+      - Hook uses docker login --password-stdin (secure)
+      - Hook validates service account key file exists
+      - Hook provides fallback to gcloud CLI if key not found
+      - Hook exits 0 on success, non-zero on failure
+      - Hook logs informational messages
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-301
+    title: Make hook executable (chmod +x)
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-300]
+    blocked_reason: null
+    acceptance:
+      - chmod +x .brat/hooks/staging/pre-deploy-gcp-auth.sh executed
+      - Hook file has execute permissions (verified with ls -la)
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-302
+    title: Add hooks configuration to staging execution context
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-301]
+    blocked_reason: null
+    acceptance:
+      - architecture.yaml executionContexts.staging.deployment.hooks.pre-deploy set to .brat/hooks/staging/pre-deploy-gcp-auth.sh
+      - YAML syntax valid
+      - Schema validation passes
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-303
+    title: Test deployment to staging (dry-run then real)
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-302]
+    blocked_reason: null
+    acceptance:
+      - npm run brat -- bit deploy obs-mcp --context staging --dry-run succeeds
+      - Hook execution visible in dry-run output
+      - npm run brat -- bit deploy obs-mcp --context staging succeeds (real deployment)
+      - No authentication errors in deployment output
+      - obs-mcp image pulls successfully from Artifact Registry
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-304
+    title: Verify obs-mcp container health on staging
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-303]
+    blocked_reason: null
+    acceptance:
+      - obs-mcp container running on staging (docker ps shows container)
+      - obs-mcp container healthy (docker inspect shows health status)
+      - obs-mcp logs show no errors (docker logs obs-mcp)
+      - Deployment can be repeated successfully (idempotent)
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  # ============================================================================
+  # Phase 4: Example Hooks & Documentation
+  # ============================================================================
+
+  - id: BL-400
+    title: Create example hooks for multiple registry providers
+    priority: P1
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-300]
+    blocked_reason: null
+    acceptance:
+      - documentation/examples/hooks/gcp-artifact-registry-auth.sh created
+      - documentation/examples/hooks/aws-ecr-auth.sh created
+      - documentation/examples/hooks/azure-acr-auth.sh created
+      - documentation/examples/hooks/docker-hub-auth.sh created
+      - documentation/examples/hooks/multi-registry-auth.sh created
+      - documentation/examples/hooks/health-check-post-deploy.sh created
+      - All examples are syntactically correct (bash -n validates)
+      - All examples include comments explaining usage
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-401
+    title: Create documentation/guides/deployment-hooks.md
+    priority: P1
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-400]
+    blocked_reason: null
+    acceptance:
+      - documentation/guides/deployment-hooks.md created
+      - Hook types explained (pre-deploy, post-deploy, pre-build, post-build)
+      - Hook contract documented (environment variables, exit codes)
+      - Hook configuration explained (architecture.yaml syntax)
+      - Example hooks referenced
+      - Troubleshooting section included
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-402
+    title: Create documentation/guides/hook-security-best-practices.md
+    priority: P1
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: []
+    blocked_reason: null
+    acceptance:
+      - documentation/guides/hook-security-best-practices.md created
+      - Secret management explained (.secure.{ENV}/ pattern)
+      - Docker login security covered (--password-stdin)
+      - Common pitfalls documented (hardcoded secrets, command-line args)
+      - DO/DON'T examples provided
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-403
+    title: Update documentation/guides/extending-bitbrat.md with hooks section
+    priority: P1
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-401]
+    blocked_reason: null
+    acceptance:
+      - documentation/guides/extending-bitbrat.md updated
+      - Hooks section added explaining when to use hooks
+      - Cross-reference to deployment-hooks.md
+      - Example use cases listed (authentication, validation, monitoring)
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-404
+    title: Add hook examples directory structure
+    priority: P1
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-400]
+    blocked_reason: null
+    acceptance:
+      - documentation/examples/hooks/ directory created
+      - All example hooks present in directory
+      - README.md in examples/hooks/ explaining examples
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  # ============================================================================
+  # Phase V: Validation, Verification, Publication, Close-out
+  # ============================================================================
+
+  - id: BL-500
+    title: Create validate_deliverable.sh
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-204, BL-304, BL-404]
+    blocked_reason: null
+    acceptance:
+      - planning/sprint-15-gpcvez/validate_deliverable.sh created
+      - Script validates npm ci succeeds
+      - Script validates npm run build succeeds
+      - Script validates npm test succeeds
+      - Script validates hook executor with test hook
+      - Script validates obs-mcp deployment (dry-run mode)
+      - Script is executable (chmod +x)
+      - Script exits 0 on success, non-zero on failure
+      - Script output is clear and actionable
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-501
+    title: Produce verification-report.md
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-500]
+    blocked_reason: null
+    acceptance:
+      - planning/sprint-15-gpcvez/verification-report.md created
+      - All 15 acceptance criteria mapped to evidence
+      - Each criterion marked Completed / Partial / Deferred
+      - Evidence includes file paths, line numbers, test results
+      - Any deferred items explained with rationale
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-502
+    title: Update CHANGELOG.md with hook system feature
+    priority: P1
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-501]
+    blocked_reason: null
+    acceptance:
+      - CHANGELOG.md updated with version 0.29.0 or appropriate version
+      - Feature description added (deployment lifecycle hooks)
+      - Breaking changes section (none - backward compatible)
+      - Migration guide for obs-mcp deployment
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-503
+    title: Create PR and record result in publication.yaml
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-501, BL-502]
+    blocked_reason: null
+    acceptance:
+      - Git commit created with all changes
+      - Git push to feature branch succeeds
+      - PR created via gh pr create
+      - planning/sprint-15-gpcvez/publication.yaml created with PR URL
+      - Or failed PR attempt logged in publication.yaml
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001
+
+  - id: BL-504
+    title: Produce retro.md and key-learnings.md
+    priority: P0
+    status: done
+    approval: approved
+    owner: lead-implementor
+    dependencies: [BL-503]
+    blocked_reason: null
+    acceptance:
+      - planning/sprint-15-gpcvez/retro.md created
+      - Retro covers what went well, what could improve, action items
+      - planning/sprint-15-gpcvez/key-learnings.md created
+      - Key learnings document technical insights, patterns, gotchas
+    evidence: []
+    updated_at: 2026-08-16T00:00:00Z
+    history:
+      - at: 2026-08-16T00:00:00Z
+        from: null
+        to: todo
+        reason: Execution plan approved
+        turn_id: REQ-001

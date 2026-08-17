@@ -1,0 +1,389 @@
+# EventSub Subscription Configuration Format Reference
+## Sprint 16 (sprint-16-aalwmj)
+
+**Version**: 1.0
+**Last Updated**: 2026-08-16
+**File**: `config/platforms/twitch/eventsub-subscriptions.yaml`
+
+---
+
+## Overview
+
+The EventSub subscription configuration defines which Twitch EventSub events the BitBrat platform subscribes to and how they are processed. The configuration is YAML-based, validated against a JSON schema, and supports per-channel overrides.
+
+**Key Features**:
+- Declarative subscription management (no code changes required)
+- Per-channel override capability
+- OAuth scope documentation
+- Priority-based event classification
+- State mutation support for platform state management
+
+---
+
+## File Structure
+
+```yaml
+version: 1
+
+subscriptions:
+  <event-type>:
+    enabled: <boolean>
+    version: <integer>
+    scope: <string>
+    priority: <critical|high|medium|low>
+    builder: <builder-method-name>
+    internalType: <internal-event-type>
+    description: <string>
+    mutation:
+      key: <state-key>
+      value: <state-value>
+      ttl: <seconds>
+
+channelOverrides:
+  <channel-name>:
+    <event-type>:
+      enabled: <boolean>
+```
+
+---
+
+## Top-Level Fields
+
+### `version` (required)
+- **Type**: `integer`
+- **Value**: `1`
+- **Description**: Configuration schema version. Must be exactly `1`.
+
+### `subscriptions` (required)
+- **Type**: `object`
+- **Description**: Map of EventSub event types to their configuration
+- **Key**: Twitch EventSub event type (e.g., `channel.follow`, `stream.online`)
+- **Value**: `EventSubscriptionConfig` object
+
+### `channelOverrides` (optional)
+- **Type**: `object`
+- **Description**: Per-channel subscription overrides
+- **Key**: Channel name (lowercase, without `#` prefix)
+- **Value**: Map of event types to override configuration
+- **Default**: `{}`
+
+---
+
+## Event Subscription Configuration
+
+Each event subscription has the following fields:
+
+### `enabled` (required)
+- **Type**: `boolean`
+- **Description**: Whether this subscription is active globally
+- **Example**: `true`, `false`
+- **Notes**: Can be overridden per-channel via `channelOverrides`
+
+### `version` (optional)
+- **Type**: `integer`
+- **Min**: `1`
+- **Max**: `10`
+- **Default**: `1`
+- **Description**: EventSub API version (Twitch may have multiple versions of the same event)
+- **Example**: `2` for `channel.follow` (v2)
+
+### `scope` (optional)
+- **Type**: `string`
+- **Pattern**: `^[a-z:_]+$`
+- **Description**: Required OAuth scope for this subscription
+- **Example**: `moderator:read:followers`, `channel:read:subscriptions`
+- **Notes**: If omitted, no special scope is required
+
+### `priority` (optional)
+- **Type**: `enum`
+- **Values**: `critical`, `high`, `medium`, `low`
+- **Description**: Event priority classification
+- **Default**: None
+- **Priority Levels**:
+  - **critical**: Core platform functionality (e.g., stream state)
+  - **high**: Important engagement/monetization events
+  - **medium**: Useful but not critical
+  - **low**: High volume or optional events
+
+### `builder` (required)
+- **Type**: `string`
+- **Pattern**: `^build[A-Z][a-zA-Z0-9]*$`
+- **Description**: Builder method name in `EventSubEnvelopeBuilder` class
+- **Example**: `buildFollow`, `buildRaid`, `buildStreamOnline`
+- **Notes**: Must exist in `EventBuilderRegistry` or subscription will be skipped
+
+### `internalType` (required)
+- **Type**: `string`
+- **Pattern**: `^(system|chat)\.[a-z0-9.]+$`
+- **Description**: Internal event type for `InternalEventV2` envelope
+- **Example**: `system.twitch.follow`, `chat.message.v1`, `system.stream.online`
+- **Notes**: Used for routing and event processing
+
+### `description` (optional)
+- **Type**: `string`
+- **Min Length**: `10`
+- **Max Length**: `500`
+- **Description**: Human-readable description of the event
+- **Example**: `"New follower event - requires moderator scope"`
+
+### `mutation` (optional)
+- **Type**: `object`
+- **Description**: Optional state mutation to publish when event is received
+- **Use Case**: Events that affect platform state (e.g., `stream.online` sets `stream.state = "on"`)
+
+#### Mutation Fields
+
+##### `key` (required)
+- **Type**: `string`
+- **Pattern**: `^[a-z][a-z0-9._]*$`
+- **Description**: State key to mutate (dot-separated path)
+- **Example**: `stream.state`, `channel.live`
+
+##### `value` (required)
+- **Type**: `string | number | boolean`
+- **Description**: Value to set for the state key
+- **Example**: `"on"`, `"off"`, `true`, `42`
+
+##### `ttl` (optional)
+- **Type**: `integer`
+- **Min**: `1`
+- **Max**: `86400` (24 hours)
+- **Default**: `21600` (6 hours)
+- **Description**: Time-to-live in seconds for the state mutation
+- **Example**: `21600`
+
+---
+
+## Per-Channel Overrides
+
+The `channelOverrides` section allows enabling/disabling specific events for individual channels.
+
+**Format**:
+```yaml
+channelOverrides:
+  <channel-name>:
+    <event-type>:
+      enabled: <boolean>
+```
+
+**Example**:
+```yaml
+channelOverrides:
+  bitbrat:
+    channel.ban:
+      enabled: true
+    channel.moderate:
+      enabled: true
+  anotherchannel:
+    channel.raid:
+      enabled: true
+    channel.hype_train.progress:
+      enabled: false
+```
+
+**Notes**:
+- Channel names are **lowercase** without `#` prefix
+- Only `enabled` field can be overridden (other fields inherited from global config)
+- Overrides are applied **on top of** global subscription settings
+- If global config has `enabled: false` and channel override has `enabled: true`, the event is enabled for that channel only
+
+---
+
+## Complete Example
+
+```yaml
+version: 1
+
+subscriptions:
+  # Existing events (enabled by default)
+  channel.follow:
+    enabled: true
+    version: 2
+    scope: moderator:read:followers
+    priority: high
+    builder: buildFollow
+    internalType: system.twitch.follow
+    description: New follower event
+
+  stream.online:
+    enabled: true
+    version: 1
+    priority: critical
+    builder: buildStreamOnline
+    internalType: system.stream.online
+    description: Stream goes live
+    mutation:
+      key: stream.state
+      value: on
+      ttl: 21600
+
+  # New events (disabled by default, opt-in)
+  channel.raid:
+    enabled: false
+    version: 1
+    priority: high
+    builder: buildRaid
+    internalType: system.twitch.raid
+    description: Broadcaster raids another channel
+
+  channel.subscribe:
+    enabled: false
+    version: 1
+    scope: channel:read:subscriptions
+    priority: high
+    builder: buildSubscribe
+    internalType: system.twitch.subscribe
+    description: New subscription event
+
+  # Moderation events (disabled, high volume)
+  channel.ban:
+    enabled: false
+    version: 1
+    scope: channel:moderate
+    priority: medium
+    builder: buildBan
+    internalType: system.twitch.moderation.ban
+    description: User timeout or ban
+
+channelOverrides:
+  bitbrat:
+    # Enable moderation events for this channel
+    channel.ban:
+      enabled: true
+    channel.moderate:
+      enabled: true
+```
+
+---
+
+## OAuth Scopes Reference
+
+| Scope | Required For | Description |
+|-------|--------------|-------------|
+| `moderator:read:followers` | `channel.follow` | Read follower list |
+| `bits:read` | `channel.cheer`, `channel.bits.use` | Read bits events |
+| `channel:read:subscriptions` | `channel.subscribe`, `channel.subscription.*` | Read subscription events |
+| `channel:read:redemptions` | `channel.channel_points_*` | Read channel points redemptions |
+| `channel:manage:redemptions` | `channel.channel_points_custom_reward.*` | Manage custom rewards |
+| `user:read:chat` | `channel.chat.*` | Read chat messages |
+| `channel:moderate` | `channel.ban`, `channel.moderate`, etc. | Moderation actions |
+| `channel:read:ads` | `channel.ad_break.begin` | Read ad break events |
+| `moderator:read:automod_settings` | `automod.settings.update` | Read automod settings |
+| `moderator:manage:automod` | `automod.*` | Manage automod |
+
+---
+
+## Priority Levels
+
+### Critical
+- **Use Case**: Core platform functionality, must never be disabled
+- **Examples**: `stream.online`, `stream.offline`
+- **Characteristics**: Low volume, high impact
+
+### High
+- **Use Case**: Important engagement or monetization events
+- **Examples**: `channel.follow`, `channel.subscribe`, `channel.raid`
+- **Characteristics**: Medium volume, important for user experience
+
+### Medium
+- **Use Case**: Useful but not critical features
+- **Examples**: `channel.poll.begin`, `channel.prediction.end`
+- **Characteristics**: Medium volume, nice-to-have
+
+### Low
+- **Use Case**: High volume or optional events
+- **Examples**: `channel.hype_train.progress`, `channel.chat.message`
+- **Characteristics**: High volume, opt-in recommended
+
+---
+
+## High Volume Events
+
+Some events generate a **very high volume** of messages and should be enabled carefully:
+
+| Event Type | Volume | Recommendation |
+|------------|--------|----------------|
+| `channel.hype_train.progress` | Very High | Opt-in per channel only |
+| `channel.moderate` | Very High | Opt-in for moderation-heavy channels |
+| `channel.chat.message` | Extreme | Use IRC instead (overlaps) |
+
+**Best Practice**: Keep these events `enabled: false` globally, use `channelOverrides` to enable for specific channels where needed.
+
+---
+
+## Migration Notes
+
+### From Hardcoded to YAML
+
+1. **Existing 4 events** (`channel.follow`, `channel.update`, `stream.online`, `stream.offline`) are **enabled by default**
+2. **All new events** are **disabled by default** (opt-in)
+3. **Feature flag** `ENABLE_EVENTSUB_YAML_CONFIG` controls whether this config is used
+   - `false` (default): Uses hardcoded subscriptions (backward compatible)
+   - `true`: Uses YAML config (new system)
+4. **Gradual rollout**: Enable feature flag per-channel for canary testing
+
+### Adding New Events
+
+To add support for a new EventSub event:
+
+1. **Implement builder** in `EventSubEnvelopeBuilder` (e.g., `buildRaid()`)
+2. **Register builder** in `EventBuilderRegistry`
+3. **Add to YAML config** with `enabled: false`
+4. **Map to Twurple listener** in `SubscriptionManager.getListenerMethod()`
+5. **Test** with integration tests
+6. **Enable** selectively via config or per-channel overrides
+
+---
+
+## Validation
+
+The configuration is validated against JSON Schema at runtime:
+
+**Schema File**: `config/schemas/eventsub-subscriptions.v1.yaml`
+
+**Validation Rules**:
+1. `version` must be exactly `1`
+2. `subscriptions` must have at least 1 event defined
+3. Each subscription must have: `enabled`, `builder`, `internalType`
+4. `builder` must start with `"build"` followed by CamelCase
+5. `internalType` must start with `"system."` or `"chat."`
+6. `scope` (if present) must be lowercase with colons/underscores
+7. `priority` must be one of: `critical`, `high`, `medium`, `low`
+8. `mutation.key` must be dot-separated lowercase
+9. `mutation.ttl` must be 1-86400 seconds
+10. `channelOverrides` keys are channel names (lowercase)
+
+---
+
+## Troubleshooting
+
+### Config not loading
+- **Check**: File exists at `config/platforms/twitch/eventsub-subscriptions.yaml`
+- **Check**: File is valid YAML (no syntax errors)
+- **Check**: Feature flag `ENABLE_EVENTSUB_YAML_CONFIG=true`
+- **Logs**: Search for `eventsub.config.loaded` or `eventsub.config.not_found`
+
+### Subscription skipped
+- **Check**: Builder exists in `EventBuilderRegistry`
+- **Check**: OAuth scope is available (if required)
+- **Check**: Event is `enabled: true` (globally or per-channel)
+- **Logs**: Search for `eventsub.subscription.skipped`
+
+### Builder not found
+- **Check**: Builder method name matches YAML config
+- **Check**: Builder is registered in `EventBuilderRegistry.registerBuilders()`
+- **Check**: Spelling/capitalization is correct
+- **Logs**: Search for `eventsub.builder_registry.not_found`
+
+---
+
+## Related Documents
+
+- **Technical Architecture**: `planning/sprint-16-aalwmj/technical-architecture.md`
+- **JSON Schema**: `config/schemas/eventsub-subscriptions.v1.yaml`
+- **Migration Guide**: `planning/sprint-16-aalwmj/migration-guide.md` (TBD)
+- **Twitch EventSub Catalog**: `documentation/reference/twitch-eventsub-catalog.md` (TBD)
+
+---
+
+**END OF DOCUMENT**

@@ -5,16 +5,20 @@
  * Handles message events, errors, disconnections, and reconnections.
  *
  * Sprint 348: Slack Integration
+ * Sprint 13: YAML-driven event gateway integration
+ * - Accepts envelope builder function for flexibility
+ * - Supports both custom builder and TranslationEngine-based builder
  *
  * @since Sprint 348
  */
 
 import type { IngressPublisher, ConnectorSnapshot } from '../core';
 import { logger } from '../../../common/logging';
+import type { InternalEventV2, DebugMetadata } from '../../../types/events';
 
 import { SocketModeClient } from '@slack/socket-mode';
 import { WebClient } from '@slack/web-api';
-import { buildSlackEnvelope } from './envelope-builder';
+import { buildSlackEnvelope, type SlackEventMeta } from './envelope-builder';
 
 export class SlackIngressClient {
   private socketClient?: SocketModeClient;
@@ -33,14 +37,27 @@ export class SlackIngressClient {
   private debugAuthorizedUsers: Set<string>; // Sprint 371: RBAC for debug mode
   private processedMessageTimestamps: Set<string> = new Set(); // Deduplication cache
   private deduplicationCleanupInterval?: NodeJS.Timeout;
+  private readonly egressDestinationTopic?: string; // Egress topic for routing responses
 
   constructor(
+    private readonly buildEnvelope: (
+      event: SlackEventMeta,
+      opts?: {
+        uuid?: () => string;
+        nowIso?: () => string;
+        egressDestination?: string;
+        correlationId?: string;
+        debugMetadata?: DebugMetadata;
+      }
+    ) => InternalEventV2,
     private readonly appToken: string,
     private readonly botToken: string,
     private readonly publisher: IngressPublisher,
-    debugUsersSlack?: string // Sprint 371: Comma-separated list of authorized Slack User IDs
+    debugUsersSlack?: string, // Sprint 371: Comma-separated list of authorized Slack User IDs
+    egressDestinationTopic?: string // Egress topic for routing responses back
   ) {
     this.webClient = new WebClient(botToken);
+    this.egressDestinationTopic = egressDestinationTopic;
 
     // Sprint 371: Parse debug authorized users (comma-separated Slack User IDs)
     this.debugAuthorizedUsers = new Set(
@@ -363,6 +380,8 @@ export class SlackIngressClient {
             reason: 'user_not_in_debug_authorized_list',
             authorizedCount: this.debugAuthorizedUsers.size,
           });
+          // Note: Unlike Discord, Slack continues processing unauthorized debug requests
+          // The prefix is stripped but no debug metadata is attached
         }
       }
 
@@ -385,7 +404,9 @@ export class SlackIngressClient {
         startedAt: new Date().toISOString(),
       } : undefined;
 
-      const envelope = buildSlackEnvelope(
+      // Sprint 13: Support both sync and async envelope builders
+      // TranslationEngine.translateInbound is async, but custom builders are sync
+      const envelopeOrPromise = this.buildEnvelope(
         {
           type: actualEvent.type,
           user: actualEvent.user,
@@ -397,11 +418,17 @@ export class SlackIngressClient {
           event_ts: actualEvent.event_ts,
         },
         {
+          egressDestination: this.egressDestinationTopic,
           // Sprint 371: Pass pre-generated correlation ID and debug metadata if RBAC passed
           correlationId: debugCorrelationId,
           debugMetadata,
         }
       );
+
+      // Check if result is a Promise and await if necessary
+      const envelope = envelopeOrPromise instanceof Promise
+        ? await envelopeOrPromise
+        : envelopeOrPromise;
 
       logger.debug('slack.client.envelope_built', {
         correlationId: envelope.correlationId,

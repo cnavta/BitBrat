@@ -72,20 +72,33 @@ describe('TwitchIrcClient Tracer Logic', () => {
       correlationId: 'debug-corr-id',
       qos: {}
     };
-    builder.build.mockImplementation((msg: any) => {
+    builder.build.mockImplementation((msg: any, opts?: any) => {
       // In a real builder, text would be mapped to message.text
       // Here we just verify the builder receives the stripped text
       expect(msg.text).toBe('my message');
-      return { ...mockEvent, message: { text: msg.text } };
+      const evt = { ...mockEvent, message: { text: msg.text } };
+      // Sprint 12: Envelope builder now attaches debug metadata and sets qos.tracer
+      if (opts?.debugMetadata) {
+        evt.metadata = { debug: opts.debugMetadata };
+        evt.qos = { tracer: true };
+      }
+      return evt;
     });
 
     await client.handleMessage('#chan1', 'authorized_user', '!debug my message');
 
-    expect(builder.build).toHaveBeenCalledWith(expect.objectContaining({
-      text: 'my message'
-    }));
+    expect(builder.build).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'my message' }),
+      expect.objectContaining({
+        debugMetadata: expect.objectContaining({
+          enabled: true,
+          initiatedBy: 'authorized_user',
+          feedbackChannel: '#chan1'
+        })
+      })
+    );
     expect(sendTextSpy).toHaveBeenCalledWith(
-      expect.stringContaining('debug-corr-id'),
+      expect.stringContaining('Debug mode ON'),
       '#chan1'
     );
     expect(publisher.publish).toHaveBeenCalledWith(expect.objectContaining({
@@ -109,9 +122,13 @@ describe('TwitchIrcClient Tracer Logic', () => {
 
     await client.handleMessage('#chan1', 'unauthorized_user', '!debug my message');
 
-    expect(builder.build).toHaveBeenCalledWith(expect.objectContaining({
-      text: '!debug my message'
-    }));
+    expect(builder.build).toHaveBeenCalledWith(
+      expect.objectContaining({ text: '!debug my message' }),
+      expect.objectContaining({
+        debugMetadata: undefined,
+        correlationId: undefined
+      })
+    );
     expect(sendTextSpy).not.toHaveBeenCalled();
     expect(publisher.publish).toHaveBeenCalledWith(expect.objectContaining({
       qos: expect.not.objectContaining({ tracer: true }),
@@ -130,7 +147,15 @@ describe('TwitchIrcClient Tracer Logic', () => {
       correlationId: 'debug-corr-id',
       qos: {}
     };
-    builder.build.mockImplementation((msg: any) => ({ ...mockEvent, message: { text: msg.text } }));
+    builder.build.mockImplementation((msg: any, opts?: any) => {
+      const evt = { ...mockEvent, message: { text: msg.text } };
+      // Sprint 12: Envelope builder now attaches debug metadata and sets qos.tracer
+      if (opts?.debugMetadata) {
+        evt.metadata = { debug: opts.debugMetadata };
+        evt.qos = { tracer: true };
+      }
+      return evt;
+    });
 
     // User types in different case, command in different case
     await client.handleMessage('#chan1', 'authorized_user', '!DEBUG my message');
@@ -152,7 +177,14 @@ describe('TwitchIrcClient Tracer Logic', () => {
       correlationId: 'debug-corr-id',
       qos: {}
     };
-    builder.build.mockImplementation((msg: any) => ({ ...mockEvent, message: { text: msg.text } }));
+    builder.build.mockImplementation((msg: any, opts?: any) => {
+      const evt = { ...mockEvent, message: { text: msg.text } };
+      if (opts?.debugMetadata) {
+        evt.metadata = { debug: opts.debugMetadata };
+        evt.qos = { tracer: true };
+      }
+      return evt;
+    });
 
     await client.handleMessage('#chan1', 'gonj_the_unjust', '!debug test message');
 
@@ -173,7 +205,14 @@ describe('TwitchIrcClient Tracer Logic', () => {
       correlationId: 'debug-corr-id',
       qos: {}
     };
-    builder.build.mockImplementation((msg: any) => ({ ...mockEvent, message: { text: msg.text } }));
+    builder.build.mockImplementation((msg: any, opts?: any) => {
+      const evt = { ...mockEvent, message: { text: msg.text } };
+      if (opts?.debugMetadata) {
+        evt.metadata = { debug: opts.debugMetadata };
+        evt.qos = { tracer: true };
+      }
+      return evt;
+    });
 
     await client.handleMessage('#chan1', 'gonj_the_unjust', '!debug test message');
 
@@ -194,7 +233,14 @@ describe('TwitchIrcClient Tracer Logic', () => {
       correlationId: 'debug-corr-id',
       qos: {}
     };
-    builder.build.mockImplementation((msg: any) => ({ ...mockEvent, message: { text: msg.text } }));
+    builder.build.mockImplementation((msg: any, opts?: any) => {
+      const evt = { ...mockEvent, message: { text: msg.text } };
+      if (opts?.debugMetadata) {
+        evt.metadata = { debug: opts.debugMetadata };
+        evt.qos = { tracer: true };
+      }
+      return evt;
+    });
 
     // Twurple provides login name, not ID, in onMessage
     await client.handleMessage('#chan1', 'gonj_the_unjust', '!debug test message', { userId: '91960688' });

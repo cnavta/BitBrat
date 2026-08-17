@@ -52,7 +52,8 @@ export async function cmdDocker(action: string, flags: any) {
     loki: flags.loki,
     noDeps: flags.noDeps,
     forceRecreate: flags.forceRecreate,
-    noCache: flags.noCache
+    noCache: flags.noCache,
+    rebuildBase: flags.rebuildBase // Sprint 375: Force rebuild base image
   };
 
   const orchestrator = new DockerOrchestrator(options);

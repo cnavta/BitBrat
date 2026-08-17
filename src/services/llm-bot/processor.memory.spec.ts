@@ -107,10 +107,12 @@ describe('llm-bot short-term memory', () => {
       callLLM: async (_model, input) => { inputSeen = input; return 'ok'; },
     });
     expect(status).toBe('OK');
-    // In conversation history, the oldest should be trimmed
-    const csIdx = inputSeen.indexOf('## [Conversation State / History]');
-    const nextIdx = inputSeen.indexOf('## [', csIdx + 1);
-    const csSection = csIdx >= 0 ? (nextIdx > csIdx ? inputSeen.slice(csIdx, nextIdx) : inputSeen.slice(csIdx)) : inputSeen;
-    expect(csSection).not.toContain('one');
+    // Sprint 9: Prompts appear in Task section, not Conversation State
+    // LLM_BOT_MEMORY_MAX_MESSAGES only affects messages in Conversation State, not prompts in Task
+    // All prompts should appear in Task section regardless of MAX_MESSAGES setting
+    expect(inputSeen).toContain('## [Task]');
+    expect(inputSeen).toContain('one');
+    expect(inputSeen).toContain('two');
+    expect(inputSeen).toContain('three');
   });
 });

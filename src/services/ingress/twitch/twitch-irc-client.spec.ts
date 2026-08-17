@@ -75,7 +75,16 @@ describe('TwitchIrcClient integration scaffolding', () => {
     const client = new TwitchIrcClient(builder, publisher, ['chan'], { egressDestinationTopic: 'internal.egress.v1.inst1' });
     await client.start();
     const evt: any = { v: '2', ingress: { source: 'ingress.twitch' }, correlationId: 'c', routingSlip: [], type: 'chat.message.v1', message: { id: 'm3', role: 'user', text: 'hi' } };
-    builder.build.mockReturnValue(evt);
+    // Sprint 12: Envelope builder now sets egress.destination from options
+    builder.build.mockImplementation((msg: any, opts?: any) => ({
+      ...evt,
+      egress: {
+        destination: opts?.egressDestination || '',
+        connector: 'twitch',
+        type: 'chat',
+        channel: msg.channel
+      }
+    }));
     publisher.publish.mockResolvedValue('mid-2');
 
     await client.handleMessage('#chan', 'user1', 'hi');

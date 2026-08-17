@@ -17,13 +17,23 @@ import type { ResourceManager, ResourceInstances, SetupContext } from './resourc
 import { PublisherManager } from './resources/publisher-manager';
 import { FirestoreManager } from './resources/firestore-manager';
 import { DocumentStoreManager } from './resources/document-store-manager';
+import { RedisManager } from './resources/redis-manager';
 import { createMessageSubscriber, createMessagePublisher, type AttributeMap } from '../services/message-bus';
+import {
+  checkIdempotency,
+  extractIdempotencyHints,
+  mergeIdempotencyConfig,
+  type IdempotencyConfig,
+  type SubscriptionIdempotencyConfig,
+} from './idempotency-middleware';
+import type { RedisClientType } from 'redis';
 import type { MessageHandler, SubscribeOptions, UnsubscribeFn } from '../services/message-bus';
 import { initializeTracing, shutdownTracing, getTracer, startActiveSpan, api } from './tracing';
 import type { InternalEventV2, RoutingStep, RoutingStatus, SnapshotDeadletterV1, SnapshotDeliveryV1 } from '../types/events';
 import { markSelectedCandidate } from './events/selection';
 import { features } from './feature-flags';
 import { publishPersistenceSnapshot } from './events/persistence-snapshots';
+import { FeedbackMiddleware } from './middleware/feedback-middleware';
 import type { PublisherResource } from './resources/publisher-manager';
 // Bit model (sprint-324): MCP control-plane machinery folded down into the base abstraction.
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -127,6 +137,9 @@ export class Bit {
   private readonly debugMessageCache: Map<string, number> = new Map();
   private debugCacheCleanupInterval?: NodeJS.Timeout;
 
+  // Sprint 377: Feedback middleware for long-running task progress
+  private feedbackMiddleware?: FeedbackMiddleware;
+
   /**
    * Creates an instance of BaseServer.
    * @param opts - Configuration options for the server.
@@ -183,6 +196,25 @@ export class Bit {
     // constructed (cheap, in-memory) but the HTTP transport + self-registration are only wired when
     // exposure is set, so a plain Bit behaves exactly like the legacy BaseServer until promoted.
     this.initializeMcp(opts);
+
+    // Sprint 377: Initialize feedback middleware for long-running task progress
+    const progressEnabled = this.config.progressEnabled !== false; // Default: true
+    const progressUseCustom = this.config.progressUseCustom === true; // Default: false (Phase 1)
+    if (progressEnabled) {
+      this.feedbackMiddleware = new FeedbackMiddleware(
+        {
+          getLogger: () => this.logger,
+          publish: this.publishEvent.bind(this),
+        },
+        {
+          enabled: progressEnabled,
+          useCustomMessages: progressUseCustom,
+          initialThresholdMs: this.config.progressInitialThresholdMs || 2000,
+          updateIntervalMs: this.config.progressUpdateIntervalMs || 5000,
+          timeoutThresholdMs: this.config.progressTimeoutThresholdMs || 30000,
+        }
+      );
+    }
 
     // Bit model (sprint-324, Phase 2): compose the declared capability profiles over this Bit and
     // enforce the architecture.yaml profile: -> mixin contract, so declared intent cannot diverge
@@ -445,16 +477,17 @@ export class Bit {
   protected async onMessage<T = any>(
     destination: string,
     handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
-    options?: SubscribeOptions
+    options?: SubscribeOptions & { idempotency?: SubscriptionIdempotencyConfig }
   ): Promise<void>;
   protected async onMessage<T = any>(
     cfg: { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
-    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void
+    handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
+    options?: SubscribeOptions & { idempotency?: SubscriptionIdempotencyConfig }
   ): Promise<void>;
   protected async onMessage<T = any>(
     arg1: string | { destination: string; queue?: string; ack?: 'auto' | 'explicit' },
     handler: (data: T, attributes: AttributeMap, ctx: { ack: () => Promise<void>; nack: (requeue?: boolean) => Promise<void> }) => Promise<void> | void,
-    options?: SubscribeOptions
+    options?: SubscribeOptions & { idempotency?: SubscriptionIdempotencyConfig }
   ): Promise<void> {
     const skipSubscribe = process.env.MESSAGE_BUS_DISABLE_SUBSCRIBE === '1';
     if (skipSubscribe) {
@@ -548,6 +581,47 @@ export class Bit {
                   this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
                 }
 
+                // Sprint 1: Distributed Idempotency Check (opt-in via config or subscription options)
+                // Check for duplicate message using Redis before processing
+                const idempotencyEnabled = this.config.redisIdempotencyEnabled || (options as any)?.idempotency?.enabled;
+                if (idempotencyEnabled && this.resources.redis) {
+                  const correlationId = (parsed as any)?.correlationId;
+                  if (correlationId) {
+                    // Extract idempotency hints from message and merge with subscription config
+                    const messageHints = extractIdempotencyHints(parsed);
+                    const subscriptionConfig = (options as any)?.idempotency as SubscriptionIdempotencyConfig | undefined;
+                    const mergedConfig = mergeIdempotencyConfig(
+                      messageHints,
+                      subscriptionConfig,
+                      this.config.redisIdempotencyDefaultTtlSeconds
+                    );
+
+                    const idempotencyConfig: IdempotencyConfig = {
+                      topic: cfg.destination,
+                      correlationId,
+                      source: this.serviceName,
+                      ...mergedConfig,
+                    };
+
+                    const result = await checkIdempotency(
+                      this.resources.redis as RedisClientType,
+                      idempotencyConfig,
+                      this.logger
+                    );
+
+                    if (result.isDuplicate) {
+                      // Message is a duplicate - acknowledge and skip processing
+                      this.logger.info('base_server.message.idempotency.duplicate_skipped', {
+                        subject,
+                        correlationId,
+                        key: result.key,
+                      });
+                      await ctx.ack();
+                      return; // Skip handler execution
+                    }
+                  }
+                }
+
                 // Extract EventContext and wrap handler execution
                 const eventCtx = extractEventContext(parsed);
                 const handlerPromise = runWithEventContext(eventCtx, () =>
@@ -599,6 +673,47 @@ export class Bit {
               // Tracer logging: Log full event on reception if qos.tracer is true
               if ((parsed as any)?.qos?.tracer) {
                 this.logger.debug('base_server.message.tracer.receive', { subject, event: parsed });
+              }
+
+              // Sprint 1: Distributed Idempotency Check (opt-in via config or subscription options)
+              // Check for duplicate message using Redis before processing
+              const idempotencyEnabled = this.config.redisIdempotencyEnabled || (options as any)?.idempotency?.enabled;
+              if (idempotencyEnabled && this.resources.redis) {
+                const correlationId = (parsed as any)?.correlationId;
+                if (correlationId) {
+                  // Extract idempotency hints from message and merge with subscription config
+                  const messageHints = extractIdempotencyHints(parsed);
+                  const subscriptionConfig = (options as any)?.idempotency as SubscriptionIdempotencyConfig | undefined;
+                  const mergedConfig = mergeIdempotencyConfig(
+                    messageHints,
+                    subscriptionConfig,
+                    this.config.redisIdempotencyDefaultTtlSeconds
+                  );
+
+                  const idempotencyConfig: IdempotencyConfig = {
+                    topic: cfg.destination,
+                    correlationId,
+                    source: this.serviceName,
+                    ...mergedConfig,
+                  };
+
+                  const result = await checkIdempotency(
+                    this.resources.redis as RedisClientType,
+                    idempotencyConfig,
+                    this.logger
+                  );
+
+                  if (result.isDuplicate) {
+                    // Message is a duplicate - acknowledge and skip processing
+                    this.logger.info('base_server.message.idempotency.duplicate_skipped', {
+                      subject,
+                      correlationId,
+                      key: result.key,
+                    });
+                    await ctx.ack();
+                    return; // Skip handler execution
+                  }
+                }
               }
 
               // Extract EventContext and wrap handler execution
@@ -680,6 +795,23 @@ export class Bit {
         throw new Error(
           `Unknown PERSISTENCE_DRIVER: ${persistenceDriver}. Expected: postgres, postgresql, or firestore`,
         );
+      }
+
+      // Sprint 1: Initialize Redis for distributed idempotency (opt-in)
+      // Redis is initialized if REDIS_URL is configured OR redisIdempotencyEnabled is true
+      const redisUrl = process.env.REDIS_URL || this.config.redisUrl;
+      const redisEnabled = this.config.redisIdempotencyEnabled || Boolean(redisUrl);
+
+      if (redisEnabled) {
+        logger.debug('base_server.resources.redis.init', {
+          hasUrl: Boolean(redisUrl),
+          idempotencyEnabled: this.config.redisIdempotencyEnabled,
+        });
+        defaults.redis = new RedisManager();
+      } else {
+        logger.debug('base_server.resources.redis.skip', {
+          message: 'Redis not configured - idempotency layer disabled',
+        });
       }
     }
     // Merge: overrides replace defaults by key and can add new keys
@@ -885,6 +1017,21 @@ export class Bit {
       return;
     }
     (event as any)[NEXT_MARK] = true;
+
+    // Sprint 377: Check for long-running operations and emit progress feedback
+    // IMPORTANT: Do this BEFORE checking routing slip, so it works for both
+    // next-step dispatch AND fallback-to-egress paths
+    if (this.feedbackMiddleware) {
+      try {
+        await this.feedbackMiddleware.beforeNext(event);
+      } catch (feedbackError: any) {
+        // Never break routing due to feedback failures
+        this.logger.warn('routing.next.feedback_failed', {
+          error: feedbackError.message,
+          correlationId: event.correlationId,
+        });
+      }
+    }
 
     const slip: RoutingStep[] = Array.isArray(event.routing?.slip) ? (event.routing.slip as RoutingStep[]) : [];
     // Only consider explicitly PENDING steps as dispatch targets. Steps marked ERROR should not be retried here.
@@ -1407,6 +1554,17 @@ export class Bit {
       attrs.source = this.serviceName;
     }
     return attrs;
+  }
+
+  /**
+   * Sprint 377: Helper for publishing events (used by feedback middleware).
+   * @private
+   */
+  private async publishEvent(topic: string, event: InternalEventV2): Promise<void> {
+    const prefix = this.config.busPrefix || '';
+    const subject = prefix ? `${prefix}${topic}` : topic;
+    const pub = createMessagePublisher(subject);
+    await pub.publishJson(event, this.buildRoutingAttributes(event));
   }
 
   // ==========================================================================

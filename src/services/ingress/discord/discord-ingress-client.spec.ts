@@ -1,5 +1,5 @@
 import { DiscordIngressClient } from './discord-ingress-client';
-import { DiscordEnvelopeBuilder } from './envelope-builder';
+import { buildDiscordEnvelope } from './envelope-builder';
 import type { IngressPublisher } from '../core';
 import type { IConfig } from '../../../types';
 
@@ -50,7 +50,6 @@ jest.mock('discord.js', () => {
 }, { virtual: true });
 
 describe('DiscordIngressClient filters', () => {
-  const builder = new DiscordEnvelopeBuilder();
   let published: any[];
   let publisher: IngressPublisher;
   let cfg: IConfig;
@@ -91,7 +90,7 @@ describe('DiscordIngressClient filters', () => {
   }
 
   it('publishes for allowed guild/channel and non-bot user', async () => {
-    const client = new DiscordIngressClient(builder as any, publisher, cfg, { egressDestinationTopic: 'internal.egress.v1.test' });
+    const client = new DiscordIngressClient(buildDiscordEnvelope, publisher, cfg, { egressDestinationTopic: 'internal.egress.v1.test' });
     await client.start();
     const mod: any = require('discord.js');
     mod.__mock.emit('messageCreate', mockMessage());
@@ -103,7 +102,7 @@ describe('DiscordIngressClient filters', () => {
   });
 
   it('ignores messages from other guilds', async () => {
-    const client = new DiscordIngressClient(builder as any, publisher, cfg);
+    const client = new DiscordIngressClient(buildDiscordEnvelope, publisher, cfg);
     await client.start();
     const mod: any = require('discord.js');
     mod.__mock.emit('messageCreate', mockMessage({ guild: { id: 'other' } }));
@@ -111,7 +110,7 @@ describe('DiscordIngressClient filters', () => {
   });
 
   it('ignores messages from non-allowlisted channels', async () => {
-    const client = new DiscordIngressClient(builder as any, publisher, cfg);
+    const client = new DiscordIngressClient(buildDiscordEnvelope, publisher, cfg);
     await client.start();
     const mod: any = require('discord.js');
     mod.__mock.emit('messageCreate', mockMessage({ channel: { id: 'zzz' } }));
@@ -119,7 +118,7 @@ describe('DiscordIngressClient filters', () => {
   });
 
   it('ignores bot messages and non-text content', async () => {
-    const client = new DiscordIngressClient(builder as any, publisher, cfg);
+    const client = new DiscordIngressClient(buildDiscordEnvelope, publisher, cfg);
     await client.start();
     const mod: any = require('discord.js');
     mod.__mock.emit('messageCreate', mockMessage({ author: { id: 'u1', username: 'Bot', bot: true } }));

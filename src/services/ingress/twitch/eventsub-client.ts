@@ -10,6 +10,7 @@ import { EventSubEnvelopeBuilder } from './eventsub-envelope-builder';
 import { TwitchConnectionState } from './twitch-irc-client';
 import { MutationProposal, INTERNAL_STATE_MUTATION_V1 } from '../../../types/state';
 import { v4 as uuidv4 } from 'uuid';
+import { SubscriptionManager } from './subscription-manager';
 
 export interface TwitchEventSubClientOptions {
   cfg: IConfig;
@@ -27,6 +28,7 @@ export class TwitchEventSubClient {
   private botUserId?: string;
   private botDisplayName?: string;
   private lastError: { code?: string; message: string } | null = null;
+  private subscriptionManager: SubscriptionManager | null = null;
 
   constructor(
     private readonly publisher: ITwitchIngressPublisher,
@@ -107,9 +109,103 @@ export class TwitchEventSubClient {
       const apiClient = new ApiClient({ authProvider });
 
       this.listener = new EventSubWsListener({ apiClient });
-      
-      // Setup subscriptions for each channel
-      for (const channel of this.channels) {
+
+      // Initialize mutation publisher for state-engine
+      try {
+        const prefix = this.options.cfg?.busPrefix ?? process.env.BUS_PREFIX ?? '';
+        const subject = `${prefix}${INTERNAL_STATE_MUTATION_V1}`;
+        const { createMessagePublisher } = require('../../message-bus');
+        this.mutationPublisher = createMessagePublisher(subject);
+      } catch (e: any) {
+        logger.warn('twitch.eventsub.mutation_publisher_init_failed', { error: e?.message || String(e) });
+        this.mutationPublisher = null;
+      }
+
+      // Feature flag: Use YAML-driven config or hardcoded subscriptions
+      const useYamlConfig = process.env.ENABLE_EVENTSUB_YAML_CONFIG === 'true';
+
+      if (useYamlConfig) {
+        logger.info('twitch.eventsub.using_yaml_config', { channels: this.channels });
+
+        // Initialize SubscriptionManager
+        this.subscriptionManager = new SubscriptionManager(
+          this.listener,
+          apiClient,
+          this.publisher,
+          this.mutationPublisher
+        );
+
+        // Subscribe to all enabled events for each channel
+        for (const channel of this.channels) {
+          // Resolve user ID for the channel
+          const user = await apiClient.users.getUserByName(channel);
+          if (!user) {
+            logger.warn('twitch.eventsub.user_not_found', { channel });
+            continue;
+          }
+
+          const userId = user.id;
+
+          // Register the bot's token for the broadcaster's ID as well if no real broadcaster token was found.
+          // This is a workaround for Twurple v7.4.0 where some EventSub v2 subscriptions
+          // (like channel.update) hardcode the broadcaster's ID as the user context
+          // for the API call, even if no special scopes are required.
+          if (userId !== auth.userId && (!broadcasterAuth || broadcasterAuth.userId !== userId)) {
+            logger.info('twitch.eventsub.aliasing_bot_token', { broadcasterId: userId, botId: auth.userId });
+            authProvider.addUser(userId, {
+              accessToken: auth.accessToken,
+              refreshToken: auth.refreshToken || null,
+              expiresIn: auth.expiresIn ?? null,
+              obtainmentTimestamp: auth.obtainmentTimestamp ?? 0,
+              scope: auth.scope || [],
+            }, ['chat', 'eventsub']);
+          }
+
+          // Use SubscriptionManager to subscribe to all enabled events
+          await this.subscriptionManager.subscribeChannel(
+            channel,
+            userId,
+            auth.userId,
+            this.options.egressDestinationTopic
+          );
+        }
+      } else {
+        logger.info('twitch.eventsub.using_hardcoded_subscriptions', { channels: this.channels });
+
+        // Use legacy hardcoded subscription logic
+        await this.subscribeHardcoded(apiClient, authProvider, auth, broadcasterAuth);
+      }
+
+      this.listener.start();
+      this.state = 'CONNECTED';
+      this.lastError = null;
+      logger.info('twitch.eventsub.started', { useYamlConfig });
+    } catch (err: any) {
+      this.state = 'ERROR';
+      this.lastError = { message: err.message };
+      logger.error('twitch.eventsub.start_failed', { error: err.message });
+      throw err;
+    }
+  }
+
+  /**
+   * Legacy hardcoded subscription logic.
+   * Used when ENABLE_EVENTSUB_YAML_CONFIG=false (default for backward compatibility).
+   *
+   * @private
+   */
+  private async subscribeHardcoded(
+    apiClient: ApiClient,
+    authProvider: RefreshingAuthProvider,
+    auth: any,
+    broadcasterAuth: any
+  ): Promise<void> {
+    if (!this.listener) {
+      throw new Error('twitch_eventsub_listener_not_initialized');
+    }
+
+    // Setup subscriptions for each channel
+    for (const channel of this.channels) {
         // Resolve user ID for the channel
         const user = await apiClient.users.getUserByName(channel);
         if (!user) {
@@ -257,28 +353,6 @@ export class TwitchEventSubClient {
         });
         this.subscriptions.push(offlineSub);
       }
-
-      // Initialize mutation publisher for state-engine
-      try {
-        const prefix = this.options.cfg?.busPrefix ?? process.env.BUS_PREFIX ?? '';
-        const subject = `${prefix}${INTERNAL_STATE_MUTATION_V1}`;
-        const { createMessagePublisher } = require('../../message-bus');
-        this.mutationPublisher = createMessagePublisher(subject);
-      } catch (e: any) {
-        logger.warn('twitch.eventsub.mutation_publisher_init_failed', { error: e?.message || String(e) });
-        this.mutationPublisher = null;
-      }
-
-      this.listener.start();
-      this.state = 'CONNECTED';
-      this.lastError = null;
-      logger.info('twitch.eventsub.started');
-    } catch (err: any) {
-      this.state = 'ERROR';
-      this.lastError = { message: err.message };
-      logger.error('twitch.eventsub.start_failed', { error: err.message });
-      throw err;
-    }
   }
 
   async stop(): Promise<void> {
@@ -297,6 +371,8 @@ export class TwitchEventSubClient {
   }
 
   getSnapshot() {
+    const useYamlConfig = process.env.ENABLE_EVENTSUB_YAML_CONFIG === 'true';
+
     return {
       state: this.state,
       userId: this.botUserId,
@@ -305,6 +381,8 @@ export class TwitchEventSubClient {
       subscriptions: this.subscriptions.length,
       lastError: this.lastError,
       joinedChannels: this.channels.map(c => c.startsWith('#') ? c : `#${c}`),
+      useYamlConfig,
+      subscriptionStatus: this.subscriptionManager?.getStatus() || []
     };
   }
 }

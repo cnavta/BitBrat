@@ -1,0 +1,291 @@
+# Twitch EventSub Subscription Configuration
+# Version: 1.0
+# Sprint: sprint-16-aalwmj
+#
+# This file defines which Twitch EventSub events the platform subscribes to
+# and how they are processed. Each subscription can be enabled/disabled globally
+# and overridden on a per-channel basis.
+#
+# Documentation: planning/sprint-16-aalwmj/config-format-reference.md
+
+version: 1
+
+subscriptions:
+  # ============================================================================
+  # CHANNEL EVENTS - INFORMATION
+  # ============================================================================
+
+  channel.follow:
+    enabled: true
+    version: 2
+    scope: moderator:read:followers
+    priority: high
+    builder: buildFollow
+    internalType: system.twitch.follow
+    description: New follower event - requires moderator scope to read followers list
+
+  channel.update:
+    enabled: true
+    version: 2
+    priority: high
+    builder: buildUpdate
+    internalType: system.twitch.update
+    description: Channel metadata changes (title, category, language, mature flag)
+
+  # ============================================================================
+  # STREAM EVENTS
+  # ============================================================================
+
+  stream.online:
+    enabled: true
+    version: 1
+    priority: critical
+    builder: buildStreamOnline
+    internalType: system.stream.online
+    description: Stream goes live - triggers state mutation
+    mutation:
+      key: stream.state
+      value: on
+      ttl: 21600  # 6 hours
+
+  stream.offline:
+    enabled: true
+    version: 1
+    priority: critical
+    builder: buildStreamOffline
+    internalType: system.stream.offline
+    description: Stream goes offline - triggers state mutation
+    mutation:
+      key: stream.state
+      value: off
+      ttl: 21600  # 6 hours
+
+  # ============================================================================
+  # TIER 1 EVENTS - HIGH VALUE (disabled by default, opt-in)
+  # ============================================================================
+
+  # Community Engagement
+  channel.raid:
+    enabled: false
+    version: 1
+    priority: high
+    builder: buildRaid
+    internalType: system.twitch.raid
+    description: Broadcaster raids another channel - includes viewer count
+
+  # Monetization - Subscriptions
+  channel.subscribe:
+    enabled: false
+    version: 1
+    scope: channel:read:subscriptions
+    priority: high
+    builder: buildSubscribe
+    internalType: system.twitch.subscribe
+    description: New subscription (excludes resubscriptions) - includes tier and gift status
+
+  channel.subscription.message:
+    enabled: false
+    version: 1
+    scope: channel:read:subscriptions
+    priority: high
+    builder: buildSubscriptionMessage
+    internalType: system.twitch.subscription.message
+    description: Resubscription with message - includes cumulative months and streak
+
+  channel.subscription.gift:
+    enabled: false
+    version: 1
+    scope: channel:read:subscriptions
+    priority: high
+    builder: buildSubscriptionGift
+    internalType: system.twitch.subscription.gift
+    description: Gift subscription - includes gifter and recipient (if not anonymous)
+
+  # Monetization - Bits
+  channel.cheer:
+    enabled: false
+    version: 1
+    scope: bits:read
+    priority: high
+    builder: buildCheer
+    internalType: system.twitch.cheer
+    description: User cheers with bits - includes amount and message (may be anonymous)
+
+  # Channel Points
+  channel.channel_points_custom_reward_redemption.add:
+    enabled: false
+    version: 1
+    scope: channel:read:redemptions
+    priority: high
+    builder: buildChannelPointsRedemption
+    internalType: system.twitch.channelpoints.redemption
+    description: Channel points custom reward redemption - includes reward details and user input
+
+  # Hype Train
+  channel.hype_train.begin:
+    enabled: false
+    version: 2
+    priority: medium
+    builder: buildHypeTrainBegin
+    internalType: system.twitch.hype_train.begin
+    description: Hype Train starts - includes level, progress, goal, top contributors
+
+  channel.hype_train.progress:
+    enabled: false
+    version: 2
+    priority: low
+    builder: buildHypeTrainProgress
+    internalType: system.twitch.hype_train.progress
+    description: Hype Train progress update - HIGH VOLUME, opt-in only
+
+  channel.hype_train.end:
+    enabled: false
+    version: 2
+    priority: medium
+    builder: buildHypeTrainEnd
+    internalType: system.twitch.hype_train.end
+    description: Hype Train ends - includes final level and cooldown end time
+
+  # Polls
+  channel.poll.begin:
+    enabled: false
+    version: 1
+    priority: medium
+    builder: buildPollBegin
+    internalType: system.twitch.poll.begin
+    description: Poll starts - includes poll ID, title, choices, voting settings
+
+  channel.poll.end:
+    enabled: false
+    version: 1
+    priority: medium
+    builder: buildPollEnd
+    internalType: system.twitch.poll.end
+    description: Poll ends - includes results, winning choice, status (completed/archived/terminated)
+
+  # Predictions
+  channel.prediction.begin:
+    enabled: false
+    version: 1
+    priority: medium
+    builder: buildPredictionBegin
+    internalType: system.twitch.prediction.begin
+    description: Prediction starts - includes prediction ID, title, outcomes, lock time
+
+  channel.prediction.end:
+    enabled: false
+    version: 1
+    priority: medium
+    builder: buildPredictionEnd
+    internalType: system.twitch.prediction.end
+    description: Prediction ends - includes winning outcome, status, channel points totals
+
+  # ============================================================================
+  # TIER 2 EVENTS - MODERATION (disabled by default, HIGH VOLUME)
+  # ============================================================================
+
+  channel.ban:
+    enabled: false
+    version: 1
+    scope: channel:moderate
+    priority: medium
+    builder: buildBan
+    internalType: system.twitch.moderation.ban
+    description: User timeout or permanent ban - includes moderator, reason, duration
+
+  channel.unban:
+    enabled: false
+    version: 1
+    scope: channel:moderate
+    priority: medium
+    builder: buildUnban
+    internalType: system.twitch.moderation.unban
+    description: User unbanned - includes moderator
+
+  channel.moderate:
+    enabled: false
+    version: 2
+    scope: channel:moderate
+    priority: medium
+    builder: buildModerate
+    internalType: system.twitch.moderation.action
+    description: Moderator actions - includes warnings in v2 (HIGH VOLUME)
+
+  # ============================================================================
+  # TIER 2 EVENTS - CHAT (disabled by default, overlaps with IRC)
+  # ============================================================================
+
+  channel.chat.message:
+    enabled: false
+    version: 1
+    scope: user:read:chat
+    priority: low
+    builder: buildChatMessage
+    internalType: chat.message.v1  # Same as IRC
+    description: All chat messages - OVERLAPS WITH IRC, use only if no IRC connection (HIGH VOLUME)
+
+  channel.chat.message_delete:
+    enabled: false
+    version: 1
+    scope: user:read:chat
+    priority: medium
+    builder: buildChatMessageDelete
+    internalType: system.twitch.chat.message_delete
+    description: Moderator deletes specific message - includes message ID, user, moderator
+
+# ============================================================================
+# PER-CHANNEL OVERRIDES
+# ============================================================================
+#
+# Enable/disable specific events for individual channels.
+# Overrides are applied on top of global subscription settings.
+#
+# Example: Enable moderation events for a specific channel
+#
+# channelOverrides:
+#   bitbrat:
+#     channel.ban:
+#       enabled: true
+#     channel.unban:
+#       enabled: true
+#     channel.moderate:
+#       enabled: true
+#
+#   anotherchannel:
+#     channel.raid:
+#       enabled: true
+#     channel.hype_train.progress:
+#       enabled: false  # Disable high-volume event for this channel
+
+channelOverrides: {}
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# Priority Levels:
+#   - critical: Core platform functionality (stream state)
+#   - high: Important engagement/monetization events
+#   - medium: Useful but not critical
+#   - low: High volume or optional events
+#
+# OAuth Scopes:
+#   - moderator:read:followers: Required for channel.follow
+#   - channel:read:subscriptions: Required for subscription events
+#   - bits:read: Required for cheer/bits events
+#   - channel:read:redemptions: Required for channel points
+#   - channel:moderate: Required for moderation events
+#   - user:read:chat: Required for chat events
+#
+# High Volume Events (opt-in only):
+#   - channel.hype_train.progress
+#   - channel.moderate
+#   - channel.chat.message
+#
+# Migration Notes:
+#   - Existing 4 events (channel.follow, channel.update, stream.online,
+#     stream.offline) are enabled by default
+#   - All new events are disabled by default (opt-in)
+#   - Use channelOverrides to enable specific events per channel
+#   - Feature flag ENABLE_EVENTSUB_YAML_CONFIG controls whether this
+#     config is used (default: false for backward compatibility)

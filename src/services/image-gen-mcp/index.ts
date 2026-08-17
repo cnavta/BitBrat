@@ -230,7 +230,18 @@ export class ImageGenMcpServer extends Bit {
             ],
           };
         } catch (error: any) {
-          this.getLogger().error('Image generation or persistence failed', { error: error, prompt });
+          // Extract error details for better logging
+          const errorMessage = error?.message || String(error);
+          const errorCode = error?.code;
+          const errorDetails = error?.errors?.[0]?.message;
+
+          this.getLogger().error('Image generation or persistence failed', {
+            errorMessage,
+            errorCode,
+            errorDetails,
+            errorType: error?.constructor?.name,
+            prompt
+          });
 
           this.logPrompt({
             correlationId,
@@ -240,7 +251,7 @@ export class ImageGenMcpServer extends Bit {
             model: this.getConfig('IMAGE_GEN_MODEL', { default: 'gpt-image-1' }),
             aspectRatio,
             userId,
-            error: error?.message,
+            error: errorMessage,
           });
 
           return {

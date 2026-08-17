@@ -1,0 +1,43 @@
+# Discord Chat Message Mapping
+# Sprint 13: DM Capability Implementation (EP-02)
+#
+# Maps Discord MESSAGE_CREATE events to chat.message.v1 for guild/server channels.
+# This is the default mapping with priority 0 (lower than DM mapping).
+#
+# Note: DiscordIngressClient normalizes Discord.js Message objects to DiscordMessageMeta
+# before passing to the builder. Field paths below reference DiscordMessageMeta structure.
+
+platformEvent: MESSAGE_CREATE
+internalEventType: chat.message.v1
+
+# Default priority (0) - checked after DM mapping (priority 10)
+priority: 0
+
+# No filter - matches all MESSAGE_CREATE events that don't match higher priority mappings
+
+fieldMapping:
+  # Required fields (from DiscordMessageMeta)
+  userId: authorId
+  channelId: channelId
+
+  # Optional fields
+  userName: authorName
+  messageText: content
+  messageId: messageId
+  timestamp: createdAt
+
+  # Custom fields for Discord-specific data
+  custom:
+    # Guild/channel metadata
+    guildId: guildId
+    channelType: channelType
+    mentions: mentions
+    roles: roles
+    isOwner: isOwner
+
+metadata:
+  description: Discord guild/server chat message
+  platformDocUrl: https://discord.com/developers/docs/resources/channel#message-object
+  createdBy: Platform Team
+  createdAt: "2026-01-15"
+  lastModified: "2026-08-14"

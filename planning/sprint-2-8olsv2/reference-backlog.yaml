@@ -1,0 +1,720 @@
+# Redis BEC Generation Gaps - Prioritized Backlog
+# Created: 2026-08-07
+# Related: Sprint 1 (sprint-1-9ih2e3) - Redis-based distributed idempotency
+# Status: Provisional
+
+metadata:
+  epic: "Redis BEC Generation Gaps"
+  priority: high
+  estimated_total_effort: "6-8 hours"
+  estimated_duration: "1.5 days"
+  dependencies:
+    - "Sprint 1 (sprint-1-9ih2e3) completed"
+  context: "Post-Sprint 1 follow-up work"
+
+# Tasks organized by phase and priority
+tasks:
+  # ========================================
+  # PHASE 1: CODE FIXES (Priority: Critical)
+  # ========================================
+
+  - id: REDIS-BEC-001
+    title: "Add Redis config to generateGlobalYaml()"
+    priority: critical
+    phase: 1
+    estimated_effort: "30 minutes"
+    dependencies: []
+
+    description: |
+      Update generateGlobalYaml() to include Redis environment variables
+      in the generated env/<context>/global.yaml file.
+
+    files:
+      - path: "tools/brat/src/commands/context/create.ts"
+        function: "generateGlobalYaml()"
+        line_range: "~230-280"
+
+    changes:
+      - type: "addition"
+        description: "Add Redis config block to config object"
+        code: |
+          // Redis Configuration (Sprint 1+: Distributed Idempotency Layer)
+          REDIS_URL: "redis://redis:6379",
+          REDIS_IDEMPOTENCY_ENABLED: true,
+          REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: 300,
+
+    acceptance_criteria:
+      - "Generated global.yaml includes REDIS_URL"
+      - "Generated global.yaml includes REDIS_IDEMPOTENCY_ENABLED"
+      - "Generated global.yaml includes REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS"
+      - "Config values match staging reference implementation"
+
+    testing:
+      unit:
+        - "Test generateGlobalYaml() output includes Redis config"
+        - "Test Redis config present for docker-compose contexts"
+      integration:
+        - "Create new context and verify env/*/global.yaml has Redis"
+
+    notes: |
+      - Follow same pattern as existing config (NATS, PostgreSQL)
+      - Add comment explaining Sprint 1 context
+      - Redis should be included for ALL docker-compose contexts
+
+  - id: REDIS-BEC-002
+    title: "Add Redis to getRequiredInfrastructure()"
+    priority: critical
+    phase: 1
+    estimated_effort: "15 minutes"
+    dependencies: []
+
+    description: |
+      Update getRequiredInfrastructure() to always include Redis
+      for docker-compose deployments (similar to nats, nats-box).
+
+    files:
+      - path: "tools/brat/src/context/parse-dependencies.ts"
+        function: "getRequiredInfrastructure()"
+        line_range: "~150-185"
+
+    changes:
+      - type: "addition"
+        description: "Add redis to infrastructure set"
+        code: |
+          // Always need redis for idempotency (Sprint 1+)
+          infrastructure.add('redis');
+        location: "After infrastructure.add('nats')"
+
+    acceptance_criteria:
+      - "getRequiredInfrastructure() returns Set including 'redis'"
+      - "Redis included regardless of service dependencies"
+      - "Redis extraction works from docker-compose.local.yaml"
+
+    testing:
+      unit:
+        - "Test getRequiredInfrastructure() includes redis"
+        - "Test redis in infrastructure set for docker-compose"
+      integration:
+        - "Generated docker-compose includes redis service"
+
+    notes: |
+      - Redis is now platform infrastructure (like nats)
+      - Conservative approach: always include for docker-compose
+      - Future: could make conditional based on service usage
+
+  - id: REDIS-BEC-003
+    title: "Add redis-data volume to generateDockerCompose()"
+    priority: critical
+    phase: 1
+    estimated_effort: "15 minutes"
+    dependencies:
+      - REDIS-BEC-002
+
+    description: |
+      Update generateDockerCompose() to create redis-data volume
+      when redis is in the infrastructure set.
+
+    files:
+      - path: "tools/brat/src/context/generate-docker-compose.ts"
+        function: "generateDockerCompose()"
+        line_range: "~217-225"
+
+    changes:
+      - type: "addition"
+        description: "Add redis-data volume creation"
+        code: |
+          if (infrastructure.has('redis')) {
+            config.volumes!['redis-data'] = {};
+          }
+        location: "After firebase-emulator volume block"
+
+    acceptance_criteria:
+      - "Generated docker-compose includes redis-data volume"
+      - "Volume added only when redis in infrastructure"
+      - "Volume definition matches staging reference"
+
+    testing:
+      unit:
+        - "Test generateDockerCompose() includes redis-data"
+        - "Test volume only added when redis present"
+      integration:
+        - "Created context has redis-data in volumes section"
+        - "Redis container mounts /data volume"
+
+    notes: |
+      - Follow same pattern as postgres-data, nats-data
+      - Volume is empty object {} (driver defaults to local)
+
+  - id: REDIS-BEC-004
+    title: "Add Redis dependency to idempotency services"
+    priority: critical
+    phase: 1
+    estimated_effort: "45 minutes"
+    dependencies:
+      - REDIS-BEC-002
+
+    description: |
+      Update service dependency detection or hardcode Redis dependency
+      for services known to use idempotency (ingress-egress, auth, llm-bot).
+
+    files:
+      - path: "tools/brat/src/context/parse-dependencies.ts"
+        function: "parseServiceDependencies()"
+        line_range: "~80-130"
+      - path: "tools/brat/src/context/generate-docker-compose.ts"
+        function: "generateServiceCompose()"
+        line_range: "~90-100"
+
+    approach_options:
+      - option_a:
+          name: "Hardcode service list"
+          description: "Add redis to infrastructure deps for known services"
+          pros: "Simple, explicit, no detection logic needed"
+          cons: "Must update when new services add idempotency"
+      - option_b:
+          name: "Detect from code"
+          description: "Parse service files for Redis usage"
+          pros: "Automatic, scales to new services"
+          cons: "Complex, slow, fragile to code changes"
+      - option_c:
+          name: "Architecture.yaml annotation"
+          description: "Add 'usesIdempotency: true' to service metadata"
+          pros: "Explicit, maintainable, fast"
+          cons: "Requires architecture.yaml changes"
+
+    recommended_approach: "option_a"
+
+    changes:
+      - type: "modification"
+        description: "Add redis to infrastructure deps for idempotency services"
+        pseudocode: |
+          // In parseServiceDependencies()
+          const infraDeps = [...deps.infrastructure];
+
+          // Services using idempotency need redis
+          const idempotencyServices = ['ingress-egress', 'auth', 'llm-bot'];
+          if (idempotencyServices.includes(serviceName)) {
+            if (!infraDeps.includes('redis')) {
+              infraDeps.push('redis');
+            }
+          }
+
+          return { ...deps, infrastructure: infraDeps };
+
+    acceptance_criteria:
+      - "ingress-egress depends_on includes redis:condition:service_healthy"
+      - "auth depends_on includes redis:condition:service_healthy"
+      - "llm-bot depends_on includes redis:condition:service_healthy"
+      - "Other services do NOT have redis dependency"
+      - "Redis starts before idempotency services"
+
+    testing:
+      unit:
+        - "Test parseServiceDependencies() adds redis for idempotency services"
+        - "Test non-idempotency services don't get redis"
+      integration:
+        - "Deploy auth service, verify redis starts first"
+        - "Check docker-compose logs show redis healthy before auth starts"
+
+    notes: |
+      - This is the most complex task
+      - Consider future: architecture.yaml usesIdempotency flag
+      - For now, hardcode the three known services
+
+  # ========================================
+  # PHASE 2: TESTING (Priority: High)
+  # ========================================
+
+  - id: REDIS-BEC-005
+    title: "Create unit tests for environment generation"
+    priority: high
+    phase: 2
+    estimated_effort: "45 minutes"
+    dependencies:
+      - REDIS-BEC-001
+
+    description: |
+      Add unit tests for generateGlobalYaml() to verify Redis config
+      is included in generated environment files.
+
+    files:
+      - path: "tools/brat/src/commands/context/create.test.ts"
+        type: "test"
+
+    test_cases:
+      - name: "generateGlobalYaml includes Redis config"
+        setup: "Create context config for docker-compose"
+        action: "Call generateGlobalYaml()"
+        assertions:
+          - "Output includes REDIS_URL"
+          - "Output includes REDIS_IDEMPOTENCY_ENABLED"
+          - "Output includes REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS"
+
+      - name: "Redis URL format is correct"
+        setup: "Generate config"
+        action: "Parse YAML output"
+        assertions:
+          - "REDIS_URL matches redis://redis:6379"
+
+      - name: "Redis config in local vs staging"
+        setup: "Generate for both contexts"
+        action: "Compare outputs"
+        assertions:
+          - "Both include Redis config"
+          - "Values are consistent"
+
+    acceptance_criteria:
+      - "All test cases pass"
+      - "100% coverage for Redis config generation"
+      - "Tests fail if Redis config removed"
+
+  - id: REDIS-BEC-006
+    title: "Create unit tests for infrastructure detection"
+    priority: high
+    phase: 2
+    estimated_effort: "30 minutes"
+    dependencies:
+      - REDIS-BEC-002
+
+    description: |
+      Add unit tests for getRequiredInfrastructure() to verify
+      Redis is always included for docker-compose contexts.
+
+    files:
+      - path: "tools/brat/src/context/parse-dependencies.test.ts"
+        type: "test"
+
+    test_cases:
+      - name: "getRequiredInfrastructure includes redis"
+        setup: "Create service metadata array"
+        action: "Call getRequiredInfrastructure()"
+        assertions:
+          - "Returned Set includes 'redis'"
+          - "Returned Set includes 'nats'"
+          - "Returned Set includes 'nats-box'"
+
+      - name: "Redis included regardless of service deps"
+        setup: "Create services without postgres deps"
+        action: "Call getRequiredInfrastructure()"
+        assertions:
+          - "Redis still in infrastructure set"
+
+    acceptance_criteria:
+      - "All test cases pass"
+      - "Tests verify redis always present"
+
+  - id: REDIS-BEC-007
+    title: "Create unit tests for docker-compose generation"
+    priority: high
+    phase: 2
+    estimated_effort: "60 minutes"
+    dependencies:
+      - REDIS-BEC-003
+      - REDIS-BEC-004
+
+    description: |
+      Add unit tests for generateDockerCompose() to verify Redis
+      service, volume, and dependencies are generated correctly.
+
+    files:
+      - path: "tools/brat/src/context/generate-docker-compose.test.ts"
+        type: "test"
+
+    test_cases:
+      - name: "Redis service included in compose"
+        setup: "Create options with redis in infrastructure"
+        action: "Call generateDockerCompose()"
+        assertions:
+          - "services.redis exists"
+          - "services.redis.image equals redis:7-alpine"
+          - "services.redis.healthcheck defined"
+
+      - name: "redis-data volume created"
+        setup: "Generate compose with redis"
+        action: "Check volumes section"
+        assertions:
+          - "volumes.redis-data exists"
+
+      - name: "Idempotency services depend on redis"
+        setup: "Generate with ingress-egress, auth, llm-bot"
+        action: "Check depends_on for each"
+        assertions:
+          - "ingress-egress.depends_on.redis.condition = service_healthy"
+          - "auth.depends_on.redis.condition = service_healthy"
+          - "llm-bot.depends_on.redis.condition = service_healthy"
+
+      - name: "Non-idempotency services don't depend on redis"
+        setup: "Generate with persistence service"
+        action: "Check depends_on"
+        assertions:
+          - "persistence.depends_on does NOT include redis"
+
+    acceptance_criteria:
+      - "All test cases pass"
+      - "Tests validate complete Redis integration"
+
+  - id: REDIS-BEC-008
+    title: "Create integration test for new context creation"
+    priority: high
+    phase: 2
+    estimated_effort: "45 minutes"
+    dependencies:
+      - REDIS-BEC-001
+      - REDIS-BEC-002
+      - REDIS-BEC-003
+      - REDIS-BEC-004
+
+    description: |
+      Create end-to-end integration test that creates a new context
+      and validates all Redis artifacts are generated correctly.
+
+    files:
+      - path: "tools/brat/src/commands/context/create.integration.test.ts"
+        type: "test"
+
+    test_scenario: |
+      1. Create test context: brat context create test-redis-integration
+      2. Validate env/test-redis-integration/global.yaml exists
+      3. Validate Redis config in global.yaml
+      4. Validate docker-compose.test-redis-integration.yaml exists
+      5. Validate Redis service in compose file
+      6. Validate redis-data volume in compose file
+      7. Validate service dependencies include redis
+      8. Start docker-compose stack
+      9. Verify redis container running and healthy
+      10. Deploy auth service
+      11. Verify redis started before auth
+      12. Cleanup test context
+
+    acceptance_criteria:
+      - "End-to-end test passes"
+      - "Test can be run in CI"
+      - "Test cleans up after itself"
+
+    notes: |
+      - May need to be manual test initially
+      - Consider adding to CI once stable
+
+  # ========================================
+  # PHASE 3: VALIDATION (Priority: Medium)
+  # ========================================
+
+  - id: REDIS-BEC-009
+    title: "Manually validate new context creation"
+    priority: medium
+    phase: 3
+    estimated_effort: "30 minutes"
+    dependencies:
+      - REDIS-BEC-001
+      - REDIS-BEC-002
+      - REDIS-BEC-003
+      - REDIS-BEC-004
+
+    description: |
+      Manually create a test context and validate all Redis
+      components are generated and functional.
+
+    validation_steps:
+      - step: "Create test context"
+        command: |
+          brat context create test-redis-manual \
+            --non-interactive \
+            --type docker-compose \
+            --persistence-driver postgres
+
+      - step: "Validate global.yaml"
+        command: "grep REDIS env/test-redis-manual/global.yaml"
+        expected: "3 lines with Redis config"
+
+      - step: "Validate compose file"
+        command: "grep -A 10 'redis:' infrastructure/docker-compose/docker-compose.test-redis-manual.yaml"
+        expected: "Redis service definition"
+
+      - step: "Validate volume"
+        command: "grep 'redis-data' infrastructure/docker-compose/docker-compose.test-redis-manual.yaml"
+        expected: "redis-data volume definition"
+
+      - step: "Start stack"
+        command: "brat docker up --context test-redis-manual"
+        expected: "Redis starts before auth, llm-bot, ingress-egress"
+
+      - step: "Verify Redis running"
+        command: "docker ps | grep redis"
+        expected: "redis container with 'healthy' status"
+
+      - step: "Test Redis connectivity"
+        command: "docker exec <redis-container> redis-cli ping"
+        expected: "PONG"
+
+      - step: "Deploy idempotency service"
+        command: "brat bit deploy auth --context test-redis-manual"
+        expected: "Deployment succeeds, redis already running"
+
+      - step: "Check idempotency logs"
+        command: "docker logs <auth-container> | grep idempotency"
+        expected: "Idempotency middleware active"
+
+      - step: "Cleanup"
+        command: |
+          brat docker down --context test-redis-manual
+          # Delete context from architecture.yaml
+          # Delete env/test-redis-manual/
+          # Delete docker-compose.test-redis-manual.yaml
+
+    acceptance_criteria:
+      - "All validation steps pass"
+      - "Redis healthy and accessible"
+      - "Services start with Redis dependency satisfied"
+      - "No errors in logs"
+
+    documentation:
+      - "Record validation results in verification report"
+      - "Screenshot of docker ps showing redis"
+
+  - id: REDIS-BEC-010
+    title: "Validate agent-dev provisioning includes Redis"
+    priority: medium
+    phase: 3
+    estimated_effort: "30 minutes"
+    dependencies:
+      - REDIS-BEC-001
+      - REDIS-BEC-002
+      - REDIS-BEC-003
+      - REDIS-BEC-004
+
+    description: |
+      Validate that agent-dev contexts provisioned via MCP tool
+      include Redis (uses same code paths as context create).
+
+    validation_steps:
+      - step: "Provision agent-dev"
+        method: "MCP tool"
+        code: "agent_dev.provision()"
+        expected: "New agent-dev-* context created"
+
+      - step: "Check global.yaml"
+        command: "grep REDIS env/agent-dev-*/global.yaml"
+        expected: "Redis config present"
+
+      - step: "Check compose file"
+        command: "grep redis infrastructure/docker-compose/docker-compose.agent-dev-*.yaml"
+        expected: "Redis service present"
+
+      - step: "Start agent-dev"
+        method: "MCP tool"
+        code: "agent_dev.start({ name: 'agent-dev-*' })"
+        expected: "Stack starts with Redis"
+
+      - step: "Verify Redis"
+        command: "docker ps | grep agent-dev | grep redis"
+        expected: "Redis container running"
+
+      - step: "Cleanup"
+        method: "MCP tool"
+        code: "agent_dev.destroy({ name: 'agent-dev-*', confirm: true })"
+
+    acceptance_criteria:
+      - "Agent-dev contexts include Redis"
+      - "Redis starts automatically with agent-dev stack"
+      - "Consistent behavior with manual context create"
+
+  # ========================================
+  # PHASE 4: DOCUMENTATION (Priority: Medium)
+  # ========================================
+
+  - id: REDIS-BEC-011
+    title: "Update local context with Redis config"
+    priority: medium
+    phase: 4
+    estimated_effort: "15 minutes"
+    dependencies: []
+
+    description: |
+      Manually update existing 'local' context to include Redis
+      configuration (staging already fixed in Sprint 1).
+
+    files:
+      - path: "env/local/global.yaml"
+        changes:
+          - type: "addition"
+            content: |
+              # Redis Configuration (Sprint 1+: Distributed Idempotency Layer)
+              REDIS_URL: "redis://redis:6379"
+              REDIS_IDEMPOTENCY_ENABLED: true
+              REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: 300
+
+      - path: "infrastructure/docker-compose/docker-compose.local.yaml"
+        status: "Already has Redis service, no change needed"
+
+    acceptance_criteria:
+      - "env/local/global.yaml includes Redis config"
+      - "Config matches staging and generated contexts"
+      - "Local deployment works with Redis"
+
+  - id: REDIS-BEC-012
+    title: "Create Redis migration guide for custom contexts"
+    priority: medium
+    phase: 4
+    estimated_effort: "45 minutes"
+    dependencies:
+      - REDIS-BEC-009
+      - REDIS-BEC-010
+
+    description: |
+      Create documentation guide for users with existing custom
+      contexts to add Redis configuration manually.
+
+    deliverable:
+      - path: "documentation/guides/redis-migration.md"
+        sections:
+          - "Overview"
+          - "Affected Contexts"
+          - "Migration Steps"
+          - "Validation"
+          - "Troubleshooting"
+
+    content_outline: |
+      # Redis Migration Guide
+
+      ## Overview
+      - Sprint 1 added Redis idempotency
+      - New contexts auto-include Redis
+      - Existing custom contexts need manual migration
+
+      ## Affected Contexts
+      - Any context created before [date]
+      - Check: grep REDIS env/<context>/global.yaml
+
+      ## Migration Steps
+
+      ### Step 1: Add Redis config to global.yaml
+      [Code snippet with Redis config]
+
+      ### Step 2: Add Redis service to docker-compose file
+      [Code snippet with Redis service def]
+
+      ### Step 3: Add redis-data volume
+      [Code snippet]
+
+      ### Step 4: Update service dependencies
+      [Code snippet for ingress-egress, auth, llm-bot]
+
+      ### Step 5: Restart and validate
+      [Commands]
+
+      ## Validation
+      - Redis running and healthy
+      - Services start with Redis dependency
+      - Idempotency active in logs
+
+      ## Troubleshooting
+      - Common errors and fixes
+
+    acceptance_criteria:
+      - "Guide is comprehensive and actionable"
+      - "User can follow guide without asking questions"
+      - "Validation section confirms success"
+
+  - id: REDIS-BEC-013
+    title: "Update CLAUDE.md with Redis BEC generation info"
+    priority: low
+    phase: 4
+    estimated_effort: "15 minutes"
+    dependencies:
+      - REDIS-BEC-012
+
+    description: |
+      Update CLAUDE.md to document that new contexts automatically
+      include Redis configuration (post Sprint 1).
+
+    files:
+      - path: "CLAUDE.md"
+        section: "Execution Contexts"
+        changes:
+          - type: "addition"
+            content: |
+              **Redis Configuration (Sprint 1+)**:
+              - All new docker-compose contexts include Redis by default
+              - Used for distributed idempotency (message deduplication)
+              - Services: ingress-egress, auth, llm-bot depend on Redis
+              - For existing contexts, see documentation/guides/redis-migration.md
+
+    acceptance_criteria:
+      - "CLAUDE.md updated"
+      - "Clear explanation for LLM agents"
+      - "Link to migration guide"
+
+# ========================================
+# SUMMARY METRICS
+# ========================================
+
+summary:
+  total_tasks: 13
+
+  by_priority:
+    critical: 4  # Code fixes
+    high: 4      # Testing
+    medium: 4    # Validation & docs
+    low: 1       # Optional docs
+
+  by_phase:
+    phase_1: 4   # Code fixes
+    phase_2: 4   # Testing
+    phase_3: 2   # Validation
+    phase_4: 3   # Documentation
+
+  estimated_effort:
+    phase_1: "2-3 hours"
+    phase_2: "3-4 hours"
+    phase_3: "1 hour"
+    phase_4: "1-1.5 hours"
+    total: "7-9.5 hours"
+
+  dependencies_graph: |
+    REDIS-BEC-001 ──┬─→ REDIS-BEC-005 ──┐
+                    └─→ REDIS-BEC-011   │
+                                        ├─→ REDIS-BEC-009 ──→ REDIS-BEC-012 ──→ REDIS-BEC-013
+    REDIS-BEC-002 ──┬─→ REDIS-BEC-003 ──┤
+                    ├─→ REDIS-BEC-004 ──┤
+                    └─→ REDIS-BEC-006   │
+                                        └─→ REDIS-BEC-010
+
+    REDIS-BEC-004 ──→ REDIS-BEC-007 ────┘
+
+# ========================================
+# SPRINT CONVERSION NOTES
+# ========================================
+
+sprint_conversion:
+  recommended_sprint_size: "All 13 tasks (1.5 day sprint)"
+
+  alternative_phased_approach:
+    sprint_1:
+      name: "Code Fixes + Unit Tests"
+      tasks: ["REDIS-BEC-001", "REDIS-BEC-002", "REDIS-BEC-003", "REDIS-BEC-004", "REDIS-BEC-005", "REDIS-BEC-006", "REDIS-BEC-007"]
+      effort: "5-6 hours"
+
+    sprint_2:
+      name: "Validation + Documentation"
+      tasks: ["REDIS-BEC-008", "REDIS-BEC-009", "REDIS-BEC-010", "REDIS-BEC-011", "REDIS-BEC-012", "REDIS-BEC-013"]
+      effort: "2.5-3.5 hours"
+
+  github_issue_template: |
+    # Redis BEC Generation Gaps
+
+    ## Problem
+    New execution contexts created via `brat context create` are missing Redis configuration.
+
+    ## Tasks
+    See planning/backlog/redis-bec-generation-gaps-backlog.yaml for detailed task breakdown.
+
+    ## Acceptance Criteria
+    - [ ] New contexts include Redis config in env/*/global.yaml
+    - [ ] New contexts include Redis service in docker-compose
+    - [ ] Idempotency services depend on Redis
+    - [ ] All tests pass
+    - [ ] Migration guide created
+
+    ## References
+    - Execution Plan: planning/backlog/redis-bec-generation-gaps-execution-plan.md
+    - Sprint 1: planning/sprint-1-9ih2e3/

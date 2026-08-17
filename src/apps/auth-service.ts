@@ -188,6 +188,14 @@ export class AuthServer extends Bit {
               await ctx.nack(true);
             }
           }
+        },
+        {
+          // Sprint 1: Enable distributed idempotency for auth enrichment
+          // TTL: 300s (5 minutes - covers deploy windows and session establishment)
+          idempotency: {
+            enabled: true,
+            ttlSeconds: 300,
+          },
         }
       );
       logger.info('auth.subscribe.ok', { subject: inputSubject, queue: 'auth' });
@@ -529,8 +537,6 @@ export function createApp() {
 
 if (require.main === module) {
   Bit.ensureRequiredEnv(SERVICE_NAME);
-  const app = createApp();
-  app.listen(PORT, () => {
-    console.log('[auth] listening on port ' + PORT);
-  });
+  const server = new AuthServer();
+  void server.start(PORT);
 }

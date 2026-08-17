@@ -4,3 +4,5 @@ export * from './twitch-irc-client';
 export * from './publisher';
 export * from './eventsub-envelope-builder';
 export * from './eventsub-client';
+export * from './connector-adapter';
+export * from './factory';

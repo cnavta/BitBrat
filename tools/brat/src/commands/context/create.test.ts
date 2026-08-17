@@ -344,4 +344,73 @@ describe('brat context create', () => {
     );
     expect(globalYamlCall[1]).toContain('COMPOSE_PROJECT_NAME: bitbrat-my-context');
   });
+
+  // REDIS-BEC-005: Redis configuration tests (Sprint 2+)
+  it('generates Redis configuration in global.yaml for all contexts', async () => {
+    mockFs.existsSync.mockImplementation((p: any) => {
+      if (p.includes('env/test-redis')) return false;
+      return true;
+    });
+
+    await executeContextCreate('test-redis', {
+      nonInteractive: true,
+      type: 'docker-compose',
+      dockerHost: 'unix:///var/run/docker.sock',
+      persistenceDriver: 'postgres',
+    });
+
+    const globalYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('global.yaml')
+    );
+
+    // Verify Redis configuration is present
+    expect(globalYamlCall[1]).toContain('REDIS_URL: redis://redis:6379');
+    expect(globalYamlCall[1]).toContain('REDIS_IDEMPOTENCY_ENABLED: true');
+    expect(globalYamlCall[1]).toContain('REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: 300');
+  });
+
+  it('generates Redis configuration for local context', async () => {
+    mockFs.existsSync.mockImplementation((p: any) => {
+      if (p.includes('env/local')) return false;
+      return true;
+    });
+
+    await executeContextCreate('local', {
+      nonInteractive: true,
+      type: 'docker-compose',
+      dockerHost: 'unix:///var/run/docker.sock',
+      persistenceDriver: 'postgres',
+    });
+
+    const globalYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('global.yaml')
+    );
+
+    // Redis config should be consistent across all contexts
+    expect(globalYamlCall[1]).toContain('REDIS_URL: redis://redis:6379');
+    expect(globalYamlCall[1]).toContain('REDIS_IDEMPOTENCY_ENABLED: true');
+  });
+
+  it('generates Redis configuration for staging context', async () => {
+    mockFs.existsSync.mockImplementation((p: any) => {
+      if (p.includes('env/staging')) return false;
+      return true;
+    });
+
+    await executeContextCreate('staging', {
+      nonInteractive: true,
+      type: 'docker-compose',
+      dockerHost: 'ssh://root@bitbrat.lan',
+      dockerRemoteDir: '/opt/BitBratPlatform',
+      persistenceDriver: 'postgres',
+    });
+
+    const globalYamlCall = (mockFs.writeFileSync as jest.Mock).mock.calls.find(
+      (call: any) => call[0].includes('global.yaml')
+    );
+
+    // Redis config values should match local context
+    expect(globalYamlCall[1]).toContain('REDIS_URL: redis://redis:6379');
+    expect(globalYamlCall[1]).toContain('REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: 300');
+  });
 });

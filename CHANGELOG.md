@@ -22,6 +22,250 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.30.0] - 2026-08-17
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.29.0] - 2026-08-16
+### Added
+- **Deployment Lifecycle Hooks System** (Sprint 15): Shell script hooks at 4 deployment stages
+  - `pre-deploy`: Local-only hook before deployment starts (use case: registry authentication)
+  - `pre-build`: Hook before Docker build (local or remote)
+  - `post-build`: Hook after build completes (local or remote)
+  - `post-deploy`: Hook after containers start, non-fatal failures (use case: health checks, notifications)
+  - `HookExecutor` class with `execute()` (local) and `executeRemote()` (SSH) methods
+  - Environment variables: `BRAT_CONTEXT_NAME`, `BRAT_DEPLOYMENT_TYPE`, `BRAT_SERVICES`, `BRAT_REPO_ROOT`, `BRAT_TARGET_HOST`, `BRAT_REMOTE_DIR`
+  - Configuration in `architecture.yaml` under `executionContexts.{context}.deployment.hooks`
+  - `additionalSyncPaths` field for extending remote file sync whitelist (required for syncing hook scripts to remote hosts)
+  - Comprehensive validation: file existence, executable permissions, relative paths, valid extensions (.sh, .bash, .ts, .js)
+  - Example hooks for Docker Hub, AWS ECR, GCP Artifact Registry, health checks, Slack notifications
+  - Production GCP Artifact Registry auth hook for staging context (`.brat/hooks/staging/pre-deploy-gcp-auth.sh`)
+  - 27 unit tests for HookExecutor, 3 integration tests for additionalSyncPaths
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.28.0] - 2026-08-15
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.27.2] - 2026-08-13
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.27.1] - 2026-08-13
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.27.0] - 2026-08-12
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.26.0] - 2026-08-12
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.25.1] - 2026-08-11
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.25.0] - 2026-08-11
+### Added
+- Created comprehensive reference documentation (3,675 lines total):
+  - `documentation/reference/topic-catalog.md` - Complete message bus topic reference (745 lines)
+  - `documentation/reference/secrets-catalog.md` - Platform secrets reference (713 lines)
+  - `documentation/reference/environment-variables.md` - Environment variable resolution guide (924 lines)
+  - `documentation/guides/extending-bitbrat.md` - Comprehensive platform extension guide (1,293 lines)
+  - `documentation/guides/sprint-8-architecture-migration.md` - Migration guide with rollback procedures
+- New `platform.orchestration` section in architecture.yaml (38 lines) applying {config, stages, constraints, intent} pattern
+
+### Changed
+- **BREAKING**: Refactored `architecture.yaml` structure (1,444 → 1,093 lines, 24% reduction)
+  - Refactored `messaging` section (202 → 101 lines, 50% reduction) with {config, constraints, intent} pattern
+  - Refactored `conventions` section (106 → 30 lines, 72% reduction) with references to new documentation
+  - Enhanced `llm_guidance` section with comprehensive references to new documentation files
+- Updated `CLAUDE.md` with references to 4 new documentation files
+- Updated `README.md` to reference `extending-bitbrat.md` instead of removed `extension_points` section
+- Updated test `base-server-yaml.test.ts` to check `platform.orchestration` instead of removed `cloudResources`
+
+### Deprecated
+- Marked 6 sections as deprecated/removed (see Removed section for details)
+
+### Removed
+- Removed 6 deprecated sections from `architecture.yaml` (232 lines total):
+  - `dataflow` (41 lines) - content migrated to `platform.orchestration`
+  - `references` (11 lines) - content migrated to `llm_guidance.references`
+  - `extension_points` (53 lines) - content extracted to `documentation/guides/extending-bitbrat.md`
+  - `cloudResources` (104 lines) - deprecated GCP-specific configuration
+  - `deploymentDefaults` (12 lines) - deprecated unused configuration
+  - `networking` (11 lines) - deprecated GCP-specific configuration
+
+### Fixed
+- Skipped obsolete test in `from-repo-arch.test.ts` that relied on removed `cloudResources` section
+
+### Security
+
+## [0.24.0] - 2026-08-10
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.23.0] - 2026-08-10
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.22.0] - 2026-08-08
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.21.0] - 2026-08-07
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.20.2] - 2026-08-02
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.20.1] - 2026-08-02
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.20.0] - 2026-07-31
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [0.19.1] - 2026-07-29
 ### Added
 

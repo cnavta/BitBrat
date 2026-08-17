@@ -9,7 +9,7 @@ module.exports = () => {
   const base = {
     preset: 'ts-jest',
     testEnvironment: 'node',
-    testPathIgnorePatterns: ['/node_modules/', '/dist/', '/deprecated/'],
+    testPathIgnorePatterns: ['/node_modules/', '/dist/', '/deprecated/', '/tools/brat/src/oclif-commands/'],
     moduleNameMapper: {
       '^(\\.{1,2}/.*)\\.js$': '$1',
     },

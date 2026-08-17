@@ -1,0 +1,9 @@
+{
+  "type": "message",
+  "user": "U123456789",
+  "text": "Hello! This is a DM.",
+  "ts": "1723636800.123456",
+  "channel": "D987654321",
+  "event_ts": "1723636800.123456",
+  "channel_type": "im"
+}

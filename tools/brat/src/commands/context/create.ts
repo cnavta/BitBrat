@@ -16,6 +16,8 @@ import { cmdDocker } from '../../cli/docker';
 import { getActiveServicesArray } from '../../context/parse-services';
 import { getRequiredInfrastructure } from '../../context/parse-dependencies';
 import { generateAndWriteDockerCompose } from '../../context/generate-docker-compose';
+import { HealthGate } from '../../infrastructure/health-gate';
+import { InfrastructureRegistry } from '../../infrastructure/registry';
 
 export interface ContextCreateOptions {
   /** Non-interactive mode with all values from flags */
@@ -90,12 +92,30 @@ export async function executeContextCreate(contextName: string, options: Context
       try {
         await cmdDocker('up', { context: contextName, loki: false });
 
-        // Wait for PostgreSQL to be ready (if using PostgreSQL)
+        // Wait for infrastructure to be ready (Sprint 5 I3.4: Use HealthGate)
         if (contextConfig.runtime.persistence?.driver === 'postgres') {
           console.log();
-          console.log('Waiting for PostgreSQL to be ready...');
-          await waitForPostgres(30); // 30 second timeout
-          console.log('✅ PostgreSQL is ready');
+          console.log('Waiting for infrastructure to be ready...');
+
+          // Get PostgreSQL infrastructure spec from architecture.yaml
+          const repoRoot = process.cwd();
+          const postgresSpec = InfrastructureRegistry.getInfrastructureByCapability(
+            repoRoot,
+            contextName,
+            'persistence'
+          );
+
+          if (postgresSpec) {
+            await HealthGate.waitForInfrastructure([postgresSpec], {
+              timeout: 30000, // 30 second timeout
+              parallel: false,
+              logger: console,
+            });
+          } else {
+            // Fall back to legacy behavior if spec not found
+            console.warn('⚠️  Warning: PostgreSQL infrastructure spec not found in architecture.yaml');
+            console.log('Skipping health check - please verify PostgreSQL is running');
+          }
         }
       } catch (error: any) {
         console.error();
@@ -112,40 +132,62 @@ export async function executeContextCreate(contextName: string, options: Context
 
     if (shouldSeed) {
       console.log();
-      console.log('Seeding database with initial data...');
-      console.log();
+      console.log('Validating PostgreSQL connection...');
 
-      // Set DATABASE_URL for seeding on host machine
-      // (cmdSeed runs on host, not in Docker, so it needs host-accessible connection)
-      if (contextConfig.runtime.persistence?.driver === 'postgres') {
-        const conn = contextConfig.runtime.persistence.connection;
-        if (conn) {
-          // Explicit connection provided
-          process.env.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
-        } else {
-          // Auto-discover mode - use localhost since we're seeding from host
-          process.env.DATABASE_URL = 'postgresql://bitbrat:bitbrat_dev_password@localhost:5432/bitbrat';
+      // Sprint 3: Validate PostgreSQL connection before attempting to seed
+      const isConnected = await validatePostgresConnection(contextConfig);
+
+      if (!isConnected) {
+        console.error();
+        console.error('⚠️  Warning: PostgreSQL is not accessible');
+        console.error('   Skipping database seeding');
+        console.error();
+        console.error(`You can manually seed later with: brat seed --context ${contextName}`);
+        console.error();
+      } else {
+        console.log('✅ PostgreSQL connection validated');
+        console.log();
+        console.log('Seeding database with initial data...');
+        console.log();
+
+        // Set DATABASE_URL for seeding on host machine
+        // (cmdSeed runs on host, not in Docker, so it needs host-accessible connection)
+        if (contextConfig.runtime.persistence?.driver === 'postgres') {
+          const conn = contextConfig.runtime.persistence.connection;
+          if (conn) {
+            // Explicit connection provided
+            process.env.DATABASE_URL = `postgresql://${conn.username}:${conn.password}@${conn.host}:${conn.port}/${conn.database}`;
+          } else if (contextConfig.runtime.persistence.autoDiscover &&
+                     contextConfig.deployment?.docker?.host?.startsWith('ssh://')) {
+            // Sprint 3 Fix #8: Auto-discover mode for remote Docker - extract hostname from ssh://user@host
+            const sshHost = contextConfig.deployment.docker.host.replace('ssh://', '');
+            const hostname = sshHost.includes('@') ? sshHost.split('@')[1] : sshHost;
+            process.env.DATABASE_URL = `postgresql://bitbrat:bitbrat_dev_password@${hostname}:5432/bitbrat`;
+          } else {
+            // Auto-discover mode for local Docker - use localhost since we're seeding from host
+            process.env.DATABASE_URL = 'postgresql://bitbrat:bitbrat_dev_password@localhost:5432/bitbrat';
+          }
         }
-      }
 
-      try {
-        const seedFlags = {
-          context: contextName,
-          botName: 'BitBrat', // Default, user can customize later
-          dryRun: false,
-          wipe: false,
-          apiToken: undefined,
-          json: false,
-        };
+        try {
+          const seedFlags = {
+            context: contextName,
+            botName: 'BitBrat', // Default, user can customize later
+            dryRun: false,
+            wipe: false,
+            apiToken: undefined,
+            json: false,
+          };
 
-        await cmdSeed({}, seedFlags);
-      } catch (error: any) {
-        console.error();
-        console.error('⚠️  Warning: Database seeding failed');
-        console.error(`   ${error.message}`);
-        console.error();
-        console.error('You can manually seed later with: brat seed');
-        console.error();
+          await cmdSeed({}, seedFlags);
+        } catch (error: any) {
+          console.error();
+          console.error('⚠️  Warning: Database seeding failed');
+          console.error(`   ${error.message}`);
+          console.error();
+          console.error('You can manually seed later with: brat seed');
+          console.error();
+        }
       }
     }
 
@@ -520,6 +562,11 @@ export function generateGlobalYaml(contextName: string, contextConfig: any): str
     PERSISTENCE_INCLUDE_RAW_PAYLOADS: true,
     PERSISTENCE_MAX_SNAPSHOT_BYTES: 1048576, // 1MB
     PERSISTENCE_TTL_DAYS: 7,
+
+    // Redis Configuration (Sprint 1+: Distributed Idempotency Layer)
+    REDIS_URL: 'redis://redis:6379',
+    REDIS_IDEMPOTENCY_ENABLED: true,
+    REDIS_IDEMPOTENCY_DEFAULT_TTL_SECONDS: 300,
   };
 
   // Add postgres-specific config
@@ -624,34 +671,74 @@ async function promptForSeeding(contextConfig: any): Promise<boolean> {
 /**
  * Wait for PostgreSQL to be ready by attempting connections
  * Sprint 358: Exported for reuse by AgentDevContextManager
+ * Sprint 3: Updated to accept contextConfig for remote Docker deployments
+ * Sprint 5 I3.4: DEPRECATED - Replaced by HealthGate.waitForInfrastructure()
  *
+ * DEPRECATED: This function now wraps HealthGate.waitForInfrastructure() for backward
+ * compatibility. New code should use HealthGate directly with InfrastructureRegistry.
+ *
+ * @deprecated Use HealthGate.waitForInfrastructure() with InfrastructureRegistry instead
  * @param timeoutSeconds - Maximum time to wait in seconds
+ * @param contextConfig - Optional context configuration (for remote hosts)
  */
-export async function waitForPostgres(timeoutSeconds: number): Promise<void> {
-  const { Pool } = await import('pg');
-  const startTime = Date.now();
-  const timeoutMs = timeoutSeconds * 1000;
+export async function waitForPostgres(timeoutSeconds: number, contextConfig?: any): Promise<void> {
+  // Get PostgreSQL infrastructure spec from architecture.yaml and use HealthGate
+  const repoRoot = process.cwd();
+  const contextName = contextConfig?.name || 'local';
 
-  while (Date.now() - startTime < timeoutMs) {
-    const pool = new Pool({
-      host: 'localhost',
-      port: 5432,
-      database: 'bitbrat',
-      user: 'bitbrat',
-      password: 'bitbrat_dev_password', // Default password for local dev
-      connectionTimeoutMillis: 2000,
-    });
+  try {
+    const postgresSpec = InfrastructureRegistry.getInfrastructureByCapability(
+      repoRoot,
+      contextName,
+      'persistence'
+    );
 
-    try {
-      await pool.query('SELECT 1');
-      await pool.end();
-      return; // Success!
-    } catch (error) {
-      await pool.end();
-      // Wait 1 second before retry
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    if (postgresSpec) {
+      await HealthGate.waitForInfrastructure([postgresSpec], {
+        timeout: timeoutSeconds * 1000,
+        parallel: false,
+      });
+    } else {
+      throw new Error('PostgreSQL infrastructure spec not found in architecture.yaml');
     }
+  } catch (error) {
+    throw new Error(
+      `PostgreSQL did not become ready within ${timeoutSeconds} seconds: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Validate PostgreSQL connection before seeding
+ * Sprint 3: Check if PostgreSQL is accessible before attempting to seed
+ * Sprint 5 I3.4: Updated to use HealthGate.checkHealth() for consistency
+ *
+ * @param contextConfig - Context configuration
+ * @returns True if PostgreSQL is accessible, false otherwise
+ */
+async function validatePostgresConnection(contextConfig: any): Promise<boolean> {
+  if (contextConfig.runtime.persistence?.driver !== 'postgres') {
+    return false;
   }
 
-  throw new Error(`PostgreSQL did not become ready within ${timeoutSeconds} seconds`);
+  // Sprint 5: Use HealthGate to check PostgreSQL health
+  const repoRoot = process.cwd();
+  const contextName = contextConfig.name || 'local';
+
+  try {
+    const postgresSpec = InfrastructureRegistry.getInfrastructureByCapability(
+      repoRoot,
+      contextName,
+      'persistence'
+    );
+
+    if (!postgresSpec) {
+      return false;
+    }
+
+    // Use HealthGate to check if PostgreSQL is healthy
+    return await HealthGate.checkHealth(postgresSpec);
+  } catch (error) {
+    return false;
+  }
 }

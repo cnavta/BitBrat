@@ -1,0 +1,74 @@
+#
+# Twitch Platform Mapping: chat.message.v1
+#
+# Maps Twitch IRC chat messages to BitBrat's chat.message.v1 internal event type.
+#
+# Event Flow:
+# 1. Twitch sends IRC PRIVMSG via TMI.js client
+# 2. IRC tags are parsed and normalized to IrcMessageMeta
+# 3. This mapping extracts fields and normalizes to InternalEventV2
+#
+# Note: Twitch has dual input formats (IRC for chat, EventSub for system events).
+# This mapping handles IRC chat messages only.
+#
+# Sprint 13: DX Foundation (DX-007)
+#
+# @since Sprint 13
+#
+
+# Platform-specific event name
+# For Twitch IRC, this is the raw IRC command
+platformEvent: PRIVMSG
+
+# Internal event type this maps to
+internalEventType: chat.message.v1
+
+# Priority for disambiguation (higher = checked first)
+# Standard chat messages have priority 0
+priority: 0
+
+# No filter needed - all IRC PRIVMSG commands are chat messages
+# The IRC client pre-filters bot messages and commands
+
+# Field mapping configuration
+# Maps Twitch IrcMessageMeta fields to BitBrat's InternalEventV2 format
+# Note: IrcMessageMeta is the normalized structure created by TwitchIrcClient
+fieldMapping:
+  # User ID (required)
+  # Already extracted from IRC tags by TwitchIrcClient
+  userId: userId
+
+  # Channel ID (required)
+  # Twitch IRC channel names
+  channelId: channel
+
+  # Message text (required)
+  # TranslationEngineEnvelopeBuilder adds 'message' field from 'text'
+  messageText: message
+
+  # Message ID (Twitch provides unique message ID via IRC tags)
+  # Already extracted from IRC tags by TwitchIrcClient
+  messageId: messageId
+
+  # User display name (with fallback to username)
+  userName:
+    path: userDisplayName
+    fallbacks:
+      - userLogin
+
+  # Custom fields for Twitch-specific metadata
+  # Access raw IRC tags via raw.tags path
+  custom:
+    identity.color: raw.tags.color
+    identity.badges: raw.tags.badges
+    identity.emotes: raw.tags.emotes
+
+metadata:
+  description: Twitch IRC chat message
+  platformDocUrl: https://dev.twitch.tv/docs/irc
+  notes: |
+    Twitch IRC uses TMI.js library which normalizes IRC PRIVMSG commands
+    into IrcMessageMeta interface. Raw IRC tags are parsed upstream.
+  createdBy: Platform Team
+  createdAt: "2026-08-14"
+  lastModified: "2026-08-14"

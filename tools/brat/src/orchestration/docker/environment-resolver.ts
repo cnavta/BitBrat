@@ -26,10 +26,41 @@ export class EnvironmentResolver {
       }
     }
 
-    // Sprint 358: Use context-specific secure file if provided, otherwise default to .secure.local
-    const secureFilePath = securePath
-      ? path.join(this.repoRoot, securePath)
-      : path.join(this.repoRoot, '.secure.local');
+    // Sprint 374: Load environment variables from .secure.{ENV}/.env (inside secure directory)
+    // This keeps all secrets in one place: both .env files and credential files
+    // Backward compatibility: Also check for old .secure.{ENV} file format (Sprint 373 and earlier)
+    let secureFilePath: string;
+    if (securePath) {
+      const providedPath = path.join(this.repoRoot, securePath);
+      // Check if provided path is a directory (new format) or file (old format)
+      if (fs.existsSync(providedPath)) {
+        if (fs.statSync(providedPath).isDirectory()) {
+          // New format: .secure.{ENV}/ directory with .env file inside
+          secureFilePath = path.join(providedPath, '.env');
+        } else {
+          // Old format: .secure.{ENV} file
+          secureFilePath = providedPath;
+        }
+      } else {
+        // Doesn't exist - assume new format
+        secureFilePath = path.join(providedPath, '.env');
+      }
+    } else {
+      // Try new format first: .secure.{ENV}/.env (inside directory)
+      const newFormatPath = path.join(this.repoRoot, `.secure.${envName}`, '.env');
+      // Fallback to old format: .secure.{ENV} (file at root)
+      const oldFormatPath = path.join(this.repoRoot, `.secure.${envName}`);
+
+      if (fs.existsSync(newFormatPath)) {
+        secureFilePath = newFormatPath;
+      } else if (fs.existsSync(oldFormatPath) && fs.statSync(oldFormatPath).isFile()) {
+        // Old format detected - use it for backward compatibility
+        secureFilePath = oldFormatPath;
+      } else {
+        // Neither exists - use new format path (loadSecureLocal will return empty)
+        secureFilePath = newFormatPath;
+      }
+    }
     const secureEnv = this.loadSecureLocal(secureFilePath);
 
     const merged: EnvironmentVariables = {
@@ -42,6 +73,17 @@ export class EnvironmentResolver {
     // Ensure sensible defaults
     if (merged['SERVICE_PORT'] === undefined) {
       merged['SERVICE_PORT'] = 3000;
+    }
+
+    // Sprint 374: Construct DATABASE_URL from individual components if not explicitly set
+    // This prevents shell variable substitution issues in YAML files
+    if (!merged['DATABASE_URL'] && merged['POSTGRES_HOST'] && merged['POSTGRES_DB']) {
+      const user = merged['POSTGRES_USER'] || 'bitbrat';
+      const password = merged['POSTGRES_PASSWORD'] || 'bitbrat_dev_password';
+      const host = merged['POSTGRES_HOST'];
+      const port = merged['POSTGRES_PORT'] || '5432';
+      const db = merged['POSTGRES_DB'];
+      merged['DATABASE_URL'] = `postgresql://${user}:${password}@${host}:${port}/${db}`;
     }
 
     return merged;
@@ -62,6 +104,13 @@ export class EnvironmentResolver {
   private loadSecureLocal(filePath: string): EnvironmentVariables {
     const env: EnvironmentVariables = {};
     if (!fs.existsSync(filePath)) return env;
+
+    // Sprint 374: Skip if path is a directory (not a file)
+    // This handles the case where old .secure.{ENV} directories exist
+    const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
+      return env;
+    }
 
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split(/\r?\n/);

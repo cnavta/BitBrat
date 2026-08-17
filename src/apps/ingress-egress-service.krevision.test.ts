@@ -14,12 +14,18 @@ describe('ingress-egress K_REVISION precedence', () => {
   });
 
   it('uses K_REVISION as instanceId for egress topic', async () => {
+    process.env.K_SERVICE = 'ingress-egress';
     process.env.K_REVISION = 'krev-1234';
     process.env.TWITCH_CHANNELS = process.env.TWITCH_CHANNELS || 'testchan';
 
     const app = createApp();
-    const res = await request(app).get('/_debug/twitch').expect(200);
+    // IntegrationBit exposes egressTopic via /_debug/instance, not per-connector endpoint
+    const res = await request(app).get('/_debug/instance').expect(200);
     expect(res.body).toHaveProperty('egressTopic');
-    expect(res.body.egressTopic).toBe(`internal.egress.v1.${process.env.K_REVISION}`);
+    // IntegrationBit uses K_SERVICE-K_REVISION format for Cloud Run
+    const expectedInstanceId = 'ingress-egress-krev-1234';
+    expect(res.body.egressTopic).toBe(`internal.egress.v1.${expectedInstanceId}`);
+    // Verify instanceId also matches
+    expect(res.body.instanceId).toBe(expectedInstanceId);
   });
 });

@@ -1,0 +1,341 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bitbrat.dev/schemas/platform-mapping.v1.json",
+  "title": "Platform Event Mapping",
+  "description": "Schema for platform-specific event mappings (config/platforms/{platform}/*.yaml)",
+  "type": "object",
+  "required": ["platformEvent", "internalEventType", "fieldMapping"],
+  "additionalProperties": false,
+  "properties": {
+    "platformEvent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Platform-specific event name (e.g., Discord 'MESSAGE_CREATE', Slack 'message', Twitch 'PRIVMSG')",
+      "examples": [
+        "MESSAGE_CREATE",
+        "MESSAGE_UPDATE",
+        "message",
+        "app_mention",
+        "PRIVMSG",
+        "channel.follow"
+      ]
+    },
+    "internalEventType": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$",
+      "description": "Internal event type this platform event maps to",
+      "examples": [
+        "dm.message.v1",
+        "chat.message.v1",
+        "typing.start.v1",
+        "reaction.add.v1"
+      ]
+    },
+    "fieldMapping": {
+      "type": "object",
+      "description": "Field extraction configuration for generic envelope builder",
+      "required": ["userId", "channelId"],
+      "properties": {
+        "eventWrapper": {
+          "type": "string",
+          "description": "Path to nested event object (e.g., 'event' for Slack which wraps events)",
+          "examples": ["event", "payload", "data"]
+        },
+        "userId": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Lodash path to user ID (e.g., 'author.id', 'user')"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Primary path to extract"
+                },
+                "fallbacks": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Fallback paths if primary is missing"
+                }
+              }
+            }
+          ]
+        },
+        "channelId": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Lodash path to channel ID"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "fallbacks": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "userName": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "fallbacks": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ],
+          "description": "Path to user display name (optional, falls back to userId)"
+        },
+        "messageText": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "fallbacks": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ],
+          "description": "Path to message text content (optional)"
+        },
+        "messageId": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "fallbacks": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ],
+          "description": "Path to message ID (optional)"
+        },
+        "timestamp": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "fallbacks": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ],
+          "description": "Path to event timestamp (optional)"
+        },
+        "custom": {
+          "type": "object",
+          "description": "Custom field mappings for platform-specific data",
+          "patternProperties": {
+            "^[a-zA-Z_][a-zA-Z0-9_.]*$": {
+              "type": "string",
+              "description": "Lodash path to custom field"
+            }
+          }
+        }
+      }
+    },
+    "filter": {
+      "type": "object",
+      "description": "Optional JSONLogic filter for conditional mapping (e.g., differentiate DM vs chat based on channel type)",
+      "examples": [
+        {
+          "==": [
+            {
+              "var": "channel.type"
+            },
+            1
+          ]
+        },
+        {
+          "and": [
+            {
+              "==": [
+                {
+                  "var": "channel_type"
+                },
+                "im"
+              ]
+            },
+            {
+              "!": [
+                {
+                  "var": "bot_id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0,
+      "description": "Priority for disambiguation when multiple mappings match (higher = checked first)"
+    },
+    "egress": {
+      "type": "object",
+      "description": "Optional egress configuration for reverse translation (InternalEventV2 → platform payload)",
+      "required": ["method", "fieldMapping"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "description": "Connector method to invoke (e.g., 'sendText', 'sendDM', 'sendReaction')",
+          "examples": ["sendText", "sendDM", "sendReaction", "updateMessage"]
+        },
+        "fieldMapping": {
+          "type": "object",
+          "description": "Field mapping for egress translation",
+          "patternProperties": {
+            "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Lodash path to extract from InternalEventV2 (e.g., 'message.text', 'egress.channel')"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "description": "Static value to inject"
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "Path to extract from envelope"
+                    },
+                    "default": {
+                      "description": "Default value if path is missing"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata for governance",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this mapping"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date"
+        },
+        "platformDocUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to platform documentation for this event"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "platformEvent": "MESSAGE_CREATE",
+      "internalEventType": "dm.message.v1",
+      "priority": 10,
+      "filter": {
+        "==": [
+          {
+            "var": "channel.type"
+          },
+          1
+        ]
+      },
+      "fieldMapping": {
+        "userId": "author.id",
+        "channelId": "channel_id",
+        "userName": {
+          "path": "author.username",
+          "fallbacks": ["author.global_name", "author.id"]
+        },
+        "messageText": "content",
+        "messageId": "id",
+        "custom": {
+          "isDM": "channel.type"
+        }
+      },
+      "metadata": {
+        "description": "Discord DM message (channel type 1)",
+        "platformDocUrl": "https://discord.com/developers/docs/topics/gateway-events#message-create"
+      }
+    },
+    {
+      "platformEvent": "message",
+      "internalEventType": "chat.message.v1",
+      "fieldMapping": {
+        "eventWrapper": "event",
+        "userId": "user",
+        "channelId": "channel",
+        "messageText": "text",
+        "messageId": "ts"
+      },
+      "metadata": {
+        "description": "Slack message event",
+        "platformDocUrl": "https://api.slack.com/events/message"
+      }
+    }
+  ]
+}

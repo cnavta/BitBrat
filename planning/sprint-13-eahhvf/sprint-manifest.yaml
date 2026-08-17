@@ -1,0 +1,12 @@
+id: sprint-13-eahhvf
+title: DM Capability Implementation Across Integrations
+goal: Ensure all platform integrations with declared DM capabilities have
+  functional, tested, and standardized direct messaging support
+owner: christophernavta
+createdAt: 2026-08-14T03:43:11.148Z
+status: complete
+links:
+  branch: feature/sprint-13-eahhvf-dm-capability-implementation-a
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-15T23:13:11.099Z
+completionMode: normal

@@ -1,5 +1,5 @@
 import { DiscordIngressClient } from './discord-ingress-client';
-import { DiscordEnvelopeBuilder } from './envelope-builder';
+import { buildDiscordEnvelope } from './envelope-builder';
 
 describe('Discord – Reconnection behavior', () => {
   let builder: any;
@@ -10,7 +10,7 @@ describe('Discord – Reconnection behavior', () => {
   beforeEach(() => {
     process.env.NODE_ENV = 'development';
     jest.useFakeTimers();
-    builder = new DiscordEnvelopeBuilder();
+    builder = buildDiscordEnvelope;
     publisher = { publish: jest.fn(async () => {}) };
     mockClientInstance = {
       on: jest.fn(),

@@ -315,6 +315,20 @@ export class ContextResolver {
         if (discovered) {
           return discovered;
         }
+
+        // Sprint 3 Fix #9: If discovery fails (container not running yet), return default config
+        // based on Docker host. This allows context commands to work before stack is started.
+        const host = this.extractHost(context.deployment.docker!.host);
+        return {
+          driver: 'postgres',
+          connection: {
+            host,
+            port: 5432,
+            database: 'bitbrat',
+            username: 'bitbrat',
+            password: 'bitbrat_dev_password',
+          },
+        };
       }
 
       throw new ContextResolutionError(

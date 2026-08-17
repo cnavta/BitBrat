@@ -18,7 +18,17 @@ export class ComposeFactory {
     private readonly repoRoot: string,
     baseComposePath?: string
   ) {
-    this.baseComposePath = baseComposePath || 'infrastructure/docker-compose/docker-compose.local.yaml';
+    // Sprint 6 (S6-C4.1): docker-compose.local.yaml removed (deprecated in Sprint 5)
+    // baseComposePath must be explicitly provided (context-specific or generated compose file)
+    if (!baseComposePath) {
+      throw new Error(
+        'ComposeFactory requires an explicit baseComposePath. ' +
+        'docker-compose.local.yaml was removed in Sprint 6 (deprecated in Sprint 5). ' +
+        'Use context-specific compose files (docker-compose.{context}.yaml) or ' +
+        'dynamically generated files from architecture.yaml v2.'
+      );
+    }
+    this.baseComposePath = baseComposePath;
   }
 
   /**
@@ -44,10 +54,12 @@ export class ComposeFactory {
     const baseFile = this.baseComposePath;
     const serviceFiles: string[] = [];
 
-    // Sprint 358: If using a context-specific compose file (not docker-compose.local.yaml),
-    // the context compose file already has all services defined. However, we still need
-    // to track targetService for single-service deployments.
-    const isContextSpecificCompose = !this.baseComposePath.endsWith('docker-compose.local.yaml');
+    // Sprint 358+: Context-specific compose files (docker-compose.{context}.yaml) are monolithic
+    // and already have all services defined. We detect them by checking if the filename
+    // matches the pattern docker-compose.{context}.yaml (e.g., docker-compose.local.yaml,
+    // docker-compose.staging.yaml). For these files, we don't need per-service compose files.
+    // Sprint 6: docker-compose.local.yaml was removed, but the pattern check still works.
+    const isContextSpecificCompose = /docker-compose\.[a-z-]+\.yaml$/.test(this.baseComposePath);
     if (isContextSpecificCompose) {
       // Sprint 372: For single-service deployments, we need to track which service to deploy
       // even though the compose file is monolithic. Store the target service name directly

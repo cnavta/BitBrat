@@ -57,6 +57,8 @@ describe('event-router ingress integration', () => {
     handlerFns.clear();
     publishCalls = [];
     process.env.BUS_PREFIX = 'dev.';
+    // Sprint 9: Disable persistence snapshots to isolate routing behavior in test
+    process.env.PERSISTENCE_SNAPSHOT_MODE = 'off';
   });
 
   it('routes event and publishes to first step topic (default DLQ with no rules)', async () => {

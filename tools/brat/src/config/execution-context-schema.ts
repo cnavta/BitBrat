@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import * as path from 'path';
 
 /**
  * Sprint 349: Environment Unification - Execution Context Schema
+ * Sprint 15: Deployment Lifecycle Hooks
  *
  * Defines the schema for execution contexts, which unify environment configuration
  * across deployment types (docker-compose, cloud-run, k8s) and runtime concerns
@@ -17,11 +19,43 @@ import { z } from 'zod';
 /**
  * Docker deployment configuration
  * Used for: local development, remote staging, self-hosted production
+ * Sprint 15: Added additionalSyncPaths for custom file sync control
  */
 export const DockerDeploymentSchema = z.object({
   host: z.string().describe('Docker host (unix:///var/run/docker.sock or ssh://user@host)'),
   remoteDir: z.string().optional().describe('Remote directory for docker-compose files (SSH deployments)'),
   maxConcurrent: z.number().int().positive().optional().describe('Maximum concurrent Docker operations'),
+
+  // Sprint 15: Additional file sync paths for remote deployments
+  additionalSyncPaths: z.array(z.string()).optional().refine(
+    (paths) => {
+      if (!paths) return true; // Optional field
+
+      for (const syncPath of paths) {
+        // Validate path is relative (not absolute)
+        if (path.isAbsolute(syncPath)) {
+          throw new Error(
+            `additionalSyncPaths must be relative (not absolute): ${syncPath}\n` +
+            `Expected: .brat/hooks or custom-scripts\n` +
+            `Received: ${syncPath}`
+          );
+        }
+
+        // Validate path doesn't escape repository (no ../)
+        if (syncPath.startsWith('../') || syncPath.includes('/../')) {
+          throw new Error(
+            `additionalSyncPaths must not escape repository: ${syncPath}\n` +
+            `Paths outside repo root are rejected for security.`
+          );
+        }
+      }
+
+      return true;
+    },
+    {
+      message: 'Additional sync paths must be relative and within repository',
+    }
+  ).describe('Additional files/directories to sync to remote host'),
 });
 
 /**
@@ -43,14 +77,71 @@ export const K8sDeploymentSchema = z.object({
 });
 
 /**
+ * Deployment lifecycle hooks
+ * Sprint 15: Enables project-specific authentication, validation, and custom deployment logic
+ *
+ * Hooks are shell scripts that execute at specific deployment stages:
+ * - pre-deploy: Before deployment operations (local) - registry auth, validation
+ * - pre-build: After sync (remote) or before build (local) - build-time auth
+ * - post-build: After build, before up - image scanning, validation
+ * - post-deploy: After containers start - health checks, notifications
+ *
+ * All hooks are optional. Hook paths must be relative to repository root.
+ * For remote deployments, pre-build, post-build, and post-deploy run on remote host via SSH.
+ */
+export const DeploymentHooksSchema = z.object({
+  'pre-deploy': z.string().optional().describe('Hook executed before deployment (local)'),
+  'pre-build': z.string().optional().describe('Hook executed before build step'),
+  'post-build': z.string().optional().describe('Hook executed after build step'),
+  'post-deploy': z.string().optional().describe('Hook executed after containers start'),
+}).optional().refine(
+  (hooks) => {
+    if (!hooks) return true; // Hooks are optional
+
+    // Validate hook paths are relative (not absolute) and have valid extensions
+    for (const [hookType, hookPath] of Object.entries(hooks)) {
+      if (!hookPath) continue; // Optional hook not defined
+
+      // Validate path is relative
+      if (path.isAbsolute(hookPath)) {
+        throw new Error(
+          `Hook path must be relative (not absolute): ${hookType}=${hookPath}\n` +
+          `Expected: .brat/hooks/staging/pre-deploy.sh\n` +
+          `Received: ${hookPath}`
+        );
+      }
+
+      // Validate file extension
+      const validExtensions = ['.sh', '.bash', '.ts', '.js'];
+      const ext = path.extname(hookPath);
+      if (!validExtensions.includes(ext)) {
+        throw new Error(
+          `Hook must have valid extension (.sh, .bash, .ts, .js): ${hookType}=${hookPath}\n` +
+          `Received: ${ext || '(no extension)'}`
+        );
+      }
+    }
+
+    return true;
+  },
+  {
+    message: 'Hook paths must be relative with valid extensions (.sh, .bash, .ts, .js)',
+  }
+);
+
+/**
  * Deployment configuration (discriminated union by type)
  * Exactly one deployment sub-config must be present based on type.
+ * Sprint 15: Added hooks field for deployment lifecycle hooks
  */
 export const DeploymentSchema = z.object({
   type: z.enum(['docker-compose', 'cloud-run', 'k8s']).describe('Deployment platform type'),
   docker: DockerDeploymentSchema.optional(),
   gcp: GcpDeploymentSchema.optional(),
   k8s: K8sDeploymentSchema.optional(),
+
+  // Sprint 15: Deployment lifecycle hooks
+  hooks: DeploymentHooksSchema,
 }).refine(
   (data) => {
     // Validate that the correct sub-schema is present for the deployment type

@@ -1,12 +1,12 @@
 import { DiscordIngressClient } from './discord-ingress-client';
-import { DiscordEnvelopeBuilder } from './envelope-builder';
+import { buildDiscordEnvelope } from './envelope-builder';
 
 describe('DiscordIngressClient - DISCORD_BOT_TOKEN usage', () => {
   let builder: any;
   let publisher: any;
 
   beforeEach(() => {
-    builder = new DiscordEnvelopeBuilder();
+    builder = buildDiscordEnvelope;
     publisher = { publish: jest.fn(async () => {}) };
   });
 

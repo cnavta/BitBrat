@@ -240,6 +240,10 @@ describe('Context Pack Registration Flow', () => {
 
   describe('Idempotent Re-registration (Heartbeat)', () => {
     it('updates updatedAt on re-registration but preserves createdAt', async () => {
+      // Mock system time to ensure deterministic date assertions
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-07-15T12:00:00.000Z'));
+
       const pack = {
         id: 'test.heartbeat',
         version: '1',
@@ -294,6 +298,9 @@ describe('Context Pack Registration Flow', () => {
         }),
         { merge: true }
       );
+
+      // Restore real timers
+      jest.useRealTimers();
     });
 
     it('uses merge: true to avoid duplicates', async () => {

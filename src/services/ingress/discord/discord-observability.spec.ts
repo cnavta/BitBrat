@@ -1,5 +1,5 @@
 import { DiscordIngressClient } from './discord-ingress-client';
-import { DiscordEnvelopeBuilder } from './envelope-builder';
+import { buildDiscordEnvelope } from './envelope-builder';
 
 jest.mock('../../../common/logging', () => {
   const info = jest.fn();
@@ -44,7 +44,7 @@ describe('Discord observability logging', () => {
   it('logs disabled mode without secrets', async () => {
     process.env.NODE_ENV = 'test'; // ensures disabled path
     const cfg: any = { discordEnabled: false };
-    const builder = new DiscordEnvelopeBuilder();
+    const builder = buildDiscordEnvelope;
     const publisher = { publish: jest.fn() };
     const client = new DiscordIngressClient(builder, publisher as any, cfg);
     await client.start();
@@ -57,9 +57,9 @@ describe('Discord observability logging', () => {
   it('logs publish path with expected namespace', async () => {
     process.env.NODE_ENV = 'development';
     const cfg: any = { discordEnabled: true, discordBotToken: 'x.y.z', discordGuildId: 'g1', discordChannels: ['c1'] };
-    const builder = new DiscordEnvelopeBuilder();
+    const builder = buildDiscordEnvelope;
     const publisher = { publish: jest.fn().mockResolvedValue(undefined) };
-    const client = new DiscordIngressClient(builder as any, publisher as any, cfg, { egressDestinationTopic: 'internal.egress.v1.test' });
+    const client = new DiscordIngressClient(buildDiscordEnvelope, publisher as any, cfg, { egressDestinationTopic: 'internal.egress.v1.test' });
     await client.start();
     // emit a valid message
     const { Client } = require('discord.js');

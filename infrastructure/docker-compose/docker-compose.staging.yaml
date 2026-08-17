@@ -1,8 +1,15 @@
 # Generated Docker Compose configuration
 # DO NOT EDIT MANUALLY - regenerate with 'brat context create'
-# Generated: 2026-07-21T21:07:29.221Z
+# Generated: 2026-08-09T02:16:12.408Z
 
 services:
+  bitbrat-base:
+    profiles:
+      - "build-only"
+    build:
+      context: "../.."
+      dockerfile: "Dockerfile.base"
+    image: "bitbrat-base:${BITBRAT_VERSION:-latest}"
   nats:
     env_file:
       - ".env.brat"
@@ -32,6 +39,27 @@ services:
       retries: 10
     volumes:
       - "nats-data:/data"
+  redis:
+    env_file:
+      - ".env.brat"
+    image: "redis:7-alpine"
+    command: "redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru"
+    networks:
+      bitbrat-network:
+        aliases:
+          - "redis.bitbrat.local"
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test:
+        - "CMD"
+        - "redis-cli"
+        - "ping"
+      interval: "5s"
+      timeout: "3s"
+      retries: 3
+    volumes:
+      - "redis-data:/data"
   postgres:
     env_file:
       - ".env.brat"
@@ -47,7 +75,7 @@ services:
       - "PGDATA=/var/lib/postgresql/data/pgdata"
     volumes:
       - "postgres-data:/var/lib/postgresql/data"
-      - "./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro"
+      - "../postgres/init:/docker-entrypoint-initdb.d:ro"
     ports:
       - "5432:5432"
     healthcheck:
@@ -98,7 +126,7 @@ services:
       DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID}"
       DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET}"
     ports:
-      - "${OAUTH_FLOW_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
+      - "${OAUTH_FLOW_HOST_PORT:-3013}:${SERVICE_PORT:-3000}"
     depends_on:
       nats:
         condition: "service_healthy"
@@ -134,6 +162,9 @@ services:
       PERSISTENCE_TTL_DAYS: "${PERSISTENCE_TTL_DAYS}"
       DISCORD_ENABLED: "${DISCORD_ENABLED}"
       TWILIO_ENABLED: "${TWILIO_ENABLED}"
+      DEBUG_USERS_SLACK: "${DEBUG_USERS_SLACK}"
+      DEBUG_USERS_TWITCH: "${DEBUG_USERS_TWITCH}"
+      DEBUG_USERS_DISCORD: "${DEBUG_USERS_DISCORD}"
       TWITCH_CLIENT_ID: "${TWITCH_CLIENT_ID}"
       TWITCH_CLIENT_SECRET: "${TWITCH_CLIENT_SECRET}"
       DISCORD_BOT_TOKEN: "${DISCORD_BOT_TOKEN}"
@@ -142,12 +173,17 @@ services:
       TWILIO_API_KEY: "${TWILIO_API_KEY}"
       TWILIO_API_SECRET: "${TWILIO_API_SECRET}"
       TWILIO_CHAT_SERVICE_SID: "${TWILIO_CHAT_SERVICE_SID}"
+      SLACK_APP_TOKEN: "${SLACK_APP_TOKEN}"
+      SLACK_BOT_TOKEN: "${SLACK_BOT_TOKEN}"
+      SLACK_SIGNING_SECRET: "${SLACK_SIGNING_SECRET}"
     ports:
-      - "${INGRESS_EGRESS_HOST_PORT:-3015}:${SERVICE_PORT:-3000}"
+      - "${INGRESS_EGRESS_HOST_PORT:-3001}:${SERVICE_PORT:-3000}"
     depends_on:
       nats:
         condition: "service_healthy"
       postgres:
+        condition: "service_healthy"
+      redis:
         condition: "service_healthy"
       auth:
         condition: "service_started"
@@ -184,6 +220,8 @@ services:
       - "${AUTH_HOST_PORT:-3007}:${SERVICE_PORT:-3000}"
     depends_on:
       nats:
+        condition: "service_healthy"
+      redis:
         condition: "service_healthy"
     healthcheck:
       test:
@@ -296,6 +334,8 @@ services:
     depends_on:
       nats:
         condition: "service_healthy"
+      redis:
+        condition: "service_healthy"
       event-router:
         condition: "service_started"
       tool-gateway:
@@ -367,8 +407,6 @@ services:
     depends_on:
       nats:
         condition: "service_healthy"
-      event-router:
-        condition: "service_started"
     healthcheck:
       test:
         - "CMD"
@@ -542,7 +580,6 @@ services:
         SERVICE_PORT: "3000"
     environment:
       MCP_TRANSPORT: "${MCP_TRANSPORT}"
-      GCS_BUCKET_NAME: "${GCS_BUCKET_NAME}"
       IMAGE_GEN_RATE_LIMIT_MS: "${IMAGE_GEN_RATE_LIMIT_MS}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN}"
@@ -564,14 +601,14 @@ services:
       bitbrat-network:
         aliases:
           - "image-gen-mcp.bitbrat.local"
-  stream-analyst:
+  stream-analyst-service:
     env_file:
       - ".env.brat"
     build:
       context: "../.."
       dockerfile: "Dockerfile.service"
       args:
-        SERVICE_NAME: "stream-analyst"
+        SERVICE_NAME: "stream-analyst-service"
         SERVICE_ENTRY: "dist/apps/stream-analyst-service.js"
         SERVICE_PORT: "3000"
     environment:
@@ -595,7 +632,7 @@ services:
     networks:
       bitbrat-network:
         aliases:
-          - "stream-analyst.bitbrat.local"
+          - "stream-analyst-service.bitbrat.local"
   story-engine-mcp:
     env_file:
       - ".env.brat"
@@ -690,7 +727,8 @@ services:
 networks:
   bitbrat-network:
     driver: "bridge"
-    name: "${COMPOSE_PROJECT_NAME}-network"
+    name: "bitbrat-staging-network"
 volumes:
   postgres-data: {}
   nats-data: {}
+  redis-data: {}

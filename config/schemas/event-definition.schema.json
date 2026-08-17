@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bitbrat.dev/schemas/event-definition.v1.json",
+  "title": "Event Definition",
+  "description": "Schema for BitBrat internal event type definitions (config/events/*.yaml)",
+  "type": "object",
+  "required": ["type", "version", "category"],
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$",
+      "description": "Event type identifier (e.g., 'dm.message.v1', 'chat.message.v1')",
+      "examples": [
+        "dm.message.v1",
+        "chat.message.v1",
+        "typing.start.v1",
+        "reaction.add.v1",
+        "user.join.v1"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Human-readable description of what this event represents"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Event schema version number (increment on breaking changes)"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["ingress", "egress", "bidirectional"],
+      "description": "Event flow direction: ingress (incoming only), egress (outgoing only), or bidirectional (both)"
+    },
+    "deprecated": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this event type is deprecated and should not be used for new implementations"
+    },
+    "replacedBy": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$",
+      "description": "If deprecated, the event type that replaces this one"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata for observability and governance",
+      "properties": {
+        "createdBy": {
+          "type": "string",
+          "description": "Author or team who created this event definition"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date",
+          "description": "Date when this event was first defined (YYYY-MM-DD)"
+        },
+        "lastModified": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of last modification (YYYY-MM-DD)"
+        },
+        "owningTeam": {
+          "type": "string",
+          "description": "Team responsible for maintaining this event definition"
+        },
+        "relatedEvents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"
+          },
+          "description": "Related event types (e.g., dm.message.v1 relates to dm.sent.v1)"
+        }
+      }
+    },
+    "schema": {
+      "type": "object",
+      "description": "Optional JSON Schema for validating event payload structure",
+      "properties": {
+        "properties": {
+          "type": "object",
+          "description": "Expected fields in the event payload"
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required fields in the event payload"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "type": "dm.message.v1",
+      "description": "Direct message sent between two users",
+      "version": 1,
+      "category": "bidirectional",
+      "metadata": {
+        "createdBy": "Platform Team",
+        "createdAt": "2026-08-14",
+        "owningTeam": "integrations",
+        "relatedEvents": ["dm.sent.v1", "dm.delivered.v1"]
+      }
+    },
+    {
+      "type": "chat.message.v1",
+      "description": "Message sent to a public or private channel",
+      "version": 1,
+      "category": "bidirectional",
+      "deprecated": false
+    },
+    {
+      "type": "typing.start.v1",
+      "description": "User started typing in a channel",
+      "version": 1,
+      "category": "ingress"
+    }
+  ]
+}

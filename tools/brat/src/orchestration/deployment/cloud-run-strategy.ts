@@ -17,11 +17,14 @@ import type {
   ServiceWithName,
 } from './strategy';
 import type { ResolvedContext } from '../../context/types';
+import type { SecureFile } from '../../config/types';
 import { submitBuild } from '../../providers/gcp/cloudbuild';
 import { assertVpcPreconditions } from '../../providers/gcp/preflight';
 import { deriveTag } from '../../util/git';
 import { loadEnvKv, synthesizeSecretMapping } from '../../config/loader';
 import { resolveSecretMappingToNumeric } from '../../providers/gcp/secrets';
+import { SecureFilesValidator } from '../../validation/secure-files-validator';
+import { execCmd } from '../exec';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -129,6 +132,84 @@ export class CloudRunStrategy implements DeploymentStrategy {
       delete filteredEnvVars[key];
     });
 
+    // Sprint 374: Validate and process secureFiles
+    const secureFiles = service.secureFiles || [];
+    let processedSecureFiles: SecureFile[] = [];
+    const secretFileRefs: Array<{ secretName: string; targetPath: string; envVar?: string }> = [];
+
+    if (secureFiles.length > 0) {
+      // Validate secure files
+      const validator = new SecureFilesValidator(process.cwd());
+      const validationResult = await validator.validate(secureFiles, context.name);
+
+      // Log warnings (non-fatal)
+      if (validationResult.warnings.length > 0) {
+        console.warn(
+          `[cloud-run-strategy] Secure file warnings for ${service.name}:\n` +
+            validationResult.warnings.map((w) => `  - ${w}`).join('\n')
+        );
+      }
+
+      // Abort on validation errors
+      if (!validationResult.valid) {
+        throw new Error(
+          `Secure file validation failed for ${service.name}:\n` +
+            validationResult.errors.map((e) => `  - ${e}`).join('\n')
+        );
+      }
+
+      // Filter files by current execution context
+      processedSecureFiles = secureFiles.filter((file) => {
+        if (!file.context) return true; // No context restriction
+        return file.context === context.name;
+      });
+
+      console.log(
+        `[cloud-run-strategy] ${processedSecureFiles.length} secure file(s) applicable for context '${context.name}'`
+      );
+
+      // Upload files to Secret Manager (unless dry-run)
+      if (!options.dryRun && processedSecureFiles.length > 0) {
+        for (const file of processedSecureFiles) {
+          const secretName = this.deriveSecretName(envName, file.local);
+
+          console.log(`[cloud-run-strategy] Uploading ${file.local} to Secret Manager as ${secretName}`);
+
+          try {
+            // Ensure secret exists
+            await this.ensureSecret(secretName, projectId);
+
+            // Upload file content as new version
+            await this.addSecretVersion(secretName, projectId, file.local);
+
+            // Track secret reference for deployment
+            secretFileRefs.push({
+              secretName,
+              targetPath: file.target,
+              envVar: file.env,
+            });
+          } catch (error: any) {
+            throw new Error(
+              `Failed to upload secure file ${file.local} to Secret Manager: ${error.message}`
+            );
+          }
+        }
+      } else if (processedSecureFiles.length > 0) {
+        // Dry-run: just generate secret references without uploading
+        for (const file of processedSecureFiles) {
+          const secretName = this.deriveSecretName(envName, file.local);
+          secretFileRefs.push({
+            secretName,
+            targetPath: file.target,
+            envVar: file.env,
+          });
+        }
+        console.log(
+          `[cloud-run-strategy] Dry-run: Would upload ${processedSecureFiles.length} secure file(s) to Secret Manager`
+        );
+      }
+    }
+
     // Compute VPC connector name (follows brat naming convention)
     const vpcConnectorName = `brat-conn-${region}-${envName}`;
 
@@ -174,6 +255,33 @@ export class CloudRunStrategy implements DeploymentStrategy {
     // secretMap is already in the correct string format: "KEY1=projects/.../versions/1;KEY2=..."
     substitutions._SECRET_SET_ARG = secretMap || '';
 
+    // Sprint 374: Add secure file mount flags
+    // Format: /var/secrets/file.json=bitbrat-staging-file:latest;/run/secrets/cert.pem=bitbrat-staging-cert:latest
+    if (secretFileRefs.length > 0) {
+      const secretMountPairs = secretFileRefs.map((ref) => {
+        return `${ref.targetPath}=${ref.secretName}:latest`;
+      });
+      substitutions._SECRET_FILE_MOUNTS = secretMountPairs.join(';');
+
+      // Add env vars for secure files (if specified)
+      const secureFileEnvPairs: string[] = [];
+      for (const ref of secretFileRefs) {
+        if (ref.envVar) {
+          secureFileEnvPairs.push(`${ref.envVar}=${ref.targetPath}`);
+        }
+      }
+      if (secureFileEnvPairs.length > 0) {
+        // Append to existing env vars
+        if (substitutions._ENV_VARS_ARG) {
+          substitutions._ENV_VARS_ARG += ';' + secureFileEnvPairs.join(';');
+        } else {
+          substitutions._ENV_VARS_ARG = secureFileEnvPairs.join(';');
+        }
+      }
+    } else {
+      substitutions._SECRET_FILE_MOUNTS = '';
+    }
+
     // Prepare metadata
     const metadata: DeploymentPlan['metadata'] = {
       dockerfilePath,
@@ -184,6 +292,7 @@ export class CloudRunStrategy implements DeploymentStrategy {
       vpcConnector: vpcConnectorName,
       cloudBuildConfig: isExternalImage ? 'cloudbuild.deploy-only.yaml' : 'cloudbuild.oauth-flow.yaml',
       deployOptions: options,
+      secretFileRefs, // Sprint 374: Secret Manager references for secure files
     };
 
     return {
@@ -358,5 +467,114 @@ export class CloudRunStrategy implements DeploymentStrategy {
 
     // Return expected path (will fail validation)
     return dockerfilePath;
+  }
+
+  /**
+   * Sprint 374: Derive secret name from execution context and file path.
+   *
+   * Secret naming convention:
+   * bitbrat-<context>-<filename-without-extension>
+   *
+   * Examples:
+   * - .secure.local/gcp-credentials.json → bitbrat-local-gcp-credentials
+   * - .secure.staging/db-cert.pem → bitbrat-staging-db-cert
+   *
+   * @param context - Execution context (e.g., "local", "staging", "prod")
+   * @param filePath - Local file path
+   * @returns Secret name for GCP Secret Manager
+   */
+  private deriveSecretName(context: string, filePath: string): string {
+    const basename = path.basename(filePath);
+    const nameWithoutExt = basename.replace(/\.[^.]+$/, ''); // Remove extension
+    const sanitized = nameWithoutExt.replace(/[^a-zA-Z0-9-]/g, '-'); // Replace invalid chars
+    return `bitbrat-${context}-${sanitized}`;
+  }
+
+  /**
+   * Sprint 374: Ensure secret exists in GCP Secret Manager.
+   *
+   * Creates secret if it doesn't exist. Idempotent (safe to call multiple times).
+   *
+   * @param secretName - Secret name (e.g., "bitbrat-staging-gcp-credentials")
+   * @param projectId - GCP project ID
+   * @throws Error if gcloud command fails
+   */
+  private async ensureSecret(secretName: string, projectId: string): Promise<void> {
+    // Check if secret exists
+    const describeResult = await execCmd('gcloud', [
+      'secrets',
+      'describe',
+      secretName,
+      '--project',
+      projectId,
+    ]);
+
+    if (describeResult.code === 0) {
+      // Secret already exists
+      console.log(`[cloud-run-strategy] Secret ${secretName} already exists`);
+      return;
+    }
+
+    // Create secret with automatic replication
+    console.log(`[cloud-run-strategy] Creating secret ${secretName}`);
+    const createResult = await execCmd('gcloud', [
+      'secrets',
+      'create',
+      secretName,
+      '--project',
+      projectId,
+      '--replication-policy',
+      'automatic',
+    ]);
+
+    if (createResult.code !== 0) {
+      throw new Error(
+        `Failed to create secret ${secretName}: ${createResult.stderr || createResult.stdout}`
+      );
+    }
+
+    console.log(`[cloud-run-strategy] Secret ${secretName} created successfully`);
+  }
+
+  /**
+   * Sprint 374: Upload file content as new secret version.
+   *
+   * Reads file content and uploads to GCP Secret Manager.
+   * Supports both text and binary files.
+   *
+   * @param secretName - Secret name
+   * @param projectId - GCP project ID
+   * @param filePath - Path to file to upload
+   * @throws Error if file doesn't exist or gcloud command fails
+   */
+  private async addSecretVersion(secretName: string, projectId: string, filePath: string): Promise<void> {
+    const repoRoot = process.cwd();
+    const absolutePath = path.join(repoRoot, filePath);
+
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Secure file not found: ${filePath} (resolved to ${absolutePath})`);
+    }
+
+    console.log(`[cloud-run-strategy] Adding version to secret ${secretName} from ${filePath}`);
+
+    // Upload file content using --data-file
+    const addVersionResult = await execCmd('gcloud', [
+      'secrets',
+      'versions',
+      'add',
+      secretName,
+      '--project',
+      projectId,
+      '--data-file',
+      absolutePath,
+    ]);
+
+    if (addVersionResult.code !== 0) {
+      throw new Error(
+        `Failed to add version to secret ${secretName}: ${addVersionResult.stderr || addVersionResult.stdout}`
+      );
+    }
+
+    console.log(`[cloud-run-strategy] Version added to secret ${secretName} successfully`);
   }
 }

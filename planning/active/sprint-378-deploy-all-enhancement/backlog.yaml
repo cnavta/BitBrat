@@ -1,0 +1,992 @@
+# Sprint 378: Deploy All Enhancement - Trackable Backlog
+# Goal: Fix bulk deployment (--all flag) to process service-specific configuration
+
+sprint:
+  id: 378
+  name: "Deploy All Enhancement"
+  goal: "Fix bulk deployment environment variable and secureFiles handling"
+  duration_days: 4
+  status: pending
+  priority: high
+  complexity: medium-high
+
+tasks:
+  # ==============================================================================
+  # DAY 1: ANALYSIS & CORE IMPLEMENTATION
+  # ==============================================================================
+
+  - id: 378-001
+    title: "Understand current single-service deployment implementation"
+    description: |
+      Deep dive into the execute() method to understand how single-service deployments
+      process service-specific config, merge compose files, and handle secureFiles.
+      Document the complete flow with data structures and transformations.
+    phase: "Analysis"
+    day: 1
+    priority: critical
+    estimate_hours: 1
+    status: pending
+    dependencies: []
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    acceptance_criteria:
+      - "Flow diagram created showing execute() method steps"
+      - "All data structures documented (DeploymentPlan, secureFiles, etc.)"
+      - "ComposeMerger usage understood and documented"
+      - "Ready to design bulk implementation"
+    notes: |
+      Focus on lines 185-340 of docker-compose-strategy.ts
+      Pay special attention to:
+      - How ComposeMerger is instantiated and used
+      - How secureFiles are validated and transferred
+      - How environment variables are injected
+
+  - id: 378-002
+    title: "Design bulk merge strategy for multiple service-specific compose files"
+    description: |
+      Design how to merge N service-specific compose files into one base compose file.
+      Decide on conflict resolution strategies, secureFiles aggregation, and temporary
+      file handling. Write detailed pseudocode for enhanced deployAll().
+    phase: "Analysis"
+    day: 1
+    priority: critical
+    estimate_hours: 2
+    status: pending
+    dependencies: ["378-001"]
+    deliverables:
+      - "Design document with merge strategy"
+      - "Pseudocode for enhanced deployAll()"
+      - "Conflict resolution decision matrix"
+      - "Edge case identification"
+    decisions:
+      - "Service not found in base compose → Skip with warning (lenient mode)"
+      - "Conflicting environment variables → Last-wins"
+      - "Duplicate volume names → Allow (Docker handles conflicts)"
+      - "Conflicting port mappings → Detect and warn"
+    acceptance_criteria:
+      - "Merge strategy clearly defined"
+      - "Edge cases identified and handled"
+      - "Pseudocode reviewed and approved"
+      - "Ready to implement"
+
+  - id: 378-003
+    title: "Implement service-specific compose file collection"
+    description: |
+      Implement logic to collect all service-specific compose files from
+      infrastructure/docker-compose/services/ directory for services being deployed
+      in bulk mode. Store in structured format for iterative merging.
+    phase: "Core Implementation"
+    day: 1
+    priority: critical
+    estimate_hours: 1
+    status: pending
+    dependencies: ["378-002"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    implementation:
+      location: "deployAll() method, after line 598"
+      data_structure: "Array<{ service: string; path: string; yaml: string }>"
+    acceptance_criteria:
+      - "All service-specific compose files collected"
+      - "Non-existent files skipped without error"
+      - "Logging confirms collection count"
+      - "Data structure ready for merging"
+
+  - id: 378-004
+    title: "Implement iterative compose merging for all services"
+    description: |
+      Use ComposeMerger to iteratively merge each service-specific compose file into
+      the base compose file. Handle merge conflicts with last-wins strategy. Track
+      merge statistics (volumes, env vars, dependencies added).
+    phase: "Core Implementation"
+    day: 1
+    priority: critical
+    estimate_hours: 2
+    status: pending
+    dependencies: ["378-003"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    implementation:
+      uses: "ComposeMerger"
+      strategy: "lenient merge mode with last-wins for conflicts"
+    acceptance_criteria:
+      - "All service-specific files merged into base compose"
+      - "Merge stats logged for each service"
+      - "Final merge stats logged (total volumes, env, deps)"
+      - "Errors include service name for debugging"
+      - "Last-wins behavior verified for conflicts"
+
+  - id: 378-005
+    title: "Implement secureFiles collection and validation for all services"
+    description: |
+      Collect secureFiles declarations from all services being deployed. Validate
+      each service's secureFiles using SecureFilesValidator. Filter by execution
+      context. Aggregate into a Map keyed by service name.
+    phase: "Core Implementation"
+    day: 1
+    priority: critical
+    estimate_hours: 2
+    status: pending
+    dependencies: ["378-002"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    implementation:
+      uses: "SecureFilesValidator"
+      data_structure: "Map<string, SecureFile[]>"
+      filters: "context-based filtering"
+    acceptance_criteria:
+      - "All services' secureFiles collected"
+      - "Validation errors throw with service name"
+      - "Warnings logged but don't fail deployment"
+      - "Context filtering works correctly"
+      - "Total count logged across all services"
+
+  # ==============================================================================
+  # DAY 2: SECUREFILES PROCESSING
+  # ==============================================================================
+
+  - id: 378-006
+    title: "Implement secureFiles transfer to remote host for SSH deployments"
+    description: |
+      For remote (SSH) deployments, transfer all collected secureFiles to the remote
+      host using the existing transferSecureFilesToRemote() method. Generate volume
+      mounts using remote paths. For local deployments, use local paths.
+    phase: "SecureFiles Processing"
+    day: 2
+    priority: critical
+    estimate_hours: 1.5
+    status: pending
+    dependencies: ["378-005"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    implementation:
+      reuses: "transferSecureFilesToRemote() method"
+      local_paths: "ComposeMerger.generateVolumeMounts()"
+      remote_paths: "From transfer result Map"
+    acceptance_criteria:
+      - "Local deployments use local file paths"
+      - "Remote deployments transfer files via SCP"
+      - "Missing remoteDir config throws clear error"
+      - "All files transferred successfully"
+      - "Volume mounts generated correctly for both modes"
+
+  - id: 378-007
+    title: "Implement environment variable extraction from secureFiles"
+    description: |
+      Extract environment variables declared in secureFiles (e.g., env: GOOGLE_APPLICATION_CREDENTIALS).
+      Use ComposeMerger.extractEnvVars() to build environment variable map for each service.
+    phase: "SecureFiles Processing"
+    day: 2
+    priority: critical
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-005"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    implementation:
+      uses: "ComposeMerger.extractEnvVars()"
+      data_structure: "Record<string, string>"
+    acceptance_criteria:
+      - "Environment variables extracted for all services"
+      - "Env vars correctly map secureFile path to target path"
+      - "Ready for injection into compose YAML"
+
+  - id: 378-008
+    title: "Implement secureFiles injection into merged compose YAML"
+    description: |
+      Inject volume mounts and environment variables from secureFiles into the merged
+      compose YAML using ComposeMerger.injectSecureFiles(). Do this for each service
+      that has secureFiles.
+    phase: "SecureFiles Processing"
+    day: 2
+    priority: critical
+    estimate_hours: 1
+    status: pending
+    dependencies: ["378-006", "378-007", "378-004"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    implementation:
+      uses: "ComposeMerger.injectSecureFiles()"
+      modifies: "mergedYaml variable"
+    acceptance_criteria:
+      - "Volume mounts injected for all services with secureFiles"
+      - "Environment variables injected for all services with secureFiles"
+      - "Merged YAML remains valid after injection"
+      - "Injection count logged per service"
+
+  - id: 378-009
+    title: "Implement temporary merged compose file creation and cleanup"
+    description: |
+      Write the final merged compose YAML to a temporary file
+      (.docker-compose.merged.yaml). Pass this file to DockerOrchestrator.
+      Ensure cleanup happens in finally block (success or failure).
+    phase: "SecureFiles Processing"
+    day: 2
+    priority: critical
+    estimate_hours: 1
+    status: pending
+    dependencies: ["378-008"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    implementation:
+      temp_file: "infrastructure/docker-compose/.docker-compose.merged.yaml"
+      cleanup: "try/finally block"
+    acceptance_criteria:
+      - "Temp file created before deployment"
+      - "DockerOrchestrator uses temp file via composeFile option"
+      - "Temp file cleaned up on deployment success"
+      - "Temp file cleaned up on deployment failure"
+      - "File path logged for debugging"
+
+  - id: 378-010
+    title: "Update DockerOrchestrator to accept custom compose file path"
+    description: |
+      Add optional composeFile parameter to DockerOrchestratorOptions. When provided,
+      use this file instead of auto-detecting compose files. Preserve existing
+      auto-detection behavior when not provided.
+    phase: "SecureFiles Processing"
+    day: 2
+    priority: critical
+    estimate_hours: 1
+    status: pending
+    dependencies: []
+    files:
+      - "tools/brat/src/orchestration/docker/orchestrator.ts"
+    implementation:
+      interface: "DockerOrchestratorOptions"
+      method: "up()"
+      location: "Line 68 - compose file selection"
+    acceptance_criteria:
+      - "composeFile option added to interface"
+      - "When provided, overrides auto-detection"
+      - "When not provided, uses existing behavior"
+      - "No breaking changes to existing callers"
+
+  - id: 378-011
+    title: "Add error handling for compose merge conflicts"
+    description: |
+      Add try/catch around compose merging to provide clear error messages when
+      merge fails. Detect common conflict scenarios (service not found, duplicate
+      keys) and provide actionable error messages.
+    phase: "Error Handling"
+    day: 2
+    priority: high
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-004"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    acceptance_criteria:
+      - "Merge failures include service name in error"
+      - "Common conflicts have clear error messages"
+      - "Warnings logged for non-fatal issues"
+      - "Deployment fails fast with actionable error"
+
+  - id: 378-012
+    title: "Add comprehensive logging for deployAll() processing"
+    description: |
+      Add structured logging at each major step of deployAll() processing:
+      start, compose collection, merging, secureFiles validation, transfer,
+      injection, temp file creation, orchestrator execution, cleanup, results.
+    phase: "Error Handling"
+    day: 2
+    priority: medium
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-009"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+    logging_points:
+      - "Bulk deployment start (service count, context)"
+      - "Service compose file collection"
+      - "Each compose merge operation (stats)"
+      - "SecureFiles collection and validation"
+      - "SecureFiles transfer (if remote)"
+      - "SecureFiles injection"
+      - "Temp file creation"
+      - "Orchestrator execution"
+      - "Temp file cleanup"
+      - "Success/failure summary"
+    acceptance_criteria:
+      - "All major steps logged with context"
+      - "Errors logged with service name"
+      - "Stats logged (merge, secureFiles, timing)"
+      - "Debugging is straightforward from logs"
+
+  # ==============================================================================
+  # DAY 3: TESTING & VALIDATION
+  # ==============================================================================
+
+  - id: 378-013
+    title: "Write unit tests for service-specific compose file processing"
+    description: |
+      Test that deployAll() correctly collects, merges, and processes service-specific
+      compose files. Test edge cases like missing files, conflicting configs, and
+      merge statistics.
+    phase: "Testing"
+    day: 3
+    priority: critical
+    estimate_hours: 2
+    status: pending
+    dependencies: ["378-004"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.test.ts"
+    test_cases:
+      - "Collect service-specific compose files (2 of 3 services have files)"
+      - "Merge service-specific compose into base"
+      - "Merge multiple services without conflicts"
+      - "Last-wins for conflicting environment variables"
+    acceptance_criteria:
+      - "All 4 test cases passing"
+      - "Edge cases covered (missing files, conflicts)"
+      - "Mock filesystem and ComposeMerger"
+      - "Test coverage > 90% for compose processing"
+
+  - id: 378-014
+    title: "Write unit tests for secureFiles validation and processing"
+    description: |
+      Test that deployAll() correctly validates, filters, and processes secureFiles
+      for all services. Test error handling for validation failures and context filtering.
+    phase: "Testing"
+    day: 3
+    priority: critical
+    estimate_hours: 2
+    status: pending
+    dependencies: ["378-005", "378-006", "378-008"]
+    files:
+      - "tools/brat/src/orchestration/deployment/docker-compose-strategy.test.ts"
+    test_cases:
+      - "Validate secureFiles for all services"
+      - "Throw error if validation fails (with service name)"
+      - "Filter secureFiles by execution context"
+      - "Transfer secureFiles to remote host"
+      - "Inject environment variables from secureFiles"
+      - "Inject volume mounts from secureFiles"
+    acceptance_criteria:
+      - "All 6 test cases passing"
+      - "Mock SecureFilesValidator"
+      - "Mock file transfer operations"
+      - "Test coverage > 90% for secureFiles processing"
+
+  - id: 378-015
+    title: "Write integration test for single vs bulk deployment equivalence"
+    description: |
+      Integration test that deploys same services individually and via --all,
+      then compares resulting container environments, volume mounts, and configs
+      to verify they are identical.
+    phase: "Testing"
+    day: 3
+    priority: critical
+    estimate_hours: 2
+    status: pending
+    dependencies: ["378-009", "378-010"]
+    files:
+      - "tests/integration/deployment-equivalence.spec.ts"
+    test_services:
+      - "llm-bot"
+      - "event-router"
+      - "reflex"
+    test_steps:
+      - "Deploy services individually to staging"
+      - "Capture environment variables and volumes"
+      - "Teardown"
+      - "Deploy same services via --all"
+      - "Capture environment variables and volumes"
+      - "Compare results"
+    acceptance_criteria:
+      - "Test passes in staging environment"
+      - "Environment variables match exactly"
+      - "Volume mounts match exactly"
+      - "Container configs match"
+
+  - id: 378-016
+    title: "Write integration test for secureFiles in bulk deployment"
+    description: |
+      Integration test that deploys a service with secureFiles (image-gen-mcp)
+      via --all and verifies the file is mounted, environment variable is set,
+      and permissions are correct.
+    phase: "Testing"
+    day: 3
+    priority: critical
+    estimate_hours: 1.5
+    status: pending
+    dependencies: ["378-009", "378-010"]
+    files:
+      - "tests/integration/bulk-deployment-securefiles.spec.ts"
+    test_service: "image-gen-mcp"
+    test_steps:
+      - "Deploy image-gen-mcp via --all to staging"
+      - "Verify file exists at /var/secrets/gcp-credentials.json"
+      - "Verify GOOGLE_APPLICATION_CREDENTIALS env var set"
+      - "Verify file permissions are 400"
+    acceptance_criteria:
+      - "Test passes in staging environment"
+      - "File mounted correctly"
+      - "Environment variable set correctly"
+      - "Permissions correct (400)"
+
+  - id: 378-017
+    title: "Validate bulk deployment in staging environment"
+    description: |
+      Deploy all services to staging using --all flag. Verify all containers start
+      successfully, healthchecks pass, and no errors in logs. Check that secureFiles-
+      dependent services (image-gen-mcp) are functional.
+    phase: "Validation"
+    day: 3
+    priority: critical
+    estimate_hours: 1.5
+    status: pending
+    dependencies: ["378-009", "378-010", "378-012"]
+    environment: "staging (bitbrat.lan)"
+    steps:
+      - "Deploy all services: brat bit deploy --all --context staging"
+      - "Verify all containers start within 2 minutes"
+      - "Check docker ps for all services running"
+      - "Verify all healthchecks pass"
+      - "Check logs for errors"
+      - "Verify image-gen-mcp has GCP credentials"
+      - "Verify llm-bot has FeedbackMiddleware initialized"
+    acceptance_criteria:
+      - "All services start successfully"
+      - "No deployment errors in logs"
+      - "All healthchecks pass"
+      - "SecureFiles-dependent services functional"
+      - "Deployment time < 60 seconds"
+
+  - id: 378-018
+    title: "Run performance benchmark comparing deployment modes"
+    description: |
+      Measure and compare deployment times for:
+      1. Single service deployments (sequential)
+      2. Bulk deployment (--all)
+      Document performance characteristics and verify bulk is faster.
+    phase: "Validation"
+    day: 3
+    priority: medium
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-017"]
+    environment: "staging (bitbrat.lan)"
+    benchmark_scenarios:
+      - name: "Single Service (3 services sequentially)"
+        command: "brat bit deploy llm-bot event-router reflex --context staging"
+        expected: "~90 seconds"
+      - name: "Bulk Deployment (--all)"
+        command: "brat bit deploy --all --context staging"
+        expected: "~50 seconds"
+    acceptance_criteria:
+      - "Benchmark data collected for both modes"
+      - "Bulk deployment is faster than sequential"
+      - "Processing overhead < 10 seconds"
+      - "Results documented for reference"
+
+  # ==============================================================================
+  # DAY 4: DOCUMENTATION & RELEASE
+  # ==============================================================================
+
+  - id: 378-019
+    title: "Update deployment strategy documentation"
+    description: |
+      Document how bulk deployment (--all) works, including service-specific config
+      processing, performance characteristics, and when to use --all vs individual
+      deployments.
+    phase: "Documentation"
+    day: 4
+    priority: high
+    estimate_hours: 1
+    status: pending
+    dependencies: ["378-018"]
+    files:
+      - "documentation/guides/deployment-strategy.md"
+    sections_to_add:
+      - "Bulk Deployment (--all flag)"
+      - "How It Works (step-by-step)"
+      - "Performance Characteristics"
+      - "Behavior Guarantees"
+      - "When to Use --all"
+    acceptance_criteria:
+      - "Bulk deployment flow documented"
+      - "Equivalence guarantees explained"
+      - "Performance numbers from benchmark included"
+      - "Examples provided"
+
+  - id: 378-020
+    title: "Update user guide with --all flag behavior"
+    description: |
+      Update deployment.md user guide to remove outdated warnings about --all
+      limitations and add current behavior documentation with examples.
+    phase: "Documentation"
+    day: 4
+    priority: high
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-017"]
+    files:
+      - "documentation/guides/deployment.md"
+    updates:
+      - "Remove 'Known Limitations' section"
+      - "Add 'Bulk Deployment' section with examples"
+      - "Update command examples"
+      - "Add performance comparison"
+    acceptance_criteria:
+      - "--all flag documented correctly"
+      - "Examples are current and accurate"
+      - "No outdated warnings remain"
+      - "User understands when to use --all"
+
+  - id: 378-021
+    title: "Add troubleshooting guide for bulk deployment issues"
+    description: |
+      Create troubleshooting guide for common bulk deployment issues:
+      missing environment variables, secureFiles not mounted, compose merge
+      conflicts, and performance problems.
+    phase: "Documentation"
+    day: 4
+    priority: medium
+    estimate_hours: 1
+    status: pending
+    dependencies: ["378-017"]
+    files:
+      - "documentation/guides/troubleshooting-deployment.md"
+    sections:
+      - "Missing Environment Variables"
+      - "SecureFiles Not Mounted"
+      - "Compose Merge Conflicts"
+      - "Performance Issues"
+    acceptance_criteria:
+      - "Common issues documented with symptoms"
+      - "Diagnosis steps provided"
+      - "Solutions provided with examples"
+      - "Covers real issues from staging testing"
+
+  - id: 378-022
+    title: "Create migration guide for enhanced --all deployment"
+    description: |
+      Create migration guide explaining what changed, how users should migrate
+      from workarounds, verification steps, and rollback plan.
+    phase: "Documentation"
+    day: 4
+    priority: medium
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-017"]
+    files:
+      - "documentation/guides/migration-deploy-all-enhancement.md"
+    sections:
+      - "What Changed"
+      - "Migration Steps"
+      - "Verification"
+      - "Rollback Plan"
+      - "FAQ"
+    acceptance_criteria:
+      - "Users understand what changed"
+      - "Clear migration path provided"
+      - "Rollback procedure documented"
+      - "FAQ addresses common questions"
+
+  - id: 378-023
+    title: "Run full test suite to verify no regressions"
+    description: |
+      Run complete test suite (unit, integration, build, lint) to ensure
+      no regressions introduced by the changes.
+    phase: "Release"
+    day: 4
+    priority: critical
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-013", "378-014", "378-015", "378-016"]
+    commands:
+      - "npm run build"
+      - "npm test"
+      - "npm run lint"
+    acceptance_criteria:
+      - "All existing tests pass"
+      - "All new tests pass"
+      - "No TypeScript compilation errors"
+      - "No linting errors"
+      - "No new warnings"
+
+  - id: 378-024
+    title: "Commit enhanced deployAll() implementation"
+    description: |
+      Commit all changes with comprehensive commit message following project
+      conventions. Include problem statement, solution, impact, testing, and
+      co-authorship.
+    phase: "Release"
+    day: 4
+    priority: critical
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-023", "378-019", "378-020", "378-021", "378-022"]
+    files_to_commit:
+      implementation:
+        - "tools/brat/src/orchestration/deployment/docker-compose-strategy.ts"
+        - "tools/brat/src/orchestration/docker/orchestrator.ts"
+      tests:
+        - "tools/brat/src/orchestration/deployment/docker-compose-strategy.test.ts"
+        - "tests/integration/deployment-equivalence.spec.ts"
+        - "tests/integration/bulk-deployment-securefiles.spec.ts"
+      documentation:
+        - "documentation/guides/deployment-strategy.md"
+        - "documentation/guides/deployment.md"
+        - "documentation/guides/troubleshooting-deployment.md"
+        - "documentation/guides/migration-deploy-all-enhancement.md"
+        - "planning/deploy-all-env-vars-issue.md"
+    commit_message_format: |
+      feat(deployment): Enhance deployAll() to process service-specific config
+
+      Sprint 378: Fix bulk deployment (--all flag) environment variable handling
+
+      **Problem:**
+      The --all flag used a different code path (deployAll()) that skipped:
+      - Service-specific compose file merging
+      - SecureFiles validation and processing
+      - Environment variable injection from secureFiles
+
+      **Solution:**
+      Enhanced deployAll() to process all service-specific configuration.
+
+      **Impact:**
+      - Bulk deployment now identical to individual deployment
+      - Services with secureFiles work correctly via --all
+      - Maintains performance (single docker compose up)
+
+      **Testing:**
+      - 10 new unit tests
+      - 2 new integration tests
+      - Validated in staging environment
+      - Performance benchmark: 50s for 3 services (vs 90s individually)
+
+      **Breaking Changes:** None
+
+      Related: planning/deploy-all-env-vars-issue.md
+
+      🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+      Co-Authored-By: Claude <noreply@anthropic.com>
+    acceptance_criteria:
+      - "Comprehensive commit message following conventions"
+      - "All files committed"
+      - "Clean git status"
+      - "Commit builds successfully"
+
+  - id: 378-025
+    title: "Create pull request for Sprint 378"
+    description: |
+      Create pull request with comprehensive description, testing summary,
+      breaking changes analysis, and documentation links.
+    phase: "Release"
+    day: 4
+    priority: critical
+    estimate_hours: 0.5
+    status: pending
+    dependencies: ["378-024"]
+    pr_details:
+      title: "feat(deployment): Fix bulk deployment environment variable handling (Sprint 378)"
+      labels:
+        - "enhancement"
+        - "deployment"
+        - "sprint-378"
+        - "high-priority"
+      sections:
+        - "Summary"
+        - "Problem"
+        - "Solution"
+        - "Testing"
+        - "Breaking Changes"
+        - "Documentation"
+        - "Related"
+        - "Checklist"
+    acceptance_criteria:
+      - "PR created with full description"
+      - "Tests documented in PR"
+      - "Breaking changes section complete (none)"
+      - "Documentation links included"
+      - "Labels applied"
+      - "Ready for review"
+
+  # ==============================================================================
+  # LEGACY COMMAND CLEANUP
+  # ==============================================================================
+
+  - id: 378-026
+    title: "Audit all existing deployment commands in brat CLI"
+    description: |
+      Audit the entire brat CLI codebase to identify ALL deployment-related commands
+      that existed before Sprint 372 (unified bit deployment). Document their current
+      status, usage, and whether they should be deprecated or removed.
+    phase: "Analysis"
+    day: 1
+    priority: critical
+    estimate_hours: 1
+    status: pending
+    dependencies: []
+    files:
+      - "tools/brat/src/oclif-commands/**/*.ts"
+      - "tools/brat/src/cli.ts"
+    search_patterns:
+      - "deploy"
+      - "docker up"
+      - "docker down"
+      - "service start"
+      - "service stop"
+    expected_findings:
+      - "brat deploy (legacy - replaced by brat bit deploy)"
+      - "brat docker up (legacy - replaced by brat bit deploy)"
+      - "brat deploy services (legacy - replaced by brat bit deploy --all)"
+      - "Any other deployment commands"
+    deliverable:
+      file: "planning/sprint-378-deploy-all-enhancement/legacy-commands-audit.md"
+      sections:
+        - "Command inventory"
+        - "Current implementation status"
+        - "Recommendation (deprecate vs remove)"
+        - "Migration path for users"
+    acceptance_criteria:
+      - "All deployment commands identified"
+      - "Current behavior documented"
+      - "Deprecation strategy defined"
+      - "No deployment commands missed"
+
+  - id: 378-027
+    title: "Deprecate or remove legacy deployment commands"
+    description: |
+      Based on audit (378-026), either remove legacy deployment commands entirely
+      or mark them as deprecated with clear warnings directing users to the new
+      unified commands. Update help text and add deprecation notices.
+    phase: "Release"
+    day: 4
+    priority: critical
+    estimate_hours: 1.5
+    status: pending
+    dependencies: ["378-026"]
+    files:
+      - "tools/brat/src/oclif-commands/**/*.ts"
+    implementation_options:
+      option_1:
+        approach: "Hard removal"
+        action: "Delete legacy command files"
+        risk: "High - breaks existing scripts"
+        migration: "Users must update scripts"
+      option_2:
+        approach: "Deprecation warnings"
+        action: "Add warnings, keep functionality"
+        risk: "Low - backward compatible"
+        migration: "Grace period before removal"
+      option_3:
+        approach: "Redirect to new commands"
+        action: "Legacy commands call new commands"
+        risk: "Very Low - transparent"
+        migration: "Automatic, with warnings"
+    recommended_approach: "option_2"
+    deprecation_message_template: |
+      ⚠️  WARNING: This command is deprecated and will be removed in Sprint 380.
+
+      Please use the new unified deployment command instead:
+
+        OLD: brat {old_command}
+        NEW: brat bit deploy {new_args}
+
+      See migration guide: documentation/guides/migration-deploy-all-enhancement.md
+    acceptance_criteria:
+      - "All legacy commands either removed or deprecated"
+      - "Clear warning messages displayed"
+      - "Help text updated to show new commands"
+      - "Deprecation notices logged"
+      - "Users know what to use instead"
+
+  - id: 378-028
+    title: "Update all documentation to use new deployment commands only"
+    description: |
+      Search all documentation files for references to legacy deployment commands
+      and replace with new unified commands. Ensure no docs still reference
+      deprecated commands without deprecation notices.
+    phase: "Documentation"
+    day: 4
+    priority: high
+    estimate_hours: 1
+    status: pending
+    dependencies: ["378-026", "378-027"]
+    files:
+      - "documentation/**/*.md"
+      - "README.md"
+      - "CLAUDE.md"
+      - "planning/**/*.md"
+    search_and_replace:
+      - old: "brat deploy services"
+        new: "brat bit deploy --all"
+      - old: "brat docker up"
+        new: "brat bit deploy --all"
+      - old: "npm run brat -- deploy"
+        new: "npm run brat -- bit deploy"
+    acceptance_criteria:
+      - "All documentation uses new commands"
+      - "No references to legacy commands (except migration guide)"
+      - "Examples updated and tested"
+      - "README.md current"
+      - "CLAUDE.md current"
+
+# ==============================================================================
+# SUMMARY STATISTICS
+# ==============================================================================
+
+summary:
+  total_tasks: 28
+  total_estimated_hours: 32.5
+
+  by_phase:
+    analysis: 2
+    core_implementation: 8
+    securefiles_processing: 5
+    error_handling: 2
+    testing: 6
+    documentation: 4
+    release: 3
+
+  by_day:
+    day_1: 8  # Analysis + Core Implementation
+    day_2: 8  # SecureFiles Processing
+    day_3: 8  # Testing & Validation
+    day_4: 5  # Documentation & Release
+
+  by_priority:
+    critical: 17
+    high: 5
+    medium: 3
+
+  critical_path:
+    - "378-001"  # Understand current implementation
+    - "378-002"  # Design bulk merge strategy
+    - "378-003"  # Collect compose files
+    - "378-004"  # Merge compose files
+    - "378-005"  # Collect secureFiles
+    - "378-006"  # Transfer secureFiles
+    - "378-008"  # Inject secureFiles
+    - "378-009"  # Temporary file handling
+    - "378-010"  # Update orchestrator
+    - "378-017"  # Staging validation
+    - "378-023"  # Full test suite
+    - "378-024"  # Commit
+    - "378-025"  # Create PR
+
+# ==============================================================================
+# RISK REGISTER
+# ==============================================================================
+
+risks:
+  - id: RISK-378-001
+    title: "Compose merge conflicts"
+    probability: medium
+    impact: medium
+    mitigation:
+      - "Use lenient merge mode"
+      - "Log warnings instead of errors"
+      - "Allow last-wins for conflicts"
+      - "Document merge behavior"
+    owner: "Implementation team"
+
+  - id: RISK-378-002
+    title: "Performance degradation"
+    probability: low
+    impact: medium
+    mitigation:
+      - "Benchmark early (Day 3)"
+      - "Optimize if overhead > 10 seconds"
+      - "Maintain single docker compose up call"
+      - "Profile merge operations if needed"
+    owner: "Implementation team"
+
+  - id: RISK-378-003
+    title: "Breaking existing deployments"
+    probability: very_low
+    impact: high
+    mitigation:
+      - "Comprehensive testing before prod"
+      - "Staging validation required"
+      - "No changes to single-service path"
+      - "Backward compatibility verified"
+    owner: "QA/Validation"
+
+  - id: RISK-378-004
+    title: "Remote file transfer failures"
+    probability: low
+    impact: medium
+    mitigation:
+      - "Reuse existing transfer logic"
+      - "Add retry logic if needed"
+      - "Clear error messages"
+      - "Test with staging (SSH deployment)"
+    owner: "Implementation team"
+
+# ==============================================================================
+# SUCCESS CRITERIA
+# ==============================================================================
+
+success_criteria:
+  functional:
+    - "deployAll() processes service-specific compose files"
+    - "deployAll() validates secureFiles"
+    - "deployAll() transfers files to remote host"
+    - "deployAll() injects environment variables"
+    - "deployAll() injects volume mounts"
+    - "Temporary file cleanup works in all scenarios"
+
+  non_functional:
+    - "Deployment time < 60 seconds for 3 services"
+    - "No breaking changes"
+    - "Full backward compatibility"
+    - "All tests passing (existing + new)"
+    - "Documentation complete"
+
+  quality:
+    - "Test coverage > 90% for new code"
+    - "No TypeScript errors"
+    - "No linting errors"
+    - "Code reviewed and approved"
+
+# ==============================================================================
+# DEPENDENCIES & PREREQUISITES
+# ==============================================================================
+
+dependencies:
+  external: []
+
+  internal:
+    - name: "ComposeMerger"
+      status: "available"
+      location: "tools/brat/src/orchestration/docker/compose-merger.ts"
+
+    - name: "SecureFilesValidator"
+      status: "available"
+      sprint: "Sprint 374"
+      location: "tools/brat/src/validation/secure-files-validator.ts"
+
+    - name: "DockerOrchestrator"
+      status: "available"
+      location: "tools/brat/src/orchestration/docker/orchestrator.ts"
+
+    - name: "EnvironmentResolver"
+      status: "available"
+      location: "tools/brat/src/orchestration/docker/environment-resolver.ts"
+
+# ==============================================================================
+# ROLLBACK PLAN
+# ==============================================================================
+
+rollback:
+  immediate:
+    - "git revert <commit-hash>"
+    - "git push origin main"
+
+  workaround:
+    description: "Users deploy services individually instead of using --all"
+    commands:
+      - "brat bit deploy llm-bot --context prod"
+      - "brat bit deploy event-router --context prod"
+      - "brat bit deploy reflex --context prod"
+
+  investigation:
+    - "Review staging logs"
+    - "Identify failure mode"
+    - "Fix and re-test in staging"
+    - "Redeploy after validation"

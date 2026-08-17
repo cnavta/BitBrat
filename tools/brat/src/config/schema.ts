@@ -24,6 +24,17 @@ export const McpConfigSchema = z.object({
   exposure: McpExposureEnum.optional(),
 }).optional();
 
+// Sprint 374: Secure File Deployment
+// SecureFile defines a file to be securely deployed with a service
+export const SecureFileSchema = z.object({
+  local: z.string(),
+  target: z.string(),
+  env: z.string().optional(),
+  permissions: z.string().optional(),
+  required: z.boolean().optional(),
+  context: z.string().optional(),
+});
+
 export const ServiceSchema = z.object({
   active: z.boolean().optional(),
   category: BitCategoryEnum.optional(),
@@ -42,6 +53,8 @@ export const ServiceSchema = z.object({
   mcp: McpConfigSchema,
   env: z.array(z.string()).optional(),
   secrets: z.array(z.string()).optional(),
+  // Sprint 374: Secure file deployment
+  secureFiles: z.array(SecureFileSchema).optional(),
 });
 
 export const DeploymentTargetSchema = z.discriminatedUnion('type', [
@@ -227,6 +240,7 @@ export const ArchitectureSchema = z.object({
 
 export type Architecture = z.infer<typeof ArchitectureSchema>;
 export type Service = z.infer<typeof ServiceSchema>;
+export type SecureFile = z.infer<typeof SecureFileSchema>;
 export type Network = z.infer<typeof NetworkSchema>;
 export type LoadBalancer = z.infer<typeof LoadBalancerSchema>;
 

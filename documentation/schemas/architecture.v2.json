@@ -1,0 +1,558 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bitbrat.dev/schemas/architecture.v2.json",
+  "title": "architecture.yaml v2 Format",
+  "description": "JSON Schema for architecture.yaml v2 format with enhanced infrastructure model. Validates three-tier infrastructure design: platform.infrastructure (requirements/capabilities), infrastructure.{provider} (provider implementations), and executionContexts.*.infrastructure (environment-specific overrides). Strict validation for infrastructure while permissive for documentation/metadata. Works with runtime validation (Zod) and external tooling (ajv-cli).",
+  "type": "object",
+  "required": ["name", "project", "platform", "infrastructure", "services"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Human-readable platform name."
+    },
+    "description": {
+      "type": "string",
+      "description": "Short prose description of the platform."
+    },
+    "project": {
+      "type": "object",
+      "description": "Project-level metadata.",
+      "required": ["version"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "version": {
+          "type": "string",
+          "description": "Semantic version. Kept in sync with package.json \"version\".",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-+].+)?$"
+        },
+        "status": {
+          "type": "string",
+          "description": "Maturity signal for the project.",
+          "enum": ["experimental", "alpha", "beta", "stable", "deprecated"]
+        },
+        "description": { "type": "string" },
+        "owners": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "llm_guidance": {
+      "type": "object",
+      "description": "Guidance and invariants for LLM/agent contributors.",
+      "additionalProperties": true
+    },
+    "platform": {
+      "type": "object",
+      "description": "Platform-level infrastructure requirements (WHAT + WHY). v2 Schema.",
+      "required": ["version", "infrastructure"],
+      "additionalProperties": true,
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Platform schema version (e.g., '2.0').",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "infrastructure": {
+          "type": "object",
+          "description": "Platform infrastructure capabilities (messaging, caching, persistence).",
+          "additionalProperties": false,
+          "properties": {
+            "messaging": { "$ref": "#/definitions/platformCapability" },
+            "caching": { "$ref": "#/definitions/platformCapability" },
+            "persistence": { "$ref": "#/definitions/platformCapability" }
+          }
+        }
+      }
+    },
+    "infrastructure": {
+      "type": "object",
+      "description": "Provider implementations for platform infrastructure (HOW). v2 Schema.",
+      "required": ["docker"],
+      "additionalProperties": false,
+      "properties": {
+        "docker": { "$ref": "#/definitions/provider" },
+        "gcp": { "$ref": "#/definitions/provider" },
+        "aws": { "$ref": "#/definitions/provider" },
+        "azure": { "$ref": "#/definitions/provider" },
+        "k8s": { "$ref": "#/definitions/provider" }
+      }
+    },
+    "executionContexts": {
+      "type": "object",
+      "description": "Execution contexts (local, staging, prod) with runtime and infrastructure config. v2 Schema.",
+      "additionalProperties": {
+        "$ref": "#/definitions/executionContext"
+      }
+    },
+    "messaging": {
+      "type": "object",
+      "description": "Internal event bus: contracts, conventions, and topic catalog.",
+      "additionalProperties": true
+    },
+    "dataflow": {
+      "type": "object",
+      "description": "End-to-end event lifecycle narrative.",
+      "additionalProperties": true
+    },
+    "conventions": {
+      "type": "object",
+      "description": "How env vars and secrets are supplied (purpose + source, no values).",
+      "additionalProperties": true
+    },
+    "references": {
+      "type": "object",
+      "description": "Pointers from the canonical file into the documentation/ tree.",
+      "additionalProperties": true,
+      "properties": {
+        "architecture_schema": {
+          "type": "string",
+          "description": "Path to this JSON Schema, so humans and agents can self-validate architecture.yaml."
+        }
+      }
+    },
+    "extension_points": {
+      "type": "object",
+      "description": "How to extend the platform with a new agent/service/MCP tool and which files change.",
+      "additionalProperties": true
+    },
+    "agents": {
+      "type": "object",
+      "description": "Optional agent-centric extension metadata (alias surface for extension_points).",
+      "additionalProperties": true
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Defaults applied to entities unless overridden.",
+      "additionalProperties": true,
+      "properties": {
+        "services": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "description": "Service catalog: map of service keys to service definitions with their configuration, dependencies, and deployment specifications.",
+      "additionalProperties": {
+        "$ref": "#/definitions/service"
+      }
+    },
+    "deploymentDefaults": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "deploymentTargets": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "networking": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "lb": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "definitions": {
+    "platformCapability": {
+      "type": "object",
+      "description": "Platform infrastructure capability definition (WHAT + WHY).",
+      "required": ["required", "capabilities"],
+      "additionalProperties": true,
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "description": "Whether this capability is required for the platform to function."
+        },
+        "capabilities": {
+          "type": "array",
+          "description": "List of features this capability must provide.",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "config": {
+          "type": "object",
+          "description": "Default configuration for this capability.",
+          "additionalProperties": true
+        },
+        "constraints": {
+          "type": "object",
+          "description": "Constraints that provider implementations must satisfy.",
+          "additionalProperties": true
+        },
+        "intent": {
+          "type": "array",
+          "description": "Human-readable rationale for this capability.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "description": "Infrastructure provider (docker, gcp, aws, azure, k8s).",
+      "additionalProperties": true,
+      "properties": {
+        "config": {
+          "type": "object",
+          "description": "Provider-level configuration.",
+          "additionalProperties": true
+        },
+        "constraints": {
+          "type": "object",
+          "description": "Provider-level constraints.",
+          "additionalProperties": true
+        },
+        "intent": {
+          "type": "array",
+          "description": "Provider rationale and use cases.",
+          "items": { "type": "string" }
+        },
+        "messaging": { "$ref": "#/definitions/providerImplementation" },
+        "caching": { "$ref": "#/definitions/providerImplementation" },
+        "persistence": { "$ref": "#/definitions/providerImplementation" }
+      }
+    },
+    "providerImplementation": {
+      "type": "object",
+      "description": "Provider-specific implementation of a capability (HOW).",
+      "additionalProperties": true,
+      "properties": {
+        "service": {
+          "type": "string",
+          "description": "Service name (e.g., 'nats', 'redis', 'postgres')."
+        },
+        "type": {
+          "type": "string",
+          "description": "Implementation type (e.g., 'pubsub', 'cloudsql', 'memorystore')."
+        },
+        "image": {
+          "type": "string",
+          "description": "Docker image (for docker provider)."
+        },
+        "ports": {
+          "type": "object",
+          "description": "Port mappings.",
+          "additionalProperties": { "type": "string" }
+        },
+        "volumes": {
+          "type": "array",
+          "description": "Volume mounts.",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for this implementation.",
+          "additionalProperties": true
+        },
+        "config": {
+          "type": "object",
+          "description": "Implementation-specific configuration.",
+          "additionalProperties": true
+        },
+        "healthCheck": {
+          "type": "object",
+          "description": "Health check configuration.",
+          "additionalProperties": true
+        },
+        "intent": {
+          "type": "array",
+          "description": "Implementation rationale.",
+          "items": { "type": "string" }
+        },
+        "command": {
+          "type": "array",
+          "description": "Command override for Docker container.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "executionContext": {
+      "type": "object",
+      "description": "Execution context (local, staging, prod) configuration.",
+      "required": ["description", "deployment"],
+      "additionalProperties": true,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this context."
+        },
+        "deployment": {
+          "type": "object",
+          "description": "Deployment configuration (docker-compose, cloud-run, k8s).",
+          "required": ["type"],
+          "additionalProperties": true,
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Deployment type.",
+              "enum": ["docker-compose", "cloud-run", "k8s", "ecs", "azure-container-instances"]
+            },
+            "docker": {
+              "type": "object",
+              "description": "Docker-specific deployment config.",
+              "additionalProperties": true,
+              "properties": {
+                "host": {
+                  "type": "string",
+                  "description": "Docker host (unix socket or ssh://user@host)."
+                },
+                "remoteDir": {
+                  "type": "string",
+                  "description": "Remote directory for SSH deployments."
+                }
+              }
+            }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "description": "Runtime configuration (gateway, persistence, env overlay).",
+          "additionalProperties": true,
+          "properties": {
+            "gateway": {
+              "type": "object",
+              "description": "Tool gateway configuration.",
+              "additionalProperties": true
+            },
+            "persistence": {
+              "type": "object",
+              "description": "Persistence driver configuration.",
+              "additionalProperties": true,
+              "properties": {
+                "driver": {
+                  "type": "string",
+                  "description": "Persistence driver (postgres or firestore).",
+                  "enum": ["postgres", "firestore"]
+                },
+                "connection": {
+                  "type": "object",
+                  "description": "Database connection parameters.",
+                  "additionalProperties": true
+                },
+                "autoDiscover": {
+                  "type": "boolean",
+                  "description": "Auto-discover connection from Docker network."
+                }
+              }
+            },
+            "envOverlay": {
+              "type": "object",
+              "description": "Environment variable overlay configuration.",
+              "additionalProperties": true,
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Path to environment overlay directory."
+                },
+                "files": {
+                  "type": "array",
+                  "description": "Ordered list of overlay files.",
+                  "items": { "type": "string" }
+                },
+                "secure": {
+                  "type": "string",
+                  "description": "Path to secure secrets directory."
+                }
+              }
+            }
+          }
+        },
+        "infrastructure": {
+          "type": "object",
+          "description": "Context-specific infrastructure configuration (v2 Schema).",
+          "required": ["provider"],
+          "additionalProperties": true,
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": "Infrastructure provider for this context.",
+              "enum": ["docker", "gcp", "aws", "azure", "k8s"]
+            },
+            "messaging": {
+              "type": "object",
+              "description": "Context-specific messaging overrides.",
+              "additionalProperties": true
+            },
+            "caching": {
+              "type": "object",
+              "description": "Context-specific caching overrides.",
+              "additionalProperties": true,
+              "properties": {
+                "config": {
+                  "type": "object",
+                  "description": "Override config values.",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "persistence": {
+              "type": "object",
+              "description": "Context-specific persistence overrides.",
+              "additionalProperties": true,
+              "properties": {
+                "config": {
+                  "type": "object",
+                  "description": "Override config values.",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags for categorization (development, staging, production, etc.).",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "description": "Service definition with infrastructure dependencies, deployment configuration, and runtime specifications.",
+      "additionalProperties": true,
+      "properties": {
+        "active": {
+          "type": "boolean",
+          "description": "Whether this service is active and should be deployed."
+        },
+        "category": {
+          "type": "string",
+          "description": "Service category: platform (core system services) vs domain (optional application-specific extensions).",
+          "enum": ["platform", "domain"]
+        },
+        "profile": {
+          "type": "string",
+          "description": "Service capability profile: declarative role descriptor (core = standard service, gateway = API endpoint, llm = LLM integration, mcp-server = tool provider).",
+          "enum": ["core", "llm", "mcp-server", "gateway"]
+        },
+        "mcp": {
+          "type": "object",
+          "description": "MCP (Model Context Protocol) tool exposure configuration for LLM integration.",
+          "additionalProperties": true,
+          "properties": {
+            "exposure": {
+              "type": "string",
+              "description": "Tool exposure level: platform-only (system/control tools only), platform+domain (system + application-specific tools), or none (no MCP exposure).",
+              "enum": ["platform-only", "platform+domain", "none"]
+            }
+          }
+        },
+        "description": { "type": "string" },
+        "image": { "type": "string" },
+        "entry": { "type": "string" },
+        "region": { "type": "string" },
+        "port": { "type": "integer" },
+        "kind": { "type": "string" },
+        "stage": {
+          "type": ["string", "array"],
+          "description": "Pipeline stage(s) this service participates in.",
+          "items": { "type": "string" }
+        },
+        "external": {
+          "type": "array",
+          "description": "External dependencies (twitch, discord, openai, etc.).",
+          "items": { "type": "string" }
+        },
+        "stateful": {
+          "type": "boolean",
+          "description": "Whether this service maintains state."
+        },
+        "dependencies": {
+          "type": "object",
+          "description": "Service dependencies (v2 Schema).",
+          "additionalProperties": true,
+          "properties": {
+            "infrastructure": {
+              "type": "array",
+              "description": "Infrastructure capabilities this service depends on.",
+              "items": {
+                "type": "string",
+                "enum": ["messaging", "caching", "persistence"]
+              },
+              "uniqueItems": true
+            }
+          }
+        },
+        "topics": {
+          "type": "object",
+          "description": "Message bus topics this service publishes/consumes.",
+          "additionalProperties": true,
+          "properties": {
+            "publishes": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "consumes": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "paths": {
+          "type": "array",
+          "description": "HTTP paths this service handles.",
+          "items": { "type": "string" }
+        },
+        "env": {
+          "type": "array",
+          "description": "Environment variable names (not values).",
+          "items": { "type": "string" }
+        },
+        "secrets": {
+          "type": "array",
+          "description": "Secret names (not values).",
+          "items": { "type": "string" }
+        },
+        "secureFiles": {
+          "type": "array",
+          "description": "Secure file mounts (credentials, certificates). Sprint 374.",
+          "items": {
+            "type": "object",
+            "required": ["local", "target"],
+            "additionalProperties": true,
+            "properties": {
+              "local": {
+                "type": "string",
+                "description": "Local path to secure file (must be git-ignored)."
+              },
+              "target": {
+                "type": "string",
+                "description": "Target path in container (must be under /var/secrets/ or /run/secrets/).",
+                "pattern": "^/(var|run)/secrets/"
+              },
+              "env": {
+                "type": "string",
+                "description": "Environment variable to set to target path."
+              },
+              "permissions": {
+                "type": "string",
+                "description": "File permissions (octal string, e.g., '0400').",
+                "pattern": "^0[0-7]{3}$"
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Fail deployment if file is missing."
+              },
+              "context": {
+                "type": "string",
+                "description": "Only deploy in specific execution context."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

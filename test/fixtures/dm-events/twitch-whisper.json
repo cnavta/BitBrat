@@ -1,0 +1,12 @@
+{
+  "userId": "123456789",
+  "userLogin": "testuser",
+  "userDisplayName": "TestUser",
+  "text": "Hello! This is a whisper.",
+  "messageId": "whisper-msg-123",
+  "color": "#FF0000",
+  "badges": {
+    "premium": "1"
+  },
+  "emotes": null
+}

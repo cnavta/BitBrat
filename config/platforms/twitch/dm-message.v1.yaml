@@ -1,0 +1,124 @@
+#
+# Twitch Platform Mapping: dm.message.v1 (Whispers)
+#
+# Maps Twitch whisper events to BitBrat's dm.message.v1 internal event type.
+#
+# Event Flow:
+# 1. Twitch sends whisper event via IRC (WHISPER command) or EventSub
+# 2. Twitch client normalizes to IrcMessageMeta or EventSub format
+# 3. This mapping detects whispers and normalizes to InternalEventV2
+#
+# Note: Twitch whispers are private 1-on-1 messages between users.
+# The IRC client uses TMI.js which supports WHISPER commands.
+# EventSub also provides whisper.receive events for newer integrations.
+#
+# Sprint 13: DM Capability Implementation (DM-007)
+#
+# @since Sprint 13
+#
+
+# Platform-specific event name
+# For Twitch whispers via IRC, this would be 'whisper'
+# For EventSub, this would be 'channel.whisper.receive'
+platformEvent: whisper
+
+# Internal event type this maps to
+internalEventType: dm.message.v1
+
+# Priority for disambiguation (higher = checked first)
+# Whisper messages have priority 10 (higher than regular chat at priority 0)
+priority: 10
+
+# No filter needed - whisper is a distinct event type
+# IRC WHISPER commands and EventSub whisper events are already filtered upstream
+
+# Field mapping configuration
+# Maps Twitch whisper event fields to BitBrat's InternalEventV2 format
+fieldMapping:
+  # User ID (required)
+  # For IRC whispers, this is extracted from tags
+  # For EventSub, this is from_user_id
+  userId:
+    path: userId
+    required: true
+    fallbacks:
+      - userLogin
+      - from_user_id  # EventSub format
+
+  # User login (lowercase username)
+  userLogin:
+    path: userLogin
+    required: false
+    fallbacks:
+      - from_user_login  # EventSub format
+
+  # User display name
+  userName:
+    path: userDisplayName
+    fallbacks:
+      - userLogin
+      - from_user_name  # EventSub format
+
+  # Channel ID (required by schema, but not applicable for whispers)
+  # For whispers, we use the user ID as a pseudo-channel
+  channelId:
+    path: userId
+    required: true
+    fallbacks:
+      - userLogin
+
+  # Message text (required)
+  messageText:
+    path: text
+    required: true
+
+  # Message ID (optional, may not be available for whispers)
+  messageId:
+    path: messageId
+    required: false
+
+  # Twitch-specific metadata
+  color:
+    path: color
+    required: false
+
+  badges:
+    path: badges
+    required: false
+
+  emotes:
+    path: emotes
+    required: false
+
+# Egress configuration (for reverse translation: InternalEventV2 → Twitch API)
+# Maps internal event fields back to Twitch API parameters for sending whisper responses
+egress:
+  # Method to invoke on TwitchConnectorAdapter
+  # Twitch uses sendWhisper() for DM/whisper functionality
+  method: sendWhisper
+
+  # Field mapping for outbound whispers
+  fieldMapping:
+    # Message text content
+    text: message.text
+
+    # Recipient user ID
+    # For Twitch whispers, we send directly to the user (not a channel)
+    userId: identity.external.id
+
+metadata:
+  description: Twitch whisper (direct message)
+  platformDocUrl: https://dev.twitch.tv/docs/irc/commands#whisper
+  notes: |
+    Twitch whispers can be received via two mechanisms:
+    1. IRC WHISPER commands (TMI.js library, traditional method)
+    2. EventSub whisper.receive events (newer API-based method)
+
+    The IRC client automatically handles whisper reception if configured.
+    Whispers are 1-on-1 private messages between users.
+
+    Sending whispers requires the whispers:edit scope and uses the
+    Helix API (helix.whispers.sendWhisper).
+  createdBy: Platform Team
+  createdAt: "2026-08-14"
+  lastModified: "2026-08-14"

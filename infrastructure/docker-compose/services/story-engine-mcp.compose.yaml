@@ -3,9 +3,10 @@ services:
     env_file:
       - .env.brat
     build:
-      context: .
+      context: ../..  # Sprint 375: Build context is repository root (for Dockerfile.base/Dockerfile.service)
       dockerfile: Dockerfile.service
       args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}  # Sprint 375: Use shared base image
         SERVICE_NAME: story-engine-mcp
         SERVICE_ENTRY: dist/apps/story-engine-mcp.js
         SERVICE_PORT: "3000"

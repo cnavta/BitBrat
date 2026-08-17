@@ -1,0 +1,15 @@
+id: sprint-5-anrn33
+title: Architecture.yaml Infrastructure Redesign
+goal: Make architecture.yaml the single source of truth for infrastructure
+  declarations across all deployment platforms. Eliminate infrastructure
+  fragmentation across 5+ locations, replace hardcoded infrastructure lists with
+  declarative schema, enable platform-agnostic deployments (Docker, GCP, AWS,
+  Azure, K8s), and fix the root cause of all 11 Sprint 3 bugs.
+owner: christophernavta
+createdAt: 2026-08-10T02:03:35.287Z
+status: complete
+links:
+  branch: feature/sprint-5-anrn33-architecture-yaml-infrastructu
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-10T20:05:28.595Z
+completionMode: normal
