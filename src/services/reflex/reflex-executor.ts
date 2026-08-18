@@ -83,11 +83,12 @@ export async function executeReflex(
         parameters,
       });
 
-      // Execute MCP tool
+      // Execute MCP tool with user's roles for RBAC
       toolResult = await executeTool(reflex.action.tool, parameters, {
         authToken,
         timeout: reflex.action.timeout || 5000,
         correlationId,
+        userRoles: event.identity?.user?.roles || [],
       });
     } else {
       logger.debug('[reflex-executor] No action defined, skipping tool execution');
