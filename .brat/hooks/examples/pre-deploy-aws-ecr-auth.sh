@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Example: AWS ECR Authentication
 # Hook Type: pre-deploy
