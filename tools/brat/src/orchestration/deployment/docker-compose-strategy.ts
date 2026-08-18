@@ -200,25 +200,77 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       const deployOptions = (plan.metadata.deployOptions || {}) as DeployOptions;
       const repoRoot = process.cwd();
       const baseComposeFilePath = plan.metadata.composeFilePath as string;
+      const isRemote = plan.metadata.remoteHost !== undefined;
 
       // ============================================================================
       // HOOK 1: PRE-DEPLOY (Sprint 15)
-      // Executes BEFORE any deployment operations (local)
+      // Executes BEFORE any deployment operations
       // Use case: Registry authentication, environment validation
+      // For remote deployments: Runs on remote host (after syncing hooks directory)
+      // For local deployments: Runs on local machine
       // ============================================================================
-      await this.hookExecutor.execute(
-        'pre-deploy',
-        plan.context.deployment.hooks?.['pre-deploy'],
-        {
-          contextName: plan.context.name,
-          deploymentType: plan.context.deployment.type,
-          targetHost: plan.metadata.remoteHost as string | undefined,
-          remoteDir: plan.metadata.remoteDir as string | undefined,
-          services: [plan.service.name],
-          repoRoot,
-          verbose: deployOptions.verbose,
+      if (isRemote) {
+        // Remote deployment: Sync hooks directory first so remote hook can execute
+        const hookPath = plan.context.deployment.hooks?.['pre-deploy'];
+        if (hookPath) {
+          const sshHost = (plan.metadata.remoteHost as string).replace('ssh://', '');
+          const remoteDir = plan.metadata.remoteDir as string;
+
+          console.log(`[docker-compose-strategy] Syncing hooks directory to remote for pre-deploy hook...`);
+
+          // Sync .brat/hooks directory to remote
+          const hooksDir = path.join(repoRoot, '.brat/hooks');
+          const remoteHooksDir = path.join(remoteDir, '.brat/hooks');
+
+          // Create remote directory structure
+          await execCmd('ssh', [sshHost, `mkdir -p ${remoteHooksDir}`], { cwd: repoRoot });
+
+          // Sync hooks directory using rsync
+          const rsyncResult = await execCmd(
+            'rsync',
+            ['-az', '--delete', `${hooksDir}/`, `${sshHost}:${remoteHooksDir}/`],
+            { cwd: repoRoot }
+          );
+
+          if (rsyncResult.code !== 0) {
+            throw new Error(
+              `Failed to sync hooks directory to remote: ${rsyncResult.stderr || rsyncResult.stdout}`
+            );
+          }
+
+          console.log(`[docker-compose-strategy] ✓ Hooks directory synced successfully`);
         }
-      );
+
+        // Remote deployment: Hook must run on remote host for Docker auth
+        await this.hookExecutor.executeRemote(
+          'pre-deploy',
+          plan.context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            targetHost: plan.metadata.remoteHost as string | undefined,
+            remoteDir: plan.metadata.remoteDir as string | undefined,
+            services: [plan.service.name],
+            repoRoot,
+            verbose: deployOptions.verbose,
+          }
+        );
+      } else {
+        // Local deployment: Hook runs on local machine
+        await this.hookExecutor.execute(
+          'pre-deploy',
+          plan.context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: plan.context.name,
+            deploymentType: plan.context.deployment.type,
+            targetHost: plan.metadata.remoteHost as string | undefined,
+            remoteDir: plan.metadata.remoteDir as string | undefined,
+            services: [plan.service.name],
+            repoRoot,
+            verbose: deployOptions.verbose,
+          }
+        );
+      }
 
       // Sprint 375: Read original compose file FIRST (before any processing)
       // This ensures we can restore even if merge/secureFiles processing fails
@@ -270,7 +322,6 @@ export class DockerComposeStrategy implements DeploymentStrategy {
 
       // Sprint 374/375: Process secure files
       const secureFiles = (plan.metadata.secureFiles || []) as SecureFile[];
-      const isRemote = plan.metadata.remoteHost !== undefined;
 
       if (secureFiles.length > 0) {
         console.log(
@@ -751,22 +802,73 @@ export class DockerComposeStrategy implements DeploymentStrategy {
     try {
       // ============================================================================
       // HOOK 1: PRE-DEPLOY (Sprint 15)
-      // Executes BEFORE any deployment operations (local only, bulk deployment)
+      // Executes BEFORE any deployment operations
       // Use case: Registry authentication, environment validation
+      // For remote deployments: Must run on remote host for Docker auth
+      // For local deployments: Runs on local machine
       // ============================================================================
-      await this.hookExecutor.execute(
-        'pre-deploy',
-        context.deployment.hooks?.['pre-deploy'],
-        {
-          contextName: context.name,
-          deploymentType: context.deployment.type,
-          targetHost: context.deployment?.docker?.host,
-          remoteDir: context.deployment?.docker?.remoteDir,
-          services: serviceNames,
-          repoRoot,
-          verbose: options.verbose,
+      if (isRemote) {
+        // Remote deployment: Sync hooks directory first so remote hook can execute
+        const hookPath = context.deployment.hooks?.['pre-deploy'];
+        if (hookPath) {
+          const sshHost = context.deployment!.docker!.host!.replace('ssh://', '');
+          const remoteDir = context.deployment!.docker!.remoteDir || '/opt/BitBratPlatform';
+
+          console.log(`[docker-compose-strategy] Syncing hooks directory to remote for pre-deploy hook...`);
+
+          // Sync .brat/hooks directory to remote
+          const hooksDir = path.join(repoRoot, '.brat/hooks');
+          const remoteHooksDir = path.join(remoteDir, '.brat/hooks');
+
+          // Create remote directory structure
+          await execCmd('ssh', [sshHost, `mkdir -p ${remoteHooksDir}`], { cwd: repoRoot });
+
+          // Sync hooks directory using rsync
+          const rsyncResult = await execCmd(
+            'rsync',
+            ['-az', '--delete', `${hooksDir}/`, `${sshHost}:${remoteHooksDir}/`],
+            { cwd: repoRoot }
+          );
+
+          if (rsyncResult.code !== 0) {
+            throw new Error(
+              `Failed to sync hooks directory to remote: ${rsyncResult.stderr || rsyncResult.stdout}`
+            );
+          }
+
+          console.log(`[docker-compose-strategy] ✓ Hooks directory synced successfully`);
         }
-      );
+
+        // Remote deployment: Hook must run on remote host for Docker auth
+        await this.hookExecutor.executeRemote(
+          'pre-deploy',
+          context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      } else {
+        // Local deployment: Hook runs on local machine
+        await this.hookExecutor.execute(
+          'pre-deploy',
+          context.deployment.hooks?.['pre-deploy'],
+          {
+            contextName: context.name,
+            deploymentType: context.deployment.type,
+            targetHost: context.deployment?.docker?.host,
+            remoteDir: context.deployment?.docker?.remoteDir,
+            services: serviceNames,
+            repoRoot,
+            verbose: options.verbose,
+          }
+        );
+      }
 
       // ============================================================================
       // STAGE 1: Read base compose file
@@ -980,7 +1082,6 @@ export class DockerComposeStrategy implements DeploymentStrategy {
       // ============================================================================
       // STAGE 4: Collect and validate secureFiles for all services
       // ============================================================================
-      const isRemote = context.deployment?.docker?.host?.startsWith('ssh://');
       const allSecureFiles = new Map<string, SecureFile[]>();
       const secureFilesErrors: Array<{ service: string; error: string }> = [];
       const validator = new SecureFilesValidator(repoRoot);
