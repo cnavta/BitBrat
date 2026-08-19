@@ -23,9 +23,14 @@ export class EventStreamAnalyzerServer extends Bit {
 
   constructor() {
     super({ mcpExposure: 'platform-only' });
+
+    // Register setup to run on startup (before HTTP server starts listening)
+    this.onStartup(async () => {
+      await this.setup();
+    });
   }
 
-  async setup(): Promise<void> {
+  private async setup(): Promise<void> {
     // Initialize managers
     this.windowManager = new RxJSWindowManager(this.getLogger());
     this.subscriptionManager = new SubscriptionManager(this.getLogger());
@@ -144,11 +149,15 @@ export class EventStreamAnalyzerServer extends Bit {
   async shutdown(): Promise<void> {
     this.getLogger().info('event-stream-analyzer.shutdown.start');
 
-    // Cleanup all windows
-    this.windowManager.destroy();
+    // Cleanup all windows (if initialized)
+    if (this.windowManager) {
+      this.windowManager.destroy();
+    }
 
-    // Cleanup all subscriptions
-    await this.subscriptionManager.destroy();
+    // Cleanup all subscriptions (if initialized)
+    if (this.subscriptionManager) {
+      await this.subscriptionManager.destroy();
+    }
 
     this.getLogger().info('event-stream-analyzer.shutdown.complete');
   }
