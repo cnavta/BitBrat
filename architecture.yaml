@@ -4,7 +4,7 @@ description: >-
   Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
-  version: 0.31.0
+  version: 0.32.0
   status: experimental
   description: >
     A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
@@ -941,19 +941,6 @@ services:
         permissions: '0400'
         required: true
         context: prod
-  stream-analyst-service:
-    category: domain
-    profile: llm
-    mcp:
-      exposure: platform+domain
-    active: false  # DEPRECATED: Replaced by event-stream-analyzer (v4 streaming architecture)
-    description: '[DEPRECATED] Analyzes incoming events and provides summary capabilities - replaced by event-stream-analyzer'
-    kind: pipeline-service
-    stage: analyze
-    entry: src/apps/stream-analyst-service.ts
-    port: 3010
-    secrets:
-      - MCP_AUTH_TOKEN
   story-engine-mcp:
     category: domain
     profile: mcp-server
