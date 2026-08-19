@@ -2,6 +2,7 @@ import { Bit } from '../common/base-server';
 import { RxJSWindowManager } from '../services/event-stream-analyzer/rxjs-window-manager';
 import { ObserverRepository } from '../services/event-stream-analyzer/observer-repository';
 import { SubscriptionManager } from '../services/event-stream-analyzer/subscription-manager';
+import { StreamAnalystEngine } from '../services/stream-analyst/engine';
 import type { StreamObserver } from '../types/sessi';
 import type { InternalEventV2 } from '../types/events';
 import type { IDocumentStore } from '../common/persistence/interfaces';
@@ -10,9 +11,9 @@ import { z } from 'zod';
 /**
  * EventStreamAnalyzerServer
  * Real-time event stream analysis with multi-observer support and database persistence.
- * Phase 2: Multi-observer, window types (sliding/tumbling/session), PostgreSQL persistence
+ * Phase 3: Real LLM analysis, snapshot/recovery, observability
  *
- * Profile: core (Phase 2 stub analysis; will upgrade to 'llm' in Phase 3 for real LLM analysis)
+ * Profile: core (Phase 3: LLM analysis via StreamAnalystEngine)
  * MCP Exposure: platform-only
  * Kind: pipeline-service
  */
@@ -20,6 +21,7 @@ export class EventStreamAnalyzerServer extends Bit {
   private windowManager!: RxJSWindowManager;
   private observerRepository!: ObserverRepository;
   private subscriptionManager!: SubscriptionManager;
+  private engine!: StreamAnalystEngine;
 
   constructor() {
     super({ mcpExposure: 'platform-only' });
@@ -38,6 +40,9 @@ export class EventStreamAnalyzerServer extends Bit {
     // Initialize observer repository with document store
     const documentStore = this.getResource('documentStore') as IDocumentStore;
     this.observerRepository = new ObserverRepository(documentStore, this.getLogger());
+
+    // Phase 3: Initialize StreamAnalystEngine for real LLM analysis
+    this.engine = new StreamAnalystEngine(documentStore, this.getLogger());
 
     // Load observers from database and create windows
     await this.loadObserversFromDatabase();
@@ -405,10 +410,11 @@ export class EventStreamAnalyzerServer extends Bit {
 
   /**
    * Handle window closure - called by RxJSWindowManager
-   * Phase 2: Stub analysis (same as Phase 1)
-   * TODO Phase 3: Replace with StreamAnalystEngine.summarize() integration
+   * Phase 3: Real LLM analysis via StreamAnalystEngine
    */
   private async handleWindowClose(events: InternalEventV2[], observerId: string): Promise<void> {
+    const startTime = Date.now();
+
     try {
       this.getLogger().info('window.closed.analyzing', {
         observerId,
@@ -421,12 +427,27 @@ export class EventStreamAnalyzerServer extends Bit {
         return;
       }
 
-      // Phase 2: Stub analysis (formatted event summary)
-      // TODO: Replace with StreamAnalystEngine.summarize() integration in Phase 3
-      const summary = this.generateStubSummary(events, observer);
+      // Skip analysis if no events
+      if (events.length === 0) {
+        this.getLogger().info('window.closed.no_events', { observerId });
+        return;
+      }
+
+      // Phase 3: Real LLM analysis via StreamAnalystEngine
+      // Note: Engine will query events from database based on observerId and windowMinutes
+      const windowMinutes = Math.ceil((observer.window?.sizeMs || 300000) / 60000);
+      const summary = await this.engine.summarize({
+        requestId: `window-${observerId}-${Date.now()}`,
+        observerId,
+        streamType: 'chat', // TODO: Make configurable per observer
+        windowMinutes,
+        inspectionEnabled: observer.analysis?.inspectionEnabled || false
+      });
+
+      const analysisLatencyMs = Date.now() - startTime;
 
       // Publish to internal.summarization.report.v1 (audit trail)
-      await this.publishSummaryReport(summary, observerId);
+      await this.publishSummaryReport(summary, observerId, events.length);
 
       // Publish to internal.egress.v1 (user delivery)
       if (observer.delivery.egressTopic) {
@@ -436,54 +457,25 @@ export class EventStreamAnalyzerServer extends Bit {
       this.getLogger().info('window.closed.complete', {
         observerId,
         eventCount: events.length,
-        summaryLength: summary.length
+        summaryLength: summary.length,
+        analysisLatencyMs,
+        promptId: observer.analysis?.promptId || 'default'
       });
     } catch (error: any) {
       this.getLogger().error('window.closed.error', {
         observerId,
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
+        analysisLatencyMs: Date.now() - startTime
       });
     }
   }
 
-  /**
-   * Generate stub summary for Phase 2
-   * TODO: Replace with LLM-powered analysis
-   */
-  private generateStubSummary(events: InternalEventV2[], observer: StreamObserver): string {
-    const platforms = new Set(events.map(e => e.ingress?.source).filter(Boolean));
-    const messageCount = events.filter(e => e.message).length;
-    const eventTypes = new Set(events.map(e => e.type));
-
-    return `# Stream Analysis Report
-
-**Observer:** ${observer.id}
-**Window Type:** ${observer.window?.type || 'sliding'}
-**Timestamp:** ${new Date().toISOString()}
-**Event Count:** ${events.length}
-
-## Summary
-- **Platforms:** ${Array.from(platforms).join(', ') || 'none'}
-- **Message Events:** ${messageCount}
-- **Event Types:** ${Array.from(eventTypes).join(', ')}
-
-## Sample Events
-${events.slice(0, 5).map(e =>
-  `- [${e.type}] ${e.message?.text?.substring(0, 100) || 'No message'}`
-).join('\n')}
-
-${events.length > 5 ? `\n... and ${events.length - 5} more events` : ''}
-
----
-*Generated by event-stream-analyzer (Phase 2)*
-`;
-  }
 
   /**
    * Publish summary to internal.summarization.report.v1 (audit trail)
    */
-  private async publishSummaryReport(summary: string, observerId: string): Promise<void> {
+  private async publishSummaryReport(summary: string, observerId: string, eventCount: number): Promise<void> {
     const reportEvent: InternalEventV2 = {
       v: '2',
       correlationId: `summary-${observerId}-${Date.now()}`,
@@ -506,8 +498,9 @@ ${events.length > 5 ? `\n... and ${events.length - 5} more events` : ''}
       payload: {
         observerId,
         summary,
-        eventCount: summary.split('\n').length,
-        generatedAt: new Date().toISOString()
+        eventCount,
+        generatedAt: new Date().toISOString(),
+        analysisEngine: 'llm' // Phase 3: Real LLM analysis
       },
       routing: {
         stage: 'response',
