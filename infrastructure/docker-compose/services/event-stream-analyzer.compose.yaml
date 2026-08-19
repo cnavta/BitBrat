@@ -1,0 +1,28 @@
+services:
+  event-stream-analyzer:
+    env_file:
+      - .env.brat
+    build:
+      context: ../..  # Build context is repository root (for Dockerfile.service)
+      dockerfile: Dockerfile.service
+      args:
+        BASE_IMAGE: bitbrat-base:${BITBRAT_VERSION:-latest}
+        SERVICE_NAME: event-stream-analyzer
+        SERVICE_ENTRY: dist/apps/event-stream-analyzer-service.js
+        SERVICE_PORT: "3000"
+    ports:
+      - "${EVENT_STREAM_ANALYZER_HOST_PORT:-3000}:${SERVICE_PORT:-3000}"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      bitbrat-network:
+        aliases:
+          - event-stream-analyzer.bitbrat.local

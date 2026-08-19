@@ -1,0 +1,16 @@
+{
+  "eventCount": 1000,
+  "windowCount": 61,
+  "totalLatencyMs": 157525.84568401612,
+  "minLatencyMs": 2470.268292682927,
+  "maxLatencyMs": 4503.375,
+  "avgLatencyMs": 2582.3909128527234,
+  "p50LatencyMs": 2501.487804878049,
+  "p95LatencyMs": 2999.246153846154,
+  "p99LatencyMs": 4503.375,
+  "memoryStartMB": 176.88699340820312,
+  "memoryEndMB": 163.14488220214844,
+  "memoryGrowthMB": -13.742111206054688,
+  "throughputEventsPerSec": 15.150826477584351,
+  "testDurationMs": 66003
+}
