@@ -132,9 +132,16 @@ tasks:
       Implement proper shutdown sequence: stop accepting events, trigger final
       snapshot, cleanup subscriptions. Handle SIGTERM/SIGINT signals.
     priority: P1
-    status: pending
+    status: completed
     estimated_hours: 2
     dependencies: [P3-003]
+    notes: |
+      Completed as part of P3-003. gracefulShutdown() method implemented with:
+      - Stop periodic snapshot timer
+      - Stop SnapshotManager
+      - Take final snapshot (zero data loss)
+      - Cleanup subscriptions (windowManager.destroy(), subscriptionManager.destroy())
+      - Wired to onShutdown() hook
     files:
       - src/apps/event-stream-analyzer-service.ts (modify)
     acceptance_criteria:
