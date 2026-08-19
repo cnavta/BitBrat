@@ -50,7 +50,7 @@ tasks:
       Create SnapshotManager component for periodic window state snapshots to
       PostgreSQL. Enables crash recovery with max 5-min data loss.
     priority: P0
-    status: pending
+    status: completed
     estimated_hours: 8
     dependencies: [P3-006]
     files:
