@@ -1,0 +1,11 @@
+id: sprint-20-xc3pcu
+title: "Event Stream Analyzer - Phase 3: Production Readiness"
+goal: Implement production-ready features including real LLM analysis,
+  snapshot/recovery mechanisms, observability metrics, and memory pressure
+  detection for the event-stream-analyzer service
+owner: Lead Implementor
+createdAt: 2026-08-19T21:09:27.564Z
+status: planning
+links:
+  branch: feature/sprint-20-xc3pcu-event-stream-analyzer-phase-3-
+notes: Sprint initialized via MCP start-sprint tool
