@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS stream_observers (
 
   -- Observer configuration (JSONB for flexibility)
   source JSONB NOT NULL,          -- StreamSourceV4: { mode, topics, filters }
-  window JSONB NOT NULL,          -- StreamWindowConfig: { type, sizeMs, slideMs, sessionGapMs }
-  trigger JSONB NOT NULL,         -- StreamTriggerV4: { type, timeConfig, countConfig, conditionConfig }
+  "window" JSONB NOT NULL,        -- StreamWindowConfig: { type, sizeMs, slideMs, sessionGapMs }
+  "trigger" JSONB NOT NULL,       -- StreamTriggerV4: { type, timeConfig, countConfig, conditionConfig }
   analysis JSONB NOT NULL,        -- StreamAnalysis: { promptId, inspectionEnabled, outputFormat }
   delivery JSONB NOT NULL,        -- StreamDelivery: { egressTopic, destination }
 
@@ -53,7 +53,7 @@ COMMENT ON COLUMN stream_observers.delivery IS
   'StreamDelivery: Egress configuration (egressTopic, destination)';
 
 -- Insert example observer for documentation (will be replaced by MCP-created observers)
-INSERT INTO stream_observers (id, active, mcp_enabled, source, window, trigger, analysis, delivery, created_at, updated_at)
+INSERT INTO stream_observers (id, active, mcp_enabled, source, "window", "trigger", analysis, delivery, created_at, updated_at)
 VALUES (
   'example-twitch-chat-5min',
   false,  -- Not active by default
