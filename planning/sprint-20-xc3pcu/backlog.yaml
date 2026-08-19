@@ -105,11 +105,11 @@ tasks:
       Comprehensive test suite for crash recovery scenarios. Verify max 5-min
       data loss on crash, zero data loss on graceful shutdown.
     priority: P0
-    status: pending
+    status: completed
     estimated_hours: 4
     dependencies: [P3-003]
     files:
-      - src/apps/event-stream-analyzer-service.test.ts (modify)
+      - src/services/event-stream-analyzer/crash-recovery-integration.test.ts (create)
     acceptance_criteria:
       - Mid-window crash test: events restored after restart
       - Graceful shutdown test: full recovery with zero data loss
