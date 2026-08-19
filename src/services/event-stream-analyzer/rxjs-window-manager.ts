@@ -1,11 +1,24 @@
 import { Subject, Subscription, interval } from 'rxjs';
-import { bufferTime, filter, buffer, debounceTime, scan } from 'rxjs/operators';
+import { bufferTime, filter, buffer, debounceTime, scan, tap } from 'rxjs/operators';
 import type { InternalEventV2 } from '../../types/events';
 import type { StreamObserver } from '../../types/sessi';
+import type { WindowState } from './snapshot-manager';
+
+/**
+ * Window state tracking for snapshot/restore
+ * Tracks events currently in each window for crash recovery
+ */
+interface WindowStateTracking {
+  observerId: string;
+  eventIds: string[];
+  windowStartedAt: string;
+  lastEventAt: string;
+}
 
 export class RxJSWindowManager {
   private eventSubject = new Subject<InternalEventV2>();
   private subscriptions = new Map<string, Subscription>();
+  private windowStates = new Map<string, WindowStateTracking>();
   private logger: any;
 
   constructor(logger: any) {
@@ -26,6 +39,9 @@ export class RxJSWindowManager {
       // Filter events matching this observer
       filter(event => this.matchesObserver(event, observer)),
 
+      // Track events entering window
+      tap(event => this.trackEventAdded(observer.id, event)),
+
       // Buffer events in sliding window
       bufferTime(windowSizeMs, slideMs),
 
@@ -42,6 +58,8 @@ export class RxJSWindowManager {
 
         try {
           await onWindowClose(events, observer.id);
+          // Clear window state after successful processing
+          this.trackWindowClosed(observer.id);
         } catch (error: any) {
           this.logger.error('rxjs.window.callback_error', {
             observerId: observer.id,
@@ -84,6 +102,9 @@ export class RxJSWindowManager {
       // Filter events matching this observer
       filter(event => this.matchesObserver(event, observer)),
 
+      // Track events entering window
+      tap(event => this.trackEventAdded(observer.id, event)),
+
       // Buffer events until trigger emits
       buffer(trigger),
 
@@ -100,6 +121,8 @@ export class RxJSWindowManager {
 
         try {
           await onWindowClose(events, observer.id);
+          // Clear window state after successful processing
+          this.trackWindowClosed(observer.id);
         } catch (error: any) {
           this.logger.error('rxjs.window.callback_error', {
             observerId: observer.id,
@@ -140,6 +163,9 @@ export class RxJSWindowManager {
       // Filter events matching this observer
       filter(event => this.matchesObserver(event, observer)),
 
+      // Track events entering window
+      tap(event => this.trackEventAdded(observer.id, event)),
+
       // Accumulate events in buffer
       scan((buffer, event) => {
         buffer.push(event);
@@ -164,6 +190,8 @@ export class RxJSWindowManager {
 
           // Clear buffer after processing
           currentBuffer = [];
+          // Clear window state after successful processing
+          this.trackWindowClosed(observer.id);
         } catch (error: any) {
           this.logger.error('rxjs.window.callback_error', {
             observerId: observer.id,
@@ -219,6 +247,7 @@ export class RxJSWindowManager {
 
   /**
    * Add event to stream (will be routed to matching windows)
+   * Event tracking happens in window pipelines via tap() operator
    */
   addEvent(event: InternalEventV2): void {
     this.eventSubject.next(event);
@@ -290,6 +319,97 @@ export class RxJSWindowManager {
     }
 
     this.subscriptions.clear();
+    this.windowStates.clear();
     this.eventSubject.complete();
+  }
+
+  /**
+   * Track event addition to window state
+   * Called when event matches an observer and enters its window
+   */
+  private trackEventAdded(observerId: string, event: InternalEventV2): void {
+    let state = this.windowStates.get(observerId);
+
+    if (!state) {
+      // Initialize window state on first event
+      state = {
+        observerId,
+        eventIds: [],
+        windowStartedAt: new Date().toISOString(),
+        lastEventAt: new Date().toISOString()
+      };
+      this.windowStates.set(observerId, state);
+    }
+
+    // Add event ID and update timestamp
+    state.eventIds.push(event.correlationId);
+    state.lastEventAt = new Date().toISOString();
+
+    this.logger.debug('rxjs.window.event_tracked', {
+      observerId,
+      eventId: event.correlationId,
+      totalEvents: state.eventIds.length
+    });
+  }
+
+  /**
+   * Track window close (reset state)
+   * Called after onWindowClose callback completes successfully
+   */
+  private trackWindowClosed(observerId: string): void {
+    this.windowStates.delete(observerId);
+    this.logger.debug('rxjs.window.state_reset', { observerId });
+  }
+
+  /**
+   * Get all current window states for snapshotting
+   * Used by SnapshotManager to persist window state
+   */
+  getAllWindowStates(): Map<string, WindowState> {
+    const states = new Map<string, WindowState>();
+
+    for (const [observerId, tracking] of this.windowStates.entries()) {
+      states.set(observerId, {
+        observerId: tracking.observerId,
+        eventIds: [...tracking.eventIds], // Clone array
+        eventCount: tracking.eventIds.length,
+        windowStartedAt: tracking.windowStartedAt,
+        lastEventAt: tracking.lastEventAt,
+        snapshotAt: new Date().toISOString()
+      });
+    }
+
+    this.logger.debug('rxjs.window.states_collected', {
+      windowCount: states.size,
+      totalEvents: Array.from(states.values()).reduce((sum, s) => sum + s.eventCount, 0)
+    });
+
+    return states;
+  }
+
+  /**
+   * Restore window states from snapshot
+   * Used during service startup to recover from crash
+   */
+  restoreWindowStates(states: Map<string, WindowState>): void {
+    for (const [observerId, snapshot] of states.entries()) {
+      this.windowStates.set(observerId, {
+        observerId: snapshot.observerId,
+        eventIds: [...snapshot.eventIds], // Clone array
+        windowStartedAt: snapshot.windowStartedAt,
+        lastEventAt: snapshot.lastEventAt
+      });
+
+      this.logger.info('rxjs.window.state_restored', {
+        observerId,
+        eventCount: snapshot.eventIds.length,
+        age: Date.now() - new Date(snapshot.snapshotAt).getTime()
+      });
+    }
+
+    this.logger.info('rxjs.window.restore_complete', {
+      windowCount: states.size,
+      totalEvents: Array.from(states.values()).reduce((sum, s) => sum + s.eventCount, 0)
+    });
   }
 }

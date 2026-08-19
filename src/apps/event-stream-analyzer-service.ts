@@ -3,6 +3,7 @@ import { RxJSWindowManager } from '../services/event-stream-analyzer/rxjs-window
 import { ObserverRepository } from '../services/event-stream-analyzer/observer-repository';
 import { SubscriptionManager } from '../services/event-stream-analyzer/subscription-manager';
 import { StreamAnalystEngine } from '../services/stream-analyst/engine';
+import { SnapshotManager } from '../services/event-stream-analyzer/snapshot-manager';
 import type { StreamObserver } from '../types/sessi';
 import type { InternalEventV2 } from '../types/events';
 import type { IDocumentStore } from '../common/persistence/interfaces';
@@ -22,6 +23,8 @@ export class EventStreamAnalyzerServer extends Bit {
   private observerRepository!: ObserverRepository;
   private subscriptionManager!: SubscriptionManager;
   private engine!: StreamAnalystEngine;
+  private snapshotManager!: SnapshotManager;
+  private snapshotTimer?: NodeJS.Timeout;
 
   constructor() {
     super({ mcpExposure: 'platform-only' });
@@ -29,6 +32,11 @@ export class EventStreamAnalyzerServer extends Bit {
     // Register setup to run on startup (before HTTP server starts listening)
     this.onStartup(async () => {
       await this.setup();
+    });
+
+    // Phase 3: Register shutdown hook for final snapshot
+    this.onShutdown(async () => {
+      await this.gracefulShutdown();
     });
   }
 
@@ -44,18 +52,69 @@ export class EventStreamAnalyzerServer extends Bit {
     // Phase 3: Initialize StreamAnalystEngine for real LLM analysis
     this.engine = new StreamAnalystEngine(documentStore, this.getLogger());
 
+    // Phase 3: Initialize SnapshotManager for crash recovery
+    this.snapshotManager = new SnapshotManager(documentStore, this.getLogger(), {
+      enabled: true,
+      snapshotIntervalMs: 300000,   // 5 minutes (default)
+      staleThresholdMs: 600000      // 10 minutes (default)
+    });
+
+    // Phase 3: Restore windows from last snapshot (before loading observers)
+    const restoredStates = await this.snapshotManager.restoreWindows();
+    if (restoredStates.size > 0) {
+      this.windowManager.restoreWindowStates(restoredStates);
+      this.getLogger().info('event-stream-analyzer.setup.windows_restored', {
+        windowCount: restoredStates.size
+      });
+    }
+
     // Load observers from database and create windows
     await this.loadObserversFromDatabase();
+
+    // Phase 3: Start periodic snapshot loop
+    await this.snapshotManager.start();
+    this.startPeriodicSnapshots();
 
     this.getLogger().info('event-stream-analyzer.setup.complete', {
       service: this.serviceName,
       activeObservers: await this.observerRepository.getActiveCount(),
       subscriptionCount: this.windowManager.getSubscriptionCount(),
-      activeTopics: this.subscriptionManager.getActiveTopics()
+      activeTopics: this.subscriptionManager.getActiveTopics(),
+      snapshotStatus: this.snapshotManager.getStatus()
     });
 
     // Register MCP tools
     this.registerObserverTools();
+  }
+
+  /**
+   * Start periodic snapshot timer
+   * Phase 3: Takes snapshots every 5 minutes for crash recovery
+   */
+  private startPeriodicSnapshots(): void {
+    const intervalMs = 300000; // 5 minutes
+
+    this.snapshotTimer = setInterval(async () => {
+      try {
+        const windowStates = this.windowManager.getAllWindowStates();
+        if (windowStates.size > 0) {
+          this.getLogger().debug('event-stream-analyzer.periodic_snapshot.start', {
+            windowCount: windowStates.size
+          });
+          await this.snapshotManager.takeSnapshot(windowStates);
+        }
+      } catch (error: any) {
+        this.getLogger().error('event-stream-analyzer.periodic_snapshot.error', {
+          error: error.message,
+          stack: error.stack
+        });
+      }
+    }, intervalMs);
+
+    this.getLogger().info('event-stream-analyzer.periodic_snapshots.started', {
+      intervalMs,
+      intervalMinutes: Math.round(intervalMs / 60000)
+    });
   }
 
   /**
@@ -573,6 +632,46 @@ export class EventStreamAnalyzerServer extends Bit {
       observerId: observer.id,
       correlationId: egressEvent.correlationId
     });
+  }
+
+  /**
+   * Graceful shutdown with final snapshot
+   * Phase 3: Ensures zero data loss on clean shutdown
+   */
+  private async gracefulShutdown(): Promise<void> {
+    this.getLogger().info('event-stream-analyzer.shutdown.start');
+
+    try {
+      // Stop periodic snapshot timer
+      if (this.snapshotTimer) {
+        clearInterval(this.snapshotTimer);
+        this.snapshotTimer = undefined;
+        this.getLogger().debug('event-stream-analyzer.shutdown.timer_stopped');
+      }
+
+      // Stop snapshot manager
+      await this.snapshotManager.stop();
+
+      // Take final snapshot before destroying windows
+      const windowStates = this.windowManager.getAllWindowStates();
+      if (windowStates.size > 0) {
+        this.getLogger().info('event-stream-analyzer.shutdown.final_snapshot', {
+          windowCount: windowStates.size
+        });
+        await this.snapshotManager.takeSnapshot(windowStates);
+      }
+
+      // Cleanup subscriptions
+      this.windowManager.destroy();
+      await this.subscriptionManager.destroy();
+
+      this.getLogger().info('event-stream-analyzer.shutdown.complete');
+    } catch (error: any) {
+      this.getLogger().error('event-stream-analyzer.shutdown.error', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
   }
 
   public async close(reason: string = 'manual'): Promise<void> {

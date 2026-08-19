@@ -78,7 +78,7 @@ tasks:
       snapshot loop after observer loading, restore on startup, snapshot on
       shutdown.
     priority: P0
-    status: pending
+    status: completed
     estimated_hours: 4
     dependencies: [P3-002]
     files:
