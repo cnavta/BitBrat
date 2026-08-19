@@ -1,51 +1,47 @@
 name: BitBrat Platform
 description: >-
-  The BitBrat Platform is an LLM powered event orchestration and execution engine aimed at
-  Streamers. Uses Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
+  The BitBrat Platform is an LLM powered event orchestration and execution engine aimed at Streamers. Uses
+  Node/TypeScript, Twurple, Firestore, OpenAI. Deployed on Cloud Run.
 project:
   name: BitBrat Platform
   version: 0.30.1
   status: experimental
   description: >
-    A cloud-native microservices suite that listens to Twitch, Kick and other events and provides
-    tools to react to them.
+    A cloud-native microservices suite that listens to Twitch, Kick and other events and provides tools to react to
+    them.
   owners:
     - chris@ix-n.com
 llm_guidance:
   intent: >
-    Provide LLM evaluators (Claude Code, Aider, Continue, OpenHands) with architectural context,
-    glossary definitions, critical invariants, and documentation pointers. This section serves as
-    the primary orientation for coding agents working with the BitBrat platform.
+    Provide LLM evaluators (Claude Code, Aider, Continue, OpenHands) with architectural context, glossary definitions,
+    critical invariants, and documentation pointers. This section serves as the primary orientation for coding agents
+    working with the BitBrat platform.
   default_system_prompt: >
-    You are an experienced Lead Engineer responsible for developing the BitBrat Platform. Follow the
-    architecture.yaml specs strictly. Justify any architectural deviation clearly.
+    You are an experienced Lead Engineer responsible for developing the BitBrat Platform. Follow the architecture.yaml
+    specs strictly. Justify any architectural deviation clearly.
   glossary:
     routing_slip: >-
-      An ordered list of processing steps that travels with a message; each worker updates its step
-      and republishes (see references.routing_slip_schema).
+      An ordered list of processing steps that travels with a message; each worker updates its step and republishes (see
+      references.routing_slip_schema).
     disposition: A short-term, TTL-bounded read of a user's behavior, computed by disposition-service.
-    mcp: >-
-      Model Context Protocol; MCP servers expose tools to the LLM and are proxied/secured by
-      tool-gateway.
+    mcp: Model Context Protocol; MCP servers expose tools to the LLM and are proxied/secured by tool-gateway.
     egress: Delivery of an internal response back out to the originating platform (Twitch/Discord/Twilio).
     enrichment: Optional analysis that augments an event before reaction (query-analyzer, llm-bot).
     brat: The platform CLI/tooling under tools/brat (config, backup, setup).
     bit: >-
-      A platform service unit under the Bit model. Every Bit speaks MCP, exposing a mandatory bit.*
-      control plane (the Platform Ring) that Brat administers fleet-wide. The YAML services key is
-      retained for back-compat (each service entry is conceptually a Bit). A Bit's optional profile
-      declares its capability mixins (core, llm, mcp-server, gateway) and mcp.exposure controls
-      whether it serves only the platform control plane (platform-only, the default) or also its
-      domain tools (platform+domain). See
-      documentation/architecture/bit-model-technical-architecture.md.
+      A platform service unit under the Bit model. Every Bit speaks MCP, exposing a mandatory bit.* control plane (the
+      Platform Ring) that Brat administers fleet-wide. The YAML services key is retained for back-compat (each service
+      entry is conceptually a Bit). A Bit's optional profile declares its capability mixins (core, llm, mcp-server,
+      gateway) and mcp.exposure controls whether it serves only the platform control plane (platform-only, the default)
+      or also its domain tools (platform+domain). See documentation/architecture/bit-model-technical-architecture.md.
     platform_bit: >-
-      A Bit that forms part of the core agent orchestration loop (perceive → plan → act → observe).
-      Platform Bits are required for the minimal viable agent and provide infrastructure other Bits
-      depend on. Examples: ingress-egress, event-router, llm-bot, reflex, tool-gateway, persistence.
+      A Bit that forms part of the core agent orchestration loop (perceive → plan → act → observe). Platform Bits are
+      required for the minimal viable agent and provide infrastructure other Bits depend on. Examples: ingress-egress,
+      event-router, llm-bot, reflex, tool-gateway, persistence.
     domain_bit: >-
-      A Bit that extends the platform with optional, domain-specific capabilities or tools. Domain
-      Bits can be removed without breaking core orchestration. Examples: obs-mcp (OBS control),
-      image-gen-mcp (image generation), story-engine-mcp (storytelling), scheduler (periodic tasks).
+      A Bit that extends the platform with optional, domain-specific capabilities or tools. Domain Bits can be removed
+      without breaking core orchestration. Examples: obs-mcp (OBS control), image-gen-mcp (image generation),
+      story-engine-mcp (storytelling), scheduler (periodic tasks).
   invariants:
     - Never import from or depend on ./deprecated in deliverables.
     - Every message must carry a correlationId (see messaging.envelope.required).
@@ -74,29 +70,11 @@ llm_guidance:
       backlog: documentation/reference/backlog-example.yaml
       execution_plan: documentation/reference/execution-implementation-plan-template.md
   build_contract: >
-    Standard services build from the single reusable Dockerfile.service; per-service behavior is
-    supplied as --build-args derived from this file (see defaults.services.build).
-
-# ============================================================================
-# PLATFORM INFRASTRUCTURE (v2 Schema)
-# ============================================================================
-# This section defines platform-level infrastructure requirements.
-# Providers (docker, gcp, aws, azure) implement these capabilities.
-# Execution contexts select providers and override config.
-#
-# Three-tier design:
-# 1. platform.infrastructure - WHAT we need + WHY + constraints
-# 2. infrastructure.{provider} - HOW each provider implements it
-# 3. executionContexts.*.infrastructure - Context-specific overrides
-# ============================================================================
-
+    Standard services build from the single reusable Dockerfile.service; per-service behavior is supplied as
+    --build-args derived from this file (see defaults.services.build).
 platform:
-  version: "2.0"
-
+  version: '2.0'
   infrastructure:
-    # --------------------------------------------------------------------------
-    # Messaging: Event-driven orchestration between services
-    # --------------------------------------------------------------------------
     messaging:
       required: true
       capabilities:
@@ -104,22 +82,18 @@ platform:
         - stream-retention
         - at-least-once-delivery
       config:
-        defaultTTL: 3600  # Default message TTL in seconds
+        defaultTTL: 3600
         deliveryGuarantee: at-least-once
         maxRetries: 5
       constraints:
-        minRetention: 86400  # 24 hours minimum retention (seconds)
-        requireDurability: true  # Must persist messages to disk
-        maxLatencyMs: 100  # Sub-100ms delivery for real-time orchestration
+        minRetention: 86400
+        requireDurability: true
+        maxLatencyMs: 100
       intent:
-        - "Event-driven orchestration between services"
-        - "Routing slips carry processing steps with messages"
-        - "Decoupled publish-subscribe for scalability"
-        - "Durable streams for replay and debugging"
-
-    # --------------------------------------------------------------------------
-    # Caching: Distributed locks and idempotency tracking
-    # --------------------------------------------------------------------------
+        - Event-driven orchestration between services
+        - Routing slips carry processing steps with messages
+        - Decoupled publish-subscribe for scalability
+        - Durable streams for replay and debugging
     caching:
       required: true
       capabilities:
@@ -127,21 +101,17 @@ platform:
         - expiration-policies
         - atomic-operations
       config:
-        defaultTTL: 300  # Default key TTL in seconds (5 minutes)
-        evictionPolicy: allkeys-lru  # Evict least recently used keys
+        defaultTTL: 300
+        evictionPolicy: allkeys-lru
       constraints:
-        minMemory: "128mb"  # Minimum memory allocation
-        requirePersistence: true  # Must persist to disk (AOF/RDB)
-        requireAtomicity: true  # Must support atomic SET NX EX
+        minMemory: 128mb
+        requirePersistence: true
+        requireAtomicity: true
       intent:
-        - "Idempotency tracking via distributed locks (Sprint 1)"
-        - "Duplicate message detection with Redis SET NX EX"
-        - "Session state and rate limiting"
-        - "Persistent cache survives restarts"
-
-    # --------------------------------------------------------------------------
-    # Persistence: Event storage with JSONB and full-text search
-    # --------------------------------------------------------------------------
+        - Idempotency tracking via distributed locks (Sprint 1)
+        - Duplicate message detection with Redis SET NX EX
+        - Session state and rate limiting
+        - Persistent cache survives restarts
     persistence:
       required: true
       capabilities:
@@ -153,172 +123,157 @@ platform:
         connectionPool:
           min: 10
           max: 100
-        statementTimeout: 30000  # 30s max query time
-        idleTimeout: 10000  # 10s idle connection timeout
+        statementTimeout: 30000
+        idleTimeout: 10000
       constraints:
-        requireACID: true  # Must support ACID transactions
-        requireSSL: true  # Must use encrypted connections
-        requireJSONB: true  # Must support JSONB for flexible schemas
+        requireACID: true
+        requireSSL: true
+        requireJSONB: true
       intent:
-        - "Persistent event storage with flexible JSONB payload"
-        - "Full-text search for event query capabilities"
-        - "ACID transactions for state mutations"
-        - "Primary data store as of Sprint 344 (replaced Firestore)"
-
-  # --------------------------------------------------------------------------
-  # Orchestration: Event-driven agent loop decomposition
-  # --------------------------------------------------------------------------
+        - Persistent event storage with flexible JSONB payload
+        - Full-text search for event query capabilities
+        - ACID transactions for state mutations
+        - Primary data store as of Sprint 344 (replaced Firestore)
   orchestration:
     config:
-      model: event-driven  # Event-driven | request-response | hybrid
-      flow: perceive-plan-act-observe  # Agent loop pattern
-      coordination: routing-slip  # Routing slip coordinates processing steps
+      model: event-driven
+      flow: perceive-plan-act-observe
+      coordination: routing-slip
     stages:
       - id: ingest
         description: Normalize external platform events into Envelope v1 and publish internal.ingress.v1
-        services: [ingress-egress, api-gateway, scheduler]
+        services:
+          - ingress-egress
+          - api-gateway
+          - scheduler
       - id: route
         description: Attach and advance the routing slip; dispatch each step to its topic
-        services: [event-router]
+        services:
+          - event-router
       - id: analyze
         description: Optional analysis/enrichment steps that publish results to internal.enriched.v1
-        services: [query-analyzer, llm-bot, disposition-service, story-engine-mcp]
+        services:
+          - query-analyzer
+          - llm-bot
+          - disposition-service
+          - story-engine-mcp
       - id: react
         description: Apply state mutations and behavioral side effects
-        services: [state-engine, disposition-service]
+        services:
+          - state-engine
+          - disposition-service
       - id: egress
         description: Translate internal responses back into platform-native delivery
-        services: [ingress-egress, api-gateway]
+        services:
+          - ingress-egress
+          - api-gateway
       - id: persist
         description: Durable capture of events, snapshots, and dead letters
-        services: [persistence]
+        services:
+          - persistence
     constraints:
-      requiresMessaging: true  # Cannot orchestrate without message bus
-      requiresRoutingSlip: true  # Services must understand routing slip schema
-      maxStageLatency: 1000  # Each stage should complete in <1s for real-time feel
-      requiresIdempotency: true  # All consumers must be idempotent (at-least-once delivery)
+      requiresMessaging: true
+      requiresRoutingSlip: true
+      maxStageLatency: 1000
+      requiresIdempotency: true
     intent:
-      - "Decouples agent loop (perceive → plan → act → observe) into independent services"
-      - "Routing slip enables dynamic orchestration without hardcoded workflows"
-      - "Each stage is independently scalable and replaceable"
-      - "Dead-letter topics provide fault tolerance and observability"
-      - "Services can participate in multiple stages (e.g., disposition-service in analyze + react)"
-
-# ============================================================================
-# INFRASTRUCTURE PROVIDERS (v2 Schema)
-# ============================================================================
-# Provider implementations for platform.infrastructure capabilities.
-# Each provider (docker, gcp, aws, azure) implements messaging, caching,
-# and persistence in provider-specific ways.
-# ============================================================================
-
+      - Decouples agent loop (perceive → plan → act → observe) into independent services
+      - Routing slip enables dynamic orchestration without hardcoded workflows
+      - Each stage is independently scalable and replaceable
+      - Dead-letter topics provide fault tolerance and observability
+      - Services can participate in multiple stages (e.g., disposition-service in analyze + react)
 infrastructure:
-  # --------------------------------------------------------------------------
-  # Docker Provider: Local development and self-hosted deployments
-  # --------------------------------------------------------------------------
   docker:
     config:
-      scope: local  # Local development, self-hosted production
-      scalability: vertical  # Vertical scaling (upgrade machine)
-      costModel: zero-cost  # No cloud fees, just hardware
+      scope: local
+      scalability: vertical
+      costModel: zero-cost
     constraints:
-      maxInstances: 1  # Single-node deployment
-      offlineCapable: true  # Works without internet
+      maxInstances: 1
+      offlineCapable: true
     intent:
-      - "Primary development environment for local iteration"
-      - "Self-hosted production alternative (bitbrat.lan)"
-      - "Zero cloud costs for small deployments"
-      - "Full feature parity with cloud deployments"
-
-    # ------------------------------------------------------------------------
-    # Messaging: NATS JetStream
-    # ------------------------------------------------------------------------
+      - Primary development environment for local iteration
+      - Self-hosted production alternative (bitbrat.lan)
+      - Zero cloud costs for small deployments
+      - Full feature parity with cloud deployments
     messaging:
-      service: nats  # Docker Compose service name
+      service: nats
       image: nats:2.10-alpine
       ports:
-        client: "4222:4222"  # Client connections
-        http: "8222:8222"  # HTTP monitoring/health
-        routing: "6222:6222"  # Cluster routing (unused in single-node)
+        client: '4222:4222'
+        http: '8222:8222'
+        routing: '6222:6222'
       volumes:
         - type: named
           name: nats-data
           target: /data
       env:
-        NATS_JETSTREAM_MAX_MEM: "-1"  # Unlimited memory for JetStream
-        NATS_JETSTREAM_MAX_FILE: "10Gi"  # 10GB max file storage
+        NATS_JETSTREAM_MAX_MEM: '-1'
+        NATS_JETSTREAM_MAX_FILE: 10Gi
       config:
-        jetstream: true  # Enable JetStream for durability
-        persistence: true  # Persist streams to disk (/data)
-        maxPayload: 10485760  # 10MB max message size
-        retention: 604800  # 7 days retention (seconds)
+        jetstream: true
+        persistence: true
+        maxPayload: 10485760
+        retention: 604800
       healthCheck:
         test:
           - CMD
           - wget
-          - "--quiet"
-          - "--tries=1"
-          - "--spider"
-          - "http://localhost:8222/healthz"
-        interval: "10s"
-        timeout: "5s"
+          - '--quiet'
+          - '--tries=1'
+          - '--spider'
+          - http://localhost:8222/healthz
+        interval: 10s
+        timeout: 5s
         retries: 10
-        startPeriod: "30s"
+        startPeriod: 30s
       intent:
-        - "JetStream provides durable streams for message replay"
-        - "Replaces Kafka/RabbitMQ with simpler ops and lower overhead"
-        - "Sub-millisecond latency for event orchestration"
-        - "File-backed persistence survives restarts"
-
-    # ------------------------------------------------------------------------
-    # Caching: Redis with AOF persistence
-    # ------------------------------------------------------------------------
+        - JetStream provides durable streams for message replay
+        - Replaces Kafka/RabbitMQ with simpler ops and lower overhead
+        - Sub-millisecond latency for event orchestration
+        - File-backed persistence survives restarts
     caching:
-      service: redis  # Docker Compose service name
+      service: redis
       image: redis:7-alpine
       ports:
-        main: "6379:6379"
+        main: '6379:6379'
       volumes:
         - type: named
           name: redis-data
           target: /data
       command:
         - redis-server
-        - "--appendonly"
-        - "yes"  # Enable AOF persistence
-        - "--appendfsync"
-        - "everysec"  # Fsync every second (balance durability/performance)
-        - "--maxmemory"
-        - "512mb"  # Limit memory usage
-        - "--maxmemory-policy"
-        - "allkeys-lru"  # Evict least recently used keys
+        - '--appendonly'
+        - 'yes'
+        - '--appendfsync'
+        - everysec
+        - '--maxmemory'
+        - 512mb
+        - '--maxmemory-policy'
+        - allkeys-lru
       config:
-        appendonly: "yes"  # AOF persistence enabled
-        maxmemory: "512mb"  # Sufficient for idempotency keys
+        appendonly: 'yes'
+        maxmemory: 512mb
         evictionPolicy: allkeys-lru
       healthCheck:
         test:
           - CMD
           - redis-cli
           - ping
-        interval: "10s"
-        timeout: "5s"
+        interval: 10s
+        timeout: 5s
         retries: 10
-        startPeriod: "30s"
+        startPeriod: 30s
       intent:
-        - "Idempotency tracking via SET NX EX (Sprint 1)"
-        - "Distributed locks for duplicate message detection"
-        - "AOF persistence ensures durability across restarts"
-        - "Session state and rate limiting"
-
-    # ------------------------------------------------------------------------
-    # Persistence: PostgreSQL 15 with JSONB
-    # ------------------------------------------------------------------------
+        - Idempotency tracking via SET NX EX (Sprint 1)
+        - Distributed locks for duplicate message detection
+        - AOF persistence ensures durability across restarts
+        - Session state and rate limiting
     persistence:
-      service: postgres  # Docker Compose service name
+      service: postgres
       image: postgres:15-alpine
       ports:
-        main: "5432:5432"
+        main: '5432:5432'
       volumes:
         - type: named
           name: postgres-data
@@ -326,41 +281,40 @@ infrastructure:
       env:
         POSTGRES_DB: bitbrat
         POSTGRES_USER: bitbrat
-        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # From .env or secrets
-        POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=en_US.UTF-8'
       config:
         database: bitbrat
         user: bitbrat
         maxConnections: 100
-        sharedBuffers: "256MB"
-        effectiveCacheSize: "1GB"
-        maintenanceWorkMem: "64MB"
-        walLevel: "replica"  # Enable point-in-time recovery
+        sharedBuffers: 256MB
+        effectiveCacheSize: 1GB
+        maintenanceWorkMem: 64MB
+        walLevel: replica
       healthCheck:
         test:
           - CMD-SHELL
           - pg_isready -U bitbrat -d bitbrat
-        interval: "10s"
-        timeout: "5s"
+        interval: 10s
+        timeout: 5s
         retries: 10
-        startPeriod: "30s"
+        startPeriod: 30s
       intent:
-        - "Primary data store as of Sprint 344 (replaced Firestore)"
-        - "JSONB support for flexible event payloads"
-        - "Full-text search capabilities (tsvector/tsquery)"
-        - "ACID transactions for state mutations"
-        - "Platform-agnostic (works with AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted)"
-        - "Document Store pattern"
-
+        - Primary data store as of Sprint 344 (replaced Firestore)
+        - JSONB support for flexible event payloads
+        - Full-text search capabilities (tsvector/tsquery)
+        - ACID transactions for state mutations
+        - Platform-agnostic (works with AWS RDS, GCP Cloud SQL, Azure PostgreSQL, self-hosted)
+        - Document Store pattern
 messaging:
   intent: >
-    Decentralized event orchestration via routing slips that travel with Envelope v1 messages.
-    Each service enriches events with annotations and advances the routing slip, enabling dynamic
-    event flow without hardcoded service dependencies. The message bus (NATS locally, Pub/Sub in
-    production) provides at-least-once delivery, requiring all consumers to be idempotent.
+    Decentralized event orchestration via routing slips that travel with Envelope v1 messages. Each service enriches
+    events with annotations and advances the routing slip, enabling dynamic event flow without hardcoded service
+    dependencies. The message bus (NATS locally, Pub/Sub in production) provides at-least-once delivery, requiring all
+    consumers to be idempotent.
   reference: documentation/reference/topic-catalog.md
   config:
-    driver: MESSAGE_BUS_DRIVER  # nats (local/dev) | pubsub (production)
+    driver: MESSAGE_BUS_DRIVER
     prefix: BUS_PREFIX
     delivery: at-least-once
     envelope_schema: documentation/schemas/envelope.v1.json
@@ -370,94 +324,144 @@ messaging:
     versioning: Bump v<N> on breaking payload changes; never mutate an existing version.
     per_instance_suffix: .{instanceId} resolves to K_REVISION || EGRESS_INSTANCE_ID || SERVICE_INSTANCE_ID || HOSTNAME
     idempotency: Required for all consumers (at-least-once delivery)
-    envelope_required_fields: [v, source, correlationId]
-    envelope_optional_fields: [traceId, replyTo, timeoutAt, routingSlip]
+    envelope_required_fields:
+      - v
+      - source
+      - correlationId
+    envelope_optional_fields:
+      - traceId
+      - replyTo
+      - timeoutAt
+      - routingSlip
   topics:
     internal.finalize.v1:
-      producers: [any-service]
+      producers:
+        - any-service
       consumers: []
       schema: documentation/schemas/envelope.v1.json
     internal.ingress.v1:
-      producers: [ingress-egress, scheduler, api-gateway]
-      consumers: [event-router, persistence]
+      producers:
+        - ingress-egress
+        - scheduler
+        - api-gateway
+      consumers:
+        - event-router
+        - persistence
       schema: documentation/schemas/envelope.v1.json
     internal.enriched.v1:
-      producers: [query-analyzer, llm-bot, auth]
-      consumers: [event-router]
+      producers:
+        - query-analyzer
+        - llm-bot
+        - auth
+      consumers:
+        - event-router
       schema: documentation/schemas/envelope.v1.json
     internal.query.analysis.v1:
-      producers: [event-router]
-      consumers: [query-analyzer]
+      producers:
+        - event-router
+      consumers:
+        - query-analyzer
       schema: documentation/schemas/envelope.v1.json
     internal.llmbot.v1:
-      producers: [event-router]
-      consumers: [llm-bot]
+      producers:
+        - event-router
+      consumers:
+        - llm-bot
       schema: documentation/schemas/envelope.v1.json
     internal.auth.v1:
-      producers: [event-router]
-      consumers: [auth]
+      producers:
+        - event-router
+      consumers:
+        - auth
       schema: documentation/schemas/envelope.v1.json
     internal.reflex.v1:
-      producers: [event-router]
-      consumers: [reflex]
+      producers:
+        - event-router
+      consumers:
+        - reflex
       schema: documentation/schemas/envelope.v1.json
     internal.reflex.executed.v1:
-      producers: [reflex]
+      producers:
+        - reflex
       consumers: []
       schema: documentation/schemas/reflex-executed-event.v1.json
     internal.reflex.failed.v1:
-      producers: [reflex]
+      producers:
+        - reflex
       consumers: []
       schema: documentation/schemas/reflex-failed-event.v1.json
     internal.story.enrich.v1:
-      producers: [event-router]
-      consumers: [story-engine-mcp]
+      producers:
+        - event-router
+      consumers:
+        - story-engine-mcp
       schema: documentation/schemas/envelope.v1.json
     internal.user.disposition.observation.v1:
-      producers: [event-router]
-      consumers: [disposition-service]
+      producers:
+        - event-router
+      consumers:
+        - disposition-service
       schema: documentation/schemas/envelope.v1.json
     internal.user.disposition.updated.v1:
-      producers: [disposition-service]
+      producers:
+        - disposition-service
       consumers: []
       schema: documentation/schemas/envelope.v1.json
     internal.state.mutation.v1:
-      producers: [disposition-service]
-      consumers: [state-engine]
+      producers:
+        - disposition-service
+      consumers:
+        - state-engine
       schema: documentation/schemas/envelope.v1.json
     internal.egress.v1:
-      producers: [event-router, scheduler]
-      consumers: [ingress-egress]
+      producers:
+        - event-router
+        - scheduler
+      consumers:
+        - ingress-egress
       schema: documentation/schemas/envelope.v1.json
     internal.api.egress.v1:
-      producers: [event-router]
-      consumers: [api-gateway]
+      producers:
+        - event-router
+      consumers:
+        - api-gateway
       schema: documentation/schemas/envelope.v1.json
     internal.persistence.snapshot.v1:
-      producers: [ingress-egress, api-gateway]
-      consumers: [persistence]
+      producers:
+        - ingress-egress
+        - api-gateway
+      consumers:
+        - persistence
       schema: documentation/schemas/envelope.v1.json
     internal.persistence.finalize.v1:
-      producers: [event-router]
-      consumers: [persistence]
+      producers:
+        - event-router
+      consumers:
+        - persistence
       schema: documentation/schemas/envelope.v1.json
     internal.scheduler.tick:
-      producers: [scheduler]
-      consumers: [scheduler]
+      producers:
+        - scheduler
+      consumers:
+        - scheduler
       schema: documentation/schemas/envelope.v1.json
     internal.deadletter.v1:
-      producers: [any-service]
-      consumers: [persistence]
+      producers:
+        - any-service
+      consumers:
+        - persistence
       schema: documentation/schemas/envelope.v1.json
     internal.router.dlq.v1:
-      producers: [event-router]
-      consumers: [persistence]
+      producers:
+        - event-router
+      consumers:
+        - persistence
       schema: documentation/schemas/envelope.v1.json
 conventions:
   intent: >
-    Configuration follows hierarchical resolution (env var > .secure/.env > yaml > defaults) with
-    strict separation between environment variables (runtime config) and secrets (sensitive credentials).
-    All secret VALUES are external to this file; only secret NAMES are declared to drive deployment tooling.
+    Configuration follows hierarchical resolution (env var > .secure/.env > yaml > defaults) with strict separation
+    between environment variables (runtime config) and secrets (sensitive credentials). All secret VALUES are external
+    to this file; only secret NAMES are declared to drive deployment tooling.
   references:
     environment_variables: documentation/reference/environment-variables.md
     secrets_catalog: documentation/reference/secrets-catalog.md
@@ -475,15 +479,14 @@ conventions:
       ecs: aws-secrets-manager
       k8s: kubernetes-secrets
     auto_injected_variables:
-      - K_REVISION  # Cloud Run revision name (instanceId)
-      - K_SERVICE   # Cloud Run service name
-      - K_CONFIGURATION  # Cloud Run configuration name
-      - PORT  # Cloud Run auto-assigned port
+      - K_REVISION
+      - K_SERVICE
+      - K_CONFIGURATION
+      - PORT
     secret_naming:
       pattern: UPPER_SNAKE_CASE
       no_values: Secret VALUES never stored in architecture.yaml
       deployment_driven: Declared secrets drive secret mounting/injection during deployment
-
 defaults:
   services:
     active: false
@@ -514,8 +517,8 @@ defaults:
         SERVICE_ENTRY: services.<name>.entry with leading 'src/' -> 'dist/' and '.ts' -> '.js'
       entry_to_service_entry: src/<x>.ts -> dist/<x>.js (e.g. src/apps/llm-bot-service.ts -> dist/apps/llm-bot-service.js)
       per_service_override: >-
-        A Dockerfile.<service> is honored as an explicit override (escape hatch), e.g. brat (builds
-        from tools/) and obs-mcp (uses a prebuilt image:).
+        A Dockerfile.<service> is honored as an explicit override (escape hatch), e.g. brat (builds from tools/) and
+        obs-mcp (uses a prebuilt image:).
     health:
       - /healthz
       - /readyz
@@ -537,9 +540,7 @@ services:
     mcp:
       exposure: platform-only
     active: true
-    description: >-
-      OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and
-      broadcaster accounts.
+    description: OAuth2 authentication service that handles Streaming Platform OAuth2 flow for bot and broadcaster accounts.
     kind: gateway
     external:
       - twitch
@@ -569,9 +570,9 @@ services:
       exposure: platform-only
     active: true
     description: >-
-      Bridges external event sources/sinks (e.g., Twitch EventSub/IRC, Discord, Twilio) to and from
-      internal topics, normalizing inbound events to internal.ingress.v1 and delivering
-      internal.egress.v1 responses back to the originating platform.
+      Bridges external event sources/sinks (e.g., Twitch EventSub/IRC, Discord, Twilio) to and from internal topics,
+      normalizing inbound events to internal.ingress.v1 and delivering internal.egress.v1 responses back to the
+      originating platform.
     kind: pipeline-service
     stage:
       - ingest
@@ -583,16 +584,14 @@ services:
       - slack
     stateful: false
     scaling_rationale: >-
-      Owns singleton external connections; uses a per-instance egress topic
-      (internal.egress.v1.{instanceId}) so replies route back to the instance holding the
-      connection.
+      Owns singleton external connections; uses a per-instance egress topic (internal.egress.v1.{instanceId}) so replies
+      route back to the instance holding the connection.
     entry: src/apps/ingress-egress-service.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Publishes to internal.ingress.v1, consumes from internal.egress.v1
-        - caching    # Idempotency tracking for egress deduplication (Sprint 1)
-        - persistence  # Persistence snapshot mode
+        - messaging
+        - caching
+        - persistence
     topics:
       publishes:
         - internal.ingress.v1
@@ -638,12 +637,11 @@ services:
     external:
       - twitch
     entry: src/apps/auth-service.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes from internal.auth.v1
-        - caching    # Idempotency tracking for auth enrichment (Sprint 1)
-        - persistence  # User auth state storage
+        - messaging
+        - caching
+        - persistence
     topics:
       consumes:
         - internal.auth.v1
@@ -663,10 +661,9 @@ services:
     external:
       - openai
     entry: src/apps/query-analyzer.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes from internal.query.analysis.v1
+        - messaging
     topics:
       consumes:
         - internal.query.analysis.v1
@@ -686,11 +683,10 @@ services:
     stage: route
     stateful: false
     entry: src/apps/event-router-service.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes from internal.ingress.v1, internal.enriched.v1
-        - persistence  # Command lookup and routing rules
+        - messaging
+        - persistence
     topics:
       consumes:
         - internal.ingress.v1
@@ -712,12 +708,11 @@ services:
     entry: src/apps/llm-bot-service.ts
     paths:
       - /_debug/mcp
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes from internal.llmbot.v1
-        - caching    # Idempotency tracking for LLM processing (Sprint 1)
-        - persistence  # LLM conversation memory and state
+        - messaging
+        - caching
+        - persistence
     topics:
       consumes:
         - internal.llmbot.v1
@@ -751,11 +746,10 @@ services:
     stateful: true
     owned_state: Firestore events collection (and dead-letter capture).
     entry: src/apps/persistence-service.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes from internal.ingress.v1, persistence topics
-        - persistence  # Primary data store for event storage
+        - messaging
+        - persistence
     topics:
       consumes:
         - internal.ingress.v1
@@ -799,11 +793,10 @@ services:
     kind: pipeline-service
     stage: ingest
     entry: src/apps/scheduler-service.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Publishes scheduled events to internal.ingress.v1
-        - persistence  # Stores schedule configurations
+        - messaging
+        - persistence
     topics:
       publishes:
         - internal.ingress.v1
@@ -823,14 +816,13 @@ services:
       - ingest
       - egress
     scaling_rationale: >-
-      Serves WebSocket clients; uses a per-instance egress topic
-      (internal.api.egress.v1.{instanceId}) so responses reach the instance owning the socket.
+      Serves WebSocket clients; uses a per-instance egress topic (internal.api.egress.v1.{instanceId}) so responses
+      reach the instance owning the socket.
     entry: src/apps/api-gateway.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Publishes to internal.ingress.v1, consumes from internal.api.egress.v1
-        - persistence  # Persistence snapshot mode
+        - messaging
+        - persistence
     topics:
       publishes:
         - internal.ingress.v1
@@ -856,11 +848,10 @@ services:
     stateful: true
     owned_state: Firestore state and mutation_log collections.
     entry: src/apps/state-engine.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes internal.state.mutation.v1
-        - persistence  # State and mutation_log collections
+        - messaging
+        - persistence
     topics:
       consumes:
         - internal.state.mutation.v1
@@ -878,11 +869,10 @@ services:
     stateful: true
     owned_state: Short-term, TTL-bounded user disposition snapshots (DISPOSITION_SNAPSHOT_TTL_MS).
     entry: src/apps/disposition-service.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes disposition observations, publishes state mutations
-        - persistence  # User disposition snapshots
+        - messaging
+        - persistence
     topics:
       consumes:
         - internal.user.disposition.observation.v1
@@ -909,11 +899,10 @@ services:
     description: MCP Proxy for centralized MCP tool management and security
     kind: gateway
     entry: src/apps/tool-gateway.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # MCP tool invocations via message bus
-        - persistence  # Tool registry and MCP server discovery
+        - messaging
+        - persistence
     secrets:
       - MCP_AUTH_TOKEN
   image-gen-mcp:
@@ -957,8 +946,8 @@ services:
     profile: llm
     mcp:
       exposure: platform+domain
-    active: true
-    description: Analyzes incoming events and provides summary capabilities
+    active: false  # DEPRECATED: Replaced by event-stream-analyzer (v4 streaming architecture)
+    description: '[DEPRECATED] Analyzes incoming events and provides summary capabilities - replaced by event-stream-analyzer'
     kind: pipeline-service
     stage: analyze
     entry: src/apps/stream-analyst-service.ts
@@ -975,11 +964,10 @@ services:
     kind: mcp-server
     stage: analyze
     entry: src/apps/story-engine-mcp.ts
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes story enrichment events
-        - persistence  # Stores story state and continuity
+        - messaging
+        - persistence
     topics:
       consumes:
         - internal.story.enrich.v1
@@ -991,18 +979,15 @@ services:
     mcp:
       exposure: platform+domain
     active: true
-    description: >-
-      The Reflex bit is responsible for matching and orchestrating repeated deterministic behavior
-      in a low-cost manner
+    description: The Reflex bit is responsible for matching and orchestrating repeated deterministic behavior in a low-cost manner
     kind: mcp-server
     entry: src/apps/reflex-service.ts
     port: 3000
     stage: analyze
-    # Infrastructure dependencies (v2 Schema)
     dependencies:
       infrastructure:
-        - messaging  # Consumes events for reflex matching, publishes with next/complete pattern
-        - caching    # Reflex cache for deterministic behavior patterns
+        - messaging
+        - caching
     env:
       - REFLEX_CACHE_POLL_INTERVAL_MS
   context-pack:
@@ -1015,7 +1000,19 @@ services:
     stage: analysis
     entry: src/apps/context-pack-service.ts
     port: 3000
-
+  event-stream-analyzer:
+    profile: core  # Phase 1 POC uses stub analysis; will upgrade to 'llm' in Phase 2
+    category: platform
+    mcp:
+      exposure: platform-only
+    active: true
+    description: 'Real-time event stream analysis using RxJS sliding windows (v4 streaming architecture)'
+    kind: pipeline-service
+    stage: analyze
+    entry: src/apps/event-stream-analyzer-service.ts
+    port: 3000
+    secrets:
+      - MCP_AUTH_TOKEN
 executionContexts:
   local:
     description: Local Docker development environment
@@ -1023,15 +1020,8 @@ executionContexts:
       type: docker-compose
       docker:
         host: unix:///var/run/docker.sock
-        # Sprint 15 Hook Testing: Sync test hooks
         additionalSyncPaths:
           - .brat/hooks
-      # Sprint 15 Hook Testing: All 4 hooks configured (temporarily disabled for Sprint 17 testing)
-      # hooks:
-      #   pre-deploy: .brat/hooks/agent-dev-sprint-15-hooks-test/pre-deploy-test.sh
-      #   pre-build: .brat/hooks/agent-dev-sprint-15-hooks-test/pre-build-test.sh
-      #   post-build: .brat/hooks/agent-dev-sprint-15-hooks-test/post-build-test.sh
-      #   post-deploy: .brat/hooks/agent-dev-sprint-15-hooks-test/post-deploy-test.sh
     runtime:
       gateway:
         autoDiscover: true
@@ -1051,16 +1041,14 @@ executionContexts:
           - infra.yaml
           - '{service}.yaml'
         secure: .secure.local
-    # Infrastructure configuration (v2 Schema)
     infrastructure:
-      provider: docker  # Use Docker provider for local development
-      # Context-specific overrides (optional)
+      provider: docker
       caching:
         config:
-          maxmemory: "256mb"  # Reduce memory for local dev
+          maxmemory: 256mb
       persistence:
         config:
-          maxConnections: 50  # Lower connection pool for local
+          maxConnections: 50
     tags:
       - development
       - local
@@ -1071,10 +1059,8 @@ executionContexts:
       docker:
         host: ssh://root@bitbrat.lan
         remoteDir: /opt/bitbrat-staging
-        # Sprint 15: Additional file sync paths for hooks
         additionalSyncPaths:
           - .brat/hooks
-      # Sprint 15: Deployment lifecycle hooks
       hooks:
         pre-deploy: .brat/hooks/staging/pre-deploy-gcp-auth.sh
     runtime:
@@ -1092,17 +1078,15 @@ executionContexts:
           - infra.yaml
           - '{service}.yaml'
         secure: .secure.staging
-    # Infrastructure configuration (v2 Schema)
     infrastructure:
-      provider: docker  # Use Docker provider for staging
-      # Context-specific overrides for production-like config
+      provider: docker
       caching:
         config:
-          maxmemory: "1gb"  # More memory for staging workloads
+          maxmemory: 1gb
       persistence:
         config:
-          maxConnections: 100  # Full connection pool for staging
-          sharedBuffers: "512MB"  # Increased shared buffers
+          maxConnections: 100
+          sharedBuffers: 512MB
     tags:
       - staging
       - remote
