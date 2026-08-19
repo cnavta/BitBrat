@@ -20,9 +20,19 @@ export class RxJSWindowManager {
   private subscriptions = new Map<string, Subscription>();
   private windowStates = new Map<string, WindowStateTracking>();
   private logger: any;
+  private memoryManager?: any; // Optional MemoryManager integration
 
   constructor(logger: any) {
     this.logger = logger;
+  }
+
+  /**
+   * Set MemoryManager for event tracking (optional)
+   * Called by service to enable memory management
+   */
+  setMemoryManager(memoryManager: any): void {
+    this.memoryManager = memoryManager;
+    this.logger.info('rxjs.window.memory_manager_enabled');
   }
 
   /**
@@ -345,6 +355,11 @@ export class RxJSWindowManager {
     state.eventIds.push(event.correlationId);
     state.lastEventAt = new Date().toISOString();
 
+    // Notify MemoryManager (if enabled)
+    if (this.memoryManager) {
+      this.memoryManager.addEvents(observerId, 1);
+    }
+
     this.logger.debug('rxjs.window.event_tracked', {
       observerId,
       eventId: event.correlationId,
@@ -357,6 +372,13 @@ export class RxJSWindowManager {
    * Called after onWindowClose callback completes successfully
    */
   private trackWindowClosed(observerId: string): void {
+    const state = this.windowStates.get(observerId);
+
+    // Notify MemoryManager before deleting state (if enabled)
+    if (this.memoryManager && state) {
+      this.memoryManager.removeEvents(observerId, state.eventIds.length);
+    }
+
     this.windowStates.delete(observerId);
     this.logger.debug('rxjs.window.state_reset', { observerId });
   }
@@ -400,6 +422,11 @@ export class RxJSWindowManager {
         lastEventAt: snapshot.lastEventAt
       });
 
+      // Notify MemoryManager (if enabled)
+      if (this.memoryManager) {
+        this.memoryManager.addEvents(observerId, snapshot.eventIds.length);
+      }
+
       this.logger.info('rxjs.window.state_restored', {
         observerId,
         eventCount: snapshot.eventIds.length,
@@ -411,5 +438,44 @@ export class RxJSWindowManager {
       windowCount: states.size,
       totalEvents: Array.from(states.values()).reduce((sum, s) => sum + s.eventCount, 0)
     });
+  }
+
+  /**
+   * Evict oldest events from a specific observer's window
+   * Phase 3: Called by MemoryManager integration to free memory
+   *
+   * @param observerId Observer to evict from
+   * @param count Number of events to evict (from oldest)
+   */
+  evictOldestEvents(observerId: string, count: number): number {
+    const state = this.windowStates.get(observerId);
+
+    if (!state || state.eventIds.length === 0) {
+      this.logger.warn('rxjs.window.eviction.no_events', {
+        observerId,
+        requestedEviction: count
+      });
+      return 0;
+    }
+
+    // Evict from beginning of array (oldest events)
+    const actualEvictCount = Math.min(count, state.eventIds.length);
+    const evictedIds = state.eventIds.splice(0, actualEvictCount);
+
+    // Update window started time if we evicted events
+    if (evictedIds.length > 0 && state.eventIds.length > 0) {
+      // Window now starts from the first remaining event
+      state.windowStartedAt = new Date().toISOString();
+    }
+
+    this.logger.warn('rxjs.window.eviction.complete', {
+      observerId,
+      requestedEviction: count,
+      actualEviction: actualEvictCount,
+      remainingEvents: state.eventIds.length,
+      evictedIds: evictedIds.slice(0, 5) // Log first 5 IDs
+    });
+
+    return actualEvictCount;
   }
 }

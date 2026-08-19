@@ -223,7 +223,7 @@ tasks:
       Wire MemoryManager into event processing pipeline. Check limits before
       adding events, trigger eviction when needed, update stats.
     priority: P1
-    status: pending
+    status: completed
     estimated_hours: 3
     dependencies: [P3-007]
     files:

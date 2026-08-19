@@ -4,6 +4,7 @@ import { ObserverRepository } from '../services/event-stream-analyzer/observer-r
 import { SubscriptionManager } from '../services/event-stream-analyzer/subscription-manager';
 import { StreamAnalystEngine } from '../services/stream-analyst/engine';
 import { SnapshotManager } from '../services/event-stream-analyzer/snapshot-manager';
+import { MemoryManager } from '../services/event-stream-analyzer/memory-manager';
 import type { StreamObserver } from '../types/sessi';
 import type { InternalEventV2 } from '../types/events';
 import type { IDocumentStore } from '../common/persistence/interfaces';
@@ -24,6 +25,7 @@ export class EventStreamAnalyzerServer extends Bit {
   private subscriptionManager!: SubscriptionManager;
   private engine!: StreamAnalystEngine;
   private snapshotManager!: SnapshotManager;
+  private memoryManager!: MemoryManager;
   private snapshotTimer?: NodeJS.Timeout;
 
   constructor() {
@@ -51,6 +53,16 @@ export class EventStreamAnalyzerServer extends Bit {
 
     // Phase 3: Initialize StreamAnalystEngine for real LLM analysis
     this.engine = new StreamAnalystEngine(documentStore, this.getLogger());
+
+    // Phase 3: Initialize MemoryManager for event eviction
+    this.memoryManager = new MemoryManager(this.getLogger(), {
+      maxEvents: 10000,
+      warningThreshold: 0.8,
+      evictionStrategy: 'oldest'
+    });
+
+    // Wire MemoryManager into WindowManager
+    this.windowManager.setMemoryManager(this.memoryManager);
 
     // Phase 3: Initialize SnapshotManager for crash recovery
     this.snapshotManager = new SnapshotManager(documentStore, this.getLogger(), {
@@ -80,7 +92,8 @@ export class EventStreamAnalyzerServer extends Bit {
       activeObservers: await this.observerRepository.getActiveCount(),
       subscriptionCount: this.windowManager.getSubscriptionCount(),
       activeTopics: this.subscriptionManager.getActiveTopics(),
-      snapshotStatus: this.snapshotManager.getStatus()
+      snapshotStatus: this.snapshotManager.getStatus(),
+      memoryStats: this.memoryManager.getStats()
     });
 
     // Register MCP tools
@@ -90,16 +103,34 @@ export class EventStreamAnalyzerServer extends Bit {
   /**
    * Start periodic snapshot timer
    * Phase 3: Takes snapshots every 5 minutes for crash recovery
+   * Also checks memory and triggers eviction if needed
    */
   private startPeriodicSnapshots(): void {
     const intervalMs = 300000; // 5 minutes
 
     this.snapshotTimer = setInterval(async () => {
       try {
+        // Check memory before snapshot
+        const memoryStats = this.memoryManager.getStats();
+
+        if (memoryStats.warningLevel) {
+          this.getLogger().warn('event-stream-analyzer.memory_warning', {
+            totalEvents: memoryStats.totalEvents,
+            maxEvents: memoryStats.maxEvents,
+            usagePercent: memoryStats.usagePercent,
+            criticalLevel: memoryStats.criticalLevel
+          });
+
+          // Trigger eviction if at warning level
+          await this.performMemoryEviction();
+        }
+
+        // Take snapshot
         const windowStates = this.windowManager.getAllWindowStates();
         if (windowStates.size > 0) {
           this.getLogger().debug('event-stream-analyzer.periodic_snapshot.start', {
-            windowCount: windowStates.size
+            windowCount: windowStates.size,
+            totalEvents: memoryStats.totalEvents
           });
           await this.snapshotManager.takeSnapshot(windowStates);
         }
@@ -114,6 +145,58 @@ export class EventStreamAnalyzerServer extends Bit {
     this.getLogger().info('event-stream-analyzer.periodic_snapshots.started', {
       intervalMs,
       intervalMinutes: Math.round(intervalMs / 60000)
+    });
+  }
+
+  /**
+   * Perform memory eviction when warning threshold reached
+   * Phase 3: Evicts oldest events to bring memory usage below threshold
+   */
+  private async performMemoryEviction(): Promise<void> {
+    const stats = this.memoryManager.getStats();
+
+    // Calculate how many events to evict (bring to 70% usage)
+    const targetUsage = 0.7;
+    const targetEvents = Math.floor(stats.maxEvents * targetUsage);
+    const evictCount = stats.totalEvents - targetEvents;
+
+    if (evictCount <= 0) {
+      return;
+    }
+
+    this.getLogger().info('event-stream-analyzer.eviction.start', {
+      currentEvents: stats.totalEvents,
+      targetEvents,
+      evictCount
+    });
+
+    const candidates = this.memoryManager.getEvictionCandidates(evictCount);
+
+    let totalEvicted = 0;
+
+    for (const candidate of candidates) {
+      const evicted = this.windowManager.evictOldestEvents(
+        candidate.observerId,
+        candidate.evictCount
+      );
+
+      totalEvicted += evicted;
+
+      this.getLogger().info('event-stream-analyzer.eviction.observer', {
+        observerId: candidate.observerId,
+        requestedEviction: candidate.evictCount,
+        actualEviction: evicted,
+        reason: candidate.reason
+      });
+    }
+
+    const newStats = this.memoryManager.getStats();
+
+    this.getLogger().info('event-stream-analyzer.eviction.complete', {
+      totalEvicted,
+      previousTotal: stats.totalEvents,
+      newTotal: newStats.totalEvents,
+      newUsagePercent: newStats.usagePercent
     });
   }
 
