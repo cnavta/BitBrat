@@ -250,12 +250,13 @@ tasks:
       Create MetricsCollector to export Prometheus metrics for monitoring.
       Track window size, processing latency, memory usage, and errors.
     priority: P1
-    status: pending
+    status: completed
     estimated_hours: 6
     dependencies: []
     files:
       - src/services/event-stream-analyzer/metrics-collector.ts (create)
       - src/services/event-stream-analyzer/metrics-collector.test.ts (create)
+      - src/apps/event-stream-analyzer-service.ts (modify)
     acceptance_criteria:
       - Metrics exported on /metrics endpoint
       - Window metrics (size, age, event count) by observer
@@ -267,9 +268,9 @@ tasks:
       - Unit test: Metric value updates
       - Integration test: /metrics endpoint returns valid Prometheus format
     notes: |
-      Use prom-client library (already in dependencies). Register metrics in
-      service setup(). Update metrics on each window event. Consider using
-      histograms for latency (not just gauges).
+      Implemented without prom-client dependency. MetricsCollector provides both
+      JSON and Prometheus text format export. MCP tool event_stream_analyzer.metrics.get
+      exposes metrics via control plane. Rolling average for latency (last 100 samples).
 
   - id: P3-010
     title: Enhanced Structured Logging

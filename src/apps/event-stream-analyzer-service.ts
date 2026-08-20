@@ -5,6 +5,7 @@ import { SubscriptionManager } from '../services/event-stream-analyzer/subscript
 import { StreamAnalystEngine } from '../services/stream-analyst/engine';
 import { SnapshotManager } from '../services/event-stream-analyzer/snapshot-manager';
 import { MemoryManager } from '../services/event-stream-analyzer/memory-manager';
+import { MetricsCollector } from '../services/event-stream-analyzer/metrics-collector';
 import type { StreamObserver } from '../types/sessi';
 import type { InternalEventV2 } from '../types/events';
 import type { IDocumentStore } from '../common/persistence/interfaces';
@@ -26,6 +27,7 @@ export class EventStreamAnalyzerServer extends Bit {
   private engine!: StreamAnalystEngine;
   private snapshotManager!: SnapshotManager;
   private memoryManager!: MemoryManager;
+  private metricsCollector!: MetricsCollector;
   private snapshotTimer?: NodeJS.Timeout;
 
   constructor() {
@@ -63,6 +65,9 @@ export class EventStreamAnalyzerServer extends Bit {
 
     // Wire MemoryManager into WindowManager
     this.windowManager.setMemoryManager(this.memoryManager);
+
+    // Phase 3: Initialize MetricsCollector for observability
+    this.metricsCollector = new MetricsCollector(this.getLogger());
 
     // Phase 3: Initialize SnapshotManager for crash recovery
     this.snapshotManager = new SnapshotManager(documentStore, this.getLogger(), {
@@ -132,7 +137,16 @@ export class EventStreamAnalyzerServer extends Bit {
             windowCount: windowStates.size,
             totalEvents: memoryStats.totalEvents
           });
-          await this.snapshotManager.takeSnapshot(windowStates);
+          try {
+            await this.snapshotManager.takeSnapshot(windowStates);
+            // Phase 3: Record successful snapshot
+            this.metricsCollector.recordSnapshot();
+          } catch (snapshotError: any) {
+            // Phase 3: Record snapshot error
+            this.metricsCollector.recordSnapshot(true);
+            this.metricsCollector.recordError('snapshot_error');
+            throw snapshotError;
+          }
         }
       } catch (error: any) {
         this.getLogger().error('event-stream-analyzer.periodic_snapshot.error', {
@@ -189,6 +203,9 @@ export class EventStreamAnalyzerServer extends Bit {
         reason: candidate.reason
       });
     }
+
+    // Phase 3: Record total evictions
+    this.metricsCollector.recordEviction(totalEvicted);
 
     const newStats = this.memoryManager.getStats();
 
@@ -277,6 +294,9 @@ export class EventStreamAnalyzerServer extends Bit {
           topic,
           hasMessage: !!event.message
         });
+
+        // Phase 3: Record event received
+        this.metricsCollector.recordEventReceived(1);
 
         // Feed event to window manager (will route to matching observers)
         this.windowManager.addEvent(event);
@@ -548,6 +568,44 @@ export class EventStreamAnalyzerServer extends Bit {
         });
       }
     );
+
+    // Phase 3: Get metrics
+    this.registerTool(
+      'event_stream_analyzer.metrics.get',
+      'Get comprehensive metrics for monitoring and alerting',
+      z.object({
+        format: z.enum(['json', 'prometheus']).optional().describe('Output format (default: json)')
+      }),
+      async (params) => {
+        const format = params.format || 'json';
+        const windowStates = this.windowManager.getAllWindowStates();
+        const observers = await this.observerRepository.list({ active: true });
+        const observerMap = new Map(observers.map(o => [o.id, o]));
+        const memoryStats = this.memoryManager.getStats();
+        const activeObservers = observers.length;
+        const activeSubscriptions = this.subscriptionManager.getSubscriptionCount();
+
+        if (format === 'prometheus') {
+          const prometheus = this.metricsCollector.exportPrometheusFormat(
+            windowStates,
+            observerMap,
+            memoryStats,
+            activeObservers,
+            activeSubscriptions
+          );
+          return ok(prometheus);
+        } else {
+          const metrics = this.metricsCollector.getAllMetrics(
+            windowStates,
+            observerMap,
+            memoryStats,
+            activeObservers,
+            activeSubscriptions
+          );
+          return ok(metrics);
+        }
+      }
+    );
   }
 
   /**
@@ -563,9 +621,13 @@ export class EventStreamAnalyzerServer extends Bit {
         eventCount: events.length
       });
 
+      // Phase 3: Record window closed
+      this.metricsCollector.recordWindowClosed();
+
       const observer = await this.observerRepository.get(observerId);
       if (!observer) {
         this.getLogger().warn('window.closed.observer_not_found', { observerId });
+        this.metricsCollector.recordError('observer_not_found', observerId);
         return;
       }
 
@@ -588,6 +650,9 @@ export class EventStreamAnalyzerServer extends Bit {
 
       const analysisLatencyMs = Date.now() - startTime;
 
+      // Phase 3: Record successful analysis
+      this.metricsCollector.recordAnalysis(analysisLatencyMs);
+
       // Publish to internal.summarization.report.v1 (audit trail)
       await this.publishSummaryReport(summary, observerId, events.length);
 
@@ -604,6 +669,10 @@ export class EventStreamAnalyzerServer extends Bit {
         promptId: observer.analysis?.promptId || 'default'
       });
     } catch (error: any) {
+      // Phase 3: Record analysis error
+      this.metricsCollector.recordAnalysis(Date.now() - startTime, true);
+      this.metricsCollector.recordError('analysis_error', observerId);
+
       this.getLogger().error('window.closed.error', {
         observerId,
         error: error.message,
