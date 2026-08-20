@@ -2,6 +2,10 @@ import { Bit } from '../common/base-server';
 import { RxJSWindowManager } from '../services/event-stream-analyzer/rxjs-window-manager';
 import { ObserverRepository } from '../services/event-stream-analyzer/observer-repository';
 import { SubscriptionManager } from '../services/event-stream-analyzer/subscription-manager';
+import { StreamAnalystEngine } from '../services/stream-analyst/engine';
+import { SnapshotManager } from '../services/event-stream-analyzer/snapshot-manager';
+import { MemoryManager } from '../services/event-stream-analyzer/memory-manager';
+import { MetricsCollector } from '../services/event-stream-analyzer/metrics-collector';
 import type { StreamObserver } from '../types/sessi';
 import type { InternalEventV2 } from '../types/events';
 import type { IDocumentStore } from '../common/persistence/interfaces';
@@ -10,9 +14,9 @@ import { z } from 'zod';
 /**
  * EventStreamAnalyzerServer
  * Real-time event stream analysis with multi-observer support and database persistence.
- * Phase 2: Multi-observer, window types (sliding/tumbling/session), PostgreSQL persistence
+ * Phase 3: Real LLM analysis, snapshot/recovery, observability
  *
- * Profile: core (Phase 2 stub analysis; will upgrade to 'llm' in Phase 3 for real LLM analysis)
+ * Profile: core (Phase 3: LLM analysis via StreamAnalystEngine)
  * MCP Exposure: platform-only
  * Kind: pipeline-service
  */
@@ -20,6 +24,11 @@ export class EventStreamAnalyzerServer extends Bit {
   private windowManager!: RxJSWindowManager;
   private observerRepository!: ObserverRepository;
   private subscriptionManager!: SubscriptionManager;
+  private engine!: StreamAnalystEngine;
+  private snapshotManager!: SnapshotManager;
+  private memoryManager!: MemoryManager;
+  private metricsCollector!: MetricsCollector;
+  private snapshotTimer?: NodeJS.Timeout;
 
   constructor() {
     super({ mcpExposure: 'platform-only' });
@@ -27,6 +36,11 @@ export class EventStreamAnalyzerServer extends Bit {
     // Register setup to run on startup (before HTTP server starts listening)
     this.onStartup(async () => {
       await this.setup();
+    });
+
+    // Phase 3: Register shutdown hook for final snapshot
+    this.onShutdown(async () => {
+      await this.gracefulShutdown();
     });
   }
 
@@ -39,18 +53,199 @@ export class EventStreamAnalyzerServer extends Bit {
     const documentStore = this.getResource('documentStore') as IDocumentStore;
     this.observerRepository = new ObserverRepository(documentStore, this.getLogger());
 
+    // Phase 3: Initialize StreamAnalystEngine for real LLM analysis
+    this.engine = new StreamAnalystEngine(documentStore, this.getLogger());
+
+    // Phase 3: Initialize MemoryManager for event eviction
+    this.memoryManager = new MemoryManager(this.getLogger(), {
+      maxEvents: 10000,
+      warningThreshold: 0.8,
+      evictionStrategy: 'oldest'
+    });
+
+    // Wire MemoryManager into WindowManager
+    this.windowManager.setMemoryManager(this.memoryManager);
+
+    // Phase 3: Initialize MetricsCollector for observability
+    this.metricsCollector = new MetricsCollector(this.getLogger());
+
+    // Phase 3: Initialize SnapshotManager for crash recovery
+    this.snapshotManager = new SnapshotManager(documentStore, this.getLogger(), {
+      enabled: true,
+      snapshotIntervalMs: 300000,   // 5 minutes (default)
+      staleThresholdMs: 600000      // 10 minutes (default)
+    });
+
+    // Phase 3: Restore windows from last snapshot (before loading observers)
+    const restoredStates = await this.snapshotManager.restoreWindows();
+    if (restoredStates.size > 0) {
+      this.windowManager.restoreWindowStates(restoredStates);
+      this.getLogger().info('event-stream-analyzer.setup.windows_restored', {
+        windowCount: restoredStates.size
+      });
+    }
+
     // Load observers from database and create windows
     await this.loadObserversFromDatabase();
+
+    // Phase 3: Start periodic snapshot loop
+    await this.snapshotManager.start();
+    this.startPeriodicSnapshots();
 
     this.getLogger().info('event-stream-analyzer.setup.complete', {
       service: this.serviceName,
       activeObservers: await this.observerRepository.getActiveCount(),
       subscriptionCount: this.windowManager.getSubscriptionCount(),
-      activeTopics: this.subscriptionManager.getActiveTopics()
+      activeTopics: this.subscriptionManager.getActiveTopics(),
+      snapshotStatus: this.snapshotManager.getStatus(),
+      memoryStats: this.memoryManager.getStats()
     });
 
     // Register MCP tools
     this.registerObserverTools();
+  }
+
+  /**
+   * Start periodic snapshot timer
+   * Phase 3: Takes snapshots every 5 minutes for crash recovery
+   * Also checks memory and triggers eviction if needed
+   */
+  private startPeriodicSnapshots(): void {
+    const intervalMs = 300000; // 5 minutes
+
+    this.snapshotTimer = setInterval(async () => {
+      try {
+        // Check memory before snapshot
+        const memoryStats = this.memoryManager.getStats();
+
+        if (memoryStats.warningLevel) {
+          this.getLogger().warn('event-stream-analyzer.memory_warning', {
+            totalEvents: memoryStats.totalEvents,
+            maxEvents: memoryStats.maxEvents,
+            usagePercent: memoryStats.usagePercent,
+            criticalLevel: memoryStats.criticalLevel
+          });
+
+          // Trigger eviction if at warning level
+          await this.performMemoryEviction();
+        }
+
+        // Take snapshot
+        const windowStates = this.windowManager.getAllWindowStates();
+        if (windowStates.size > 0) {
+          const snapshotId = `snapshot-${Date.now()}`;
+          const totalEvents = Array.from(windowStates.values()).reduce((sum, s) => sum + s.eventCount, 0);
+
+          this.getLogger().debug('event-stream-analyzer.periodic_snapshot.start', {
+            snapshotId,
+            windowCount: windowStates.size,
+            totalEvents,
+            memoryUsagePercent: memoryStats.usagePercent
+          });
+
+          try {
+            await this.snapshotManager.takeSnapshot(windowStates);
+            // Phase 3: Record successful snapshot
+            this.metricsCollector.recordSnapshot();
+
+            this.getLogger().debug('event-stream-analyzer.periodic_snapshot.complete', {
+              snapshotId,
+              windowCount: windowStates.size,
+              totalEvents
+            });
+          } catch (snapshotError: any) {
+            // Phase 3: Record snapshot error
+            this.metricsCollector.recordSnapshot(true);
+            this.metricsCollector.recordError('snapshot_error');
+
+            this.getLogger().error('event-stream-analyzer.periodic_snapshot.failed', {
+              snapshotId,
+              error: snapshotError.message,
+              errorType: snapshotError.constructor.name,
+              windowCount: windowStates.size,
+              totalEvents
+            });
+
+            throw snapshotError;
+          }
+        }
+      } catch (error: any) {
+        this.getLogger().error('event-stream-analyzer.periodic_snapshot.error', {
+          error: error.message,
+          stack: error.stack
+        });
+      }
+    }, intervalMs);
+
+    this.getLogger().info('event-stream-analyzer.periodic_snapshots.started', {
+      intervalMs,
+      intervalMinutes: Math.round(intervalMs / 60000)
+    });
+  }
+
+  /**
+   * Perform memory eviction when warning threshold reached
+   * Phase 3: Evicts oldest events to bring memory usage below threshold
+   */
+  private async performMemoryEviction(): Promise<void> {
+    const stats = this.memoryManager.getStats();
+    const evictionId = `evict-${Date.now()}`;
+
+    // Calculate how many events to evict (bring to 70% usage)
+    const targetUsage = 0.7;
+    const targetEvents = Math.floor(stats.maxEvents * targetUsage);
+    const evictCount = stats.totalEvents - targetEvents;
+
+    if (evictCount <= 0) {
+      return;
+    }
+
+    // Phase 3: Enhanced structured logging with eviction context
+    this.getLogger().warn('event-stream-analyzer.eviction.start', {
+      evictionId,
+      currentEvents: stats.totalEvents,
+      targetEvents,
+      evictCount,
+      currentUsagePercent: stats.usagePercent,
+      targetUsagePercent: targetUsage
+    });
+
+    const candidates = this.memoryManager.getEvictionCandidates(evictCount);
+
+    let totalEvicted = 0;
+
+    for (const candidate of candidates) {
+      const evicted = this.windowManager.evictOldestEvents(
+        candidate.observerId,
+        candidate.evictCount
+      );
+
+      totalEvicted += evicted;
+
+      this.getLogger().debug('event-stream-analyzer.eviction.observer', {
+        evictionId,
+        observerId: candidate.observerId,
+        requestedEviction: candidate.evictCount,
+        actualEviction: evicted,
+        reason: candidate.reason
+      });
+    }
+
+    // Phase 3: Record total evictions
+    this.metricsCollector.recordEviction(totalEvicted);
+
+    const newStats = this.memoryManager.getStats();
+
+    this.getLogger().warn('event-stream-analyzer.eviction.complete', {
+      evictionId,
+      totalEvicted,
+      candidateCount: candidates.length,
+      previousTotal: stats.totalEvents,
+      newTotal: newStats.totalEvents,
+      previousUsagePercent: stats.usagePercent,
+      newUsagePercent: newStats.usagePercent,
+      freedPercent: (stats.usagePercent - newStats.usagePercent).toFixed(2)
+    });
   }
 
   /**
@@ -130,6 +325,9 @@ export class EventStreamAnalyzerServer extends Bit {
           topic,
           hasMessage: !!event.message
         });
+
+        // Phase 3: Record event received
+        this.metricsCollector.recordEventReceived(1);
 
         // Feed event to window manager (will route to matching observers)
         this.windowManager.addEvent(event);
@@ -228,10 +426,18 @@ export class EventStreamAnalyzerServer extends Bit {
         // Create window and subscription
         await this.createObserverWindow(created);
 
+        // Phase 3: Enhanced structured logging
         this.getLogger().info('observer.created', {
           observerId: created.id,
           windowType: created.window?.type,
-          topics: created.source?.topics
+          windowSizeMs: created.window?.sizeMs,
+          slideMs: created.window?.slideMs,
+          topics: created.source?.topics,
+          platforms: created.source?.filters?.platforms,
+          eventTypes: created.source?.filters?.eventTypes,
+          promptId: created.analysis?.promptId,
+          egressTopic: created.delivery.egressTopic,
+          mcpEnabled: created.mcpEnabled
         });
 
         return ok({
@@ -320,22 +526,29 @@ export class EventStreamAnalyzerServer extends Bit {
         // Update in database
         await this.observerRepository.update(params.observerId, changes);
 
+        // Get updated observer for logging and potential window recreation
+        const updated = await this.observerRepository.get(params.observerId);
+
         // Recreate window if configuration changed
         if (changes.window || changes.source) {
           // Remove old window
           this.windowManager.removeObserver(params.observerId);
 
-          // Get updated observer
-          const updated = await this.observerRepository.get(params.observerId);
           if (updated && updated.active) {
             // Create new window
             await this.createObserverWindow(updated);
           }
         }
 
+        // Phase 3: Enhanced structured logging
         this.getLogger().info('observer.updated', {
           observerId: params.observerId,
-          changes: Object.keys(changes)
+          changes: Object.keys(changes),
+          active: updated?.active,
+          windowType: updated?.window?.type,
+          promptId: updated?.analysis?.promptId,
+          egressTopic: updated?.delivery.egressTopic,
+          windowRecreated: !!changes.window
         });
 
         return ok({
@@ -370,8 +583,12 @@ export class EventStreamAnalyzerServer extends Bit {
         // Delete from database
         await this.observerRepository.delete(params.observerId);
 
+        // Phase 3: Enhanced structured logging
         this.getLogger().info('observer.removed', {
-          observerId: params.observerId
+          observerId: params.observerId,
+          windowType: observer.window?.type,
+          topics: topics.length,
+          wasActive: observer.active
         });
 
         return ok({
@@ -401,32 +618,115 @@ export class EventStreamAnalyzerServer extends Bit {
         });
       }
     );
+
+    // Phase 3: Get metrics
+    this.registerTool(
+      'event_stream_analyzer.metrics.get',
+      'Get comprehensive metrics for monitoring and alerting',
+      z.object({
+        format: z.enum(['json', 'prometheus']).optional().describe('Output format (default: json)')
+      }),
+      async (params) => {
+        const format = params.format || 'json';
+        const windowStates = this.windowManager.getAllWindowStates();
+        const observers = await this.observerRepository.list({ active: true });
+        const observerMap = new Map(observers.map(o => [o.id, o]));
+        const memoryStats = this.memoryManager.getStats();
+        const activeObservers = observers.length;
+        const activeSubscriptions = this.subscriptionManager.getSubscriptionCount();
+
+        if (format === 'prometheus') {
+          const prometheus = this.metricsCollector.exportPrometheusFormat(
+            windowStates,
+            observerMap,
+            memoryStats,
+            activeObservers,
+            activeSubscriptions
+          );
+          return ok(prometheus);
+        } else {
+          const metrics = this.metricsCollector.getAllMetrics(
+            windowStates,
+            observerMap,
+            memoryStats,
+            activeObservers,
+            activeSubscriptions
+          );
+          return ok(metrics);
+        }
+      }
+    );
   }
 
   /**
    * Handle window closure - called by RxJSWindowManager
-   * Phase 2: Stub analysis (same as Phase 1)
-   * TODO Phase 3: Replace with StreamAnalystEngine.summarize() integration
+   * Phase 3: Real LLM analysis via StreamAnalystEngine
    */
   private async handleWindowClose(events: InternalEventV2[], observerId: string): Promise<void> {
+    const startTime = Date.now();
+    const correlationId = events[0]?.correlationId || `window-${observerId}-${Date.now()}`;
+
     try {
+      // Phase 3: Enhanced structured logging with correlation ID and context
       this.getLogger().info('window.closed.analyzing', {
         observerId,
-        eventCount: events.length
+        eventCount: events.length,
+        correlationId,
+        windowType: events[0]?.type,
+        platform: events[0]?.ingress?.source
       });
+
+      // Phase 3: Record window closed
+      this.metricsCollector.recordWindowClosed();
 
       const observer = await this.observerRepository.get(observerId);
       if (!observer) {
-        this.getLogger().warn('window.closed.observer_not_found', { observerId });
+        this.getLogger().warn('window.closed.observer_not_found', {
+          observerId,
+          correlationId
+        });
+        this.metricsCollector.recordError('observer_not_found', observerId);
         return;
       }
 
-      // Phase 2: Stub analysis (formatted event summary)
-      // TODO: Replace with StreamAnalystEngine.summarize() integration in Phase 3
-      const summary = this.generateStubSummary(events, observer);
+      // Skip analysis if no events
+      if (events.length === 0) {
+        this.getLogger().info('window.closed.no_events', {
+          observerId,
+          correlationId
+        });
+        return;
+      }
+
+      // Phase 3: Real LLM analysis via StreamAnalystEngine
+      // Note: Engine will query events from database based on observerId and windowMinutes
+      const windowMinutes = Math.ceil((observer.window?.sizeMs || 300000) / 60000);
+      const requestId = `window-${observerId}-${Date.now()}`;
+
+      this.getLogger().debug('window.closed.llm_analysis.start', {
+        observerId,
+        correlationId,
+        requestId,
+        windowMinutes,
+        promptId: observer.analysis?.promptId,
+        inspectionEnabled: observer.analysis?.inspectionEnabled || false
+      });
+
+      const summary = await this.engine.summarize({
+        requestId,
+        observerId,
+        streamType: 'chat', // TODO: Make configurable per observer
+        windowMinutes,
+        inspectionEnabled: observer.analysis?.inspectionEnabled || false
+      });
+
+      const analysisLatencyMs = Date.now() - startTime;
+
+      // Phase 3: Record successful analysis
+      this.metricsCollector.recordAnalysis(analysisLatencyMs);
 
       // Publish to internal.summarization.report.v1 (audit trail)
-      await this.publishSummaryReport(summary, observerId);
+      await this.publishSummaryReport(summary, observerId, events.length);
 
       // Publish to internal.egress.v1 (user delivery)
       if (observer.delivery.egressTopic) {
@@ -435,55 +735,36 @@ export class EventStreamAnalyzerServer extends Bit {
 
       this.getLogger().info('window.closed.complete', {
         observerId,
+        correlationId,
+        requestId,
         eventCount: events.length,
-        summaryLength: summary.length
+        summaryLength: summary.length,
+        analysisLatencyMs,
+        promptId: observer.analysis?.promptId || 'default',
+        egressTopic: observer.delivery.egressTopic
       });
     } catch (error: any) {
+      // Phase 3: Record analysis error
+      this.metricsCollector.recordAnalysis(Date.now() - startTime, true);
+      this.metricsCollector.recordError('analysis_error', observerId);
+
       this.getLogger().error('window.closed.error', {
         observerId,
+        correlationId,
         error: error.message,
-        stack: error.stack
+        errorType: error.constructor.name,
+        stack: error.stack,
+        analysisLatencyMs: Date.now() - startTime,
+        eventCount: events.length
       });
     }
   }
 
-  /**
-   * Generate stub summary for Phase 2
-   * TODO: Replace with LLM-powered analysis
-   */
-  private generateStubSummary(events: InternalEventV2[], observer: StreamObserver): string {
-    const platforms = new Set(events.map(e => e.ingress?.source).filter(Boolean));
-    const messageCount = events.filter(e => e.message).length;
-    const eventTypes = new Set(events.map(e => e.type));
-
-    return `# Stream Analysis Report
-
-**Observer:** ${observer.id}
-**Window Type:** ${observer.window?.type || 'sliding'}
-**Timestamp:** ${new Date().toISOString()}
-**Event Count:** ${events.length}
-
-## Summary
-- **Platforms:** ${Array.from(platforms).join(', ') || 'none'}
-- **Message Events:** ${messageCount}
-- **Event Types:** ${Array.from(eventTypes).join(', ')}
-
-## Sample Events
-${events.slice(0, 5).map(e =>
-  `- [${e.type}] ${e.message?.text?.substring(0, 100) || 'No message'}`
-).join('\n')}
-
-${events.length > 5 ? `\n... and ${events.length - 5} more events` : ''}
-
----
-*Generated by event-stream-analyzer (Phase 2)*
-`;
-  }
 
   /**
    * Publish summary to internal.summarization.report.v1 (audit trail)
    */
-  private async publishSummaryReport(summary: string, observerId: string): Promise<void> {
+  private async publishSummaryReport(summary: string, observerId: string, eventCount: number): Promise<void> {
     const reportEvent: InternalEventV2 = {
       v: '2',
       correlationId: `summary-${observerId}-${Date.now()}`,
@@ -506,8 +787,9 @@ ${events.length > 5 ? `\n... and ${events.length - 5} more events` : ''}
       payload: {
         observerId,
         summary,
-        eventCount: summary.split('\n').length,
-        generatedAt: new Date().toISOString()
+        eventCount,
+        generatedAt: new Date().toISOString(),
+        analysisEngine: 'llm' // Phase 3: Real LLM analysis
       },
       routing: {
         stage: 'response',
@@ -580,6 +862,77 @@ ${events.length > 5 ? `\n... and ${events.length - 5} more events` : ''}
       observerId: observer.id,
       correlationId: egressEvent.correlationId
     });
+  }
+
+  /**
+   * Graceful shutdown with final snapshot
+   * Phase 3: Ensures zero data loss on clean shutdown
+   */
+  private async gracefulShutdown(): Promise<void> {
+    const shutdownId = `shutdown-${Date.now()}`;
+    const shutdownStartTime = Date.now();
+
+    // Phase 3: Enhanced structured logging
+    this.getLogger().info('event-stream-analyzer.shutdown.start', {
+      shutdownId,
+      memoryStats: this.memoryManager.getStats(),
+      activeSubscriptions: this.windowManager.getSubscriptionCount()
+    });
+
+    try {
+      // Stop periodic snapshot timer
+      if (this.snapshotTimer) {
+        clearInterval(this.snapshotTimer);
+        this.snapshotTimer = undefined;
+        this.getLogger().debug('event-stream-analyzer.shutdown.timer_stopped', {
+          shutdownId
+        });
+      }
+
+      // Stop snapshot manager
+      await this.snapshotManager.stop();
+
+      // Take final snapshot before destroying windows
+      const windowStates = this.windowManager.getAllWindowStates();
+      if (windowStates.size > 0) {
+        const totalEvents = Array.from(windowStates.values()).reduce((sum, s) => sum + s.eventCount, 0);
+
+        this.getLogger().info('event-stream-analyzer.shutdown.final_snapshot.start', {
+          shutdownId,
+          windowCount: windowStates.size,
+          totalEvents
+        });
+
+        await this.snapshotManager.takeSnapshot(windowStates);
+
+        this.getLogger().info('event-stream-analyzer.shutdown.final_snapshot.complete', {
+          shutdownId,
+          windowCount: windowStates.size,
+          totalEvents
+        });
+      }
+
+      // Cleanup subscriptions
+      this.windowManager.destroy();
+      await this.subscriptionManager.destroy();
+
+      const shutdownDurationMs = Date.now() - shutdownStartTime;
+
+      this.getLogger().info('event-stream-analyzer.shutdown.complete', {
+        shutdownId,
+        durationMs: shutdownDurationMs,
+        windowsSnapshot: windowStates.size,
+        dataLoss: false // Zero data loss on graceful shutdown
+      });
+    } catch (error: any) {
+      this.getLogger().error('event-stream-analyzer.shutdown.error', {
+        shutdownId,
+        error: error.message,
+        errorType: error.constructor.name,
+        stack: error.stack,
+        durationMs: Date.now() - shutdownStartTime
+      });
+    }
   }
 
   public async close(reason: string = 'manual'): Promise<void> {
