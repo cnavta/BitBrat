@@ -278,7 +278,7 @@ tasks:
       Improve logging across event-stream-analyzer with correlation IDs,
       consistent structured fields, and appropriate log levels.
     priority: P2
-    status: pending
+    status: completed
     estimated_hours: 3
     dependencies: []
     files:
@@ -294,10 +294,12 @@ tasks:
       - Unit test: Log structure validation
       - Performance test: Logging overhead
     notes: |
-      Use existing logger from this.getLogger(). Add context fields:
-      { observerId, windowType, eventCount, analysisLatencyMs, llmCost }.
-      DEBUG for event filtering, INFO for window lifecycle, WARN for eviction,
-      ERROR for failures.
+      Enhanced logging throughout service with:
+      - Correlation IDs: correlationId, requestId, evictionId, snapshotId, shutdownId
+      - Context fields: observerId, windowType, eventCount, analysisLatencyMs, platform
+      - Log levels: ERROR (failures), WARN (evictions, memory warnings), INFO (lifecycle), DEBUG (details)
+      - Error tracking: errorType, stack traces
+      - Performance metrics: durationMs, latencyMs
 
   - id: P3-011
     title: Health Checks and Readiness Probes

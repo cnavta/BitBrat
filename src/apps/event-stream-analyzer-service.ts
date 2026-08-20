@@ -133,18 +133,39 @@ export class EventStreamAnalyzerServer extends Bit {
         // Take snapshot
         const windowStates = this.windowManager.getAllWindowStates();
         if (windowStates.size > 0) {
+          const snapshotId = `snapshot-${Date.now()}`;
+          const totalEvents = Array.from(windowStates.values()).reduce((sum, s) => sum + s.eventCount, 0);
+
           this.getLogger().debug('event-stream-analyzer.periodic_snapshot.start', {
+            snapshotId,
             windowCount: windowStates.size,
-            totalEvents: memoryStats.totalEvents
+            totalEvents,
+            memoryUsagePercent: memoryStats.usagePercent
           });
+
           try {
             await this.snapshotManager.takeSnapshot(windowStates);
             // Phase 3: Record successful snapshot
             this.metricsCollector.recordSnapshot();
+
+            this.getLogger().debug('event-stream-analyzer.periodic_snapshot.complete', {
+              snapshotId,
+              windowCount: windowStates.size,
+              totalEvents
+            });
           } catch (snapshotError: any) {
             // Phase 3: Record snapshot error
             this.metricsCollector.recordSnapshot(true);
             this.metricsCollector.recordError('snapshot_error');
+
+            this.getLogger().error('event-stream-analyzer.periodic_snapshot.failed', {
+              snapshotId,
+              error: snapshotError.message,
+              errorType: snapshotError.constructor.name,
+              windowCount: windowStates.size,
+              totalEvents
+            });
+
             throw snapshotError;
           }
         }
@@ -168,6 +189,7 @@ export class EventStreamAnalyzerServer extends Bit {
    */
   private async performMemoryEviction(): Promise<void> {
     const stats = this.memoryManager.getStats();
+    const evictionId = `evict-${Date.now()}`;
 
     // Calculate how many events to evict (bring to 70% usage)
     const targetUsage = 0.7;
@@ -178,10 +200,14 @@ export class EventStreamAnalyzerServer extends Bit {
       return;
     }
 
-    this.getLogger().info('event-stream-analyzer.eviction.start', {
+    // Phase 3: Enhanced structured logging with eviction context
+    this.getLogger().warn('event-stream-analyzer.eviction.start', {
+      evictionId,
       currentEvents: stats.totalEvents,
       targetEvents,
-      evictCount
+      evictCount,
+      currentUsagePercent: stats.usagePercent,
+      targetUsagePercent: targetUsage
     });
 
     const candidates = this.memoryManager.getEvictionCandidates(evictCount);
@@ -196,7 +222,8 @@ export class EventStreamAnalyzerServer extends Bit {
 
       totalEvicted += evicted;
 
-      this.getLogger().info('event-stream-analyzer.eviction.observer', {
+      this.getLogger().debug('event-stream-analyzer.eviction.observer', {
+        evictionId,
         observerId: candidate.observerId,
         requestedEviction: candidate.evictCount,
         actualEviction: evicted,
@@ -209,11 +236,15 @@ export class EventStreamAnalyzerServer extends Bit {
 
     const newStats = this.memoryManager.getStats();
 
-    this.getLogger().info('event-stream-analyzer.eviction.complete', {
+    this.getLogger().warn('event-stream-analyzer.eviction.complete', {
+      evictionId,
       totalEvicted,
+      candidateCount: candidates.length,
       previousTotal: stats.totalEvents,
       newTotal: newStats.totalEvents,
-      newUsagePercent: newStats.usagePercent
+      previousUsagePercent: stats.usagePercent,
+      newUsagePercent: newStats.usagePercent,
+      freedPercent: (stats.usagePercent - newStats.usagePercent).toFixed(2)
     });
   }
 
@@ -395,10 +426,18 @@ export class EventStreamAnalyzerServer extends Bit {
         // Create window and subscription
         await this.createObserverWindow(created);
 
+        // Phase 3: Enhanced structured logging
         this.getLogger().info('observer.created', {
           observerId: created.id,
           windowType: created.window?.type,
-          topics: created.source?.topics
+          windowSizeMs: created.window?.sizeMs,
+          slideMs: created.window?.slideMs,
+          topics: created.source?.topics,
+          platforms: created.source?.filters?.platforms,
+          eventTypes: created.source?.filters?.eventTypes,
+          promptId: created.analysis?.promptId,
+          egressTopic: created.delivery.egressTopic,
+          mcpEnabled: created.mcpEnabled
         });
 
         return ok({
@@ -487,22 +526,29 @@ export class EventStreamAnalyzerServer extends Bit {
         // Update in database
         await this.observerRepository.update(params.observerId, changes);
 
+        // Get updated observer for logging and potential window recreation
+        const updated = await this.observerRepository.get(params.observerId);
+
         // Recreate window if configuration changed
         if (changes.window || changes.source) {
           // Remove old window
           this.windowManager.removeObserver(params.observerId);
 
-          // Get updated observer
-          const updated = await this.observerRepository.get(params.observerId);
           if (updated && updated.active) {
             // Create new window
             await this.createObserverWindow(updated);
           }
         }
 
+        // Phase 3: Enhanced structured logging
         this.getLogger().info('observer.updated', {
           observerId: params.observerId,
-          changes: Object.keys(changes)
+          changes: Object.keys(changes),
+          active: updated?.active,
+          windowType: updated?.window?.type,
+          promptId: updated?.analysis?.promptId,
+          egressTopic: updated?.delivery.egressTopic,
+          windowRecreated: !!changes.window
         });
 
         return ok({
@@ -537,8 +583,12 @@ export class EventStreamAnalyzerServer extends Bit {
         // Delete from database
         await this.observerRepository.delete(params.observerId);
 
+        // Phase 3: Enhanced structured logging
         this.getLogger().info('observer.removed', {
-          observerId: params.observerId
+          observerId: params.observerId,
+          windowType: observer.window?.type,
+          topics: topics.length,
+          wasActive: observer.active
         });
 
         return ok({
@@ -614,11 +664,16 @@ export class EventStreamAnalyzerServer extends Bit {
    */
   private async handleWindowClose(events: InternalEventV2[], observerId: string): Promise<void> {
     const startTime = Date.now();
+    const correlationId = events[0]?.correlationId || `window-${observerId}-${Date.now()}`;
 
     try {
+      // Phase 3: Enhanced structured logging with correlation ID and context
       this.getLogger().info('window.closed.analyzing', {
         observerId,
-        eventCount: events.length
+        eventCount: events.length,
+        correlationId,
+        windowType: events[0]?.type,
+        platform: events[0]?.ingress?.source
       });
 
       // Phase 3: Record window closed
@@ -626,22 +681,39 @@ export class EventStreamAnalyzerServer extends Bit {
 
       const observer = await this.observerRepository.get(observerId);
       if (!observer) {
-        this.getLogger().warn('window.closed.observer_not_found', { observerId });
+        this.getLogger().warn('window.closed.observer_not_found', {
+          observerId,
+          correlationId
+        });
         this.metricsCollector.recordError('observer_not_found', observerId);
         return;
       }
 
       // Skip analysis if no events
       if (events.length === 0) {
-        this.getLogger().info('window.closed.no_events', { observerId });
+        this.getLogger().info('window.closed.no_events', {
+          observerId,
+          correlationId
+        });
         return;
       }
 
       // Phase 3: Real LLM analysis via StreamAnalystEngine
       // Note: Engine will query events from database based on observerId and windowMinutes
       const windowMinutes = Math.ceil((observer.window?.sizeMs || 300000) / 60000);
+      const requestId = `window-${observerId}-${Date.now()}`;
+
+      this.getLogger().debug('window.closed.llm_analysis.start', {
+        observerId,
+        correlationId,
+        requestId,
+        windowMinutes,
+        promptId: observer.analysis?.promptId,
+        inspectionEnabled: observer.analysis?.inspectionEnabled || false
+      });
+
       const summary = await this.engine.summarize({
-        requestId: `window-${observerId}-${Date.now()}`,
+        requestId,
         observerId,
         streamType: 'chat', // TODO: Make configurable per observer
         windowMinutes,
@@ -663,10 +735,13 @@ export class EventStreamAnalyzerServer extends Bit {
 
       this.getLogger().info('window.closed.complete', {
         observerId,
+        correlationId,
+        requestId,
         eventCount: events.length,
         summaryLength: summary.length,
         analysisLatencyMs,
-        promptId: observer.analysis?.promptId || 'default'
+        promptId: observer.analysis?.promptId || 'default',
+        egressTopic: observer.delivery.egressTopic
       });
     } catch (error: any) {
       // Phase 3: Record analysis error
@@ -675,9 +750,12 @@ export class EventStreamAnalyzerServer extends Bit {
 
       this.getLogger().error('window.closed.error', {
         observerId,
+        correlationId,
         error: error.message,
+        errorType: error.constructor.name,
         stack: error.stack,
-        analysisLatencyMs: Date.now() - startTime
+        analysisLatencyMs: Date.now() - startTime,
+        eventCount: events.length
       });
     }
   }
@@ -791,14 +869,24 @@ export class EventStreamAnalyzerServer extends Bit {
    * Phase 3: Ensures zero data loss on clean shutdown
    */
   private async gracefulShutdown(): Promise<void> {
-    this.getLogger().info('event-stream-analyzer.shutdown.start');
+    const shutdownId = `shutdown-${Date.now()}`;
+    const shutdownStartTime = Date.now();
+
+    // Phase 3: Enhanced structured logging
+    this.getLogger().info('event-stream-analyzer.shutdown.start', {
+      shutdownId,
+      memoryStats: this.memoryManager.getStats(),
+      activeSubscriptions: this.windowManager.getSubscriptionCount()
+    });
 
     try {
       // Stop periodic snapshot timer
       if (this.snapshotTimer) {
         clearInterval(this.snapshotTimer);
         this.snapshotTimer = undefined;
-        this.getLogger().debug('event-stream-analyzer.shutdown.timer_stopped');
+        this.getLogger().debug('event-stream-analyzer.shutdown.timer_stopped', {
+          shutdownId
+        });
       }
 
       // Stop snapshot manager
@@ -807,21 +895,42 @@ export class EventStreamAnalyzerServer extends Bit {
       // Take final snapshot before destroying windows
       const windowStates = this.windowManager.getAllWindowStates();
       if (windowStates.size > 0) {
-        this.getLogger().info('event-stream-analyzer.shutdown.final_snapshot', {
-          windowCount: windowStates.size
+        const totalEvents = Array.from(windowStates.values()).reduce((sum, s) => sum + s.eventCount, 0);
+
+        this.getLogger().info('event-stream-analyzer.shutdown.final_snapshot.start', {
+          shutdownId,
+          windowCount: windowStates.size,
+          totalEvents
         });
+
         await this.snapshotManager.takeSnapshot(windowStates);
+
+        this.getLogger().info('event-stream-analyzer.shutdown.final_snapshot.complete', {
+          shutdownId,
+          windowCount: windowStates.size,
+          totalEvents
+        });
       }
 
       // Cleanup subscriptions
       this.windowManager.destroy();
       await this.subscriptionManager.destroy();
 
-      this.getLogger().info('event-stream-analyzer.shutdown.complete');
+      const shutdownDurationMs = Date.now() - shutdownStartTime;
+
+      this.getLogger().info('event-stream-analyzer.shutdown.complete', {
+        shutdownId,
+        durationMs: shutdownDurationMs,
+        windowsSnapshot: windowStates.size,
+        dataLoss: false // Zero data loss on graceful shutdown
+      });
     } catch (error: any) {
       this.getLogger().error('event-stream-analyzer.shutdown.error', {
+        shutdownId,
         error: error.message,
-        stack: error.stack
+        errorType: error.constructor.name,
+        stack: error.stack,
+        durationMs: Date.now() - shutdownStartTime
       });
     }
   }
