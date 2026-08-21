@@ -705,4 +705,266 @@ describe('FeedbackMiddleware', () => {
       expect(publishedEvents).toHaveLength(1); // Still 1
     });
   });
+
+  // Sprint 21: Tests for annotation timestamp extraction fix
+  describe('Annotation Timestamp Extraction (Sprint 21)', () => {
+    it('should use startedAt from annotation (number format)', async () => {
+      const middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 1000,
+          useCustomMessages: false,
+        }
+      );
+
+      // Create annotation with startedAt 3 seconds ago (number format)
+      const threeSecondsAgo = Date.now() - 3000;
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: threeSecondsAgo,
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.beforeNext(event);
+
+      // Should send progress message because 3000ms > 1000ms threshold
+      expect(publishedEvents).toHaveLength(1);
+      expect(publishedEvents[0].topic).toBe('internal.egress.v1');
+    });
+
+    it('should use startedAt from annotation (ISO string format)', async () => {
+      const middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 1000,
+          useCustomMessages: false,
+        }
+      );
+
+      // Create annotation with startedAt 3 seconds ago (ISO string format)
+      const threeSecondsAgo = new Date(Date.now() - 3000).toISOString();
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: threeSecondsAgo,
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.beforeNext(event);
+
+      // Should send progress message
+      expect(publishedEvents).toHaveLength(1);
+    });
+
+    it('should fallback to current time when no startedAt in annotation', async () => {
+      const middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 1000,
+          useCustomMessages: false,
+        }
+      );
+
+      // Create annotation WITHOUT startedAt
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              // No startedAt field
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.beforeNext(event);
+
+      // Should NOT send progress message because elapsed time ~0ms
+      expect(publishedEvents).toHaveLength(0);
+    });
+
+    it('should fallback to current time when startedAt is invalid', async () => {
+      const middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 1000,
+          useCustomMessages: false,
+        }
+      );
+
+      // Create annotation with invalid startedAt
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: { invalid: 'object' }, // Invalid format
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.beforeNext(event);
+
+      // Should NOT send progress message (fallback to current time)
+      expect(publishedEvents).toHaveLength(0);
+    });
+
+    it('should NOT send progress when annotation shows elapsed < threshold', async () => {
+      const middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 2000,
+          useCustomMessages: false,
+        }
+      );
+
+      // Create annotation with startedAt 500ms ago (< 2000ms threshold)
+      const halfSecondAgo = Date.now() - 500;
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: halfSecondAgo,
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.beforeNext(event);
+
+      // Should NOT send progress message (500ms < 2000ms)
+      expect(publishedEvents).toHaveLength(0);
+    });
+
+    it('should send progress when annotation shows elapsed > threshold', async () => {
+      const middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 1000,
+          useCustomMessages: false,
+        }
+      );
+
+      // Create annotation with startedAt 5 seconds ago (> 1000ms threshold)
+      const fiveSecondsAgo = Date.now() - 5000;
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: fiveSecondsAgo,
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.beforeNext(event);
+
+      // Should send progress message (5000ms > 1000ms)
+      expect(publishedEvents).toHaveLength(1);
+      expect(publishedEvents[0].event.message?.text).toContain('Thinking');
+    });
+
+    it('should calculate elapsed time correctly from annotation', async () => {
+      const middleware = new FeedbackMiddleware(
+        {
+          getLogger: () => mockLogger,
+          publish: mockPublish,
+        },
+        {
+          initialThresholdMs: 1000,
+          useCustomMessages: false,
+        }
+      );
+
+      // Create annotation with precise timestamp
+      const exactlyThreeSecondsAgo = Date.now() - 3000;
+      const event = createMockEvent({
+        annotations: [
+          {
+            kind: 'operation_context',
+            value: JSON.stringify({
+              operation: 'llm_request',
+              startedAt: exactlyThreeSecondsAgo,
+            }),
+            source: 'llm-bot',
+            id: randomUUID(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+
+      await middleware.beforeNext(event);
+
+      // Verify progress message sent
+      expect(publishedEvents).toHaveLength(1);
+
+      // Verify the progress_feedback annotation contains timing info
+      const progressEvent = publishedEvents[0].event;
+      const progressAnnotation = progressEvent.annotations?.find(
+        (a) => a.kind === 'progress_feedback'
+      );
+      expect(progressAnnotation).toBeDefined();
+
+      if (progressAnnotation?.value) {
+        const progressData = JSON.parse(progressAnnotation.value);
+        // Elapsed time should be approximately 3000ms (with small tolerance for test execution time)
+        expect(progressData.elapsedMs).toBeGreaterThanOrEqual(2900);
+        expect(progressData.elapsedMs).toBeLessThanOrEqual(3100);
+      }
+    });
+  });
 });

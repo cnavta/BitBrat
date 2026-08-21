@@ -266,9 +266,46 @@ export class FeedbackMiddleware {
       return existing;
     }
 
+    // Extract startedAt from operation_context annotation (Sprint 21 fix)
+    // Services like llm-bot provide the actual operation start time in the annotation
+    let startedAt: Date;
+    let startedAtSource: string;
+
+    if (operationContext.startedAt) {
+      // Handle number format (milliseconds since epoch)
+      if (typeof operationContext.startedAt === 'number') {
+        startedAt = new Date(operationContext.startedAt);
+        startedAtSource = 'annotation_ms';
+      }
+      // Handle ISO string format
+      else if (typeof operationContext.startedAt === 'string') {
+        startedAt = new Date(operationContext.startedAt);
+        startedAtSource = 'annotation_iso';
+      }
+      // Handle Date object (unlikely but defensive)
+      else if (operationContext.startedAt instanceof Date) {
+        startedAt = operationContext.startedAt;
+        startedAtSource = 'annotation_date';
+      }
+      // Invalid format, fallback to current time
+      else {
+        startedAt = new Date();
+        startedAtSource = 'current_time_invalid_annotation';
+        this.logger.warn('Invalid startedAt format in operation_context', {
+          correlationId: event.correlationId,
+          startedAtType: typeof operationContext.startedAt,
+          startedAtValue: operationContext.startedAt,
+        });
+      }
+    } else {
+      // No startedAt in annotation, use current time
+      startedAt = new Date();
+      startedAtSource = 'current_time_no_annotation';
+    }
+
     const state: OperationState = {
       correlationId: event.correlationId,
-      startedAt: new Date(),
+      startedAt,
       stage: 'initial',
       operationContext,
       originalMessage: event.message?.text || '',
@@ -279,6 +316,8 @@ export class FeedbackMiddleware {
     this.logger.debug('Operation tracking started', {
       correlationId: event.correlationId,
       operation: operationContext.operation,
+      startedAt: startedAt.toISOString(),
+      startedAtSource,
     });
 
     return state;
