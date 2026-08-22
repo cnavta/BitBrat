@@ -66,6 +66,10 @@ export default class BitCreate extends BratCommand {
       description: 'Overwrite existing files',
       default: false,
     }),
+    'dry-run': Flags.boolean({
+      description: 'Preview what would be created without actually creating files (Sprint 23: T2.1)',
+      default: false,
+    }),
     register: Flags.boolean({
       description: 'Also register in architecture.yaml',
       default: false,
@@ -98,6 +102,7 @@ export default class BitCreate extends BratCommand {
     if (flags.description) legacyFlags.description = flags.description;
     if (flags.active) legacyFlags.active = flags.active;
     if (flags.force) legacyFlags.force = flags.force;
+    if (flags['dry-run']) legacyFlags['dry-run'] = flags['dry-run'];
     if (flags.register) legacyFlags.register = flags.register;
 
     // Delegate to legacy business logic
