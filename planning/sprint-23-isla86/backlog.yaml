@@ -10,9 +10,10 @@ metadata:
   status: in-progress
   total_tasks: 14
   estimated_hours: 9
-  completed_tasks: 6
-  completed_hours: 6
+  completed_tasks: 9
+  completed_hours: 8
   phase_1_complete: true
+  phase_2_complete: true
 
 # Task Status Legend:
 # - pending: Not started
@@ -178,8 +179,10 @@ phase_2:
         and validating before execution.
       priority: P1
       estimated_hours: 0.75
-      status: pending
+      status: completed
+      completed_at: 2026-08-22
       dependencies: [T1.3]
+      notes: "Implemented dry-run mode with file size preview. Tested with and without --register flag."
       files:
         - path: tools/brat/src/cli/bit/create.ts
           action: modify
@@ -209,8 +212,10 @@ phase_2:
         Make it easy for users to understand what went wrong and how to fix it.
       priority: P1
       estimated_hours: 0.5
-      status: pending
+      status: completed
+      completed_at: 2026-08-22
       dependencies: [T1.3]
+      notes: "Added suggestions field to ValidationResult. Enhanced all validation functions with specific suggestions based on errors."
       files:
         - path: tools/brat/src/cli/bit/create.ts
           action: modify
@@ -236,8 +241,10 @@ phase_2:
         longer needed.
       priority: P1
       estimated_hours: 0.75
-      status: pending
+      status: completed
+      completed_at: 2026-08-22
       dependencies: [T1.1]
+      notes: "Created cleanup.ts and oclif command. Dry-run by default, tested successfully on test files."
       files:
         - path: tools/brat/src/cli/bit/cleanup.ts
           action: create
