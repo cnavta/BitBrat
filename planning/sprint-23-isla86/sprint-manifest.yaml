@@ -1,0 +1,30 @@
+id: sprint-23-isla86
+title: Fix brat bit create command
+goal: Fix and validate the `brat bit create` npm script command, ensuring it
+  works correctly in worktree environments and handles all infrastructure setup
+  properly
+owner: navta
+createdAt: 2026-08-22T18:46:34.108Z
+completedAt: 2026-08-22T23:30:00.000Z
+status: complete
+completionMode: normal
+links:
+  branch: feature/sprint-23-isla86-fix-brat-bit-create-command
+notes: |
+  Sprint initialized via MCP start-sprint tool
+
+  Sprint completed successfully with all 14 tasks finished.
+  All 3 phases complete (Critical Fixes, UX Enhancements, Testing).
+  All 7 identified issues resolved.
+  67 tests passing (43 unit + 24 integration).
+  Ready for PR creation and code review.
+
+summary:
+  total_tasks: 14
+  completed_tasks: 14
+  estimated_hours: 9
+  actual_hours: 9
+  commits: 11
+  tests: 67
+  files_created: 7
+  files_modified: 4
