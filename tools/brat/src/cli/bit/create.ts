@@ -154,6 +154,10 @@ export async function cmdBitCreate(
   if (!nameResult.valid) {
     console.error('\n❌ Validation Error:\n');
     nameResult.errors.forEach(err => console.error(`  ${err}`));
+    if (nameResult.suggestions && nameResult.suggestions.length > 0) {
+      console.error('\n💡 Suggestions:\n');
+      nameResult.suggestions.forEach(sug => console.error(`  ${sug}`));
+    }
     console.error('');
     process.exit(2);
   }
@@ -163,7 +167,11 @@ export async function cmdBitCreate(
   if (!profileResult.valid) {
     console.error('\n❌ Validation Error:\n');
     profileResult.errors.forEach(err => console.error(`  ${err}`));
-    console.error('\nValid combinations:');
+    if (profileResult.suggestions && profileResult.suggestions.length > 0) {
+      console.error('\n💡 Suggestions:\n');
+      profileResult.suggestions.forEach(sug => console.error(`  ${sug}`));
+    }
+    console.error('\n📋 Valid combinations:');
     console.error('  - core: platform-only | none');
     console.error('  - gateway: platform-only | platform+domain | none');
     console.error('  - llm: platform-only | none');
@@ -179,6 +187,10 @@ export async function cmdBitCreate(
     if (!existsResult.valid) {
       console.error('\n❌ Validation Error:\n');
       existsResult.errors.forEach(err => console.error(`  ${err}`));
+      if (existsResult.suggestions && existsResult.suggestions.length > 0) {
+        console.error('\n💡 Suggestions:\n');
+        existsResult.suggestions.forEach(sug => console.error(`  ${sug}`));
+      }
       console.error('');
       process.exit(2);
     }
