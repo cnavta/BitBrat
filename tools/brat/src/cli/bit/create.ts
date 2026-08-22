@@ -10,6 +10,8 @@ import { loadArchitecture } from '../../config/loader';
 import { validateBitName, validateProfileExposure, validateBitDoesNotExist } from './validation';
 import { generateAppSource, generateTest, generateDockerfile, generateCompose, TemplateOptions } from './templates';
 import { registerBitInArchitecture, RegistrationOptions } from './registry';
+import { getGitInfo, validateGitEnvironment } from './git-utils';
+import { getSprintInfo, validateSprintContext } from './sprint-utils';
 
 /**
  * Parse command-line flags
@@ -99,7 +101,28 @@ export async function cmdBitCreate(
   const force = parsedFlags.force === true || parsedFlags.force === 'true';
   const register = parsedFlags.register === true || parsedFlags.register === 'true';
 
-  const root = process.cwd();
+  // Sprint 23: Validate git environment and get repository root
+  const gitValidation = validateGitEnvironment();
+  if (!gitValidation.valid) {
+    console.error('\n❌ Environment Error:\n');
+    gitValidation.errors.forEach(err => console.error(`  ${err}`));
+    console.error('');
+    process.exit(2);
+  }
+
+  const gitInfo = getGitInfo();
+  const root = gitInfo.repoRoot!; // Safe because validated above
+
+  // Sprint 23: Check sprint context and warn if appropriate
+  const sprintInfo = getSprintInfo(root);
+  const contextValidation = validateSprintContext(gitInfo, sprintInfo);
+
+  if (contextValidation.shouldWarn && !force) {
+    console.warn(contextValidation.message);
+    console.log('To proceed anyway, use --force to bypass this warning.');
+    console.log('');
+    process.exit(0);
+  }
 
   // Validate inputs
   logger.info({ name, profile, exposure, kind }, 'Validating Bit configuration');

@@ -365,7 +365,7 @@ export default class Doctor extends BratCommand {
 ```bash
 npm run brat -- bit create <name> \
   --profile <core|gateway|llm|mcp-server> \
-  --category <platform|domain> \
+  --kind <pipeline-service|gateway|mcp-server> \
   --exposure <platform-only|platform+domain|none> \
   --register --active
 ```
@@ -377,6 +377,31 @@ npm run brat -- bit create <name> \
 - `mcp-server` → platform+domain (required)
 
 **Generated files**: `src/apps/<name>-service.ts`, test file, Dockerfile, docker-compose service
+
+**Worktree Awareness** (Sprint 23):
+- During active sprint: Command detects sprint worktree and validates location
+- Creates files in git repository root (not current working directory)
+- Warns if running from main repo while active sprint exists
+- Use `--force` to bypass sprint context warnings
+- Files always created in correct location regardless of `pwd`
+
+**Example - Sprint Context Warning**:
+```bash
+# Running from main repo with active sprint
+$ npm run brat -- bit create my-service
+
+⚠️  Active sprint detected: sprint-23-isla86
+   Sprint worktree: .worktrees/sprint-23-isla86
+   Current location: /path/to/main/repo
+
+   Best practice: Create Bits in the sprint worktree during active sprints.
+
+To proceed anyway, use --force to bypass this warning.
+
+# To proceed: either cd to worktree or use --force
+$ cd .worktrees/sprint-23-isla86
+$ npm run brat -- bit create my-service  # No warning
+```
 
 **IMPORTANT - Always validate new services in agent-dev**:
 ```bash
