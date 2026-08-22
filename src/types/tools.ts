@@ -18,6 +18,8 @@ export interface ToolExecutionContext {
   correlationId?: string;
   /** Optional abort signal to cancel execution */
   signal?: AbortSignal;
+  /** Optional session ID for stateful tool invocations (Sprint 22) */
+  sessionId?: string;
 }
 
 /**

@@ -197,7 +197,7 @@ export class PostgresDocumentStore implements IDocumentStore {
       const result = await this.pool.query(sql, params);
       const latency = Date.now() - startTime;
 
-      this.logger.debug?.(
+      this.logger.trace?.(
         `[PostgresDocumentStore] query ${collection} (${result.rows.length} rows, ${latency}ms)${isVectorSearch ? ' [vector search]' : ''}`
       );
 

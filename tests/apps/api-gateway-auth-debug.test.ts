@@ -96,28 +96,48 @@ describe('ApiGatewayServer - Auth Debug', () => {
   it('should still allow authenticated connection when API_GATEWAY_ALLOW_ANONYMOUS_WS is false', async () => {
     process.env.API_GATEWAY_ALLOW_ANONYMOUS_WS = 'false';
     await server.start(0);
-    
+
     const authServiceMock = (server as any).authService;
     authServiceMock.validateToken.mockResolvedValue('user-123');
 
     const address = (server as any).httpServer.address();
     const port = address.port;
 
+    // Small delay to ensure server is fully ready
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     const ws = new WebSocket(`ws://localhost:${port}/ws/v1`, {
       headers: {
         'authorization': 'Bearer valid-token'
       }
     });
-    
+
     return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        ws.terminate(); // Force close
+        reject(new Error('Connection timeout'));
+      }, 2000);
+
       ws.on('open', () => {
+        clearTimeout(timeout);
+
+        // Wait for close to complete before resolving
+        ws.on('close', () => {
+          resolve(true);
+        });
+
         ws.close();
-        resolve(true);
       });
+
       ws.on('error', (err) => {
+        clearTimeout(timeout);
+        ws.terminate();
         reject(err);
       });
+
       ws.on('unexpected-response', (req, res) => {
+        clearTimeout(timeout);
+        ws.terminate();
         reject(new Error(`Unexpected response: ${res.statusCode}`));
       });
     });
