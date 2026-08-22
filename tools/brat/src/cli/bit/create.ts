@@ -357,6 +357,18 @@ Profile/Exposure Compatibility:
   llm        → platform-only | none
   mcp-server → platform+domain (required)
 
+Worktree Awareness (Sprint 23):
+  - Files created in git repository root (not current working directory)
+  - Sprint context detection: Warns if active sprint exists
+  - Use --force to bypass sprint context warnings
+  - Best practice: Create bits in active sprint worktree when available
+
+Cleanup:
+  - Remove generated files with: brat bit cleanup <name>
+  - Cleanup is dry-run by default (safe)
+  - Use --force to actually remove files
+  - See: brat bit cleanup --help
+
 For more information, see CLAUDE.md or documentation/tools/brat.md
 `);
 }
