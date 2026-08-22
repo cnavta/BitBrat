@@ -1,0 +1,603 @@
+# Sprint 22 Backlog: Agent Progress Update MCP Tool
+# Created: 2026-08-21
+# Lead Implementor: Claude Code
+# Status: Ready for Execution
+
+metadata:
+  sprintId: sprint-22-p0k9gp
+  title: Agent Progress Update MCP Tool
+  goal: Create internal MCP tool allowing agents to send progress updates to requestors
+  owner: claude
+  estimatedEffort: 8-12 hours
+  actualEffort: null
+  status: planning
+  scope: |
+    Core tool infrastructure only. Agent integration (llm-bot, reflex, etc.) and
+    egress enhancements are out of scope for this sprint. Focus is on creating
+    the platform-internal tool that agents CAN call when needed.
+
+# Task prioritization:
+# P0 = Critical path (blocks completion)
+# P1 = High priority (needed for quality)
+# P2 = Medium priority (enhances solution)
+# P3 = Low priority (nice to have)
+
+# Task states:
+# - todo: Not started
+# - in_progress: Currently being worked on
+# - blocked: Waiting on dependency
+# - done: Completed and tested
+# - deferred: Moved to future sprint
+
+tasks:
+  # =============================================================================
+  # PHASE 1: Core Tool Implementation (4-6 hours)
+  # =============================================================================
+
+  - id: task-1.1
+    title: Create Tool Schema with Zod
+    description: |
+      Define SendProgressUpdateSchema with Zod validation for message, context,
+      emoji, and urgency fields. Ensure proper TypeScript type inference.
+    phase: 1
+    priority: P0
+    estimatedHours: 0.5
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies: []
+    files:
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - Schema accepts valid messages (1-500 chars)
+      - Schema rejects empty messages
+      - Schema rejects messages >500 chars
+      - Optional fields work (context, emoji, urgency)
+      - TypeScript types infer correctly
+    testCommand: npm test -- tool-gateway-progress-tool.test.ts -t "Schema Validation"
+    blockers: []
+    notes: null
+
+  - id: task-1.2
+    title: Implement registerPlatformTools() Method
+    description: |
+      Add registerPlatformTools() method to ToolGatewayServer that registers
+      platform-internal tools. Call before setupRegistryWatcher() to ensure
+      platform tools are available immediately.
+    phase: 1
+    priority: P0
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-1.1
+    files:
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - registerPlatformTools() called in setup()
+      - Method called before registry watcher
+      - Tool registered with name 'agent.sendProgressUpdate'
+      - Tool appears in registry
+      - Logs show platform tool registration
+      - No breaking changes to existing behavior
+    testCommand: npm run brat -- fleet info tool-gateway | grep "agent.sendProgressUpdate"
+    blockers: []
+    notes: |
+      Establishes pattern for future platform-internal tools:
+      - agent.requestApproval
+      - agent.escalateToHuman
+      - platform.rateLimit.check
+
+  - id: task-1.3
+    title: Implement Tool Handler Stub
+    description: |
+      Create handleSendProgressUpdate() method with correct signature and
+      stub implementation. Returns placeholder response for testing.
+    phase: 1
+    priority: P0
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-1.2
+    files:
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - Handler accepts SendProgressUpdateArgs
+      - Handler accepts optional extra parameter
+      - Returns CallToolResult
+      - Logs tool invocation
+      - Stub returns placeholder text
+      - No runtime errors when called
+    testCommand: null
+    blockers: []
+    notes: Full implementation in Phase 2
+
+  - id: task-1.4
+    title: Add Session Context Extraction
+    description: |
+      Extract session context from tool-gateway's sessionContexts map.
+      Validate sessionId, session existence, event presence, and egress.
+      Return graceful warnings for all failure cases.
+    phase: 1
+    priority: P0
+    estimatedHours: 2.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-1.3
+    files:
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - Validates sessionId presence
+      - Extracts session from sessionContexts map
+      - Validates event presence in session
+      - Validates egress destination
+      - Returns graceful warnings (never throws)
+      - Logs at appropriate levels (info, warn, debug)
+    testCommand: npm test -- tool-gateway-progress-tool.test.ts -t "Error Handling"
+    blockers: []
+    notes: |
+      Key insight: Direct access to sessionContexts - no MCP extra passing needed!
+
+  # =============================================================================
+  # PHASE 2: Event Building & Routing (4-6 hours)
+  # =============================================================================
+
+  - id: task-2.1
+    title: Implement Progress Event Builder
+    description: |
+      Create buildProgressEvent() method that constructs InternalEventV2 with
+      progress message as candidate, empty routing slip, and preserved context
+      from original event.
+    phase: 2
+    priority: P0
+    estimatedHours: 2.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-1.4
+    files:
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - Progress event has correct InternalEventV2 structure
+      - Type is 'chat.message.v1'
+      - Routing slip is empty array
+      - Candidate contains progress text with emoji
+      - Original ingress/identity/egress preserved
+      - New correlationId generated
+      - progress_update annotation present
+      - Metadata includes originalCorrelationId
+    testCommand: npm test -- tool-gateway-progress-tool.test.ts -t "Handler Logic"
+    blockers: []
+    notes: |
+      CRITICAL: Use candidates[], not message field
+      CRITICAL: Empty slip signals "route to egress"
+
+  - id: task-2.2
+    title: Implement next() Routing
+    description: |
+      Call this.next(progressEvent) to route through platform safeguards.
+      Add try/catch for error handling. Log before and after next() call.
+    phase: 2
+    priority: P0
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-2.1
+    files:
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - Calls this.next(progressEvent)
+      - Logs before next() (debug level)
+      - Logs after next() (info level)
+      - Catches next() failures
+      - Returns success on success
+      - Returns error on failure (isError: true)
+      - Never throws unhandled exception
+    testCommand: npm test -- progress-update-integration.test.ts -t "should send progress"
+    blockers: []
+    notes: null
+
+  - id: task-2.3
+    title: Verify Empty Slip Routing
+    description: |
+      Verify that Bit.next() correctly routes events with empty slip to egress
+      destination. Add test case to confirm behavior. Ensure FeedbackMiddleware
+      doesn't interfere.
+    phase: 2
+    priority: P0
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-2.2
+    files:
+      - src/common/base-server.ts
+      - src/common/base-server.test.ts
+    acceptanceCriteria:
+      - Confirm next() handles empty slip correctly
+      - Confirm routes to egress.destination when slip empty
+      - Test case added for empty slip routing
+      - FeedbackMiddleware doesn't interfere with progress
+    testCommand: npm test -- base-server.test.ts -t "next with empty slip"
+    blockers: []
+    notes: |
+      Reference: base-server.ts:1000-1100 (existing logic)
+      Just verify and add test coverage
+
+  - id: task-2.4
+    title: Add Comprehensive Error Handling
+    description: |
+      Add validation for all edge cases: missing ingress, missing identity,
+      invalid event structure. Return descriptive error messages.
+    phase: 2
+    priority: P1
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-2.2
+    files:
+      - src/apps/tool-gateway.ts
+    acceptanceCriteria:
+      - Validates all required event fields
+      - Returns descriptive error messages
+      - Logs all error scenarios
+      - Graceful degradation (never crash)
+      - Test coverage for all error paths
+    testCommand: npm test -- tool-gateway-progress-tool.test.ts -t "Error Handling"
+    blockers: []
+    notes: null
+
+  # =============================================================================
+  # PHASE 3: Egress Enhancement - OUT OF SCOPE
+  # =============================================================================
+  # Phase 3 removed per user request - egress enhancements deferred to future sprint
+
+  # =============================================================================
+  # PHASE 4: Agent Integration - OUT OF SCOPE
+  # =============================================================================
+  # Phase 4 removed per user request - agent integration deferred to future sprint
+  # This sprint focuses on creating the tool infrastructure; agents can integrate later
+
+  # =============================================================================
+  # PHASE 5: Testing & Documentation (3-5 hours)
+  # =============================================================================
+
+  - id: task-5.1
+    title: Unit Test Suite for Tool Handler
+    description: |
+      Create comprehensive unit test suite covering schema validation, handler
+      logic, error handling, and observability. Target 20+ tests, >90% coverage.
+    phase: 5
+    priority: P1
+    estimatedHours: 2.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-2.4
+    files:
+      - src/apps/__tests__/tool-gateway-progress-tool.test.ts
+    acceptanceCriteria:
+      - Schema validation tests (6)
+      - Handler logic tests (6)
+      - Error handling tests (4)
+      - Observability tests (4)
+      - All tests pass
+      - Coverage >90% for new code
+      - Tests run in <5 seconds
+    testCommand: npm test -- tool-gateway-progress-tool.test.ts
+    blockers: []
+    notes: |
+      Test categories:
+      - Schema: valid, empty, too long, optional fields
+      - Handler: event building, routing, correlation
+      - Errors: missing session, missing event, missing egress
+      - Logs: invocation, success, warnings, errors
+
+  - id: task-5.2
+    title: Integration Test Suite
+    description: |
+      Create end-to-end integration tests covering full flow from llm-bot
+      through tool-gateway to egress. Test multi-connector, correlation chain,
+      failure handling.
+    phase: 5
+    priority: P1
+    estimatedHours: 1.5
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-4.3
+      - task-5.1
+    files:
+      - src/apps/__tests__/progress-update-integration.test.ts
+    acceptanceCriteria:
+      - End-to-end flow test
+      - Multiple progress updates test
+      - Multi-connector test (Twitch/Discord/Slack)
+      - CorrelationId chain test
+      - Failure handling test
+      - All tests pass
+    testCommand: npm test -- progress-update-integration.test.ts
+    blockers: []
+    notes: |
+      Integration test flow:
+      1. Simulate user message
+      2. llm-bot receives event
+      3. llm-bot calls agent.sendProgressUpdate
+      4. Verify egress event published
+      5. Verify message delivered to connector
+
+  - id: task-5.3
+    title: Agent-Dev Validation
+    description: |
+      Deploy to agent-dev context and validate tool registration and basic
+      functionality via direct MCP tool call. Verify tool appears in registry
+      and can be invoked successfully.
+    phase: 5
+    priority: P0
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-5.2
+    files:
+      - planning/sprint-22-p0k9gp/agent-dev-validation.md
+    acceptanceCriteria:
+      - tool-gateway deploys successfully
+      - Tool appears in fleet info
+      - Tool can be called via MCP (direct test)
+      - Tool returns expected result
+      - No errors in logs
+      - Validation results documented
+    testCommand: null
+    blockers: []
+    notes: |
+      Validation steps:
+      1. Provision agent-dev-sprint-22
+      2. Deploy tool-gateway
+      3. Verify service running
+      4. Check tool registration: brat fleet info tool-gateway
+      5. Test tool call (via test script or manual MCP call)
+      6. Verify logs
+      7. Document results
+      8. Tear down
+
+      No agent integration testing - just tool infrastructure
+
+  - id: task-5.4
+    title: Documentation Updates
+    description: |
+      Update CLAUDE.md with platform-internal tool pattern. Update reference
+      docs with tool signature. Update guides with usage examples.
+    phase: 5
+    priority: P1
+    estimatedHours: 0.5
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-5.3
+    files:
+      - CLAUDE.md
+      - documentation/reference/bit-control-plane.md
+      - documentation/guides/agent-flow-patterns.md
+    acceptanceCriteria:
+      - CLAUDE.md includes platform-internal tool pattern
+      - Reference docs include agent.sendProgressUpdate signature
+      - Guides include progress update usage pattern
+      - Examples clear and actionable
+    testCommand: null
+    blockers: []
+    notes: |
+      Documentation sections:
+      1. Quick Reference: MCP tool call pattern
+      2. Reference: Tool signature and parameters
+      3. Guide: When to send progress, how to estimate time
+
+  # =============================================================================
+  # SPRINT COMPLETION TASKS
+  # =============================================================================
+
+  - id: task-6.1
+    title: Code Review and Cleanup
+    description: |
+      Review all code changes. Remove debug logs. Check TypeScript errors.
+      Run linter. Verify no unused imports.
+    phase: 6
+    priority: P0
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-5.4
+    files: []
+    acceptanceCriteria:
+      - No TypeScript errors
+      - No ESLint warnings
+      - No unused imports
+      - Debug logs removed
+      - Code reviewed
+    testCommand: npm run lint && npm run build
+    blockers: []
+    notes: null
+
+  - id: task-6.2
+    title: Create Sprint Artifacts
+    description: |
+      Create verification report, retrospective, and key learnings documents.
+      Update sprint manifest with completion status.
+    phase: 6
+    priority: P0
+    estimatedHours: 1.0
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-6.1
+    files:
+      - planning/sprint-22-p0k9gp/VERIFICATION.md
+      - planning/sprint-22-p0k9gp/RETROSPECTIVE.md
+      - planning/sprint-22-p0k9gp/key-learnings.md
+      - planning/sprint-22-p0k9gp/sprint-manifest.yaml
+    acceptanceCriteria:
+      - Verification report complete
+      - Retrospective complete
+      - Key learnings documented
+      - Sprint manifest updated
+    testCommand: null
+    blockers: []
+    notes: null
+
+  - id: task-6.3
+    title: Create Pull Request
+    description: |
+      Create PR with comprehensive description. Include test results, validation
+      report, and deployment notes. Request review.
+    phase: 6
+    priority: P0
+    estimatedHours: 0.5
+    actualHours: null
+    status: todo
+    assignee: null
+    dependencies:
+      - task-6.2
+    files: []
+    acceptanceCriteria:
+      - PR created with good description
+      - Test results included
+      - Validation report linked
+      - Deployment notes included
+      - Review requested
+    testCommand: null
+    blockers: []
+    notes: |
+      PR should include:
+      - Summary of changes
+      - Technical approach
+      - Test coverage report
+      - Agent-dev validation results
+      - Deployment plan
+
+# =============================================================================
+# SUMMARY STATISTICS
+# =============================================================================
+
+summary:
+  totalTasks: 15
+  tasksByPhase:
+    phase1: 4  # Core Tool Implementation
+    phase2: 4  # Event Building & Routing
+    phase3: 0  # Removed - out of scope
+    phase4: 0  # Removed - out of scope
+    phase5: 4  # Testing & Documentation
+    phase6: 3  # Sprint Completion
+
+  outOfScope:
+    phase3: Egress enhancement (deferred to future sprint)
+    phase4: Agent integration (deferred to future sprint)
+    removedTasks: 7
+
+  tasksByPriority:
+    P0: 9   # Critical path (reduced)
+    P1: 6   # High priority
+    P2: 0   # Medium priority
+    P3: 0   # Low priority (all removed)
+
+  tasksByStatus:
+    todo: 15
+    in_progress: 0
+    blocked: 0
+    done: 0
+    removed: 7
+
+  estimatedEffort:
+    total: 12.5 hours
+    phase1: 4.5 hours
+    phase2: 5.0 hours
+    phase5: 5.0 hours
+    phase6: 2.5 hours
+    removed: 7.0 hours
+
+  criticalPath:
+    - task-1.1
+    - task-1.2
+    - task-1.3
+    - task-1.4
+    - task-2.1
+    - task-2.2
+    - task-2.3
+    - task-2.4
+    - task-5.3
+    - task-6.1
+    - task-6.2
+    - task-6.3
+
+  risks:
+    - name: Empty slip routing doesn't work as expected
+      probability: low
+      impact: high
+      mitigation: Verify in task-2.3; add test coverage
+    - name: Session context missing in tool-gateway
+      probability: medium
+      impact: high
+      mitigation: Graceful fallback in task-1.4
+    - name: FeedbackMiddleware interference
+      probability: low
+      impact: medium
+      mitigation: Test in Phase 2; disable if needed
+
+  dependencies:
+    external: []
+    internal:
+      - Bit.next() routing logic (existing)
+      - tool-gateway sessionContexts (existing)
+      - MCP tool registration (existing)
+
+# =============================================================================
+# NOTES
+# =============================================================================
+
+notes: |
+  This backlog represents a focused 1.5-2 day sprint creating the core tool
+  infrastructure. Agent integration and egress enhancements are explicitly
+  OUT OF SCOPE for this sprint.
+
+  Sprint Scope:
+  - Create platform-internal MCP tool on tool-gateway
+  - Implement event building and routing logic
+  - Comprehensive testing (unit + integration)
+  - Agent-dev validation of tool infrastructure only
+  - Documentation of tool API and usage pattern
+
+  Out of Scope (Future Sprints):
+  - Phase 3: Egress enhancement (annotation detection, urgency handling)
+  - Phase 4: Agent integration (llm-bot, reflex, etc.)
+  - Time estimation heuristics
+  - Real-world user scenarios with agents
+
+  Key Decisions:
+  - Focus on tool infrastructure, not integration
+  - No pre-LLM estimation or automatic calling
+  - Agents can integrate when needed (future work)
+  - Agent-dev validation tests tool registration only
+  - Documentation focuses on tool API, not integration patterns
+
+  Execution Strategy:
+  - Follow critical path: Phase 1 → Phase 2 → Phase 5 → Phase 6
+  - Run unit tests after each task
+  - Validate tool registration in agent-dev
+  - Create comprehensive sprint artifacts

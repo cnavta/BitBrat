@@ -1,0 +1,12 @@
+id: sprint-22-p0k9gp
+title: Agent Progress Update MCP Tool
+goal: Create internal MCP tool allowing agents to send progress updates to
+  requestors before long-running operations
+owner: claude
+createdAt: 2026-08-21T20:18:28.562Z
+status: complete
+links:
+  branch: feature/sprint-22-p0k9gp-agent-progress-update-mcp-tool
+notes: Sprint initialized via MCP start-sprint tool
+completedAt: 2026-08-22T17:57:01.742Z
+completionMode: normal
